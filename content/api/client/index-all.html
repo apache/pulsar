@@ -202,10 +202,6 @@
 <dd>
 <div class="block">Get a new builder instance that can used to configure and build a <a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api"><code>PulsarClient</code></a> instance.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Schema.html#BYTES">BYTES</a></span> - Static variable in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a></dt>
-<dd>
-<div class="block">Schema that doesn't perform any encoding on the message payloads.</div>
-</dd>
 </dl>
 <a name="I:C">
 <!--   -->
@@ -356,7 +352,7 @@
 <dd>
 <div class="block">Create an instance of the Authentication-Plugin</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageBuilder.html#create-org.apache.pulsar.client.api.Schema-">create(Schema&lt;T&gt;)</a></span> - Static method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageBuilder.html#create--">create(&lt;any&gt;)</a></span> - Static method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Create a new message builder instance.</div>
@@ -469,10 +465,6 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/url/DataURLStreamHandler.html#DataURLStreamHandler--">DataURLStreamHandler()</a></span> - Constructor for class org.apache.pulsar.client.api.url.<a href="org/apache/pulsar/client/api/url/DataURLStreamHandler.html" title="class in org.apache.pulsar.client.api.url">DataURLStreamHandler</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Schema.html#decode-byte:A-">decode(byte[])</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a></dt>
-<dd>
-<div class="block">Decode a byte array into an object using the schema definition and deserializer implementation</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageBuilder.html#disableReplication--">disableReplication()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
@@ -505,10 +497,6 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#enableTlsHostnameVerification-boolean-">enableTlsHostnameVerification(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
 <dd>
 <div class="block">It allows to validate hostname verification when client connects to broker over tls.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Schema.html#encode-T-">encode(T)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a></dt>
-<dd>
-<div class="block">Encode an object representing the message content into a byte array.</div>
 </dd>
 <dt><a href="org/apache/pulsar/client/api/EncodedAuthenticationParameterSupport.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">EncodedAuthenticationParameterSupport</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
@@ -819,8 +807,6 @@
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 &nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Schema.html#getSchemaInfo--">getSchemaInfo()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerStats.html#getSendBytesRate--">getSendBytesRate()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerStats.html" title="interface in org.apache.pulsar.client.api">ProducerStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerStats.html#getSendLatencyMillis50pct--">getSendLatencyMillis50pct()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerStats.html" title="interface in org.apache.pulsar.client.api">ProducerStats</a></dt>
@@ -1154,7 +1140,7 @@
 <dd>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer-org.apache.pulsar.client.api.Schema-">newConsumer(Schema&lt;T&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--">newConsumer(&lt;any&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </dd>
@@ -1168,7 +1154,7 @@
 <dd>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer-org.apache.pulsar.client.api.Schema-">newProducer(Schema&lt;T&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--">newProducer(&lt;any&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </dd>
@@ -1176,7 +1162,7 @@
 <dd>
 <div class="block">Create a topic reader for reading messages from the specified topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newReader-org.apache.pulsar.client.api.Schema-">newReader(Schema&lt;T&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newReader--">newReader(&lt;any&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
 <div class="block">Create a topic reader for reading messages from the specified topic.</div>
 </dd>
@@ -1466,14 +1452,6 @@
 </a>
 <h2 class="title">S</h2>
 <dl>
-<dt><a href="org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Schema</span></a>&lt;<a href="org/apache/pulsar/client/api/Schema.html" title="type parameter in Schema">T</a>&gt; - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
-<dd>
-<div class="block">Message schema definition</div>
-</dd>
-<dt><a href="org/apache/pulsar/client/api/SchemaSerializationException.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">SchemaSerializationException</span></a> - Exception in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/SchemaSerializationException.html#SchemaSerializationException-java.lang.Throwable-">SchemaSerializationException(Throwable)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/SchemaSerializationException.html" title="class in org.apache.pulsar.client.api">SchemaSerializationException</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Consumer.html#seek-org.apache.pulsar.client.api.MessageId-">seek(MessageId)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></dt>
 <dd>
 <div class="block">Reset the subscription associated with this consumer to a specific message id.</div>
@@ -1863,10 +1841,6 @@
 <dd>
 <div class="block">Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
  statsIntervalSeconds It should be set to at least 1 second</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Schema.html#STRING">STRING</a></span> - Static variable in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a></dt>
-<dd>
-<div class="block">Schema that can be used to encode/decode messages whose values are String.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#subscribe--">subscribe()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
 <dd>
