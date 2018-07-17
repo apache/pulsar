@@ -222,15 +222,27 @@ public class CmdFunctions extends CmdBase {
                 description = "Path to the main Python file for the function (if the function is written in Python)",
                 listConverter = StringConverter.class)
         protected String pyFile;
-        @Parameter(names = "--inputs", description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
+        @Parameter(
+            names = "--inputs",
+            description =
+                "The function's input topic or topics (multiple topics can be specified as a comma-separated list)."
+                + " A default SerDe is used for serializing/deserializing messages. If you want to use your own SerDe,"
+                + " specify the topic and the SerDe class in [--customSerDeInputs]. The total list of input topics is"
+                + " a union of [--inputs] and ([--topicsPattern]/[--customSerDeInputs])."
+                + " A topic should only be specified in either [--inputs] or [--customSerDeInputs].")
         protected String inputs;
-        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)")
+        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--inputs] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)")
         protected String topicsPattern;
         @Parameter(names = "--output", description = "The function's output topic")
         protected String output;
         @Parameter(names = "--logTopic", description = "The topic to which the function's logs are produced")
         protected String logTopic;
-        @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)")
+        @Parameter(
+            names = "--customSerdeInputs",
+            description =
+                "The map of input topics to SerDe class names (as a JSON string). The total list of input topics is"
+                + " a union of [--inputs] and ([--topicsPattern]/[--customSerDeInputs])."
+                + " A topic should only be specified in either [--inputs] or [--customSerDeInputs].")
         protected String customSerdeInputString;
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function")
         protected String outputSerdeClassName;

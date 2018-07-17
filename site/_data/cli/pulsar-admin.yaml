@@ -177,12 +177,25 @@ commands:
       description: The disk space to allocate to each function instance (in bytes)
     - flags: --className
       description: The name of the function's class
-    - flags: --customSerdeInputs
-      description: A map of the input topic to SerDe name
     - flags: --functionConfigFile
       description: The path of the YAML config file used to configure the function
+    - flags: --customSerdeInputs
+      description: >
+        The map of input topics to SerDe class names (as a JSON string). The total list of input topics is a union
+        of `--inputs` and `--topicsPattern`/`--customSerDeInputs`. A topic should only be specified in either `--inputs`
+        or `--customSerDeInputs`.
     - flags: --inputs
-      description: The input topics for the function (as a comma-separated list if more than one topic is desired)
+      description: >
+        The input topics for the function (as a comma-separated list if more than one topic is desired).
+        A default SerDe is used for serializing/deserializing messages. If you want to use your own SerDe,
+        specify the topic and the SerDe class in `--customSerDeInputs`. The total list of input topics is
+        a union of `--inputs` and `--topicsPattern`/`--customSerDeInputs`. A topic should only be specified in either
+        `--inputs` or `--customSerDeInputs`.
+    - flags: --topicsPattern
+      description: >
+        TopicsPattern to consume from list of topics under a namespace that match the pattern. `--inputs` and
+        `--topicsPattern` are mutually exclusive. Add SerDe class name for a pattern in `--customSerdeInputs`
+        (supported for java function only)
     - flags: --jar
       description: A path to the JAR file for the function (if the function is written in Java)
     - flags: --name
