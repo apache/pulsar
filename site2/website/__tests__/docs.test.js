@@ -1,8 +1,10 @@
 const puppeteer = require('puppeteer')
-
+const axios = require('axios');
 
 
 const CWD = process.cwd();
+
+const timeoutMs = 60000;
 
 function startSite() {
   //shell.exec('yarn build');
@@ -49,13 +51,11 @@ expect.extend({
 
 beforeAll(async () => {
   startSite()
-  console.log("before all")
+  console.log("BEFORE ALL")
   console.log("CWD:", CWD)
   browser = await puppeteer.launch({})
   await loadNavLinks()
 })
-
-
 
 
 
@@ -103,41 +103,6 @@ async function docLinks(page) {
   return new Set(hrefs)
 }
 
-
-/*
-test('a page', async () => {
-  let page = await browser.newPage();
-  //await blockImages(page)
-  await page.goto('http://localhost:3000/docs/standalone');
-  //console.log("response status");
-  //console.log(response.status());
-  //await page.toClick('a', {text: 'Read the docs'})
-  //await browser.close();
-
-  //const hrefs = await page.evaluate(function() {
-  //  const main = document.body.querySelector('.mainContainer');
-  //  return Array.from(main.querySelectorAll('a[href]'), ({ href }) => href);
-  //});
-
-  //const hrefs = await page.evaluate(
-  //  () => Array.from(document.body.querySelectorAll('a[href]'), ({ href }) => href)
-  //);
-  //console.log(new Set(hrefs))
-
-  const doclinks = await docLinks(page)
-  console.log("this works")
-  console.log(doclinks)
-
-  for (link of doclinks) {
-    console.log("checking link:", link)
-    const response = await page.goto(link);
-    //const response = await page.goto(link, { waitUntil: 'networkidle0' });
-    //await page.waitForNavigation({ waitUntil: 'networkidle2' });
-    console.log(link, response.status())
-  }
-
-}, 20000)
-*/
 
 async function findNavLinks(page, title) {
   const links = await page.evaluate(function(title) {
@@ -194,6 +159,9 @@ function shouldSkipLink(link) {
   if (link.includes('logging.apache.org')) {
     return true
   }
+  if (link.includes('pulsar:')) {
+    return true
+  }
   return false
 }
 
@@ -217,11 +185,19 @@ async function testDocLinks(page, links) {
         continue
       }
       console.log("  doc link", dl)
-      const response = await page.goto(dl);
-      const errMsg = `${l} contains a broken link [${dl}]`;
-      if (!ok(response)) {
+      try {
+        const response = await axios.get(dl);
+        //expect(response.status).toBe(200)
+        console.log(response.status);
+      } catch (error) {
+        console.log(error);
         result.broken.push(dl)
-      }
+      } 
+      //const response = await page.goto(dl);
+      //const errMsg = `${l} contains a broken link [${dl}]`;
+      //if (response.status != 200) {
+      //  result.broken.push(dl)
+      //}
       //expect(ok(response)).toBeTruthyWithMessage(errMsg)
     }
 
@@ -246,6 +222,185 @@ function assertResults(results) {
 
   expect(results.length == 0).toBeTruthyWithMessage(errMsg)
 }
+
+
+test('Getting started', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Getting started')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, timeoutMs)
+
+
+test('Pulsar Functions', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Pulsar Functions')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, timeoutMs)
+
+
+test('Pulsar IO', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Pulsar IO')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, timeoutMs)
+
+
+/*
+test('Deployment', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Deployment')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, 180000)
+*/
+
+
+test('Pulsar administration', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Pulsar administration')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, timeoutMs)
+
+
+test('Security', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Security')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, 180000)
+
+
+test('Client libraries', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Client libraries')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, timeoutMs)
+
+
+
+test('Admin API', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Admin API')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, timeoutMs)
+
+
+test('Adaptors', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Adaptors')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, timeoutMs)
+
+
+test('Development', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Development')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, 180000)
+
+
+test('Reference', async() => {
+  const page = await newPage()
+
+  const links = await findNavLinks(page, 'Reference')
+  for (l of links) {
+    const response = await axios.get(l);
+    //expect(ok(response)).toBeTruthy();
+    expect(response.status).toBe(200);
+  }  
+
+  const results = await testDocLinks(page, links);
+
+  assertResults(results)
+}, timeoutMs)
 
 
 /*
@@ -391,7 +546,7 @@ test('Client libraries', async() => {
 }, 180000)
 */
 
-
+/*
 test('Admin API', async() => {
   const page = await newPage()
 
@@ -406,7 +561,7 @@ test('Admin API', async() => {
   assertResults(results)
 
 }, 180000)
-
+*/
 
 /*
 test('Adaptors', async() => {

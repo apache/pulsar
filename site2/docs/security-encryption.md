@@ -19,18 +19,18 @@ A message can be encrypted with more than one key.  Any one of the keys used for
 Pulsar does not store the encryption key anywhere in the pulsar service. If you lose/delete the private key, your message is irretrievably lost, and is unrecoverable
 
 ## Producer
-![alt text](/img/PulsarEncryptionProducer.jpg "Pulsar Encryption Producer")
+![alt text](/docs/assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
 
 ## Consumer
-![alt text](/img/PulsarEncryptionConsumer.jpg "Pulsar Encryption Consumer")
+![alt text](/docs/assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
 
 ## Here are the steps to get started:
 
 1. Create your ECDSA or RSA public/private key pair.
 
 ```shell
-    openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
-    openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
+openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
+openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
 ```
 2. Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.
 3. Implement CryptoKeyReader::getPublicKey() interface from producer and CryptoKeyReader::getPrivateKey() interface from consumer, which will be invoked by Pulsar client to load the key.
@@ -38,106 +38,106 @@ Pulsar does not store the encryption key anywhere in the pulsar service. If you 
 5. Add CryptoKeyReader implementation to producer/consumer config: conf.setCryptoKeyReader(keyReader)
 6. Sample producer application:
 ```java
-        class RawFileKeyReader implements CryptoKeyReader {
+class RawFileKeyReader implements CryptoKeyReader {
 
-            String publicKeyFile = "";
-            String privateKeyFile = "";
+    String publicKeyFile = "";
+    String privateKeyFile = "";
 
-            RawFileKeyReader(String pubKeyFile, String privKeyFile) {
-                publicKeyFile = pubKeyFile;
-                privateKeyFile = privKeyFile;
-            }
+    RawFileKeyReader(String pubKeyFile, String privKeyFile) {
+        publicKeyFile = pubKeyFile;
+        privateKeyFile = privKeyFile;
+    }
 
-            @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-                try {
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
-                } catch (IOException e) {
-                    System.out.println("ERROR: Failed to read public key from file " + publicKeyFile);
-                    e.printStackTrace();
-                }
-                return keyInfo;
-            }
-
-            @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-                try {
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
-                } catch (IOException e) {
-                    System.out.println("ERROR: Failed to read private key from file " + privateKeyFile);
-                    e.printStackTrace();
-                }
-                return keyInfo;
-            }
+    @Override
+    public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+        try {
+            keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
+        } catch (IOException e) {
+            System.out.println("ERROR: Failed to read public key from file " + publicKeyFile);
+            e.printStackTrace();
         }
-        PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
+        return keyInfo;
+    }
 
-        ProducerConfiguration prodConf = new ProducerConfiguration();
-        prodConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
-        prodConf.addEncryptionKey("myappkey");
-
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic", prodConf);
-
-        for (int i = 0; i < 10; i++) {
-            producer.send("my-message".getBytes());
+    @Override
+    public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+        try {
+            keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
+        } catch (IOException e) {
+            System.out.println("ERROR: Failed to read private key from file " + privateKeyFile);
+            e.printStackTrace();
         }
+        return keyInfo;
+    }
+}
+PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
 
-        pulsarClient.close();
+ProducerConfiguration prodConf = new ProducerConfiguration();
+prodConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
+prodConf.addEncryptionKey("myappkey");
+
+Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic", prodConf);
+
+for (int i = 0; i < 10; i++) {
+    producer.send("my-message".getBytes());
+}
+
+pulsarClient.close();
 ```
 7. Sample Consumer Application:
 ```java
-        class RawFileKeyReader implements CryptoKeyReader {
+class RawFileKeyReader implements CryptoKeyReader {
 
-            String publicKeyFile = "";
-            String privateKeyFile = "";
+    String publicKeyFile = "";
+    String privateKeyFile = "";
 
-            RawFileKeyReader(String pubKeyFile, String privKeyFile) {
-                publicKeyFile = pubKeyFile;
-                privateKeyFile = privKeyFile;
-            }
+    RawFileKeyReader(String pubKeyFile, String privKeyFile) {
+        publicKeyFile = pubKeyFile;
+        privateKeyFile = privKeyFile;
+    }
 
-            @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-                try {
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
-                } catch (IOException e) {
-                    System.out.println("ERROR: Failed to read public key from file " + publicKeyFile);
-                    e.printStackTrace();
-                }
-                return keyInfo;
-            }
-
-            @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-                try {
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
-                } catch (IOException e) {
-                    System.out.println("ERROR: Failed to read private key from file " + privateKeyFile);
-                    e.printStackTrace();
-                }
-                return keyInfo;
-            }
+    @Override
+    public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+        try {
+            keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
+        } catch (IOException e) {
+            System.out.println("ERROR: Failed to read public key from file " + publicKeyFile);
+            e.printStackTrace();
         }
+        return keyInfo;
+    }
 
-        ConsumerConfiguration consConf = new ConsumerConfiguration();
-        consConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
-        PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
-        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic", "my-subscriber-name", consConf);
-        Message msg = null;
-
-        for (int i = 0; i < 10; i++) {
-            msg = consumer.receive();
-            // do something
-            System.out.println("Received: " + new String(msg.getData()));
+    @Override
+    public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+        try {
+            keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
+        } catch (IOException e) {
+            System.out.println("ERROR: Failed to read private key from file " + privateKeyFile);
+            e.printStackTrace();
         }
+        return keyInfo;
+    }
+}
 
-        // Acknowledge the consumption of all messages at once
-        consumer.acknowledgeCumulative(msg);
-        pulsarClient.close();
+ConsumerConfiguration consConf = new ConsumerConfiguration();
+consConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
+PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
+Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic", "my-subscriber-name", consConf);
+Message msg = null;
+
+for (int i = 0; i < 10; i++) {
+    msg = consumer.receive();
+    // do something
+    System.out.println("Received: " + new String(msg.getData()));
+}
+
+// Acknowledge the consumption of all messages at once
+consumer.acknowledgeCumulative(msg);
+pulsarClient.close();
 ```
 
 ## Key rotation

@@ -38,8 +38,11 @@
     ],
     "Security": [
       "security-overview",
+      "security-athenz",
+      "security-authorization",
       "security-tls",
-      "security-encryption"
+      "security-encryption",
+      "security-extending"
     ],
     "Client libraries": [
       "client-libraries-java",

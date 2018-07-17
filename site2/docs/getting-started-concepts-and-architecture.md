@@ -296,7 +296,7 @@ Messages are typically dispatched out of a [managed ledger](#managed-ledger) cac
 
 Finally, to support geo-replication on global topics, the broker manages replicators that tail the entries published in the local region and republish them to the remote region using the Pulsar [Java client library](client-libraries-java.md).
 
-> For a guide to managing Pulsar brokers, see the [brokers](../../admin/ClustersBrokers#managing-brokers) guide.
+> For a guide to managing Pulsar brokers, see the [brokers](admin-api-brokers.md) guide.
 
 ## Clusters
 

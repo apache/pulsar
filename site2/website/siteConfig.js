@@ -51,6 +51,7 @@ const createVariableInjectionPlugin = variables => {
 
 const siteVariables = {
   scalar: 'https://example.com',
+  binaryReleaseUrl: 'http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-pulsar:version/apache-pulsar-pulsar:version-bin.tar.gz',
   // Since the variables are processed by Docusaurus's Markdown converter,
   // this will become a nice syntax-highlighted code block.
   markdown: [
@@ -68,35 +69,22 @@ const siteVariables = {
 };
 
 
-/* List of projects/orgs using your project for the users page */
-const users = [
-  {
-    caption: 'User1',
-    // You will need to prepend the image path with your baseUrl
-    // if it is not '/', like: '/test-site/img/docusaurus.svg'.
-    image: '/img/docusaurus.svg',
-    infoLink: 'https://www.facebook.com',
-    pinned: true,
-  },
-];
-
-
-const GITHUB_URL = "https://github.com/apache/incubator-pulsar";
+const githubUrl = 'https://github.com/apache/incubator-pulsar';
 
 const siteConfig = {
-  title: '' /* title for your website */,
-  tagline: 'Apache Pulsar is an open-source distributed pub-sub messaging system originally created at Yahoo and now part of the Apache Software Foundation',
-  url: 'https://your-docusaurus-test-site.com' /* your website url */,
+  title: 'Apache Pulsar' /* title for your website */,
+  tagline: '',
+  url: 'https://cckellogg.github.io' /* your website url */,
   baseUrl: '/' /* base url for your project */,
   // For github.io type URLs, you would set the url and baseUrl like:
   //   url: 'https://facebook.github.io',
   //   baseUrl: '/test-site/',
 
-  editUrl: `${GITHUB_URL}/blob/master/site2/docs/`,
+  editUrl: `${githubUrl}/blob/master/site2/docs/`,
 
   // Used for publishing and more
-  projectName: 'ApachePulsar',
-  organizationName: 'pulsar',
+  projectName: 'incubator-pulsar',
+  organizationName: 'cckellogg',
   // For top-level user or org sites, the organization is still the same.
   // e.g., for the https://JoelMarcey.github.io site, it would be set like...
   //   organizationName: 'JoelMarcey'
@@ -104,24 +92,23 @@ const siteConfig = {
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [
     {doc: 'standalone', label: 'Documentation'},
-    
     {page: 'download', label: 'Download'},
     {doc: 'client-libraries', label: 'Client libraries'},
-    //{page: 'help', label: 'Help'},
-    //{blog: true, label: 'Blog'},
+    {href: '#community', label: 'Community'},
+    {href: '#apache', label: 'Apache'},
     { search: true },
     // Determines language drop down position among links
     { languages: true }
   ],
 
   // If you have users set above, you add it here:
-  users,
+  users: [],
 
   /* path to images for header/footer */
   headerIcon: 'img/pulsar.svg',
   footerIcon: 'img/pulsar.svg',
   //footerIcon: 'img/docusaurus.svg',
-  favicon: 'img/favicon.png',
+  favicon: 'img/pulsar.ico',
 
   /* colors for website */
   colors: {
@@ -151,13 +138,18 @@ const siteConfig = {
     ' The Apache Software Foundation. All Rights Reserved.' + 
     ' Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.',
 
+
+
   highlight: {
     // Highlight.js theme to use for syntax highlighting in code blocks
     theme: 'atom-one-dark',
   },
 
   // Add custom scripts here that would be placed in <script> tags
-  scripts: ['https://buttons.github.io/buttons.js'],
+  scripts: [
+    'https://buttons.github.io/buttons.js',
+    '/js/custom.js'
+  ],
 
   /* On page navigation for the current documentation page */
   onPageNav: 'separate',
@@ -172,13 +164,19 @@ const siteConfig = {
 
   disableHeaderTitle: true,
 
+  cleanUrl: true,
   scrollToTop: true,
   scrollToTopOptions: {
     zIndex: 100,
   },
 
-  githubUrl: 'https://github.com/apache/incubator-pulsar',
+  githubUrl: githubUrl,
   archiveRootUrl: 'http://archive.apache.org/dist/incubator/pulsar',
+
+  projectDescription: `
+    Apache Pulsar is an open-source distributed pub-sub messaging system originally 
+    created at Yahoo and now part of the Apache Software Foundation
+  `,
 
   markdownPlugins: [
     createVariableInjectionPlugin(siteVariables),

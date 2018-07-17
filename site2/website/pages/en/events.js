@@ -1,0 +1,57 @@
+/**
+ * Copyright (c) 2017-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+const React = require('react');
+
+const CompLibrary = require('../../core/CompLibrary.js');
+const Container = CompLibrary.Container;
+const MarkdownBlock = CompLibrary.MarkdownBlock; /* Used to read markdown */
+const GridBlock = CompLibrary.GridBlock;
+
+const CWD = process.cwd();
+
+const siteConfig = require(`${CWD}/siteConfig.js`);
+
+
+//<iframe src="https://calendar.google.com/calendar/embed?showTitle=0&amp;showPrint=0&amp;showCalendars=0&amp;mode=AGENDA&amp;height=300&amp;wkst=1&amp;hl=en&amp;bgcolor=%23FFFFFF&amp;src=22kknj432ap5io49lvsjaac71o%40group.calendar.google.com&amp;color=%232952A3&amp;ctz=America%2FLos_Angeles" style="border-width:0" width="640" height="300" frameborder="0" scrolling="no"></iframe>
+    
+const iframeSrc = "https://calendar.google.com/calendar/embed?showTitle=0&amp;showPrint=0&amp;showCalendars=0&amp;mode=AGENDA&amp;height=300&amp;wkst=1&amp;hl=en&amp;bgcolor=%23FFFFFF&amp;src=22kknj432ap5io49lvsjaac71o%40group.calendar.google.com&amp;color=%232952A3&amp;ctz=America%2FLos_Angeles";
+
+class Events extends React.Component {
+  render() {
+
+    return (
+      <div className="docMainWrapper wrapper">
+        <Container className="mainContainer documentContainer postContainer">
+          <div className="post">
+            <header className="postHeader">
+              <h1>Events</h1>
+              <hr />
+            </header>
+            <h2>Calander</h2>
+
+            <iframe src={iframeSrc} 
+              style={{borderWidth: 0}} 
+              height={300} width={640} 
+              frameBorder={0} scrolling={"no"}>
+            </iframe>
+            
+            <h2>Groups</h2>
+            <MarkdownBlock>
+              - [Apache Pulsar Bay Area Meetup Group](https://www.meetup.com/Apache-Pulsar-Meetup-Group/)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Japan Pulsar User Group](https://japan-pulsar-user-group.connpass.com/)
+            </MarkdownBlock>
+          </div>
+        </Container>
+      </div>
+    );
+  }
+}
+
+module.exports = Events;

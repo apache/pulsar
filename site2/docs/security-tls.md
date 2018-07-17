@@ -12,7 +12,7 @@ To encrypt communication, it is recommended to configure all the Apache Pulsar c
 
 TLS can be configured for encryption or authentication. You may configure just TLS encryption
 (by default TLS encryption includes certificate authentication of the server) and independently choose a separate mechanism
-for client authentication, e.g. TLS, [Athenz](../athenz), etc. Note that TLS encryption, technically speaking, already enables
+for client authentication, e.g. TLS, [Athenz](security-athenz.md), etc. Note that TLS encryption, technically speaking, already enables
 1-way authentication in which the client authenticates the server certificate. So when referring to TLS authentication, it is really
 referring to 2-way authentication in which the broker also authenticates the client certificate.
 
@@ -84,11 +84,11 @@ At this point, you should have a `broker-cert.pem` and `broker-key.pem` file. Th
 
 To create a client certificate, repeat the steps in the previous section, but did create `client-cert.pem` and `client-key.pem` files instead.
 
-For the client common name, you need to use a string that you intend to use as the [role token](../overview#role-tokens) for this client, though it doesn't need to match the client hostname.
+For the client common name, you need to use a string that you intend to use as the [role token](security-overview.md#role-tokens) for this client, though it doesn't need to match the client hostname.
 
 ## Configure the broker for TLS
 
-To configure a Pulsar {% popover broker %} to use TLS authentication, you'll need to make some changes to the `broker.conf` configuration file, which is located in the `conf` directory of your [Pulsar installation](../../getting-started/LocalCluster).
+To configure a Pulsar {% popover broker %} to use TLS authentication, you'll need to make some changes to the `broker.conf` configuration file, which is located in the `conf` directory of your [Pulsar installation](getting-started-standalone.md).
 
 Add these values to the configuration file (substituting the appropriate certificate paths where necessary):
 
@@ -121,12 +121,12 @@ tlsKeyFilePath=/path/to/broker-key.pem
 
 For more information on Pulsar client authentication using TLS, see the following language-specific docs:
 
-* [Java client](../../clients/Java)
-* [C++ client](../../clients/Cpp)
+* [Java client](client-libraries-java.md)
+* [C++ client](client-libraries-cpp.md)
 
 ## Configure CLI tools
 
-[Command-line tools](../../reference/CliTools) like [`pulsar-admin`](../../reference/CliTools#pulsar-admin), [`pulsar-perf`](../../reference/CliTools#pulsar-perf), and [`pulsar-client`](../../reference/CliTools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You'll need to add the following authentication parameters to that file to use TLS with Pulsar's CLI tools:
 

@@ -21,19 +21,19 @@ In Pulsar, a *role* is a string, like `admin` or `app1`, that can represent a si
 to produce or consume from certain topics, administer the configuration for tenants, and more.
 
 Apache Pulsar uses a [Authentication Provider](#authentication-providers) to establish the identity of a client and then assign that client a *role token*. This
-role token is then used for [Authorization and ACLs](../authorization) to determine what the client is authorized to do.
+role token is then used for [Authorization and ACLs](security-authorization.md) to determine what the client is authorized to do.
 
 ## Authentication Providers
 
 Currently Pulsar supports two authentication providers:
 
 - [TLS Authentication](security-tls.md)
-- [Athenz](../athenz)
+- [Athenz](security-athenz.md)
 
 ## Contents
 
 - [Encryption and Authentication using TLS](security-tls.md)
-- [Authentication using Athenz](../athenz)
-- [Authorization and ACLs](../authorization)
-- [End-to-End Encryption](security-encryption)
+- [Authentication using Athenz](security-athenz.md)
+- [Authorization and ACLs](security-authorization.md)
+- [End-to-End Encryption](security-encryption.md)
 

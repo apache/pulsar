@@ -37,9 +37,57 @@
 .navigationSlider .slidingNav ul li a {
   color: #188fff;
 }
+
+.navigationSlider .slidingNav ul li.siteNavGroupActive a, 
+.navigationSlider .slidingNav ul li.siteNavItemActive a, 
+.navigationSlider .slidingNav ul li a:focus, 
+.navigationSlider .slidingNav ul li a:hover {
+  background: white;
+  color: #188fff;
+}
+
+.navigationSlider .slidingNav ul li.siteNavItemActive a {
+  background: #188fff;
+  color: white;
+}
+
+
 /* header navigation */
 
 /* for versioning */
 .fixedHeaderContainer header h3 {
   color: #188fff;
 }
+
+
+/* for drop down menus */
+#community-dropdown.hide,
+#apache-dropdown.hide {
+  display: none;
+}
+
+
+#community-dropdown.visible,
+#apache-dropdown.visible {
+  display: flex;
+}
+
+#community-dropdown,
+#apache-dropdown {
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+
+#community-dropdown-items,
+#apache-dropdown-items {
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+  pointer-events: all;
+  border: 1px solid rgba(35, 41, 55, 0.15);
+  border-radius: 0.25rem;
+}
+
+

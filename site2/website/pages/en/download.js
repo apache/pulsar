@@ -7,8 +7,8 @@ const GridBlock = CompLibrary.GridBlock;
 
 const CWD = process.cwd();
 
-const siteConfig = require(CWD + '/siteConfig.js');
-const releases = require(CWD + '/releases.json');
+const siteConfig = require(`${CWD}/siteConfig.js`);
+const releases = require(`${CWD}/releases.json`);
 
 const archiveRootUrl = siteConfig.archiveRootUrl;
 
@@ -52,7 +52,7 @@ class Download extends React.Component {
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <tr key={'binary'}>
                   <th>Binary</th>
                   <td>
                     <a href={latestArchiveUrl}>pulsar-{latestVersion}-bin.tar.gz</a>
@@ -63,7 +63,7 @@ class Download extends React.Component {
                     <a href={`${latestArchiveUrl}.sha512`}>sha512</a>
                   </td>
                 </tr>
-                <tr>
+                <tr key={'source'}>
                   <th>Source</th>
                   <td>
                     <a href={latestSrcArchiveUrl}>pulsar-{latestVersion}-src.tar.gz</a>
@@ -90,13 +90,13 @@ class Download extends React.Component {
 
             <h2>Release notes</h2>
             <MarkdownBlock>
-              [Release notes](../release-notes) for all Pulsar's versions
+              [Release notes](/release-notes) for all Pulsar's versions
             </MarkdownBlock>
 
             <h2>Getting started</h2>
             <MarkdownBlock>
               Once you've downloaded a Pulsar release, instructions on getting up and running with a standalone cluster 
-              that you can run on your laptop can be found in the [Run Pulsar locally](/docs/latest/getting-started/LocalCluster) tutorial.
+              that you can run on your laptop can be found in the [Run Pulsar locally](/docs/standalone) tutorial.
             </MarkdownBlock>
             <p>
               If you need to connect to an existing Pulsar cluster or instance using an officially supported client, 
@@ -110,21 +110,21 @@ class Download extends React.Component {
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <tr key={'java'}>
                   <td><a href={'docs/client-libraries-java'}>The Pulsar java client</a></td>
                   <td>The Pulsar java client</td>
                 </tr>
-                <tr>
+                <tr key={'go'}>
                   <td><a href={'docs/client-libraries-go'}>The Pulsar go client</a></td>
-                  <td>The Pulsar java client</td>
+                  <td>The Pulsar go client</td>
                 </tr>
-                <tr>
+                <tr key={'python'}>
                   <td><a href={'docs/client-libraries-python'}>The Pulsar python client</a></td>
-                  <td>The Pulsar java client</td>
+                  <td>The Pulsar python client</td>
                 </tr>
-                <tr>
+                <tr key={'cpp'}>
                   <td><a href={'docs/client-libraries-cpp'}>The Pulsar C++ client</a></td>
-                  <td>The Pulsar java client</td>
+                  <td>The Pulsar C++ client</td>
                 </tr>
               </tbody>
             </table>
@@ -143,7 +143,7 @@ class Download extends React.Component {
                 {releaseInfo.map(
                   info =>
                     info.version !== latestVersion && (
-                      <tr>
+                      <tr key={info.version}>
                         <th>{info.version}</th>
                         <td>
                           <a href={info.binArchiveUrl}>pulsar-{info.version}-bin-tar.gz</a>

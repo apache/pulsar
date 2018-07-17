@@ -4,7 +4,7 @@ title: Pulsar IO Overview
 sidebar_label: Getting started
 ---
 
-[Pulsar IO](../../getting-started/ConceptsAndArchitecture#pulsar-io) is a feature of Pulsar that enables you to easily create and manage **connectors** that interface with external systems, such as databases and other messaging systems.
+[Pulsar IO](getting-started-concepts-and-architecture.md#pulsar-io) is a feature of Pulsar that enables you to easily create and manage **connectors** that interface with external systems, such as databases and other messaging systems.
 
 ## Setup
 
@@ -12,11 +12,11 @@ In order to run Pulsar IO connectors, you'll need to have a binary distribution 
 
 ## Managing connectors
 
-Pulsar connectors can be managed using the [`source`](../../reference/CliTools#pulsar-admin-source) and [`sink`](../../reference/CliTools#pulsar-admin-sink) commands of the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool.
+Pulsar connectors can be managed using the [`source`](reference-pulsar-admin.md#source) and [`sink`](reference-pulsar-admin.md#sink) commands of the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool.
 
 ### Running sources
 
-You can use the [`create`](../../reference/CliTools#pulsar-admin-source-create)
+You can use the [`create`](reference-pulsar-admin.md#source-create)
 
 You can submit a sink to be run in an existing Pulsar cluster using a command of this form:
 
@@ -62,11 +62,11 @@ At the moment, the following connectors are available for Pulsar:
 
 |Name|Java Class|
 |---|---|
-|[Aerospike sink](https://www.aerospike.com/)|[`org.apache.pulsar.io.aerospike.AerospikeSink`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/aerospike/src/main/java/org/apache/pulsar/connect/aerospike/AerospikeSink.java)|
-|[Cassandra sink](https://cassandra.apache.org")|[`org.apache.pulsar.io.cassandra.CassandraSink`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/cassandra/src/main/java/org/apache/pulsar/connect/cassandra/CassandraSink.java)|
-|[Kafka source](https://kafka.apache.org)|[`org.apache.pulsar.io.kafka.KafkaSource`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/connect/kafka/KafkaSource.java)|
-|[Kafka sink](https://kafka.apache.org)|[`org.apache.pulsar.io.kafka.KafkaSink`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/connect/kafka/KafkaSink.java)|
-|[RabbitMQ source](https://www.rabbitmq.com)|[`org.apache.pulsar.io.rabbitmq.RabbitMQSource`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/connect/rabbitmq/RabbitMQSource.java)|
-|[Twitter Firehose source](https://developer.twitter.com/en/docs)|[org.apache.pulsar.io.twitter.TwitterFireHose](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/twitter/src/main/java/org/apache/pulsar/connect/twitter/TwitterFireHose.java)|
+|[Aerospike sink](https://www.aerospike.com/)|[`org.apache.pulsar.io.aerospike.AerospikeSink`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/aerospike/src/main/java/org/apache/pulsar/io/aerospike/AerospikeStringSink.java)|
+|[Cassandra sink](https://cassandra.apache.org)|[`org.apache.pulsar.io.cassandra.CassandraSink`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/cassandra/src/main/java/org/apache/pulsar/io/cassandra/CassandraStringSink.java)|
+|[Kafka source](https://kafka.apache.org)|[`org.apache.pulsar.io.kafka.KafkaSource`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaStringSource.java)|
+|[Kafka sink](https://kafka.apache.org)|[`org.apache.pulsar.io.kafka.KafkaSink`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaStringSink.java)|
+|[RabbitMQ source](https://www.rabbitmq.com)|[`org.apache.pulsar.io.rabbitmq.RabbitMQSource`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/io/rabbitmq/RabbitMQSource.java)|
+|[Twitter Firehose source](https://developer.twitter.com/en/docs)|[org.apache.pulsar.io.twitter.TwitterFireHose](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/twitter/src/main/java/org/apache/pulsar/io/twitter/TwitterFireHose.java)|
 
 

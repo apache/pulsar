@@ -12,7 +12,9 @@ const MarkdownBlock = CompLibrary.MarkdownBlock; /* Used to read markdown */
 const Container = CompLibrary.Container;
 const GridBlock = CompLibrary.GridBlock;
 
-const siteConfig = require(process.cwd() + '/siteConfig.js');
+const CWD = process.cwd();
+
+const siteConfig = require(`${CWD}/siteConfig.js`);
 
 function imgUrl(img) {
   return siteConfig.baseUrl + 'img/' + img;
@@ -63,8 +65,7 @@ const Logo = props => (
 
 const ProjectTitle = props => (
   <h2 className="projectTitle" style={{maxWidth:'1024px', margin: 'auto'}}>
-    {siteConfig.title}
-    <small style={{color: 'black', fontSize: '2.0rem'}}>{siteConfig.tagline}</small>
+    <small style={{color: 'black', fontSize: '2.0rem'}}>{siteConfig.projectDescription}</small>
   </h2>
 );
 
@@ -108,43 +109,43 @@ const features = {
   row1: [
     {
       content: 'Easily deploy lightweight compute logic using developer-friendly APIs without needing to run your own stream processing engine',
-      title: '[Pulsar Functions]()',
+      title: '[Pulsar Functions](/docs/functions-overview)',
     },
     {
       content: 'Pulsar has run in production at Yahoo scale for over 3 years, with millions of messages per second across millions of topics',
-      title: '[Proven in production](getting-started-concepts-and-architecture.md)',
+      title: '[Proven in production](/docs/concepts-architecture)',
     },
     {
       content: 'Seamlessly expand capacity to hundreds of nodes',
-      title: '[Horizontally scalable]()',
+      title: '[Horizontally scalable](/docs/concepts-architecture)',
     }
   ],
   row2: [
     {
       content: 'Designed for low publish latency (< 5ms) at scale with strong durabilty guarantees',
-      title: 'Low latency with durability',
+      title: '[Low latency with durability](/docs/concepts-architecture)',
     },
     {
       content: 'Designed for configurable replication between data centers across multiple geographic regions',
-      title: 'Geo-replication',
+      title: '[Geo-replication](/docs/administration-geo)',
     },
     {
       content: 'Built from the ground up as a multi-tenant system. Supports Isolation, Authentication, Authorization and Quotas',
-      title: 'Multi-tenancy',
+      title: '[Multi-tenancy](/docs/concepts-architecture)',
     }
   ],
   row3: [
     {
       content: `Persistent message storage based on Apache BookKeeper. Provides IO-level isolation between write and read operations`,
-      title: 'Persistent storage',
+      title: '[Persistent storage](/docs/concepts-architecture)',
     },
     {
       content: 'Flexible messaging models with high-level APIs for Java, C++, Python and GO',
-      title: 'Client libraries',
+      title: '[Client libraries](/docs/client-libraries)',
     },
     {
       content: 'REST Admin API for provisioning, administration, tools and monitoring. Deploy on bare metal or Kubernetes.',
-      title: 'Operability',
+      title: '[Operability](/docs/admin-api-overview)',
     }
   ]
 };
@@ -213,7 +214,11 @@ const FeatureCallout = props => (
       <img src="/img/apache_incubator.png" />
     </div>
     <MarkdownBlock>
-    Apache Pulsar is an effort undergoing incubation at The [Apache Software Foundation (ASF)]() sponsored by the Apache Incubator PMC. Incubation is required of all newly accepted projects until a further review indicates that the infrastructure, communications, and decision making process have stabilized in a manner consistent with other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.
+    Apache Pulsar is an effort undergoing incubation at The [Apache Software Foundation (ASF)]() sponsored by 
+    the Apache Incubator PMC. Incubation is required of all newly accepted projects until a further review indicates 
+    that the infrastructure, communications, and decision making process have stabilized in a manner consistent with 
+    other successful ASF projects. While incubation status is not necessarily a reflection of the 
+    completeness or stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.
     Apache Pulsar (incubating) is available under the [Apache License, version 2.0]().
     </MarkdownBlock>
   </div>
@@ -296,7 +301,7 @@ class Index extends React.Component {
       <div>
         <HomeSplash language={language} />
         <div className="mainContainer">
-          <KeyFeautresGrid features={features} />
+          <KeyFeautresGrid features={features} id={'key-features'} />
           <ApacheBlock />
         </div>
       </div>

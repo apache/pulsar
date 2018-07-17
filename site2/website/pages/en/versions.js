@@ -13,9 +13,10 @@ const GridBlock = CompLibrary.GridBlock;
 
 const CWD = process.cwd();
 
-const siteConfig = require(CWD + '/siteConfig.js');
-const versions = require(CWD + '/versions.json');
+const siteConfig = require(`${CWD}/siteConfig.js`);
+//const versions = require(CWD + '/versions.json');
 
+/*
 class Versions extends React.Component {
   render() {
     const latestVersion = versions[0];
@@ -86,6 +87,15 @@ class Versions extends React.Component {
           </div>
         </Container>
       </div>
+    );
+  }
+}
+*/
+
+class Versions extends React.Component {
+  render() {
+    return (
+      <h3>versions</h3>
     );
   }
 }

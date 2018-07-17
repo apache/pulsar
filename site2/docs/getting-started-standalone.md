@@ -20,21 +20,21 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="{{ binary_release_url }}" download>Pulsar {{ site.current_version }} binary release</a>
+  * <a href="pulsar:binary_release_url" download>Pulsar pulsar:version binary release</a>
 
 * from the Pulsar [downloads page](/download)
 * from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  $ wget {{ binary_release_url }}
+  $ wget pulsar:binary_release_url
   ```
 
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:
 
 ```bash
-$ tar xvfz apache-pulsar-{{ site.current_version }}-bin.tar.gz
-$ cd apache-pulsar-{{ site.current_version }}
+$ tar xvfz apache-pulsar-pulsar:version-bin.tar.gz
+$ cd apache-pulsar-pulsar:version
 ```
 
 ## What your package contains
