@@ -18,13 +18,8 @@
  */
 package org.apache.pulsar.broker.offload.impl;
 
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
 import static org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader.dataBlockOffloadKey;
 import static org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader.indexBlockOffloadKey;
-=======
-import static org.apache.pulsar.broker.offload.impl.ManagedLedgerOffloader.dataBlockOffloadKey;
-import static org.apache.pulsar.broker.offload.impl.ManagedLedgerOffloader.indexBlockOffloadKey;
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -123,22 +118,14 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testHappyCase() throws Exception {
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(blobStore, BUCKET, scheduler,
-=======
-        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
     }
 
     @Test
     public void testBucketDoesNotExist() throws Exception {
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(blobStore, "no-bucket", scheduler,
-=======
-        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, "no-bucket", scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         try {
             offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
@@ -156,11 +143,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         conf.setS3ManagedLedgerOffloadBucket(BUCKET);
 
         try {
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
             BlobStoreManagedLedgerOffloader.create(conf, scheduler);
-=======
-            ManagedLedgerOffloader.create(conf, scheduler);
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
@@ -174,11 +157,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
 
         try {
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
             BlobStoreManagedLedgerOffloader.create(conf, scheduler);
-=======
-            ManagedLedgerOffloader.create(conf, scheduler);
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
@@ -194,11 +173,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         conf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(1024);
 
         try {
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
             BlobStoreManagedLedgerOffloader.create(conf, scheduler);
-=======
-            ManagedLedgerOffloader.create(conf, scheduler);
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
@@ -208,11 +183,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     @Test
     public void testOffloadAndRead() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(blobStore, BUCKET, scheduler,
-=======
-        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -253,11 +224,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).initiateMultipartUpload(any(), any(), any());
 
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
             LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
-=======
-            LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                                                                      DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception when initiateMultipartUpload");
@@ -283,11 +250,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).uploadMultipartPart(any(), anyInt(), any());
 
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
             LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
-=======
-            LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception for when uploadPart");
@@ -316,11 +279,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
                 .doNothing()
                 .when(spiedBlobStore).abortMultipartUpload(any());
 
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
             LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
-=======
-            LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
 
@@ -347,11 +306,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).putBlob(any(), any());
 
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
             LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
-=======
-            LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
 
@@ -382,11 +337,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             randomAccesses[i][1] = second;
         }
 
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(blobStore, BUCKET, scheduler,
-=======
-        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -418,11 +369,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     @Test
     public void testOffloadReadInvalidEntryIds() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(blobStore, BUCKET, scheduler,
-=======
-        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -447,11 +394,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     public void testDeleteOffloaded() throws Exception {
         ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(blobStore, BUCKET, scheduler,
-=======
-        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
 
         // verify object exist after offload
@@ -476,11 +419,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             .doThrow(new RuntimeException(failureString))
             .when(spiedBlobStore).removeBlobs(any(), any());
 
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
-=======
-        LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
             DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
 
         try {
@@ -512,11 +451,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         Mockito.doReturn(1234L).when(readHandle).getId();
 
         UUID uuid = UUID.randomUUID();
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(blobStore, BUCKET, scheduler,
-=======
-        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         try {
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
@@ -529,11 +464,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     @Test
     public void testReadUnknownDataVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(blobStore, BUCKET, scheduler,
-=======
-        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -541,11 +472,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         String dataKey = dataBlockOffloadKey(toWrite.getId(), uuid);
 
         Map<String, String> userMeta = blobStore.blobMetadata(BUCKET, dataKey).getUserMetadata();
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
-=======
-        userMeta.put(ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
         blobStore.copyBlob(BUCKET, dataKey, BUCKET, dataKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
@@ -557,11 +484,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.assertTrue(e.getCause().getMessage().contains("Error reading from BlobStore"));
         }
 
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
-=======
-        userMeta.put(ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
         blobStore.copyBlob(BUCKET, dataKey, BUCKET, dataKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
@@ -576,11 +499,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     @Test
     public void testReadUnknownIndexVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         LedgerOffloader offloader = new BlobStoreManagedLedgerOffloader(blobStore, BUCKET, scheduler,
-=======
-        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -588,11 +507,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         String indexKey = indexBlockOffloadKey(toWrite.getId(), uuid);
 
         Map<String, String> userMeta = blobStore.blobMetadata(BUCKET, indexKey).getUserMetadata();
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
-=======
-        userMeta.put(ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
         blobStore.copyBlob(BUCKET, indexKey, BUCKET, indexKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try {
@@ -603,11 +518,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
         }
 
-<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/BlobStoreManagedLedgerOffloaderTest.java
         userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
-=======
-        userMeta.put(ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
->>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/impl/S3ManagedLedgerOffloaderTest.java
         blobStore.copyBlob(BUCKET, indexKey, BUCKET, indexKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try {

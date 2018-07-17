@@ -61,11 +61,7 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-<<<<<<< HEAD
 import org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader;
-=======
-import org.apache.pulsar.broker.offload.impl.ManagedLedgerOffloader;
->>>>>>> rename S3 before filenames
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -661,13 +657,8 @@ public class PulsarService implements AutoCloseable {
     public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
             throws PulsarServerException {
         if (conf.getManagedLedgerOffloadDriver() != null
-<<<<<<< HEAD
             && BlobStoreManagedLedgerOffloader.driverSupported(conf.getManagedLedgerOffloadDriver())) {
                 return BlobStoreManagedLedgerOffloader.create(conf, getOffloaderScheduler(conf));
-=======
-            && ManagedLedgerOffloader.driverSupported(conf.getManagedLedgerOffloadDriver())) {
-                return ManagedLedgerOffloader.create(conf, getOffloaderScheduler(conf));
->>>>>>> rename S3 before filenames
         } else {
             return NullLedgerOffloader.INSTANCE;
         }
