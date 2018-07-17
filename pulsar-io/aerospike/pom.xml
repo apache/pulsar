@@ -52,6 +52,12 @@
       <groupId>com.aerospike</groupId>
       <artifactId>aerospike-client</artifactId>
       <version>${aerospike-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.gnu</groupId>
+          <artifactId>gnu-crypto</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
   </dependencies>
