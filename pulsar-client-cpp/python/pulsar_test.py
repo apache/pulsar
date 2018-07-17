@@ -24,7 +24,7 @@ import time
 import os
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
-            AuthenticationTLS
+            AuthenticationTLS, Authentication
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -151,6 +151,23 @@ class PulsarTest(TestCase):
             pass  # Exception is expected
 
         client.close()
+
+    def test_auth_junk_params(self):
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        authPlugin = "someoldjunk.so"
+        authParams = "blah"
+        client = Client(self.serviceUrlTls,
+                        tls_trust_certs_file_path=certs_dir + 'cacert.pem',
+                        tls_allow_insecure_connection=False,
+                        authentication=Authentication(authPlugin, authParams))
+        try:
+            client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+                             'my-sub',
+                             consumer_type=ConsumerType.Shared)
+        except:
+            pass  # Exception is expected
 
     def test_message_listener(self):
         client = Client(self.serviceUrl)
