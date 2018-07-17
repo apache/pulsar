@@ -344,7 +344,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/persistent/{tenant}/{namespace}/persistence
+POST /admin/v2/namespaces/{tenant}/{namespace}/persistence
 ```
 
 ###### Java
