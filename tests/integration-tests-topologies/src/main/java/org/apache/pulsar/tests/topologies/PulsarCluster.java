@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.topologies;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.tests.containers.PulsarContainer.CS_PORT;
+import static org.apache.pulsar.tests.containers.PulsarContainer.ZK_PORT;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -32,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import com.google.common.collect.Streams;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.containers.BKContainer;
@@ -53,9 +55,10 @@ public class PulsarCluster {
 
     public static final String ADMIN_SCRIPT = "/pulsar/bin/pulsar-admin";
     public static final String CLIENT_SCRIPT = "/pulsar/bin/pulsar-client";
+    public static final String PULSAR_COMMAND_SCRIPT = "/pulsar/bin/pulsar";
 
     /**
-     * Pulsar Cluster Spec.
+     * Pulsar Cluster Spec
      *
      * @param spec pulsar cluster spec.
      * @return the built pulsar cluster
@@ -106,6 +109,31 @@ public class PulsarCluster {
             .withEnv("zookeeperServers", ZKContainer.NAME)
             .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("clusterName", clusterName);
+
+        // create bookies
+        bookieContainers.putAll(
+                runNumContainers("bookie", spec.numBookies(), (name) -> new BKContainer(clusterName, name)
+                        .withNetwork(network)
+                        .withNetworkAliases(name)
+                        .withEnv("zkServers", ZKContainer.NAME)
+                        .withEnv("useHostNameAsBookieID", "true")
+                        .withEnv("clusterName", clusterName)
+                )
+        );
+
+        // create brokers
+        brokerContainers.putAll(
+                runNumContainers("broker", spec.numBrokers(), (name) -> new BrokerContainer(clusterName, name)
+                        .withNetwork(network)
+                        .withNetworkAliases(name)
+                        .withEnv("zkServers", ZKContainer.NAME)
+                        .withEnv("zookeeperServers", ZKContainer.NAME)
+                        .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
+                        .withEnv("clusterName", clusterName)
+                        .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
+                )
+        );
+
     }
 
     public String getPlainTextServiceUrl() {
@@ -114,6 +142,10 @@ public class PulsarCluster {
 
     public String getHttpServiceUrl() {
         return proxyContainer.getHttpServiceUrl();
+    }
+
+    public String getZKConnString() {
+        return zkContainer.getContainerIpAddress() + ":" + zkContainer.getMappedPort(ZK_PORT);
     }
 
     public void start() throws Exception {
@@ -130,29 +162,13 @@ public class PulsarCluster {
             "bin/init-cluster.sh");
         log.info("Successfully initialized the cluster.");
 
-        // create bookies
-        bookieContainers.putAll(
-            runNumContainers("bookie", spec.numBookies(), (name) -> new BKContainer(clusterName, name)
-                .withNetwork(network)
-                .withNetworkAliases(name)
-                .withEnv("zkServers", ZKContainer.NAME)
-                .withEnv("useHostNameAsBookieID", "true")
-                .withEnv("clusterName", clusterName)
-            )
-        );
+        // start bookies
+        bookieContainers.values().forEach(BKContainer::start);
+        log.info("Successfully started {} bookie conntainers.", bookieContainers.size());
 
-        // create brokers
-        brokerContainers.putAll(
-            runNumContainers("broker", spec.numBrokers(), (name) -> new BrokerContainer(clusterName, name)
-                .withNetwork(network)
-                .withNetworkAliases(name)
-                .withEnv("zkServers", ZKContainer.NAME)
-                .withEnv("zookeeperServers", ZKContainer.NAME)
-                .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
-                .withEnv("clusterName", clusterName)
-                .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
-            )
-        );
+        // start brokers
+        this.startAllBrokers();
+        log.info("Successfully started {} broker conntainers.", brokerContainers.size());
 
         // create proxy
         proxyContainer.start();
@@ -175,12 +191,12 @@ public class PulsarCluster {
         }
 
         // start external services
-        Map<String, GenericContainer<?>> externalServices = spec.externalServices;
+        final Map<String, GenericContainer<?>> externalServices = spec.externalServices;
         if (null != externalServices) {
-            externalServices.entrySet().forEach(service -> {
-                GenericContainer<?> serviceContainer = service.getValue();
-                serviceContainer.withNetwork(network);
-                serviceContainer.start();
+            externalServices.entrySet().parallelStream().forEach(service -> {
+                service.getValue().withNetwork(network);
+                service.getValue().withNetworkAliases(service.getKey());
+                service.getValue().start();
                 log.info("Successfully start external service {}.", service.getKey());
             });
         }
@@ -195,23 +211,24 @@ public class PulsarCluster {
             String name = "pulsar-" + serviceName + "-" + i;
             T container = containerCreator.apply(name);
             containers.put(name, container);
-            startFutures.add(CompletableFuture.runAsync(() -> container.start()));
         }
-        CompletableFuture.allOf(startFutures.toArray(new CompletableFuture[startFutures.size()])).join();
-        log.info("Successfully started {} {} containers", numContainers, serviceName);
         return containers;
     }
 
     public void stop() {
-        Stream.of(proxyContainer, csContainer, zkContainer).parallel().forEach(GenericContainer::stop);
-        workerContainers.values().parallelStream().forEach(GenericContainer::stop);
-        brokerContainers.values().parallelStream().forEach(GenericContainer::stop);
-        bookieContainers.values().parallelStream().forEach(GenericContainer::stop);
-        if (null != spec.externalServices()) {
-            spec.externalServices().values()
-                .parallelStream()
-                .forEach(GenericContainer::stop);
+
+        Stream<GenericContainer> containers = Streams.concat(
+                workerContainers.values().stream(),
+                brokerContainers.values().stream(),
+                bookieContainers.values().stream(),
+                Stream.of(proxyContainer, csContainer, zkContainer)
+        );
+
+        if (spec.externalServices() != null) {
+            containers = Streams.concat(containers, spec.externalServices().values().stream());
         }
+
+        containers.parallel().forEach(GenericContainer::stop);
 
         try {
             network.close();
@@ -242,6 +259,7 @@ public class PulsarCluster {
                 // bookkeeper tools
                 .withEnv("zkServers", ZKContainer.NAME)
         ));
+        this.startWorkers();
     }
 
     private void startFunctionWorkersWithThreadContainerFactory(int numFunctionWorkers) {
@@ -267,6 +285,13 @@ public class PulsarCluster {
                 // bookkeeper tools
                 .withEnv("zkServers", ZKContainer.NAME)
         ));
+        this.startWorkers();
+    }
+
+    private void startWorkers() {
+        // Start workers that have been initialized
+        workerContainers.values().parallelStream().forEach(WorkerContainer::start);
+        log.info("Successfully started {} worker conntainers.", workerContainers.size());
     }
 
     public BrokerContainer getAnyBroker() {
@@ -290,11 +315,27 @@ public class PulsarCluster {
     }
 
     public ExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
+        return runCommandOnAnyBrokerWithScript(ADMIN_SCRIPT, commands);
+    }
+
+    public ExecResult runPulsarBaseCommandOnAnyBroker(String...commands) throws Exception {
+        return runCommandOnAnyBrokerWithScript(PULSAR_COMMAND_SCRIPT, commands);
+    }
+
+    private ExecResult runCommandOnAnyBrokerWithScript(String scriptType, String...commands) throws Exception {
         BrokerContainer container = getAnyBroker();
         String[] cmds = new String[commands.length + 1];
-        cmds[0] = ADMIN_SCRIPT;
+        cmds[0] = scriptType;
         System.arraycopy(commands, 0, cmds, 1, commands.length);
         return container.execCmd(cmds);
+    }
+
+    public void stopAllBrokers() {
+        brokerContainers.values().forEach(BrokerContainer::stop);
+    }
+
+    public void startAllBrokers() {
+        brokerContainers.values().forEach(BrokerContainer::start);
     }
 
     public ExecResult createNamespace(String nsName) throws Exception {
@@ -308,4 +349,5 @@ public class PulsarCluster {
             "namespaces", "set-deduplication", "public/" + nsName,
             enabled ? "--enable" : "--disable");
     }
+
 }
