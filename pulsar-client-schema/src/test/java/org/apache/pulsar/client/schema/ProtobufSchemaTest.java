@@ -86,14 +86,14 @@ public class ProtobufSchemaTest {
                     = ProtobufSchema.ofGenericClass(org.apache.pulsar.client.schema.proto.Test.TestMessage.class,
                     Collections.emptyMap());
         } catch (Exception e) {
-            Assert.fail();
+            Assert.fail("Should not construct a ProtobufShema over a non-protobuf-generated class");
         }
 
         try {
             ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
                     = ProtobufSchema.ofGenericClass(String.class,
                     Collections.emptyMap());
-            Assert.fail();
+            Assert.fail("Should not construct a ProtobufShema over a non-protobuf-generated class");
         } catch (Exception e) {
 
         }

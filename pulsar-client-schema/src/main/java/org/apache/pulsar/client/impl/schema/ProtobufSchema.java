@@ -118,7 +118,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> im
         return of(pojo, Collections.emptyMap());
     }
 
-    public static  ProtobufSchema ofGenericClass(Class pojo, Map<String, String> properties) {
+    public static ProtobufSchema ofGenericClass(Class pojo, Map<String, String> properties) {
         if (!com.google.protobuf.GeneratedMessageV3.class.isAssignableFrom(pojo)) {
             throw new IllegalArgumentException(com.google.protobuf.GeneratedMessageV3.class.getName()
                     + " is not assignable from " + pojo.getName());
