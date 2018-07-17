@@ -47,9 +47,9 @@ $ pulsar-admin namespaces create test-tenant/test-namespace
 
 #### REST API
 
-{% endpoint PUT /admin/v2/namespaces/:tenant/:cluster/:namespace %}
+{% endpoint PUT /admin/v2/namespaces/:tenant/:namespace %}
 
-[More info](../../reference/RestApi#/admin/namespaces/:tenant/:cluster/:namespace)
+[More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace)
 
 #### Java
 
@@ -92,9 +92,9 @@ $ pulsar-admin namespaces policies test-tenant/test-namespace
 
 #### REST API
 
-{% endpoint GET /admin/v2/namespaces/:tenant/:cluster/:namespace %}
+{% endpoint GET /admin/v2/namespaces/:tenant/:namespace %}
 
-[More info](../../reference/RestApi#/admin/namespaces/:tenant/:cluster/:namespace)
+[More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace)
 
 #### Java
 
@@ -168,9 +168,9 @@ $ pulsar-admin namespaces delete test-tenant/ns1
 
 #### REST
 
-{% endpoint DELETE /admin/v2/namespaces/:tenant/:cluster/:namespace %}
+{% endpoint DELETE /admin/v2/namespaces/:tenant/:namespace %}
 
-[More info](../../reference/RestApi#/admin/namespaces/:tenant/:cluster/:namespace)
+[More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace)
 
 #### Java
 
