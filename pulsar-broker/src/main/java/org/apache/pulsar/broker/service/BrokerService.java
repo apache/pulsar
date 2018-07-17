@@ -934,8 +934,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         if (!ownedByThisInstance) {
-            String msg = String.format("Namespace not served by this instance. Please redo the lookup. "
-                    + "Request is denied: namespace=%s", topicName.getNamespace());
+            String msg = String.format("Namespace bundle for topic (%s) not served by this instance. Please redo the lookup. "
+                    + "Request is denied: namespace=%s", topic, topicName.getNamespace());
             log.warn(msg);
             throw new RuntimeException(new ServiceUnitNotReadyException(msg));
         }
