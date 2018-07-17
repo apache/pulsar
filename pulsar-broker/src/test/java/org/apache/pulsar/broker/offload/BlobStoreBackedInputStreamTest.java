@@ -238,7 +238,7 @@ class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
-        
+
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
