@@ -19,7 +19,7 @@
 syntax = "proto3";
 package proto;
 
-option java_package = "org.apache.pulsar.client.schemas.proto";
+option java_package = "org.apache.pulsar.client.schema.proto";
 option java_outer_classname = "Test";
 
 enum TestEnum {
