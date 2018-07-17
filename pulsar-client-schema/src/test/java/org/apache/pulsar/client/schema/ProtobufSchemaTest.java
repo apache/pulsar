@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.schema;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
@@ -25,6 +27,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.proto.Function;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.Collections;
 
 @Slf4j
 public class ProtobufSchemaTest {
@@ -40,6 +44,13 @@ public class ProtobufSchemaTest {
             "\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubMessage\",\"fields\":[{\"name\":\"foo\"," +
             "\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"default\":\"\"},{\"name\":\"bar\"," +
             "\"type\":\"double\",\"default\":0}]}],\"default\":null}]}";
+
+    private static final String EXPECTED_PARSING_INFO = "{\"__PARSING_INFO__\":\"[{\\\"index\\\":0," +
+            "\\\"name\\\":\\\"stringField\\\",\\\"type\\\":\\\"STRING\\\",\\\"definition\\\":null},{\\\"index\\\":1," +
+            "\\\"name\\\":\\\"doubleField\\\",\\\"type\\\":\\\"DOUBLE\\\",\\\"definition\\\":null},{\\\"index\\\":2," +
+            "\\\"name\\\":\\\"intField\\\",\\\"type\\\":\\\"INT32\\\",\\\"definition\\\":null},{\\\"index\\\":3," +
+            "\\\"name\\\":\\\"testEnum\\\",\\\"type\\\":\\\"ENUM\\\",\\\"definition\\\":null},{\\\"index\\\":4," +
+            "\\\"name\\\":\\\"nestedField\\\",\\\"type\\\":\\\"MESSAGE\\\",\\\"definition\\\":null}]\"}";
 
     @Test
     public void testEncodeAndDecode() {
@@ -66,5 +77,34 @@ public class ProtobufSchemaTest {
         Schema schema = parser.parse(schemaJson);
 
         Assert.assertEquals(schema.toString(), EXPECTED_SCHEMA_JSON);
+    }
+
+    @Test
+    public void testGenericOf() {
+        try {
+            ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
+                    = ProtobufSchema.ofGenericClass(org.apache.pulsar.client.schema.proto.Test.TestMessage.class,
+                    Collections.emptyMap());
+        } catch (Exception e) {
+            Assert.fail();
+        }
+
+        try {
+            ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
+                    = ProtobufSchema.ofGenericClass(String.class,
+                    Collections.emptyMap());
+            Assert.fail();
+        } catch (Exception e) {
+
+        }
+    }
+
+    @Test
+    public void testParsingInfoProperty() throws JsonProcessingException {
+        ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
+                = ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
+
+        Assert.assertEquals(new ObjectMapper().writeValueAsString(protobufSchema.getSchemaInfo().getProperties()), EXPECTED_PARSING_INFO);
+
     }
 }
