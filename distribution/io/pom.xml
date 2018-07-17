@@ -53,7 +53,7 @@
               <goal>single</goal>
             </goals>
             <configuration>
-              <attach>false</attach>
+              <attach>true</attach>
               <tarLongFileMode>posix</tarLongFileMode>
               <finalName>apache-pulsar-io-connectors-${project.version}</finalName>
               <descriptors>

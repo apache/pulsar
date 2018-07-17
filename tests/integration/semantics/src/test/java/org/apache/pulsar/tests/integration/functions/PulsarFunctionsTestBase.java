@@ -19,11 +19,10 @@
 package org.apache.pulsar.tests.integration.functions;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.tests.integration.functions.runtime.PulsarFunctionsRuntimeTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
+import org.apache.pulsar.tests.topologies.FunctionRuntimeType;
+import org.apache.pulsar.tests.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
-import org.testcontainers.containers.Container.ExecResult;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 
 /**
@@ -31,6 +30,36 @@ import org.testng.annotations.DataProvider;
  */
 @Slf4j
 public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
+
+    @DataProvider(name = "FunctionRuntimeTypes")
+    public static Object[][] getData() {
+        return new Object[][] {
+            { FunctionRuntimeType.PROCESS },
+            { FunctionRuntimeType.THREAD }
+        };
+    }
+
+    protected final FunctionRuntimeType functionRuntimeType;
+
+    public PulsarFunctionsTestBase() {
+        this(FunctionRuntimeType.PROCESS);
+    }
+
+    protected PulsarFunctionsTestBase(FunctionRuntimeType functionRuntimeType) {
+        this.functionRuntimeType = functionRuntimeType;
+    }
+
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
+        String clusterName,
+        PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+        return super.beforeSetupCluster(clusterName, specBuilder)
+            .functionRuntimeType(functionRuntimeType)
+            .numFunctionWorkers(2);
+    }
+
+    //
+    // Common Variables used by functions test
+    //
 
     public static final String EXCLAMATION_JAVA_CLASS =
         "org.apache.pulsar.functions.api.examples.ExclamationFunction";

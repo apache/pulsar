@@ -37,6 +37,8 @@ Configuration:
         value: "Console"
       - name: "bk.log.level"
         value: "info"
+      - name: "bk.log.appender"
+        value: "BkRollingFile"
 
   # Example: logger-filter script
   Scripts:
@@ -165,17 +167,35 @@ Configuration:
           level: "${sys:pulsar.log.level}"
 
     Logger:
+      - name: org.apache.bookkeeper.bookie.BookieShell
+        level: info
+        additivity: false
+        AppenderRef:
+          - ref: Console
+
       - name: org.apache.bookkeeper
         level: "${sys:bk.log.level}"
         additivity: false
         AppenderRef:
-          - ref: BkRollingFile
+          - ref: "${sys:bk.log.appender}"
 
       - name: org.apache.distributedlog
         level: "${sys:bk.log.level}"
         additivity: false
         AppenderRef:
-          - ref: BkRollingFile
+          - ref: "${sys:bk.log.appender}"
+
+      - name: org.apache.zookeeper
+        level: "${sys:bk.log.level}"
+        additivity: false
+        AppenderRef:
+          - ref: "${sys:bk.log.appender}"
+
+      - name: verbose
+        level: info
+        additivity: false
+        AppenderRef:
+          - ref: Console
     
     # Logger to inject filter script
 #     - name: org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl

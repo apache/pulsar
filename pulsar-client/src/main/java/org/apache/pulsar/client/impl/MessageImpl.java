@@ -20,6 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Maps;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -32,22 +39,15 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
-import com.google.common.collect.Maps;
+public class MessageImpl<T> implements Message<T> {
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
-
-public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
-
+    protected MessageId messageId;
     private MessageMetadata.Builder msgMetadataBuilder;
     private ClientCnx cnx;
     private ByteBuf payload;
@@ -86,7 +86,7 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
             Schema<T> schema) {
         this(messageId, msgMetadata, payload, null, cnx, schema);
     }
-    
+
     MessageImpl(MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
             Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
@@ -330,7 +330,7 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
     void setMessageId(MessageIdImpl messageId) {
         this.messageId = messageId;
     }
-    
+
     @Override
     public Optional<EncryptionContext> getEncryptionCtx() {
         return encryptionCtx;

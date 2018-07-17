@@ -20,28 +20,28 @@ package org.apache.pulsar.io.kinesis;
 
 import static java.util.Base64.getDecoder;
 
+import com.google.gson.Gson;
+
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
+
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
-import org.apache.pulsar.io.core.RecordContext;
+import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.kinesis.fbs.KeyValue;
 import org.apache.pulsar.io.kinesis.fbs.Message;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
-
-import com.google.gson.Gson;
-
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 
 /**
  * Unit test of {@link UtilsTest}.
@@ -52,7 +52,7 @@ public class UtilsTest {
     public Object[][] encryptionProvider() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
-    
+
     @Test
     public void testJsonSerialization() throws Exception {
 
@@ -75,9 +75,9 @@ public class UtilsTest {
         Map<String, String> metadata2 = Maps.newHashMap();
         metadata2.put("version", "v2");
         metadata2.put("ckms", "cmks-2");
-        RecordContext recordCtx = createRecordContext(algo, keyNames, keyValues, param.getBytes(), metadata1, metadata2,
+        Record<byte[]> recordCtx = createRecord(data, algo, keyNames, keyValues, param.getBytes(), metadata1, metadata2,
                 batchSize, compressionMsgSize, properties, true);
-        String json = Utils.serializeRecordToJson(recordCtx, data);
+        String json = Utils.serializeRecordToJson(recordCtx);
 
         // deserialize from json and assert
         KinesisMessageResponse kinesisJsonResponse = deSerializeRecordFromJson(json);
@@ -118,9 +118,9 @@ public class UtilsTest {
             Map<String, String> metadata2 = Maps.newHashMap();
             metadata2.put("version", "v2");
             metadata2.put("ckms", "cmks-2");
-            RecordContext recordCtx = createRecordContext(algo, keyNames, keyValues, param.getBytes(), metadata1,
+            Record<byte[]> record = createRecord(data, algo, keyNames, keyValues, param.getBytes(), metadata1,
                     metadata2, batchSize, compressionMsgSize, properties, isEncryption);
-            ByteBuffer flatBuffer = Utils.serializeRecordToFlatBuffer(recordCtx, data);
+            ByteBuffer flatBuffer = Utils.serializeRecordToFlatBuffer(record);
 
             Message kinesisJsonResponse = Message.getRootAsMessage(flatBuffer);
             byte[] fbPayloadBytes = new byte[kinesisJsonResponse.payloadLength()];
@@ -164,7 +164,7 @@ public class UtilsTest {
                 Assert.assertEquals(param.getBytes(), paramBytes);
                 Assert.assertEquals(algo, encryptionCtxDeser.algo());
             }
-            
+
             Map<String, String> fbproperties = Maps.newHashMap();
             for (int i = 0; i < kinesisJsonResponse.propertiesLength(); i++) {
                 KeyValue property = kinesisJsonResponse.properties(i);
@@ -175,7 +175,7 @@ public class UtilsTest {
         }
     }
 
-    private RecordContext createRecordContext(String algo, String[] keyNames, byte[][] keyValues, byte[] param,
+    private Record<byte[]> createRecord(byte[] data, String algo, String[] keyNames, byte[][] keyValues, byte[] param,
             Map<String, String> metadata1, Map<String, String> metadata2, int batchSize, int compressionMsgSize,
             Map<String, String> properties, boolean isEncryption) {
         EncryptionContext ctx = null;
@@ -198,14 +198,16 @@ public class UtilsTest {
             ctx.setKeys(keys);
             ctx.setParam(param);
         }
-        return new RecordContextImpl(properties, Optional.ofNullable(ctx)); 
+        return new RecordImpl(data, properties, Optional.ofNullable(ctx));
     }
 
-    class RecordContextImpl implements RecordContext {
+    class RecordImpl implements Record<byte[]> {
+        byte[] data;
         Map<String, String> properties;
         Optional<EncryptionContext> ectx;
 
-        public RecordContextImpl(Map<String, String> properties, Optional<EncryptionContext> ectx) {
+        public RecordImpl(byte[] data, Map<String, String> properties, Optional<EncryptionContext> ectx) {
+            this.data = data;
             this.properties = properties;
             this.ectx = ectx;
         }
@@ -216,6 +218,16 @@ public class UtilsTest {
 
         public Optional<EncryptionContext> getEncryptionCtx() {
             return ectx;
+        }
+
+        @Override
+        public Optional<String> getKey() {
+            return Optional.empty();
+        }
+
+        @Override
+        public byte[] getValue() {
+            return data;
         }
     }
 

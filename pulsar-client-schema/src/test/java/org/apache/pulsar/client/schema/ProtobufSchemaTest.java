@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.schemas;
+package org.apache.pulsar.client.schema;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
@@ -32,7 +32,7 @@ public class ProtobufSchemaTest {
     private static final String NAME = "foo";
 
     private static final String EXPECTED_SCHEMA_JSON = "{\"type\":\"record\",\"name\":\"TestMessage\"," +
-            "\"namespace\":\"org.apache.pulsar.client.schemas.proto.Test$\",\"fields\":[{\"name\":\"stringField\"," +
+            "\"namespace\":\"org.apache.pulsar.client.schema.proto.Test$\",\"fields\":[{\"name\":\"stringField\"," +
             "\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"default\":\"\"}," +
             "{\"name\":\"doubleField\",\"type\":\"double\",\"default\":0},{\"name\":\"intField\",\"type\":\"int\"," +
             "\"default\":0},{\"name\":\"testEnum\",\"type\":{\"type\":\"enum\",\"name\":\"TestEnum\"," +
@@ -56,8 +56,8 @@ public class ProtobufSchemaTest {
 
     @Test
     public void testSchema() {
-        ProtobufSchema<org.apache.pulsar.client.schemas.proto.Test.TestMessage> protobufSchema
-                = ProtobufSchema.of(org.apache.pulsar.client.schemas.proto.Test.TestMessage.class);
+        ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
+                = ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
 
         Assert.assertEquals(protobufSchema.getSchemaInfo().getType(), SchemaType.PROTOBUF);
 

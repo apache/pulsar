@@ -16,26 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto3";
-package proto;
+package org.apache.pulsar.tests.integration.utils;
 
-option java_package = "org.apache.pulsar.client.schemas.proto";
-option java_outer_classname = "Test";
+import java.util.concurrent.ThreadLocalRandom;
 
-enum TestEnum {
-    SHARED = 0;
-    FAILOVER = 1;
-}
+public final class TestUtils {
 
-message SubMessage {
-    string foo = 1;
-    double bar = 2;
-}
+    private TestUtils() {}
 
-message TestMessage {
-    string stringField = 1;
-    double doubleField = 2;
-    int32 intField = 3;
-    TestEnum testEnum = 4;
-    SubMessage nestedField = 5;
+    public static String randomName(int numChars) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < numChars; i++) {
+            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
+        }
+        return sb.toString();
+    }
+
 }

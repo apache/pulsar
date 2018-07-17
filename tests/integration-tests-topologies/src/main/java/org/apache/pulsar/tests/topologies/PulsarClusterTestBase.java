@@ -34,26 +34,37 @@ public abstract class PulsarClusterTestBase {
     @DataProvider(name = "ServiceUrlAndTopics")
     public static Object[][] serviceUrlAndTopics() {
         return new Object[][] {
-            // plain text, persistent topic
-            {
-                pulsarCluster.getPlainTextServiceUrl(),
-                true,
-            },
-            // plain text, non-persistent topic
-            {
-                pulsarCluster.getPlainTextServiceUrl(),
-                false
-            }
+                // plain text, persistent topic
+                {
+                        pulsarCluster.getPlainTextServiceUrl(),
+                        true,
+                },
+                // plain text, non-persistent topic
+                {
+                        pulsarCluster.getPlainTextServiceUrl(),
+                        false
+                }
         };
     }
 
     @DataProvider(name = "ServiceUrls")
     public static Object[][] serviceUrls() {
         return new Object[][] {
-            // plain text
-            {
-                pulsarCluster.getPlainTextServiceUrl()
-            }
+                // plain text
+                {
+                        pulsarCluster.getPlainTextServiceUrl()
+                }
+        };
+    }
+
+    @DataProvider(name = "ServiceAndAdminUrls")
+    public static Object[][] serviceAndAdminUrls() {
+        return new Object[][] {
+                // plain text
+                {
+                        pulsarCluster.getPlainTextServiceUrl(),
+                        pulsarCluster.getHttpServiceUrl()
+                }
         };
     }
 
@@ -62,22 +73,28 @@ public abstract class PulsarClusterTestBase {
     @BeforeClass
     public void setupCluster() throws Exception {
         this.setupCluster("");
-        pulsarCluster.startFunctionWorkersWithProcessContainerFactory(1);
     }
 
     public void setupCluster(String namePrefix) throws Exception {
-        PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .clusterName(Stream.of(this.getClass().getSimpleName(), namePrefix, randomName(5))
+        String clusterName = Stream.of(this.getClass().getSimpleName(), namePrefix, randomName(5))
                 .filter(s -> s != null && !s.isEmpty())
-                .collect(joining("-")))
-            .build();
+                .collect(joining("-"));
 
-        setupCluster(spec);
+        PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder = PulsarClusterSpec.builder()
+                .clusterName(clusterName);
+
+        setupCluster(beforeSetupCluster(clusterName, specBuilder).build());
     }
 
-    private void setupCluster(PulsarClusterSpec spec) throws Exception {
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
+            String clusterName,
+            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+        return specBuilder;
+    }
+
+    protected void setupCluster(PulsarClusterSpec spec) throws Exception {
         log.info("Setting up cluster {} with {} bookies, {} brokers",
-            spec.clusterName(), spec.numBookies(), spec.numBrokers());
+                spec.clusterName(), spec.numBookies(), spec.numBrokers());
 
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
@@ -94,7 +111,7 @@ public abstract class PulsarClusterTestBase {
 
     protected static String randomName(int numChars) {
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < numChars; i++) {
             sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
         }
         return sb.toString();
@@ -110,11 +127,11 @@ public abstract class PulsarClusterTestBase {
 
     protected static String generateTopicName(String namespace, String topicPrefix, boolean isPersistent) {
         String topicName = new StringBuilder(topicPrefix)
-            .append("-")
-            .append(randomName(8))
-            .append("-")
-            .append(System.currentTimeMillis())
-            .toString();
+                .append("-")
+                .append(randomName(8))
+                .append("-")
+                .append(System.currentTimeMillis())
+                .toString();
         if (isPersistent) {
             return "persistent://public/" + namespace + "/" + topicName;
         } else {

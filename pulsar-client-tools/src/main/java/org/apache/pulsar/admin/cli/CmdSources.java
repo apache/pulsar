@@ -216,6 +216,8 @@ public class CmdSources extends CmdBase {
         @Parameter(names = { "-a", "--archive" },
                 description = "The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String archive;
+        @Parameter(names = "--className", description = "The source's class name if archive is file-url-path (file://)")
+        protected String className;
         @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
         protected String sourceConfigFile;
@@ -247,6 +249,9 @@ public class CmdSources extends CmdBase {
             }
             if (null != name) {
                 sourceConfig.setName(name);
+            }
+            if (null != className) {
+                this.sourceConfig.setClassName(className);
             }
             if (null != destinationTopicName) {
                 sourceConfig.setTopicName(destinationTopicName);
@@ -391,12 +396,18 @@ public class CmdSources extends CmdBase {
             boolean isBuiltin = sourceConfig.getArchive().startsWith(Utils.BUILTIN);
 
             if (!isBuiltin) {
-                sourceClassName = ConnectorUtils.getIOSourceClass(sourceConfig.getArchive());
+                if (sourceConfig.getArchive().startsWith(Utils.FILE)) {
+                    if (StringUtils.isBlank(sourceConfig.getClassName())) {
+                        throw new ParameterException("Class-name must be present for archive with file-url");
+                    }
+                    sourceClassName = sourceConfig.getClassName(); // server derives the arg-type by loading a class
+                } else {
+                    sourceClassName = ConnectorUtils.getIOSourceClass(sourceConfig.getArchive());
 
-                try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sourceConfig.getArchive()),
-                        Collections.emptySet())) {
-                    typeArg = sourceConfig.getArchive().startsWith(Utils.FILE) ? null
-                            : getSourceType(sourceClassName, ncl).getName();
+                    try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sourceConfig.getArchive()),
+                            Collections.emptySet())) {
+                        typeArg = getSourceType(sourceClassName, ncl).getName();
+                    }
                 }
             }
 

@@ -54,7 +54,7 @@ public class PulsarSource<T> implements Source<T> {
     private boolean isTopicsPattern;
 
     @Getter
-    private org.apache.pulsar.client.api.Consumer inputConsumer;
+    private org.apache.pulsar.client.api.Consumer<byte[]> inputConsumer;
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
         this.pulsarClient = pulsarClient;
@@ -69,17 +69,17 @@ public class PulsarSource<T> implements Source<T> {
         // Setup pulsar consumer
         ConsumerBuilder<byte[]> consumerBuilder = this.pulsarClient.newConsumer()
                 //consume message even if can't decrypt and deliver it along with encryption-ctx
-                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)  
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
                 .subscriptionType(this.pulsarSourceConfig.getSubscriptionType());
 
         if(isNotBlank(this.pulsarSourceConfig.getTopicsPattern())) {
-            consumerBuilder.topicsPattern(this.pulsarSourceConfig.getTopicsPattern());    
+            consumerBuilder.topicsPattern(this.pulsarSourceConfig.getTopicsPattern());
             isTopicsPattern = true;
         }else {
-            consumerBuilder.topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()));    
+            consumerBuilder.topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()));
         }
-        
+
         if (pulsarSourceConfig.getTimeoutMs() != null) {
             consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
@@ -88,21 +88,21 @@ public class PulsarSource<T> implements Source<T> {
 
     @Override
     public Record<T> read() throws Exception {
-        org.apache.pulsar.client.api.Message<T> message = this.inputConsumer.receive();
+        org.apache.pulsar.client.api.Message<byte[]> message = this.inputConsumer.receive();
 
         String topicName;
-        String partitionId;
+        int partitionId;
 
         // If more than one topics are being read than the Message return by the consumer will be TopicMessageImpl
         // If there is only topic being read then the Message returned by the consumer wil be MessageImpl
         if (message instanceof TopicMessageImpl) {
-            topicName = ((TopicMessageImpl) message).getTopicName();
+            topicName = ((TopicMessageImpl<?>) message).getTopicName();
             TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) message.getMessageId();
             MessageIdImpl messageId = (MessageIdImpl) topicMessageId.getInnerMessageId();
-            partitionId = Long.toString(messageId.getPartitionIndex());
+            partitionId = messageId.getPartitionIndex();
         } else {
             topicName = this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet().iterator().next();
-            partitionId = Long.toString(((MessageIdImpl) message.getMessageId()).getPartitionIndex());
+            partitionId = ((MessageIdImpl) message.getMessageId()).getPartitionIndex();
         }
 
         Object object;
@@ -130,14 +130,10 @@ public class PulsarSource<T> implements Source<T> {
             throw new RuntimeException("Error in casting input to expected type:", e);
         }
 
-        PulsarRecord<T> pulsarMessage = (PulsarRecord<T>) PulsarRecord.builder()
+        return PulsarRecord.<T>builder()
                 .value(input)
-                .messageId(message.getMessageId())
-                .partitionId(String.format("%s-%s", topicName, partitionId))
-                .recordSequence(Utils.getSequenceId(message.getMessageId()))
+                .message(message)
                 .topicName(topicName)
-                .properties(message.getProperties())
-                .encryptionCtx(message.getEncryptionCtx())
                 .ackFunction(() -> {
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         inputConsumer.acknowledgeCumulativeAsync(message);
@@ -150,7 +146,6 @@ public class PulsarSource<T> implements Source<T> {
                     }
                 })
                 .build();
-        return pulsarMessage;
     }
 
     @Override

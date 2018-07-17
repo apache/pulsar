@@ -31,22 +31,23 @@ import com.aerospike.client.async.NioEventLoops;
 import com.aerospike.client.listener.WriteListener;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.WritePolicy;
-import org.apache.pulsar.io.core.KeyValue;
-import org.apache.pulsar.io.core.SimpleSink;
-import org.apache.pulsar.io.core.SinkContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
+
+import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Simple abstract class for Aerospike sink
  * Users need to implement extractKeyValue function to use this sink
  */
-public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
+public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeAbstractSink.class);
 
@@ -55,6 +56,7 @@ public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
     private AerospikeClient client;
     private WritePolicy writePolicy;
     private BlockingQueue<AWriteListener> queue;
+    private NioEventLoops eventLoops;
     private EventLoop eventLoop;
 
     @Override
@@ -74,18 +76,25 @@ public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
         for (int i = 0; i < aerospikeSinkConfig.getMaxConcurrentRequests(); ++i) {
             queue.put(new AWriteListener(queue));
         }
-        eventLoop = new NioEventLoops(new EventPolicy(), 1).next();
+
+        eventLoops = new NioEventLoops(new EventPolicy(), 1);
+        eventLoop = eventLoops.next();
     }
 
     @Override
     public void close() throws Exception {
-        client.close();
+        if (client != null) {
+            client.close();
+        }
+
+        if (eventLoops != null) {
+            eventLoops.close();
+        }
         LOG.info("Connection Closed");
     }
 
     @Override
-    public CompletableFuture<Void> write(byte[] record) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+    public void write(Record<byte[]> record) {
         KeyValue<K, V> keyValue = extractKeyValue(record);
         Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(), keyValue.getKey().toString());
         Bin bin = new Bin(aerospikeSinkConfig.getColumnName(), Value.getAsBlob(keyValue.getValue()));
@@ -93,12 +102,11 @@ public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
         try {
             listener = queue.take();
         } catch (InterruptedException ex) {
-            future.completeExceptionally(ex);
-            return future;
+            record.fail();
+            return;
         }
-        listener.setFuture(future);
+        listener.setContext(record);
         client.put(eventLoop, listener, writePolicy, key, bin);
-        return future;
     }
 
     private void createClient() {
@@ -121,21 +129,21 @@ public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
     }
 
     private class AWriteListener implements WriteListener {
-        private CompletableFuture<Void> future;
+        private Record<byte[]> context;
         private BlockingQueue<AWriteListener> queue;
 
         public AWriteListener(BlockingQueue<AWriteListener> queue) {
             this.queue = queue;
         }
 
-        public void setFuture(CompletableFuture<Void> future) {
-            this.future = future;
+        public void setContext(Record<byte[]> record) {
+            this.context = record;
         }
 
         @Override
         public void onSuccess(Key key) {
-            if (future != null) {
-                future.complete(null);
+            if (context != null) {
+                context.ack();
             }
             try {
                 queue.put(this);
@@ -146,8 +154,8 @@ public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
 
         @Override
         public void onFailure(AerospikeException e) {
-            if (future != null) {
-                future.completeExceptionally(e);
+            if (context != null) {
+                context.fail();
             }
             try {
                 queue.put(this);
@@ -157,5 +165,5 @@ public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
         }
     }
 
-    public abstract KeyValue<K, V> extractKeyValue(byte[] message);
+    public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> message);
 }

@@ -108,6 +108,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Source source;
     private Sink sink;
+    
+    public static final String METRICS_TOTAL_PROCESSED = "__total_processed__";
+    public static final String METRICS_TOTAL_SUCCESS = "__total_successfully_processed__";
+    public static final String METRICS_TOTAL_SYS_EXCEPTION = "__total_system_exceptions__";
+    public static final String METRICS_TOTAL_USER_EXCEPTION = "__total_user_exceptions__";
+    public static final String METRICS_TOTAL_DESERIALIZATION_EXCEPTION = "__total_deserialization_exceptions__";
+    public static final String METRICS_TOTAL_SERIALIZATION_EXCEPTION = "__total_serialization_exceptions__";
+    public static final String METRICS_AVG_LATENCY = "__avg_latency_ms__";
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
@@ -324,7 +332,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void sendOutputMessage(Record srcRecord, Object output) {
         try {
-            this.sink.write(srcRecord, output);
+            this.sink.write(new SinkRecord<>(srcRecord, output));
         } catch (Exception e) {
             log.info("Encountered exception in sink write: ", e);
             throw new RuntimeException(e);
@@ -418,17 +426,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     
     private Builder createMetricsDataBuilder() {
         InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
-        addSystemMetrics("__total_processed__", stats.getStats().getTotalProcessed(), bldr);
-        addSystemMetrics("__total_successfully_processed__", stats.getStats().getTotalSuccessfullyProcessed(),
+        addSystemMetrics(METRICS_TOTAL_PROCESSED, stats.getStats().getTotalProcessed(), bldr);
+        addSystemMetrics(METRICS_TOTAL_SUCCESS, stats.getStats().getTotalSuccessfullyProcessed(),
                 bldr);
-        addSystemMetrics("__total_system_exceptions__", stats.getStats().getTotalSystemExceptions(), bldr);
-        addSystemMetrics("__total_user_exceptions__", stats.getStats().getTotalUserExceptions(), bldr);
+        addSystemMetrics(METRICS_TOTAL_SYS_EXCEPTION, stats.getStats().getTotalSystemExceptions(), bldr);
+        addSystemMetrics(METRICS_TOTAL_USER_EXCEPTION, stats.getStats().getTotalUserExceptions(), bldr);
         stats.getStats().getTotalDeserializationExceptions().forEach((topic, count) -> {
-            addSystemMetrics("__total_deserialization_exceptions__" + topic, count, bldr);
+            addSystemMetrics(METRICS_TOTAL_DESERIALIZATION_EXCEPTION + topic, count, bldr);
         });
-        addSystemMetrics("__total_serialization_exceptions__",
+        addSystemMetrics(METRICS_TOTAL_SERIALIZATION_EXCEPTION,
                 stats.getStats().getTotalSerializationExceptions(), bldr);
-        addSystemMetrics("__avg_latency_ms__", stats.getStats().computeLatency(), bldr);
+        addSystemMetrics(METRICS_AVG_LATENCY, stats.getStats().computeLatency(), bldr);
         return bldr;
     }
 

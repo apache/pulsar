@@ -175,8 +175,10 @@ BOOKIE_LOG_FILE=${BOOKIE_LOG_FILE:-"bookkeeper-server.log"}
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$BOOKIE_LOG_APPENDER"
-OPTS="$OPTS -Dbookkeeper.log.dir=$BOOKIE_LOG_DIR"
-OPTS="$OPTS -Dbookkeeper.log.file=$BOOKIE_LOG_FILE"
+OPTS="$OPTS -Dbk.log.appender=$BOOKIE_LOG_APPENDER"
+OPTS="$OPTS -Dbk.log.level=error"
+OPTS="$OPTS -Dpulsar.log.dir=$BOOKIE_LOG_DIR"
+OPTS="$OPTS -Dpulsar.log.file=$BOOKIE_LOG_FILE"
 
 #Change to BK_HOME to support relative paths
 cd "$BK_HOME"

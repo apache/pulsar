@@ -27,7 +27,7 @@ import org.apache.kafka.clients.consumer.*;
  */
 public class KafkaStringSource extends KafkaAbstractSource<String> {
     @Override
-    public String extractValue(ConsumerRecord<byte[], byte[]> record) {
+    public String extractValue(ConsumerRecord<String, byte[]> record) {
         return new String(record.value());
     }
 }

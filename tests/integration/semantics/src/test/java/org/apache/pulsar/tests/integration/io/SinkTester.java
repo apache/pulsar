@@ -16,32 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.core;
+package org.apache.pulsar.tests.integration.io;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import org.testcontainers.containers.GenericContainer;
+import org.testng.collections.Maps;
 
 /**
- * A simpler version of the Sink interface users can extend for use cases to
- * don't require fine grained delivery control
+ * A tester used for testing a specific sink.
  */
-public abstract class SimpleSink<T> implements Sink<T> {
+public abstract class SinkTester<SINK_SERVICE_CONTAINER extends GenericContainer> {
 
-    @Override
-    public void write(RecordContext inputRecordContext, T value) throws Exception {
-        write(value)
-                .thenAccept(ignored -> inputRecordContext.ack())
-                .exceptionally(cause -> {
-                    inputRecordContext.fail();
-                    return null;
-                });
+    protected final String sinkType;
+    protected final Map<String, Object> sinkConfig;
+
+    protected SinkTester(String sinkType) {
+        this.sinkType = sinkType;
+        this.sinkConfig = Maps.newHashMap();
     }
 
-    /**
-     * Attempt to publish a type safe collection of messages
-     *
-     * @param value output value
-     * @return Completable future fo async publish request
-     */
-    public abstract CompletableFuture<Void> write(T value);
+    protected abstract SINK_SERVICE_CONTAINER newSinkService(String clusterName);
+
+    protected String sinkType() {
+        return sinkType;
+    }
+
+    protected Map<String, Object> sinkConfig() {
+        return sinkConfig;
+    }
+
+    protected abstract void prepareSink();
+
+    protected abstract void validateSinkResult(Map<String, String> kvs);
+
 }

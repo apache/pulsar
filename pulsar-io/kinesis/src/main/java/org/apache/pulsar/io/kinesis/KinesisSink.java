@@ -24,22 +24,6 @@ import static com.google.common.util.concurrent.Futures.addCallback;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.nio.ByteBuffer;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
-import org.apache.pulsar.io.core.RecordContext;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -55,17 +39,32 @@ import com.google.gson.reflect.TypeToken;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.nio.ByteBuffer;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
- * A Kinesis sink which can be configured by {@link KinesisSinkConfig}. 
- * <pre> 
+ * A Kinesis sink which can be configured by {@link KinesisSinkConfig}.
+ * <pre>
  * {@link KinesisSinkConfig} accepts
  * 1. <b>awsEndpoint:</b> kinesis end-point url can be found at : https://docs.aws.amazon.com/general/latest/gr/rande.html
  * 2. <b>awsRegion:</b> appropriate aws region eg: us-west-1, us-west-2
  * 3. <b>awsKinesisStreamName:</b> kinesis stream name
  * 4. <b>awsCredentialPluginName:</b> Fully-Qualified class name of implementation of {@link AwsCredentialProviderPlugin}.
  *    - It is a factory class which creates an {@link AWSCredentialsProvider} that will be used by {@link KinesisProducer}
- *    - If it is empty then {@link KinesisSink} creates default {@link AWSCredentialsProvider} 
- *      which accepts json-map of credentials in awsCredentialPluginParam 
+ *    - If it is empty then {@link KinesisSink} creates default {@link AWSCredentialsProvider}
+ *      which accepts json-map of credentials in awsCredentialPluginParam
  *      eg: awsCredentialPluginParam = {"accessKey":"my-access-key","secretKey":"my-secret-key"}
  * 5. <b>awsCredentialPluginParam:</b> json-parameters to initialize {@link AwsCredentialProviderPlugin}
  * 6. messageFormat: enum:["ONLY_RAW_PAYLOAD","FULL_MESSAGE_IN_JSON"]
@@ -76,9 +75,9 @@ import io.netty.util.Recycler.Handle;
  *   Example:
  *   {"payloadBase64":"cGF5bG9hZA==","properties":{"prop1":"value"},"encryptionCtx":{"keysMapBase64":{"key1":"dGVzdDE=","key2":"dGVzdDI="},"keysMetadataMap":{"key1":{"ckms":"cmks-1","version":"v1"},"key2":{"ckms":"cmks-2","version":"v2"}},"metadata":{"ckms":"cmks-1","version":"v1"},"encParamBase64":"cGFyYW0=","algorithm":"algo","compressionType":"LZ4","uncompressedMessageSize":10,"batchSize":10}}
  * </pre>
- * 
- * 
- * 
+ *
+ *
+ *
  */
 public class KinesisSink implements Sink<byte[]> {
 
@@ -89,25 +88,34 @@ public class KinesisSink implements Sink<byte[]> {
     private String streamName;
     private static final String defaultPartitionedKey = "default";
     private static final int maxPartitionedKeyLength = 256;
+    private SinkContext sinkContext;
 
     public static final String ACCESS_KEY_NAME = "accessKey";
     public static final String SECRET_KEY_NAME = "secretKey";
 
+    public static final String METRICS_TOTAL_INCOMING = "_kinesis_total_incoming_";
+    public static final String METRICS_TOTAL_INCOMING_BYTES = "_kinesis_total_incoming_bytes_";
+    public static final String METRICS_TOTAL_SUCCESS = "_kinesis_total_success_";
+    public static final String METRICS_TOTAL_FAILURE = "_kinesis_total_failure_";
+         
+    
     @Override
-    public void write(RecordContext inputRecordContext, byte[] value) throws Exception {
-        String partitionedKey = StringUtils.isNotBlank(inputRecordContext.getPartitionId())
-                ? inputRecordContext.getPartitionId()
-                : defaultPartitionedKey;
+    public void write(Record<byte[]> record) throws Exception {
+        String partitionedKey = record.getKey().orElse(defaultPartitionedKey);
         partitionedKey = partitionedKey.length() > maxPartitionedKeyLength
                 ? partitionedKey.substring(0, maxPartitionedKeyLength - 1)
                 : partitionedKey; // partitionedKey Length must be at least one, and at most 256
+        ByteBuffer data = createKinesisMessage(kinesisSinkConfig.getMessageFormat(), record);
         ListenableFuture<UserRecordResult> addRecordResult = kinesisProducer.addUserRecord(this.streamName,
-                partitionedKey,
-                createKinesisMessage(kinesisSinkConfig.getMessageFormat(), inputRecordContext, value));
+                partitionedKey, data);
         addCallback(addRecordResult,
-                ProducerSendCallback.create(this.streamName, inputRecordContext, System.nanoTime()), directExecutor());
+                ProducerSendCallback.create(this.streamName, record, System.nanoTime(), sinkContext), directExecutor());
+        if (sinkContext != null) {
+            sinkContext.recordMetric(METRICS_TOTAL_INCOMING, 1);
+            sinkContext.recordMetric(METRICS_TOTAL_INCOMING_BYTES, data.array().length);
+        }
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Published message to kinesis stream {} with size {}", streamName, value.length);
+            LOG.debug("Published message to kinesis stream {} with size {}", streamName, record.getValue().length);
         }
     }
 
@@ -123,6 +131,7 @@ public class KinesisSink implements Sink<byte[]> {
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         kinesisSinkConfig = KinesisSinkConfig.load(config);
+        this.sinkContext = sinkContext;
 
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint()), "empty aws-end-point");
@@ -151,26 +160,29 @@ public class KinesisSink implements Sink<byte[]> {
         if (isNotBlank(awsCredentialPluginName)) {
             return createCredentialProviderWithPlugin(awsCredentialPluginName, awsCredentialPluginParam);
         } else {
-            return defaultCredentialProvider(awsCredentialPluginParam);            
+            return defaultCredentialProvider(awsCredentialPluginParam);
         }
     }
 
     private static final class ProducerSendCallback implements FutureCallback<UserRecordResult> {
 
-        private RecordContext resultContext;
+        private Record<byte[]> resultContext;
         private String streamName;
         private long startTime = 0;
         private final Handle<ProducerSendCallback> recyclerHandle;
+        private SinkContext sinkContext;
 
         private ProducerSendCallback(Handle<ProducerSendCallback> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
-        static ProducerSendCallback create(String streamName, RecordContext result, long startTime) {
+        static ProducerSendCallback create(String streamName, Record<byte[]> resultContext, long startTime,
+                SinkContext sinkContext) {
             ProducerSendCallback sendCallback = RECYCLER.get();
-            sendCallback.resultContext = result;
+            sendCallback.resultContext = resultContext;
             sendCallback.streamName = streamName;
             sendCallback.startTime = startTime;
+            sendCallback.sinkContext = sinkContext;
             return sendCallback;
         }
 
@@ -178,6 +190,7 @@ public class KinesisSink implements Sink<byte[]> {
             resultContext = null;
             streamName = null;
             startTime = 0;
+            sinkContext = null;
             recyclerHandle.recycle(this);
         }
 
@@ -191,10 +204,13 @@ public class KinesisSink implements Sink<byte[]> {
         @Override
         public void onSuccess(UserRecordResult result) {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Successfully published message for replicator of {}-{} with latency", this.streamName,
-                        result.getShardId(), TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime)));
+                LOG.debug("Successfully published message for {}-{} with latency", this.streamName, result.getShardId(),
+                        TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime)));
             }
             this.resultContext.ack();
+            if (sinkContext != null) {
+                sinkContext.recordMetric(METRICS_TOTAL_SUCCESS, 1);
+            }
             recycle();
         }
 
@@ -203,6 +219,9 @@ public class KinesisSink implements Sink<byte[]> {
             LOG.error("[{}] Failed to published message for replicator of {}-{} ", streamName,
                     resultContext.getPartitionId(), resultContext.getRecordSequence());
             this.resultContext.fail();
+            if (sinkContext != null) {
+                sinkContext.recordMetric(METRICS_TOTAL_FAILURE, 1);
+            }
             recycle();
         }
     }
@@ -210,7 +229,7 @@ public class KinesisSink implements Sink<byte[]> {
     /**
      * Creates a instance of credential provider which can return {@link AWSCredentials} or {@link BasicAWSCredentials}
      * based on IAM user/roles.
-     * 
+     *
      * @param pluginFQClassName
      * @param param
      * @return
@@ -234,7 +253,7 @@ public class KinesisSink implements Sink<byte[]> {
     /**
      * It creates a default credential provider which takes accessKey and secretKey form configuration and creates
      * {@link AWSCredentials}
-     * 
+     *
      * @param awsCredentialPluginParam
      * @return
      */
@@ -274,15 +293,15 @@ public class KinesisSink implements Sink<byte[]> {
         };
     }
 
-    public static ByteBuffer createKinesisMessage(MessageFormat msgFormat, RecordContext recordCtx, byte[] data) {
+    public static ByteBuffer createKinesisMessage(MessageFormat msgFormat, Record<byte[]> record) {
         if (MessageFormat.FULL_MESSAGE_IN_JSON.equals(msgFormat)) {
-            return ByteBuffer.wrap(Utils.serializeRecordToJson(recordCtx, data).getBytes());
+            return ByteBuffer.wrap(Utils.serializeRecordToJson(record).getBytes());
         } else if (MessageFormat.FULL_MESSAGE_IN_FB.equals(msgFormat)) {
-            return Utils.serializeRecordToFlatBuffer(recordCtx, data);
+            return Utils.serializeRecordToFlatBuffer(record);
         } else {
             // send raw-message
-            return ByteBuffer.wrap(data);
+            return ByteBuffer.wrap(record.getValue());
         }
     }
-    
+
 }

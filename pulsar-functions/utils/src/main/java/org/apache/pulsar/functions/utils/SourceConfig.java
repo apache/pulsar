@@ -48,6 +48,7 @@ public class SourceConfig {
     private String namespace;
     @NotNull
     private String name;
+    private String className;
 
     @NotNull
     @isValidTopicName
