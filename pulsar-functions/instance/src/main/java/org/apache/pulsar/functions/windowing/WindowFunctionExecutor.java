@@ -19,10 +19,20 @@
 package org.apache.pulsar.functions.windowing;
 
 import com.google.gson.Gson;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.WindowConfig;
 import org.apache.pulsar.functions.utils.validation.ValidatorImpls;
@@ -35,13 +45,7 @@ import org.apache.pulsar.functions.windowing.triggers.TimeTriggerPolicy;
 import org.apache.pulsar.functions.windowing.triggers.WatermarkCountTriggerPolicy;
 import org.apache.pulsar.functions.windowing.triggers.WatermarkTimeTriggerPolicy;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.stream.Collectors;
+import net.jodah.typetools.TypeResolver;
 
 @Slf4j
 public class WindowFunctionExecutor<I, O> implements Function<I, O> {
@@ -275,10 +279,13 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         if (!this.initialized) {
             initialize(context);
         }
+
+        Record<?> record = context.getCurrentRecord();
+
         if (isEventTime()) {
             long ts = this.timestampExtractor.extractTimestamp(input);
             if (this.waterMarkEventGenerator.track(context.getCurrentMessageTopicName(), ts)) {
-                this.windowManager.add(input, ts, context.getMessageId());
+                this.windowManager.add(input, ts, record);
             } else {
                 if (this.windowConfig.getLateDataTopic() != null) {
                     context.publish(this.windowConfig.getLateDataTopic(), input, context.getOutputSerdeClassName());
@@ -287,7 +294,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
                             "Received a late tuple %s with ts %d. This will not be " + "processed"
                                     + ".", input, ts));
                 }
-                context.ack(context.getMessageId());
+                record.ack();
             }
         } else {
             this.windowManager.add(input, System.currentTimeMillis(), context.getMessageId());

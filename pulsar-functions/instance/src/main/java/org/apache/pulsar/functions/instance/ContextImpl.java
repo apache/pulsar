@@ -18,19 +18,33 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
+import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
+
 import lombok.Getter;
 import lombok.Setter;
+
 import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
@@ -39,21 +53,6 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
-
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
-
-import static com.google.common.base.Preconditions.checkState;
 
 /**
  * This class implements the Context interface exposed to the user.
@@ -98,15 +97,18 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private Map<String, SerDe> publishSerializers;
     private ProducerConfiguration producerConfiguration;
     private PulsarClient pulsarClient;
-    private ClassLoader classLoader;
-    Consumer inputConsumer;
+    private final ClassLoader classLoader;
+
+    private final List<String> inputTopics;
+    private Record<?> record;
+
     @Getter
     @Setter
     private StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       ClassLoader classLoader, Consumer inputConsumer) {
+                       ClassLoader classLoader, List<String> inputTopics) {
         this.config = config;
         this.logger = logger;
         this.pulsarClient = client;
@@ -115,7 +117,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
         this.publishSerializers = new HashMap<>();
-        this.inputConsumer = inputConsumer;
+        this.inputTopics = inputTopics;
         producerConfiguration = new ProducerConfiguration();
         producerConfiguration.setBlockIfQueueFull(true);
         producerConfiguration.setBatchingEnabled(true);
@@ -129,7 +131,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
-    public void setCurrentMessageContext(MessageId messageId, String topicName) {
+    public void setCurrentMessageContext(Record<?> record, MessageId messageId, String topicName) {
+        this.record = record;
         this.messageId = messageId;
         this.currentTopicName = topicName;
     }
@@ -140,20 +143,18 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
+    public Record<?> getCurrentRecord() {
+        return record;
+    }
+
+    @Override
     public String getCurrentMessageTopicName() {
         return currentTopicName;
     }
 
     @Override
     public Collection<String> getInputTopics() {
-        if (inputConsumer == null) {
-            return new LinkedList<>();
-        }
-        if (inputConsumer instanceof MultiTopicsConsumerImpl) {
-            return ((MultiTopicsConsumerImpl) inputConsumer).getTopics();
-        } else {
-            return Arrays.asList(inputConsumer.getTopic());
-        }
+        return inputTopics;
     }
 
     @Override
@@ -307,23 +308,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                 .thenApply(msgId -> null);
     }
 
-    //TODO remove topic argument
-    @Override
-    public CompletableFuture<Void> ack(byte[] messageId) {
-        // if inputConsumer is null, then ack is a no-op
-        if (inputConsumer == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        MessageId actualMessageId = null;
-        try {
-            actualMessageId = MessageId.fromByteArray(messageId);
-
-        } catch (IOException e) {
-            throw new RuntimeException("Invalid message id to ack", e);
-        }
-        return  inputConsumer.acknowledgeAsync(actualMessageId);
-    }
-
     @Override
     public void recordMetric(String metricName, double value) {
         currentAccumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
@@ -341,7 +325,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         this.accumulatedMetrics.putAll(currentAccumulatedMetrics);
         this.currentAccumulatedMetrics.clear();
     }
-    
+
     public MetricsData getMetrics() {
         MetricsData.Builder metricsDataBuilder = MetricsData.newBuilder();
         for (String metricName : accumulatedMetrics.keySet()) {
