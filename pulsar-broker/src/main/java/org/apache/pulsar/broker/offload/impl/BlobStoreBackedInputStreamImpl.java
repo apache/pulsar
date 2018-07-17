@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.offload.BackedInputStream;
 import org.apache.pulsar.broker.offload.impl.ManagedLedgerOffloader.VersionCheck;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
+import org.jclouds.blobstore.options.GetOptions;
 import org.jclouds.io.Payload;
 import org.jclouds.io.PayloadSlicer;
 import org.jclouds.io.internal.BasePayloadSlicer;
@@ -75,20 +76,17 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                                      objectLen - 1);
 
             try {
-                Blob blob = blobStore.getBlob(bucket, key);
+                Blob blob = blobStore.getBlob(bucket, key, new GetOptions().range(startRange, endRange));
                 versionCheck.check(key, blob);
-                PayloadSlicer slicer = new BasePayloadSlicer();
 
-                try (Payload payload = slicer.slice(blob.getPayload(), startRange, endRange - startRange + 1);
-                     InputStream slice = payload.openStream()) {
-
+                try (InputStream stream = blob.getPayload().openStream()) {
                     buffer.clear();
                     bufferOffsetStart = startRange;
                     bufferOffsetEnd = endRange;
                     long bytesRead = endRange - startRange + 1;
                     int bytesToCopy = (int) bytesRead;
                     while (bytesToCopy > 0) {
-                        bytesToCopy -= buffer.writeBytes(slice, bytesToCopy);
+                        bytesToCopy -= buffer.writeBytes(stream, bytesToCopy);
                     }
                     cursor += buffer.readableBytes();
                 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.offload;
 
 import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -32,8 +33,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.offload.impl.BlobStoreBackedInputStreamImpl;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
+import org.jclouds.blobstore.options.GetOptions;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
+import org.mockito.Matchers;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -217,7 +221,8 @@ class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
             Assert.assertEquals(thirdSeek.read(), toTest.read());
         }
 
-        verify(spiedBlobStore, times(1)).getBlob(BUCKET, objectKey);
+        verify(spiedBlobStore, times(1))
+            .getBlob(Mockito.eq(BUCKET), Mockito.eq(objectKey), Matchers.<GetOptions>anyObject());
     }
 
     @Test
