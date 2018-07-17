@@ -34,26 +34,37 @@ public abstract class PulsarClusterTestBase {
     @DataProvider(name = "ServiceUrlAndTopics")
     public static Object[][] serviceUrlAndTopics() {
         return new Object[][] {
-            // plain text, persistent topic
-            {
-                pulsarCluster.getPlainTextServiceUrl(),
-                true,
-            },
-            // plain text, non-persistent topic
-            {
-                pulsarCluster.getPlainTextServiceUrl(),
-                false
-            }
+                // plain text, persistent topic
+                {
+                        pulsarCluster.getPlainTextServiceUrl(),
+                        true,
+                },
+                // plain text, non-persistent topic
+                {
+                        pulsarCluster.getPlainTextServiceUrl(),
+                        false
+                }
         };
     }
 
     @DataProvider(name = "ServiceUrls")
     public static Object[][] serviceUrls() {
         return new Object[][] {
-            // plain text
-            {
-                pulsarCluster.getPlainTextServiceUrl()
-            }
+                // plain text
+                {
+                        pulsarCluster.getPlainTextServiceUrl()
+                }
+        };
+    }
+
+    @DataProvider(name = "ServiceAndAdminUrls")
+    public static Object[][] serviceAndAdminUrls() {
+        return new Object[][] {
+                // plain text
+                {
+                        pulsarCluster.getPlainTextServiceUrl(),
+                        pulsarCluster.getHttpServiceUrl()
+                }
         };
     }
 
@@ -66,24 +77,24 @@ public abstract class PulsarClusterTestBase {
 
     public void setupCluster(String namePrefix) throws Exception {
         String clusterName = Stream.of(this.getClass().getSimpleName(), namePrefix, randomName(5))
-            .filter(s -> s != null && !s.isEmpty())
-            .collect(joining("-"));
+                .filter(s -> s != null && !s.isEmpty())
+                .collect(joining("-"));
 
         PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder = PulsarClusterSpec.builder()
-            .clusterName(clusterName);
+                .clusterName(clusterName);
 
         setupCluster(beforeSetupCluster(clusterName, specBuilder).build());
     }
 
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
-        String clusterName,
-        PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+            String clusterName,
+            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         return specBuilder;
     }
 
     protected void setupCluster(PulsarClusterSpec spec) throws Exception {
         log.info("Setting up cluster {} with {} bookies, {} brokers",
-            spec.clusterName(), spec.numBookies(), spec.numBrokers());
+                spec.clusterName(), spec.numBookies(), spec.numBrokers());
 
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
@@ -116,11 +127,11 @@ public abstract class PulsarClusterTestBase {
 
     protected static String generateTopicName(String namespace, String topicPrefix, boolean isPersistent) {
         String topicName = new StringBuilder(topicPrefix)
-            .append("-")
-            .append(randomName(8))
-            .append("-")
-            .append(System.currentTimeMillis())
-            .toString();
+                .append("-")
+                .append(randomName(8))
+                .append("-")
+                .append(System.currentTimeMillis())
+                .toString();
         if (isPersistent) {
             return "persistent://public/" + namespace + "/" + topicName;
         } else {

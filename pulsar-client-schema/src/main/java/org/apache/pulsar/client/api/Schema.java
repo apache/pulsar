@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.BytesSchema;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
@@ -61,4 +64,17 @@ public interface Schema<T> {
      * Schema that can be used to encode/decode messages whose values are String. The payload is encoded with UTF-8.
      */
     Schema<String> STRING = new StringSchema();
+
+
+    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
+        return ProtobufSchema.of(clazz);
+    }
+
+    static <T> Schema<T> AVRO(Class<T> clazz) {
+        return AvroSchema.of(clazz);
+    }
+
+    static <T> Schema<T> JSON(Class<T> clazz) {
+        return JSONSchema.of(clazz);
+    }
 }

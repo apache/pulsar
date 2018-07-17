@@ -48,22 +48,26 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
+import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.DataDigest;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
@@ -244,6 +248,7 @@ public class PulsarSinkE2ETest {
         final String sinkTopic = "persistent://" + replNamespace + "/output";
         final String propertyKey = "key";
         final String propertyValue = "value";
+        final String functionName = "PulsarSink-test";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
@@ -254,7 +259,7 @@ public class PulsarSinkE2ETest {
 
         String jarFilePathUrl = Utils.FILE + ":"
                 + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, "PulsarSink-test",
+        FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
                 sinkTopic);
         admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
 
@@ -298,7 +303,76 @@ public class PulsarSinkE2ETest {
 
     }
 
-    protected FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String sinkName, String sinkTopic) {
+    
+    @Test(timeOut = 20000)
+    public void testPulsarSinkStats() throws Exception {
+
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String functionName = "PulsarSink-test";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        // create a producer that creates a topic at broker
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(sourceTopic).create();
+
+        String jarFilePathUrl = Utils.FILE + ":"
+                + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
+                sinkTopic);
+        admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+
+        // try to update function to test: update-function functionality
+        admin.functions().updateFunctionWithUrl(functionDetails, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+        // validate pulsar sink consumer has started on the topic
+        Assert.assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+
+        int totalMsgs = 10;
+        for (int i = 0; i < totalMsgs; i++) {
+            String data = "my-message-" + i;
+            producer.newMessage().property(propertyKey, propertyValue).value(data.getBytes()).send();
+        }
+        retryStrategically((test) -> {
+            try {
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.values().iterator()
+                        .next();
+                return subStats.unackedMessages == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 500);
+
+        FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
+        functionRuntimeManager.updateRates();
+        FunctionStatusList functionStats = functionRuntimeManager.getAllFunctionStatus(tenant, namespacePortion,
+                functionName);
+
+        int numInstances = functionStats.getFunctionStatusListCount();
+        Assert.assertEquals(numInstances, 1);
+
+        FunctionStatus stats = functionStats.getFunctionStatusListList().get(0);
+        Map<String, DataDigest> metricsData = stats.getMetrics().getMetricsMap();
+
+        double count = metricsData.get(JavaInstanceRunnable.METRICS_TOTAL_PROCESSED).getCount();
+        double success = metricsData.get(JavaInstanceRunnable.METRICS_TOTAL_SUCCESS).getCount();
+        Assert.assertEquals((int) count, totalMsgs);
+        Assert.assertEquals((int) success, totalMsgs);
+    }
+
+    protected FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String functionName, String sinkTopic) {
 
         File file = new File(jarFile);
         try {
@@ -312,7 +386,7 @@ public class PulsarSinkE2ETest {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         functionDetailsBuilder.setTenant(tenant);
         functionDetailsBuilder.setNamespace(namespace);
-        functionDetailsBuilder.setName(sinkName);
+        functionDetailsBuilder.setName(functionName);
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
         functionDetailsBuilder.setParallelism(1);
         functionDetailsBuilder.setClassName(IdentityFunction.class.getName());

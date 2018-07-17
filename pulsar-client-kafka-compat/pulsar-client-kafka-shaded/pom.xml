@@ -68,6 +68,7 @@
                   <include>org.apache.kafka:kafka-clients</include>
                   <include>org.apache.pulsar:pulsar-client-kafka-original</include>
                   <include>org.apache.pulsar:pulsar-client-original</include>
+                  <include>org.apache.pulsar:pulsar-client-schema</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
@@ -97,15 +98,6 @@
                   <include>commons-*:*</include>
                   <include>org.yaml:snakeyaml</include>
                   <include>org.objenesis:*</include>
-
-                  <include>org.apache.avro:*</include>
-                  <!-- Avro transitive dependencies-->
-                  <include>org.codehaus.jackson:jackson-core-asl</include>
-                  <include>org.codehaus.jackson:jackson-mapper-asl</include>
-                  <include>com.thoughtworks.paranamer:paranamer</include>
-                  <include>org.xerial.snappy:snappy-java</include>
-                  <include>org.apache.commons:commons-compress</include>
-                  <include>org.tukaani:xz</include>
                 </includes>
               </artifactSet>
                <filters>
@@ -187,27 +179,6 @@
                 <relocation>
                   <pattern>org.apache.http</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.avro</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.avro</shadedPattern>
-                </relocation>
-                <!-- Avro transitive dependencies-->
-                <relocation>
-                  <pattern>org.codehaus.jackson</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.codehaus.jackson</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.thoughtworks.paranamer</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.xerial.snappy</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.xerial.snappy</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.tukaani</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
                 </relocation>
                 <relocation>
                    <pattern>org.eclipse.jetty</pattern>
