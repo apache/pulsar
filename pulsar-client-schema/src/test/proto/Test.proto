@@ -35,7 +35,8 @@ message SubMessage {
 message TestMessage {
     string stringField = 1;
     double doubleField = 2;
-    int32 intField = 3;
+    int32 intField = 6;
     TestEnum testEnum = 4;
     SubMessage nestedField = 5;
+    repeated string repeatedField = 10;
 }
