@@ -122,7 +122,7 @@ $ pulsar-admin namespaces set-persistence my-prop/my-cluster/my-ns \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:property/:cluster/:namespace/persistence %}
+{% endpoint POST /admin/v2/namespaces/:property/:cluster/:namespace/persistence %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence)
 
@@ -160,7 +160,7 @@ $ pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:property/:cluster/:namespace/persistence %}
+{% endpoint GET /admin/v2/namespaces/:property/:cluster/:namespace/persistence %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence)
 

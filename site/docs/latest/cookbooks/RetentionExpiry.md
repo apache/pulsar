@@ -97,7 +97,7 @@ $ pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:property/:cluster/:namespace/retention %}
+{% endpoint POST /admin/v2/namespaces/:property/:cluster/:namespace/retention %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/retention)
 
@@ -130,7 +130,7 @@ $ pulsar-admin namespaces get-retention my-prop/my-cluster/my-ns
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:property/:cluster/:namespace/retention %}
+{% endpoint GET /admin/v2/namespaces/:property/:cluster/:namespace/retention %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/retention)
 
@@ -181,7 +181,7 @@ $ pulsar-admin namespaces set-backlog-quota my-prop/my-cluster/my-ns \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:property/:cluster/:namespace/backlogQuota %}
+{% endpoint POST /admin/v2/namespaces/:property/:cluster/:namespace/backlogQuota %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota)
 
@@ -215,7 +215,7 @@ $ pulsar-admin namespaces get-backlog-quotas my-prop/my-cluster/my-ns
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:property/:cluster/:namespace/backlogQuotaMap %}
+{% endpoint GET /admin/v2/namespaces/:property/:cluster/:namespace/backlogQuotaMap %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota)
 
@@ -238,7 +238,7 @@ $ pulsar-admin namespaces remove-backlog-quotas my-prop/my-cluster/my-ns
 
 #### REST API
 
-{% endpoint DELETE /admin/namespaces/:property/:cluster/:namespace/backlogQuota %}
+{% endpoint DELETE /admin/v2/namespaces/:property/:cluster/:namespace/backlogQuota %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota)
 
@@ -281,7 +281,7 @@ $ pulsar-admin namespaces set-message-ttl my-prop/my-cluster/my-ns \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:property/:cluster/:namespace/messageTTL %}
+{% endpoint POST /admin/v2/namespaces/:property/:cluster/:namespace/messageTTL %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/messageTTL)
 
@@ -306,7 +306,7 @@ $ pulsar-admin namespaces get-message-ttl my-prop/my-cluster/my-ns
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:property/:cluster/:namespace/messageTTL %}
+{% endpoint GET /admin/v2/namespaces/:property/:cluster/:namespace/messageTTL %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/messageTTL)
 
