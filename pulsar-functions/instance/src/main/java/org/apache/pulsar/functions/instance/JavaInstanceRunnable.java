@@ -214,7 +214,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     topicName = pulsarRecord.getTopicName().get();
                 }
 
-                result = javaInstance.handleMessage(messageId, topicName, currentRecord.getValue());
+                result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
 
                 removeLogTopicHandler();
 

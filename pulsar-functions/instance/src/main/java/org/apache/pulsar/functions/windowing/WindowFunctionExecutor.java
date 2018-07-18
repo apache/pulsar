@@ -210,7 +210,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
             @Override
             public void onExpiry(List<Event<I>> events) {
                 for (Event<I> event : events) {
-                    context.ack(event.getMessageId());
+                    event.getRecord().ack();
                 }
             }
 

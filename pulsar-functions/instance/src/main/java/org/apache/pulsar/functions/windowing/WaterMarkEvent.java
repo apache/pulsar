@@ -25,7 +25,7 @@ package org.apache.pulsar.functions.windowing;
 public class WaterMarkEvent<T> extends EventImpl<T> {
 
     public WaterMarkEvent(long ts) {
-        super(null, null, ts);
+        super(null, ts, null);
     }
 
     @Override
