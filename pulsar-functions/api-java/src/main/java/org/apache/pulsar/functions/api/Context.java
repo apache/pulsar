@@ -34,23 +34,10 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface Context {
     /**
-     * Returns the messageId of the message that we are processing
-     * This messageId is a stringified version of the actual MessageId
-     * @return the messageId
-     */
-    byte[] getMessageId();
-
-    /**
      * Access the record associated with the current input value
      * @return
      */
     Record<?> getCurrentRecord();
-
-    /**
-     * The input topic that the message currently being processed belongs to
-     * @return The input topic name
-     */
-    String getCurrentMessageTopicName();
 
     /**
      * Get a list of all input topics

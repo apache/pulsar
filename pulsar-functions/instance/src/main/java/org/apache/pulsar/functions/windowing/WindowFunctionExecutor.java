@@ -284,7 +284,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
 
         if (isEventTime()) {
             long ts = this.timestampExtractor.extractTimestamp(input);
-            if (this.waterMarkEventGenerator.track(context.getCurrentMessageTopicName(), ts)) {
+            if (this.waterMarkEventGenerator.track(record.getTopicName().get(), ts)) {
                 this.windowManager.add(input, ts, record);
             } else {
                 if (this.windowConfig.getLateDataTopic() != null) {
@@ -297,7 +297,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
                 record.ack();
             }
         } else {
-            this.windowManager.add(input, System.currentTimeMillis(), context.getMessageId());
+            this.windowManager.add(input, System.currentTimeMillis(), record);
         }
         return null;
     }

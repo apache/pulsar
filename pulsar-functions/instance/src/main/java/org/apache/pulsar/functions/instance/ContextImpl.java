@@ -62,8 +62,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private Logger logger;
 
     // Per Message related
-    private MessageId messageId;
-    private String currentTopicName;
+    private Record<?> record;
 
     @Getter
     @Setter
@@ -100,7 +99,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private final ClassLoader classLoader;
 
     private final List<String> inputTopics;
-    private Record<?> record;
+
 
     @Getter
     @Setter
@@ -131,25 +130,13 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
-    public void setCurrentMessageContext(Record<?> record, MessageId messageId, String topicName) {
+    public void setCurrentMessageContext(Record<?> record) {
         this.record = record;
-        this.messageId = messageId;
-        this.currentTopicName = topicName;
-    }
-
-    @Override
-    public byte[] getMessageId() {
-        return messageId.toByteArray();
     }
 
     @Override
     public Record<?> getCurrentRecord() {
         return record;
-    }
-
-    @Override
-    public String getCurrentMessageTopicName() {
-        return currentTopicName;
     }
 
     @Override
