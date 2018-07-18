@@ -152,6 +152,66 @@ class PulsarTest(TestCase):
 
         client.close()
 
+    def test_tls_auth2(self):
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        authPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls"
+        authParams = "tlsCertFile:%s/client-cert.pem,tlsKeyFile:%s/client-key.pem" % (certs_dir, certs_dir)
+
+        client = Client(self.serviceUrlTls,
+                        tls_trust_certs_file_path=certs_dir + 'cacert.pem',
+                        tls_allow_insecure_connection=False,
+                        authentication=Authentication(authPlugin, authParams))
+
+        consumer = client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://property/cluster/namespace/my-python-topic-producer-consumer')
+        producer.send('hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        client.close()
+
+    def test_tls_auth3(self):
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        authPlugin = "tls"
+        authParams = "tlsCertFile:%s/client-cert.pem,tlsKeyFile:%s/client-key.pem" % (certs_dir, certs_dir)
+
+        client = Client(self.serviceUrlTls,
+                        tls_trust_certs_file_path=certs_dir + 'cacert.pem',
+                        tls_allow_insecure_connection=False,
+                        authentication=Authentication(authPlugin, authParams))
+
+        consumer = client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://property/cluster/namespace/my-python-topic-producer-consumer')
+        producer.send('hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        client.close()
+
     def test_auth_junk_params(self):
         certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
         if not os.path.exists(certs_dir):
