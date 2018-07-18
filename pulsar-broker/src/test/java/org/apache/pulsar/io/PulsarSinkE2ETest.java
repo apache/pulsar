@@ -249,6 +249,7 @@ public class PulsarSinkE2ETest {
         final String propertyKey = "key";
         final String propertyValue = "value";
         final String functionName = "PulsarSink-test";
+        final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
@@ -260,7 +261,7 @@ public class PulsarSinkE2ETest {
         String jarFilePathUrl = Utils.FILE + ":"
                 + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
-                sinkTopic);
+                sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
 
         // try to update function to test: update-function functionality
@@ -283,8 +284,7 @@ public class PulsarSinkE2ETest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.values().iterator()
-                        .next();
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
                 return subStats.unackedMessages == 0;
             } catch (PulsarAdminException e) {
                 return false;
@@ -314,6 +314,7 @@ public class PulsarSinkE2ETest {
         final String propertyKey = "key";
         final String propertyValue = "value";
         final String functionName = "PulsarSink-test";
+        final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
@@ -324,7 +325,7 @@ public class PulsarSinkE2ETest {
         String jarFilePathUrl = Utils.FILE + ":"
                 + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
-                sinkTopic);
+                sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
 
         // try to update function to test: update-function functionality
@@ -347,8 +348,7 @@ public class PulsarSinkE2ETest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.values().iterator()
-                        .next();
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
                 return subStats.unackedMessages == 0;
             } catch (PulsarAdminException e) {
                 return false;
@@ -372,7 +372,7 @@ public class PulsarSinkE2ETest {
         Assert.assertEquals((int) success, totalMsgs);
     }
 
-    protected FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String functionName, String sinkTopic) {
+    protected FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String functionName, String sinkTopic, String subscriptionName) {
 
         File file = new File(jarFile);
         try {
@@ -397,6 +397,7 @@ public class PulsarSinkE2ETest {
         sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
         sourceSpecBuilder.setTypeClassName(byte[].class.getName());
         sourceSpecBuilder.setTopicsPattern(sourceTopicPattern);
+        sourceSpecBuilder.setSubscriptionName(subscriptionName);
         sourceSpecBuilder.putTopicsToSerDeClassName(sourceTopicPattern, DefaultSerDe.class.getName());
         functionDetailsBuilder.setAutoAck(true);
         functionDetailsBuilder.setSource(sourceSpecBuilder);
