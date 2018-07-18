@@ -119,7 +119,7 @@ Future<Result, Consumer> MultiTopicsConsumerImpl::subscribeOneTopicAsync(const s
 
     if (namespaceName_ && !(*namespaceName_ == *(topicName->getNamespaceName()))) {
         LOG_ERROR("TopicName namespace not the same with topicsConsumer. wanted namespace: "
-                  << namespaceName_->toString() << " this topic: "<< topic);
+                  << namespaceName_->toString() << " this topic: " << topic);
         topicPromise->setFailed(ResultInvalidTopicName);
         return topicPromise->getFuture();
     }
@@ -144,7 +144,8 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
                                                        ConsumerConfiguration conf,
                                                        ConsumerSubResultPromisePtr topicSubResultPromise) {
     if (result != ResultOk) {
-        LOG_ERROR("Error Checking/Getting Partition Metadata while MultiTopics Subscribing- " << consumerStr_  << " result: "<< result)
+        LOG_ERROR("Error Checking/Getting Partition Metadata while MultiTopics Subscribing- "
+                  << consumerStr_ << " result: " << result)
         topicSubResultPromise->setFailed(result);
         return;
     }
@@ -192,7 +193,7 @@ void MultiTopicsConsumerImpl::handleSingleConsumerCreated(
     if (state_ == Failed) {
         // one of the consumer creation failed, and we are cleaning up
         topicSubResultPromise->setFailed(ResultAlreadyClosed);
-        LOG_ERROR("Unable to create Consumer " << consumerStr_ <<  " state == Failed, result: " << result);
+        LOG_ERROR("Unable to create Consumer " << consumerStr_ << " state == Failed, result: " << result);
         return;
     }
 
@@ -511,7 +512,8 @@ void MultiTopicsConsumerImpl::setState(const MultiTopicsConsumerState state) {
     state_ = state;
 }
 
-bool MultiTopicsConsumerImpl::compareAndSetState(MultiTopicsConsumerState expect, MultiTopicsConsumerState update) {
+bool MultiTopicsConsumerImpl::compareAndSetState(MultiTopicsConsumerState expect,
+                                                 MultiTopicsConsumerState update) {
     Lock lock(mutex_);
     if (state_ == expect) {
         state_ = update;

@@ -130,13 +130,9 @@ bool MessageId::operator==(const MessageId& other) const {
 
 bool MessageId::operator!=(const MessageId& other) const { return !(*this == other); }
 
-const std::string& MessageId::getTopicName() const {
-    return impl_->getTopicName();
-}
+const std::string& MessageId::getTopicName() const { return impl_->getTopicName(); }
 
-void MessageId::setTopicName(const std::string& topicName) {
-    return impl_->setTopicName(topicName);
-}
+void MessageId::setTopicName(const std::string& topicName) { return impl_->setTopicName(topicName); }
 
 #pragma GCC visibility pop
 }  // namespace pulsar
