@@ -89,7 +89,6 @@
 
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
-                  <include>net.jpountz.lz4:lz4</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
@@ -149,18 +148,6 @@
                 <relocation>
                   <pattern>org.apache.pulsar.policies</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.policies</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.pulsar.checksum</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.checksum</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.scurrilous.circe</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.com.scurrilous.circe</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>net.jpountz</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.net.jpountz</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.yahoo.datasketches</pattern>
