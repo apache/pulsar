@@ -209,9 +209,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 String topicName = null;
 
                 if (currentRecord instanceof PulsarRecord) {
-                    PulsarRecord pulsarRecord = (PulsarRecord) currentRecord;
+                    PulsarRecord<?> pulsarRecord = (PulsarRecord<?>) currentRecord;
                     messageId = pulsarRecord.getMessageId();
-                    topicName = pulsarRecord.getTopicName();
+                    topicName = pulsarRecord.getTopicName().get();
                 }
 
                 result = javaInstance.handleMessage(messageId, topicName, currentRecord.getValue());
