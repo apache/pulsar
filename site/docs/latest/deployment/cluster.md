@@ -195,6 +195,10 @@ $ bin/bookkeeper shell bookiesanity
 
 This will create an ephemeral BookKeeper {% popover ledger %} on the local bookie, write a few entries, read them back, and finally delete the ledger.
 
+Starting from Pulsar 2.1 release, Bookies start [AutoRecovery](http://bookkeeper.apache.org/docs/latest/admin/autorecovery/) daemons by default. Those AutoRecovery daemons will monitor the healthy of the bookkeeper cluster and automatically re-replicate entries for those under-replicated ledgers.
+Since `AutoRecovery` deamons are stateless processes, if you would like to run `AutoRecovery` as a separate service, you can also disable `AutoRecovery` on bookies by setting `autoRecoveryDaemonEnabled` to `false` in your `bookkeeper.conf` file. And you can follow the instructions in
+[bookkeeper documentation](http://bookkeeper.apache.org/docs/latest/admin/autorecovery/) to run `AutoRecovery` as separate processes.
+
 ## Deploying Pulsar brokers
 
 Pulsar {% popover brokers %} are the last thing you need to deploy in your Pulsar cluster. Brokers handle Pulsar messages and provide Pulsar's administrative interface. We recommend running **3 brokers**, one for each machine that's already running a BookKeeper bookie.
