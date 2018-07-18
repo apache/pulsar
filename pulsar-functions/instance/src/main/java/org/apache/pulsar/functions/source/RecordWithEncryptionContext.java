@@ -16,30 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.core;
+package org.apache.pulsar.functions.source;
 
-import java.util.Map;
+import java.util.Optional;
 
+import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.functions.api.Record;
 
-/**
- * Generic sink interface users can implement to run Sink on top of Pulsar Functions
- */
-public interface Sink<T> extends AutoCloseable {
-    /**
-     * Open connector with configuration
-     *
-     * @param config initialization config
-     * @param sinkContext
-     * @throws Exception IO type exceptions when opening a connector
-     */
-    void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
+public interface RecordWithEncryptionContext<T> extends Record<T> {
 
     /**
-     * Write a message to Sink
-     * @param inputRecordContext Context of input record from the source
-     * @param record record to write to sink
-     * @throws Exception
+     * Retrieves encryption-context that is attached to record.
+     *
+     * @return {@link Optional}<{@link EncryptionContext}>
      */
-    void write(Record<T> record) throws Exception;
+    Optional<EncryptionContext> getEncryptionCtx();
 }

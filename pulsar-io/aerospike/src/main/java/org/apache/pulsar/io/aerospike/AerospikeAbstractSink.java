@@ -36,8 +36,8 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
-import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.slf4j.Logger;

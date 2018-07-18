@@ -30,8 +30,8 @@ import com.google.common.util.concurrent.Futures;
 
 import java.util.Map;
 
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
-import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 

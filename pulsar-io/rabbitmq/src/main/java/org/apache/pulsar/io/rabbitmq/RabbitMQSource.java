@@ -32,8 +32,8 @@ import java.util.Optional;
 
 import lombok.Data;
 
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
-import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

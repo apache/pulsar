@@ -16,13 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.core;
+package org.apache.pulsar.functions.api;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-
-import org.apache.pulsar.common.api.EncryptionContext;
 
 /**
  * Pulsar Connect's Record interface. Record encapsulates the information about a record being read from a Source.
@@ -56,15 +54,6 @@ public interface Record<T> {
      * @return Sequence Id associated with the record
      */
     default Optional<Long> getRecordSequence() {
-        return Optional.empty();
-    }
-
-    /**
-     * Retrieves encryption-context that is attached to record.
-     *
-     * @return {@link Optional}<{@link EncryptionContext}>
-     */
-    default public Optional<EncryptionContext> getEncryptionCtx() {
         return Optional.empty();
     }
 
