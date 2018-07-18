@@ -30,13 +30,12 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.io.core.Record;
 
 @Builder
 @Getter
 @ToString
 @EqualsAndHashCode
-public class PulsarRecord<T> implements Record<T> {
+public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
 
     private final String topicName;
     private final int partition;
@@ -67,11 +66,7 @@ public class PulsarRecord<T> implements Record<T> {
         return Optional.of(Utils.getSequenceId(message.getMessageId()));
     }
 
-    /**
-     * Retrieves encryption-context that is attached to record.
-     *
-     * @return {@link Optional}<{@link EncryptionContext}>
-     */
+    @Override
     public Optional<EncryptionContext> getEncryptionCtx() {
         return message.getEncryptionCtx();
     }

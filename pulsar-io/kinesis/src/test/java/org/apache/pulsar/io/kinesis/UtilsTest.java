@@ -35,7 +35,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
-import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.source.RecordWithEncryptionContext;
 import org.apache.pulsar.io.kinesis.fbs.KeyValue;
 import org.apache.pulsar.io.kinesis.fbs.Message;
 import org.testng.Assert;
@@ -201,7 +202,7 @@ public class UtilsTest {
         return new RecordImpl(data, properties, Optional.ofNullable(ctx));
     }
 
-    class RecordImpl implements Record<byte[]> {
+    class RecordImpl implements RecordWithEncryptionContext<byte[]> {
         byte[] data;
         Map<String, String> properties;
         Optional<EncryptionContext> ectx;
