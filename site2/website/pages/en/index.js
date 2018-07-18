@@ -33,6 +33,8 @@ function githubUrl() {
 }
 
 
+
+
 class Button extends React.Component {
   render() {
     return (
@@ -105,47 +107,49 @@ const Block = props => (
 );
 
 
+
+
 const features = {
   row1: [
     {
       content: 'Easily deploy lightweight compute logic using developer-friendly APIs without needing to run your own stream processing engine',
-      title: '[Pulsar Functions](/docs/functions-overview)',
+      title: `[Pulsar Functions](${docUrl('functions-overview')})`,
     },
     {
       content: 'Pulsar has run in production at Yahoo scale for over 3 years, with millions of messages per second across millions of topics',
-      title: '[Proven in production](/docs/concepts-architecture)',
+      title: `[Proven in production](${docUrl('concepts-architecture')})`,
     },
     {
       content: 'Seamlessly expand capacity to hundreds of nodes',
-      title: '[Horizontally scalable](/docs/concepts-architecture)',
+      title: `[Horizontally scalable](${docUrl('concepts-architecture')})`,
     }
   ],
   row2: [
     {
       content: 'Designed for low publish latency (< 5ms) at scale with strong durabilty guarantees',
-      title: '[Low latency with durability](/docs/concepts-architecture)',
+      title: `[Low latency with durability](${docUrl('concepts-architecture')})`,
     },
     {
       content: 'Designed for configurable replication between data centers across multiple geographic regions',
-      title: '[Geo-replication](/docs/administration-geo)',
+      title: `[Geo-replication](${docUrl('administration-geo')})`,
     },
     {
       content: 'Built from the ground up as a multi-tenant system. Supports Isolation, Authentication, Authorization and Quotas',
-      title: '[Multi-tenancy](/docs/concepts-architecture)',
+      title: `[Multi-tenancy](${docUrl('concepts-architecture')})`,
     }
   ],
   row3: [
     {
       content: `Persistent message storage based on Apache BookKeeper. Provides IO-level isolation between write and read operations`,
-      title: '[Persistent storage](/docs/concepts-architecture)',
+      title: `[Persistent storage](${docUrl('concepts-architecture')})`,
     },
     {
       content: 'Flexible messaging models with high-level APIs for Java, C++, Python and GO',
-      title: '[Client libraries](/docs/client-libraries)',
+      title: `[Client libraries](${docUrl('client-libraries')})`,
     },
     {
       content: 'REST Admin API for provisioning, administration, tools and monitoring. Deploy on bare metal or Kubernetes.',
-      title: '[Operability](/docs/admin-api-overview)',
+      title: `[Operability](${docUrl('admin-api-overview')})`,
     }
   ]
 };
@@ -191,107 +195,20 @@ const ApacheBlock = prop => (
   <Container>
     <div className="Block" style={{textAlign: 'center'}}>
       <div className="" style={{alignItems: 'center', margin: 'auto'}}>
-        <img src="/img/apache_incubator.png" />
+        <img src={imgUrl('apache_incubator.png')} />
       </div>
       <MarkdownBlock>
-        Apache Pulsar is an effort undergoing incubation at The [Apache Software Foundation (ASF)]() 
+        Apache Pulsar is an effort undergoing incubation at The [Apache Software Foundation (ASF)](http://www.apache.org) 
         sponsored by the Apache Incubator PMC. Incubation is required of all newly accepted projects 
         until a further review indicates that the infrastructure, communications, and decision making 
         process have stabilized in a manner consistent with other successful ASF projects. 
         While incubation status is not necessarily a reflection of the completeness or stability of the code, 
         it does indicate that the project has yet to be fully endorsed by the ASF.
-        Apache Pulsar (incubating) is available under the [Apache License, version 2.0]().
+        Apache Pulsar (incubating) is available under the [Apache License, version 2.0](https://www.apache.org/licenses).
       </MarkdownBlock>
     </div>
   </Container>
 );
-
-const FeatureCallout = props => (
-  <div
-    className="Block paddingBottom wrapper"
-    style={{textAlign: 'center'}}>
-    <div className="" style={{alignItems: 'center', margin: 'auto'}}>
-      <img src="/img/apache_incubator.png" />
-    </div>
-    <MarkdownBlock>
-    Apache Pulsar is an effort undergoing incubation at The [Apache Software Foundation (ASF)]() sponsored by 
-    the Apache Incubator PMC. Incubation is required of all newly accepted projects until a further review indicates 
-    that the infrastructure, communications, and decision making process have stabilized in a manner consistent with 
-    other successful ASF projects. While incubation status is not necessarily a reflection of the 
-    completeness or stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.
-    Apache Pulsar (incubating) is available under the [Apache License, version 2.0]().
-    </MarkdownBlock>
-  </div>
-);
-
-const LearnHow = props => (
-  <Block background="light">
-    {[
-      {
-        content: 'Talk about learning how to use this',
-        image: imgUrl('docusaurus.svg'),
-        imageAlign: 'right',
-        title: 'Learn How',
-      },
-    ]}
-  </Block>
-);
-
-const TryOut = props => (
-  <Block id="try">
-    {[
-      {
-        content: 'Talk about trying this out',
-        image: imgUrl('docusaurus.svg'),
-        imageAlign: 'left',
-        title: 'Try it Out',
-      },
-    ]}
-  </Block>
-);
-
-const Description = props => (
-  <Block background="dark">
-    {[
-      {
-        content: 'This is another description of how this project is useful',
-        image: imgUrl('docusaurus.svg'),
-        imageAlign: 'right',
-        title: 'Description',
-      },
-    ]}
-  </Block>
-);
-
-const Showcase = props => {
-  if ((siteConfig.users || []).length === 0) {
-    return null;
-  }
-  const showcase = siteConfig.users
-    .filter(user => {
-      return user.pinned;
-    })
-    .map((user, i) => {
-      return (
-        <a href={user.infoLink} key={i}>
-          <img src={user.image} alt={user.caption} title={user.caption} />
-        </a>
-      );
-    });
-
-  return (
-    <div className="productShowcaseSection paddingBottom">
-      <h2>{"Who's Using This?"}</h2>
-      <p>This project is used by all these people</p>
-      <div className="logos">{showcase}</div>
-      <div className="more-users">
-        <a className="button" href={pageUrl('users.html', props.language)}>
-          More {siteConfig.title} Users
-        </a>
-      </div>
-    </div>
-  );
-};
 
 class Index extends React.Component {
   render() {

@@ -102,11 +102,82 @@ class Footer extends React.Component {
 */
 
 class Footer extends React.Component {
+  docUrl(doc, language) {
+    const baseUrl = this.props.config.baseUrl;
+    return baseUrl + 'docs/' + (language ? language + '/' : '') + doc;
+  }
+
+  pageUrl(doc, language) {
+    const baseUrl = this.props.config.baseUrl;
+    return baseUrl + (language ? language + '/' : '') + doc;
+  }
+
   render() {
     const currentYear = new Date().getFullYear();
+
+    const contactUrl = this.pageUrl('contact')
+    const eventsUrl = this.pageUrl('events')
+    const twitterUrl = 'https://twitter.com/Apache_Pulsar'
+    const wikiUrl = 'https://github.com/apache/incubator-pulsar/wiki'
+    const issuesUrl = 'https://github.com/apache/incubator-pulsar/issues'
+    const resourcesUrl = this.pageUrl('resources')
+    const teamUrl = this.pageUrl('team')
+
+    const communityMenuJs = `
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu = 
+        '<li>' +
+        '<a id="community-menu" href="#">Community</a>' + 
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="${contactUrl}">Contant</a></li>' +
+            '<li><a href="${eventsUrl}">Events</a></li>' +
+            '<li><a href="${twitterUrl}">Twitter</a></li>' +
+            '<li><a href="${wikiUrl}">Wiki</a></li>' +
+            '<li><a href="${issuesUrl}">Issue tracking</a></li>' +
+            '<li><a href="${resourcesUrl}">Resources</a></li>' +
+            '<li><a href="${teamUrl}">Team</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    `
+
     return (
       <footer className="nav-footer" id="footer">
         <section className="copyright">{this.props.config.copyright}</section>
+        <span>
+        <script dangerouslySetInnerHTML={{__html: communityMenuJs }}></script>
+        </span>
+        <span>
+        <script src={this.props.config.baseUrl + 'js/pjax-api.min.js'}></script>
+        <script dangerouslySetInnerHTML={{__html: `window.navfoo = new Pjax({
+            areas: [
+              // try to use the first query.
+              '.mainContainer, .docsNavContainer .toc .navWrapper, .onPageNav',
+              // fallback
+              'body'
+            ],
+            link: '.docsNavContainer:not(.docsSliderActive) a',
+            update: {
+              script: false,
+            }
+          });
+        `}}></script>
+        </span>
       </footer>
     );
   }

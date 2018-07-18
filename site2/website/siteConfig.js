@@ -70,12 +70,14 @@ const siteVariables = {
 
 
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
+const baseUrl = '/incubator-pulsar/';
+
 
 const siteConfig = {
   title: 'Apache Pulsar' /* title for your website */,
   tagline: '',
   url: 'https://cckellogg.github.io' /* your website url */,
-  baseUrl: '/' /* base url for your project */,
+  baseUrl: baseUrl /* base url for your project */,
   // For github.io type URLs, you would set the url and baseUrl like:
   //   url: 'https://facebook.github.io',
   //   baseUrl: '/test-site/',
@@ -148,8 +150,10 @@ const siteConfig = {
   // Add custom scripts here that would be placed in <script> tags
   scripts: [
     'https://buttons.github.io/buttons.js',
-    '/js/custom.js'
+    'https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js',
+    `${baseUrl}js/custom.js`
   ],
+  stylesheets: [`${baseUrl}css/code-blocks-buttons.css`],
 
   /* On page navigation for the current documentation page */
   onPageNav: 'separate',
@@ -165,7 +169,7 @@ const siteConfig = {
   disableHeaderTitle: true,
 
   cleanUrl: true,
-  scrollToTop: true,
+  //scrollToTop: true,
   scrollToTopOptions: {
     zIndex: 100,
   },
