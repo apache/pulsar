@@ -2306,6 +2306,10 @@
 
 <p>This will create an ephemeral BookKeeper <span class="popover-term" tabindex="0" title="What is a ledger?" data-placement="top" data-content="An append-only data structure in BookKeeper that is used to persistently store messages in Pulsar topics." data-toggle="popover" data-trigger="focus">ledger</span> on the local bookie, write a few entries, read them back, and finally delete the ledger.</p>
 
+<p>Starting from Pulsar 2.1 release, Bookies start <a href="http://bookkeeper.apache.org/docs/latest/admin/autorecovery/">AutoRecovery</a> daemons by default. Those AutoRecovery daemons will monitor the healthy of the bookkeeper cluster and automatically re-replicate entries for those under-replicated ledgers.
+Since <code class="highlighter-rouge">AutoRecovery</code> deamons are stateless processes, if you would like to run <code class="highlighter-rouge">AutoRecovery</code> as a separate service, you can also disable <code class="highlighter-rouge">AutoRecovery</code> on bookies by setting <code class="highlighter-rouge">autoRecoveryDaemonEnabled</code> to <code class="highlighter-rouge">false</code> in your <code class="highlighter-rouge">bookkeeper.conf</code> file. And you can follow the instructions in
+<a href="http://bookkeeper.apache.org/docs/latest/admin/autorecovery/">bookkeeper documentation</a> to run <code class="highlighter-rouge">AutoRecovery</code> as separate processes.</p>
+
 <h2 id="deploying-pulsar-brokers">Deploying Pulsar brokers</h2>
 
 <p>Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> are the last thing you need to deploy in your Pulsar cluster. Brokers handle Pulsar messages and provide Pulsar’s administrative interface. We recommend running <strong>3 brokers</strong>, one for each machine that’s already running a BookKeeper bookie.</p>

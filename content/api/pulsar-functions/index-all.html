@@ -76,6 +76,10 @@
 <dd>
 <div class="block">By default acknowledgement management is done transparently by Pulsar Functions framework.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Record.html#ack--">ack()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Record.html" title="interface in org.apache.pulsar.functions.api">Record</a></dt>
+<dd>
+<div class="block">Acknowledge that this record is fully processed</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/utils/IdentityFunction.html#apply-java.lang.Object-">apply(Object)</a></span> - Method in class org.apache.pulsar.functions.api.utils.<a href="org/apache/pulsar/functions/api/utils/IdentityFunction.html" title="class in org.apache.pulsar.functions.api.utils">IdentityFunction</a></dt>
 <dd>&nbsp;</dd>
 </dl>
@@ -112,6 +116,10 @@
 </a>
 <h2 class="title">F</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Record.html#fail--">fail()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Record.html" title="interface in org.apache.pulsar.functions.api">Record</a></dt>
+<dd>
+<div class="block">To indicate that this record has failed to be processed</div>
+</dd>
 <dt><a href="org/apache/pulsar/functions/api/Function.html" title="interface in org.apache.pulsar.functions.api"><span class="typeNameLink">Function</span></a>&lt;<a href="org/apache/pulsar/functions/api/Function.html" title="type parameter in Function">I</a>,<a href="org/apache/pulsar/functions/api/Function.html" title="type parameter in Function">O</a>&gt; - Interface in <a href="org/apache/pulsar/functions/api/package-summary.html">org.apache.pulsar.functions.api</a></dt>
 <dd>
 <div class="block">This is the core interface of the function api.</div>
@@ -150,6 +158,10 @@
 <dd>
 <div class="block">The id of the instance that invokes this function.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Record.html#getKey--">getKey()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Record.html" title="interface in org.apache.pulsar.functions.api">Record</a></dt>
+<dd>
+<div class="block">Return a key if the key has one associated</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Context.html#getLogger--">getLogger()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Context.html" title="interface in org.apache.pulsar.functions.api">Context</a></dt>
 <dd>
 <div class="block">The logger object that can be used to log in a function</div>
@@ -171,6 +183,18 @@
 <dd>
 <div class="block">Get the output topic of the function</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Record.html#getPartitionId--">getPartitionId()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Record.html" title="interface in org.apache.pulsar.functions.api">Record</a></dt>
+<dd>
+<div class="block">Retrieves the partition information if any of the record.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Record.html#getProperties--">getProperties()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Record.html" title="interface in org.apache.pulsar.functions.api">Record</a></dt>
+<dd>
+<div class="block">Retrieves user-defined properties attached to record.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Record.html#getRecordSequence--">getRecordSequence()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Record.html" title="interface in org.apache.pulsar.functions.api">Record</a></dt>
+<dd>
+<div class="block">Retrieves the sequence of the record from a source partition.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Context.html#getState-java.lang.String-">getState(String)</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Context.html" title="interface in org.apache.pulsar.functions.api">Context</a></dt>
 <dd>
 <div class="block">Retrieve the state value for the key.</div>
@@ -190,6 +214,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Context.html#getUserConfigValueOrDefault-java.lang.String-java.lang.Object-">getUserConfigValueOrDefault(String, Object)</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Context.html" title="interface in org.apache.pulsar.functions.api">Context</a></dt>
 <dd>
 <div class="block">Get any user-defined key/value or a default value if none is present</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Record.html#getValue--">getValue()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Record.html" title="interface in org.apache.pulsar.functions.api">Record</a></dt>
+<dd>
+<div class="block">Retrieves the actual data of the record</div>
 </dd>
 </dl>
 <a name="I:I">
@@ -261,6 +289,10 @@
 </a>
 <h2 class="title">R</h2>
 <dl>
+<dt><a href="org/apache/pulsar/functions/api/Record.html" title="interface in org.apache.pulsar.functions.api"><span class="typeNameLink">Record</span></a>&lt;<a href="org/apache/pulsar/functions/api/Record.html" title="type parameter in Record">T</a>&gt; - Interface in <a href="org/apache/pulsar/functions/api/package-summary.html">org.apache.pulsar.functions.api</a></dt>
+<dd>
+<div class="block">Pulsar Connect's Record interface.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Context.html#recordMetric-java.lang.String-double-">recordMetric(String, double)</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Context.html" title="interface in org.apache.pulsar.functions.api">Context</a></dt>
 <dd>
 <div class="block">Record a user defined metric</div>
