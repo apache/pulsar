@@ -22,11 +22,13 @@
 #include <iosfwd>
 #include <stdint.h>
 #include <boost/shared_ptr.hpp>
-#include <lib/MessageIdImpl.h>
+//#include <lib/MessageIdImpl.h>
 
 #pragma GCC visibility push(default)
 
 namespace pulsar {
+
+class MessageIdImpl;
 
 class MessageId {
    public:
@@ -48,6 +50,16 @@ class MessageId {
      * Serialize the message id into a binary string for storing
      */
     void serialize(std::string& result) const;
+
+    /**
+     * Get the topic Name
+     */
+    const std::string& getTopicName() const;
+
+    /**
+     * Set the topicName
+     */
+    void setTopicName(const std::string& topicName);
 
     /**
      * Deserialize a message id from a binary string

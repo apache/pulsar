@@ -92,7 +92,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     std::map<std::string, int> topicsPartitions_;
     boost::mutex mutex_;
     MultiTopicsConsumerState state_;
-    boost::shared_ptr<std::atomic<int>> allTopicPartitionsNumber_;
+    boost::shared_ptr<std::atomic<int>> numberTopicPartitions_;
     LookupServicePtr lookupServicePtr_;
     BlockingQueue<Message> messages_;
     ExecutorServicePtr listenerExecutor_;
@@ -103,6 +103,8 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
 
     /* methods */
     void setState(MultiTopicsConsumerState state);
+    bool compareAndSetState(MultiTopicsConsumerState expect, MultiTopicsConsumerState update);
+
     void handleSinglePartitionConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
                                               unsigned int partitionIndex);
     void handleSingleConsumerClose(Result result, std::string& topicPartitionName, CloseCallback callback);

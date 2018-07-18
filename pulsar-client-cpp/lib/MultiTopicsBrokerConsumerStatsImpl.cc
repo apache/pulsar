@@ -21,7 +21,7 @@
 #include <algorithm>
 #include <numeric>
 
-namespace pulsar {
+using namespace pulsar;
 
 const std::string MultiTopicsBrokerConsumerStatsImpl::DELIMITER = ";";
 
@@ -32,7 +32,7 @@ MultiTopicsBrokerConsumerStatsImpl::MultiTopicsBrokerConsumerStatsImpl(size_t si
 bool MultiTopicsBrokerConsumerStatsImpl::isValid() const {
     bool isValid = true;
     for (int i = 0; i < statsList_.size(); i++) {
-        isValid &= statsList_[i].isValid();
+        isValid = isValid && statsList_[i].isValid();
     }
     return isValid;
 }
@@ -105,27 +105,23 @@ bool MultiTopicsBrokerConsumerStatsImpl::isBlockedConsumerOnUnackedMsgs() const 
         return false;
     }
 
-    bool isValid = true;
-    for (int i = 0; i < statsList_.size(); i++) {
-        isValid &= statsList_[i].isValid();
-    }
-    return isValid;
+    return isValid();
 }
 
 const std::string MultiTopicsBrokerConsumerStatsImpl::getAddress() const {
-    std::string str;
+    std::stringstream str;
     for (int i = 0; i < statsList_.size(); i++) {
-        str += statsList_[i].getAddress() + DELIMITER;
+        str << statsList_[i].getAddress() << DELIMITER;
     }
-    return str;
+    return str.str();
 }
 
 const std::string MultiTopicsBrokerConsumerStatsImpl::getConnectedSince() const {
-    std::string str;
+    std::stringstream str;
     for (int i = 0; i < statsList_.size(); i++) {
-        str += statsList_[i].getConnectedSince() + DELIMITER;
+        str << statsList_[i].getConnectedSince() << DELIMITER;
     }
-    return str;
+    return str.str();
 }
 
 const ConsumerType MultiTopicsBrokerConsumerStatsImpl::getType() const {
@@ -160,4 +156,3 @@ void MultiTopicsBrokerConsumerStatsImpl::add(BrokerConsumerStats stats, int inde
 }
 
 void MultiTopicsBrokerConsumerStatsImpl::clear() { statsList_.clear(); }
-}  // namespace pulsar

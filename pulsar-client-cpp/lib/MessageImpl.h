@@ -43,7 +43,7 @@ class MessageImpl {
     SharedBuffer payload;
     MessageId messageId;
     ClientConnection* cnx_;
-    std::string topicName_;
+    const std::string* topicName_;
 
     const std::string& getPartitionKey() const;
     bool hasPartitionKey() const;
@@ -52,14 +52,14 @@ class MessageImpl {
     uint64_t getEventTimestamp() const;
 
     /**
-     * Only for MultiTopicsConsumer to get a valid topicName
+     * Get a valid topicName
      */
     const std::string& getTopicName();
 
     /**
-     * Only for MultiTopicsConsumer to set a valid topicName
+     * Set a valid topicName
      */
-    void setTopicName(std::string topicName);
+    void setTopicName(const std::string& topicName);
 
     friend class PulsarWrapper;
     friend class MessageBuilder;

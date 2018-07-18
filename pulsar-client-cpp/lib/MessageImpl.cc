@@ -79,11 +79,11 @@ void MessageImpl::setPartitionKey(const std::string& partitionKey) {
 
 void MessageImpl::setEventTimestamp(uint64_t eventTimestamp) { metadata.set_event_time(eventTimestamp); }
 
-void MessageImpl::setTopicName(std::string topicName) {
-    topicName_ = topicName;
-    messageId.impl_->topicName_ = topicName;
+void MessageImpl::setTopicName(const std::string& topicName) {
+    topicName_ = &topicName;
+    messageId.setTopicName(topicName);
 }
 
-const std::string& MessageImpl::getTopicName() { return topicName_; }
+const std::string& MessageImpl::getTopicName() { return *topicName_; }
 
 }  // namespace pulsar

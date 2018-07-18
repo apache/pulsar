@@ -215,18 +215,17 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
 void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
                                 const ConsumerConfiguration& conf, SubscribeCallback callback) {
     TopicNamePtr topicNamePtr;
-    {
-        Lock lock(mutex_);
-        if (state_ != Open) {
+
+    Lock lock(mutex_);
+    if (state_ != Open) {
+        lock.unlock();
+        callback(ResultAlreadyClosed, Consumer());
+        return;
+    } else {
+        if (!topics.empty() && !(topicNamePtr = MultiTopicsConsumerImpl::topicNamesValid(topics))) {
             lock.unlock();
-            callback(ResultAlreadyClosed, Consumer());
+            callback(ResultInvalidTopicName, Consumer());
             return;
-        } else {
-            lock.unlock();
-            if (!topics.empty() && !(topicNamePtr = MultiTopicsConsumerImpl::topicNamesValid(topics))) {
-                callback(ResultInvalidTopicName, Consumer());
-                return;
-            }
         }
     }
 
@@ -242,7 +241,6 @@ void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const st
 
     consumer->getConsumerCreatedFuture().addListener(
         boost::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), _1, _2, callback, consumer));
-    Lock lock(mutex_);
     consumers_.push_back(consumer);
     lock.unlock();
     consumer->start();

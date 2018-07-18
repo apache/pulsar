@@ -1666,12 +1666,14 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
         ASSERT_EQ(ResultOk, producer3.send(msg));
     }
 
-    LOG_INFO("Consuming 300 messages by producer 3 synchronously");
+    LOG_INFO("Consuming and acking 300 messages by multiTopicsConsumer");
     for (int i = 0; i < 3 * messageNumber; i++) {
         Message m;
         ASSERT_EQ(ResultOk, consumer.receive(m, 10000));
         ASSERT_EQ(ResultOk, consumer.acknowledge(m));
     }
+
+    LOG_INFO("Consumed and acked 300 messages by multiTopicsConsumer");
 
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
 

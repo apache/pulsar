@@ -37,8 +37,15 @@ class MessageIdImpl {
     const int32_t partition_;
     const int32_t batchIndex_;
 
+    const std::string& getTopicName() {
+        return *topicName_;
+    }
+    void setTopicName(const std::string& topicName) {
+        topicName_ = &topicName;
+    }
+
    private:
-    std::string topicName_;
+    const std::string* topicName_;
     friend class MessageImpl;
     friend class MultiTopicsConsumerImpl;
     friend class UnAckedMessageTrackerEnabled;
