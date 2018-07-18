@@ -128,32 +128,6 @@ test-tenant/ns2
 admin.namespaces().getNamespaces(tenant);
 ```
 
-### List namespaces within a cluster
-
-You can list all namespaces within a given Pulsar {% popover cluster %}.
-
-#### pulsar-admin
-
-Use the [`list-cluster`](../../reference/CliTools#pulsar-admin-namespaces-list-cluster) subcommand and specify the cluster:
-
-```shell
-$ pulsar-admin namespaces list-cluster test-tenant/cl1
-test-tenant/ns1
-test-tenant/ns2
-```
-
-#### REST API
-
-{% endpoint GET /admin/v2/namespaces/:tenant/:cluster %}
-
-[More info](../../reference/RestApi#/admin/namespaces/:tenant/:cluster)
-
-#### Java
-
-```java
-admin.namespaces().getNamespaces(tenant);
-```
-
 ### Delete
 
 You can delete existing namespaces from a tenant.
