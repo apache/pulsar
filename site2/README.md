@@ -19,5 +19,6 @@ To run the site locally:
 
 ```bash
 cd website
+yarn install
 yarn start
 ```
