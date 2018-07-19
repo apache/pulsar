@@ -240,7 +240,7 @@ public class PulsarSink<T> implements Sink<T> {
         if (sinkRecord.getSourceRecord() instanceof PulsarRecord) {
             PulsarRecord<T> pulsarRecord = (PulsarRecord<T>) sinkRecord.getSourceRecord();
             // forward user properties to sink-topic
-            msgBuilder.setProperty("__pfn_input_topic__", pulsarRecord.getTopicName()).setProperty(
+            msgBuilder.setProperty("__pfn_input_topic__", pulsarRecord.getTopicName().get()).setProperty(
                     "__pfn_input_msg_id__",
                     new String(Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
         }

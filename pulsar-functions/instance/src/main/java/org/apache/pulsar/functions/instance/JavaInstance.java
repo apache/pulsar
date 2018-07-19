@@ -21,8 +21,9 @@ package org.apache.pulsar.functions.instance;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.MessageId;
+
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 /**
@@ -50,9 +51,9 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
+    public JavaExecutionResult handleMessage(Record<?> record, Object input) {
         if (context != null) {
-            context.setCurrentMessageContext(messageId, topicName);
+            context.setCurrentMessageContext(record);
         }
         JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
