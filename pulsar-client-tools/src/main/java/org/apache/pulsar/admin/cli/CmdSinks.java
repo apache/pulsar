@@ -39,7 +39,8 @@ import java.util.Set;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -61,17 +62,6 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
@@ -216,6 +206,8 @@ public class CmdSinks extends CmdBase {
         protected String inputs;
         @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
         protected String topicsPattern;
+        @Parameter(names = "--subsName", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
+        protected String subsName;
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the sink")
@@ -280,6 +272,10 @@ public class CmdSinks extends CmdBase {
 
             if (!topicsToSerDeClassName.isEmpty()) {
                 sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+            }
+            
+            if (isNotBlank(subsName)) {
+                sinkConfig.setSourceSubscriptionName(subsName);
             }
             
             if (null != topicsPattern) {
@@ -434,7 +430,7 @@ public class CmdSinks extends CmdBase {
 
             if (!isBuiltin) {
                 if (sinkConfig.getArchive().startsWith(Utils.FILE)) {
-                    if (StringUtils.isBlank(sinkConfig.getClassName())) {
+                    if (isBlank(sinkConfig.getClassName())) {
                         throw new ParameterException("Class-name must be present for archive with file-url");
                     }
                     sinkClassName = sinkConfig.getClassName(); // server derives the arg-type by loading a class
@@ -477,6 +473,9 @@ public class CmdSinks extends CmdBase {
             }
             if (typeArg != null) {
                 sourceSpecBuilder.setTypeClassName(typeArg);
+            }
+            if (isNotBlank(sinkConfig.getSourceSubscriptionName())) {
+                sourceSpecBuilder.setSubscriptionName(sinkConfig.getSourceSubscriptionName());
             }
             functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
@@ -572,7 +571,7 @@ public class CmdSinks extends CmdBase {
     public class ListSinks extends BaseCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().getConnectorsList().stream().filter(x -> !StringUtils.isEmpty(x.getSinkClass()))
+            admin.functions().getConnectorsList().stream().filter(x -> isNotBlank(x.getSinkClass()))
                     .forEach(connector -> {
                         System.out.println(connector.getName());
                         System.out.println(WordUtils.wrap(connector.getDescription(), 80));
