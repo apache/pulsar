@@ -26,10 +26,8 @@ set -e
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
 
-#BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
-#BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04}"
-BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-pulsar-build}"
-BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-latest}"
+BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
+BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04}"
 
 IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
 
@@ -41,7 +39,5 @@ CI_USER=$(id -u)
 CI_GROUP=$(id -g)
 
 DOCKER_CMD="docker run -i -e CI_USER=$CI_USER -e CI_GROUP=$CI_GROUP -v $ROOT_DIR:/pulsar $IMAGE"
-
-# $DOCKER_CMD bash -l -c 'cd /pulsar/site && rvm use . && make setup && make protobuf_doc_gen && make build && chown -R $CI_USER:$CI_GROUP /pulsar/generated-site'
 
 $DOCKER_CMD bash -l -c 'cd /pulsar/site2/website && yarn && yarn build && node ./scripts/replace.js && cp -R ./build/pulsar /pulsar/generated-site/content/staging'
