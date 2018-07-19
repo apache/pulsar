@@ -59,7 +59,7 @@ public class SinkConfig {
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    private FunctionConfig.SubscriptionType sourceSubscriptionType;
+    private boolean retainOrdering;
     @isValidResources
     private Resources resources;
 

@@ -56,12 +56,6 @@ public class FunctionConfig {
         EFFECTIVELY_ONCE
     }
     
-    
-    public enum SubscriptionType {
-        SHARED,
-        FAILOVER
-    }
-
     public enum Runtime {
         JAVA,
         PYTHON
