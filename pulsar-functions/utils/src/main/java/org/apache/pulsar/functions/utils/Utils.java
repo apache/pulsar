@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -182,6 +183,16 @@ public class Utils {
         throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
     }
 
+    public static SubscriptionType convertSubscriptionType(
+            org.apache.pulsar.functions.utils.FunctionConfig.SubscriptionType sourceSubscriptionType) {
+        for (SubscriptionType type : SubscriptionType.values()) {
+            if (type.name().equals(sourceSubscriptionType.name())) {
+                return type;
+            }
+        }
+        throw new RuntimeException("Unrecognized subscription-type: " + sourceSubscriptionType.name());
+    }
+    
     public static Class<?> getSourceType(String className) {
         return getSourceType(className, Thread.currentThread().getContextClassLoader());
     }

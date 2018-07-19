@@ -55,6 +55,12 @@ public class FunctionConfig {
         ATMOST_ONCE,
         EFFECTIVELY_ONCE
     }
+    
+    
+    public enum SubscriptionType {
+        SHARED,
+        FAILOVER
+    }
 
     public enum Runtime {
         JAVA,
