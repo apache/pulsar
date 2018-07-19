@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.functions.api.Function;
-import org.testng.annotations.Test;
-
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
+import org.testng.annotations.Test;
 
 public class JavaInstanceTest {
 
@@ -38,7 +38,7 @@ public class JavaInstanceTest {
             mock(ContextImpl.class),
             (Function<String, String>) (input, context) -> input + "-lambda");
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "random", testString);
+        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
         assertNotNull(result.getResult());
         assertEquals(new String(testString + "-lambda"), result.getResult());
         instance.close();

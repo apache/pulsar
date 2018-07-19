@@ -18,16 +18,26 @@
  */
 package org.apache.pulsar.functions.source;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import com.google.common.annotations.VisibleForTesting;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.functions.api.Record;
@@ -36,14 +46,10 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import net.jodah.typetools.TypeResolver;
 
 @Slf4j
 public class PulsarSource<T> implements Source<T> {
@@ -52,6 +58,7 @@ public class PulsarSource<T> implements Source<T> {
     private PulsarSourceConfig pulsarSourceConfig;
     private Map<String, SerDe> topicToSerDeMap = new HashMap<>();
     private boolean isTopicsPattern;
+    private List<String> inputTopics;
 
     @Getter
     private org.apache.pulsar.client.api.Consumer<byte[]> inputConsumer;
@@ -84,6 +91,11 @@ public class PulsarSource<T> implements Source<T> {
             consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
         this.inputConsumer = consumerBuilder.subscribe();
+        if (inputConsumer instanceof MultiTopicsConsumerImpl) {
+            inputTopics = ((MultiTopicsConsumerImpl<?>) inputConsumer).getTopics();
+        } else {
+            inputTopics = Collections.singletonList(inputConsumer.getTopic());
+        }
     }
 
     @Override
@@ -189,5 +201,9 @@ public class PulsarSource<T> implements Source<T> {
                 }
             }
         }
+    }
+
+    public List<String> getInputTopics() {
+        return inputTopics;
     }
 }
