@@ -25,6 +25,7 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.FunctionConfig.SubscriptionType;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Resources;
 import org.apache.pulsar.functions.utils.SinkConfig;
@@ -132,6 +133,7 @@ public class TestCmdSinks {
         sinkConfig.setArchive(JAR_FILE_PATH);
         sinkConfig.setResources(new Resources(CPU, RAM, DISK));
         sinkConfig.setConfigs(createSink.parseConfigs(SINK_CONFIG_STRING));
+        sinkConfig.setSourceSubscriptionType(SubscriptionType.SHARED);
         return sinkConfig;
     }
 
