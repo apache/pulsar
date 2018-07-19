@@ -123,7 +123,7 @@ You can find detailed documentation of all the APIs in the [Admin API Overview](
 In the simplest example, you can use curl to probe the stats for a particular topic:
 
 ```shell
-$ curl http://localhost:8080/admin/persistent/public/default/my-topic/stats | python -m json.tool
+$ curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool
 ```
 
 The output will be something like this:
