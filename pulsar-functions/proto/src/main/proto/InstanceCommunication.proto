@@ -50,6 +50,8 @@ message FunctionStatus {
     int64 lastInvocationTime = 13;
     string instanceId = 14;
     MetricsData metrics = 15;
+    // owner of function-instance
+    string workerId = 16;
 }
 
 message FunctionStatusList {
