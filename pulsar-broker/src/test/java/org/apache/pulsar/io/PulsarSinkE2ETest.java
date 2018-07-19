@@ -104,6 +104,7 @@ public class PulsarSinkE2ETest {
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
     String primaryHost;
+    String workerId;
 
     private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
     private final int brokerWebServicePort = PortManager.nextFreePort();
@@ -220,9 +221,9 @@ public class PulsarSinkE2ETest {
         workerConfig.setWorkerPort(workerServicePort);
         workerConfig.setPulsarFunctionsCluster(config.getClusterName());
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+        this.workerId = "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort();
         workerConfig.setWorkerHostname(hostname);
-        workerConfig
-                .setWorkerId("c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort());
+        workerConfig.setWorkerId(workerId);
 
         workerConfig.setClientAuthenticationPlugin(AuthenticationTls.class.getName());
         workerConfig.setClientAuthenticationParameters(
@@ -368,8 +369,10 @@ public class PulsarSinkE2ETest {
 
         double count = metricsData.get(JavaInstanceRunnable.METRICS_TOTAL_PROCESSED).getCount();
         double success = metricsData.get(JavaInstanceRunnable.METRICS_TOTAL_SUCCESS).getCount();
+        String ownerWorkerId = stats.getWorkerId();
         Assert.assertEquals((int) count, totalMsgs);
         Assert.assertEquals((int) success, totalMsgs);
+        Assert.assertEquals(ownerWorkerId, workerId);
     }
 
     protected FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String functionName, String sinkTopic, String subscriptionName) {
