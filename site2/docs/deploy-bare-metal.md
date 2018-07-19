@@ -4,8 +4,6 @@ title: Deploying a cluster on bare metal
 sidebar_label: Bare metal
 ---
 
-{% capture binary_release_url %}http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
-
 > Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you're interested in experimenting with Pulsar or using it in a startup or on a single team, we recommend opting for a single cluster. If you do need to run a multi-cluster Pulsar instance, however, see the guide [here](deploy-bare-metal-multi-cluster.md).
 
 Deploying a Pulsar cluster involves doing the following (in order):
@@ -50,20 +48,20 @@ For machines running a bookie and a Pulsar broker, we recommend using more power
 To get started deploying a Pulsar cluster on bare metal, you'll need to download a binary tarball release in one of the following ways:
 
 * By clicking on the link directly below, which will automatically trigger a download:
-  * <a href="{{ binary_release_url }}" download>Pulsar {{ site.current_version }} binary release</a>
-* From the Pulsar [downloads page](http://pulsar.incubator.apache.org/download)
+  * <a href="pulsar:binary_release_url" download>Pulsar pulsar:version binary release</a>
+* From the Pulsar [downloads page](pulsar:download_page_url)
 * From the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest) on [GitHub](https://github.com)
 * Using [wget](https://www.gnu.org/software/wget):
 
-  ```bash
-  $ wget http://archive.apache.org/dist/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz
-  ```
+```bash
+$ wget http://archive.apache.org/dist/incubator/pulsar/pulsar-pulsar:version/apache-pulsar-pulsar:version-bin.tar.gz
+```
 
 Once you've downloaded the tarball, untar it and `cd` into the resulting directory:
 
 ```bash
-$ tar xvzf apache-pulsar-{{ site.current_version }}-bin.tar.gz
-$ cd apache-pulsar-{{ site.current_version }}
+$ tar xvzf apache-pulsar-pulsar:version-bin.tar.gz
+$ cd apache-pulsar-pulsar:version
 ```
 
 The untarred directory contains the following subdirectories:

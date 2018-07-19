@@ -22,7 +22,7 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
   * <a href="pulsar:binary_release_url" download>Pulsar pulsar:version binary release</a>
 
-* from the Pulsar [downloads page](/download)
+* from the Pulsar [downloads page](pulsar:download_page_url)
 * from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 

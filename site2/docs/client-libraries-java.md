@@ -4,20 +4,20 @@ title: The Pulsar Java client
 sidebar_label: Java
 ---
 
-The Pulsar Java client can be used both to create Java producers, consumers, and [readers](#readers) of messages and to perform [administrative tasks](admin-api-overview.md). The current version of the Java client is **{{ site.current_version }}**.
+The Pulsar Java client can be used both to create Java producers, consumers, and [readers](#readers) of messages and to perform [administrative tasks](admin-api-overview.md). The current version of the Java client is **pulsar:version**.
 
 Javadoc for the Pulsar client is divided up into two domains, by package:
 
 Package | Description | Maven Artifact
 :-------|:------------|:--------------
-[`org.apache.pulsar.client.api`](/api/client) | The producer and consumer API | [org.apache.pulsar:pulsar-client:{{ site.current_version }}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{ site.current_version }}%7Cjar)
-[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview.md) | [org.apache.pulsar:pulsar-client-admin:{{ site.current_version }}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C{{ site.current_version }}%7Cjar)
+[`org.apache.pulsar.client.api`](/api/client) | The producer and consumer API | [org.apache.pulsar:pulsar-client:pulsar:version](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7Cpulsar:version%7Cjar)
+[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview.md) | [org.apache.pulsar:pulsar-client-admin:pulsar:version](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7Cpulsar:version%7Cjar)
 
 This document will focus only on the client API for producing and consuming messages on Pulsar topics. For a guide to using the Java admin client, see [The Pulsar admin interface](admin-api-overview.md).
 
 ## Installation
 
-The latest version of the Pulsar Java client library is available via [Maven Central](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{ site.current_version }}%7Cjar). To use the latest version, add the `pulsar-client` library to your build configuration.
+The latest version of the Pulsar Java client library is available via [Maven Central](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7Cpulsar:version%7Cjar). To use the latest version, add the `pulsar-client` library to your build configuration.
 
 ### Maven
 
@@ -25,7 +25,7 @@ If you're using Maven, add this to your `pom.xml`:
 
 ```xml
 <!-- in your <properties> block -->
-<pulsar.version>{{ site.current_version }}</pulsar.version>
+<pulsar.version>pulsar:version</pulsar.version>
 
 <!-- in your <dependencies> block -->
 <dependency>
@@ -40,7 +40,7 @@ If you're using Maven, add this to your `pom.xml`:
 If you're using Gradle, add this to your `build.gradle` file:
 
 ```groovy
-def pulsarVersion = '{{ site.current_version }}'
+def pulsarVersion = 'pulsar:version'
 
 dependencies {
     compile group: 'org.apache.pulsar', name: 'pulsar-client', version: pulsarVersion

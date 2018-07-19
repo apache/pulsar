@@ -7,6 +7,7 @@ sidebar_label: Client libraries
 Pulsar currently has client libraries available for three languages:
 
 * [Java](#java-client)
+* [Go](#go-client)
 * [Python](#python-client)
 * [C++](#c-client)
 
@@ -21,7 +22,11 @@ Library | Purpose
 [`org.apache.pulsar.client.api`](/api/client) | The [Pulsar Java client](client-libraries-java.md) for producing and consuming messages on Pulsar topics
 [`org.apache.pulsar.client.admin`](/api/admin) | The Java client for the [Pulsar admin interface](admin-api-overview.md)
 
-<!-- * [`org.apache.pulsar.broker`](/api/broker) -->
+
+## Go client
+
+For a tutorial on using the Pulsar Go client, see [The Pulsar Go client](client-libraries-go.md).
+
 
 ## Python client
 

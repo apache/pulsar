@@ -25,7 +25,7 @@ Then include this dependency for the Pulsar Kafka wrapper:
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client-kafka</artifactId>
-  <version>{{ site.current_version }}</version>
+  <version>pulsar:version</version>
 </dependency>
 ```
 
@@ -44,7 +44,7 @@ unshaded pulsar kafka client wrapper.
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client-kafka-original</artifactId>
-  <version>{{ site.current_version }}</version>
+  <version>pulsar:version</version>
 </dependency>
 ```
 

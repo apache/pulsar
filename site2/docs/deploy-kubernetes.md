@@ -6,7 +6,7 @@ sidebar_label: Kubernetes
 
 Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or [Amazon Web Services](https://aws.amazon.com/) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
-The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/reference/). The [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar package](/download) holds resource definitions for:
+The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/reference/). The [`kubernetes`](pulsar:repo_url/kubernetes) subdirectory of the [Pulsar package](pulsar:download_page_url) holds resource definitions for:
 
 * A two-bookie BookKeeper cluster
 * A three-node ZooKeeper cluster
@@ -16,7 +16,7 @@ The deployment method shown in this guide relies on [YAML](http://yaml.org/) def
 
 ## Setup
 
-To get started, install a source package from the [downloads page](/download).
+To get started, install a source package from the [downloads page](pulsar:download_page_url).
 
 > Please note that the Pulsar binary package will *not* contain the necessary YAML resources to deploy Pulsar on Kubernetes.
 
@@ -135,7 +135,7 @@ Now you can access the web interface at [localhost:8001/ui](http://localhost:800
 
 ## Deploying Pulsar components
 
-Now that you've set up a Kubernetes cluster, either on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or on a [custom cluster](#pulsar-on-a-custom-kubernetes-cluster), you can begin deploying the components that make up Pulsar. The YAML resource definitions for Pulsar components can be found in the `kubernetes` folder of the [Pulsar source package](/download).
+Now that you've set up a Kubernetes cluster, either on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or on a [custom cluster](#pulsar-on-a-custom-kubernetes-cluster), you can begin deploying the components that make up Pulsar. The YAML resource definitions for Pulsar components can be found in the `kubernetes` folder of the [Pulsar source package](pulsar:download_page_url).
 
 In that package, there are two sets of resource definitions, one for Google Kubernetes Engine (GKE) in the `deployment/kubernetes/google-kubernetes-engine` folder and one for a custom Kubernetes cluster in the `deployment/kubernetes/generic` folder. To begin, `cd` into the appropriate folder.
 

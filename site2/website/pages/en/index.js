@@ -1,9 +1,3 @@
-/**
- * Copyright (c) 2017-present, Facebook, Inc.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */
 
 const React = require('react');
 
@@ -31,8 +25,6 @@ function pageUrl(page, language) {
 function githubUrl() {
   return siteConfig.githubUrl;
 }
-
-
 
 
 class Button extends React.Component {
@@ -107,8 +99,6 @@ const Block = props => (
 );
 
 
-
-
 const features = {
   row1: [
     {
@@ -165,30 +155,6 @@ const KeyFeautresGrid = props => (
   </Container>
 );
 
-const Features = props => (
-  <Block layout="threeColumn">
-    {[
-      {
-        content: 'This is the content of my feature',
-        image: imgUrl('docusaurus.svg'),
-        imageAlign: 'top',
-        title: 'Feature One',
-      },
-      {
-        content: 'The content of my second feature',
-        image: imgUrl('docusaurus.svg'),
-        imageAlign: 'top',
-        title: 'Feature Two',
-      },
-      {
-        content: 'This is the content of my feature',
-        image: imgUrl('docusaurus.svg'),
-        imageAlign: 'top',
-        title: 'Feature One',
-      },
-    ]}
-  </Block>
-);
 
 
 const ApacheBlock = prop => (
@@ -197,15 +163,15 @@ const ApacheBlock = prop => (
       <div className="" style={{alignItems: 'center', margin: 'auto'}}>
         <img src={imgUrl('apache_incubator.png')} />
       </div>
-      <MarkdownBlock>
-        Apache Pulsar is an effort undergoing incubation at The [Apache Software Foundation (ASF)](http://www.apache.org) 
+      <p>
+        Apache Pulsar is an effort undergoing incubation at The <a href="http://www.apache.org">Apache Software Foundation (ASF)</a> 
         sponsored by the Apache Incubator PMC. Incubation is required of all newly accepted projects 
         until a further review indicates that the infrastructure, communications, and decision making 
         process have stabilized in a manner consistent with other successful ASF projects. 
         While incubation status is not necessarily a reflection of the completeness or stability of the code, 
         it does indicate that the project has yet to be fully endorsed by the ASF.
-        Apache Pulsar (incubating) is available under the [Apache License, version 2.0](https://www.apache.org/licenses).
-      </MarkdownBlock>
+        Apache Pulsar (incubating) is available under the <a href="https://www.apache.org/licenses">Apache License, version 2.0</a>.
+      </p>
     </div>
   </Container>
 );

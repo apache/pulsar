@@ -160,10 +160,10 @@ class Footer extends React.Component {
       <footer className="nav-footer" id="footer">
         <section className="copyright">{this.props.config.copyright}</section>
         <span>
-        <script dangerouslySetInnerHTML={{__html: communityMenuJs }}></script>
+        <script dangerouslySetInnerHTML={{__html: communityMenuJs }} />
         </span>
         <span>
-        <script src={this.props.config.baseUrl + 'js/pjax-api.min.js'}></script>
+        <script src={this.props.config.baseUrl + 'js/pjax-api.min.js'} />
         <script dangerouslySetInnerHTML={{__html: `window.navfoo = new Pjax({
             areas: [
               // try to use the first query.
