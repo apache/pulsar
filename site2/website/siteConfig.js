@@ -47,7 +47,7 @@ const siteConfig = {
   //   url: 'https://facebook.github.io',
   //   baseUrl: '/test-site/',
 
-  editUrl: `${githubUrl}/blob/master/site2/docs/`,
+  editUrl: `${githubUrl}/edit/master/site2/docs/`,
 
   // Used for publishing and more
   projectName: 'pulsar',
