@@ -1012,8 +1012,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1132,6 +1130,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1192,13 +1192,13 @@
           
           
           
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
-          
-          
-          
-          
-          
-          
           
           
           
@@ -1366,9 +1366,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/cookbooks/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
           
           
           
@@ -1610,9 +1610,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/cookbooks/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
           
           
           
@@ -1854,9 +1854,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/cookbooks/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
           
           
           
@@ -2074,8 +2074,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
           
           
@@ -2105,6 +2103,8 @@
           
           
           <li><a href="/docs/latest/cookbooks/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
           
           
           
@@ -2348,9 +2348,9 @@ size retention.</p>
 
 <h4 id="rest-api">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/retention</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/retention</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/retention">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/retention">More info</a></p>
 
 <h4 id="java">Java</h4>
 
@@ -2379,9 +2379,9 @@ size retention.</p>
 
 <h4 id="rest-api-1">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/retention</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/retention</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/retention">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/retention">More info</a></p>
 
 <h4 id="java-1">Java</h4>
 
@@ -2473,9 +2473,9 @@ size retention.</p>
 
 <h4 id="rest-api-2">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/backlogQuota</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/backlogQuota</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/backlogQuota">More info</a></p>
 
 <h4 id="java-2">Java</h4>
 
@@ -2505,9 +2505,9 @@ size retention.</p>
 
 <h4 id="rest-api-3">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/backlogQuotaMap</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/backlogQuotaMap</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/backlogQuota">More info</a></p>
 
 <h4 id="java-3">Java</h4>
 
@@ -2526,9 +2526,9 @@ size retention.</p>
 
 <h4 id="rest-api-4">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/backlogQuota</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/backlogQuota</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/backlogQuota">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/backlogQuota">More info</a></p>
 
 <h4 id="java-4">Java</h4>
 
@@ -2566,9 +2566,9 @@ size retention.</p>
 
 <h4 id="rest-api-5">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/messageTTL</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/messageTTL</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/messageTTL">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/messageTTL">More info</a></p>
 
 <h4 id="java-5">Java</h4>
 
@@ -2589,9 +2589,9 @@ size retention.</p>
 
 <h4 id="rest-api-6">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/messageTTL</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/messageTTL</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/messageTTL">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/messageTTL">More info</a></p>
 
 <h4 id="java-6">Java</h4>
 

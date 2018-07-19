@@ -1005,7 +1005,7 @@
 
 <ul>
   <li>The <a href="../../reference/CliTools#pulsar-admin-clusters"><code class="highlighter-rouge">namespaces</code></a> command of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</li>
-  <li>The <code class="highlighter-rouge">/admin/namespaces</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
+  <li>The <code class="highlighter-rouge">/admin/v2/namespaces</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
   <li>The <code class="highlighter-rouge">namespaces</code> method of the <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../applications/JavaClient">Java API</a></li>
 </ul>
 
@@ -1024,9 +1024,9 @@
 
 <h4 id="rest-api">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:cluster/:namespace">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace">More info</a></p>
 
 <h4 id="java">Java</h4>
 
@@ -1067,9 +1067,9 @@
 
 <h4 id="rest-api-1">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:cluster/:namespace">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace">More info</a></p>
 
 <h4 id="java-1">Java</h4>
 
@@ -1091,7 +1091,7 @@ test-tenant/ns2
 
 <h4 id="rest-api-2">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:tenant">More info</a></p>
 
@@ -1100,35 +1100,11 @@ test-tenant/ns2
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">tenant</span><span class="o">);</span>
 </code></pre></div></div>
 
-<h3 id="list-namespaces-within-a-cluster">List namespaces within a cluster</h3>
-
-<p>You can list all namespaces within a given Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>.</p>
-
-<h4 id="pulsar-admin-3">pulsar-admin</h4>
-
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-list-cluster"><code class="highlighter-rouge">list-cluster</code></a> subcommand and specify the cluster:</p>
-
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces list-cluster test-tenant/cl1
-test-tenant/ns1
-test-tenant/ns2
-</code></pre></div></div>
-
-<h4 id="rest-api-3">REST API</h4>
-
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:cluster</span></code></pre></div>
-
-<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:cluster">More info</a></p>
-
-<h4 id="java-3">Java</h4>
-
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">tenant</span><span class="o">);</span>
-</code></pre></div></div>
-
 <h3 id="delete">Delete</h3>
 
 <p>You can delete existing namespaces from a tenant.</p>
 
-<h4 id="pulsar-admin-4">pulsar-admin</h4>
+<h4 id="pulsar-admin-3">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specify the namespace:</p>
 
@@ -1137,11 +1113,11 @@ test-tenant/ns2
 
 <h4 id="rest">REST</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:cluster/:namespace">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace">More info</a></p>
 
-<h4 id="java-4">Java</h4>
+<h4 id="java-3">Java</h4>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">deleteNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
 </code></pre></div></div>
@@ -1158,10 +1134,10 @@ test-tenant/ns2
 
 <h6 id="rest-1">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;div class="highlighter-rouge endpoint"&gt;&lt;pre class="highlight"&gt;&lt;code class="method post"&gt;POST&lt;/code&gt;&lt;code class="url"&gt;/admin/namespaces/&lt;span class="endpoint"&gt;:tenant&lt;/span&gt;/&lt;span class="endpoint"&gt;:namespace&lt;/span&gt;/replication&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;div class="highlighter-rouge endpoint"&gt;&lt;pre class="highlight"&gt;&lt;code class="method post"&gt;POST&lt;/code&gt;&lt;code class="url"&gt;/admin/v2/namespaces/&lt;span class="endpoint"&gt;:tenant&lt;/span&gt;/&lt;span class="endpoint"&gt;:namespace&lt;/span&gt;/replication&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 </code></pre></div></div>
 
-<h6 id="java-5">Java</h6>
+<h6 id="java-4">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">clusters</span><span class="o">);</span>
 </code></pre></div></div>
@@ -1180,10 +1156,10 @@ test-tenant/ns2
 
 <h6 id="rest-2">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/replication
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/v2/namespaces/{tenant}/{namespace}/replication
 </code></pre></div></div>
 
-<h6 id="java-6">Java</h6>
+<h6 id="java-5">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1216,10 +1192,10 @@ test-tenant/ns2
 
 <h6 id="rest-3">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/backlogQuota
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/v2/namespaces/{tenant}/{namespace}/backlogQuota
 </code></pre></div></div>
 
-<h6 id="java-7">Java</h6>
+<h6 id="java-6">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">BacklogQuota</span><span class="o">(</span><span class="n">limit</span><span class="o">,</span> <span class="n">policy</span><span class="o">))</span>
 </code></pre></div></div>
@@ -1238,15 +1214,15 @@ test-tenant/ns2
     </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
     </span><span class="s2">"policy"</span><span class="p">:</span><span class="w"> </span><span class="s2">"producer_request_hold"</span><span class="w">
   </span><span class="p">}</span><span class="w">
-</span><span class="p">}</span><span class="w">          
+</span><span class="p">}</span><span class="w">
 </span></code></pre></div></div>
 
 <h6 id="rest-4">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/backlogQuotaMap
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/v2/namespaces/{tenant}/{namespace}/backlogQuotaMap
 </code></pre></div></div>
 
-<h6 id="java-8">Java</h6>
+<h6 id="java-7">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotaMap</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
 </code></pre></div></div>
@@ -1265,10 +1241,10 @@ test-tenant/ns2
 
 <h6 id="rest-5">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DELETE /admin/namespaces/{tenant}/{namespace}/backlogQuota
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DELETE /admin/v2/namespaces/{tenant}/{namespace}/backlogQuota
 </code></pre></div></div>
 
-<h6 id="java-9">Java</h6>
+<h6 id="java-8">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">backlogQuotaType</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1302,10 +1278,10 @@ test-tenant/ns2
 
 <h6 id="rest-6">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/persistent/{tenant}/{namespace}/persistence
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/v2/namespaces/{tenant}/{namespace}/persistence
 </code></pre></div></div>
 
-<h6 id="java-10">Java</h6>
+<h6 id="java-9">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span><span class="k">new</span> <span class="n">PersistencePolicies</span><span class="o">(</span><span class="n">bookkeeperEnsemble</span><span class="o">,</span> <span class="n">bookkeeperWriteQuorum</span><span class="o">,</span><span class="n">bookkeeperAckQuorum</span><span class="o">,</span><span class="n">managedLedgerMaxMarkDeleteRate</span><span class="o">))</span>
 </code></pre></div></div>
@@ -1329,10 +1305,10 @@ test-tenant/ns2
 
 <h6 id="rest-7">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/persistence
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/v2/namespaces/{tenant}/{namespace}/persistence
 </code></pre></div></div>
 
-<h6 id="java-11">Java</h6>
+<h6 id="java-10">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1351,10 +1327,10 @@ test-tenant/ns2
 
 <h6 id="rest-8">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/namespaces/{tenant}/{namespace}/unload
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/v2/namespaces/{tenant}/{namespace}/unload
 </code></pre></div></div>
 
-<h6 id="java-12">Java</h6>
+<h6 id="java-11">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">unloadNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1373,10 +1349,10 @@ test-tenant/ns2
 
 <h6 id="rest-9">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/messageTTL
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/v2/namespaces/{tenant}/{namespace}/messageTTL
 </code></pre></div></div>
 
-<h6 id="java-13">Java</h6>
+<h6 id="java-12">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">messageTTL</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1395,10 +1371,10 @@ test-tenant/ns2
 
 <h6 id="rest-10">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/messageTTL
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/v2/namespaces/{tenant}/{namespace}/messageTTL
 </code></pre></div></div>
 
-<h6 id="java-14">Java</h6>
+<h6 id="java-13">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1417,10 +1393,10 @@ test-tenant/ns2
 
 <h6 id="rest-11">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/namespaces/{tenant}/{namespace}/{bundle}/split
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/v2/namespaces/{tenant}/{namespace}/{bundle}/split
 </code></pre></div></div>
 
-<h6 id="java-15">Java</h6>
+<h6 id="java-14">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">splitNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1439,10 +1415,10 @@ test-tenant/ns2
 
 <h6 id="rest-12">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/clearBacklog
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/v2/namespaces/{tenant}/{namespace}/clearBacklog
 </code></pre></div></div>
 
-<h6 id="java-16">Java</h6>
+<h6 id="java-15">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1461,10 +1437,10 @@ test-tenant/ns2
 
 <h6 id="rest-13">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/{bundle}/clearBacklog
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/v2/namespaces/{tenant}/{namespace}/{bundle}/clearBacklog
 </code></pre></div></div>
 
-<h6 id="java-17">Java</h6>
+<h6 id="java-16">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBundleBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1483,10 +1459,10 @@ test-tenant/ns2
 
 <h6 id="rest-14">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/retention
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/v2/namespaces/{tenant}/{namespace}/retention
 </code></pre></div></div>
 
-<h6 id="java-18">Java</h6>
+<h6 id="java-17">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">RetentionPolicies</span><span class="o">(</span><span class="n">retentionTimeInMin</span><span class="o">,</span> <span class="n">retentionSizeInMB</span><span class="o">))</span>
 </code></pre></div></div>
@@ -1508,19 +1484,19 @@ test-tenant/ns2
 
 <h6 id="rest-15">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/retention
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/v2/namespaces/{tenant}/{namespace}/retention
 </code></pre></div></div>
 
-<h6 id="java-19">Java</h6>
+<h6 id="java-18">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre></div></div>
 
 <h4 id="set-dispatch-throttling">set dispatch throttling</h4>
 
-<p>It sets message dispatch rate for all the topics under a given namespace. 
-Dispatch rate can be restricted by number of message per X seconds (<code class="highlighter-rouge">msg-dispatch-rate</code>) or by number of message-bytes per X second (<code class="highlighter-rouge">byte-dispatch-rate</code>). 
-dispatch rate is in second and it can be configured with <code class="highlighter-rouge">dispatch-rate-period</code>. Default value of <code class="highlighter-rouge">msg-dispatch-rate</code> and <code class="highlighter-rouge">byte-dispatch-rate</code> is -1 which 
+<p>It sets message dispatch rate for all the topics under a given namespace.
+Dispatch rate can be restricted by number of message per X seconds (<code class="highlighter-rouge">msg-dispatch-rate</code>) or by number of message-bytes per X second (<code class="highlighter-rouge">byte-dispatch-rate</code>).
+dispatch rate is in second and it can be configured with <code class="highlighter-rouge">dispatch-rate-period</code>. Default value of <code class="highlighter-rouge">msg-dispatch-rate</code> and <code class="highlighter-rouge">byte-dispatch-rate</code> is -1 which
 disables the throttling.</p>
 
 <h6 id="cli-15">CLI</h6>
@@ -1533,10 +1509,10 @@ disables the throttling.</p>
 
 <h6 id="rest-16">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/dispatchRate
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/v2/namespaces/{tenant}/{namespace}/dispatchRate
 </code></pre></div></div>
 
-<h6 id="java-20">Java</h6>
+<h6 id="java-19">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setDispatchRate</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="mi">1000</span><span class="o">,</span> <span class="mi">1048576</span><span class="o">,</span> <span class="mi">1</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1559,10 +1535,10 @@ disables the throttling.</p>
 
 <h6 id="rest-17">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/dispatchRate
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/v2/namespaces/{tenant}/{namespace}/dispatchRate
 </code></pre></div></div>
 
-<h6 id="java-21">Java</h6>
+<h6 id="java-20">Java</h6>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getDispatchRate</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
 </code></pre></div></div>
@@ -1575,7 +1551,7 @@ disables the throttling.</p>
 
 <p>You can unload a namespace, or a <span class="popover-term" tabindex="0" title="What is a namespace bundle?" data-placement="top" data-content="A virtual group of topics that belong to the same namespace. A namespace bundle is defined as a range between two 32-bit hashes, such as 0x00000000 and 0xffffffff." data-toggle="popover" data-trigger="focus">namespace bundle</span>, from the Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> that is currently responsible for it.</p>
 
-<h4 id="pulsar-admin-5">pulsar-admin</h4>
+<h4 id="pulsar-admin-4">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-unload"><code class="highlighter-rouge">unload</code></a> subcommand of the <a href="../../reference/CliTools#pulsar-admin-namespaces"><code class="highlighter-rouge">namespaces</code></a> command.</p>
 
@@ -1584,9 +1560,9 @@ disables the throttling.</p>
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces unload my-tenant/my-ns
 </code></pre></div></div>
 
-<h4 id="rest-api-4">REST API</h4>
+<h4 id="rest-api-3">REST API</h4>
 
-<h4 id="java-22">Java</h4>
+<h4 id="java-21">Java</h4>
 
       </section>
     </article>

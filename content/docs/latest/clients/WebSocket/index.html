@@ -1114,9 +1114,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
+          
+          
           
           
           
@@ -1358,9 +1358,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
+          
+          
           
           
           
@@ -1582,8 +1582,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
           
           
@@ -1607,6 +1605,8 @@
           
           
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
+          
+          
           
           
           
@@ -1817,7 +1817,7 @@
 
 <p>The producer endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> in the URL:</p>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/producer/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/v2/producer/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
 
 <h5 id="query-param">Query param</h5>
 
@@ -1998,7 +1998,7 @@
 
 <p>The consumer endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>, as well as a <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span>, in the URL:</p>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/consumer/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/<span class="endpoint">:subscription</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/v2/consumer/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/<span class="endpoint">:subscription</span></code></pre></div>
 
 <h5 id="query-param-1">Query param</h5>
 
@@ -2133,7 +2133,7 @@ have the Pulsar broker delete it.</p>
 
 <p>The reader endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> in the URL:</p>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/reader/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/v2/reader/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
 
 <h5 id="query-param-2">Query param</h5>
 
@@ -2348,7 +2348,7 @@ following error codes:</p>
 
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="p">,</span> <span class="n">base64</span><span class="p">,</span> <span class="n">json</span>
 
-<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/producer/persistent/public/default/my-topic'</span>
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'</span>
 
 <span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
 
@@ -2376,7 +2376,7 @@ following error codes:</p>
 
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="p">,</span> <span class="n">base64</span><span class="p">,</span> <span class="n">json</span>
 
-<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/consumer/persistent/public/default/my-topic/my-sub'</span>
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub'</span>
 
 <span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
 
@@ -2398,7 +2398,7 @@ following error codes:</p>
 
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="p">,</span> <span class="n">base64</span><span class="p">,</span> <span class="n">json</span>
 
-<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/reader/persistent/public/default/my-topic'</span>
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic'</span>
 
 <span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
 
@@ -2426,7 +2426,7 @@ following error codes:</p>
 <p>Here’s an example Node.js <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> that sends a simple message to a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>:</p>
 
 <div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
-    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/producer/persistent/my-tenant/my-ns/my-topic1"</span><span class="p">,</span>
+    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/v2/producer/persistent/my-tenant/my-ns/my-topic1"</span><span class="p">,</span>
     <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
 
 <span class="kd">var</span> <span class="nx">message</span> <span class="o">=</span> <span class="p">{</span>
@@ -2453,7 +2453,7 @@ following error codes:</p>
 <p>Here’s an example Node.js <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> that listens on the same topic used by the producer above:</p>
 
 <div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
-    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/consumer/persistent/my-tenant/my-ns/my-topic1/my-sub"</span><span class="p">,</span>
+    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/v2/consumer/persistent/my-tenant/my-ns/my-topic1/my-sub"</span><span class="p">,</span>
     <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
 
 <span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>
@@ -2466,7 +2466,7 @@ following error codes:</p>
 
 <h4 id="nodejs-reader">NodeJS reader</h4>
 <div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
-    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/reader/persistent/my-tenant/my-ns/my-topic1"</span><span class="p">,</span>
+    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/v2/reader/persistent/my-tenant/my-ns/my-topic1"</span><span class="p">,</span>
     <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
 
 <span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>

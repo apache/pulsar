@@ -1010,7 +1010,7 @@
 
 <ul>
   <li>The <a href="../../reference/CliTools#pulsar-admin-brokers"><code class="highlighter-rouge">brokers</code></a> command of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool</li>
-  <li>The <code class="highlighter-rouge">/admin/brokers</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
+  <li>The <code class="highlighter-rouge">/admin/v2/brokers</code> endpoint of the admin <a href="../../reference/RestApi">REST API</a></li>
   <li>The <code class="highlighter-rouge">brokers</code> method of the <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object in the <a href="../../clients/Java">Java API</a></li>
 </ul>
 
@@ -1061,7 +1061,7 @@
 
 <h6 id="rest">REST</h6>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/brokers/<span class="endpoint">:cluster</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/brokers/<span class="endpoint">:cluster</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/brokers/:cluster">More info</a></p>
 
@@ -1090,7 +1090,7 @@
 </span></code></pre></div></div>
 <h6 id="rest-1">REST</h6>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/brokers/<span class="endpoint">:cluster</span>/<span class="endpoint">:broker</span>:/ownedNamespaces</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/brokers/<span class="endpoint">:cluster</span>/<span class="endpoint">:broker</span>:/ownedNamespaces</code></pre></div>
 
 <h6 id="java-1">Java</h6>
 
@@ -1105,7 +1105,7 @@
 
 <ul>
   <li>The <a href="../../reference/CliTools#pulsar-admin-brokers"><code class="highlighter-rouge">brokers</code></a> command for the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool has a variety of subcommands that enable you to manipulate a broker’s configuration dynamically, enabling you to <a href="#update-dynamic-configuration">update config values</a> and more.</li>
-  <li>In the Pulsar admin <a href="../../reference/RestApi">REST API</a>, dynamic configuration is managed through the <code class="highlighter-rouge">/admin/brokers/configuration</code> endpoint.</li>
+  <li>In the Pulsar admin <a href="../../reference/RestApi">REST API</a>, dynamic configuration is managed through the <code class="highlighter-rouge">/admin/v2/brokers/configuration</code> endpoint.</li>
 </ul>
 
 <h3 id="update-dynamic-configuration">Update dynamic configuration</h3>
@@ -1119,7 +1119,7 @@
 
 <h4 id="rest-api">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/brokers/configuration/<span class="endpoint">:configName</span>/<span class="endpoint">:configValue</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/v2/brokers/configuration/<span class="endpoint">:configName</span>/<span class="endpoint">:configValue</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/brokers/configuration/:configName/:configValue">More info</a></p>
 
@@ -1140,7 +1140,7 @@ brokerShutdownTimeoutMs
 
 <h4 id="rest-api-1">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/brokers/configuration</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/brokers/configuration</code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/brokers/configuration">More info</a></p>
 
@@ -1161,7 +1161,7 @@ brokerShutdownTimeoutMs:100
 
 <h4 id="rest-api-2">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/brokers/configuration/values</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/brokers/configuration/values</code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/brokers/configuration/values">More info</a></p>
 

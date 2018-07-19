@@ -1011,7 +1011,7 @@
 
 <p>To generate the Docker image:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>docker build <span class="nt">-t</span> pulsar-dashboard dashboard
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>docker build <span class="nt">-t</span> apachepulsar/pulsar-dashboard dashboard
 </code></pre></div></div>
 
 <p>To run the dashboard:</p>
@@ -1025,6 +1025,43 @@
 <p>You need to specify only one service URL for a Pulsar cluster. Internally, the collector will figure out all the existing clusters and the brokers from where it needs to pull the metrics. If you’re connecting the dashboard to Pulsar running in <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> mode, the URL will be <code class="highlighter-rouge">http://localhost:8080</code> by default.</p>
 
 <p>Once the Docker container is running, the web dashboard will be accessible via <code class="highlighter-rouge">localhost</code> or whichever host is being used by Docker.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    
+    <p>The <code class="highlighter-rouge">SERVICE_URL</code> that the dashboard uses needs to be reachable from inside the Docker container</p>
+
+  </div>
+</div>
+
+<p>If the Pulsar service is running in standalone mode in <code class="highlighter-rouge">localhost</code>, the <code class="highlighter-rouge">SERVICE_URL</code> would have to
+be the IP of the machine.</p>
+
+<p>Similarly, given the Pulsar standalone advertises itself with localhost by default, we need to
+explicitely set the advertise address to the host IP. For example:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar standalone <span class="nt">--advertised-address</span> 1.2.3.4
+</code></pre></div></div>
 
 <h3 id="known-issues">Known issues</h3>
 

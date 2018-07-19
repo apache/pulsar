@@ -1064,9 +1064,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
+          
+          
           
           
           
@@ -1310,9 +1310,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
+          
+          
           
           
           
@@ -1852,7 +1852,7 @@ You can find detailed documentation of all the APIs in the <a href="../../admin-
 
 <p>In the simplest example, you can use curl to probe the stats for a particular topic:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl http://localhost:8080/admin/persistent/public/default/my-topic/stats | python <span class="nt">-m</span> json.tool
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python <span class="nt">-m</span> json.tool
 </code></pre></div></div>
 
 <p>The output will be something like this:</p>
