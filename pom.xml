@@ -998,6 +998,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>site/_sass/font-awesome/**</exclude>
             <exclude>site/fonts/**</exclude>
             <exclude>site/img/**</exclude>
+            <exclude>site2/**</exclude>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
             <exclude>**/.idea/*</exclude>
