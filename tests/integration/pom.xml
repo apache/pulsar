@@ -46,11 +46,10 @@
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client-admin-original</artifactId>
+      <artifactId>pulsar-client-admin</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -72,7 +71,6 @@
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-io-kafka</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -83,6 +81,11 @@
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-all</artifactId>
+      <version>4.1.26.Final</version>
     </dependency>
   </dependencies>
 
