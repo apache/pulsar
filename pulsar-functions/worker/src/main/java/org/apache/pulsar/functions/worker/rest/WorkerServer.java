@@ -19,8 +19,15 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+
+import javax.servlet.DispatcherType;
+
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.eclipse.jetty.server.Handler;
@@ -28,9 +35,11 @@ import org.eclipse.jetty.server.Server;
 
 import java.net.BindException;
 import java.net.URI;
+
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -41,6 +50,7 @@ public class WorkerServer implements Runnable {
 
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
+    private static final String MATCH_ALL = "/*";
 
     private static String getErrorMessage(Server server, int port, Exception ex) {
         if (ex instanceof BindException) {
@@ -106,7 +116,12 @@ public class WorkerServer implements Runnable {
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, "/*");
+        if (workerService.getWorkerConfig().isAuthenticationEnabled()) {
+            FilterHolder filter = new FilterHolder(new AuthenticationFilter(workerService.getAuthenticationService()));
+            contextHandler.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
 
         return contextHandler;
     }
+    
 }
