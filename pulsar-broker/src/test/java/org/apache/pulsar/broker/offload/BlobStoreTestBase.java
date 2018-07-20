@@ -18,27 +18,39 @@
  */
 package org.apache.pulsar.broker.offload;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-
+import org.jclouds.ContextBuilder;
+import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.BlobStoreContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-public class S3TestBase {
+public class BlobStoreTestBase {
+    private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);
+
     public final static String BUCKET = "pulsar-unittest";
 
-    protected AmazonS3 s3client = null;
+    protected BlobStoreContext context = null;
+    protected BlobStore blobStore = null;
 
     @BeforeMethod
     public void start() throws Exception {
-        if (Boolean.parseBoolean(System.getProperty("testRealAWS", "false"))) {
-            // To use this, ~/.aws must be configured with credentials and a default region
-            s3client = AmazonS3ClientBuilder.standard().build();
-        } else {
-            s3client = new S3Mock();
+        context = ContextBuilder.newBuilder("transient").build(BlobStoreContext.class);
+        blobStore = context.getBlobStore();
+        boolean create = blobStore.createContainerInLocation(null, BUCKET);
+
+        log.debug("TestBase Create Bucket: {}, in blobStore, result: {}", BUCKET, create);
+    }
+
+    @AfterMethod
+    public void tearDown() {
+        if (blobStore != null) {
+            blobStore.deleteContainer(BUCKET);
         }
 
-        if (!s3client.doesBucketExistV2(BUCKET)) {
-            s3client.createBucket(BUCKET);
+        if (context != null) {
+            context.close();
         }
     }
 

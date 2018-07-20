@@ -19,13 +19,8 @@
 package org.apache.pulsar.broker.offload.impl;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.S3Object;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,7 +28,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -42,18 +36,18 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
-
+import org.apache.pulsar.broker.offload.BackedInputStream;
 import org.apache.pulsar.broker.offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.offload.OffloadIndexBlockBuilder;
 import org.apache.pulsar.broker.offload.OffloadIndexEntry;
-import org.apache.pulsar.broker.offload.BackedInputStream;
-import org.apache.pulsar.broker.offload.impl.S3ManagedLedgerOffloader.VersionCheck;
-
+import org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader.VersionCheck;
+import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class S3BackedReadHandleImpl implements ReadHandle {
-    private static final Logger log = LoggerFactory.getLogger(S3BackedReadHandleImpl.class);
+public class BlobStoreBackedReadHandleImpl implements ReadHandle {
+    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImpl.class);
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
@@ -61,9 +55,9 @@ public class S3BackedReadHandleImpl implements ReadHandle {
     private final DataInputStream dataStream;
     private final ExecutorService executor;
 
-    private S3BackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
-                                   BackedInputStream inputStream,
-                                   ExecutorService executor) {
+    private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
+                                          BackedInputStream inputStream,
+                                          ExecutorService executor) {
         this.ledgerId = ledgerId;
         this.index = index;
         this.inputStream = inputStream;
@@ -189,22 +183,19 @@ public class S3BackedReadHandleImpl implements ReadHandle {
     }
 
     public static ReadHandle open(ScheduledExecutorService executor,
-                                  AmazonS3 s3client, String bucket, String key, String indexKey,
+                                  BlobStore blobStore, String bucket, String key, String indexKey,
                                   VersionCheck versionCheck,
                                   long ledgerId, int readBufferSize)
             throws AmazonClientException, IOException {
-        GetObjectRequest req = new GetObjectRequest(bucket, indexKey);
-        try (S3Object obj = s3client.getObject(req)) {
-            versionCheck.check(indexKey, obj.getObjectMetadata());
+        Blob blob = blobStore.getBlob(bucket, indexKey);
+        versionCheck.check(indexKey, blob);
+        OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
+        OffloadIndexBlock index = indexBuilder.fromStream(blob.getPayload().openStream());
 
-            OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
-            OffloadIndexBlock index = indexBuilder.fromStream(obj.getObjectContent());
-
-            BackedInputStream inputStream = new S3BackedInputStreamImpl(s3client, bucket, key,
-                                                                          versionCheck,
-                                                                          index.getDataObjectLength(),
-                                                                          readBufferSize);
-            return new S3BackedReadHandleImpl(ledgerId, index, inputStream, executor);
-        }
+        BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
+            versionCheck,
+            index.getDataObjectLength(),
+            readBufferSize);
+        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
     }
 }

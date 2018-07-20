@@ -127,7 +127,7 @@
 
     <dependency>
       <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-s3</artifactId>
+      <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
 
     <!-- functions related dependencies (begin) -->
@@ -272,6 +272,12 @@
       <artifactId>buildtools</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>jclouds-shaded</artifactId>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 
