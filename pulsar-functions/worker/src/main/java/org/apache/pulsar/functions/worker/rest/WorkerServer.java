@@ -21,29 +21,36 @@ package org.apache.pulsar.functions.worker.rest;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
-
 import javax.servlet.DispatcherType;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
 
 import java.net.BindException;
 import java.net.URI;
-
+import java.security.GeneralSecurityException;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
+
+import com.google.common.annotations.VisibleForTesting;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 @Slf4j
 public class WorkerServer implements Runnable {
@@ -51,6 +58,10 @@ public class WorkerServer implements Runnable {
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
     private static final String MATCH_ALL = "/*";
+    private static final int NUM_ACCEPTORS = 16;
+    private static final int MAX_CONCURRENT_REQUESTS = 1024;
+    private final ExecutorService webServerExecutor;
+    private Server server;
 
     private static String getErrorMessage(Server server, int port, Exception ex) {
         if (ex instanceof BindException) {
@@ -64,13 +75,21 @@ public class WorkerServer implements Runnable {
     public WorkerServer(WorkerService workerService) {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
+        this.webServerExecutor = Executors.newFixedThreadPool(NUM_ACCEPTORS, new DefaultThreadFactory("function-web"));
     }
 
     @Override
     public void run() {
-        final Server server = new Server(this.workerConfig.getWorkerPort());
+        server = new Server(new ExecutorThreadPool(webServerExecutor));
 
-        List<Handler> handlers = new ArrayList<>(2);
+        
+        List<ServerConnector> connectors = new ArrayList<>();
+        ServerConnector connector = new ServerConnector(server, 1, 1);
+        connector.setPort(this.workerConfig.getWorkerPort());
+        connector.setHost(this.workerConfig.getWorkerHostname());
+        connectors.add(connector);
+        
+        List<Handler> handlers = new ArrayList<>(3);
         handlers.add(newServletContextHandler("/admin",
                 new ResourceConfig(Resources.getApiResources()), workerService));
         handlers.add(newServletContextHandler("/admin/v2",
@@ -85,6 +104,27 @@ public class WorkerServer implements Runnable {
             contexts, new DefaultHandler()
         });
         server.setHandler(handlerCollection);
+        
+        if (this.workerConfig.isTlsEnabled()) {
+            try {
+                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
+                        this.workerConfig.isTlsAllowInsecureConnection(),
+                        this.workerConfig.getTlsTrustCertsFilePath(),
+                        this.workerConfig.getTlsCertificateFilePath(),
+                        this.workerConfig.getTlsKeyFilePath(),
+                        this.workerConfig.isTlsRequireTrustedClientCertOnConnect());
+                ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
+                tlsConnector.setPort(this.workerConfig.getWorkerPortTls());
+                tlsConnector.setHost(this.workerConfig.getWorkerHostname());
+                connectors.add(tlsConnector);
+            } catch (GeneralSecurityException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
+        connectors.forEach(c -> c.setAcceptQueueSize(MAX_CONCURRENT_REQUESTS / connectors.size()));
+        server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
 
         try {
             server.start();
@@ -96,7 +136,6 @@ public class WorkerServer implements Runnable {
             log.error("ex: {}", ex, ex);
             final String message = getErrorMessage(server, this.workerConfig.getWorkerPort(), ex);
             log.error(message);
-            System.exit(1);
         } finally {
             server.destroy();
         }
@@ -122,6 +161,17 @@ public class WorkerServer implements Runnable {
         }
 
         return contextHandler;
+    }
+    
+    @VisibleForTesting
+    public void stop() {
+        if (this.server != null) {
+            try {
+                this.server.stop();
+            } catch (Exception e) {
+                log.error("Failed to stop function web-server ", e);
+            }
+        }
     }
     
 }

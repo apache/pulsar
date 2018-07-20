@@ -381,8 +381,7 @@ public class PulsarSinkE2ETest {
         assertEquals(ownerWorkerId, workerId);
     }
 
-    protected FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String functionName,
-            String sinkTopic, String subscriptionName) {
+    protected static FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String functionName, String sinkTopic, String subscriptionName) {
 
         File file = new File(jarFile);
         try {
