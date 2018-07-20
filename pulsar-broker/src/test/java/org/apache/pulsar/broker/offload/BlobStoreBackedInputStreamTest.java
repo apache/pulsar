@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.offload.impl.BlobStoreBackedInputStreamImpl;
+import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.options.GetOptions;
 import org.jclouds.io.Payload;

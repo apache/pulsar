@@ -63,9 +63,9 @@ import org.testng.annotations.Test;
 @Slf4j
 class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderTest.class);
+
     private static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     private static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
-    private final String driver = "s3";
     final OrderedScheduler scheduler;
     final MockBookKeeper bk;
 
@@ -187,7 +187,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         conf.setGcsManagedLedgerOffloadBucket(BUCKET);
 
         try {
-            ManagedLedgerOffloader.create(conf, scheduler);
+            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
@@ -204,7 +204,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
 
         try {
-            ManagedLedgerOffloader.create(conf, scheduler);
+            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
@@ -222,7 +222,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         conf.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(1024);
 
         try {
-            ManagedLedgerOffloader.create(conf, scheduler);
+            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
