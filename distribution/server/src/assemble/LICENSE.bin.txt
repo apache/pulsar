@@ -334,10 +334,10 @@ The Apache Software License, Version 2.0
     - io.swagger-swagger-annotations-1.5.3.jar
     - io.swagger-swagger-core-1.5.3.jar
     - io.swagger-swagger-models-1.5.3.jar
- * DataSketches 
+ * DataSketches
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
- * Apache Commons 
+ * Apache Commons
     - commons-beanutils-commons-beanutils-1.7.0.jar
     - commons-beanutils-commons-beanutils-core-1.8.0.jar
     - commons-cli-commons-cli-1.2.jar
@@ -461,6 +461,12 @@ The Apache Software License, Version 2.0
     - org.xerial.snappy-snappy-java-1.1.1.3.jar
   * Flatbuffers Java
     - com.google.flatbuffers-flatbuffers-java-1.9.0.jar
+  * Apache Jclouds
+    - org.apache.jclouds-allblobstore-2.2.0-SNAPSHOT.jar
+  * Google Guice Core Library
+    - com.google.inject.guice-3.0.jar
+    - com.google.inject.extensions:guice-multibindings-3.0.jar
+    - com.google.inject.extensions:guice-assistedinject-3.0.jar
 
 
 BSD 3-clause "New" or "Revised" License

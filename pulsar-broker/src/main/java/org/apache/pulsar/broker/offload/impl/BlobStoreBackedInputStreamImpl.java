@@ -18,27 +18,22 @@
  */
 package org.apache.pulsar.broker.offload.impl;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.S3Object;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-
-import java.io.InputStream;
 import java.io.IOException;
-
+import java.io.InputStream;
 import org.apache.pulsar.broker.offload.BackedInputStream;
-import org.apache.pulsar.broker.offload.impl.S3ManagedLedgerOffloader.VersionCheck;
-
+import org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader.VersionCheck;
+import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.domain.Blob;
+import org.jclouds.blobstore.options.GetOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class S3BackedInputStreamImpl extends BackedInputStream {
-    private static final Logger log = LoggerFactory.getLogger(S3BackedInputStreamImpl.class);
+public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
+    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedInputStreamImpl.class);
 
-    private final AmazonS3 s3client;
+    private final BlobStore blobStore;
     private final String bucket;
     private final String key;
     private final VersionCheck versionCheck;
@@ -50,10 +45,10 @@ public class S3BackedInputStreamImpl extends BackedInputStream {
     private long bufferOffsetStart;
     private long bufferOffsetEnd;
 
-    public S3BackedInputStreamImpl(AmazonS3 s3client, String bucket, String key,
-                                   VersionCheck versionCheck,
-                                   long objectLen, int bufferSize) {
-        this.s3client = s3client;
+    public BlobStoreBackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
+                                          VersionCheck versionCheck,
+                                          long objectLen, int bufferSize) {
+        this.blobStore = blobStore;
         this.bucket = bucket;
         this.key = key;
         this.versionCheck = versionCheck;
@@ -76,26 +71,24 @@ public class S3BackedInputStreamImpl extends BackedInputStream {
             long startRange = cursor;
             long endRange = Math.min(cursor + bufferSize - 1,
                                      objectLen - 1);
-            GetObjectRequest req = new GetObjectRequest(bucket, key)
-                .withRange(startRange, endRange);
-            log.debug("Reading range {}-{} from {}/{}", startRange, endRange, bucket, key);
-            try (S3Object obj = s3client.getObject(req)) {
-                versionCheck.check(key, obj.getObjectMetadata());
 
-                Long[] range = obj.getObjectMetadata().getContentRange();
-                long bytesRead = range[1] - range[0] + 1;
+            try {
+                Blob blob = blobStore.getBlob(bucket, key, new GetOptions().range(startRange, endRange));
+                versionCheck.check(key, blob);
 
-                buffer.clear();
-                bufferOffsetStart = range[0];
-                bufferOffsetEnd = range[1];
-                InputStream s = obj.getObjectContent();
-                int bytesToCopy = (int)bytesRead;
-                while (bytesToCopy > 0) {
-                    bytesToCopy -= buffer.writeBytes(s, bytesToCopy);
+                try (InputStream stream = blob.getPayload().openStream()) {
+                    buffer.clear();
+                    bufferOffsetStart = startRange;
+                    bufferOffsetEnd = endRange;
+                    long bytesRead = endRange - startRange + 1;
+                    int bytesToCopy = (int) bytesRead;
+                    while (bytesToCopy > 0) {
+                        bytesToCopy -= buffer.writeBytes(stream, bytesToCopy);
+                    }
+                    cursor += buffer.readableBytes();
                 }
-                cursor += buffer.readableBytes();
-            } catch (AmazonClientException e) {
-                throw new IOException("Error reading from S3", e);
+            } catch (Throwable e) {
+                throw new IOException("Error reading from BlobStore", e);
             }
         }
         return true;
