@@ -34,7 +34,10 @@ class NamespaceName : public ServiceUnitId {
     std::string getLocalName();
     static boost::shared_ptr<NamespaceName> get(const std::string& property, const std::string& cluster,
                                                 const std::string& namespaceName);
+    static boost::shared_ptr<NamespaceName> get(const std::string& property,
+                                                const std::string& namespaceName);
     bool operator==(const NamespaceName& namespaceName);
+    bool isV2();
 
    private:
     std::string namespace_;
@@ -43,7 +46,9 @@ class NamespaceName : public ServiceUnitId {
     std::string localName_;
     static bool validateNamespace(const std::string& property, const std::string& cluster,
                                   const std::string& namespace_);
+    static bool validateNamespace(const std::string& property, const std::string& namespace_);
     NamespaceName(const std::string& property, const std::string& cluster, const std::string& namespace_);
+    NamespaceName(const std::string& property, const std::string& namespace_);
 };
 
 #pragma GCC visibility pop
