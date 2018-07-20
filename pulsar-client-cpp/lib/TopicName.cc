@@ -80,7 +80,11 @@ bool TopicName::init(const std::string& topicName) {
         LOG_ERROR("Topic name is not valid, topic name is empty - " << topicName_);
         return false;
     }
-    namespaceName_ = NamespaceName::get(property_, cluster_, namespacePortion_);
+    if (isV2Topic_ && cluster_.empty()) {
+        namespaceName_ = NamespaceName::get(property_, namespacePortion_);
+    } else {
+        namespaceName_ = NamespaceName::get(property_, cluster_, namespacePortion_);
+    }
     return true;
 }
 bool TopicName::parse(const std::string& topicName, std::string& domain, std::string& property,

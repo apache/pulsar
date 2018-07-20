@@ -28,6 +28,13 @@ import java.util.Optional;
 public interface Record<T> {
 
     /**
+     * If the record originated from a topic, report the topic name
+     */
+    default Optional<String> getTopicName() {
+        return Optional.empty();
+    }
+
+    /**
      * Return a key if the key has one associated
      */
     Optional<String> getKey();

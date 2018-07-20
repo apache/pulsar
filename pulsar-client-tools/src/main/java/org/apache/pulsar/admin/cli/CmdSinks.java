@@ -55,6 +55,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Resources;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.SinkConfig;
 import org.apache.pulsar.functions.utils.Utils;
@@ -212,6 +213,8 @@ public class CmdSinks extends CmdBase {
         protected String customSerdeInputString;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the sink")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
+        @Parameter(names = "--retainOrdering", description = "Sink consumes and sinks messages in order")
+        protected boolean retainOrdering;
         @Parameter(names = "--parallelism", description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
         protected Integer parallelism;
         @Parameter(names = {"-a", "--archive"}, description = "Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
@@ -261,6 +264,8 @@ public class CmdSinks extends CmdBase {
             if (null != processingGuarantees) {
                 sinkConfig.setProcessingGuarantees(processingGuarantees);
             }
+            
+            sinkConfig.setRetainOrdering(retainOrdering);
 
             Map<String, String> topicsToSerDeClassName = new HashMap<>();
             if (null != inputs) {
@@ -477,6 +482,10 @@ public class CmdSinks extends CmdBase {
             if (isNotBlank(sinkConfig.getSourceSubscriptionName())) {
                 sourceSpecBuilder.setSubscriptionName(sinkConfig.getSourceSubscriptionName());
             }
+            
+            sourceSpecBuilder.setSubscriptionType(
+                    sinkConfig.isRetainOrdering() ? SubscriptionType.FAILOVER : SubscriptionType.SHARED);
+            
             functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
