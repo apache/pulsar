@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -123,130 +123,117 @@ var activeTableTab = "activeTableTab";
 <th class="colLast" scope="col">Method and Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#ack-byte:A-">ack</a></span>(byte[]&nbsp;messageId)</code>
-<div class="block">By default acknowledgement management is done transparently by Pulsar Functions framework.</div>
-</td>
-</tr>
-<tr id="i1" class="rowColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getCounter-java.lang.String-">getCounter</a></span>(String&nbsp;key)</code>
 <div class="block">Retrieve the counter value for the key.</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getCurrentMessageTopicName--">getCurrentMessageTopicName</a></span>()</code>
-<div class="block">The input topic that the message currently being processed belongs to</div>
+<tr id="i1" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/functions/api/Record.html" title="interface in org.apache.pulsar.functions.api">Record</a>&lt;?&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getCurrentRecord--">getCurrentRecord</a></span>()</code>
+<div class="block">Access the record associated with the current input value</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getFunctionId--">getFunctionId</a></span>()</code>
 <div class="block">The id of the function that we are executing</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getFunctionName--">getFunctionName</a></span>()</code>
 <div class="block">The name of the function that we are executing</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getFunctionVersion--">getFunctionVersion</a></span>()</code>
 <div class="block">The version of the function that we are executing</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>Collection&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getInputTopics--">getInputTopics</a></span>()</code>
 <div class="block">Get a list of all input topics</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getInstanceId--">getInstanceId</a></span>()</code>
 <div class="block">The id of the instance that invokes this function.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>Logger</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getLogger--">getLogger</a></span>()</code>
 <div class="block">The logger object that can be used to log in a function</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
-<td class="colFirst"><code>byte[]</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getMessageId--">getMessageId</a></span>()</code>
-<div class="block">Returns the messageId of the message that we are processing
- This messageId is a stringified version of the actual MessageId</div>
-</td>
-</tr>
-<tr id="i10" class="altColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getNamespace--">getNamespace</a></span>()</code>
 <div class="block">The namespace this function belongs to</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getOutputSerdeClassName--">getOutputSerdeClassName</a></span>()</code>
 <div class="block">Get output Serde class</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getOutputTopic--">getOutputTopic</a></span>()</code>
 <div class="block">Get the output topic of the function</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>ByteBuffer</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getState-java.lang.String-">getState</a></span>(String&nbsp;key)</code>
 <div class="block">Retrieve the state value for the key.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getTenant--">getTenant</a></span>()</code>
 <div class="block">The tenant this function belongs to</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>Map&lt;String,Object&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getUserConfigMap--">getUserConfigMap</a></span>()</code>
 <div class="block">Get a map of all user-defined key/value configs for the function</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>Optional&lt;Object&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getUserConfigValue-java.lang.String-">getUserConfigValue</a></span>(String&nbsp;key)</code>
 <div class="block">Get any user-defined key/value</div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>Object</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getUserConfigValueOrDefault-java.lang.String-java.lang.Object-">getUserConfigValueOrDefault</a></span>(String&nbsp;key,
                            Object&nbsp;defaultValue)</code>
 <div class="block">Get any user-defined key/value or a default value if none is present</div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#incrCounter-java.lang.String-long-">incrCounter</a></span>(String&nbsp;key,
            long&nbsp;amount)</code>
 <div class="block">Increment the builtin distributed counter refered by key</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>&lt;O&gt;&nbsp;CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#publish-java.lang.String-O-">publish</a></span>(String&nbsp;topicName,
        O&nbsp;object)</code>
 <div class="block">Publish an object using DefaultSerDe for serializing to the topic</div>
 </td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code>&lt;O&gt;&nbsp;CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#publish-java.lang.String-O-java.lang.String-">publish</a></span>(String&nbsp;topicName,
        O&nbsp;object,
@@ -254,14 +241,14 @@ var activeTableTab = "activeTableTab";
 <div class="block">Publish an object using serDe for serializing to the topic</div>
 </td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#putState-java.lang.String-java.nio.ByteBuffer-">putState</a></span>(String&nbsp;key,
         ByteBuffer&nbsp;value)</code>
 <div class="block">Updare the state value for the key.</div>
 </td>
 </tr>
-<tr id="i22" class="altColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#recordMetric-java.lang.String-double-">recordMetric</a></span>(String&nbsp;metricName,
             double&nbsp;value)</code>
@@ -283,32 +270,16 @@ var activeTableTab = "activeTableTab";
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a name="getMessageId--">
+<a name="getCurrentRecord--">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>getMessageId</h4>
-<pre>byte[]&nbsp;getMessageId()</pre>
-<div class="block">Returns the messageId of the message that we are processing
- This messageId is a stringified version of the actual MessageId</div>
+<h4>getCurrentRecord</h4>
+<pre><a href="../../../../../org/apache/pulsar/functions/api/Record.html" title="interface in org.apache.pulsar.functions.api">Record</a>&lt;?&gt;&nbsp;getCurrentRecord()</pre>
+<div class="block">Access the record associated with the current input value</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>the messageId</dd>
-</dl>
-</li>
-</ul>
-<a name="getCurrentMessageTopicName--">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>getCurrentMessageTopicName</h4>
-<pre>String&nbsp;getCurrentMessageTopicName()</pre>
-<div class="block">The input topic that the message currently being processed belongs to</div>
-<dl>
-<dt><span class="returnLabel">Returns:</span></dt>
-<dd>The input topic name</dd>
 </dl>
 </li>
 </ul>
@@ -607,7 +578,7 @@ var activeTableTab = "activeTableTab";
 </a><a name="publish-java.lang.String-O-">
 <!--   -->
 </a>
-<ul class="blockList">
+<ul class="blockListLast">
 <li class="blockList">
 <h4>publish</h4>
 <pre>&lt;O&gt;&nbsp;CompletableFuture&lt;Void&gt;&nbsp;publish(String&nbsp;topicName,
@@ -619,23 +590,6 @@ var activeTableTab = "activeTableTab";
 <dd><code>object</code> - The object that needs to be published</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>A future that completes when the framework is done publishing the message</dd>
-</dl>
-</li>
-</ul>
-<a name="ack-byte:A-">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>ack</h4>
-<pre>CompletableFuture&lt;Void&gt;&nbsp;ack(byte[]&nbsp;messageId)</pre>
-<div class="block">By default acknowledgement management is done transparently by Pulsar Functions framework.
- However users can disable that and do ack management by themselves by using this API.</div>
-<dl>
-<dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>messageId</code> - The messageId that needs to be acknowledged</dd>
-<dt><span class="returnLabel">Returns:</span></dt>
-<dd>A future that completes when the framework is done acking the message</dd>
 </dl>
 </li>
 </ul>
