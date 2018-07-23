@@ -27,6 +27,7 @@
 #include <sstream>
 
 DECLARE_LOG_OBJECT()
+namespace pulsar {
 
 boost::shared_ptr<NamespaceName> NamespaceName::get(const std::string& property, const std::string& cluster,
                                                     const std::string& namespaceName) {
@@ -103,3 +104,7 @@ std::string NamespaceName::getCluster() { return this->cluster_; }
 std::string NamespaceName::getLocalName() { return this->localName_; }
 
 bool NamespaceName::isV2() { return this->cluster_.empty(); }
+
+std::string NamespaceName::toString() { return this->namespace_; }
+
+}  // namespace pulsar
