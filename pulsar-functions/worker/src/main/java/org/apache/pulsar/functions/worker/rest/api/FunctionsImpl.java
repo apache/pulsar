@@ -937,11 +937,11 @@ public class FunctionsImpl {
     }
     
     private boolean isAuthorizedRole(String tenant, String clientRole) throws PulsarAdminException {
-        // skip authorization if client role is super-user
-        if (worker().getWorkerConfig().getSuperUserRoles().contains(clientRole)) {
-            return true;
-        }
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            // skip authorization if client role is super-user
+            if (clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole)) {
+                return true;
+            }
             TenantInfo tenantInfo = worker().getAdmin().tenants().getTenantInfo(tenant);
             return clientRole != null && (tenantInfo.getAdminRoles() == null || tenantInfo.getAdminRoles().isEmpty()
                     || tenantInfo.getAdminRoles().contains(clientRole));
