@@ -1116,6 +1116,10 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- Configuration Templates -->
             <exclude>conf/schema_example.conf</exclude>
+
+            <!-- helm files -->
+            <exclude>**/.helmignore</exclude>
+            <exclude>**/_helpers.tpl</exclude>
           </excludes>
         </configuration>
       </plugin>
