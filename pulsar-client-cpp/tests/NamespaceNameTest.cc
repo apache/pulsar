@@ -19,6 +19,7 @@
 #include <NamespaceName.h>
 
 #include <gtest/gtest.h>
+using namespace pulsar;
 
 TEST(NamespaceNameTest, testNamespaceName) {
     boost::shared_ptr<NamespaceName> nn1 = NamespaceName::get("property", "cluster", "namespace");
