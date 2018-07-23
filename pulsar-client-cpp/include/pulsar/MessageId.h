@@ -22,6 +22,7 @@
 #include <iosfwd>
 #include <stdint.h>
 #include <boost/shared_ptr.hpp>
+//#include <lib/MessageIdImpl.h>
 
 #pragma GCC visibility push(default)
 
@@ -51,6 +52,16 @@ class MessageId {
     void serialize(std::string& result) const;
 
     /**
+     * Get the topic Name
+     */
+    const std::string& getTopicName() const;
+
+    /**
+     * Set the topicName
+     */
+    void setTopicName(const std::string& topicName);
+
+    /**
      * Deserialize a message id from a binary string
      */
     static MessageId deserialize(const std::string& serializedMessageId);
@@ -71,6 +82,7 @@ class MessageId {
     friend class Commands;
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
+    friend class MultiTopicsConsumerImpl;
     friend class UnAckedMessageTrackerEnabled;
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
