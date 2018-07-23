@@ -349,7 +349,7 @@ The Apache Software License, Version 2.0
     - commons-lang-commons-lang-2.6.jar
     - commons-logging-commons-logging-1.1.1.jar
     - org.apache.commons-commons-collections4-4.1.jar
-    - org.apache.commons-commons-compress-1.8.1.jar
+    - org.apache.commons-commons-compress-1.15.jar
     - org.apache.commons-commons-lang3-3.4.jar
  * Netty
     - io.netty-netty-3.10.1.Final.jar
@@ -417,15 +417,12 @@ The Apache Software License, Version 2.0
  * HttpClient
     - org.apache.httpcomponents-httpclient-4.5.5.jar
     - org.apache.httpcomponents-httpcore-4.4.9.jar
- * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.1.2.jar
+ * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.1.0.jar
  * OkHttp - com.squareup.okhttp-okhttp-2.5.0.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
  * Javassist -- org.javassist-javassist-3.21.0-GA.jar
  * Amazon AWS SDK
     - com.amazonaws-aws-java-sdk-core-1.11.297.jar
-    - com.amazonaws-aws-java-sdk-kms-1.11.297.jar
-    - com.amazonaws-aws-java-sdk-s3-1.11.297.jar
-    - com.amazonaws-jmespath-java-1.11.297.jar
     - software.amazon.ion-ion-java-1.0.2.jar
   * gRPC
     - io.grpc-grpc-all-1.12.0.jar
@@ -448,7 +445,6 @@ The Apache Software License, Version 2.0
     - net.jodah-typetools-0.5.0.jar
   * Apache Avro
     - org.apache.avro-avro-1.8.2.jar
-    - org.apache.avro-avro-protobuf-1.8.2.jar
   * Apache Curator
     - org.apache.curator-curator-client-4.0.1.jar
     - org.apache.curator-curator-framework-4.0.1.jar
@@ -459,14 +455,12 @@ The Apache Software License, Version 2.0
     - org.inferred-freebuilder-1.14.9.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.1.3.jar
-  * Flatbuffers Java
-    - com.google.flatbuffers-flatbuffers-java-1.9.0.jar
-  * Apache Jclouds
-    - org.apache.jclouds-allblobstore-2.2.0-SNAPSHOT.jar
-  * Google Guice Core Library
-    - com.google.inject.guice-3.0.jar
-    - com.google.inject.extensions:guice-multibindings-3.0.jar
-    - com.google.inject.extensions:guice-assistedinject-3.0.jar
+  * Objenesis
+    - org.objenesis-objenesis-2.1.jar
+  * Java Dependency Injection
+    - javax.inject-javax.inject-1.jar
+  * java-xmlbuilder
+    - com.jamesmurty.utils-java-xmlbuilder-1.1.jar
 
 
 BSD 3-clause "New" or "Revised" License
@@ -498,7 +492,9 @@ Protocol Buffers License
    - com.google.protobuf.nano-protobuf-javanano-3.0.0-alpha-5.jar -- licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
- * Java Annotations API -- javax.annotation-javax.annotation-api-1.2.jar
+ * Java Annotations API
+    - javax.annotation-javax.annotation-api-1.2.jar
+    - javax.annotation-jsr250-api-1.0.jar
  * Java Servlet API -- javax.servlet-javax.servlet-api-3.1.0.jar
  * WebSocket Server API -- javax.websocket-javax.websocket-api-1.0.jar
  * Java Web Service REST API -- javax.ws.rs-javax.ws.rs-api-2.1.jar
@@ -530,6 +526,10 @@ Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
 Public Domain
  * XZ for Java -- licenses/LICENSE-xz.txt
     - org.tukaani-xz-1.5.jar
+ * iHarder.net Base64
+    - net.iharder-base64-2.3.8.jar
+ * AOP Alliance
+    - aopalliance-aopalliance-1.0.jar
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.0.jar
