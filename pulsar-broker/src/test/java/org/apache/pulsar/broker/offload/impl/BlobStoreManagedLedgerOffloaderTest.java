@@ -26,6 +26,7 @@ import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -176,6 +177,55 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
+        }
+    }
+
+    @Test
+    public void testGcsNoKeyPath() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setManagedLedgerOffloadDriver("google-cloud-storage");
+        conf.setGcsManagedLedgerOffloadBucket(BUCKET);
+
+        try {
+            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
+            Assert.fail("Should have thrown exception");
+        } catch (PulsarServerException pse) {
+            // correct
+            log.error("Expected pse", pse);
+        }
+    }
+
+    @Test
+    public void testGcsNoBucketConfigured() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setManagedLedgerOffloadDriver("google-cloud-storage");
+        File tmpKeyFile = File.createTempFile("gcsOffload", "json");
+        conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
+
+        try {
+            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
+            Assert.fail("Should have thrown exception");
+        } catch (PulsarServerException pse) {
+            // correct
+            log.error("Expected pse", pse);
+        }
+    }
+
+    @Test
+    public void testGcsSmallBlockSizeConfigured() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setManagedLedgerOffloadDriver("google-cloud-storage");
+        File tmpKeyFile = File.createTempFile("gcsOffload", "json");
+        conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
+        conf.setGcsManagedLedgerOffloadBucket(BUCKET);
+        conf.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(1024);
+
+        try {
+            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
+            Assert.fail("Should have thrown exception");
+        } catch (PulsarServerException pse) {
+            // correct
+            log.error("Expected pse", pse);
         }
     }
 
