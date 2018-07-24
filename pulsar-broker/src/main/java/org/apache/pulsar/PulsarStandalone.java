@@ -276,6 +276,7 @@ public class PulsarStandalone implements AutoCloseable {
             String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                 config.getAdvertisedAddress());
             workerConfig.setWorkerHostname(hostname);
+            workerConfig.setWorkerPort(config.getWebServicePort());
             workerConfig.setWorkerId(
                 "c-" + config.getClusterName()
                     + "-fw-" + hostname
