@@ -99,7 +99,9 @@ groups:
   docs:
   - title: Overview
     endpoint: overview
-  - title: Encryption and Authentication using TLS
+  - title: Transport Encryption with TLS
+    endpoint: tls-transport
+  - title: Authentication using TLS
     endpoint: tls
   - title: Authentication using Athenz
     endpoint: athenz
