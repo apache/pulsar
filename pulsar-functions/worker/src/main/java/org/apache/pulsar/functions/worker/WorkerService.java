@@ -35,9 +35,12 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 
 /**
  * A service component contains everything to run a worker except rest server.
@@ -57,8 +60,9 @@ public class WorkerService {
     private SchedulerManager schedulerManager;
     private boolean isInitialized = false;
     private final ScheduledExecutorService statsUpdater;
-
+    private AuthenticationService authenticationService;
     private ConnectorsManager connectorsManager;
+    private PulsarAdmin admin;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
@@ -68,6 +72,11 @@ public class WorkerService {
 
     public void start(URI dlogUri) throws InterruptedException {
         log.info("Starting worker {}...", workerConfig.getWorkerId());
+        
+        this.admin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
+                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
+        
         try {
             log.info("Worker Configs: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
                     .writeValueAsString(workerConfig));
@@ -128,6 +137,8 @@ public class WorkerService {
 
             // initialize function metadata manager
             this.functionMetaDataManager.initialize();
+            
+            authenticationService = new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
 
             // Starting cluster services
             log.info("Start cluster services...");
@@ -199,6 +210,10 @@ public class WorkerService {
 
         if (null != schedulerManager) {
             schedulerManager.close();
+        }
+        
+        if (null != this.admin) {
+            this.admin.close();
         }
     }
 

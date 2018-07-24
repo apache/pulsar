@@ -62,8 +62,8 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                      final @FormDataParam("url") String functionPkgUrl,
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        return functions.registerFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl, functionDetailsJson);
+        return functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+                functionPkgUrl, functionDetailsJson, clientAppId());
 
     }
 
@@ -78,8 +78,8 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                    final @FormDataParam("url") String functionPkgUrl,
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        return functions.updateFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl, functionDetailsJson);
+        return functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+                functionPkgUrl, functionDetailsJson, clientAppId());
 
     }
 
@@ -87,10 +87,8 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     @DELETE
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
-                                       final @PathParam("namespace") String namespace,
-                                       final @PathParam("functionName") String functionName) {
-        return functions.deregisterFunction(
-            tenant, namespace, functionName);
+            final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
+        return functions.deregisterFunction(tenant, namespace, functionName, clientAppId());
     }
 
     @GET

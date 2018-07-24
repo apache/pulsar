@@ -314,7 +314,8 @@ public class FunctionApiV2ResourceTest {
                 inputStream,
                 details,
                 null,
-                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
+                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+                null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         if (missingFieldName.equals("parallelism")) {
@@ -342,7 +343,8 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             null,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
+            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+            null);
     }
 
     @Test
@@ -587,7 +589,8 @@ public class FunctionApiV2ResourceTest {
             inputStream,
             details,
             null,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
+            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+            null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         if (missingFieldName.equals("parallelism")) {
@@ -615,7 +618,8 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             null,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
+            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+            null);
     }
 
     @Test
@@ -696,7 +700,8 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             filePackageUrl,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
+            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+            null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
@@ -783,7 +788,8 @@ public class FunctionApiV2ResourceTest {
         Response response = resource.deregisterFunction(
             tenant,
             namespace,
-            function);
+            function,
+            null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -793,7 +799,8 @@ public class FunctionApiV2ResourceTest {
         return resource.deregisterFunction(
             tenant,
             namespace,
-            function);
+            function,
+            null);
     }
 
     @Test
@@ -1043,7 +1050,7 @@ public class FunctionApiV2ResourceTest {
                         .setSubscriptionType(subscriptionType).putAllTopicsToSerDeClassName(topicsToSerDeClassName))
                 .build();
         Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
+                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails), null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
@@ -1068,7 +1075,7 @@ public class FunctionApiV2ResourceTest {
                         .setSubscriptionType(subscriptionType).putAllTopicsToSerDeClassName(topicsToSerDeClassName))
                 .build();
         Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
+                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails), null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
     }
