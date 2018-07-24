@@ -239,9 +239,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
      */
     public InstanceCommunication.FunctionStatus getFunctionInstanceStatus(String tenant, String namespace,
                                                                           String functionName, int instanceId) {
-        String workerId = this.workerConfig.getWorkerId();
-
         Assignment assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
+        final String assignedWorkerId = assignment.getWorkerId();
+        final String workerId = this.workerConfig.getWorkerId();
+        
         if (assignment == null) {
             InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
                     = InstanceCommunication.FunctionStatus.newBuilder();
@@ -252,13 +253,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         InstanceCommunication.FunctionStatus functionStatus = null;
         // If I am running worker
-        if (assignment.getWorkerId().equals(workerId)) {
+        if (assignedWorkerId.equals(workerId)) {
             FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(
                     Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
             RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
             if (runtimeSpawner != null) {
                 try {
-                    functionStatus = functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus().get();
+                    InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus
+                            .newBuilder(functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus().get());
+                    functionStatusBuilder.setWorkerId(assignedWorkerId);
+                    functionStatus = functionStatusBuilder.build();
                 } catch (InterruptedException | ExecutionException e) {
                     throw new RuntimeException(e);
                 }
@@ -270,6 +274,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 if (functionRuntimeInfo.getStartupException() != null) {
                     functionStatusBuilder.setFailureException(functionRuntimeInfo.getStartupException().getMessage());
                 }
+                functionStatusBuilder.setWorkerId(assignedWorkerId);
                 functionStatus = functionStatusBuilder.build();
             }
         } else {
@@ -306,6 +311,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 log.warn("Got invalid function status response from {}", workerInfo, e);
                 throw new RuntimeException(e);
             }
+            functionStatusBuilder.setWorkerId(assignedWorkerId);
             functionStatus = functionStatusBuilder.build();
         }
 

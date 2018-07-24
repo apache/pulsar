@@ -30,7 +30,8 @@ import java.util.Map.Entry;
 import java.util.Optional;
 
 import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.source.RecordWithEncryptionContext;
 import org.apache.pulsar.io.kinesis.fbs.EncryptionCtx;
 import org.apache.pulsar.io.kinesis.fbs.EncryptionKey;
 import org.apache.pulsar.io.kinesis.fbs.KeyValue;
@@ -67,7 +68,9 @@ public class Utils {
 
     public static ByteBuffer serializeRecordToFlatBuffer(FlatBufferBuilder builder, Record<byte[]> record) {
         checkNotNull(record, "record-context can't be null");
-        Optional<EncryptionContext> encryptionCtx = record.getEncryptionCtx();
+        Optional<EncryptionContext> encryptionCtx = (record instanceof RecordWithEncryptionContext)
+                ? ((RecordWithEncryptionContext<byte[]>) record).getEncryptionCtx()
+                : Optional.empty();
         Map<String, String> properties = record.getProperties();
 
         int encryptionCtxOffset = -1;
@@ -180,8 +183,11 @@ public class Utils {
             result.add(PROPERTIES_FIELD, properties);
         }
 
-        if (record.getEncryptionCtx().isPresent()) {
-            EncryptionContext encryptionCtx = record.getEncryptionCtx().get();
+        Optional<EncryptionContext> optEncryptionCtx = (record instanceof RecordWithEncryptionContext)
+                ? ((RecordWithEncryptionContext<byte[]>) record).getEncryptionCtx()
+                : Optional.empty();
+        if (optEncryptionCtx.isPresent()) {
+            EncryptionContext encryptionCtx = optEncryptionCtx.get();
             JsonObject encryptionCtxJson = new JsonObject();
             JsonObject keyBase64Map = new JsonObject();
             JsonObject keyMetadataMap = new JsonObject();

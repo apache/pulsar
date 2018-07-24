@@ -32,7 +32,6 @@ import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
 import org.apache.pulsar.functions.utils.validation.ValidatorImpls;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @Getter
@@ -49,6 +48,7 @@ public class SinkConfig {
     @NotNull
     private String name;
     private String className;
+    private String sourceSubscriptionName;
 
     @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
             valueValidatorClasses = { ValidatorImpls.SerdeValidator.class })
@@ -59,6 +59,7 @@ public class SinkConfig {
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
+    private boolean retainOrdering;
     @isValidResources
     private Resources resources;
 

@@ -77,6 +77,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
@@ -99,11 +100,11 @@ public class PulsarSinkE2ETest {
     PulsarAdmin admin;
     PulsarClient pulsarClient;
     BrokerStats brokerStatsClient;
-    WorkerServer functionsWorkerServer;
     WorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
     String primaryHost;
+    String workerId;
 
     private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
     private final int brokerWebServicePort = PortManager.nextFreePort();
@@ -119,6 +120,11 @@ public class PulsarSinkE2ETest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarSinkE2ETest.class);
 
+    @DataProvider(name = "validRoleName")
+    public Object[][] validRoleName() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+    
     @BeforeMethod
     void setup(Method method) throws Exception {
 
@@ -186,6 +192,7 @@ public class PulsarSinkE2ETest {
         pulsarClient = clientBuilder.build();
        
         TenantInfo propAdmin = new TenantInfo();
+        propAdmin.getAdminRoles().add("superUser");
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);
        
@@ -220,9 +227,9 @@ public class PulsarSinkE2ETest {
         workerConfig.setWorkerPort(workerServicePort);
         workerConfig.setPulsarFunctionsCluster(config.getClusterName());
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+        this.workerId = "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort();
         workerConfig.setWorkerHostname(hostname);
-        workerConfig
-                .setWorkerId("c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort());
+        workerConfig.setWorkerId(workerId);
 
         workerConfig.setClientAuthenticationPlugin(AuthenticationTls.class.getName());
         workerConfig.setClientAuthenticationParameters(
@@ -230,6 +237,9 @@ public class PulsarSinkE2ETest {
         workerConfig.setUseTls(true);
         workerConfig.setTlsAllowInsecureConnection(true);
         workerConfig.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
+        
+        workerConfig.setAuthenticationEnabled(true);
+        workerConfig.setAuthorizationEnabled(true);
 
         return new WorkerService(workerConfig);
     }
@@ -249,6 +259,7 @@ public class PulsarSinkE2ETest {
         final String propertyKey = "key";
         final String propertyValue = "value";
         final String functionName = "PulsarSink-test";
+        final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
@@ -260,7 +271,7 @@ public class PulsarSinkE2ETest {
         String jarFilePathUrl = Utils.FILE + ":"
                 + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
-                sinkTopic);
+                sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
 
         // try to update function to test: update-function functionality
@@ -283,8 +294,7 @@ public class PulsarSinkE2ETest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.values().iterator()
-                        .next();
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
                 return subStats.unackedMessages == 0;
             } catch (PulsarAdminException e) {
                 return false;
@@ -314,6 +324,7 @@ public class PulsarSinkE2ETest {
         final String propertyKey = "key";
         final String propertyValue = "value";
         final String functionName = "PulsarSink-test";
+        final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
@@ -324,7 +335,7 @@ public class PulsarSinkE2ETest {
         String jarFilePathUrl = Utils.FILE + ":"
                 + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
-                sinkTopic);
+                sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
 
         // try to update function to test: update-function functionality
@@ -347,8 +358,7 @@ public class PulsarSinkE2ETest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.values().iterator()
-                        .next();
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
                 return subStats.unackedMessages == 0;
             } catch (PulsarAdminException e) {
                 return false;
@@ -368,11 +378,13 @@ public class PulsarSinkE2ETest {
 
         double count = metricsData.get(JavaInstanceRunnable.METRICS_TOTAL_PROCESSED).getCount();
         double success = metricsData.get(JavaInstanceRunnable.METRICS_TOTAL_SUCCESS).getCount();
+        String ownerWorkerId = stats.getWorkerId();
         Assert.assertEquals((int) count, totalMsgs);
         Assert.assertEquals((int) success, totalMsgs);
+        Assert.assertEquals(ownerWorkerId, workerId);
     }
 
-    protected FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String functionName, String sinkTopic) {
+    protected FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String functionName, String sinkTopic, String subscriptionName) {
 
         File file = new File(jarFile);
         try {
@@ -397,6 +409,7 @@ public class PulsarSinkE2ETest {
         sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
         sourceSpecBuilder.setTypeClassName(byte[].class.getName());
         sourceSpecBuilder.setTopicsPattern(sourceTopicPattern);
+        sourceSpecBuilder.setSubscriptionName(subscriptionName);
         sourceSpecBuilder.putTopicsToSerDeClassName(sourceTopicPattern, DefaultSerDe.class.getName());
         functionDetailsBuilder.setAutoAck(true);
         functionDetailsBuilder.setSource(sourceSpecBuilder);
@@ -411,5 +424,35 @@ public class PulsarSinkE2ETest {
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         return functionDetailsBuilder.build();
+    }
+    
+    @Test(dataProvider = "validRoleName")
+    public void testAuthorization(boolean validRoleName) throws Exception {
+
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String functionName = "PulsarSink-test";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        String roleName = validRoleName ? "superUser" : "invalid";
+        TenantInfo propAdmin = new TenantInfo();
+        propAdmin.getAdminRoles().add(roleName);
+        propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
+        admin.tenants().updateTenant(tenant, propAdmin);
+
+        String jarFilePathUrl = Utils.FILE + ":"
+                + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
+                sinkTopic, subscriptionName);
+        try {
+            admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+            Assert.assertTrue(validRoleName);
+        } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
+            Assert.assertFalse(validRoleName);
+        }
     }
 }

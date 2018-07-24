@@ -20,6 +20,8 @@ package org.apache.pulsar.io.core;
 
 import java.util.Map;
 
+import org.apache.pulsar.functions.api.Record;
+
 /**
  * Generic sink interface users can implement to run Sink on top of Pulsar Functions
  */

@@ -148,7 +148,9 @@ pulsar-proxy*:
   networkMode: pulsarnet*
 
 s3*:
-  image: adobe/s3mock
+  ## use latest adobe/s3mock, for issue: https://github.com/adobe/S3Mock/issues/32
+  ## TODO: https://github.com/apache/incubator-pulsar/issues/2133
+  image: apachepulsar/s3mock
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
   env:

@@ -82,8 +82,8 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                      final @FormDataParam("url") String functionPkgUrl,
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        return functions.registerFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl, functionDetailsJson);
+        return functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+                functionPkgUrl, functionDetailsJson, clientAppId());
     }
 
     @PUT
@@ -103,8 +103,8 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                    final @FormDataParam("url") String functionPkgUrl,
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        return functions.updateFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl, functionDetailsJson);
+        return functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+                functionPkgUrl, functionDetailsJson, clientAppId());
 
     }
 
@@ -122,8 +122,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("functionName") String functionName) {
-        return functions.deregisterFunction(
-            tenant, namespace, functionName);
+        return functions.deregisterFunction(tenant, namespace, functionName, clientAppId());
     }
 
     @GET

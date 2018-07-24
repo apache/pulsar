@@ -290,7 +290,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
-        bootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, false));
+        bootstrap.childHandler(new PulsarChannelInitializer(pulsar, false));
 
         // Bind and start to accept incoming connections.
         InetSocketAddress addr = new InetSocketAddress(pulsar.getBindAddress(), port);
@@ -303,7 +303,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         if (serviceConfig.isTlsEnabled()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
-            tlsBootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, true));
+            tlsBootstrap.childHandler(new PulsarChannelInitializer(pulsar, true));
             tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort)).sync();
             log.info("Started Pulsar Broker TLS service on port {} - TLS provider: {}", tlsPort,
                     SslContext.defaultServerProvider());
@@ -934,8 +934,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         if (!ownedByThisInstance) {
-            String msg = String.format("Namespace not served by this instance. Please redo the lookup. "
-                    + "Request is denied: namespace=%s", topicName.getNamespace());
+            String msg = String.format("Namespace bundle for topic (%s) not served by this instance. Please redo the lookup. "
+                    + "Request is denied: namespace=%s", topic, topicName.getNamespace());
             log.warn(msg);
             throw new RuntimeException(new ServiceUnitNotReadyException(msg));
         }

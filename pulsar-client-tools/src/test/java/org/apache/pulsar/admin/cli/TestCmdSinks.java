@@ -56,7 +56,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 @Slf4j
 @PrepareForTest({CmdFunctions.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*" })
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*", "org.apache.pulsar.functions.api.*" })
 public class TestCmdSinks {
 
     @ObjectFactory
@@ -155,7 +155,7 @@ public class TestCmdSinks {
                 sinkConfig
         );
     }
-    
+
     @Test
     public void testMissingTenant() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
@@ -816,8 +816,8 @@ public class TestCmdSinks {
         verify(updateSink).validateSinkConfigs(eq(expectedSinkConfig));
         verify(localSinkRunner).validateSinkConfigs(eq(expectedSinkConfig));
     }
-    
-    
+
+
     @Test
     public void testCliOverwriteConfigFile() throws Exception {
 
@@ -837,7 +837,7 @@ public class TestCmdSinks {
         testSinkConfig.setArchive(JAR_FILE_PATH + "-prime");
         testSinkConfig.setResources(new Resources(CPU + 1, RAM + 1, DISK + 1));
         testSinkConfig.setConfigs(createSink.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\"}"));
-        
+
 
         SinkConfig expectedSinkConfig = getSinkConfig();
 
@@ -846,7 +846,7 @@ public class TestCmdSinks {
         new YAMLMapper().writeValue(file, testSinkConfig);
 
         Assert.assertEquals(testSinkConfig, CmdUtils.loadConfig(file.getAbsolutePath(), SinkConfig.class));
-        
+
         testMixCliAndConfigFile(
                 TENANT,
                 NAMESPACE,
@@ -866,7 +866,7 @@ public class TestCmdSinks {
                 expectedSinkConfig
         );
     }
-    
+
     public void testMixCliAndConfigFile(
             String tenant,
             String namespace,
@@ -885,8 +885,8 @@ public class TestCmdSinks {
             String sinkConfigFile,
             SinkConfig sinkConfig
     ) throws Exception {
-        
-        
+
+
         // test create sink
         createSink.tenant = tenant;
         createSink.namespace = namespace;

@@ -100,6 +100,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-zookeeper</module>
     <module>pulsar-log4j2-appender</module>
     <module>protobuf-shaded</module>
+    <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
+    <module>jclouds-shaded</module>
 
     <!-- functions-related modules -->
     <module>pulsar-functions</module>
@@ -800,6 +802,11 @@ flexible messaging model and an intuitive client API.</description>
         <version>${testcontainers.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>kafka</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.arquillian.cube</groupId>
         <artifactId>arquillian-cube-docker</artifactId>
         <version>${arquillian-cube.version}</version>
@@ -998,6 +1005,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>site/_sass/font-awesome/**</exclude>
             <exclude>site/fonts/**</exclude>
             <exclude>site/img/**</exclude>
+            <exclude>site2/**</exclude>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
             <exclude>**/.idea/*</exclude>
@@ -1108,6 +1116,10 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- Configuration Templates -->
             <exclude>conf/schema_example.conf</exclude>
+
+            <!-- helm files -->
+            <exclude>**/.helmignore</exclude>
+            <exclude>**/_helpers.tpl</exclude>
           </excludes>
         </configuration>
       </plugin>

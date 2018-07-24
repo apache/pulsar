@@ -20,7 +20,7 @@
 
 namespace pulsar {
 
-MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0) {}
+MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0), topicName_() {}
 
 const Message::StringMap& MessageImpl::properties() {
     if (properties_.size() == 0) {
@@ -78,4 +78,12 @@ void MessageImpl::setPartitionKey(const std::string& partitionKey) {
 }
 
 void MessageImpl::setEventTimestamp(uint64_t eventTimestamp) { metadata.set_event_time(eventTimestamp); }
+
+void MessageImpl::setTopicName(const std::string& topicName) {
+    topicName_ = &topicName;
+    messageId.setTopicName(topicName);
+}
+
+const std::string& MessageImpl::getTopicName() { return *topicName_; }
+
 }  // namespace pulsar

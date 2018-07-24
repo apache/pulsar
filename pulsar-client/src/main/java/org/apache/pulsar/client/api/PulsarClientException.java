@@ -51,6 +51,16 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    public static class NotFoundException extends PulsarClientException {
+        public NotFoundException(String msg) {
+            super(msg);
+        }
+
+        public NotFoundException(Throwable t) {
+            super(t);
+        }
+    }
+
     public static class TimeoutException extends PulsarClientException {
         public TimeoutException(String msg) {
             super(msg);

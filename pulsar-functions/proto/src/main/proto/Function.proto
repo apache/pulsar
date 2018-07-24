@@ -75,6 +75,7 @@ message SourceSpec {
     /* If specified, this will refer to an archive that is
      * already present in the server */
     string builtin = 8;
+    string subscriptionName = 9;
 }
 
 message SinkSpec {
