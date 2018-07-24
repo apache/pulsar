@@ -20,14 +20,18 @@ package org.apache.pulsar.functions.worker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.collect.Sets;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Properties;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -42,7 +46,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode
 @ToString
 @Accessors(chain = true)
-public class WorkerConfig implements Serializable {
+public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     private static final long serialVersionUID = 1L;
 
@@ -74,6 +78,17 @@ public class WorkerConfig implements Serializable {
     private boolean tlsAllowInsecureConnection = false;
     private boolean tlsHostnameVerificationEnable = false;
     private int metricsSamplingPeriodSec = 60;
+    // Enforce authentication
+    private boolean authenticationEnabled = false;
+    // Autentication provider name list, which is a list of class names
+    private Set<String> authenticationProviders = Sets.newTreeSet();
+    // Enforce authorization on accessing functions admin-api
+    private boolean authorizationEnabled = false;
+    // Role names that are treated as "super-user", meaning they will be able to access any admin-api
+    private Set<String> superUserRoles = Sets.newTreeSet();
+    
+    private Properties properties = new Properties();
+
 
     @Data
     @Setter
@@ -134,5 +149,10 @@ public class WorkerConfig implements Serializable {
         } catch (UnknownHostException ex) {
             throw new IllegalStateException("Failed to resolve localhost name.", ex);
         }
+    }
+  
+    @Override
+    public void setProperties(Properties properties) {
+        this.properties = properties;
     }
 }
