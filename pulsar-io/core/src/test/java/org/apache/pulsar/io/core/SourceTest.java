@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.core;
 
+import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;

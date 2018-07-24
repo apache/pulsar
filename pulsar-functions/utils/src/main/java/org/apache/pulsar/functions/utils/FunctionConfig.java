@@ -55,7 +55,7 @@ public class FunctionConfig {
         ATMOST_ONCE,
         EFFECTIVELY_ONCE
     }
-
+    
     public enum Runtime {
         JAVA,
         PYTHON

@@ -141,7 +141,7 @@ $ pulsar-admin non-persistent stats \
 
 #### REST API
 
-{% endpoint GET /admin/non-persistent/:tenant/:namespace/:destination/stats %}
+{% endpoint GET /admin/v2/non-persistent/:tenant/:namespace/:destination/stats %}
 
 
 #### Java
@@ -182,7 +182,7 @@ $ pulsar-admin non-persistent stats-internal \
 
 #### REST API
 
-{% endpoint GET /admin/non-persistent/:tenant/:namespace/:destination/internalStats %}
+{% endpoint GET /admin/v2/non-persistent/:tenant/:namespace/:destination/internalStats %}
 
 
 #### Java
@@ -206,7 +206,7 @@ $ bin/pulsar-admin non-persistent create-partitioned-topic \
 
 #### REST API
 
-{% endpoint PUT /admin/non-persistent/:tenant/:namespace/:destination/partitions %}
+{% endpoint PUT /admin/v2/non-persistent/:tenant/:namespace/:destination/partitions %}
 
 #### Java
 
@@ -236,7 +236,7 @@ $ pulsar-admin non-persistent get-partitioned-topic-metadata \
 
 #### REST API
 
-{% endpoint GET /admin/non-persistent/:tenant/:namespace/:destination/partitions %}
+{% endpoint GET /admin/v2/non-persistent/:tenant/:namespace/:destination/partitions %}
 
 
 #### Java
@@ -261,7 +261,7 @@ $ pulsar-admin non-persistent unload \
 
 #### REST API
 
-{% endpoint PUT /admin/non-persistent/:tenant/:namespace/:destination/unload %}
+{% endpoint PUT /admin/v2/non-persistent/:tenant/:namespace/:destination/unload %}
 
 [More info](../../reference/RestApi#/admin/non-persistent/:tenant/:namespace/:destination/unload)
 
