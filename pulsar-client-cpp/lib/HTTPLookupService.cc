@@ -68,8 +68,9 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::st
                           << topicName->getEncodedLocalName();
     }
 
-    executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, shared_from_this(),
-                                                   promise, completeUrlStream.str(), Lookup));
+    executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::handleLookupHTTPRequest,
+                                                   shared_from_this(), promise, completeUrlStream.str(),
+                                                   Lookup));
     return promise.getFuture();
 }
 
@@ -89,8 +90,27 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync
                           << '/' << PARTITION_METHOD_NAME;
     }
 
-    executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, shared_from_this(),
-                                                   promise, completeUrlStream.str(), PartitionMetaData));
+    executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::handleLookupHTTPRequest,
+                                                   shared_from_this(), promise, completeUrlStream.str(),
+                                                   PartitionMetaData));
+    return promise.getFuture();
+}
+
+Future<Result, NamespaceTopicsPtr> HTTPLookupService::getTopicsOfNamespaceAsync(
+    const NamespaceNamePtr &nsName) {
+    NamespaceTopicsPromise promise;
+    std::stringstream completeUrlStream;
+
+    if (nsName->isV2()) {
+        completeUrlStream << adminUrl_ << ADMIN_PATH_V2 << "namespaces" << '/' << nsName->toString() << '/'
+                          << "topics";
+    } else {
+        completeUrlStream << adminUrl_ << ADMIN_PATH_V1 << "namespaces" << '/' << nsName->toString() << '/'
+                          << "destinations";
+    }
+
+    executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::handleNamespaceTopicsHTTPRequest,
+                                                   shared_from_this(), promise, completeUrlStream.str()));
     return promise.getFuture();
 }
 
@@ -99,19 +119,28 @@ static size_t curlWriteCallback(void *contents, size_t size, size_t nmemb, void 
     return size * nmemb;
 }
 
-void HTTPLookupService::sendHTTPRequest(LookupPromise promise, const std::string completeUrl,
-                                        RequestType requestType) {
+void HTTPLookupService::handleNamespaceTopicsHTTPRequest(NamespaceTopicsPromise promise,
+                                                         const std::string completeUrl) {
+    std::string responseData;
+    Result result = sendHTTPRequest(completeUrl, responseData);
+
+    if (result != ResultOk) {
+        promise.setFailed(result);
+    } else {
+        promise.setValue(parseNamespaceTopicsData(responseData));
+    }
+}
+
+Result HTTPLookupService::sendHTTPRequest(const std::string completeUrl, std::string &responseData) {
     CURL *handle;
     CURLcode res;
-    std::string responseData;
     std::string version = std::string("Pulsar-CPP-v") + _PULSAR_VERSION_;
     handle = curl_easy_init();
 
     if (!handle) {
         LOG_ERROR("Unable to curl_easy_init for url " << completeUrl);
-        promise.setFailed(ResultLookupError);
         // No curl_easy_cleanup required since handle not initialized
-        return;
+        return ResultLookupError;
     }
     // set URL
     curl_easy_setopt(handle, CURLOPT_URL, completeUrl.c_str());
@@ -148,9 +177,8 @@ void HTTPLookupService::sendHTTPRequest(LookupPromise promise, const std::string
             "All Authentication methods should have AuthenticationData and return true on getAuthData for "
             "url "
             << completeUrl);
-        promise.setFailed(authResult);
         curl_easy_cleanup(handle);
-        return;
+        return authResult;
     }
     struct curl_slist *list = NULL;
     if (authDataContent->hasDataForHttp()) {
@@ -158,7 +186,7 @@ void HTTPLookupService::sendHTTPRequest(LookupPromise promise, const std::string
     }
     curl_easy_setopt(handle, CURLOPT_HTTPHEADER, list);
 
-    LOG_INFO("Curl Lookup Request sent for" << completeUrl);
+    LOG_INFO("Curl Lookup Request sent for " << completeUrl);
 
     // Make get call to server
     res = curl_easy_perform(handle);
@@ -166,16 +194,17 @@ void HTTPLookupService::sendHTTPRequest(LookupPromise promise, const std::string
     // Free header list
     curl_slist_free_all(list);
 
+    Result retResult = ResultOk;
+
     switch (res) {
         case CURLE_OK:
             long response_code;
             curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &response_code);
             LOG_INFO("Response received for url " << completeUrl << " code " << response_code);
             if (response_code == 200) {
-                promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(responseData)
-                                                                    : parseLookupData(responseData));
+                retResult = ResultOk;
             } else {
-                promise.setFailed(ResultLookupError);
+                retResult = ResultLookupError;
             }
             break;
         case CURLE_COULDNT_CONNECT:
@@ -183,22 +212,23 @@ void HTTPLookupService::sendHTTPRequest(LookupPromise promise, const std::string
         case CURLE_COULDNT_RESOLVE_HOST:
         case CURLE_HTTP_RETURNED_ERROR:
             LOG_ERROR("Response failed for url " << completeUrl << ". Error Code " << res);
-            promise.setFailed(ResultConnectError);
+            retResult = ResultConnectError;
             break;
         case CURLE_READ_ERROR:
             LOG_ERROR("Response failed for url " << completeUrl << ". Error Code " << res);
-            promise.setFailed(ResultReadError);
+            retResult = ResultReadError;
             break;
         case CURLE_OPERATION_TIMEDOUT:
             LOG_ERROR("Response failed for url " << completeUrl << ". Error Code " << res);
-            promise.setFailed(ResultTimeout);
+            retResult = ResultTimeout;
             break;
         default:
             LOG_ERROR("Response failed for url " << completeUrl << ". Error Code " << res);
-            promise.setFailed(ResultLookupError);
+            retResult = ResultLookupError;
             break;
     }
     curl_easy_cleanup(handle);
+    return retResult;
 }
 
 LookupDataResultPtr HTTPLookupService::parsePartitionData(const std::string &json) {
@@ -243,4 +273,47 @@ LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) 
     LOG_INFO("parseLookupData = " << *lookupDataResultPtr);
     return lookupDataResultPtr;
 }
+
+NamespaceTopicsPtr HTTPLookupService::parseNamespaceTopicsData(const std::string &json) {
+    Json::Value root;
+    Json::Reader reader;
+    if (!reader.parse(json, root, false)) {
+        LOG_ERROR("Failed to parse json of Topics of Namespace: " << reader.getFormatedErrorMessages()
+                                                                  << "\nInput Json = " << json);
+        return NamespaceTopicsPtr();
+    }
+
+    NamespaceTopicsPtr topicsResultPtr = boost::make_shared<std::vector<std::string>>();
+    Json::Value topicsArray = root["topics"];
+
+    // get all topics
+    for (int i = 0; i < topicsArray.size(); i++) {
+        // remove partition part
+        const std::string &topicName = topicsArray[i].asString();
+        int pos = topicName.find("-partition-");
+        std::string filteredName = topicName.substr(0, pos);
+
+        // filter duped topic name
+        if (std::find(topicsResultPtr->begin(), topicsResultPtr->end(), filteredName) ==
+            topicsResultPtr->end()) {
+            topicsResultPtr->push_back(filteredName);
+        }
+    }
+
+    return topicsResultPtr;
+}
+
+void HTTPLookupService::handleLookupHTTPRequest(LookupPromise promise, const std::string completeUrl,
+                                                RequestType requestType) {
+    std::string responseData;
+    Result result = sendHTTPRequest(completeUrl, responseData);
+
+    if (result != ResultOk) {
+        promise.setFailed(result);
+    } else {
+        promise.setValue((requestType == PartitionMetaData) ? parsePartitionData(responseData)
+                                                            : parseLookupData(responseData));
+    }
+}
+
 }  // namespace pulsar

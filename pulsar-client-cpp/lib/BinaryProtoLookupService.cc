@@ -152,4 +152,46 @@ uint64_t BinaryProtoLookupService::newRequestId() {
     Lock lock(mutex_);
     return ++requestIdGenerator_;
 }
+
+Future<Result, NamespaceTopicsPtr> BinaryProtoLookupService::getTopicsOfNamespaceAsync(
+    const NamespaceNamePtr& nsName) {
+    NamespaceTopicsPromisePtr promise = boost::make_shared<Promise<Result, NamespaceTopicsPtr>>();
+    if (!nsName) {
+        promise->setFailed(ResultInvalidTopicName);
+        return promise->getFuture();
+    }
+    std::string namespaceName = nsName->toString();
+    Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
+    future.addListener(boost::bind(&BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest, this,
+                                   namespaceName, _1, _2, promise));
+    return promise->getFuture();
+}
+
+void BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest(const std::string& nsName, Result result,
+                                                               const ClientConnectionWeakPtr& clientCnx,
+                                                               NamespaceTopicsPromisePtr promise) {
+    if (result != ResultOk) {
+        promise->setFailed(ResultConnectError);
+        return;
+    }
+
+    ClientConnectionPtr conn = clientCnx.lock();
+    uint64_t requestId = newRequestId();
+    LOG_DEBUG("sendGetTopicsOfNamespaceRequest. requestId: " << requestId << " nsName: " << nsName);
+
+    conn->newGetTopicsOfNamespace(nsName, requestId)
+        .addListener(
+            boost::bind(&BinaryProtoLookupService::getTopicsOfNamespaceListener, this, _1, _2, promise));
+}
+
+void BinaryProtoLookupService::getTopicsOfNamespaceListener(Result result, NamespaceTopicsPtr topicsPtr,
+                                                            NamespaceTopicsPromisePtr promise) {
+    if (result != ResultOk) {
+        promise->setFailed(ResultLookupError);
+        return;
+    }
+
+    promise->setValue(topicsPtr);
+}
+
 }  // namespace pulsar

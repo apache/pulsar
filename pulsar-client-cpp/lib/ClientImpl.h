@@ -60,6 +60,9 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
     void subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
+    void subscribeAsync(const std::string& regexPattern, const std::string& consumerName,
+                        const ConsumerConfiguration& conf, bool useRegex, SubscribeCallback callback);
+
     void createReaderAsync(const std::string& topic, const MessageId& startMessageId,
                            const ReaderConfiguration& conf, ReaderCallback callback);
 
@@ -82,6 +85,7 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
     ExecutorServiceProviderPtr getIOExecutorProvider();
     ExecutorServiceProviderPtr getListenerExecutorProvider();
     ExecutorServiceProviderPtr getPartitionListenerExecutorProvider();
+    LookupServicePtr getLookup();
     friend class PulsarFriend;
 
    private:
@@ -105,6 +109,10 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
     typedef boost::shared_ptr<int> SharedInt;
 
     void handleClose(Result result, SharedInt remaining, ResultCallback callback);
+
+    void createPatternMultiTopicsConsumer(const Result result, const NamespaceTopicsPtr topics,
+                                          const std::string& regexPattern, const std::string& consumerName,
+                                          const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     enum State
     {
