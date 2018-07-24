@@ -191,7 +191,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
-            log.error("expect pse", pse);
+            log.error("Expected pse", pse);
         }
     }
 
@@ -199,7 +199,6 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     public void testGcsNoBucketConfigured() throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setManagedLedgerOffloadDriver("google-cloud-storage");
-        //conf.setGcsManagedLedgerOffloadServiceAccountKeyFile("~/Downloads/project-804d5e6a6f33.json");
         File tmpKeyFile = File.createTempFile("gcsOffload", "json");
         conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
 
@@ -208,7 +207,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
-            log.error("expect pse", pse);
+            log.error("Expected pse", pse);
         }
     }
 
@@ -226,7 +225,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
-            log.error("expect pse", pse);
+            log.error("Expected pse", pse);
         }
     }
 

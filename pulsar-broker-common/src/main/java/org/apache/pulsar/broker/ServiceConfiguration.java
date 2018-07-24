@@ -502,7 +502,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(minValue = 1024)
     private int s3ManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
 
-    // For Google Cloud Storage ledger offload, AWS region
+    // For Google Cloud Storage ledger offload, region where offload bucket is located.
+    // reference this page for more details: https://cloud.google.com/storage/docs/bucket-locations
     private String gcsManagedLedgerOffloadRegion = null;
 
     // For Google Cloud Storage ledger offload, Bucket to place offloaded ledger into
@@ -516,8 +517,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(minValue = 1024)
     private int gcsManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
 
-    // For Google Cloud Storage credentials of service account key path
-    // reference this page for more details of service account key: https://support.google.com/googleapi/answer/6158849
+    // For Google Cloud Storage, path to json file containing service account credentials.
+    // For more details, see the "Service Accounts" section of https://support.google.com/googleapi/answer/6158849
     private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
 
     public String getZookeeperServers() {

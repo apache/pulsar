@@ -125,9 +125,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         }
 
         String endpoint = conf.getS3ManagedLedgerOffloadServiceEndpoint();
-        String gcsKeyPath = conf.getGcsManagedLedgerOffloadServiceAccountKeyFile();
-        String gcsKeyContent = null;
-
         String region = isS3Driver(driver) ?
             conf.getS3ManagedLedgerOffloadRegion() :
             conf.getGcsManagedLedgerOffloadRegion();
@@ -147,19 +144,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                     + " if s3 offload enabled");
         }
 
-        if (isGcsDriver(driver) && Strings.isNullOrEmpty(gcsKeyPath)) {
-            throw new PulsarServerException(
-                "The service account key path is empty for GCS driver");
-        }
-        if (isGcsDriver(driver)) {
-            try {
-                gcsKeyContent = Files.toString(new File(gcsKeyPath), Charset.defaultCharset());
-            } catch (IOException ioe) {
-                log.error("meet exception when read gcs service account key file ");
-                throw new PulsarServerException(ioe);
-            }
-        }
-
         if (Strings.isNullOrEmpty(bucket)) {
             throw new PulsarServerException(
                 "ManagedLedgerOffloadBucket cannot be empty for s3 and gcs offload");
@@ -168,12 +152,58 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             throw new PulsarServerException(
                 "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for s3 and gcs offload");
         }
-        return new BlobStoreManagedLedgerOffloader(driver, bucket, scheduler, maxBlockSize, readBufferSize, endpoint, region, gcsKeyContent);
+
+        Credentials credentials = getCredentials(driver, conf);
+
+        return new BlobStoreManagedLedgerOffloader(driver, bucket, scheduler, maxBlockSize, readBufferSize, endpoint, region, credentials);
+    }
+
+    public static Credentials getCredentials(String driver, ServiceConfiguration conf) throws PulsarServerException {
+        // credentials:
+        //   for s3, get by DefaultAWSCredentialsProviderChain.
+        //   for gcs, use downloaded file 'google_creds.json', which contains service account key by
+        //     following instructions in page https://support.google.com/googleapi/answer/6158849
+
+        if (isGcsDriver(driver)) {
+            String gcsKeyPath = conf.getGcsManagedLedgerOffloadServiceAccountKeyFile();
+            if (Strings.isNullOrEmpty(gcsKeyPath)) {
+                throw new PulsarServerException(
+                    "The service account key path is empty for GCS driver");
+            }
+            try {
+                String gcsKeyContent = Files.toString(new File(gcsKeyPath), Charset.defaultCharset());
+                return new GoogleCredentialsFromJson(gcsKeyContent).get();
+            } catch (IOException ioe) {
+                log.error("Cannot read GCS service account credentials file: {}", gcsKeyPath);
+                throw new PulsarServerException(ioe);
+            }
+        } else if (isS3Driver(driver)) {
+            AWSCredentials credentials = null;
+            try {
+                DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();
+                credentials = creds.getCredentials();
+            } catch (Exception e) {
+                // allowed, some mock s3 service not need credential
+                log.error("Exception when get credentials for s3 ", e);
+                throw new PulsarServerException(e);
+            }
+
+            String id = "accesskey";
+            String key = "secretkey";
+            if (credentials != null) {
+                id = credentials.getAWSAccessKeyId();
+                key = credentials.getAWSSecretKey();
+            }
+            return new Credentials(id, key);
+        } else {
+            throw new PulsarServerException(
+                "Not support this kind of driver: " + driver);
+        }
     }
 
     // build context for jclouds BlobStoreContext
     BlobStoreManagedLedgerOffloader(String driver, String container, OrderedScheduler scheduler,
-                           int maxBlockSize, int readBufferSize, String endpoint, String region, String gcsKeyContent) {
+                           int maxBlockSize, int readBufferSize, String endpoint, String region, Credentials credentials) {
         this.scheduler = scheduler;
         this.readBufferSize = readBufferSize;
 
@@ -188,34 +218,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
 
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(driver);
-
-        // credentials:
-        //   for s3, get by DefaultAWSCredentialsProviderChain.
-        //   for gcs, use downloaded file 'google_creds.json', which contains service account key by
-        //     following instructions in page https://support.google.com/googleapi/answer/6158849
-        String id = "accesskey";
-        String key = "secretkey";
-        if (isS3Driver(driver)) {
-            // s3
-            AWSCredentials credentials = null;
-            try {
-                DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();
-                credentials = creds.getCredentials();
-            } catch (Exception e) {
-                // allowed, some mock s3 service not need credential
-                log.error("Exception when get credentials for s3 ", e);
-            }
-
-            if (credentials != null) {
-                id = credentials.getAWSAccessKeyId();
-                key = credentials.getAWSSecretKey();
-            }
-        } else if (isGcsDriver(driver)) {
-            Credentials credentials = new GoogleCredentialsFromJson(gcsKeyContent).get();
-            id = credentials.identity;
-            key = credentials.credential;
-        }
-        contextBuilder.credentials(id, key);
+        contextBuilder.credentials(credentials.identity, credentials.credential);
 
         if (isS3Driver(driver) && !Strings.isNullOrEmpty(endpoint)) {
             contextBuilder.endpoint(endpoint);
