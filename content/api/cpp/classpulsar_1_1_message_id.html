@@ -108,6 +108,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ac91b200bd36b9d887bebdadb747dd4ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a665b97923d70670a87361038e5ec3fe6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_id.html#a665b97923d70670a87361038e5ec3fe6">serialize</a> (std::string &amp;result) const </td></tr>
 <tr class="separator:a665b97923d70670a87361038e5ec3fe6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7fa19211fb401e0ede6a300d0164d351"><td class="memItemLeft" align="right" valign="top">const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_id.html#a7fa19211fb401e0ede6a300d0164d351">getTopicName</a> () const </td></tr>
+<tr class="separator:a7fa19211fb401e0ede6a300d0164d351"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3d84665dab3feb64ed00183a322b92f2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_id.html#a3d84665dab3feb64ed00183a322b92f2">setTopicName</a> (const std::string &amp;topicName)</td></tr>
+<tr class="separator:a3d84665dab3feb64ed00183a322b92f2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a22cddf2d7cfc87cea172c32ebabf2883"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a22cddf2d7cfc87cea172c32ebabf2883"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator&lt;</b> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;other) const </td></tr>
 <tr class="separator:a22cddf2d7cfc87cea172c32ebabf2883"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -159,6 +163,9 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PartitionedProducerI
 <tr class="memitem:ac13db626c275735ba4a95d5236715c68"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ac13db626c275735ba4a95d5236715c68"></a>
 class&#160;</td><td class="memItemRight" valign="bottom"><b>PartitionedConsumerImpl</b></td></tr>
 <tr class="separator:ac13db626c275735ba4a95d5236715c68"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6089ad7f42ef50ec4a9a4a906d0805d4"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a6089ad7f42ef50ec4a9a4a906d0805d4"></a>
+class&#160;</td><td class="memItemRight" valign="bottom"><b>MultiTopicsConsumerImpl</b></td></tr>
+<tr class="separator:a6089ad7f42ef50ec4a9a4a906d0805d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa2aa90cbef692f0211ba2ddf2d3fba91"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aa2aa90cbef692f0211ba2ddf2d3fba91"></a>
 class&#160;</td><td class="memItemRight" valign="bottom"><b>UnAckedMessageTrackerEnabled</b></td></tr>
 <tr class="separator:aa2aa90cbef692f0211ba2ddf2d3fba91"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -225,6 +232,22 @@ std::ostream &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operato
 
 </div>
 </div>
+<a class="anchor" id="a7fa19211fb401e0ede6a300d0164d351"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const std::string&amp; pulsar::MessageId::getTopicName </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get the topic Name </p>
+
+</div>
+</div>
 <a class="anchor" id="a6c5231ab632b49863c4a227e9cff353d"></a>
 <div class="memitem">
 <div class="memproto">
@@ -263,6 +286,23 @@ std::ostream &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operato
       </table>
 </div><div class="memdoc">
 <p>Serialize the message id into a binary string for storing </p>
+
+</div>
+</div>
+<a class="anchor" id="a3d84665dab3feb64ed00183a322b92f2"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::MessageId::setTopicName </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>topicName</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set the topicName </p>
 
 </div>
 </div>

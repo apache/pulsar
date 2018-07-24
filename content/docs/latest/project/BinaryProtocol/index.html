@@ -2332,6 +2332,18 @@ response will contain actual metadata.</p>
           </li>
           
           <li>
+            <a href="#pulsar.proto.CommandGetSchema">
+              CommandGetSchema
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar.proto.CommandGetSchemaResponse">
+              CommandGetSchemaResponse
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar.proto.CommandGetTopicsOfNamespace">
               CommandGetTopicsOfNamespace
             </a>
@@ -2927,6 +2939,26 @@ response will contain actual metadata.</p>
               <td class="wrap">getTopicsOfNamespaceResponse</td>
               
               <td class="wrap"><a href="#pulsar.proto.CommandGetTopicsOfNamespaceResponse">CommandGetTopicsOfNamespaceResponse</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">getSchema</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.CommandGetSchema">CommandGetSchema</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">getSchemaResponse</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.CommandGetSchemaResponse">CommandGetSchemaResponse</a></td>
               
               <td>optional</td>
               <td></td>
@@ -3764,6 +3796,144 @@ of any number previously specified</td>
               <td class="wrap">uint64</td>
               
               <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+             <!-- for field in fields -->
+          </tbody>
+        </table>
+      </div>
+       <!-- if fields -->
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="message-name" id="pulsar.proto.CommandGetSchema">
+          CommandGetSchema
+        </h5>
+        <p class="message-name">pulsar.proto.CommandGetSchema</p>
+        <p class="lead"></p>
+      </div>
+      
+      <div class="card">
+        <h5>Fields</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Label</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td class="wrap">request_id</td>
+              
+              <td class="wrap">uint64</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">topic</td>
+              
+              <td class="wrap">string</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">schema_version</td>
+              
+              <td class="wrap">bytes</td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+             <!-- for field in fields -->
+          </tbody>
+        </table>
+      </div>
+       <!-- if fields -->
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="message-name" id="pulsar.proto.CommandGetSchemaResponse">
+          CommandGetSchemaResponse
+        </h5>
+        <p class="message-name">pulsar.proto.CommandGetSchemaResponse</p>
+        <p class="lead"></p>
+      </div>
+      
+      <div class="card">
+        <h5>Fields</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Label</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td class="wrap">request_id</td>
+              
+              <td class="wrap">uint64</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">error_code</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.ServerError">ServerError</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">error_message</td>
+              
+              <td class="wrap">string</td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">schema</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.Schema">Schema</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">schema_version</td>
+              
+              <td class="wrap">bytes</td>
+              
+              <td>optional</td>
               <td></td>
               <td></td>
             </tr>
@@ -5928,6 +6098,20 @@ if this field is omitted, `publish_time` can be used for the purpose of `event_t
             <tr>
               <td>GET_TOPICS_OF_NAMESPACE_RESPONSE</td>
               <td>33</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>GET_SCHEMA</td>
+              <td>34</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>GET_SCHEMA_RESPONSE</td>
+              <td>35</td>
               <td>
 </td>
             </tr>

@@ -26,5 +26,6 @@ var searchData=
   ['setreceiverqueuesize',['setReceiverQueueSize',['../classpulsar_1_1_consumer_configuration.html#a265d2cd1e9d1d329eff9b98346f245c2',1,'pulsar::ConsumerConfiguration::setReceiverQueueSize()'],['../classpulsar_1_1_reader_configuration.html#a0574cedc0bc7ccf457071df866830abe',1,'pulsar::ReaderConfiguration::setReceiverQueueSize()']]],
   ['setreplicationclusters',['setReplicationClusters',['../classpulsar_1_1_message_builder.html#a4debd882e7450dee0b83ac0bdfdee775',1,'pulsar::MessageBuilder']]],
   ['setsequenceid',['setSequenceId',['../classpulsar_1_1_message_builder.html#ae1c62a5fb7a064714b615be585d5bf92',1,'pulsar::MessageBuilder']]],
+  ['settopicname',['setTopicName',['../classpulsar_1_1_message_id.html#a3d84665dab3feb64ed00183a322b92f2',1,'pulsar::MessageId']]],
   ['setunackedmessagestimeoutms',['setUnAckedMessagesTimeoutMs',['../classpulsar_1_1_consumer_configuration.html#ad55a4f0187517c984de8d01f8660fb8f',1,'pulsar::ConsumerConfiguration']]]
 ];

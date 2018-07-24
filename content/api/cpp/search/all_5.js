@@ -35,6 +35,7 @@ var searchData=
   ['getpublishtimestamp',['getPublishTimestamp',['../classpulsar_1_1_message.html#a33301ac60c27d6f4a7c25b5d1bdb0132',1,'pulsar::Message']]],
   ['getsubscriptionname',['getSubscriptionName',['../classpulsar_1_1_consumer.html#aa1b448ec43ed76b85e0136c93bc7fe74',1,'pulsar::Consumer']]],
   ['gettopic',['getTopic',['../classpulsar_1_1_consumer.html#a56a644eff066972cb8a0f5065ffcc73c',1,'pulsar::Consumer::getTopic()'],['../classpulsar_1_1_producer.html#ab4af83fb29b1f4835a0a28597f70e195',1,'pulsar::Producer::getTopic()'],['../classpulsar_1_1_reader.html#a66ad710ed6295e5873c87322fba9fca9',1,'pulsar::Reader::getTopic()']]],
+  ['gettopicname',['getTopicName',['../classpulsar_1_1_message_id.html#a7fa19211fb401e0ede6a300d0164d351',1,'pulsar::MessageId']]],
   ['gettype',['getType',['../classpulsar_1_1_broker_consumer_stats.html#a6d0dfb988e6228ce4d70031a4940c3a7',1,'pulsar::BrokerConsumerStats']]],
   ['getunackedmessages',['getUnackedMessages',['../classpulsar_1_1_broker_consumer_stats.html#ad9d2d4b9275bc88fc918ee49cec3a1bc',1,'pulsar::BrokerConsumerStats']]],
   ['getunackedmessagestimeoutms',['getUnAckedMessagesTimeoutMs',['../classpulsar_1_1_consumer_configuration.html#ad07ae5670961401470b6e98541ddcbf7',1,'pulsar::ConsumerConfiguration']]]
