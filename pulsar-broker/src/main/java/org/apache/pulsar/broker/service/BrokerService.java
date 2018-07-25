@@ -112,6 +112,7 @@ import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -450,14 +451,19 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<Optional<Topic>> getTopicIfExists(final String topic) {
-        return getTopic(topic, false /* createIfMissing */ );
+        return getTopic(topic, false /* createIfMissing */, null /* schemaData */ );
     }
 
     public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
-        return getTopic(topic, true /* createIfMissing */ ).thenApply(Optional::get);
+        return getOrCreateTopic(topic, null);
     }
 
-    private CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
+    public CompletableFuture<Topic> getOrCreateTopic(final String topic, SchemaData schemaData) {
+        return getTopic(topic, true /* createIfMissing */, schemaData ).thenApply(Optional::get);
+    }
+
+    private CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing,
+            SchemaData schemaData) {
         try {
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
             if (topicFuture != null) {
@@ -471,8 +477,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
             final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
             return topics.computeIfAbsent(topic, (topicName) -> {
-                return isPersistentTopic ? this.loadOrCreatePersistentTopic(topicName, createIfMissing)
-                        : createNonPersistentTopic(topicName);
+                return isPersistentTopic ? this.loadOrCreatePersistentTopic(topicName, createIfMissing, schemaData)
+                        : createNonPersistentTopic(topicName, schemaData);
             });
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topic, e);
@@ -489,7 +495,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
-    private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
+    private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic, SchemaData schemaData) {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
 
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
@@ -520,7 +526,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return null;
         });
 
-        return topicFuture;
+        return topicFuture.thenCompose(ot -> {
+            if (ot.isPresent()) {
+                // If a schema is provided, add or validate it before the
+                // topic is "visible"
+                return ot.get().addSchema(schemaData).thenApply(schemaVersion -> ot);
+            } else {
+                return CompletableFuture.completedFuture(ot);
+            }
+        });
     }
 
     private static <T> CompletableFuture<T> failedFuture(Throwable t) {
@@ -577,7 +591,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * @return CompletableFuture<Topic>
      * @throws RuntimeException
      */
-    protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic, boolean createIfMissing) throws RuntimeException {
+    protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
+            boolean createIfMissing, SchemaData schemaData) throws RuntimeException {
         checkTopicNsOwnership(topic);
 
         final CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
@@ -605,7 +620,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 log.debug("topic-loading for {} added into pending queue", topic);
             }
         }
-        return topicFuture;
+        return topicFuture.thenCompose(ot -> {
+            if (ot.isPresent()) {
+                // If a schema is provided, add or validate it before the
+                // topic is "visible"
+                return ot.get().addSchema(schemaData).thenApply(schemaVersion -> ot);
+            } else {
+                return CompletableFuture.completedFuture(ot);
+            }
+        });
     }
 
     private void createPersistentTopic(final String topic, boolean createIfMissing, CompletableFuture<Optional<Topic>> topicFuture) {
