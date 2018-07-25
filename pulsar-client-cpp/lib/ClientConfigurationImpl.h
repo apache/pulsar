@@ -44,7 +44,7 @@ struct ClientConfigurationImpl {
           concurrentLookupRequest(50000),
           logConfFilePath(),
           useTls(false),
-          tlsAllowInsecureConnection(true),
+          tlsAllowInsecureConnection(false),
           statsIntervalInSeconds(600),  // 10 minutes
           loggerFactory() {}
 };
