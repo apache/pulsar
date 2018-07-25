@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.functions.runtime;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
 import lombok.Cleanup;
@@ -28,6 +29,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
@@ -103,13 +105,14 @@ public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
         String[] commands = {
             "sh", "-c", command
         };
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd(
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             commands);
+        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("\"Created successfully\""));
     }
 
     private static void getFunctionInfoSuccess(String functionName) throws Exception {
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd(
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
             "get",
@@ -117,11 +120,12 @@ public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
             "--namespace", "default",
             "--name", functionName
         );
+        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("\"name\": \"" + functionName + "\""));
     }
 
     private static void getFunctionInfoNotFound(String functionName) throws Exception {
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd(
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
             "get",
@@ -129,11 +133,12 @@ public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
             "--namespace", "default",
             "--name", functionName
         );
+        assertNotEquals(0, result.getExitCode());
         assertTrue(result.getStderr().contains("Reason: Function " + functionName + " doesn't exist"));
     }
 
     private static void getFunctionStatus(String functionName, int numMessages) throws Exception {
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd(
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
             "getstatus",
@@ -141,6 +146,7 @@ public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
             "--namespace", "default",
             "--name", functionName
         );
+        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("\"running\": true"));
         assertTrue(result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\""));
         assertTrue(result.getStdout().contains("\"numSuccessfullyProcessed\": \"" + numMessages + "\""));
@@ -172,7 +178,7 @@ public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
     }
 
     private static void deleteFunction(String functionName) throws Exception {
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd(
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
             "delete",
@@ -180,6 +186,7 @@ public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
             "--namespace", "default",
             "--name", functionName
         );
+        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("Deleted successfully"));
         assertTrue(result.getStderr().isEmpty());
     }

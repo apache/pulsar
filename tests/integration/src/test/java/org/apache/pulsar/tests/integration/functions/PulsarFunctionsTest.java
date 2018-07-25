@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.tests.integration.functions;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.UploadDownloadCommandGenerator;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testcontainers.containers.Container.ExecResult;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -50,7 +51,8 @@ public class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         String[] commands = {
             "sh", "-c", actualCommand
         };
-        ExecResult output = pulsarCluster.getAnyWorker().execCmd(commands);
+        ContainerExecResult output = pulsarCluster.getAnyWorker().execCmd(commands);
+        assertEquals(0, output.getExitCode());
         assertTrue(output.getStdout().contains("\"Uploaded successfully\""));
         return bkPkgPath;
     }
@@ -71,7 +73,8 @@ public class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "sh", "-c", actualCommand
         };
         WorkerContainer container = pulsarCluster.getAnyWorker();
-        ExecResult output = container.execCmd(commands);
+        ContainerExecResult output = container.execCmd(commands);
+        assertEquals(0, output.getExitCode());
         assertTrue(output.getStdout().contains("\"Downloaded successfully\""));
         String[] diffCommand = {
             "diff",
@@ -79,6 +82,7 @@ public class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             localPkgFile
         };
         output = container.execCmd(diffCommand);
+        assertEquals(0, output.getExitCode());
         assertTrue(output.getStdout().isEmpty());
         assertTrue(output.getStderr().isEmpty());
     }
