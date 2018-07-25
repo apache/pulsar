@@ -127,10 +127,9 @@ PulsarClient client = PulsarClient.builder()
 ### Python client
 
 ```python
-from pulsar import Client, Authentication
+from pulsar import Client, AuthenticationTLS
 
-auth = Authentication("tls",
-                      "tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem")
+auth = AuthenticationTLS("/path/to/my-role.cert.pem", "/path/to/my-role.key-pk8.pem")
 client = Client("pulsar+ssl://broker.example.com:6651/",
                 tls_trust_certs_file_path="/path/to/ca.cert.pem",
                 tls_allow_insecure_connection=False,
@@ -147,8 +146,8 @@ config.setUseTls(true);
 config.setTlsTrustCertsFilePath("/path/to/ca.cert.pem");
 config.setTlsAllowInsecureConnection(false);
 
-pulsar::AuthenticationPtr auth = pulsar::AuthFactory::create(
-        "tls", "tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem");
+pulsar::AuthenticationPtr auth = pulsar::AuthTls::create("/path/to/my-role.cert.pem",
+                                                         "/path/to/my-role.key-pk8.pem")
 config.setAuth(auth);
 
 pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
