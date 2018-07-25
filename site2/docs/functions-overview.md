@@ -61,13 +61,13 @@ The core programming model behind Pulsar Functions is very simple:
   * Write logs to a **log topic** (potentially for debugging purposes)
   * Increment a [counter](#counters)
 
-![Pulsar Functions core programming model](/docs/assets/pulsar-functions-overview.png)
+![Pulsar Functions core programming model](assets/pulsar-functions-overview.png)
 
 ### Word count example
 
 If you were to implement the classic word count example using Pulsar Functions, it might look something like this:
 
-![Pulsar Functions word count example](/docs/assets/pulsar-functions-word-count.png)
+![Pulsar Functions word count example](assets/pulsar-functions-word-count.png)
 
 If you were writing the function in [Java](functions-api.md#java) using the [Pulsar Functions SDK for Java](functions-api.md#java-sdk), you could write the function like this...
 
@@ -111,7 +111,7 @@ The use cases for Pulsar Functions are essentially endless, but let's dig into a
 
 Imagine a function that takes items (strings) as input and publishes them to either a fruits or vegetables topic, depending on the item. Or, if an item is neither a fruit nor a vegetable, a warning is logged to a [log topic](#logging). Here's a visual representation:
 
-![Pulsar Functions routing example](/docs/assets/pulsar-functions-routing-example.png)
+![Pulsar Functions routing example](assets/pulsar-functions-routing-example.png)
 
 If you were implementing this routing functionality in Python, it might look something like this:
 

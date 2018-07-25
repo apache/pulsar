@@ -116,7 +116,7 @@ A namespace is a logical nomenclature within a tenant. A tenant can create multi
 
 A subscription is a named configuration rule that determines how messages are delivered to consumers. There are three available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), and [failover](#failover). These modes are illustrated in the figure below.
 
-![Subscription modes](/docs/assets/pulsar-subscription-modes.png)
+![Subscription modes](assets/pulsar-subscription-modes.png)
 
 #### Exclusive
 
@@ -126,7 +126,7 @@ In the diagram above, only **Consumer-A** is allowed to consume messages.
 
 > Exclusive mode is the default subscription mode.
 
-![Exclusive subscriptions](/docs/assets/pulsar-exclusive-subscriptions.png)
+![Exclusive subscriptions](assets/pulsar-exclusive-subscriptions.png)
 
 #### Shared
 
@@ -139,7 +139,7 @@ In the diagram above, **Consumer-B-1** and **Consumer-B-2** are able to subscrib
 > * Message ordering is not guaranteed.
 > * You cannot use cumulative acknowledgment with shared mode.
 
-![Shared subscriptions](/docs/assets/pulsar-shared-subscriptions.png)
+![Shared subscriptions](assets/pulsar-shared-subscriptions.png)
 
 #### Failover
 
@@ -149,7 +149,7 @@ When the master consumer disconnects, all (non-acked and subsequent) messages wi
 
 In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-2 disconnected.
 
-![Failover subscriptions](/docs/assets/pulsar-failover-subscriptions.png)
+![Failover subscriptions](assets/pulsar-failover-subscriptions.png)
 
 ### Multi-topic subscriptions
 
@@ -196,7 +196,7 @@ Behind the scenes, a partitioned topic is actually implemented as N internal top
 
 The diagram below illustrates this:
 
-![](/docs/assets/partitioning.png)
+![](assets/partitioning.png)
 
 Here, the topic **Topic1** has five partitions (**P0** through **P4**) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).
 
@@ -281,7 +281,7 @@ In a Pulsar cluster:
 
 The diagram below provides an illustration of a Pulsar cluster:
 
-![Pulsar architecture diagram](/docs/assets/pulsar-system-architecture.png)
+![Pulsar architecture diagram](assets/pulsar-system-architecture.png)
 
 At the broader instance level, an instance-wide ZooKeeper cluster called the configuration store handles coordination tasks involving multiple clusters, for example [geo-replication](#replication).
 
@@ -347,7 +347,7 @@ persistent://my-property/my-namespace/my-topic
 
 You can see an illustration of how brokers and bookies interact in the diagram below:
 
-![Brokers and bookies](/docs/assets/broker-bookie.png)
+![Brokers and bookies](assets/broker-bookie.png)
 
 
 ### Ledgers
@@ -395,7 +395,7 @@ Pulsar has two features, however, that enable you to override this default behav
 
 The diagram below illustrates both concepts:
 
-![Message retention and expiry](/docs/assets/retention-expiry.png)
+![Message retention and expiry](assets/retention-expiry.png)
 
 With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a namespace dicates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, *all* of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.
 
@@ -415,7 +415,7 @@ Message **duplication** occurs when a message is [persisted](#persistent-storage
 
 The following diagram illustrates what happens when message deduplication is disabled vs. enabled:
 
-![Pulsar message deduplication](/docs/assets/message-deduplication.png)
+![Pulsar message deduplication](assets/message-deduplication.png)
 
 
 Message deduplication is disabled in the scenario shown at the top. Here, a producer publishes message 1 on a topic; the message reaches a Pulsar broker and is [persisted](#persistent-storage) to BookKeeper. The producer then sends message 1 again (in this case due to some retry logic), and the message is received by the broker and stored in BookKeeper again, which means that duplication has occurred.
@@ -535,7 +535,7 @@ You can use your own service discovery system if you'd like. If you use your own
 
 The diagram below illustrates Pulsar service discovery:
 
-![alt-text](/docs/assets/pulsar-service-discovery.png)
+![alt-text](assets/pulsar-service-discovery.png)
 
 In this diagram, the Pulsar cluster is addressable via a single DNS name: `pulsar-cluster.acme.com`. A [Python client](client-libraries-python.md), for example, could access this Pulsar cluster like this:
 
@@ -557,7 +557,7 @@ The **reader interface** for Pulsar enables applications to manually manage curs
 
 The reader interface is helpful for use cases like using Pulsar to provide [effectively-once](https://streaml.io/blog/exactly-once/) processing semantics for a stream processing system. For this use case, it's essential that the stream processing system be able to "rewind" topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to "manually position" themselves within a topic.
 
-![The Pulsar consumer and reader interfaces](/docs/assets/pulsar-reader-consumer-interfaces.png)
+![The Pulsar consumer and reader interfaces](assets/pulsar-reader-consumer-interfaces.png)
 
 > ### Non-partitioned topics only
 > The reader interface for Pulsar cannot currently be used with [partitioned topics](#partitioned-topics).
@@ -639,7 +639,7 @@ Pulsar's segment oriented architecture allows for topic backlogs to grow very la
 
 One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from bookkeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed. 
 
-![Tiered Storage](/docs/assets/pulsar-tiered-storage.png)
+![Tiered Storage](assets/pulsar-tiered-storage.png)
 
 > Data written to bookkeeper is replicated to 3 physical machines by default. However, once a segment is sealed in bookkeeper is becomes immutable and can be copied to long term storage. Long term storage can achieve cost savings by using mechanisms such as [Reed-Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction) to require fewer physical copies of data.
 
@@ -664,7 +664,7 @@ Pulsar IO connectors come in two types:
 
 This diagram illustrates the relationship between sources, sinks, and Pulsar:
 
-![Pulsar IO diagram](/docs/assets/pulsar-io.png "Pulsar IO connectors (sources and sinks)")
+![Pulsar IO diagram](assets/pulsar-io.png "Pulsar IO connectors (sources and sinks)")
 
 ### Working with connectors
 
