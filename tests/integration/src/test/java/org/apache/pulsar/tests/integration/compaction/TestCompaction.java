@@ -23,12 +23,11 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
-import org.testcontainers.containers.Container;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static java.util.stream.Collectors.joining;
+import static org.testng.Assert.assertEquals;
 
 public class TestCompaction extends PulsarClusterTestBase {
 
@@ -54,12 +53,12 @@ public class TestCompaction extends PulsarClusterTestBase {
             try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
                     .readCompacted(true).subscriptionName("sub1").subscribe()) {
                 Message<byte[]> m = consumer.receive();
-                Assert.assertEquals(m.getKey(), "key0");
-                Assert.assertEquals(m.getData(), "content0".getBytes());
+                assertEquals(m.getKey(), "key0");
+                assertEquals(m.getData(), "content0".getBytes());
 
                 m = consumer.receive();
-                Assert.assertEquals(m.getKey(), "key0");
-                Assert.assertEquals(m.getData(), "content1".getBytes());
+                assertEquals(m.getKey(), "key0");
+                assertEquals(m.getData(), "content1".getBytes());
             }
 
             pulsarCluster.runPulsarBaseCommandOnAnyBroker("compact-topic", "-t", topic);
@@ -67,8 +66,8 @@ public class TestCompaction extends PulsarClusterTestBase {
             try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
                     .readCompacted(true).subscriptionName("sub1").subscribe()) {
                 Message<byte[]> m = consumer.receive();
-                Assert.assertEquals(m.getKey(), "key0");
-                Assert.assertEquals(m.getData(), "content1".getBytes());
+                assertEquals(m.getKey(), "key0");
+                assertEquals(m.getData(), "content1".getBytes());
             }
         }
     }
@@ -98,12 +97,12 @@ public class TestCompaction extends PulsarClusterTestBase {
             try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
                     .readCompacted(true).subscriptionName("sub1").subscribe()) {
                 Message<byte[]> m = consumer.receive();
-                Assert.assertEquals(m.getKey(), "key0");
-                Assert.assertEquals(m.getData(), "content0".getBytes());
+                assertEquals(m.getKey(), "key0");
+                assertEquals(m.getData(), "content0".getBytes());
 
                 m = consumer.receive();
-                Assert.assertEquals(m.getKey(), "key0");
-                Assert.assertEquals(m.getData(), "content1".getBytes());
+                assertEquals(m.getKey(), "key0");
+                assertEquals(m.getData(), "content1".getBytes());
             }
             pulsarCluster.runAdminCommandOnAnyBroker("persistent",
                     "compact", topic);
@@ -114,8 +113,8 @@ public class TestCompaction extends PulsarClusterTestBase {
             try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
                     .readCompacted(true).subscriptionName("sub1").subscribe()) {
                 Message<byte[]> m = consumer.receive();
-                Assert.assertEquals(m.getKey(), "key0");
-                Assert.assertEquals(m.getData(), "content1".getBytes());
+                assertEquals(m.getKey(), "key0");
+                assertEquals(m.getData(), "content1".getBytes());
             }
         }
     }
@@ -126,7 +125,7 @@ public class TestCompaction extends PulsarClusterTestBase {
             try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
                  .readCompacted(true).subscriptionName(sub).subscribe()) {
                 Message<byte[]> m = consumer.receive();
-                Assert.assertEquals(m.getKey(), expectedKey);
+                assertEquals(m.getKey(), expectedKey);
                 if (new String(m.getData()).equals(expectedValue)) {
                     break;
                 }
@@ -136,8 +135,8 @@ public class TestCompaction extends PulsarClusterTestBase {
         try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
                 .readCompacted(true).subscriptionName(sub).subscribe()) {
             Message<byte[]> m = consumer.receive();
-            Assert.assertEquals(m.getKey(), expectedKey);
-            Assert.assertEquals(new String(m.getData()), expectedValue);
+            assertEquals(m.getKey(), expectedKey);
+            assertEquals(new String(m.getData()), expectedValue);
         }
     }
 
@@ -172,20 +171,24 @@ public class TestCompaction extends PulsarClusterTestBase {
         }
     }
 
-    private Container.ExecResult createTenantName(final String tenantName,
-                                                  final String allowedClusterName,
-                                                  final String adminRoleName) throws Exception {
-        return pulsarCluster.runAdminCommandOnAnyBroker(
+    private ContainerExecResult createTenantName(final String tenantName,
+                                                 final String allowedClusterName,
+                                                 final String adminRoleName) throws Exception {
+        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
             "tenants", "create", "--allowed-clusters", allowedClusterName,
             "--admin-roles", adminRoleName, tenantName);
+        assertEquals(0, result.getExitCode());
+        return result;
     }
 
-    private Container.ExecResult createNamespace(final String Ns) throws Exception {
-        return pulsarCluster.runAdminCommandOnAnyBroker(
+    private ContainerExecResult createNamespace(final String Ns) throws Exception {
+        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
                 "namespaces",
                 "create",
                 "--clusters",
                 pulsarCluster.getClusterName(), Ns);
+        assertEquals(0, result.getExitCode());
+        return result;
     }
 
 }

@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
-import org.testcontainers.containers.Container.ExecResult;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -37,7 +38,8 @@ public class CLITest extends PulsarClusterTestBase {
     public void testDeprecatedCommands() throws Exception {
         String tenantName = "test-deprecated-commands";
 
-        ExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("--help");
+        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("--help");
+        assertEquals(0, result.getExitCode());
         assertFalse(result.getStdout().isEmpty());
         assertFalse(result.getStdout().contains("Usage: properties "));
         result = pulsarCluster.runAdminCommandOnAnyBroker(
@@ -63,7 +65,7 @@ public class CLITest extends PulsarClusterTestBase {
 
         int i = 0;
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
-            ExecResult result = container.execCmd(
+            ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "persistent",
                 "create-subscription",
@@ -71,6 +73,7 @@ public class CLITest extends PulsarClusterTestBase {
                 "--subscription",
                 "" + subscriptionPrefix + i
             );
+            assertEquals(0, result.getExitCode());
             assertTrue(result.getStdout().isEmpty());
             assertTrue(result.getStderr().isEmpty());
             i++;
@@ -81,7 +84,7 @@ public class CLITest extends PulsarClusterTestBase {
     public void testTopicTerminationOnTopicsWithoutConnectedConsumers() throws Exception {
         String topicName = "persistent://public/default/test-topic-termination";
         BrokerContainer container = pulsarCluster.getAnyBroker();
-        ExecResult result = container.execCmd(
+        ContainerExecResult result = container.execCmd(
             PulsarCluster.CLIENT_SCRIPT,
             "produce",
             "-m",
@@ -90,7 +93,8 @@ public class CLITest extends PulsarClusterTestBase {
             "1",
             topicName);
 
-        Assert.assertTrue(result.getStdout().contains("1 messages successfully produced"));
+        assertEquals(0, result.getExitCode());
+        assertTrue(result.getStdout().contains("1 messages successfully produced"));
 
         // terminate the topic
         result = container.execCmd(
@@ -98,7 +102,8 @@ public class CLITest extends PulsarClusterTestBase {
             "persistent",
             "terminate",
             topicName);
-        Assert.assertTrue(result.getStdout().contains("Topic succesfully terminated at"));
+        assertEquals(0, result.getExitCode());
+        assertTrue(result.getStdout().contains("Topic succesfully terminated at"));
 
         // try to produce should fail
         result = pulsarCluster.getAnyBroker().execCmd(
@@ -109,6 +114,7 @@ public class CLITest extends PulsarClusterTestBase {
             "-n",
             "1",
             topicName);
+        assertNotEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("Topic was already terminated"));
     }
 
@@ -117,7 +123,7 @@ public class CLITest extends PulsarClusterTestBase {
         BrokerContainer container = pulsarCluster.getAnyBroker();
         String topicName = "persistent://public/default/test-schema-cli";
 
-        ExecResult result = container.execCmd(
+        ContainerExecResult result = container.execCmd(
             PulsarCluster.CLIENT_SCRIPT,
             "produce",
             "-m",
@@ -125,7 +131,8 @@ public class CLITest extends PulsarClusterTestBase {
             "-n",
             "1",
             topicName);
-        Assert.assertTrue(result.getStdout().contains("1 messages successfully produced"));
+        assertEquals(0, result.getExitCode());
+        assertTrue(result.getStdout().contains("1 messages successfully produced"));
 
         result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
@@ -135,8 +142,9 @@ public class CLITest extends PulsarClusterTestBase {
             "-f",
             "/pulsar/conf/schema_example.conf"
         );
-        Assert.assertTrue(result.getStdout().isEmpty());
-        Assert.assertTrue(result.getStderr().isEmpty());
+        assertEquals(0, result.getExitCode());
+        assertTrue(result.getStdout().isEmpty());
+        assertTrue(result.getStderr().isEmpty());
 
         // get schema
         result = container.execCmd(
@@ -144,7 +152,8 @@ public class CLITest extends PulsarClusterTestBase {
             "schemas",
             "get",
             topicName);
-        Assert.assertTrue(result.getStdout().contains("\"type\" : \"STRING\""));
+        assertEquals(0, result.getExitCode());
+        assertTrue(result.getStdout().contains("\"type\" : \"STRING\""));
 
         // delete the schema
         result = container.execCmd(
@@ -152,8 +161,9 @@ public class CLITest extends PulsarClusterTestBase {
             "schemas",
             "delete",
             topicName);
-        Assert.assertTrue(result.getStdout().isEmpty());
-        Assert.assertTrue(result.getStderr().isEmpty());
+        assertEquals(0, result.getExitCode());
+        assertTrue(result.getStdout().isEmpty());
+        assertTrue(result.getStderr().isEmpty());
 
         // get schema again
         result = container.execCmd(
@@ -162,6 +172,7 @@ public class CLITest extends PulsarClusterTestBase {
             "get",
             "persistent://public/default/test-schema-cli"
         );
+        assertNotEquals(0, result.getExitCode());
         assertTrue(result.getStderr().contains("Reason: HTTP 404 Not Found"));
     }
 }

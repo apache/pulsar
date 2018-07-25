@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.containers;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.LogContainerCmd;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.core.command.LogContainerResultCallback;
@@ -28,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.testcontainers.containers.GenericContainer;
 
@@ -101,18 +103,11 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         return sb.toString();
     }
 
-    public ExecResult execCmd(String... cmd) throws Exception {
-        String cmdString = StringUtils.join(cmd, " ");
-
-        log.info("DOCKER.exec({}:{}): Executing ...", containerName.substring(1), cmdString);
-
-        ExecResult result = execInContainer(cmd);
-
-        log.info("Docker.exec({}:{}): Done", containerName.substring(1), cmdString);
-        log.info("Docker.exec({}:{}): Stdout -\n{}", containerName.substring(1), cmdString, result.getStdout());
-        log.info("Docker.exec({}:{}): Stderr -\n{}", containerName.substring(1), cmdString, result.getStderr());
-
-        return result;
+    public ContainerExecResult execCmd(String... commands) throws Exception {
+        DockerClient client = this.getDockerClient();
+        String dockerId = this.getContainerId();
+        return DockerUtils.runCommand(
+            client, dockerId, true, commands);
     }
 
     @Override
