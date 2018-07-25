@@ -19,24 +19,29 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Lists;
+
+import io.netty.channel.EventLoopGroup;
+
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.lookup.data.LookupData;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.schema.GetSchemaResponse;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.channel.EventLoopGroup;
 
 class HttpLookupService implements LookupService {
 
@@ -100,7 +105,7 @@ class HttpLookupService implements LookupService {
     public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
         CompletableFuture<List<String>> future = new CompletableFuture<>();
 
-        String format = namespace.isV2() ? "admin/v2/namespaces/%s/destinations" : "admin/namespaces/%s/destinations";
+        String format = namespace.isV2() ? "admin/v2/namespaces/%s/topics" : "admin/namespaces/%s/destinations";
         httpClient
             .get(String.format(format, namespace), String[].class)
             .thenAccept(topics -> {
@@ -118,6 +123,27 @@ class HttpLookupService implements LookupService {
                 future.completeExceptionally(ex);
                 return null;
             });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
+        CompletableFuture<Optional<SchemaInfo>> future = new CompletableFuture<>();
+
+        String schemaName = topicName.getSchemaName();
+        String path = String.format("admin/v2/schemas/%s/schema", schemaName);
+
+        httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
+            future.complete(Optional.of(new SchemaInfo(schemaName, response)));
+        }).exceptionally(ex -> {
+            if (ex.getCause() instanceof NotFoundException) {
+                future.complete(Optional.empty());
+            } else {
+                log.warn("Failed to get schema for topic {} : {}", topicName, ex.getCause().getClass());
+                future.completeExceptionally(ex);
+            }
+            return null;
+        });
         return future;
     }
 

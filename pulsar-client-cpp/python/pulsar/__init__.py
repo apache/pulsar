@@ -100,9 +100,9 @@ import _pulsar
 
 from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
 
-from functions.function import Function
-from functions.context import Context
-from functions.serde import SerDe, IdentitySerDe, PickleSerDe
+from pulsar.functions.function import Function
+from pulsar.functions.context import Context
+from pulsar.functions.serde import SerDe, IdentitySerDe, PickleSerDe
 
 class MessageId:
     """
@@ -172,7 +172,8 @@ class Message:
 
 class Authentication:
     """
-    Authentication provider object.
+    Authentication provider object. Used to load authentication from an external
+    shared library.
     """
     def __init__(self, dynamicLibPath, authParamsString):
         """
@@ -188,6 +189,38 @@ class Authentication:
         _check_type(str, dynamicLibPath, 'dynamicLibPath')
         _check_type(str, authParamsString, 'authParamsString')
         self.auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
+
+class AuthenticationTLS(Authentication):
+    """
+    TLS Authentication implementation
+    """
+    def __init__(self, certificate_path, private_key_path):
+        """
+        Create the TLS authentication provider instance.
+
+        **Args**
+
+        * `certificatePath`: Path to the public certificate
+        * `privateKeyPath`: Path to private TLS key
+        """
+        _check_type(str, certificate_path, 'certificate_path')
+        _check_type(str, private_key_path, 'private_key_path')
+        self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
+
+class AuthenticationAthenz(Authentication):
+    """
+    Athenz Authentication implementation
+    """
+    def __init__(self, auth_params_string):
+        """
+        Create the Athenz authentication provider instance.
+
+        **Args**
+
+        * `auth_params_string`: JSON encoded configuration for Athenz client
+        """
+        _check_type(str, auth_params_string, 'auth_params_string')
+        self.auth = _pulsar.AuthenticationAthenz(auth_params_string)
 
 
 class Client:
@@ -220,7 +253,8 @@ class Client:
         **Options**
 
         * `authentication`:
-          Set the authentication provider to be used with the broker.
+          Set the authentication provider to be used with the broker. For example:
+          `AuthenticationTls` or `AuthenticationAthenz`
         * `operation_timeout_seconds`:
           Set timeout on client operations (subscribe, create producer, close,
           unsubscribe).
@@ -238,7 +272,9 @@ class Client:
         * `log_conf_file_path`:
           Initialize log4cxx from a configuration file.
         * `use_tls`:
-          Configure whether to use TLS encryption on the connection.
+          Configure whether to use TLS encryption on the connection. This setting
+          is deprecated. TLS will be automatically enabled if the `serviceUrl` is
+          set to `pulsar+ssl://` or `https://`
         * `tls_trust_certs_file_path`:
           Set the path to the trusted TLS certificate file.
         * `tls_allow_insecure_connection`:
@@ -265,7 +301,8 @@ class Client:
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
-        conf.use_tls(use_tls)
+        if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
+            conf.use_tls(True)
         if tls_trust_certs_file_path:
             conf.tls_trust_certs_file_path(tls_trust_certs_file_path)
         conf.tls_allow_insecure_connection(tls_allow_insecure_connection)
@@ -357,7 +394,8 @@ class Client:
                   receiver_queue_size=1000,
                   consumer_name=None,
                   unacked_messages_timeout_ms=None,
-                  broker_consumer_stats_cache_time_ms=30000
+                  broker_consumer_stats_cache_time_ms=30000,
+                  is_read_compacted=False
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -415,9 +453,11 @@ class Client:
         _check_type_or_none(str, consumer_name, 'consumer_name')
         _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
         _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
+        _check_type(bool, is_read_compacted, 'is_read_compacted')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
+        conf.read_compacted(is_read_compacted)
         if message_listener:
             conf.message_listener(message_listener)
         conf.receiver_queue_size(receiver_queue_size)
@@ -761,6 +801,20 @@ class Consumer:
         """
         self._consumer.redeliver_unacknowledged_messages()
 
+    def seek(self, messageid):
+        """
+        Reset the subscription associated with this consumer to a specific message id.
+        The message id can either be a specific message or represent the first or last messages in the topic.
+        Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+        seek() on the individual partitions.
+
+        **Args**
+
+        * `message`:
+          The message id for seek.
+        """
+        self._consumer.seek(messageid)
+
     def close(self):
         """
         Close the consumer.
@@ -798,6 +852,12 @@ class Reader:
         else:
             _check_type(int, timeout_millis, 'timeout_millis')
             return self._reader.read_next(timeout_millis)
+
+    def has_message_available(self):
+        """
+        Check if there is any message available to read from the current position.
+        """
+        return self._reader.has_message_available();
 
     def close(self):
         """

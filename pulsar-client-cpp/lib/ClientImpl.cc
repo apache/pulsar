@@ -24,6 +24,7 @@
 #include "ReaderImpl.h"
 #include "PartitionedProducerImpl.h"
 #include "PartitionedConsumerImpl.h"
+#include "MultiTopicsConsumerImpl.h"
 #include "SimpleLoggerImpl.h"
 #include "Log4CxxLogger.h"
 #include <boost/bind.hpp>
@@ -33,6 +34,7 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
+#include <algorithm>
 
 DECLARE_LOG_OBJECT()
 
@@ -82,7 +84,8 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
 #ifdef USE_LOG4CXX
         if (!clientConfiguration.getLogConfFilePath().empty()) {
             // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
-            LogUtils::setLoggerFactory(Log4CxxLogger::create(clientConfiguration.getLogConfFilePath()));
+            LogUtils::setLoggerFactory(
+                Log4CxxLoggerFactory::create(clientConfiguration.getLogConfFilePath()));
         } else {
             // Use default simple console logger
             LogUtils::setLoggerFactory(SimpleLoggerFactory::create());
@@ -209,6 +212,40 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
     consumers_.push_back(reader->getConsumer());
 }
 
+void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+                                const ConsumerConfiguration& conf, SubscribeCallback callback) {
+    TopicNamePtr topicNamePtr;
+
+    Lock lock(mutex_);
+    if (state_ != Open) {
+        lock.unlock();
+        callback(ResultAlreadyClosed, Consumer());
+        return;
+    } else {
+        if (!topics.empty() && !(topicNamePtr = MultiTopicsConsumerImpl::topicNamesValid(topics))) {
+            lock.unlock();
+            callback(ResultInvalidTopicName, Consumer());
+            return;
+        }
+    }
+
+    if (topicNamePtr) {
+        std::string randomName = generateRandomName();
+        std::stringstream consumerTopicNameStream;
+        consumerTopicNameStream << topicNamePtr->toString() << "-TopicsConsumerFakeName-" << randomName;
+        topicNamePtr = TopicName::get(consumerTopicNameStream.str());
+    }
+
+    ConsumerImplBasePtr consumer = boost::make_shared<MultiTopicsConsumerImpl>(
+        shared_from_this(), topics, consumerName, topicNamePtr, conf, lookupServicePtr_);
+
+    consumer->getConsumerCreatedFuture().addListener(
+        boost::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), _1, _2, callback, consumer));
+    consumers_.push_back(consumer);
+    lock.unlock();
+    consumer->start();
+}
+
 void ClientImpl::subscribeAsync(const std::string& topic, const std::string& consumerName,
                                 const ConsumerConfiguration& conf, SubscribeCallback callback) {
     TopicNamePtr topicName;
@@ -221,6 +258,12 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
         } else if (!(topicName = TopicName::get(topic))) {
             lock.unlock();
             callback(ResultInvalidTopicName, Consumer());
+            return;
+        } else if (conf.isReadCompacted() && (topicName->getDomain().compare("persistent") != 0 ||
+                                              (conf.getConsumerType() != ConsumerExclusive &&
+                                               conf.getConsumerType() != ConsumerFailover))) {
+            lock.unlock();
+            callback(ResultInvalidConfiguration, Consumer());
             return;
         }
     }

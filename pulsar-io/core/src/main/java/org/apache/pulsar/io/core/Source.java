@@ -20,14 +20,17 @@ package org.apache.pulsar.io.core;
 
 import java.util.Map;
 
+import org.apache.pulsar.functions.api.Record;
+
 public interface Source<T> extends AutoCloseable {
     /**
      * Open connector with configuration
      *
      * @param config initialization config
+     * @param sourceContext
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, Object> config) throws Exception;
+    void open(final Map<String, Object> config, SourceContext sourceContext) throws Exception;
 
     /**
      * Reads the next message from source.

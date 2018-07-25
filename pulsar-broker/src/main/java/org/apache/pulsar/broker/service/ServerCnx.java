@@ -50,11 +50,13 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -72,6 +74,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
@@ -93,6 +96,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -103,6 +107,7 @@ import org.slf4j.LoggerFactory;
 
 public class ServerCnx extends PulsarHandler {
     private final BrokerService service;
+    private final SchemaRegistryService schemaService;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private State state;
@@ -127,9 +132,10 @@ public class ServerCnx extends PulsarHandler {
         Start, Connected, Failed
     }
 
-    public ServerCnx(BrokerService service) {
-        super(service.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
-        this.service = service;
+    public ServerCnx(PulsarService pulsar) {
+        super(pulsar.getBrokerService().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
+        this.service = pulsar.getBrokerService();
+        this.schemaService = pulsar.getSchemaRegistryService();
         this.state = State.Start;
 
         // This maps are not heavily contended since most accesses are within the cnx thread
@@ -301,7 +307,7 @@ public class ServerCnx extends PulsarHandler {
         if (topicName == null) {
             return;
         }
-        
+
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
             if (invalidOriginalPrincipal(originalPrincipal)) {
@@ -324,7 +330,7 @@ public class ServerCnx extends PulsarHandler {
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                     if (isProxyAuthorized) {
                     getPartitionedTopicMetadata(getBrokerService().pulsar(),
-                            finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole, authenticationData,
+                                                authRole, finalOriginalPrincipal, authenticationData,
                             topicName).handle((metadata, ex) -> {
                                     if (ex == null) {
                                         int partitions = metadata.partitions;
@@ -578,7 +584,7 @@ public class ServerCnx extends PulsarHandler {
                             }
                         }
 
-                        service.getOrCreateTopic(topicName.toString())
+                        service.getOrCreateTopic(topicName.toString(), schema)
                                 .thenCompose(topic -> {
                                     if (schema != null) {
                                         return topic.isSchemaCompatible(schema).thenCompose(isCompatible -> {
@@ -682,6 +688,10 @@ public class ServerCnx extends PulsarHandler {
             return SchemaType.STRING;
         case Json:
             return SchemaType.JSON;
+        case Protobuf:
+            return SchemaType.PROTOBUF;
+        case Avro:
+            return SchemaType.AVRO;
         default:
             return SchemaType.NONE;
         }
@@ -781,7 +791,7 @@ public class ServerCnx extends PulsarHandler {
 
                         log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
-                        service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
+                        service.getOrCreateTopic(topicName.toString(), schema).thenAccept((Topic topic) -> {
                             // Before creating producer, check if backlog quota exceeded
                             // on topic
                             if (topic.isBacklogQuotaExceeded(producerName)) {
@@ -1193,6 +1203,43 @@ public class ServerCnx extends PulsarHandler {
                     e.getMessage()));
         }
     }
+
+    @Override
+    protected void handleGetSchema(CommandGetSchema commandGetSchema) {
+        if (log.isDebugEnabled()) {
+            log.debug("Received CommandGetSchema call from {}", remoteAddress);
+        }
+
+        long requestId = commandGetSchema.getRequestId();
+        SchemaVersion schemaVersion = SchemaVersion.Latest;
+        if (commandGetSchema.hasSchemaVersion()) {
+            schemaVersion = schemaService.versionFromBytes(commandGetSchema.getSchemaVersion().toByteArray());
+        }
+
+        String schemaName;
+        try {
+            schemaName = TopicName.get(commandGetSchema.getTopic()).getSchemaName();
+        } catch (Throwable t) {
+            ctx.writeAndFlush(
+                    Commands.newGetSchemaResponseError(requestId, ServerError.InvalidTopicName, t.getMessage()));
+            return;
+        }
+
+        schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
+            if (schemaAndMetadata == null) {
+                ctx.writeAndFlush(Commands.newGetSchemaResponseError(requestId, ServerError.TopicNotFound,
+                        "Topic not found or no-schema"));
+            } else {
+                ctx.writeAndFlush(Commands.newGetSchemaResponse(requestId,
+                        new SchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
+            }
+        }).exceptionally(ex -> {
+            ctx.writeAndFlush(
+                    Commands.newGetSchemaResponseError(requestId, ServerError.UnknownError, ex.getMessage()));
+            return null;
+        });
+    }
+
 
     @Override
     protected boolean isHandshakeCompleted() {

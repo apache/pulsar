@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.worker;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -34,7 +33,6 @@ import static org.testng.Assert.assertTrue;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -135,14 +133,15 @@ public class MembershipManagerTest {
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
         MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
 
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-2", "host-2", 8001));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "host-1", 8000));
+        workerInfoList.add(WorkerInfo.of("worker-2", "host-2", 8001));
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
@@ -199,14 +198,15 @@ public class MembershipManagerTest {
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
 
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
         MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
 
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "host-1", 8000));
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
@@ -288,14 +288,15 @@ public class MembershipManagerTest {
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
         MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
 
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-2", "host-2", 8001));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "host-1", 8000));
+        workerInfoList.add(WorkerInfo.of("worker-2", "host-2", 8001));
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 

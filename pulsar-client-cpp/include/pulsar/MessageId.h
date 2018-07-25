@@ -22,6 +22,7 @@
 #include <iosfwd>
 #include <stdint.h>
 #include <boost/shared_ptr.hpp>
+//#include <lib/MessageIdImpl.h>
 
 #pragma GCC visibility push(default)
 
@@ -33,6 +34,7 @@ class MessageId {
    public:
     MessageId& operator=(const MessageId&);
     MessageId();
+    explicit MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex);
 
     /**
      * MessageId representing the "earliest" or "oldest available" message stored in the topic
@@ -48,6 +50,16 @@ class MessageId {
      * Serialize the message id into a binary string for storing
      */
     void serialize(std::string& result) const;
+
+    /**
+     * Get the topic Name
+     */
+    const std::string& getTopicName() const;
+
+    /**
+     * Set the topicName
+     */
+    void setTopicName(const std::string& topicName);
 
     /**
      * Deserialize a message id from a binary string
@@ -70,12 +82,12 @@ class MessageId {
     friend class Commands;
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
+    friend class MultiTopicsConsumerImpl;
     friend class UnAckedMessageTrackerEnabled;
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
     friend class PulsarFriend;
 
-    explicit MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex);
     friend std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
 
     int64_t ledgerId() const;

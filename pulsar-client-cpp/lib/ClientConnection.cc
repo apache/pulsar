@@ -160,6 +160,12 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             }
         }
 
+        if (!authentication_) {
+            LOG_ERROR("Invalid authentication plugin");
+            close();
+            return;
+        }
+
         AuthenticationDataPtr authData;
         if (authentication_->getAuthData(authData) == ResultOk && authData->hasDataForTls()) {
             std::string tlsCertificates = authData->getTlsCertificates();
@@ -354,6 +360,10 @@ void ClientConnection::handleSentPulsarConnect(const boost::system::error_code& 
  *
  */
 void ClientConnection::tcpConnectAsync() {
+    if (isClosed()) {
+        return;
+    }
+
     boost::system::error_code err;
     Url service_url;
     if (!Url::parse(physicalAddress_, service_url)) {
@@ -855,8 +865,19 @@ void ClientConnection::handleIncomingCommand() {
                         requestData.promise.setFailed(getResult(error.error()));
                         requestData.timer->cancel();
                     } else {
-                        lock.unlock();
+                        PendingGetLastMessageIdRequestsMap::iterator it2 =
+                            pendingGetLastMessageIdRequests_.find(error.request_id());
+                        if (it2 != pendingGetLastMessageIdRequests_.end()) {
+                            Promise<Result, MessageId> getLastMessageIdPromise = it2->second;
+                            pendingGetLastMessageIdRequests_.erase(it2);
+                            lock.unlock();
+
+                            getLastMessageIdPromise.setFailed(getResult(error.error()));
+                        } else {
+                            lock.unlock();
+                        }
                     }
+
                     break;
                 }
 
@@ -925,6 +946,35 @@ void ClientConnection::handleIncomingCommand() {
                     LOG_DEBUG(cnxString_ << "Received notification about active consumer changes");
                     // ignore this message for now.
                     // TODO: @link{https://github.com/apache/incubator-pulsar/issues/1240}
+                    break;
+                }
+
+                case BaseCommand::GET_LAST_MESSAGE_ID_RESPONSE: {
+                    const CommandGetLastMessageIdResponse& getLastMessageIdResponse =
+                        incomingCmd_.getlastmessageidresponse();
+                    LOG_DEBUG(cnxString_ << "Received getLastMessageIdResponse from server. req_id: "
+                                         << getLastMessageIdResponse.request_id());
+
+                    Lock lock(mutex_);
+                    PendingGetLastMessageIdRequestsMap::iterator it =
+                        pendingGetLastMessageIdRequests_.find(getLastMessageIdResponse.request_id());
+
+                    if (it != pendingGetLastMessageIdRequests_.end()) {
+                        Promise<Result, MessageId> getLastMessageIdPromise = it->second;
+                        pendingGetLastMessageIdRequests_.erase(it);
+                        lock.unlock();
+
+                        MessageIdData messageIdData = getLastMessageIdResponse.last_message_id();
+                        MessageId messageId = MessageId(messageIdData.partition(), messageIdData.ledgerid(),
+                                                        messageIdData.entryid(), messageIdData.batch_index());
+
+                        getLastMessageIdPromise.setValue(messageId);
+                    } else {
+                        lock.unlock();
+                        LOG_WARN(
+                            "getLastMessageIdResponse command - Received unknown request id from server: "
+                            << getLastMessageIdResponse.request_id());
+                    }
                     break;
                 }
 
@@ -1214,4 +1264,21 @@ int ClientConnection::getServerProtocolVersion() const { return serverProtocolVe
 Commands::ChecksumType ClientConnection::getChecksumType() const {
     return getServerProtocolVersion() >= proto::v6 ? Commands::Crc32c : Commands::None;
 }
+
+Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consumerId, uint64_t requestId) {
+    Lock lock(mutex_);
+    Promise<Result, MessageId> promise;
+    if (isClosed()) {
+        lock.unlock();
+        LOG_ERROR(cnxString_ << " Client is not connected to the broker");
+        promise.setFailed(ResultNotConnected);
+        return promise.getFuture();
+    }
+
+    pendingGetLastMessageIdRequests_.insert(std::make_pair(requestId, promise));
+    lock.unlock();
+    sendCommand(Commands::newGetLastMessageId(consumerId, requestId));
+    return promise.getFuture();
+}
+
 }  // namespace pulsar

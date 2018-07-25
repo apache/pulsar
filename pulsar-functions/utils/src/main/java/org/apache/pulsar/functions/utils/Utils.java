@@ -18,19 +18,7 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import com.google.protobuf.AbstractMessage.Builder;
-import com.google.protobuf.MessageOrBuilder;
-import com.google.protobuf.util.JsonFormat;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.Source;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,6 +29,23 @@ import java.lang.reflect.Type;
 import java.net.ServerSocket;
 import java.util.Collection;
 
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.Source;
+
+import com.google.protobuf.AbstractMessage.Builder;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
+
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
+
 /**
  * Utils used for runtime.
  */
@@ -48,8 +53,14 @@ import java.util.Collection;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class Utils {
 
+    public static String HTTP = "http";
+    public static String FILE = "file";
+    public static String BUILTIN = "builtin";
+
     public static final long getSequenceId(MessageId messageId) {
-        MessageIdImpl msgId = (MessageIdImpl) messageId;
+        MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
+                ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
+                : messageId);
         long ledgerId = msgId.getLedgerId();
         long entryId = msgId.getEntryId();
 
@@ -172,8 +183,12 @@ public class Utils {
     }
 
     public static Class<?> getSourceType(String className) {
+        return getSourceType(className, Thread.currentThread().getContextClassLoader());
+    }
 
-        Object userClass = Reflections.createInstance(className, Thread.currentThread().getContextClassLoader());
+    public static Class<?> getSourceType(String className, ClassLoader classloader) {
+
+        Object userClass = Reflections.createInstance(className, classloader);
         Class<?> typeArg;
         Source source = (Source) userClass;
         if (source == null) {
@@ -186,8 +201,12 @@ public class Utils {
     }
 
     public static Class<?> getSinkType(String className) {
+        return getSinkType(className, Thread.currentThread().getContextClassLoader());
+    }
 
-        Object userClass = Reflections.createInstance(className, Thread.currentThread().getContextClassLoader());
+    public static Class<?> getSinkType(String className, ClassLoader classLoader) {
+
+        Object userClass = Reflections.createInstance(className, classLoader);
         Class<?> typeArg;
         Sink sink = (Sink) userClass;
         if (sink == null) {
@@ -201,5 +220,10 @@ public class Utils {
 
     public static boolean fileExists(String file) {
         return new File(file).exists();
+    }
+
+    public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
+        return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(Utils.HTTP)
+                || functionPkgUrl.startsWith(Utils.FILE));
     }
 }

@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.io.core.SourceContext;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -75,6 +76,7 @@ public class PulsarSourceTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
         ConsumerBuilder consumerBuilder = mock(ConsumerBuilder.class);
         doReturn(consumerBuilder).when(consumerBuilder).topics(anyList());
+        doReturn(consumerBuilder).when(consumerBuilder).cryptoFailureAction(any());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(anyString());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(any());
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
@@ -120,7 +122,7 @@ public class PulsarSourceTest {
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
         try {
-            pulsarSource.open(new HashMap<>());
+            pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
             assertFalse(true);
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
@@ -144,7 +146,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
         try {
-            pulsarSource.open(new HashMap<>());
+            pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
@@ -159,7 +161,7 @@ public class PulsarSourceTest {
      * Verify that Default Serializer works fine.
      */
     @Test
-    public void testDefaultSerDe() throws PulsarClientException {
+    public void testDefaultSerDe() throws Exception {
 
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
@@ -168,20 +170,14 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
-        try {
-            pulsarSource.open(new HashMap<>());
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            assertEquals(ex, null);
-            assertTrue(false);
-        }
+        pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
     }
 
     /**
      * Verify that Explicit setting of Default Serializer works fine.
      */
     @Test
-    public void testExplicitDefaultSerDe() throws PulsarClientException {
+    public void testExplicitDefaultSerDe() throws Exception {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
@@ -189,13 +185,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
-        try {
-            pulsarSource.open(new HashMap<>());
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            assertEquals(ex, null);
-            assertTrue(false);
-        }
+        pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
     }
 
     @Test
@@ -210,7 +200,6 @@ public class PulsarSourceTest {
         try {
             pulsarSource.setupSerDe();
         } catch (Exception ex) {
-            ex.printStackTrace();
             fail();
         }
     }

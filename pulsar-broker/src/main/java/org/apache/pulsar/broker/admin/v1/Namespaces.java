@@ -715,6 +715,67 @@ public class Namespaces extends NamespacesBase {
         internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription);
     }
 
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/compactionThreshold")
+    @ApiOperation(value = "Maximum number of uncompacted bytes in topics before compaction is triggered.",
+                  notes = "The backlog size is compared to the threshold periodically. "
+                          + "A threshold of 0 disabled automatic compaction")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public long getCompactionThreshold(@PathParam("property") String property,
+                                       @PathParam("cluster") String cluster,
+                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetCompactionThreshold();
+    }
+
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/compactionThreshold")
+    @ApiOperation(value = "Set maximum number of uncompacted bytes in a topic before compaction is triggered.",
+                  notes = "The backlog size is compared to the threshold periodically. "
+                          + "A threshold of 0 disabled automatic compaction")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification"),
+                            @ApiResponse(code = 412, message = "compactionThreshold value is not valid") })
+    public void setCompactionThreshold(@PathParam("property") String property,
+                                       @PathParam("cluster") String cluster,
+                                       @PathParam("namespace") String namespace,
+                                       long newThreshold) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetCompactionThreshold(newThreshold);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/offloadThreshold")
+    @ApiOperation(value = "Maximum number of bytes stored on the pulsar cluster for a topic,"
+                          + " before the broker will start offloading to longterm storage",
+                  notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public long getOffloadThreshold(@PathParam("property") String property,
+                                    @PathParam("cluster") String cluster,
+                                    @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetOffloadThreshold();
+    }
+
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/offloadThreshold")
+    @ApiOperation(value = "Set maximum number of bytes stored on the pulsar cluster for a topic,"
+                          + " before the broker will start offloading to longterm storage",
+                  notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification"),
+                            @ApiResponse(code = 412, message = "offloadThreshold value is not valid") })
+    public void setOffloadThreshold(@PathParam("property") String property,
+                                    @PathParam("cluster") String cluster,
+                                    @PathParam("namespace") String namespace,
+                                    long newThreshold) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetOffloadThreshold(newThreshold);
+    }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

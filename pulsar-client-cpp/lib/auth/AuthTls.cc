@@ -36,6 +36,10 @@ AuthTls::AuthTls(AuthenticationDataPtr& authDataTls) { authDataTls_ = authDataTl
 
 AuthTls::~AuthTls() {}
 
+AuthenticationPtr AuthTls::create(ParamMap& params) {
+    return create(params["tlsCertFile"], params["tlsKeyFile"]);
+}
+
 AuthenticationPtr AuthTls::create(const std::string& certificatePath, const std::string& privateKeyPath) {
     AuthenticationDataPtr authDataTls =
         AuthenticationDataPtr(new AuthDataTls(certificatePath, privateKeyPath));

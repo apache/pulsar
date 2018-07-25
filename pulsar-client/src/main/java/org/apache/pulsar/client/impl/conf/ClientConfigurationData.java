@@ -55,7 +55,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int maxLookupRequest = 50000;
     private int maxNumberOfRejectedRequestPerConnection = 50;
     private int keepAliveIntervalSeconds = 30;
-
+    
     public ClientConfigurationData clone() {
         try {
             return (ClientConfigurationData) super.clone();
@@ -63,4 +63,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             throw new RuntimeException("Failed to clone ClientConfigurationData");
         }
     }
+
+
 }

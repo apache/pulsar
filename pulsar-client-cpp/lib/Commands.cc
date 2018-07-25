@@ -185,7 +185,7 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
 SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string& subscription,
                                     uint64_t consumerId, uint64_t requestId, CommandSubscribe_SubType subType,
                                     const std::string& consumerName, SubscriptionMode subscriptionMode,
-                                    Optional<MessageId> startMessageId) {
+                                    Optional<MessageId> startMessageId, bool readCompacted) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -196,6 +196,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_request_id(requestId);
     subscribe->set_consumer_name(consumerName);
     subscribe->set_durable(subscriptionMode == SubscriptionModeDurable);
+    subscribe->set_read_compacted(readCompacted);
     if (startMessageId.is_present()) {
         MessageIdData& messageIdData = *subscribe->mutable_start_message_id();
         messageIdData.set_ledgerid(startMessageId.value().ledgerId());
@@ -311,6 +312,18 @@ SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, const Me
     return writeMessageWithSize(cmd);
 }
 
+SharedBuffer Commands::newGetLastMessageId(uint64_t consumerId, uint64_t requestId) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::GET_LAST_MESSAGE_ID);
+
+    CommandGetLastMessageId* getLastMessageId = cmd.mutable_getlastmessageid();
+    getLastMessageId->set_consumer_id(consumerId);
+    getLastMessageId->set_request_id(requestId);
+    const SharedBuffer buffer = writeMessageWithSize(cmd);
+    cmd.clear_getlastmessageid();
+    return buffer;
+}
+
 std::string Commands::messageType(BaseCommand_Type type) {
     switch (type) {
         case BaseCommand::CONNECT:
@@ -396,6 +409,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
             break;
         case BaseCommand::ACTIVE_CONSUMER_CHANGE:
             return "ACTIVE_CONSUMER_CHANGE";
+            break;
+        case BaseCommand::GET_LAST_MESSAGE_ID:
+            return "GET_LAST_MESSAGE_ID";
+            break;
+        case BaseCommand::GET_LAST_MESSAGE_ID_RESPONSE:
+            return "GET_LAST_MESSAGE_ID_RESPONSE";
             break;
     };
 }

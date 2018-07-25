@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.Entity;
@@ -37,12 +39,15 @@ import javax.ws.rs.core.Response;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.worker.WorkerInfo;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -109,7 +114,10 @@ public class FunctionsImpl extends BaseResource implements Functions {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
-            mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            if (fileName != null && !fileName.startsWith("builtin://")) {
+                // If the function code is built in, we don't need to submit here
+                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            }
 
             mp.bodyPart(new FormDataBodyPart("functionDetails",
                 printJson(functionDetails),
@@ -137,7 +145,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             throw getApiException(e);
         }
     }
-    
+
     @Override
     public void deleteFunction(String cluster, String namespace, String function) throws PulsarAdminException {
         try {
@@ -152,14 +160,34 @@ public class FunctionsImpl extends BaseResource implements Functions {
     public void updateFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
-            if (fileName != null) {
+
+            if (fileName != null && !fileName.startsWith("builtin://")) {
+                // If the function code is built in, we don't need to submit here
                 mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
+
             mp.bodyPart(new FormDataBodyPart("functionDetails",
                 printJson(functionDetails),
                 MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionDetails.getTenant()).path(functionDetails.getNamespace()).path(functionDetails.getName()))
                     .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void updateFunctionWithUrl(FunctionDetails functionDetails, String pkgUrl) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
+
+            mp.bodyPart(new FormDataBodyPart("functionDetails", printJson(functionDetails),
+                    MediaType.APPLICATION_JSON_TYPE));
+            request(functions.path(functionDetails.getTenant()).path(functionDetails.getNamespace())
+                    .path(functionDetails.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+                            ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -219,6 +247,41 @@ public class FunctionsImpl extends BaseResource implements Functions {
         }
     }
 
+    @Override
+    public List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException {
+        try {
+            Response response = request(functions.path("connectors")).get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            return response.readEntity(new GenericType<List<ConnectorDefinition>>() {
+            });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public Set<String> getSources() throws PulsarAdminException {
+        return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSourceClass()))
+                .map(ConnectorDefinition::getName).collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> getSinks() throws PulsarAdminException {
+        return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSinkClass()))
+                .map(ConnectorDefinition::getName).collect(Collectors.toSet());
+    }
+
+    public List<WorkerInfo> getWorkers() throws PulsarAdminException {
+        try {
+            return request(functions.path("workers")).get(new GenericType<List<WorkerInfo>>() {
+            });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    
     public static void mergeJson(String json, Builder builder) throws IOException {
         JsonFormat.parser().merge(json, builder);
     }

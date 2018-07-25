@@ -147,6 +147,11 @@ long pulsar_consumer_get_unacked_messages_timeout_ms(pulsar_consumer_configurati
 
 int pulsar_consumer_is_encryption_enabled(pulsar_consumer_configuration_t *consumer_configuration);
 
+int pulsar_consumer_is_read_compacted(pulsar_consumer_configuration_t *consumer_configuration);
+
+void pulsar_consumer_set_read_compacted(pulsar_consumer_configuration_t *consumer_configuration,
+                                        int compacted);
+
 // const CryptoKeyReaderPtr getCryptoKeyReader()
 //
 // const;

@@ -127,6 +127,12 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class OffloadInProgressException extends ManagedLedgerException {
+        public OffloadInProgressException(String msg) {
+            super(msg);
+        }
+    }
+
     @Override
     public synchronized Throwable fillInStackTrace() {
         // Disable stack traces to be filled in

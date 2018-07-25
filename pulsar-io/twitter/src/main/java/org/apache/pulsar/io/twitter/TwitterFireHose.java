@@ -28,16 +28,18 @@ import com.twitter.hbc.core.processor.HosebirdMessageProcessor;
 import com.twitter.hbc.httpclient.BasicClient;
 import com.twitter.hbc.httpclient.auth.Authentication;
 import com.twitter.hbc.httpclient.auth.OAuth1;
-import org.apache.pulsar.io.core.PushSource;
-import org.apache.pulsar.io.core.Record;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.Optional;
+
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.PushSource;
+import org.apache.pulsar.io.core.SourceContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple Push based Twitter FireHose Source
@@ -52,11 +54,11 @@ public class TwitterFireHose extends PushSource<String> {
     private Object waitObject;
 
     @Override
-    public void open(Map<String, Object> config) throws IOException {
+    public void open(Map<String, Object> config, SourceContext sourceContext) throws IOException {
         TwitterFireHoseConfig hoseConfig = TwitterFireHoseConfig.load(config);
         if (hoseConfig.getConsumerKey() == null
                 || hoseConfig.getConsumerSecret() == null
-                || hoseConfig.getToken() != null
+                || hoseConfig.getToken() == null
                 || hoseConfig.getTokenSecret() == null) {
             throw new IllegalArgumentException("Required property not set.");
         }
@@ -162,6 +164,12 @@ public class TwitterFireHose extends PushSource<String> {
 
         public TwitterRecord(String tweet) {
             this.tweet = tweet;
+        }
+
+        @Override
+        public Optional<String> getKey() {
+            // TODO: Could use user or tweet ID as key here
+            return Optional.empty();
         }
 
         @Override

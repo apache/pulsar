@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.1.0-incubating-SNAPSHOT</version>
+    <version>2.2.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -68,18 +68,6 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-common</artifactId>
-      <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.bookkeeper</groupId>
-          <artifactId>circe-checksum</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -105,7 +93,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger</artifactId>
+      <artifactId>managed-ledger-original</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -117,7 +105,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger</artifactId>
+      <artifactId>managed-ledger-original</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -139,7 +127,7 @@
 
     <dependency>
       <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-s3</artifactId>
+      <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
 
     <!-- functions related dependencies (begin) -->
@@ -190,6 +178,11 @@
     <dependency>
       <groupId>com.fasterxml.jackson.jaxrs</groupId>
       <artifactId>jackson-jaxrs-json-provider</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.module</groupId>
+      <artifactId>jackson-module-jsonSchema</artifactId>
     </dependency>
 
     <dependency>
@@ -247,6 +240,12 @@
       <artifactId>java-semver</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+    </dependency>
+
     <!-- aspectJ dependencies -->
     <dependency>
       <groupId>org.aspectj</groupId>
@@ -273,6 +272,12 @@
       <artifactId>buildtools</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>jclouds-shaded</artifactId>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 
@@ -326,6 +331,7 @@
           <execution>
             <goals>
               <goal>compile</goal>
+              <goal>test-compile</goal>
             </goals>
           </execution>
         </executions>

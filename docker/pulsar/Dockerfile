@@ -20,7 +20,7 @@
 FROM openjdk:8-jdk
 
 # Install some utilities
-RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo
+RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo python-yaml
 
 ARG PULSAR_TARBALL
 
@@ -28,6 +28,7 @@ ADD ${PULSAR_TARBALL} /
 RUN mv /apache-pulsar-* /pulsar
 
 COPY scripts/apply-config-from-env.py /pulsar/bin
+COPY scripts/gen-yml-from-env.py /pulsar/bin
 COPY scripts/generate-zookeeper-config.sh /pulsar/bin
 COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
 COPY scripts/watch-znode.py /pulsar/bin

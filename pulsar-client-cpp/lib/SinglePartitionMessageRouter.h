@@ -25,6 +25,7 @@
 #include <pulsar/TopicMetadata.h>
 #include "MessageRouterBase.h"
 
+#pragma GCC visibility push(default)
 namespace pulsar {
 
 class SinglePartitionMessageRouter : public MessageRouterBase {
@@ -39,4 +40,5 @@ class SinglePartitionMessageRouter : public MessageRouterBase {
 };
 
 }  // namespace pulsar
+#pragma GCC visibility pop
 #endif  // PULSAR_SINGLE_PARTITION_MESSAGE_ROUTER_HEADER_

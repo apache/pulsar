@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -29,16 +30,15 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
-    private static final long serialVersionUID = 1L;
-
     private final PulsarClientImpl client;
 
-    private final ReaderConfigurationData<T> conf;
+    private ReaderConfigurationData<T> conf;
 
     private final Schema<T> schema;
 
@@ -92,6 +92,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         }
 
         return client.createReaderAsync(conf, schema);
+    }
+
+    @Override
+    public ReaderBuilder<T> loadConf(Map<String, Object> config) {
+        conf = ConfigurationDataUtils.loadData(config, conf, ReaderConfigurationData.class);
+        return this;
     }
 
     @Override

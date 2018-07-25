@@ -23,6 +23,13 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 public interface SchemaCompatibilityCheck {
     SchemaType getSchemaType();
+
+    /**
+     *
+     * @param from the current schema i.e. schema that the broker has
+     * @param to the future schema i.e. the schema sent by the producer
+     * @return whether the schemas are compatible
+     */
     boolean isCompatible(SchemaData from, SchemaData to);
 
     SchemaCompatibilityCheck DEFAULT = new SchemaCompatibilityCheck() {

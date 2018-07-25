@@ -22,6 +22,7 @@
 #include <lib/LogUtils.h>
 #include <pulsar/MessageBuilder.h>
 #include <lib/Commands.h>
+#include <lib/Latch.h>
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
@@ -32,6 +33,7 @@
 #include "HttpHelper.h"
 #include <set>
 #include <vector>
+#include <lib/MultiTopicsConsumerImpl.h>
 #include "lib/Future.h"
 #include "lib/Utils.h"
 DECLARE_LOG_OBJECT()
@@ -44,10 +46,16 @@ static int globalCount = 0;
 static long globalResendMessageCount = 0;
 static std::string lookupUrl = "pulsar://localhost:8885";
 static std::string adminUrl = "http://localhost:8765/";
-
 static void messageListenerFunction(Consumer consumer, const Message& msg) {
     globalCount++;
     consumer.acknowledge(msg);
+}
+
+static void messageListenerFunctionWithoutAck(Consumer consumer, const Message& msg, Latch& latch,
+                                              const std::string& content) {
+    globalCount++;
+    ASSERT_EQ(content, msg.getDataAsString());
+    latch.countdown();
 }
 
 static void sendCallBack(Result r, const Message& msg, std::string prefix) {
@@ -258,6 +266,36 @@ TEST(BasicEndToEndTest, testNonPersistentTopic) {
     Consumer consumer;
     result = client.subscribe(topicName, "my-sub-name", consumer);
     ASSERT_EQ(ResultOk, result);
+}
+
+TEST(BasicEndToEndTest, testV2TopicProtobuf) {
+    std::string topicName = "testV2TopicProtobuf";
+    Client client(lookupUrl);
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    result = client.subscribe(topicName, "my-sub-name", consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    producer.close();
+    consumer.close();
+}
+
+TEST(BasicEndToEndTest, testV2TopicHttp) {
+    std::string topicName = "testV2TopicHttp";
+    Client client(adminUrl);
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    result = client.subscribe(topicName, "my-sub-name", consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    producer.close();
+    consumer.close();
 }
 
 TEST(BasicEndToEndTest, testSingleClientMultipleSubscriptions) {
@@ -1381,6 +1419,9 @@ TEST(BasicEndToEndTest, testSeek) {
 
     // seek to earliest, expected receive first message.
     result = consumer.seek(MessageId::earliest());
+    // Sleeping for 500ms to wait for consumer re-connect
+    usleep(500 * 1000);
+
     ASSERT_EQ(ResultOk, result);
     consumer.receive(msgReceived, 100);
     LOG_ERROR("Received message :" << msgReceived.getMessageId());
@@ -1388,9 +1429,253 @@ TEST(BasicEndToEndTest, testSeek) {
     msgNum = 0;
     expected << msgContent << msgNum;
     ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
-
+    ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
     ASSERT_EQ(ResultAlreadyClosed, consumer.close());
     ASSERT_EQ(ResultOk, producer.close());
     ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(BasicEndToEndTest, testUnAckedMessageTimeout) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns1/testUnAckedMessageTimeout";
+    std::string subName = "my-sub-name";
+    std::string content = "msg-content";
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consConfig;
+    consConfig.setUnAckedMessagesTimeoutMs(10 * 1000);
+    result = client.subscribe(topicName, subName, consConfig, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Message msg = MessageBuilder().setContent(content).build();
+    result = producer.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    Message receivedMsg1;
+    MessageId msgId1;
+    consumer.receive(receivedMsg1);
+    msgId1 = receivedMsg1.getMessageId();
+    ASSERT_EQ(content, receivedMsg1.getDataAsString());
+
+    Message receivedMsg2;
+    MessageId msgId2;
+    consumer.receive(receivedMsg2, 30 * 1000);
+    msgId2 = receivedMsg2.getMessageId();
+    ASSERT_EQ(content, receivedMsg2.getDataAsString());
+
+    ASSERT_EQ(msgId1, msgId2);
+
+    consumer.unsubscribe();
+    consumer.close();
+    producer.close();
+    client.close();
+}
+
+TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns1/testUnAckedMessageTimeoutListener";
+    std::string subName = "my-sub-name";
+    std::string content = "msg-content";
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consConfig;
+    consConfig.setUnAckedMessagesTimeoutMs(10 * 1000);
+    Latch latch(2);
+    consConfig.setMessageListener(boost::bind(messageListenerFunctionWithoutAck, _1, _2, latch, content));
+    result = client.subscribe(topicName, subName, consConfig, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    globalCount = 0;
+
+    Message msg = MessageBuilder().setContent(content).build();
+    result = producer.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    ASSERT_TRUE(latch.wait(milliseconds(30 * 1000)));
+    ASSERT_GE(globalCount, 2);
+
+    consumer.unsubscribe();
+    consumer.close();
+    producer.close();
+    client.close();
+}
+
+TEST(BasicEndToEndTest, testMultiTopicsConsumerTopicNameInvalid) {
+    Client client(lookupUrl);
+    std::vector<std::string> topicNames;
+    topicNames.reserve(3);
+    std::string subName = "testMultiTopicsTopicNameInvalid";
+    // cluster empty
+    std::string topicName1 = "persistent://prop/testMultiTopicsTopicNameInvalid";
+
+    // empty topics
+    ASSERT_EQ(0, topicNames.size());
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerShared);
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicNames, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    Result result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    LOG_INFO("subscribe on empty topics");
+    consumer.close();
+
+    // Invalid topic names
+    Consumer consumer1;
+    std::string subName1 = "testMultiTopicsTopicNameInvalid";
+    topicNames.push_back(topicName1);
+    Promise<Result, Consumer> consumerPromise1;
+    client.subscribeAsync(topicNames, subName1, consConfig, WaitForCallbackValue<Consumer>(consumerPromise1));
+    Future<Result, Consumer> consumerFuture1 = consumerPromise1.getFuture();
+    result = consumerFuture1.get(consumer1);
+    ASSERT_EQ(ResultInvalidTopicName, result);
+    LOG_INFO("subscribe on TopicName1 failed");
+    consumer1.close();
+
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
+    Client client(lookupUrl);
+    std::vector<std::string> topicNames;
+    topicNames.reserve(3);
+    std::string subName = "testMultiTopicsDifferentNamespace";
+    std::string topicName1 = "persistent://prop/unit/ns1/testMultiTopicsConsumerDifferentNamespace1";
+    std::string topicName2 = "persistent://prop/unit/ns2/testMultiTopicsConsumerDifferentNamespace2";
+    std::string topicName3 = "persistent://prop/unit/ns3/testMultiTopicsConsumerDifferentNamespace3";
+
+    topicNames.push_back(topicName1);
+    topicNames.push_back(topicName2);
+    topicNames.push_back(topicName3);
+
+    // call admin api to make topics partitioned
+    std::string url1 =
+        adminUrl + "admin/persistent/prop/unit/ns1/testMultiTopicsConsumerDifferentNamespace1/partitions";
+    std::string url2 =
+        adminUrl + "admin/persistent/prop/unit/ns2/testMultiTopicsConsumerDifferentNamespace2/partitions";
+    std::string url3 =
+        adminUrl + "admin/persistent/prop/unit/ns3/testMultiTopicsConsumerDifferentNamespace3/partitions";
+
+    int res = makePutRequest(url1, "2");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url2, "3");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url3, "4");
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    // empty topics
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerShared);
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicNames, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    Result result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultInvalidTopicName, result);
+    LOG_INFO("subscribe on topics with different names should fail");
+    consumer.close();
+
+    client.shutdown();
+}
+
+// Test subscribe 3 topics using MultiTopicsConsumer
+TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
+    Client client(lookupUrl);
+    std::vector<std::string> topicNames;
+    topicNames.reserve(3);
+    std::string subName = "testMultiTopicsConsumer";
+    std::string topicName1 = "persistent://prop/unit/ns/testMultiTopicsConsumer1";
+    std::string topicName2 = "persistent://prop/unit/ns/testMultiTopicsConsumer2";
+    std::string topicName3 = "persistent://prop/unit/ns/testMultiTopicsConsumer3";
+
+    topicNames.push_back(topicName1);
+    topicNames.push_back(topicName2);
+    topicNames.push_back(topicName3);
+
+    // call admin api to make topics partitioned
+    std::string url1 = adminUrl + "admin/persistent/prop/unit/ns/testMultiTopicsConsumer1/partitions";
+    std::string url2 = adminUrl + "admin/persistent/prop/unit/ns/testMultiTopicsConsumer2/partitions";
+    std::string url3 = adminUrl + "admin/persistent/prop/unit/ns/testMultiTopicsConsumer3/partitions";
+
+    int res = makePutRequest(url1, "2");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url2, "3");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url3, "4");
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer1;
+    Result result = client.createProducer(topicName1, producer1);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer2;
+    result = client.createProducer(topicName2, producer2);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer3;
+    result = client.createProducer(topicName3, producer3);
+    ASSERT_EQ(ResultOk, result);
+
+    LOG_INFO("created 3 producers");
+
+    int messageNumber = 100;
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerShared);
+    consConfig.setReceiverQueueSize(10);  // size for each sub-consumer
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicNames, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+    LOG_INFO("created topics consumer on 3 topics");
+
+    std::string msgContent = "msg-content";
+    LOG_INFO("Publishing 100 messages by producer 1 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer1.send(msg));
+    }
+
+    msgContent = "msg-content2";
+    LOG_INFO("Publishing 100 messages by producer 2 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer2.send(msg));
+    }
+
+    msgContent = "msg-content3";
+    LOG_INFO("Publishing 100 messages by producer 3 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer3.send(msg));
+    }
+
+    LOG_INFO("Consuming and acking 300 messages by multiTopicsConsumer");
+    for (int i = 0; i < 3 * messageNumber; i++) {
+        Message m;
+        ASSERT_EQ(ResultOk, consumer.receive(m, 10000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(m));
+    }
+
+    LOG_INFO("Consumed and acked 300 messages by multiTopicsConsumer");
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+
+    client.shutdown();
 }

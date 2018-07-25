@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.utils.FunctionConfig;
@@ -32,14 +33,18 @@ import org.apache.pulsar.functions.utils.SinkConfig;
 import org.apache.pulsar.functions.utils.SourceConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.WindowConfig;
+import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 
+import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
@@ -104,7 +109,7 @@ public class ValidatorImpls {
         @Override
         public void validateField(String name, Object o) {
             if (o == null) {
-               throw new IllegalArgumentException(String.format("Field '%s' cannot be null!", name));
+                throw new IllegalArgumentException(String.format("Field '%s' cannot be null!", name));
             }
 
             if (o instanceof Resources) {
@@ -202,7 +207,7 @@ public class ValidatorImpls {
 
             if (!this.classImplements.isAssignableFrom(objectClass)) {
                 throw new IllegalArgumentException(
-                        String.format("Field '%s' with value '%s' does not implement %s ",
+                        String.format("Field '%s' with value '%s' does not implement %s",
                                 name, o, this.classImplements.getName()));
             }
         }
@@ -217,6 +222,10 @@ public class ValidatorImpls {
 
         public ImplementsClassesValidator(Map<String, Object> params) {
             this.classesImplements = (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.IMPLEMENTS_CLASSES);
+        }
+
+        public ImplementsClassesValidator(Class<?>... classesImplements) {
+            this.classesImplements = classesImplements;
         }
 
         @Override
@@ -447,6 +456,10 @@ public class ValidatorImpls {
             if (functionConfig.getWindowConfig() != null) {
                 throw new IllegalArgumentException("There is currently no support windowing in python");
             }
+
+            if (StringUtils.isNotBlank(functionConfig.getTopicsPattern())) {
+                throw new IllegalArgumentException("Topic-patterns is not supported for python runtime");
+            }
         }
 
         private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic) throws IllegalArgumentException {
@@ -458,7 +471,8 @@ public class ValidatorImpls {
         }
 
         private static void doCommonChecks(FunctionConfig functionConfig) {
-            if (functionConfig.getInputs().isEmpty() && functionConfig.getCustomSerdeInputs().isEmpty()) {
+            if ((functionConfig.getInputs().isEmpty() && StringUtils.isEmpty(functionConfig.getTopicsPattern()))
+                    && functionConfig.getCustomSerdeInputs().isEmpty()) {
                 throw new RuntimeException("No input topic(s) specified for the function");
             }
 
@@ -629,72 +643,24 @@ public class ValidatorImpls {
         @Override
         public void validateField(String name, Object o) {
             SourceConfig sourceConfig = (SourceConfig) o;
-            Class<?> typeArg = getSourceType(sourceConfig.getClassName());
-            String serdeClassname = sourceConfig.getSerdeClassName();
-
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-
-            if (StringUtils.isEmpty(serdeClassname)) {
-                serdeClassname = DefaultSerDe.class.getName();
+            if (sourceConfig.getArchive().startsWith(Utils.BUILTIN)) {
+                // We don't have to check the archive, since it's provided on the worker itself
+                return;
             }
 
+            String sourceClassName;
             try {
-                loadClass(serdeClassname);
-            } catch (ClassNotFoundException e) {
-                throw new IllegalArgumentException(
-                        String.format("The input serialization/deserialization class %s does not exist", serdeClassname));
-
+                sourceClassName = ConnectorUtils.getIOSourceClass(sourceConfig.getArchive());
+            } catch (IOException e1) {
+                throw new IllegalArgumentException("Failed to extract source class from archive", e1);
             }
 
-            try {
-                new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, serdeClassname);
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException(
-                        String.format("The input serialization/deserialization class %s does not not implement %s",
-                                serdeClassname, SerDe.class.getCanonicalName()));
-            }
+            try (NarClassLoader clsLoader = NarClassLoader.getFromArchive(new File(sourceConfig.getArchive()),
+                    Collections.emptySet())) {
 
-            if (serdeClassname.equals(DefaultSerDe.class.getName())) {
-                if (!DefaultSerDe.IsSupportedType(typeArg)) {
-                    throw new IllegalArgumentException("The default Serializer does not support type " + typeArg);
-                }
-            } else {
-                SerDe serDe = (SerDe) Reflections.createInstance(serdeClassname, clsLoader);
-                if (serDe == null) {
-                    throw new IllegalArgumentException(String.format("The SerDe class %s does not exist",
-                            serdeClassname));
-                }
-                Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+                Class<?> typeArg = getSourceType(sourceClassName, clsLoader);
+                String serdeClassname = sourceConfig.getSerdeClassName();
 
-                // type inheritance information seems to be lost in generic type
-                // load the actual type class for verification
-                Class<?> fnInputClass;
-                Class<?> serdeInputClass;
-                try {
-                    fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
-                    // get output serde
-                    serdeInputClass = Class.forName(serDeTypes[1].getName(), true, clsLoader);
-                } catch (ClassNotFoundException e) {
-                    throw new IllegalArgumentException("Failed to load type class", e);
-                }
-
-                if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
-                    throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " +
-                            serDeTypes[1]);
-                }
-            }
-        }
-    }
-
-    public static class SinkConfigValidator extends Validator {
-        @Override
-        public void validateField(String name, Object o) {
-            SinkConfig sinkConfig = (SinkConfig) o;
-            Class<?> typeArg = getSinkType(sinkConfig.getClassName());
-
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-
-            sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassname) -> {
                 if (StringUtils.isEmpty(serdeClassname)) {
                     serdeClassname = DefaultSerDe.class.getName();
                 }
@@ -702,29 +668,27 @@ public class ValidatorImpls {
                 try {
                     loadClass(serdeClassname);
                 } catch (ClassNotFoundException e) {
-                    throw new IllegalArgumentException(
-                            String.format("The input serialization/deserialization class %s does not exist", serdeClassname));
+                    throw new IllegalArgumentException(String
+                            .format("The input serialization/deserialization class %s does not exist", serdeClassname));
                 }
 
                 try {
                     new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, serdeClassname);
                 } catch (IllegalArgumentException ex) {
                     throw new IllegalArgumentException(
-                            String.format("The input serialization/deserialization class %s does not not " +
-                                            "implement %s",
+                            String.format("The input serialization/deserialization class %s does not not implement %s",
                                     serdeClassname, SerDe.class.getCanonicalName()));
                 }
 
                 if (serdeClassname.equals(DefaultSerDe.class.getName())) {
                     if (!DefaultSerDe.IsSupportedType(typeArg)) {
-                        throw new IllegalArgumentException("The default Serializer does not support type " +
-                                typeArg);
+                        throw new IllegalArgumentException("The default Serializer does not support type " + typeArg);
                     }
                 } else {
                     SerDe serDe = (SerDe) Reflections.createInstance(serdeClassname, clsLoader);
                     if (serDe == null) {
-                        throw new IllegalArgumentException(String.format("The SerDe class %s does not exist",
-                                serdeClassname));
+                        throw new IllegalArgumentException(
+                                String.format("The SerDe class %s does not exist", serdeClassname));
                     }
                     Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
 
@@ -734,18 +698,108 @@ public class ValidatorImpls {
                     Class<?> serdeInputClass;
                     try {
                         fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
-                        // get input serde
-                        serdeInputClass = Class.forName(serDeTypes[0].getName(), true, clsLoader);
+                        // get output serde
+                        serdeInputClass = Class.forName(serDeTypes[1].getName(), true, clsLoader);
                     } catch (ClassNotFoundException e) {
                         throw new IllegalArgumentException("Failed to load type class", e);
                     }
 
                     if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
-                        throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " +
-                                serDeTypes[0]);
+                        throw new IllegalArgumentException(
+                                "Serializer type mismatch " + typeArg + " vs " + serDeTypes[1]);
                     }
                 }
-            });
+            } catch (IOException e) {
+                throw new IllegalArgumentException(e);
+            }
+        }
+    }
+
+    public static class SinkConfigValidator extends Validator {
+        @Override
+        public void validateField(String name, Object o) {
+            SinkConfig sinkConfig = (SinkConfig) o;
+            if (sinkConfig.getArchive().startsWith(Utils.BUILTIN)) {
+                // We don't have to check the archive, since it's provided on the worker itself
+                return;
+            }
+
+            // if function-pkg url is present eg: file://xyz.jar then admin-tool might not have access of the file at
+            // the same location so, need to rely on server side validation.
+            if (Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive())) {
+                return;
+            }
+
+            // make we sure we have one source of input
+            if ((sinkConfig.getTopicToSerdeClassName() == null || sinkConfig.getTopicToSerdeClassName().isEmpty())
+                    && isBlank(sinkConfig.getTopicsPattern())) {
+                throw new IllegalArgumentException("Must specify at least one topic of input via inputs, " +
+                        "customSerdeInputs, or topicPattern");
+            }
+
+
+            try (NarClassLoader clsLoader = NarClassLoader.getFromArchive(new File(sinkConfig.getArchive()),
+                    Collections.emptySet())) {
+                String sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
+                Class<?> typeArg = getSinkType(sinkClassName, clsLoader);
+
+                if (sinkConfig.getTopicToSerdeClassName() != null) {
+                    sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassname) -> {
+                        if (StringUtils.isEmpty(serdeClassname)) {
+                            serdeClassname = DefaultSerDe.class.getName();
+                        }
+
+                        try {
+                            loadClass(serdeClassname);
+                        } catch (ClassNotFoundException e) {
+                            throw new IllegalArgumentException(String.format(
+                                    "The input serialization/deserialization class %s does not exist", serdeClassname));
+                        }
+
+                        try {
+                            new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, serdeClassname);
+
+                        } catch (IllegalArgumentException ex) {
+                            throw new IllegalArgumentException(String.format(
+                                    "The input serialization/deserialization class %s does not not " + "implement %s",
+                                    serdeClassname, SerDe.class.getCanonicalName()));
+                        }
+
+                        if (serdeClassname.equals(DefaultSerDe.class.getName())) {
+                            if (!DefaultSerDe.IsSupportedType(typeArg)) {
+                                throw new IllegalArgumentException("The default Serializer does not support type " +
+                                        typeArg);
+                            }
+                        } else {
+                            SerDe serDe = (SerDe) Reflections.createInstance(serdeClassname, clsLoader);
+                            if (serDe == null) {
+                                throw new IllegalArgumentException(
+                                        String.format("The SerDe class %s does not exist", serdeClassname));
+                            }
+                            Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+
+                            // type inheritance information seems to be lost in generic type
+                            // load the actual type class for verification
+                            Class<?> fnInputClass;
+                            Class<?> serdeInputClass;
+                            try {
+                                fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
+                                // get input serde
+                                serdeInputClass = Class.forName(serDeTypes[0].getName(), true, clsLoader);
+                            } catch (ClassNotFoundException e) {
+                                throw new IllegalArgumentException("Failed to load type class", e);
+                            }
+
+                            if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
+                                throw new IllegalArgumentException(
+                                        "Serializer type mismatch " + typeArg + " vs " + serDeTypes[0]);
+                            }
+                        }
+                    });
+                }
+            } catch (IOException e) {
+                throw new IllegalArgumentException(e);
+            }
         }
     }
 
@@ -757,9 +811,14 @@ public class ValidatorImpls {
             }
             new StringValidator().validateField(name, o);
 
-            if (!fileExists((String) o)) {
-                throw new IllegalArgumentException
-                        (String.format("File %s specified in field '%s' does not exist", o, name));
+            String path = (String) o;
+
+            if(!Utils.isFunctionPackageUrlSupported(path)) {
+                // check file existence if path is not url and local path
+                if (!path.startsWith(Utils.BUILTIN) && !fileExists(path)) {
+                    throw new IllegalArgumentException
+                            (String.format("File %s specified in field '%s' does not exist", path, name));
+                }
             }
         }
     }

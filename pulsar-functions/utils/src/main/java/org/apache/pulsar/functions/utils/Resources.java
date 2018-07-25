@@ -29,6 +29,7 @@ import java.util.Map;
 @EqualsAndHashCode
 @ToString
 @AllArgsConstructor
+@NoArgsConstructor
 public class Resources {
     private Double cpu;
     private Long ram;

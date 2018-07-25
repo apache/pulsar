@@ -58,6 +58,7 @@ public class Policies {
     public int max_consumers_per_subscription = 0;
 
     public long compaction_threshold = 0;
+    public long offload_threshold = -1;
 
     @Override
     public boolean equals(Object obj) {
@@ -78,7 +79,8 @@ public class Policies {
                     && max_producers_per_topic == other.max_producers_per_topic
                     && max_consumers_per_topic == other.max_consumers_per_topic
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
-                    && compaction_threshold == other.compaction_threshold;
+                    && compaction_threshold == other.compaction_threshold
+                    && offload_threshold == other.offload_threshold;
         }
 
         return false;
@@ -109,6 +111,7 @@ public class Policies {
                 .add("max_producers_per_topic", max_producers_per_topic)
                 .add("max_consumers_per_topic", max_consumers_per_topic)
                 .add("max_consumers_per_subscription", max_consumers_per_topic)
-                .add("compaction_threshold", compaction_threshold).toString();
+                .add("compaction_threshold", compaction_threshold)
+                .add("offload_threshold", offload_threshold).toString();
     }
 }

@@ -20,7 +20,8 @@ package org.apache.pulsar.io.core;
 
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Consumer;
+
+import org.apache.pulsar.functions.api.Record;
 
 /**
  * Pulsar's Push Source interface. PushSource read data from
@@ -52,9 +53,10 @@ public abstract class PushSource<T> implements Source<T> {
      * Open connector with configuration
      *
      * @param config initialization config
+     * @param sourceContext
      * @throws Exception IO type exceptions when opening a connector
      */
-    abstract public void open(Map<String, Object> config) throws Exception;
+    abstract public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception;
 
     /**
      * Attach a consumer function to this Source. This is invoked by the implementation

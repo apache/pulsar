@@ -25,15 +25,13 @@ import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClass;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isMapEntryCustom;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isPositiveNumber;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidResources;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidSinkConfig;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
 import org.apache.pulsar.functions.utils.validation.ValidatorImpls;
-import org.apache.pulsar.io.core.Sink;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @Getter
@@ -49,18 +47,22 @@ public class SinkConfig {
     private String namespace;
     @NotNull
     private String name;
-    @NotNull
-    @isImplementationOfClass(implementsClass = Sink.class)
     private String className;
+    private String sourceSubscriptionName;
+
     @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
             valueValidatorClasses = { ValidatorImpls.SerdeValidator.class })
     private Map<String, String> topicToSerdeClassName;
-    private Map<String, Object> configs = new HashMap<>();
+    @isValidTopicName
+    private String topicsPattern;
+    private Map<String, Object> configs;
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
+    private boolean retainOrdering;
     @isValidResources
     private Resources resources;
+
     @isFileExists
-    private String jar;
+    private String archive;
 }

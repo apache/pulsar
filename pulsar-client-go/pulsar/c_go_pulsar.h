@@ -20,6 +20,7 @@
 #pragma once
 
 #include <pulsar/c/client.h>
+#include <pulsar/c/authentication.h>
 #include <stdlib.h>
 
 // Callback proxy functions
@@ -128,7 +129,8 @@ static void setString(char** array, char *str, int n) {
 }
 
 static void freeStringArray(char* *array, int size) {
-    for (int i = 0; i < size; i++) {
+    int i;
+    for (i = 0; i < size; i++) {
         free(array[i]);
     }
 

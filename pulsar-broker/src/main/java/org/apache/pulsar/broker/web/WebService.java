@@ -134,7 +134,8 @@ public class WebService implements AutoCloseable {
         }
 
         if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
-            FilterHolder filter = new FilterHolder(new AuthenticationFilter(pulsar));
+            FilterHolder filter = new FilterHolder(new AuthenticationFilter(
+                                                           pulsar.getBrokerService().getAuthenticationService()));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 

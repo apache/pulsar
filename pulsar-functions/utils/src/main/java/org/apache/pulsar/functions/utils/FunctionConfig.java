@@ -55,7 +55,7 @@ public class FunctionConfig {
         ATMOST_ONCE,
         EFFECTIVELY_ONCE
     }
-
+    
     public enum Runtime {
         JAVA,
         PYTHON
@@ -77,6 +77,8 @@ public class FunctionConfig {
             valueValidatorClasses = { ValidatorImpls.SerdeValidator.class }, targetRuntime = ConfigValidation.Runtime.JAVA)
     @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class }, targetRuntime = ConfigValidation.Runtime.PYTHON)
     private Map<String, String> customSerdeInputs;
+    @isValidTopicName
+    private String topicsPattern;
     @isValidTopicName
     private String output;
     @isImplementationOfClass(implementsClass = SerDe.class)

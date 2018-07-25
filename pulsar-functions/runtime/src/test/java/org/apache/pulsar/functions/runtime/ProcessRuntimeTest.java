@@ -25,6 +25,7 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -57,6 +58,7 @@ public class ProcessRuntimeTest {
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String pulsarServiceUrl;
+    private final String stateStorageServiceUrl;
     private final String logDirectory;
 
     public ProcessRuntimeTest() {
@@ -64,9 +66,10 @@ public class ProcessRuntimeTest {
         this.javaInstanceJarFile = "/Users/user/JavaInstance.jar";
         this.pythonInstanceFile = "/Users/user/PythonInstance.py";
         this.pulsarServiceUrl = "pulsar://localhost:6670";
+        this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "Users/user/logs";
         this.factory = new ProcessRuntimeFactory(
-            pulsarServiceUrl, javaInstanceJarFile, pythonInstanceFile, logDirectory);
+            pulsarServiceUrl, stateStorageServiceUrl, null, javaInstanceJarFile, pythonInstanceFile, logDirectory);
     }
 
     @AfterMethod
@@ -91,6 +94,7 @@ public class ProcessRuntimeTest {
         functionDetailsBuilder.setSource(Function.SourceSpec.newBuilder()
                 .setSubscriptionType(Function.SubscriptionType.FAILOVER)
                 .putAllTopicsToSerDeClassName(topicsToSerDeClassName)
+                .setTopicsPattern("persistent://tenant/ns/.*")
                 .setClassName("org.pulsar.pulsar.TestSource")
                 .setTypeClassName(String.class.getName()));
         return functionDetailsBuilder.build();
@@ -114,8 +118,10 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 51);
-        String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
+        assertEquals(args.size(), 56);
+        String expectedArgs = "java -cp " + javaInstanceJarFile
+                + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
+                + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
@@ -128,15 +134,17 @@ public class ProcessRuntimeTest {
                 + " --auto_ack false"
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(34)
+                + " --max_buffered_tuples 1024 --port " + args.get(35)
                 + " --source_classname " + config.getFunctionDetails().getSource().getClassName()
-                + " --source_type_classname " + config.getFunctionDetails().getSource().getTypeClassName()
+                + " --source_type_classname \"" + config.getFunctionDetails().getSource().getTypeClassName() + "\""
                 + " --source_subscription_type " + config.getFunctionDetails().getSource().getSubscriptionType().name()
                 + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName)
+                + " --topics_pattern " + config.getFunctionDetails().getSource().getTopicsPattern()
                 + " --sink_classname " + config.getFunctionDetails().getSink().getClassName()
-                + " --sink_type_classname " + config.getFunctionDetails().getSink().getTypeClassName()
+                + " --sink_type_classname \"" + config.getFunctionDetails().getSink().getTypeClassName() + "\""
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
-                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName();
+                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
+                + " --state_storage_serviceurl " + stateStorageServiceUrl;
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
@@ -146,7 +154,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 42);
+        assertEquals(args.size(), 44);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
@@ -162,6 +170,7 @@ public class ProcessRuntimeTest {
                 + " --max_buffered_tuples 1024 --port " + args.get(33)
                 + " --source_subscription_type " + config.getFunctionDetails().getSource().getSubscriptionType().name()
                 + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName)
+                + " --topics_pattern " + config.getFunctionDetails().getSource().getTopicsPattern()
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
                 + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName();
         assertEquals(expectedArgs, String.join(" ", args));

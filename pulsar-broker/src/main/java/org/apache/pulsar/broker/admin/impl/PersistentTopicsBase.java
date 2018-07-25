@@ -486,7 +486,7 @@ public class PersistentTopicsBase extends AdminResource {
             internalDeleteTopic(authoritative);
         }
     }
-    
+
     protected void internalDeleteTopic(boolean authoritative) {
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
@@ -1137,7 +1137,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(PulsarService pulsar,
-            String clientAppId, AuthenticationDataSource authenticationData, TopicName topicName) {
+            String clientAppId, String originalPrincipal, AuthenticationDataSource authenticationData, TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
             // (1) authorize client
@@ -1145,7 +1145,7 @@ public class PersistentTopicsBase extends AdminResource {
                 checkAuthorization(pulsar, topicName, clientAppId, authenticationData);
             } catch (RestException e) {
                 try {
-                    validateAdminAccessForTenant(pulsar, clientAppId, topicName.getTenant());
+                    validateAdminAccessForTenant(pulsar, clientAppId, originalPrincipal, topicName.getTenant());
                 } catch (RestException authException) {
                     log.warn("Failed to authorize {} on cluster {}", clientAppId, topicName.toString());
                     throw new PulsarClientException(String.format("Authorization failed %s on topic %s with error %s",
@@ -1191,7 +1191,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
-        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString()).join();
+        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString(), null).join();
     }
 
     /**

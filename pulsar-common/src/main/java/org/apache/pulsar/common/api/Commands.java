@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -453,10 +454,32 @@ public class Commands {
                 return PulsarApi.Schema.Type.String;
             case JSON:
                 return PulsarApi.Schema.Type.Json;
+            case PROTOBUF:
+                return PulsarApi.Schema.Type.Protobuf;
+            case AVRO:
+                return PulsarApi.Schema.Type.Avro;
             default:
                 return PulsarApi.Schema.Type.None;
         }
     }
+
+    public static SchemaType getSchemaType(PulsarApi.Schema.Type type) {
+        switch (type) {
+            case None:
+                return SchemaType.NONE;
+            case String:
+                return SchemaType.STRING;
+            case Json:
+                return SchemaType.JSON;
+            case Protobuf:
+                return SchemaType.PROTOBUF;
+            case Avro:
+                return SchemaType.AVRO;
+            default:
+                return SchemaType.NONE;
+        }
+    }
+
 
     private static PulsarApi.Schema getSchema(SchemaInfo schemaInfo) {
         PulsarApi.Schema.Builder builder = PulsarApi.Schema.newBuilder()
@@ -793,6 +816,47 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newGetSchema(long requestId, String topic, Optional<SchemaVersion> version) {
+        PulsarApi.CommandGetSchema.Builder schema = PulsarApi.CommandGetSchema.newBuilder()
+            .setRequestId(requestId);
+        schema.setTopic(topic);
+        if (version.isPresent()) {
+            schema.setSchemaVersion(ByteString.copyFrom(version.get().bytes()));
+        }
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+            .setType(Type.GET_SCHEMA)
+            .setGetSchema(schema.build()));
+        schema.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version) {
+        PulsarApi.CommandGetSchemaResponse.Builder schemaResponse = PulsarApi.CommandGetSchemaResponse.newBuilder()
+            .setRequestId(requestId)
+            .setSchemaVersion(ByteString.copyFrom(version.bytes()))
+            .setSchema(getSchema(schema));
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+            .setType(Type.GET_SCHEMA_RESPONSE)
+            .setGetSchemaResponse(schemaResponse.build()));
+        schemaResponse.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetSchemaResponseError(long requestId, ServerError error, String errorMessage) {
+        PulsarApi.CommandGetSchemaResponse.Builder schemaResponse = PulsarApi.CommandGetSchemaResponse.newBuilder()
+            .setRequestId(requestId)
+            .setErrorCode(error)
+            .setErrorMessage(errorMessage);
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+            .setType(Type.GET_SCHEMA_RESPONSE)
+            .setGetSchemaResponse(schemaResponse.build()));
+        schemaResponse.recycle();
+        return res;
+    }
+
     @VisibleForTesting
     public static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
         // / Wire format
@@ -1070,4 +1134,7 @@ public class Commands {
         return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 
+    public static boolean peerSupportJsonSchemaAvroFormat(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v13.getNumber();
+    }
 }

@@ -1379,7 +1379,7 @@ public class ServerCnxTest {
             serverCnx.close();
             channel.close().get();
         }
-        serverCnx = new ServerCnx(brokerService);
+        serverCnx = new ServerCnx(pulsar);
         serverCnx.authRole = "";
         channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4), serverCnx);
     }

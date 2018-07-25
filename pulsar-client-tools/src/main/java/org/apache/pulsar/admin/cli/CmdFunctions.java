@@ -18,6 +18,17 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.isNull;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.apache.commons.lang.StringUtils.isNotBlank;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -27,39 +38,13 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.api.StorageClient;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.api.kv.result.KeyValue;
-import org.apache.bookkeeper.clients.StorageClientBuilder;
-import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.bookkeeper.clients.utils.NetUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.Resources;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.proto.Function.SubscriptionType;
-import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
-import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.functions.utils.WindowConfig;
-import org.apache.pulsar.functions.utils.validation.ConfigValidation;
-import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
-import org.apache.pulsar.functions.windowing.WindowUtils;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
@@ -74,13 +59,37 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Objects.isNull;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.bookkeeper.api.StorageClient;
+import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.api.kv.result.KeyValue;
+import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.config.StorageClientSettings;
+import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.admin.cli.utils.CmdUtils;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.Resources;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.Function.SubscriptionType;
+import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.WindowConfig;
+import org.apache.pulsar.functions.utils.validation.ConfigValidation;
+import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassesValidator;
+import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
+import org.apache.pulsar.functions.windowing.WindowUtils;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -98,6 +107,7 @@ public class CmdFunctions extends CmdBase {
     private final TriggerFunction triggerer;
     private final UploadFunction uploader;
     private final DownloadFunction downloader;
+    private final GetWorkers workers;
 
     /**
      * Base command
@@ -205,10 +215,7 @@ public class CmdFunctions extends CmdBase {
         protected String functionName;
         @Parameter(names = "--className", description = "The function's class name")
         protected String className;
-        @Parameter(
-                names = "--jar",
-                description = "Path to the jar file for the function (if the function is written in Java)",
-                listConverter = StringConverter.class)
+        @Parameter(names = "--jar", description = "Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
         @Parameter(
                 names = "--py",
@@ -217,6 +224,8 @@ public class CmdFunctions extends CmdBase {
         protected String pyFile;
         @Parameter(names = "--inputs", description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
+        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)")
+        protected String topicsPattern;
         @Parameter(names = "--output", description = "The function's output topic")
         protected String output;
         @Parameter(names = "--logTopic", description = "The topic to which the function's logs are produced")
@@ -287,6 +296,9 @@ public class CmdFunctions extends CmdBase {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
                 functionConfig.setCustomSerdeInputs(customSerdeInputMap);
+            }
+            if (null != topicsPattern) {
+                functionConfig.setTopicsPattern(topicsPattern);
             }
             if (null != output) {
                 functionConfig.setOutput(output);
@@ -383,30 +395,58 @@ public class CmdFunctions extends CmdBase {
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
 
-            if (functionConfig.getJar() != null && functionConfig.getPy() != null) {
+            if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"
                         + " be specified for the function. Cannot specify both.");
             }
 
-            if (functionConfig.getJar() == null && functionConfig.getPy() == null) {
+            if (isBlank(functionConfig.getJar()) && isBlank(functionConfig.getPy())) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"
                         + " be specified for the function. Please specify one.");
             }
 
-            if (!fileExists(userCodeFile)) {
-                throw new ParameterException("File " + userCodeFile + " does not exist");
+            boolean isJarPathUrl = isNotBlank(functionConfig.getJar()) && Utils.isFunctionPackageUrlSupported(functionConfig.getJar());
+            String jarFilePath = null;
+            if (isJarPathUrl) {
+                if (functionConfig.getJar().startsWith(Utils.HTTP)) {
+                    // download jar file if url is http or file is downloadable
+                    File tempPkgFile = null;
+                    try {
+                        tempPkgFile = File.createTempFile(functionConfig.getName(), "function");
+                        downloadFromHttpUrl(functionConfig.getJar(), new FileOutputStream(tempPkgFile));
+                        jarFilePath = tempPkgFile.getAbsolutePath();
+                    } catch (Exception e) {
+                        if (tempPkgFile != null) {
+                            tempPkgFile.deleteOnExit();
+                        }
+                        throw new ParameterException("Failed to download jar from " + functionConfig.getJar()
+                                + ", due to =" + e.getMessage());
+                    }
+                }
+            } else {
+                if (!fileExists(userCodeFile)) {
+                    throw new ParameterException("File " + userCodeFile + " does not exist");
+                }
+                jarFilePath = userCodeFile;
             }
 
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                File file = new File(functionConfig.getJar());
-                ClassLoader userJarLoader;
-                try {
-                    userJarLoader = Reflections.loadJar(file);
-                } catch (MalformedURLException e) {
-                    throw new ParameterException("Failed to load user jar " + file + " with error " + e.getMessage());
+
+                if (jarFilePath != null) {
+                    File file = new File(jarFilePath);
+                    ClassLoader userJarLoader;
+                    try {
+                        userJarLoader = Reflections.loadJar(file);
+                    } catch (MalformedURLException e) {
+                        throw new ParameterException(
+                                "Failed to load user jar " + file + " with error " + e.getMessage());
+                    }
+                    // make sure the function class loader is accessible thread-locally
+                    Thread.currentThread().setContextClassLoader(userJarLoader);
+
+                    (new ImplementsClassesValidator(Function.class, java.util.function.Function.class))
+                            .validateField("className", functionConfig.getClassName());
                 }
-                // make sure the function class loader is accessible thread-locally
-                Thread.currentThread().setContextClassLoader(userJarLoader);
             }
 
             try {
@@ -505,7 +545,6 @@ public class CmdFunctions extends CmdBase {
 
             Class<?>[] typeArgs = null;
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                // Assuming any external jars are already loaded
                 typeArgs = Utils.getFunctionTypes(functionConfig);
             }
 
@@ -517,6 +556,9 @@ public class CmdFunctions extends CmdBase {
             topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
             functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
             sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
+            if (StringUtils.isNotBlank(functionConfig.getTopicsPattern())) {
+                sourceSpecBuilder.setTopicsPattern(functionConfig.getTopicsPattern());
+            }
 
             // Set subscription type based on processing semantics
             if (functionConfig.getProcessingGuarantees() != null) {
@@ -633,10 +675,37 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
 
+        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker")
+        protected String clientAuthPlugin;
+
+        @Parameter(names = "--clientAuthParams", description = "Client authentication param")
+        protected String clientAuthParams;
+
+        @Parameter(names = "--use_tls", description = "Use tls connection\n")
+        protected boolean useTls;
+
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+        protected boolean tlsAllowInsecureConnection;
+
+        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
+        protected boolean tlsHostNameVerificationEnabled;
+
+        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
+        protected String tlsTrustCertFilePath;
+
+        @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset")
+        protected Integer instanceIdOffset = 0;
+
         @Override
         void runCmd() throws Exception {
-            CmdFunctions.startLocalRun(convertProto2(functionConfig),
-                    functionConfig.getParallelism(), brokerServiceUrl, userCodeFile, admin);
+            CmdFunctions.startLocalRun(convertProto2(functionConfig), functionConfig.getParallelism(),
+                    instanceIdOffset, brokerServiceUrl, stateStorageServiceUrl,
+                    AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
+                            .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
+                            .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
+                            .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
+                            .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
+                    userCodeFile, admin);
         }
     }
 
@@ -644,7 +713,12 @@ public class CmdFunctions extends CmdBase {
     class CreateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().createFunction(convert(functionConfig), userCodeFile);
+            if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
+                admin.functions().createFunctionWithUrl(convert(functionConfig), functionConfig.getJar());
+            } else {
+                admin.functions().createFunction(convert(functionConfig), userCodeFile);
+            }
+
             print("Created successfully");
         }
     }
@@ -682,7 +756,11 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().updateFunction(convert(functionConfig), userCodeFile);
+            if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
+                admin.functions().updateFunctionWithUrl(convert(functionConfig), functionConfig.getJar());
+            } else {
+                admin.functions().updateFunction(convert(functionConfig), userCodeFile);
+            }
             print("Updated successfully");
         }
     }
@@ -715,13 +793,13 @@ public class CmdFunctions extends CmdBase {
             String tableNs = String.format(
                 "%s_%s",
                 tenant,
-                namespace);
+                namespace).replace('-', '_');
 
             String tableName = getFunctionName();
 
             try (StorageClient client = StorageClientBuilder.newBuilder()
                  .withSettings(StorageClientSettings.newBuilder()
-                     .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
+                     .serviceUri(stateStorageServiceUrl)
                      .clientName("functions-admin")
                      .build())
                  .withNamespace(tableNs)
@@ -810,6 +888,16 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get list of workers registered into cluster")
+    class GetWorkers extends BaseCommand {
+        @Override
+        void runCmd() throws Exception {
+            String json = (new Gson()).toJson(admin.functions().getWorkers());
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(new JsonParser().parse(json)));
+        }
+    }
+    
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
@@ -823,6 +911,7 @@ public class CmdFunctions extends CmdBase {
         triggerer = new TriggerFunction();
         uploader = new UploadFunction();
         downloader = new DownloadFunction();
+        workers = new GetWorkers();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
@@ -834,6 +923,7 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("trigger", getTriggerer());
         jcommander.addCommand("upload", getUploader());
         jcommander.addCommand("download", getDownloader());
+        jcommander.addCommand("workers", workers);
     }
 
     @VisibleForTesting
@@ -901,7 +991,8 @@ public class CmdFunctions extends CmdBase {
     }
 
     protected static void startLocalRun(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
-                                        int parallelism, String brokerServiceUrl, String userCodeFile, PulsarAdmin admin)
+            int parallelism, int instanceIdOffset, String brokerServiceUrl, String stateStorageServiceUrl, AuthenticationConfig authConfig,
+            String userCodeFile, PulsarAdmin admin)
             throws Exception {
 
         String serviceUrl = admin.getServiceUrl();
@@ -911,8 +1002,8 @@ public class CmdFunctions extends CmdBase {
         if (serviceUrl == null) {
             serviceUrl = DEFAULT_SERVICE_URL;
         }
-        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
-                serviceUrl, null, null, null)) {
+        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, stateStorageServiceUrl, authConfig, null, null,
+                null)) {
             List<RuntimeSpawner> spawners = new LinkedList<>();
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
@@ -920,7 +1011,7 @@ public class CmdFunctions extends CmdBase {
                 // TODO: correctly implement function version and id
                 instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
                 instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                instanceConfig.setInstanceId(Integer.toString(i));
+                instanceConfig.setInstanceId(Integer.toString(i + instanceIdOffset));
                 instanceConfig.setMaxBufferedTuples(1024);
                 instanceConfig.setPort(Utils.findAvailablePort());
                 RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
@@ -967,7 +1058,7 @@ public class CmdFunctions extends CmdBase {
                 });
             for (RuntimeSpawner spawner : spawners) {
                 spawner.join();
-                log.info("RuntimeSpawner quit because of {}", spawner.getRuntime().getDeathException());
+                log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
             }
 
         }

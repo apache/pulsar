@@ -52,7 +52,7 @@ Sequence ID | Each Pulsar message belongs to an ordered sequence on its {% popov
 Publish time | The timestamp of when the message was published (automatically applied by the {% popover producer %})
 Event time | An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.
 
-{% include admonition.html type="info" content="For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's [binary protocol](../../reference/BinaryProtocol)." %}
+{% include admonition.html type="info" content="For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's [binary protocol](../../project/BinaryProtocol)." %}
 
 ## Producers, consumers, topics, and subscriptions
 
@@ -263,7 +263,7 @@ At the broader {% popover instance %} level, an instance-wide ZooKeeper cluster 
 The Pulsar message {% popover broker %} is a stateless component that's primarily responsible for running two other components:
 
 * An HTTP server that exposes a REST API for both [administrative tasks](../../reference/RestApi) and [topic lookup](#client-setup-phase) for producers and consumers
-* A {% popover dispatcher %}, which is an asynchronous TCP server over a custom [binary protocol](../../reference/BinaryProtocol) used for all data transfers
+* A {% popover dispatcher %}, which is an asynchronous TCP server over a custom [binary protocol](../../project/BinaryProtocol) used for all data transfers
 
 Messages are typically dispatched out of a [managed ledger](#managed-ledger) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from {% popover BookKeeper %}.
 
@@ -406,7 +406,7 @@ More in-depth information can be found in [this post](https://blog.streaml.io/pu
 
 ## Multi-tenancy
 
-Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover tenants %}. Tenants can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
+Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover tenants %}. Tenants can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../security/overview) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
 
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 
@@ -420,7 +420,7 @@ As you can see, the tenant is the most basic unit of categorization for topics (
 
 ## Authentication and Authorization
 
-Pulsar supports a pluggable [authentication](../../admin/Authz) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
+Pulsar supports a pluggable [authentication](../../security/overview) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
 
 ## Client interface
 
@@ -464,7 +464,7 @@ For documentation on using the Pulsar proxy, see the [Pulsar proxy admin documen
 Some important things to know about the Pulsar proxy:
 
 * Connecting clients don't need to provide *any* specific configuration to use the Pulsar proxy. You won't need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you're running a load balancer over the Pulsar proxy).
-* [TLS encryption and authentication](../../admin/Authz/#tls-client-auth) is supported by the Pulsar proxy
+* [TLS encryption and authentication](../../security/tls) is supported by the Pulsar proxy
 
 ## Service discovery
 
@@ -551,9 +551,9 @@ For some use cases consumers don't need a complete "image" of the topic log. The
 
 Pulsar's topic compaction feature:
 
-* Allos for much more efficient "rewind" through topic logs
+* Allows for faster "rewind" through topic logs
 * Applies only to [persistent topics](#persistent-storage)
-* Is triggered manually via the command line. See the [Topic compaction cookbook](../../cookbooks/compaction)
+* Triggered automatically when the backlog reaches a certain size or can be triggered manually via the command line. See the [Topic compaction cookbook](../../cookbooks/compaction)
 * Is conceptually and operationally distinct from [retention and expiry](#message-retention-and-expiry). Topic compaction *does*, however, respect retention. If retention has removed a message from the message backlog of a topic, the message will also not be readable from the compacted topic ledger.
 
 {% include admonition.html type="info" title="Topic compaction example: the stock ticker"
@@ -561,17 +561,29 @@ Pulsar's topic compaction feature:
 
 ### How topic compaction works
 
-When topic compaction is triggered [via the CLI](../../cookbooks/compaction), Pulsar will iterate over the entire topic from beginning to end. For each key that it encounters the {% popover broker %} responsible will keep a record of the latest occurrence of that key. When this iterative process is finished, the broker will create a [BookKeeper ledger](#ledgers) to store the compacted topic.
+When topic compaction is triggered [via the CLI](../../cookbooks/compaction), Pulsar will iterate over the entire topic from beginning to end. For each key that it encounters the compaction routine will keep a record of the latest occurrence of that key.
 
-After that, the broker will make a second iteration through each message on the topic. For each message, if the key matches the latest occurrence of that key, then the key's data payload, message ID, and metadata will be written to the new BookKeeper ledger (the one that was created when compaction was manually initiated). If the key doesn't match the latest then the message will be skipped and left alone. If any given message has an empty payload, it will be skipped and considered deleted (akin to the concept of [tombstones](https://en.wikipedia.org/wiki/Tombstone_(data_store)) in key-value databases). At the end of this second iteration through the topic, the newly created BookKeeper ledger is closed and two things are written to the topic's metadata: the ID of the BookKeeper ledger and the message ID of the last compacted message (this is known as the **compaction horizon** of the topic). Once this metadata is written compaction is complete.
+After that, the broker will create a new [BookKeeper ledger](#ledgers) and make a second iteration through each message on the topic. For each message, if the key matches the latest occurrence of that key, then the key's data payload, message ID, and metadata will be written to the newly created ledger. If the key doesn't match the latest then the message will be skipped and left alone. If any given message has an empty payload, it will be skipped and considered deleted (akin to the concept of [tombstones](https://en.wikipedia.org/wiki/Tombstone_(data_store)) in key-value databases). At the end of this second iteration through the topic, the newly created BookKeeper ledger is closed and two things are written to the topic's metadata: the ID of the BookKeeper ledger and the message ID of the last compacted message (this is known as the **compaction horizon** of the topic). Once this metadata is written compaction is complete.
 
-{% include admonition.html type="info" title="Compaction leaves the original topic intact" %}
-
-In addition to performing compaction, Pulsar {% popover brokers %} listen for changes on each topic's metadata. If the ledger for the topic changes:
+After the initial compaction operation, the Pulsar {% popover broker %} that owns the topic is notified whenever any future changes are made to the compaction horizon and compacted backlog. When such changes occur:
 
 * Clients (consumers and readers) that have read compacted enabled will attempt to read messages from a topic and either:
   * Read from the topic like normal (if the message ID is greater than or equal to the compaction horizon) or
   * Read beginning at the compaction horizon (if the message ID is lower than the compaction horizon)
+
+## Tiered Storage
+
+Pulsar's segment oriented architecture allows for topic backlogs to grow very large, effectively without limit. However, this can become expensive over time.
+
+One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from bookkeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed.
+
+{% include figure.html src="/img/pulsar-tiered-storage.png" alt="Tiered Storage" width="80" %}
+
+{% include admonition.html type="info" content="Data written to bookkeeper is replicated to 3 physical machines by default. However, once a segment is sealed in bookkeeper is becomes immutable and can be copied to long term storage. Long term storage can achieve cost savings by using mechanisms such as [Reed-Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction) to require fewer physical copies of data." %}
+
+Pulsar currently supports S3 as a long term store. Offloading to S3 triggered via a Rest API or command line interface. The user passes in the amount of topic data they wish to retain on bookkeeper, and the broker will copy the backlog data to S3. The original data will then be deleted from bookkeeper after a configured delay (4 hours by default).
+
+{% include admonition.html type="info" content="For a guide for setting up tiered storage, see the [Tiered storage cookbook](../../cookbooks/tiered-storage)." %}
 
 ## Schema registry
 

@@ -32,6 +32,8 @@ import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
 import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
+import org.apache.pulsar.admin.cli.CmdSinks.CreateSink;
+import org.apache.pulsar.admin.cli.CmdSources.CreateSource;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -39,6 +41,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.powermock.api.mockito.PowerMockito;
@@ -72,6 +75,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link CmdFunctions}.
@@ -91,6 +95,8 @@ public class CmdFunctionsTest {
     private PulsarAdmin admin;
     private Functions functions;
     private CmdFunctions cmd;
+    private CmdSinks cmdSinks;
+    private CmdSources cmdSources;
 
     public static class DummyFunction implements Function<String, String> {
 
@@ -118,6 +124,8 @@ public class CmdFunctionsTest {
         when(admin.getServiceUrl()).thenReturn("http://localhost:1234");
         when(admin.getClientConfigData()).thenReturn(new ClientConfigurationData());
         this.cmd = new CmdFunctions(admin);
+        this.cmdSinks = new CmdSinks(admin);
+        this.cmdSources = new CmdSources(admin);
 
         // mock reflections
         mockStatic(Reflections.class);
@@ -199,6 +207,142 @@ public class CmdFunctionsTest {
         CreateFunction creater = cmd.getCreater();
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
+        assertEquals(outputTopicName, creater.getOutput());
+
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+
+    }
+
+    @Test
+    public void testCreateFunctionWithHttpUrl() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
+        consoleOutputCapturer.start();
+
+        final String url = "http://localhost:1234/test";
+        cmd.run(new String[] {
+            "create",
+            "--name", fnName,
+            "--inputs", inputTopicName,
+            "--output", outputTopicName,
+            "--jar", url,
+            "--tenant", "sample",
+            "--namespace", "ns1",
+            "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        consoleOutputCapturer.stop();
+        String output = consoleOutputCapturer.getStderr();
+
+        assertTrue(output.contains("Failed to download jar"));
+        assertEquals(fnName, creater.getFunctionName());
+        assertEquals(inputTopicName, creater.getInputs());
+        assertEquals(outputTopicName, creater.getOutput());
+    }
+
+    @Test
+    public void testCreateFunctionWithFileUrl() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        final String url = "file:/usr/temp/myfile.jar";
+        cmd.run(new String[] {
+            "create",
+            "--name", fnName,
+            "--inputs", inputTopicName,
+            "--output", outputTopicName,
+            "--jar", url,
+            "--tenant", "sample",
+            "--namespace", "ns1",
+            "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals(fnName, creater.getFunctionName());
+        assertEquals(inputTopicName, creater.getInputs());
+        assertEquals(outputTopicName, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionDetails.class), anyString());
+    }
+
+    @Test
+    public void testCreateSink() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+
+
+        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
+        consoleOutputCapturer.start();
+
+        final String url = "http://localhost:1234/test";
+        cmdSinks.run(new String[] {
+            "create",
+            "--name", fnName,
+            "--inputs", inputTopicName,
+            "--archive", url,
+            "--tenant", "sample",
+            "--namespace", "ns1"
+        });
+
+        CreateSink creater = cmdSinks.getCreateSink();
+
+        consoleOutputCapturer.stop();
+        String output = consoleOutputCapturer.getStderr();
+
+        assertTrue(output.contains("Failed to download archive"));
+        assertEquals(url, creater.archive);
+    }
+
+    @Test
+    public void testCreateSource() throws Exception {
+        String fnName = TEST_NAME + "-function";
+
+        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
+        consoleOutputCapturer.start();
+
+        final String url = "http://localhost:1234/test";
+        cmdSources.run(new String[] {
+            "create",
+            "--name", fnName,
+            "--archive", url,
+            "--tenant", "sample",
+            "--namespace", "ns1",
+        });
+
+        CreateSource creater = cmdSources.getCreateSource();
+
+        consoleOutputCapturer.stop();
+        String output = consoleOutputCapturer.getStderr();
+
+        assertTrue(output.contains("Failed to download archive"));
+        assertEquals(url, creater.archive);
+    }
+
+    @Test
+    public void testCreateFunctionWithTopicPatterns() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String topicPatterns = "persistent://tenant/ns/topicPattern*";
+        String outputTopicName = TEST_NAME + "-output-topic";
+        cmd.run(new String[] {
+            "create",
+            "--name", fnName,
+            "--topicsPattern", topicPatterns,
+            "--output", outputTopicName,
+            "--jar", "SomeJar.jar",
+            "--tenant", "sample",
+            "--namespace", "ns1",
+            "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals(fnName, creater.getFunctionName());
+        assertEquals(topicPatterns, creater.getTopicsPattern());
         assertEquals(outputTopicName, creater.getOutput());
 
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
@@ -423,7 +567,7 @@ public class CmdFunctionsTest {
             "--namespace", namespace,
             "--name", fnName,
             "--key", "test-key",
-            "--storage-service-url", "127.0.0.1:4181"
+            "--storage-service-url", "bk://127.0.0.1:4181"
         });
 
         assertEquals(
@@ -480,7 +624,7 @@ public class CmdFunctionsTest {
 
             consoleOutputCapturer.stop();
             String output = consoleOutputCapturer.getStderr();
-            assertEquals(output.replace("\n", ""), errMessageCheck);
+            assertTrue(output.replace("\n", "").contains(errMessageCheck));
         }
     }
 

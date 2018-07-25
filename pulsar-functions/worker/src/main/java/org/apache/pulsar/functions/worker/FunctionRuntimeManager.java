@@ -26,10 +26,12 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
+import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 
@@ -41,6 +43,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -77,13 +80,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private RuntimeFactory runtimeFactory;
 
     private MembershipManager membershipManager;
+    private final ConnectorsManager connectorsManager;
 
 
     public FunctionRuntimeManager(WorkerConfig workerConfig,
                                   PulsarClient pulsarClient,
                                   Namespace dlogNamespace,
-                                  MembershipManager membershipManager) throws Exception {
+                                  MembershipManager membershipManager,
+                                  ConnectorsManager connectorsManager) throws Exception {
         this.workerConfig = workerConfig;
+        this.connectorsManager = connectorsManager;
 
         Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(this.workerConfig.getFunctionAssignmentTopic())
@@ -92,14 +98,24 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         this.functionAssignmentTailer = new FunctionAssignmentTailer(this, reader);
 
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
+                .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters())
+                .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
+                .useTls(workerConfig.isUseTls()).tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
+                .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnable()).build();
+
         if (workerConfig.getThreadContainerFactory() != null) {
             this.runtimeFactory = new ThreadRuntimeFactory(
                     workerConfig.getThreadContainerFactory().getThreadGroupName(),
                     workerConfig.getPulsarServiceUrl(),
-                    workerConfig.getStateStorageServiceUrl());
+                    workerConfig.getStateStorageServiceUrl(),
+                    authConfig);
         } else if (workerConfig.getProcessContainerFactory() != null) {
             this.runtimeFactory = new ProcessRuntimeFactory(
                     workerConfig.getPulsarServiceUrl(),
+                    workerConfig.getStateStorageServiceUrl(),
+                    authConfig,
                     workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
                     workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
                     workerConfig.getProcessContainerFactory().getLogDirectory());
@@ -110,7 +126,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.actionQueue = new LinkedBlockingQueue<>();
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
-                dlogNamespace, actionQueue);
+                dlogNamespace, actionQueue, connectorsManager);
 
         this.membershipManager = membershipManager;
     }
@@ -223,9 +239,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
      */
     public InstanceCommunication.FunctionStatus getFunctionInstanceStatus(String tenant, String namespace,
                                                                           String functionName, int instanceId) {
-        String workerId = this.workerConfig.getWorkerId();
-
         Assignment assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
+        final String assignedWorkerId = assignment.getWorkerId();
+        final String workerId = this.workerConfig.getWorkerId();
+        
         if (assignment == null) {
             InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
                     = InstanceCommunication.FunctionStatus.newBuilder();
@@ -236,13 +253,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         InstanceCommunication.FunctionStatus functionStatus = null;
         // If I am running worker
-        if (assignment.getWorkerId().equals(workerId)) {
+        if (assignedWorkerId.equals(workerId)) {
             FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(
                     Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
             RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
             if (runtimeSpawner != null) {
                 try {
-                    functionStatus = functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus().get();
+                    InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus
+                            .newBuilder(functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus().get());
+                    functionStatusBuilder.setWorkerId(assignedWorkerId);
+                    functionStatus = functionStatusBuilder.build();
                 } catch (InterruptedException | ExecutionException e) {
                     throw new RuntimeException(e);
                 }
@@ -254,14 +274,15 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 if (functionRuntimeInfo.getStartupException() != null) {
                     functionStatusBuilder.setFailureException(functionRuntimeInfo.getStartupException().getMessage());
                 }
+                functionStatusBuilder.setWorkerId(assignedWorkerId);
                 functionStatus = functionStatusBuilder.build();
             }
         } else {
             // query other worker
 
-            List<MembershipManager.WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
-            MembershipManager.WorkerInfo workerInfo = null;
-            for (MembershipManager.WorkerInfo entry: workerInfoList) {
+            List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
+            WorkerInfo workerInfo = null;
+            for (WorkerInfo entry: workerInfoList) {
                 if (assignment.getWorkerId().equals(entry.getWorkerId())) {
                     workerInfo = entry;
                 }
@@ -290,6 +311,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 log.warn("Got invalid function status response from {}", workerInfo, e);
                 throw new RuntimeException(e);
             }
+            functionStatusBuilder.setWorkerId(assignedWorkerId);
             functionStatus = functionStatusBuilder.build();
         }
 
@@ -424,6 +446,22 @@ public class FunctionRuntimeManager implements AutoCloseable{
     public Map<String, FunctionRuntimeInfo> getFunctionRuntimeInfos() {
         return this.functionRuntimeInfoMap;
     }
+    
+    public void updateRates() {
+        for (Entry<String, FunctionRuntimeInfo> entry : this.functionRuntimeInfoMap.entrySet()) {
+            RuntimeSpawner functionRuntimeSpawner = entry.getValue().getRuntimeSpawner();
+            if (functionRuntimeSpawner != null) {
+                Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
+                if (functionRuntime != null) {
+                    try {
+                        functionRuntime.resetMetrics().get();
+                    } catch (Exception e) {
+                        log.error("Failed to update stats for {}-{}", entry.getKey(), e.getMessage());
+                    }
+                }
+            }
+        }
+    }
     /**
      * Private methods for internal use.  Should not be used outside of this class
      */
@@ -511,6 +549,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
     public void close() throws Exception {
         this.functionActioner.close();
         this.functionAssignmentTailer.close();
+        if (runtimeFactory != null) {
+            runtimeFactory.close();
+        }
     }
 
     private Map<String, Assignment> diff(Map<String, Assignment> assignmentMap1, Map<String, Assignment> assignmentMap2) {

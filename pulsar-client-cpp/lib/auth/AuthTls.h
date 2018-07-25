@@ -24,6 +24,9 @@
 
 namespace pulsar {
 
+const std::string TLS_PLUGIN_NAME = "tls";
+const std::string TLS_JAVA_PLUGIN_NAME = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+
 class AuthDataTls : public AuthenticationDataProvider {
    public:
     AuthDataTls(const std::string& certificatePath, const std::string& privateKeyPath);
