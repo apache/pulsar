@@ -9,7 +9,7 @@ Pulsar clusters consist of one or more Pulsar {% popover brokers %}, one or more
 Clusters can be managed via:
 
 * The [`clusters`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
-* The `/admin/clusters` endpoint of the admin [REST API](reference-rest-api.md)
+* The `/admin/v2/clusters` endpoint of the admin [REST API](reference-rest-api.md)
 * The `clusters` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](client-libraries-java.md)
 
 ## Clusters resources
@@ -34,7 +34,7 @@ $ pulsar-admin clusters create cluster-1 \
 
 #### REST API
 
-{% endpoint PUT /admin/clusters/:cluster %}
+{% endpoint PUT /admin/v2/clusters/:cluster %}
 
 [More info](reference-rest-api.md#/admin/clusters/:cluster)
 
@@ -102,7 +102,7 @@ $ pulsar-admin clusters get cluster-1
 
 #### REST API
 
-{% endpoint GET /admin/clusters/:cluster %}
+{% endpoint GET /admin/v2/clusters/:cluster %}
 
 [More info](reference-rest-api.md#/admin/clusters/:cluster)
 
@@ -128,7 +128,7 @@ $ pulsar-admin clusters update cluster-1 \
 
 #### REST
 
-{% endpoint POST /admin/clusters/:cluster %}
+{% endpoint POST /admin/v2/clusters/:cluster %}
 
 [More info](reference-rest-api.md#/admin/clusters/:cluster)
 
@@ -158,7 +158,7 @@ $ pulsar-admin clusters delete cluster-1
 
 #### REST API
 
-{% endpoint DELETE /admin/clusters/:cluster %}
+{% endpoint DELETE /admin/v2/clusters/:cluster %}
 
 [More info](reference-rest-api.md#/admin/clusters/:cluster)
 
@@ -184,7 +184,7 @@ cluster-2
 
 #### REST API
 
-{% endpoint GET /admin/clusters %}
+{% endpoint GET /admin/v2/clusters %}
 
 [More info](reference-rest-api.md#/admin/clusters)
 
@@ -208,7 +208,7 @@ $ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 
 #### REST API
 
-{% endpoint POST /admin/clusters/:cluster/peers %}
+{% endpoint POST /admin/v2/clusters/:cluster/peers %}
 
 [More info](reference-rest-api.md#/admin/clusters/:cluster/peers)
 

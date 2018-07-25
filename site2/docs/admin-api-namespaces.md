@@ -9,7 +9,7 @@ Pulsar {% popover namespaces %} are logical groupings of {% popover topics %}.
 Namespaces can be managed via:
 
 * The [`namespaces`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
-* The `/admin/namespaces` endpoint of the admin [REST API](reference-rest-api.md)
+* The `/admin/v2/namespaces` endpoint of the admin [REST API](reference-rest-api.md)
 * The `namespaces` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](client-libraries-java.md)
 
 ## Namespaces resources
@@ -28,9 +28,9 @@ $ pulsar-admin namespaces create test-tenant/test-namespace
 
 #### REST API
 
-{% endpoint PUT /admin/namespaces/:tenant/:cluster/:namespace %}
+{% endpoint PUT /admin/v2/namespaces/:tenant/:namespace %}
 
-[More info](reference-rest-api.md#/admin/namespaces/:tenant/:cluster/:namespace)
+[More info](reference-rest-api.md#/admin/namespaces/:tenant/:namespace)
 
 #### Java
 
@@ -73,9 +73,9 @@ $ pulsar-admin namespaces policies test-tenant/test-namespace
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:tenant/:cluster/:namespace %}
+{% endpoint GET /admin/v2/namespaces/:tenant/:namespace %}
 
-[More info](reference-rest-api.md#/admin/namespaces/:tenant/:cluster/:namespace)
+[More info](reference-rest-api.md#/admin/namespaces/:tenant/:namespace)
 
 #### Java
 
@@ -99,7 +99,7 @@ test-tenant/ns2
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:tenant %}
+{% endpoint GET /admin/v2/namespaces/:tenant %}
 
 [More info](reference-rest-api.md#/admin/namespaces/:tenant)
 
@@ -109,25 +109,6 @@ test-tenant/ns2
 admin.namespaces().getNamespaces(tenant);
 ```
 
-### List namespaces within a cluster
-
-You can list all namespaces within a given Pulsar {% popover cluster %}.
-
-#### pulsar-admin
-
-Use the [`list-cluster`](reference-pulsar-admin.md#namespaces-list-cluster) subcommand and specify the cluster:
-
-```shell
-$ pulsar-admin namespaces list-cluster test-tenant/cl1
-test-tenant/ns1
-test-tenant/ns2
-```
-
-#### REST API
-
-{% endpoint GET /admin/namespaces/:tenant/:cluster %}
-
-[More info](reference-rest-api.md#/admin/namespaces/:tenant/:cluster)
 
 #### Java
 
@@ -149,9 +130,9 @@ $ pulsar-admin namespaces delete test-tenant/ns1
 
 #### REST
 
-{% endpoint DELETE /admin/namespaces/:tenant/:cluster/:namespace %}
+{% endpoint DELETE /admin/v2/namespaces/:tenant/:namespace %}
 
-[More info](reference-rest-api.md#/admin/namespaces/:tenant/:cluster/:namespace)
+[More info](reference-rest-api.md#/admin/namespaces/:tenant/:namespace)
 
 #### Java
 
@@ -174,7 +155,7 @@ $ pulsar-admin namespaces set-clusters test-tenant/ns1 \
 ###### REST
 
 ```
-{% endpoint POST /admin/namespaces/:tenant/:namespace/replication %}
+{% endpoint POST /admin/v2/namespaces/:tenant/:namespace/replication %}
 ```
 
 ###### Java
@@ -200,7 +181,7 @@ cl2
 ###### REST
 
 ```
-GET /admin/namespaces/{tenant}/{namespace}/replication
+GET /admin/v2/namespaces/{tenant}/{namespace}/replication
 ```
 
 ###### Java
@@ -219,7 +200,7 @@ Backlog quota helps broker to restrict bandwidth/storage of a namespace once it 
 
   3.  consumer_backlog_eviction: broker will start discarding backlog messages
 
-  Backlog quota restriction can be taken care by defining restriction of backlog-quota-type: destination_storage  
+  Backlog quota restriction can be taken care by defining restriction of backlog-quota-type: destination_storage
 
 ###### CLI
 
@@ -234,7 +215,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/namespaces/{tenant}/{namespace}/backlogQuota
+POST /admin/v2/namespaces/{tenant}/{namespace}/backlogQuota
 ```
 
 ###### Java
@@ -259,13 +240,13 @@ $ pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
     "limit": 10,
     "policy": "producer_request_hold"
   }
-}          
+}
 ```
 
 ###### REST
 
 ```
-GET /admin/namespaces/{tenant}/{namespace}/backlogQuotaMap
+GET /admin/v2/namespaces/{tenant}/{namespace}/backlogQuotaMap
 ```
 
 ###### Java
@@ -276,7 +257,7 @@ admin.namespaces().getBacklogQuotaMap(namespace);
 
 #### remove backlog quota policies
 
-It removes backlog quota policies for a given namespace  
+It removes backlog quota policies for a given namespace
 
 ###### CLI
 
@@ -291,7 +272,7 @@ N/A
 ###### REST
 
 ```
-DELETE /admin/namespaces/{tenant}/{namespace}/backlogQuota
+DELETE /admin/v2/namespaces/{tenant}/{namespace}/backlogQuota
 ```
 
 ###### Java
@@ -310,7 +291,7 @@ Persistence policies allow to configure persistency-level for all topic messages
 
   -   Bookkeeper-write-quorum: How many writes to make of each entry, default: 0
 
-  -   Ml-mark-delete-max-rate: Throttling rate of mark-delete operation (0 means no throttle), default: 0.0  
+  -   Ml-mark-delete-max-rate: Throttling rate of mark-delete operation (0 means no throttle), default: 0.0
 
 ###### CLI
 
@@ -325,7 +306,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/persistent/{tenant}/{namespace}/persistence
+POST /admin/v2/namespaces/{tenant}/{namespace}/persistence
 ```
 
 ###### Java
@@ -337,7 +318,7 @@ admin.namespaces().setPersistence(namespace,new PersistencePolicies(bookkeeperEn
 
 #### get persistence policies
 
-It shows configured persistence policies of a given namespace.  
+It shows configured persistence policies of a given namespace.
 
 ###### CLI
 
@@ -357,7 +338,7 @@ $ pulsar-admin namespaces get-persistence test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/namespaces/{tenant}/{namespace}/persistence
+GET /admin/v2/namespaces/{tenant}/{namespace}/persistence
 ```
 
 ###### Java
@@ -369,7 +350,7 @@ admin.namespaces().getPersistence(namespace)
 
 #### unload namespace bundle
 
-Namespace bundle is a virtual group of topics which belong to same namespace. If broker gets overloaded with number of bundles then this command can help to unload heavy bundle from that broker, so it can be served by some other less loaded broker. Namespace bundle is defined with it’s start and end range such as 0x00000000 and 0xffffffff.  
+Namespace bundle is a virtual group of topics which belong to same namespace. If broker gets overloaded with number of bundles then this command can help to unload heavy bundle from that broker, so it can be served by some other less loaded broker. Namespace bundle is defined with it’s start and end range such as 0x00000000 and 0xffffffff.
 
 ###### CLI
 
@@ -384,7 +365,7 @@ N/A
 ###### REST
 
 ```
-PUT /admin/namespaces/{tenant}/{namespace}/unload
+PUT /admin/v2/namespaces/{tenant}/{namespace}/unload
 ```
 
 ###### Java
@@ -411,7 +392,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/namespaces/{tenant}/{namespace}/messageTTL
+POST /admin/v2/namespaces/{tenant}/{namespace}/messageTTL
 ```
 
 ###### Java
@@ -438,7 +419,7 @@ $ pulsar-admin namespaces get-message-ttl test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/namespaces/{tenant}/{namespace}/messageTTL
+GET /admin/v2/namespaces/{tenant}/{namespace}/messageTTL
 ```
 
 ###### Java
@@ -465,7 +446,7 @@ N/A
 ###### REST
 
 ```
-PUT /admin/namespaces/{tenant}/{namespace}/{bundle}/split
+PUT /admin/v2/namespaces/{tenant}/{namespace}/{bundle}/split
 ```
 
 ###### Java
@@ -477,7 +458,7 @@ admin.namespaces().splitNamespaceBundle(namespace, bundle)
 
 #### clear backlog
 
-It clears all message backlog for all the topics those belong to specific namespace. You can also clear backlog for a specific subscription as well.  
+It clears all message backlog for all the topics those belong to specific namespace. You can also clear backlog for a specific subscription as well.
 
 ###### CLI
 
@@ -492,7 +473,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/namespaces/{tenant}/{namespace}/clearBacklog
+POST /admin/v2/namespaces/{tenant}/{namespace}/clearBacklog
 ```
 
 ###### Java
@@ -504,7 +485,7 @@ admin.namespaces().clearNamespaceBacklogForSubscription(namespace, subscription)
 
 #### clear bundle backlog
 
-It clears all message backlog for all the topics those belong to specific NamespaceBundle. You can also clear backlog for a specific subscription as well.  
+It clears all message backlog for all the topics those belong to specific NamespaceBundle. You can also clear backlog for a specific subscription as well.
 
 ###### CLI
 
@@ -519,7 +500,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/namespaces/{tenant}/{namespace}/{bundle}/clearBacklog
+POST /admin/v2/namespaces/{tenant}/{namespace}/{bundle}/clearBacklog
 ```
 
 ###### Java
@@ -546,7 +527,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/namespaces/{tenant}/{namespace}/retention
+POST /admin/v2/namespaces/{tenant}/{namespace}/retention
 ```
 
 ###### Java
@@ -576,7 +557,7 @@ $ pulsar-admin namespaces get-retention test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/namespaces/{tenant}/{namespace}/retention
+GET /admin/v2/namespaces/{tenant}/{namespace}/retention
 ```
 
 ###### Java
@@ -587,9 +568,9 @@ admin.namespaces().getRetention(namespace)
 
 #### set dispatch throttling
 
-It sets message dispatch rate for all the topics under a given namespace. 
-Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`). 
-dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which 
+It sets message dispatch rate for all the topics under a given namespace.
+Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
+dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
 disables the throttling.
 
 ###### CLI
@@ -604,7 +585,7 @@ $ pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
 ###### REST
 
 ```
-POST /admin/namespaces/{tenant}/{namespace}/dispatchRate
+POST /admin/v2/namespaces/{tenant}/{namespace}/dispatchRate
 ```
 
 ###### Java
@@ -615,7 +596,7 @@ admin.namespaces().setDispatchRate(namespace, 1000, 1048576, 1)
 
 #### get configured message-rate
 
-It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)  
+It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
 ###### CLI
 
@@ -634,7 +615,7 @@ $ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/namespaces/{tenant}/{namespace}/dispatchRate
+GET /admin/v2/namespaces/{tenant}/{namespace}/dispatchRate
 ```
 
 ###### Java

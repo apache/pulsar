@@ -27,7 +27,7 @@ $ pulsar-admin persistent list \
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:tenant/:namespace %}
+{% endpoint GET /admin/v2/persistent/:tenant/:namespace %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace)
 
@@ -55,7 +55,7 @@ $ pulsar-admin persistent grant-permission \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:tenant/:namespace/permissions/:role %}
+{% endpoint POST /admin/v2/namespaces/:tenant/:namespace/permissions/:role %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions/:role)
 
@@ -88,7 +88,7 @@ $ pulsar-admin persistent permissions \
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:tenant/:namespace/permissions %}
+{% endpoint GET /admin/v2/namespaces/:tenant/:namespace/permissions %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:tenant:namespace/permissions)
 
@@ -122,7 +122,7 @@ $ pulsar-admin persistent revoke-permission \
 
 #### REST API
 
-{% endpoint DELETE /admin/namespaces/:tenant:namespace/permissions/:role %}
+{% endpoint DELETE /admin/v2/namespaces/:tenant:namespace/permissions/:role %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions/:role)
 
@@ -149,7 +149,7 @@ $ pulsar-admin persistent delete \
 
 #### REST API
 
-{% endpoint DELETE /admin/persistent/:tenant/:namespace/:destination %}
+{% endpoint DELETE /admin/v2/persistent/:tenant/:namespace/:destination %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination)
 
@@ -175,7 +175,7 @@ $ pulsar-admin persistent unload \
 
 #### REST API
 
-{% endpoint PUT /admin/persistent/:tenant/:namespace/:destination/unload %}
+{% endpoint PUT /admin/v2/persistent/:tenant/:namespace/:destination/unload %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/unload)
 
@@ -286,7 +286,7 @@ $ pulsar-admin persistent stats \
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/stats %}
+{% endpoint GET /admin/v2/persistent/:tenant/:namespace/:destination/stats %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant:namespace/:destination/stats)
 
@@ -396,7 +396,7 @@ $ pulsar-admin persistent stats-internal \
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/internalStats %}
+{% endpoint GET /admin/v2/persistent/:tenant/:namespace/:destination/internalStats %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/internalStats)
 
@@ -426,7 +426,7 @@ msg-payload
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/position/:messagePosition %}
+{% endpoint GET /admin/v2/persistent/:tenant/:namespace/:destination/subscription/:subName/position/:messagePosition %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/position/:messagePosition)
 
@@ -454,7 +454,7 @@ $ pulsar-admin persistent skip \
 
 #### REST API
 
-{% endpoint POST /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip/:numMessages %}
+{% endpoint POST /admin/v2/persistent/:tenant/:namespace/:destination/subscription/:subName/skip/:numMessages %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip/:numMessages)
 
@@ -482,7 +482,7 @@ $ pulsar-admin persistent skip-all \
 
 #### REST API
 
-{% endpoint POST /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip_all %}
+{% endpoint POST /admin/v2/persistent/:tenant/:namespace/:destination/subscription/:subName/skip_all %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip_all)
 
@@ -509,7 +509,7 @@ $ pulsar-admin persistent reset-cursor \
 
 #### REST API
 
-{% endpoint POST /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/resetcursor/:timestamp %}
+{% endpoint POST /admin/v2/persistent/:tenant/:namespace/:destination/subscription/:subName/resetcursor/:timestamp %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/resetcursor/:timestamp)
 
@@ -547,7 +547,7 @@ String destination = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().lookupDestination(destination);
 ```
 
-### Get bundle 
+### Get bundle
 
 It gives range of the bundle which contains given topic
 
@@ -588,7 +588,7 @@ $ pulsar-admin persistent subscriptions \
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/subscriptions %}
+{% endpoint GET /admin/v2/persistent/:tenant/:namespace/:destination/subscriptions %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscriptions)
 
@@ -614,7 +614,7 @@ $ pulsar-admin persistent unsubscribe \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:tenant/:namespace/unsubscribe/:subscription %}
+{% endpoint POST /admin/v2/namespaces/:tenant/:namespace/unsubscribe/:subscription %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/unsubscribe/:subscription)
 
