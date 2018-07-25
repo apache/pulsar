@@ -1792,6 +1792,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
+        if (schema == null) {
+            return CompletableFuture.completedFuture(SchemaVersion.Empty);
+        }
+
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()

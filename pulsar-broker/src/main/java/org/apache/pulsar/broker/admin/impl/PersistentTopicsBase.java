@@ -486,7 +486,7 @@ public class PersistentTopicsBase extends AdminResource {
             internalDeleteTopic(authoritative);
         }
     }
-    
+
     protected void internalDeleteTopic(boolean authoritative) {
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
@@ -1191,7 +1191,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
-        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString()).join();
+        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString(), null).join();
     }
 
     /**
