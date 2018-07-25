@@ -113,7 +113,7 @@ public class DockerUtils {
         // docker api returns names prefixed with "/", it's part of it's legacy design,
         // this removes it to be consistent with what docker ps shows.
         final String containerName = inspectContainerResponse.getName().replace("/","");
-        File output = new File(getTargetDirectory(containerId),
+        File output = new File(getTargetDirectory(containerName),
                                (path.replace("/", "-") + ".tar.gz").replaceAll("^-", ""));
         try (InputStream dockerStream = dockerClient.copyArchiveFromContainerCmd(containerId, path).exec();
              OutputStream os = new GZIPOutputStream(new FileOutputStream(output))) {
