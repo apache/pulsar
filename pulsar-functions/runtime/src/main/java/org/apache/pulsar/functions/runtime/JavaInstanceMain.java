@@ -370,9 +370,10 @@ public class JavaInstanceMain implements AutoCloseable {
             if (runtime != null) {
                 try {
                     runtime.resetMetrics().get();
+                    responseObserver.onNext(com.google.protobuf.Empty.getDefaultInstance());
                     responseObserver.onCompleted();
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error("Exception in JavaInstance doing getAndResetMetrics", e);
+                    log.error("Exception in JavaInstance doing resetMetrics", e);
                     throw new RuntimeException(e);
                 }
             }
