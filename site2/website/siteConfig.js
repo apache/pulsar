@@ -63,9 +63,10 @@ const siteConfig = {
     {doc: 'client-libraries', label: 'Client libraries'},
     {href: '#community', label: 'Community'},
     {href: '#apache', label: 'Apache'},
-    { search: true },
+    // Determines search bar position among links
+    //{ search: true },
     // Determines language drop down position among links
-    // { languages: true }
+    //{ languages: true }
   ],
 
   // If you have users set above, you add it here:
@@ -75,6 +76,10 @@ const siteConfig = {
   headerIcon: 'img/pulsar.svg',
   footerIcon: 'img/pulsar.svg',
   favicon: 'img/pulsar.ico',
+  algolia: {
+    apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+    indexName: 'apache_pulsar',
+  },
 
   /* colors for website */
   colors: {
