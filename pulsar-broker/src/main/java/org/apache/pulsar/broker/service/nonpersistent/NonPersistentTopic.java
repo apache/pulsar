@@ -415,14 +415,14 @@ public class NonPersistentTopic implements Topic {
 
     /**
      * Forcefully close all producers/consumers/replicators and deletes the topic.
-     * 
+     *
      * @return
      */
     @Override
     public CompletableFuture<Void> deleteForcefully() {
         return delete(false, true);
     }
-    
+
     private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean closeIfClientsConnected) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
@@ -1016,6 +1016,10 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
+        if (schema == null) {
+            return CompletableFuture.completedFuture(SchemaVersion.Empty);
+        }
+
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
