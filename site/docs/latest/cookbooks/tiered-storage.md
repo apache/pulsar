@@ -21,7 +21,7 @@ The Tiered Storage offloading mechanism takes advantage of this segment oriented
 
 On the broker, the administrator must configure the bucket or credentials for the cloud storage service. The configured bucket must exist before attempting to offload. If it does not exist, the offload operation will fail.
 
-Pulsar users multi-part objects to update the segment data. It is possible that a broker could crash while uploading the data. We recommend you add a life cycle rule your bucket to expire incomplete multi-part upload after a day or two to avoid getting charged for incomplete uploads.
+Pulsar uses multi-part objects to upload the segment data. It is possible that a broker could crash while uploading the data. We recommend you add a life cycle rule your bucket to expire incomplete multi-part upload after a day or two to avoid getting charged for incomplete uploads.
 
 ## Configuring for S3 and GCS in the broker
 
@@ -29,20 +29,20 @@ Offloading is configured in ```broker.conf```.
 
 At a minimum, the administrator must configure the driver, the bucket and the authenticating.  There is also some other knobs to configure, like the bucket regions, the max block size in backed storage, etc.
 
-### Configure the driver
+### Configuring the driver
 
-Currently we support driver of types: { "S3", "aws-s3", "google-cloud-storage" }, 
-{% include admonition.html type="warning" content="The chars are case ignored for driver's name. "s3" and "aws-s3" are similar, with "aws-s3" you just don't need to define the url of the endpoint because it will know to use `s3.amazonaws.com`." %}
+Currently we support driver of types: { "aws-s3", "google-cloud-storage" }, 
+{% include admonition.html type="warning" content="Driver names are case-insensitive for driver's name. "s3" and "aws-s3" are similar, with "aws-s3" you just don't need to define the url of the endpoint because it is aligned with region, and default is `s3.amazonaws.com`; while with s3, you must provide the endpoint url by `s3ManagedLedgerOffloadServiceEndpoint`." %}
 
 ```conf
-managedLedgerOffloadDriver=S3
+managedLedgerOffloadDriver=aws-s3
 ```
 
-### Configure the Bucket
+### Configuring the Bucket
 
-On the broker, the administrator must configure the bucket or credentials for the cloud storage service. The configured bucket must exist before attempting to offload. If it does not exist, the offload operation will fail.
+On the broker, the administrator must configure the bucket and credentials for the cloud storage service. The configured bucket and credentials must exist before attempting to offload. If it does not exist, the offload operation will fail.
 
-- Regarding driver type "S3" or "aws-s3", the administrator should configure `s3ManagedLedgerOffloadBucket`.
+- Regarding driver type "aws-s3", the administrator should configure `s3ManagedLedgerOffloadBucket`.
 
 ```conf
 s3ManagedLedgerOffloadBucket=pulsar-topic-offload
