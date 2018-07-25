@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +32,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -386,4 +389,33 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(consumer.getUnAckedMessageTracker().size(), 0);
     }
 
+
+    @Test
+    public void testSingleMessageBatch() throws Exception {
+        String topicName = "prop/ns-abc/topic-estSingleMessageBatch";
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
+                .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("subscription")
+                .ackTimeout(1, TimeUnit.HOURS)
+                .subscribe();
+
+        // Force the creation of a batch with a single message
+        producer.sendAsync("hello");
+        producer.flush();
+
+        Message<String> message = consumer.receive();
+
+        assertFalse(((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().isEmpty());
+
+        consumer.acknowledge(message);
+
+        assertTrue(((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().isEmpty());
+    }
 }
