@@ -387,11 +387,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.debug("[{}] [{}] can ack message to broker {}, acktype {}, cardinality {}, length {}", subscription,
                         consumerName, batchMessageId, ackType, outstandingAcks, batchSize);
             }
-            // increment Acknowledge-msg counter with number of messages in batch only if AckType is Individual.
-            // CumulativeAckType is handled while sending ack to broker
-            if (ackType == AckType.Individual) {
-                stats.incrementNumAcksSent(batchSize);
-            }
             return true;
         } else {
             if (AckType.Cumulative == ackType
@@ -435,11 +430,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                     Map<String,Long> properties) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
 
-
         if (ackType == AckType.Individual) {
-            unAckedMessageTracker.remove(msgId);
-            // increment counter by 1 for non-batch msg
-            if (!(messageId instanceof BatchMessageIdImpl)) {
+            if (messageId instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+
+                stats.incrementNumAcksSent(batchMessageId.getBatchSize());
+                unAckedMessageTracker.remove(new MessageIdImpl(batchMessageId.getLedgerId(),
+                        batchMessageId.getEntryId(), batchMessageId.getPartitionIndex()));
+            } else {
+                // increment counter by 1 for non-batch msg
+                unAckedMessageTracker.remove(msgId);
                 stats.incrementNumAcksSent(1);
             }
         } else if (ackType == AckType.Cumulative) {
@@ -719,16 +719,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         ByteBuf decryptedPayload = decryptPayloadIfNeeded(messageId, msgMetadata, payload, cnx);
-        
+
         boolean isMessageUndecryptable = isMessageUndecryptable(msgMetadata);
-        
+
         if (decryptedPayload == null) {
             // Message was discarded or CryptoKeyReader isn't implemented
             return;
         }
-        
+
         // uncompress decryptedPayload and release decryptedPayload-ByteBuf
-        ByteBuf uncompressedPayload = isMessageUndecryptable ? decryptedPayload.retain() 
+        ByteBuf uncompressedPayload = isMessageUndecryptable ? decryptedPayload.retain()
                 : uncompressPayloadIfNeeded(messageId, msgMetadata, decryptedPayload, cnx);
         decryptedPayload.release();
         if (uncompressedPayload == null) {
@@ -1351,7 +1351,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     /**
      * Create EncryptionContext if message payload is encrypted
-     * 
+     *
      * @param msgMetadata
      * @return {@link Optional}<{@link EncryptionContext}>
      */

@@ -24,8 +24,7 @@ import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.functions.api.Record;
 
 @Data
 @AllArgsConstructor
@@ -58,12 +57,7 @@ public class SinkRecord<T> implements Record<T> {
         return sourceRecord.getRecordSequence();
     }
 
-    @Override
-    public Optional<EncryptionContext> getEncryptionCtx() {
-        return sourceRecord.getEncryptionCtx();
-    }
-
-    @Override
+     @Override
     public Map<String, String> getProperties() {
         return sourceRecord.getProperties();
     }

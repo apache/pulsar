@@ -285,8 +285,20 @@
                                 <relocation>
                                     <pattern>org.apache.avro</pattern>
                                     <shadedPattern>org.apache.pulsar.shade.org.apache.avro</shadedPattern>
+                                    <excludes>
+                                        <exclude>org.apache.avro.reflect.AvroAlias</exclude>
+                                        <exclude>org.apache.avro.reflect.AvroDefault</exclude>
+                                        <exclude>org.apache.avro.reflect.AvroEncode</exclude>
+                                        <exclude>org.apache.avro.reflect.AvroIgnore</exclude>
+                                        <exclude>org.apache.avro.reflect.AvroMeta</exclude>
+                                        <exclude>org.apache.avro.reflect.AvroName</exclude>
+                                        <exclude>org.apache.avro.reflect.AvroSchema</exclude>
+                                        <exclude>org.apache.avro.reflect.Nullable</exclude>
+                                        <exclude>org.apache.avro.reflect.Stringable</exclude>
+                                        <exclude>org.apache.avro.reflect.Union</exclude>
+                                    </excludes>
                                 </relocation>
-                                <!-- Avro transitive dependencies-->
+                                 <!--Avro transitive dependencies-->
                                 <relocation>
                                     <pattern>org.codehaus.jackson</pattern>
                                     <shadedPattern>org.apache.pulsar.shade.org.codehaus.jackson</shadedPattern>

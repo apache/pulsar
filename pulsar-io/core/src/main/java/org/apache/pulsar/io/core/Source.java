@@ -20,6 +20,8 @@ package org.apache.pulsar.io.core;
 
 import java.util.Map;
 
+import org.apache.pulsar.functions.api.Record;
+
 public interface Source<T> extends AutoCloseable {
     /**
      * Open connector with configuration

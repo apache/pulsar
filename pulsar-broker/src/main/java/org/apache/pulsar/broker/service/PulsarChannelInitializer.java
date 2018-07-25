@@ -18,37 +18,38 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.api.ByteBufPair;
-import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.util.SecurityUtility;
-
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
 
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.api.ByteBufPair;
+import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.util.SecurityUtility;
+
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     public static final String TLS_HANDLER = "tls";
-    BrokerService brokerService;
-    ServiceConfiguration serviceConfig;
-    boolean enableTLS;
+
+    private final PulsarService pulsar;
+    private final boolean enableTLS;
 
     /**
      *
      * @param brokerService
      */
-    public PulsarChannelInitializer(BrokerService brokerService, ServiceConfiguration serviceConfig,
+    public PulsarChannelInitializer(PulsarService pulsar,
             boolean enableTLS) {
         super();
-        this.brokerService = brokerService;
-        this.serviceConfig = serviceConfig;
+        this.pulsar = pulsar;
         this.enableTLS = enableTLS;
     }
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
+        ServiceConfiguration serviceConfig = pulsar.getConfiguration();
         if (enableTLS) {
             SslContext sslCtx = SecurityUtility.createNettySslContextForServer(
                     serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(),
@@ -60,6 +61,6 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
         ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
-        ch.pipeline().addLast("handler", new ServerCnx(brokerService));
+        ch.pipeline().addLast("handler", new ServerCnx(pulsar));
     }
 }

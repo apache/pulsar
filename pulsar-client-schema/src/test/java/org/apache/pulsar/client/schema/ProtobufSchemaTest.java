@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.schema;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
@@ -25,6 +27,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.proto.Function;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.Collections;
 
 @Slf4j
 public class ProtobufSchemaTest {
@@ -39,7 +43,19 @@ public class ProtobufSchemaTest {
             "\"symbols\":[\"SHARED\",\"FAILOVER\"]},\"default\":\"SHARED\"},{\"name\":\"nestedField\"," +
             "\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubMessage\",\"fields\":[{\"name\":\"foo\"," +
             "\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"default\":\"\"},{\"name\":\"bar\"," +
-            "\"type\":\"double\",\"default\":0}]}],\"default\":null}]}";
+            "\"type\":\"double\",\"default\":0}]}],\"default\":null},{\"name\":\"repeatedField\"," +
+            "\"type\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"avro.java.string\":\"String\"}}}]}";
+
+    private static final String EXPECTED_PARSING_INFO = "{\"__PARSING_INFO__\":\"[{\\\"number\\\":1," +
+            "\\\"name\\\":\\\"stringField\\\",\\\"type\\\":\\\"STRING\\\",\\\"label\\\":\\\"LABEL_OPTIONAL\\\"," +
+            "\\\"definition\\\":null},{\\\"number\\\":2,\\\"name\\\":\\\"doubleField\\\",\\\"type\\\":\\\"DOUBLE\\\"," +
+            "\\\"label\\\":\\\"LABEL_OPTIONAL\\\",\\\"definition\\\":null},{\\\"number\\\":6," +
+            "\\\"name\\\":\\\"intField\\\",\\\"type\\\":\\\"INT32\\\",\\\"label\\\":\\\"LABEL_OPTIONAL\\\"," +
+            "\\\"definition\\\":null},{\\\"number\\\":4,\\\"name\\\":\\\"testEnum\\\",\\\"type\\\":\\\"ENUM\\\"," +
+            "\\\"label\\\":\\\"LABEL_OPTIONAL\\\",\\\"definition\\\":null},{\\\"number\\\":5," +
+            "\\\"name\\\":\\\"nestedField\\\",\\\"type\\\":\\\"MESSAGE\\\",\\\"label\\\":\\\"LABEL_OPTIONAL\\\"," +
+            "\\\"definition\\\":null},{\\\"number\\\":10,\\\"name\\\":\\\"repeatedField\\\"," +
+            "\\\"type\\\":\\\"STRING\\\",\\\"label\\\":\\\"LABEL_REPEATED\\\",\\\"definition\\\":null}]\"}";
 
     @Test
     public void testEncodeAndDecode() {
@@ -66,5 +82,34 @@ public class ProtobufSchemaTest {
         Schema schema = parser.parse(schemaJson);
 
         Assert.assertEquals(schema.toString(), EXPECTED_SCHEMA_JSON);
+    }
+
+    @Test
+    public void testGenericOf() {
+        try {
+            ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
+                    = ProtobufSchema.ofGenericClass(org.apache.pulsar.client.schema.proto.Test.TestMessage.class,
+                    Collections.emptyMap());
+        } catch (Exception e) {
+            Assert.fail("Should not construct a ProtobufShema over a non-protobuf-generated class");
+        }
+
+        try {
+            ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
+                    = ProtobufSchema.ofGenericClass(String.class,
+                    Collections.emptyMap());
+            Assert.fail("Should not construct a ProtobufShema over a non-protobuf-generated class");
+        } catch (Exception e) {
+
+        }
+    }
+
+    @Test
+    public void testParsingInfoProperty() throws JsonProcessingException {
+        ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
+                = ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
+
+        Assert.assertEquals(new ObjectMapper().writeValueAsString(protobufSchema.getSchemaInfo().getProperties()), EXPECTED_PARSING_INFO);
+
     }
 }

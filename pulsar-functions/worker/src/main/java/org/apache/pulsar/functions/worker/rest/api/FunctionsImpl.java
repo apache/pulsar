@@ -57,12 +57,14 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -117,10 +119,23 @@ public class FunctionsImpl {
 
     public Response registerFunction(final String tenant, final String namespace, final String functionName,
             final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
-            final String functionPkgUrl, final String functionDetailsJson) {
+            final String functionPkgUrl, final String functionDetailsJson, final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
+        }
+        
+        try {
+            if (!isAuthorizedRole(tenant, clientRole)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to register function", tenant, namespace, functionName,
+                        clientRole);
+                return Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData("client is not authorize to perform operation")).build();
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionDetails functionDetails;
@@ -168,12 +183,25 @@ public class FunctionsImpl {
 
     public Response updateFunction(final String tenant, final String namespace, final String functionName,
             final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
-            final String functionPkgUrl, final String functionDetailsJson) {
+            final String functionPkgUrl, final String functionDetailsJson, final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
+        try {
+            if (!isAuthorizedRole(tenant, clientRole)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to update function", tenant, namespace,
+                        functionName, clientRole);
+                return Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData("client is not authorize to perform operation")).build();
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+        
         FunctionDetails functionDetails;
         boolean isPkgUrlProvided = StringUtils.isNotBlank(functionPkgUrl);
         // validate parameters
@@ -217,12 +245,26 @@ public class FunctionsImpl {
                 : updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
 
-    public Response deregisterFunction(final String tenant, final String namespace, final String functionName) {
+    public Response deregisterFunction(final String tenant, final String namespace, final String functionName,
+            String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
+        try {
+            if (!isAuthorizedRole(tenant, clientRole)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to deregister function", tenant, namespace,
+                        functionName, clientRole);
+                return Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData("client is not authorize to perform operation")).build();
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+        
         // validate parameters
         try {
             validateDeregisterRequestParams(tenant, namespace, functionName);
@@ -892,6 +934,19 @@ public class FunctionsImpl {
     public static String createPackagePath(String tenant, String namespace, String functionName, String fileName) {
         return String.format("%s/%s/%s/%s", tenant, namespace, Codec.encode(functionName),
                 Utils.getUniquePackageName(Codec.encode(fileName)));
+    }
+    
+    private boolean isAuthorizedRole(String tenant, String clientRole) throws PulsarAdminException {
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            // skip authorization if client role is super-user
+            if (clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole)) {
+                return true;
+            }
+            TenantInfo tenantInfo = worker().getAdmin().tenants().getTenantInfo(tenant);
+            return clientRole != null && (tenantInfo.getAdminRoles() == null || tenantInfo.getAdminRoles().isEmpty()
+                    || tenantInfo.getAdminRoles().contains(clientRole));
+        }
+        return true;
     }
 
 }

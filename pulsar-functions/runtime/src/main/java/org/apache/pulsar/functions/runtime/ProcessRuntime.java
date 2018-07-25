@@ -415,7 +415,7 @@ class ProcessRuntime implements Runtime {
     private void startProcess() {
         deathException = null;
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder(processArgs);
+            ProcessBuilder processBuilder = new ProcessBuilder(processArgs).inheritIO();
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();
         } catch (Exception ex) {
