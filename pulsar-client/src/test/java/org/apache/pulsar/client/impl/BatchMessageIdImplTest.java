@@ -44,4 +44,28 @@ public class BatchMessageIdImplTest {
         Assert.assertTrue(batchMsgId1.hashCode() != batchMsgId2.hashCode());
 
     }
+
+    @Test
+    public void equalsTest() {
+        BatchMessageIdImpl batchMsgId1 = new BatchMessageIdImpl(0, 0, 0, 0);
+        BatchMessageIdImpl batchMsgId2 = new BatchMessageIdImpl(1, 1, 1, 1);
+        BatchMessageIdImpl batchMsgId3 = new BatchMessageIdImpl(0, 0, 0, 1);
+        BatchMessageIdImpl batchMsgId4 = new BatchMessageIdImpl(0, 0, 0, -1);
+        MessageIdImpl msgId = new MessageIdImpl(0, 0, 0);
+
+        Assert.assertTrue(batchMsgId1.equals(batchMsgId1));
+        Assert.assertFalse(batchMsgId1.equals(batchMsgId2));
+        Assert.assertFalse(batchMsgId1.equals(batchMsgId3));
+        Assert.assertFalse(batchMsgId1.equals(batchMsgId4));
+        Assert.assertFalse(batchMsgId1.equals(msgId));
+
+        Assert.assertTrue(msgId.equals(msgId));
+        Assert.assertFalse(msgId.equals(batchMsgId1));
+        Assert.assertFalse(msgId.equals(batchMsgId2));
+        Assert.assertFalse(msgId.equals(batchMsgId3));
+        Assert.assertTrue(msgId.equals(batchMsgId4));
+
+        Assert.assertTrue(batchMsgId4.equals(msgId));
+    }
+
 }
