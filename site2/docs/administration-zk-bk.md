@@ -329,6 +329,6 @@ PersistencePolicies policies = admin.namespaces().getPersistence(namespace);
 
 This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluster:
 
-![ZooKeeper and BookKeeper](/docs/assets/pulsar-system-architecture.png)
+![ZooKeeper and BookKeeper](assets/pulsar-system-architecture.png)
 
 Each Pulsar cluster consists of one or more message brokers. Each broker relies on an ensemble of bookies.
