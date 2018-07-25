@@ -185,7 +185,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             } catch (Exception e) {
                 // allowed, some mock s3 service not need credential
                 log.error("Exception when get credentials for s3 ", e);
-                throw new PulsarServerException(e);
             }
 
             String id = "accesskey";
