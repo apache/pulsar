@@ -378,12 +378,10 @@ public class FunctionRuntimeManagerTest {
                                         .build()))));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
-
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 2);
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment3);
     }
-
 }

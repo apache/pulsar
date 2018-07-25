@@ -82,7 +82,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private MembershipManager membershipManager;
     private final ConnectorsManager connectorsManager;
 
-
     public FunctionRuntimeManager(WorkerConfig workerConfig,
                                   PulsarClient pulsarClient,
                                   Namespace dlogNamespace,
@@ -354,6 +353,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * @param assignmentsUpdate the assignment update
      */
     public synchronized void processAssignmentUpdate(MessageId messageId, AssignmentsUpdate assignmentsUpdate) {
+
         if (assignmentsUpdate.getVersion() > this.currentAssignmentVersion) {
 
             Map<String, Assignment> assignmentMap = new HashMap<>();
@@ -430,8 +430,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
                         this.insertStartAction(newFunctionRuntimeInfo);
                         this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
-                        this.setAssignment(assignment);
                     }
+
+                    // find existing assignment
+                    Assignment existing_assignment = this.findAssignment(assignment);
+                    if (existing_assignment != null) {
+                        // delete old assignment that could have old data
+                        this.deleteAssignment(existing_assignment);
+                    }
+                    // set to newest assignment
+                    this.setAssignment(assignment);
                 }
             }
 
