@@ -630,6 +630,10 @@ public class PersistentSubscription implements Subscription {
         }
 
         subStats.type = getType();
+        if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
+            subStats.activeConsumerName
+                    = ((PersistentDispatcherSingleActiveConsumer) dispatcher).getActiveConsumer().consumerName();
+        }
         if (SubType.Shared.equals(subStats.type)) {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                 subStats.unackedMessages = ((PersistentDispatcherMultipleConsumers) dispatcher)
@@ -640,6 +644,7 @@ public class PersistentSubscription implements Subscription {
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog();
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
+
         return subStats;
     }
 
