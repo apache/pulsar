@@ -38,7 +38,10 @@ For more specific steps involving UI, please refer to [this doc](https://github.
 
 ## Configure the broker for Athenz
 
-{% include message.html id="tls_role_tokens" %}
+> ### TLS encryption strongly recommended
+>
+> Please note that using TLS encryption is strongly recommended when using Athenz as an authentication provider,
+> as it can protect role tokens from being intercepted and reused (see also [this doc](https://github.com/yahoo/athenz/blob/master/docs/data_model.md)).
 
 In the `conf/broker.conf` configuration file in your Pulsar installation, you need to provide the class name of the Athenz authentication provider as well as a comma-separated list of provider domain names.
 
@@ -55,7 +58,8 @@ tlsCertificateFilePath=/path/to/broker-cert.pem
 tlsKeyFilePath=/path/to/broker-key.pem
 ```
 
-{% include message.html id="broker_conf_doc" %}
+> A full listing of parameters available in the `conf/broker.conf` file, as well as the default
+> values for those parameters, can be found in [Broker Configuration](reference-configuration.md#broker).
 
 ## Configure clients for Athenz
 

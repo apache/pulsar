@@ -49,7 +49,7 @@ const versions = getVersions();
 const latestVersion = versions[0];
 
 const from = [
-  /pulsar:version/g, 
+  /{{pulsar:version}}/g, 
   /pulsar:binary_release_url/g,
   /pulsar:download_page_url/g,
   /pulsar:repo_url/g
@@ -65,10 +65,10 @@ const options = {
   from: from,
   to: [
     `${latestVersion}-incubating`, 
-      binaryReleaseUrl(`${latestVersion}-incubating`), 
-      downloadPageUrl(),
-      pulsarRepoUrl()
-    ],
+    binaryReleaseUrl(`${latestVersion}-incubating`), 
+    downloadPageUrl(),
+    pulsarRepoUrl()
+  ],
   dry: false
 };
 

@@ -199,7 +199,7 @@ $ kubectl get pods -w -l app=pulsar
 
 Once all of the components are up and running, you'll need to create at least one Pulsar tenant and at least one namespace.
 
-> This step is not strictly required if Pulsar [authentication and authorization](administration-auth.md) is turned on, though it allows you to change [policies](admin-api-namespaces.md) for each of the namespaces later.
+> This step is not strictly required if Pulsar [authentication and authorization](security-overview.md) is turned on, though it allows you to change [policies](admin-api-namespaces.md) for each of the namespaces later.
 
 You can create properties and namespaces (and perform any other administrative tasks) using the `pulsar-admin` pod that is already configured to act as an admin client for your newly created Pulsar cluster. One easy way to perform administrative tasks is to create an alias for the [`pulsar-admin`](reference-pulsar-admin.md) tool installed on the admin pod.
 

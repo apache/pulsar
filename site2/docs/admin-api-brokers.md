@@ -17,9 +17,7 @@ Pulsar brokers consist of two components:
 
 In addition to being configurable when you start them up, brokers can also be [dynamically configured](#dynamic-broker-configuration).
 
-{% include admonition.html type="info" content="
-See the [Configuration](reference-configuration.md#broker) page for a full listing of broker-specific configuration parameters.
-" %}
+> See the [Configuration](reference-configuration.md#broker) page for a full listing of broker-specific configuration parameters.
 
 ## Brokers resources
 
