@@ -275,7 +275,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
     public List<WorkerInfo> getWorkers() throws PulsarAdminException {
         try {
-            return request(functions.path("workers")).get(new GenericType<List<WorkerInfo>>() {
+            return request(functions.path("cluster")).get(new GenericType<List<WorkerInfo>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
