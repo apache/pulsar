@@ -50,7 +50,7 @@ You can find documentation for the REST API exposed by Pulsar [brokers](referenc
 
 ### Java admin client
 
-To use the Java admin API, instantiate a {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object, specifying a URL for a Pulsar [broker](reference-terminology.md#broker) and a {% javadoc ClientConfiguration admin org.apache.pulsar.client.admin.ClientConfiguration %}. Here's a minimal example using `localhost`:
+To use the Java admin API, instantiate a {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object, specifying a URL for a Pulsar [broker](reference-terminology.md#broker) and a {@inject: javadoc:ClientConfiguration:/admin/org/apache/pulsar/client/admin/ClientConfiguration}. Here's a minimal example using `localhost`:
 
 ```java
 URL url = new URL("http://localhost:8080");

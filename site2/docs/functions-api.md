@@ -144,7 +144,7 @@ class WordFilter(Function):
 Writing Pulsar Functions in Java involves implementing one of two interfaces:
 
 * The [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface
-* The {% javadoc Function client org.apache.pulsar.functions.api.Function %} interface. This interface works much like the `java.util.Function` interface, but with the important difference that it provides a {% javadoc Context client org.apache.pulsar.functions.api.Context %} object that you can use in a [variety of ways](#context)
+* The {@inject: javadoc:Function:client/org/apache/pulsar/functions/api/Function} interface. This interface works much like the `java.util.Function` interface, but with the important difference that it provides a {@inject: javadoc:Context:/client/org/apache/pulsar/functions/api/Context} object that you can use in a [variety of ways](#context)
 
 ### Getting started
 
@@ -237,7 +237,7 @@ Function name | Description
 
 ### Java context object
 
-The {% javadoc Context client org.apache.pulsar.functions.api.Context %} interface provides a number of methods that you can use to access the function's [context](#context). The various method signatures for the `Context` interface are listed below:
+The {@inject: javadoc:Context:/client/org/apache/pulsar/functions/api/Context} interface provides a number of methods that you can use to access the function's [context](#context). The various method signatures for the `Context` interface are listed below:
 
 ```java
 public interface Context {
