@@ -9,7 +9,7 @@ Pulsar provides a way to use custom authentication and authorization mechanisms
 ## Authentication
 
 Pulsar supports mutual TLS and Athenz authentication plugins, and these can be used as described
-[here](administration-auth.md).
+[here](security-overview.md).
 
 It is possible to use a custom authentication mechanism by providing the implementation in the
 form of two plugins one for the Client library and the other for the Pulsar Broker to validate

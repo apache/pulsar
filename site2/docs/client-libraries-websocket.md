@@ -250,7 +250,7 @@ Error Code | Error Message
 7 | Invalid payload encoding
 8 | Unknown error
 
-{% include admonition.html type='warning' content='The application is responsible for re-establishing a new WebSocket session after a backoff period.' %}
+> The application is responsible for re-establishing a new WebSocket session after a backoff period.
 
 ## Client examples
 

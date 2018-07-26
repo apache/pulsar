@@ -16,8 +16,6 @@ A topic in Pulsar is backed by a log, known as a managed ledger. This log is com
 
 ![Tiered storage](assets/pulsar-tiered-storage.png "Tiered Storage")
 
-{% include figure.html src="/img/pulsar-tiered-storage.png" alt="Tiered Storage" width="80" %}
-
 The Tiered Storage offloading mechanism takes advantage of this segment oriented architecture. When offloading is requested, the segments of the log are copied, one-by-one, to tiered storage. All segments of the log, apart from the segment currently being written to can be offloaded.
 
 ## Amazon S3

@@ -105,7 +105,8 @@ authorizationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
 ```
 
-{% include message.html id="broker_conf_doc" %}
+> A full listing of parameters available in the `conf/broker.conf` file, as well as the default
+> values for those parameters, can be found in [Broker Configuration](reference-configuration.md#broker).
 
 ## Configure the discovery service
 

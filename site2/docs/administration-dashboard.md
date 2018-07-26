@@ -35,4 +35,4 @@ Once the Docker container is running, the web dashboard will be accessible via `
 
 ### Known issues
 
-Pulsar [authentication](administration-auth.md#authentication-providers) is not supported at this point. The dashboard's data collector does not pass any authentication-related data and will be denied access if the Pulsar broker requires authentication.
+Pulsar [authentication](security-overview.md#authentication-providers) is not supported at this point. The dashboard's data collector does not pass any authentication-related data and will be denied access if the Pulsar broker requires authentication.

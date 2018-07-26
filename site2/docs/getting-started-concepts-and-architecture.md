@@ -22,7 +22,7 @@ Messages are the basic "unit" of Pulsar. They're what producers publish to topic
 Component | Purpose
 :---------|:-------
 Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](#schema-registry)
-Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](#compaction)
+Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](#topic-compaction)
 Properties | An optional key/value map of user-defined properties
 Producer name | The name of the producer that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)
 Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. A message's sequence ID is its ordering in that sequence.
@@ -100,12 +100,12 @@ Topic name component | Description
 :--------------------|:-----------
 `persistent` / `non-persistent` | This identifies the type of topic. Pulsar supports two kind of topics: [persistent](#persistent-storage) and [non-persistent](#non-persistent-topics) (persistent is the default, so if you don't specify a type the topic will be persistent). With persistent topics, all messages are durably [persisted](#persistent-storage) on disk (that means on multiple disks unless the broker is standalone), whereas data for [non-persistent](#non-persistent-topics) topics isn't persisted to storage disks.
 `tenant`             | The topic's tenant within the instance. Tenants are essential to multi-tenancy in Pulsar and can be spread across clusters.
-`namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespace) level. Each tenant can have multiple namespaces.
+`namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespaces) level. Each tenant can have multiple namespaces.
 `topic`              | The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.
 
 
 > #### No need to explicitly create new topics
-> You don't need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespace) provided in the [topic name](#topics).
+> You don't need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespaces) provided in the [topic name](#topics).
 
 
 ### Namespaces
@@ -243,7 +243,7 @@ In non-persistent topics, brokers immediately deliver messages to all connected 
 
 > With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're *certain* that your use case requires it and can sustain it.
 
-By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the [`pulsar-admin non-persistent`](reference-cli-tools.md#pulsar-admin-non-persistent) interface.
+By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the [`pulsar-admin topics`](referencereference--pulsar-admin/#topics-1) interface.
 
 #### Performance
 
@@ -253,7 +253,7 @@ Non-persistent messaging is usually faster than persistent messaging because bro
 
 Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with `non-persistent`. All three subscription modes---[exclusive](#exclusive), [shared](#shared), and [failover](#failover)---are supported for non-persistent topics.
 
-Here's an example [Java consumer](client-libraries-java.md#consumer) for a non-persistent topic:
+Here's an example [Java consumer](client-libraries-java.md#consumers) for a non-persistent topic:
 
 ```java
 PulsarClient client = PulsarClient.create("pulsar://localhost:6650");
@@ -271,7 +271,7 @@ Producer producer = client.createProducer(npTopic);
 
 ## Architecture overview
 
-At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](#replicate) data amongst themselves.
+At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](#replication) data amongst themselves.
 
 In a Pulsar cluster:
 
@@ -285,45 +285,45 @@ The diagram below provides an illustration of a Pulsar cluster:
 
 At the broader instance level, an instance-wide ZooKeeper cluster called the configuration store handles coordination tasks involving multiple clusters, for example [geo-replication](#replication).
 
-## Brokers
+### Brokers
 
 The Pulsar message broker is a stateless component that's primarily responsible for running two other components:
 
 * An HTTP server that exposes a REST API for both [administrative tasks](reference-rest-api.md) and [topic lookup](#client-setup-phase) for producers and consumers
 * A dispatcher, which is an asynchronous TCP server over a custom [binary protocol](developing-binary-protocol.md) used for all data transfers
 
-Messages are typically dispatched out of a [managed ledger](#managed-ledger) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from BookKeeper.
+Messages are typically dispatched out of a [managed ledger](#managed-ledgers) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from BookKeeper.
 
 Finally, to support geo-replication on global topics, the broker manages replicators that tail the entries published in the local region and republish them to the remote region using the Pulsar [Java client library](client-libraries-java.md).
 
 > For a guide to managing Pulsar brokers, see the [brokers](admin-api-brokers.md) guide.
 
-## Clusters
+### Clusters
 
 A Pulsar instance consists of one or more Pulsar *clusters*. Clusters, in turn, consist of:
 
-* One or more Pulsar [brokers](#broker)
+* One or more Pulsar [brokers](#brokers)
 * A ZooKeeper quorum used for cluster-level configuration and coordination
 * An ensemble of bookies used for [persistent storage](#persistent-storage) of messages
 
-Clusters can replicate amongst themselves using [geo-replication](#geo-replication).
+Clusters can replicate amongst themselves using [geo-replication](#replication).
 
-> For a guide to managing Pulsar clusters, see the [Clusters and brokers](admin-api-brokers#managing-clusters) guide.
+> For a guide to managing Pulsar clusters, see the [clusters](admin-api-clusters.md) guide.
 
-## Metadata store
+### Metadata store
 
 Pulsar uses [Apache Zookeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. In a Pulsar instance:
 
 * A configuration store quorum stores configuration for tenants, namespaces, and other entities that need to be globally consistent.
 * Each cluster has its own local ZooKeeper ensemble that stores cluster-specific configuration and coordination such as ownership metadata, broker load reports, BookKeeper ledger metadata, and more.
 
-## Persistent storage
+### Persistent storage
 
 Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar broker, it will be delivered to its intended target.
 
 This guarantee requires that non-acknowledged messages are stored in a durable manner until they can be delivered to and acknowledged by consumers. This mode of messaging is commonly called *persistent messaging*. In Pulsar, N copies of all messages are stored and synced on disk, for example 4 copies across two servers with mirrored [RAID](https://en.wikipedia.org/wiki/RAID) volumes on each server.
 
-### Apache BookKeeper
+#### Apache BookKeeper
 
 Pulsar uses a system called [Apache BookKeeper](http://bookkeeper.apache.org/) for persistent message storage. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) (WAL) system that provides a number of crucial advantages for Pulsar:
 
@@ -350,7 +350,7 @@ You can see an illustration of how brokers and bookies interact in the diagram b
 ![Brokers and bookies](assets/broker-bookie.png)
 
 
-### Ledgers
+#### Ledgers
 
 A ledger is an append-only data structure with a single writer that is assigned to multiple BookKeeper storage nodes, or bookies. Ledger entries are replicated to multiple bookies. Ledgers themselves have very simple semantics:
 
@@ -358,11 +358,11 @@ A ledger is an append-only data structure with a single writer that is assigned 
 * After the ledger has been closed---either explicitly or because the writer process crashed---it can then be opened only in read-only mode.
 * Finally, when entries in the ledger are no longer needed, the whole ledger can be deleted from the system (across all bookies).
 
-#### Ledger read consistency
+##### Ledger read consistency
 
 The main strength of Bookkeeper is that it guarantees read consistency in ledgers in the presence of failures. Since the ledger can only be written to by a single process, that process is free to append entries very efficiently, without need to obtain consensus. After a failure, the ledger will go through a recovery process that will finalize the state of the ledger and establish which entry was last committed to the log. After that point, all readers of the ledger are guaranteed to see the exact same content.
 
-#### Managed ledgers
+##### Managed ledgers
 
 Given that Bookkeeper ledgers provide a single log abstraction, a library was developed on top of the ledger called the *managed ledger* that represents the storage layer for a single topic. A managed ledger represents the abstraction of a stream of messages with a single writer that keeps appending at the end of the stream and multiple cursors that are consuming the stream, each with its own associated position.
 
@@ -371,13 +371,9 @@ Internally, a single managed ledger uses multiple BookKeeper ledgers to store th
 1. After a failure, a ledger is no longer writable and a new one needs to be created.
 2. A ledger can be deleted when all cursors have consumed the messages it contains. This allows for periodic rollover of ledgers.
 
-### Journal storage
+#### Journal storage
 
 In BookKeeper, *journal* files contain BookKeeper transaction logs. Before making an update to a [ledger](#ledgers), a bookie needs to ensure that a transaction describing the update is written to persistent (non-volatile) storage. A new journal file is created once the bookie starts or the older journal file reaches the journal file size threshold (configured using the [`journalMaxSizeMB`](reference-configuration.md#bookkeeper-journalMaxSizeMB) parameter).
-
-### Non-persistent storage
-
-A future version of BookKeeper will support *non-persistent messaging* and thus multiple durability modes at the topic level. This will enable you to set the durability mode at the topic level, replacing the `persistent` in topic names with a `non-persistent` indicator.
 
 ## Message retention and expiry
 
@@ -400,10 +396,6 @@ The diagram below illustrates both concepts:
 With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a namespace dicates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, *all* of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.
 
 With message expiry, shown at the bottom, some messages are <span style="color: #bb3b3e;">deleted</span>, even though they <span style="color: #337db6;">haven't been acknowledged</span>, because they've expired according to the <span style="color: #e39441;">TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven't been acknowledged but are 10 minutes old).
-
-## Pulsar Functions
-
-For an in-depth look at Pulsar Functions, see the [Pulsar Functions overview](functions-overview.md).
 
 ## Replication
 
@@ -438,7 +430,7 @@ Message deduplication makes Pulsar an ideal messaging system to be used in conju
 
 ## Multi-tenancy
 
-Pulsar was created from the ground up as a multi-tenant system. To support multi-tenancy, Pulsar has a concept of tenants. Tenants can be spread across clusters and can each have their own [authentication and authorization](administration-auth.md) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](cookbooks-retention-expiry.md#time-to-live-ttl), and isolation policies can be managed.
+Pulsar was created from the ground up as a multi-tenant system. To support multi-tenancy, Pulsar has a concept of tenants. Tenants can be spread across clusters and can each have their own [authentication and authorization](security-overview.md) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](cookbooks-retention-expiry.md#time-to-live-ttl), and isolation policies can be managed.
 
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 
@@ -448,17 +440,11 @@ persistent://tenant/namespace/topic
 
 As you can see, the tenant is the most basic unit of categorization for topics (more fundamental than the namespace and topic name).
 
-### Tenants and namespaces
-
-{% include explanations/tenants-namespaces.md %}
-
-Pulsar was designed from the ground up to be a multi-tenant system. In Pulsar, tenants are the highest administrative unit within a Pulsar instance.
-
 ### Tenants
 
-To each property in a Pulsar instance you can assign:
+To each tenant in a Pulsar instance you can assign:
 
-* An [authorization](administration-auth.md#authorization) scheme
+* An [authorization](security-authorization.md) scheme
 * The set of {% popover clusters %} to which the tenant's configuration applies
 
 ### Namespaces
@@ -481,7 +467,7 @@ persistent://tenant/app1/topic-3
 
 ## Authentication and Authorization
 
-Pulsar supports a pluggable [authentication](administration-auth.md) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
+Pulsar supports a pluggable [authentication](security-overview.md) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
 
 ## Client interface
 
@@ -525,7 +511,7 @@ $ bin/pulsar proxy \
 Some important things to know about the Pulsar proxy:
 
 * Connecting clients don't need to provide *any* specific configuration to use the Pulsar proxy. You won't need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you're running a load balancer over the Pulsar proxy).
-* [TLS encryption and authentication](administration-auth.md#tls-client-auth) is supported by the Pulsar proxy
+* [TLS encryption and authentication](security-tls.md) is supported by the Pulsar proxy
 
 ## Service discovery
 
@@ -646,43 +632,6 @@ One way to alleviate this cost is to use Tiered Storage. With tiered storage, ol
 Pulsar currently supports S3 as a long term store. Offloading to S3 triggered via a Rest API or command line interface. The user passes in the amount of topic data they wish to retain on bookkeeper, and the broker will copy the backlog data to S3. The original data will then be deleted from bookkeeper after a configured delay (4 hours by default).
 
 > For a guide for setting up tiered storage, see the [Tiered storage cookbook](cookbooks-tiered-storage.md).
-
-
-## Pulsar IO
-
-Messaging systems are most powerful when you can easily use them in conjunction with external systems like databases and other messaging systems. **Pulsar IO** is a feature of Pulsar that enables you to easily create, deploy, and manage Pulsar **connectors** that interact with external systems, such as [Apache Cassandra](https://cassandra.apache.org), [Aerospike](https://www.aerospike.com), and many others.
-
-> #### Pulsar IO and Pulsar Functions
-> Under the hood, Pulsar IO connectors are specialized [Pulsar Functions](#pulsar-functions) purpose-built to interface with external systems. The [administrative interface](io-overview.md) for Pulsar IO is, in fact, quite similar to that of Pulsar Functions.
-
-### Sources and sinks
-
-Pulsar IO connectors come in two types:
-
-* **Sources** feed data *into* Pulsar from other systems. Common sources include other messaging systems and "firehose"-style data pipeline APIs.
-* **Sinks** are fed data *from* Pulsar. Common sinks include other messaging systems and SQL and NoSQL databases.
-
-This diagram illustrates the relationship between sources, sinks, and Pulsar:
-
-![Pulsar IO diagram](assets/pulsar-io.png "Pulsar IO connectors (sources and sinks)")
-
-### Working with connectors
-
-Pulsar IO connectors can be managed via the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, in particular the [`source`](reference-pulsar-admin.md#source) and [`sink`](reference-pulsar-admin.md#cooks) commands.
-
-> For a guide to managing connectors in your Pulsar installation, see the [Pulsar IO cookbook](io-overview.md#managing-connectors).
-
-The following connectors are currently available for Pulsar:
-
-|Name|Java Class|
-|---|---|
-|[Aerospike sink](https://www.aerospike.com/)|[`org.apache.pulsar.io.aerospike.AerospikeSink`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/aerospike/src/main/java/org/apache/pulsar/io/aerospike/AerospikeAbstractSink.java)|
-|[Cassandra sink](https://cassandra.apache.org)|[`org.apache.pulsar.io.cassandra.CassandraSink`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/cassandra/src/main/java/org/apache/pulsar/io/cassandra/CassandraAbstractSink.java)|
-|[Kafka source](https://kafka.apache.org)|[`org.apache.pulsar.io.kafka.KafkaSource`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java)|
-|[Kafka sink](https://kafka.apache.org)|[`org.apache.pulsar.io.kafka.KafkaSink`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSink.java)|
-|[RabbitMQ source](https://www.rabbitmq.com)|[`org.apache.pulsar.io.rabbitmq.RabbitMQSource`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/io/rabbitmq/RabbitMQSource.java)|
-|[Twitter Firehose source](https://developer.twitter.com/en/docs)|[org.apache.pulsar.io.twitter.TwitterFireHose](https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/twitter/src/main/java/org/apache/pulsar/io/twitter/TwitterFireHose.java)|
-
 
 ## Schema registry
 

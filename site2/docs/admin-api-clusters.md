@@ -20,8 +20,6 @@ New clusters can be provisioned using the admin interface.
 
 > Please note that this operation requires superuser privileges.
 
-{% include message.html id="superuser" %}
-
 #### pulsar-admin
 
 You can provision a new cluster using the [`create`](reference-pulsar-admin.md#clusters-create) subcommand. Here's an example:
@@ -62,9 +60,12 @@ When provision a new cluster, you need to initialize that cluster's [metadata](g
 
 You must initialize cluster metadata *before* starting up any [brokers](admin-api-brokers.md) that will belong to the cluster.
 
-{% include admonition.html type="warning" title="No cluster metadata initialization through the REST API or the Java admin API" content='
-Unlike most other admin functions in Pulsar, cluster metadata initialization cannot be performed via the admin REST API or the admin Java client, as metadata initialization involves communicating with ZooKeeper directly. Instead, you can use the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool, in particular the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command.
-' %}
+> #### No cluster metadata initialization through the REST API or the Java admin API
+>
+> Unlike most other admin functions in Pulsar, cluster metadata initialization cannot be performed via the admin REST API
+> or the admin Java client, as metadata initialization involves communicating with ZooKeeper directly.
+> Instead, you can use the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool, in particular
+> the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command.
 
 Here's an example cluster metadata initialization command:
 
@@ -79,7 +80,7 @@ bin/pulsar initialize-cluster-metadata \
   --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
 ```
 
-You'll need to use `--*-tls` flags only if you're using [TLS authentication](administration-auth.md#tls-client-auth) in your instance.
+You'll need to use `--*-tls` flags only if you're using [TLS authentication](security-tls.md) in your instance.
 
 ### Get configuration
 

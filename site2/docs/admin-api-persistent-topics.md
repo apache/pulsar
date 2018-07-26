@@ -8,7 +8,10 @@ Persistent helps to access topic which is a logical endpoint for publishing and 
 
 In all of the instructions and commands below, the topic name structure is:
 
-{% include topic.html ten="tenant" n="namespace" t="topic" %}
+
+```shell
+persistent://tenant/namespace/topic
+```
 
 ## Persistent topics resources
 

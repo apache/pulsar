@@ -4,7 +4,7 @@ title: Pulsar client libraries
 sidebar_label: Client libraries
 ---
 
-Pulsar currently has client libraries available for three languages:
+Pulsar currently has client libraries available for following languages:
 
 * [Java](#java-client)
 * [Go](#go-client)
