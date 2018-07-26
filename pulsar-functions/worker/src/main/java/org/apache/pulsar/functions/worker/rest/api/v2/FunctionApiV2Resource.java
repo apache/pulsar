@@ -136,6 +136,13 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     }
 
     @GET
+    @Path("/cluster/leader")
+    @Produces(MediaType.APPLICATION_JSON)
+    public WorkerInfo getClusterLeader() {
+        return functions.getClusterLeader();
+    }
+
+    @GET
     @Path("/assignments")
     public Response getAssignments() {
         return functions.getAssignments();

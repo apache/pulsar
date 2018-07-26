@@ -132,6 +132,31 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         return workerIds;
     }
 
+    public WorkerInfo getLeader() {
+        TopicStats topicStats = null;
+        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
+        try {
+            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
+        } catch (PulsarAdminException e) {
+            log.error("Failed to get status of coordinate topic {}",
+                    this.workerConfig.getClusterCoordinationTopic(), e);
+            throw new RuntimeException(e);
+        }
+
+        String activeConsumerName = topicStats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION).activeConsumerName;
+        WorkerInfo leader = null;
+        for (ConsumerStats consumerStats : topicStats.subscriptions
+                .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
+            if (consumerStats.consumerName.equals(activeConsumerName)) {
+                leader = WorkerInfo.parseFrom(consumerStats.metadata.get(WORKER_IDENTIFIER));
+            }
+        }
+        if (leader == null) {
+            log.warn("Failed to determine leader in functions cluster");
+        }
+        return leader;
+    }
+
     @Override
     public void close() throws PulsarClientException {
         consumer.close();
