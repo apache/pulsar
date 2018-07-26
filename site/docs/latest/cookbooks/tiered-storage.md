@@ -23,13 +23,11 @@ On the broker, the administrator must configure the bucket or credentials for th
 
 Pulsar uses multi-part objects to upload the segment data. It is possible that a broker could crash while uploading the data. We recommend you add a life cycle rule your bucket to expire incomplete multi-part upload after a day or two to avoid getting charged for incomplete uploads.
 
-## Configuring for S3 and GCS in the broker
+## Configuring the driver for "aws-s3" or "google-cloud-storage" in the broker
 
 Offloading is configured in ```broker.conf```. 
 
 At a minimum, the administrator must configure the driver, the bucket and the authenticating.  There is also some other knobs to configure, like the bucket regions, the max block size in backed storage, etc.
-
-### Configuring the driver
 
 Currently we support driver of types: { "aws-s3", "google-cloud-storage" }, 
 {% include admonition.html type="warning" content="Driver names are case-insensitive for driver's name. "s3" and "aws-s3" are similar, with "aws-s3" you just don't need to define the url of the endpoint because it is aligned with region, and default is `s3.amazonaws.com`; while with s3, you must provide the endpoint url by `s3ManagedLedgerOffloadServiceEndpoint`." %}
@@ -38,28 +36,23 @@ Currently we support driver of types: { "aws-s3", "google-cloud-storage" },
 managedLedgerOffloadDriver=aws-s3
 ```
 
-### Configuring the Bucket
+### Configuring for "aws-s3" driver
+
+#### Configuring the Bucket
 
 On the broker, the administrator must configure the bucket and credentials for the cloud storage service. The configured bucket and credentials must exist before attempting to offload. If it does not exist, the offload operation will fail.
 
-- Regarding driver type "aws-s3", the administrator should configure `s3ManagedLedgerOffloadBucket`.
+Regarding AWS S3, the administrator should configure `s3ManagedLedgerOffloadBucket`.
 
 ```conf
 s3ManagedLedgerOffloadBucket=pulsar-topic-offload
 ```
 
-- While regarding driver type "google-cloud-storage", the administrator should configure `gcsManagedLedgerOffloadBucket`.
-```conf
-gcsManagedLedgerOffloadBucket=pulsar-topic-offload
-```
-
-### Configure the Bucket Region
+#### Configuring the Bucket Region
 
 Bucket Region is the region where bucket located. 
 
 Regarding AWS S3, the default region is `US East (N. Virginia)`. Page [AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html) contains more information.
-
-Regarding GCS, buckets are default created in the `us multi-regional location`,  page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
 
 - AWS S3 Region example:
 
@@ -67,17 +60,9 @@ Regarding GCS, buckets are default created in the `us multi-regional location`, 
 s3ManagedLedgerOffloadRegion=eu-west-3
 ```
 
-- GCS Region example:
+#### Configuring the Authenticating
 
-```conf
-gcsManagedLedgerOffloadRegion=europe-west3
-```
-
-### Configure the Authenticating
-
-#### Authenticating with AWS S3
-
-To be able to access S3, you need to authenticate with S3. Pulsar does not provide any direct means of configuring authentication for S3, but relies on the mechanisms supported by the [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html).
+To be able to access AWS S3, you need to authenticate with AWS S3. Pulsar does not provide any direct means of configuring authentication for AWS S3, but relies on the mechanisms supported by the [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html).
 
 Once you have created a set of credentials in the AWS IAM console, they can be configured in a number of ways.
 
@@ -89,7 +74,6 @@ export AWS_SECRET_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 ```
 
 {% include admonition.html type="info" content="\"export\" is important so that the variables are made available in the environment of spawned processes." %}
-
 
 2. Add the Java system properties *aws.accessKeyId* and *aws.secretKey* to **PULSAR_EXTRA_OPTS** in ```conf/pulsar_env.sh```.
 
@@ -109,7 +93,41 @@ If you are running in EC2 you can also use instance profile credentials, provide
 
 {% include admonition.html type="warning" content="The broker must be rebooted for credentials specified in pulsar_env to take effect." %}
 
-#### Authenticating with GCS
+#### Configuring the size of block read/write
+
+Pulsar also provides some knobs to configure the size of requests sent to AWS S3.
+
+- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes```  configures the maximum size of a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
+- ```s3ManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual read when reading back data from AWS S3. Default is 1MB.
+
+In both cases, these should not be touched unless you know what you are doing.
+
+
+### Configuring for "google-cloud-storage" driver
+
+#### Configuring the Bucket
+
+On the broker, the administrator must configure the bucket and credentials for the cloud storage service. The configured bucket and credentials must exist before attempting to offload. If it does not exist, the offload operation will fail.
+
+Regarding driver type "google-cloud-storage", the administrator should configure `gcsManagedLedgerOffloadBucket`.
+
+```conf
+gcsManagedLedgerOffloadBucket=pulsar-topic-offload
+```
+
+#### Configuring the Bucket Region
+
+Bucket Region is the region where bucket located. 
+
+Regarding GCS, buckets are default created in the `us multi-regional location`,  page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
+
+- GCS Region example:
+
+```conf
+gcsManagedLedgerOffloadRegion=europe-west3
+```
+
+#### Configuring the Authenticating
 
 The administrator need configure `gcsManagedLedgerOffloadServiceAccountKeyFile` in `broker.conf` to get GCS service available.  It is a Json file, which contains GCS credentials of service account key. 
 [This page](https://support.google.com/googleapi/answer/6158849) contains more information of how to create this key file for authentication. You could also get more information regarding google cloud [IAM](https://cloud.google.com/storage/docs/access-control/iam).
@@ -123,15 +141,15 @@ Usually these are the steps to create the authentication file:
 
 Here is an example:
 ```conf
-gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/jia/Downloads/project-804d5e6a6f33.json"
+gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/hello/Downloads/project-804d5e6a6f33.json"
 ```
 
-### Configure the size of block read/write
+#### Configuring the size of block read/write
 
-Pulsar also provides some knobs to configure the size of requests sent to S3/GCS.
+Pulsar also provides some knobs to configure the size of requests sent to GCS.
 
-- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes``` and ```gcsManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
-- ```s3ManagedLedgerOffloadReadBufferSizeInBytes``` and ```gcsManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual read when reading back data from S3/GCS. Default is 1MB.
+- ```gcsManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
+- ```gcsManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual read when reading back data from GCS. Default is 1MB.
 
 In both cases, these should not be touched unless you know what you are doing.
 
