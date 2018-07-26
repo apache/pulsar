@@ -175,4 +175,42 @@ public class CLITest extends PulsarClusterTestBase {
         assertNotEquals(0, result.getExitCode());
         assertTrue(result.getStderr().contains("Reason: HTTP 404 Not Found"));
     }
+
+    @Test
+    public void testSetInfiniteRetention() throws Exception {
+        ContainerExecResult result;
+
+        String namespace = "get-and-set-retention" + randomName(8);
+        pulsarCluster.createNamespace(namespace);
+
+        String[] setCommand = {
+            "namespaces", "set-retention", "public/" + namespace,
+            "--size", "-1",
+            "--time", "-1"
+        };
+
+        result = pulsarCluster.runAdminCommandOnAnyBroker(setCommand);
+        assertEquals(0, result.getExitCode());
+        assertTrue(
+            result.getStdout().isEmpty(),
+            result.getStdout()
+        );
+        assertTrue(
+            result.getStderr().isEmpty(),
+            result.getStdout()
+        );
+
+        String[] getCommand = {
+            "namespaces", "get-retention", "public/" + namespace
+        };
+
+        result = pulsarCluster.runAdminCommandOnAnyBroker(getCommand);
+        assertEquals(0, result.getExitCode());
+        assertTrue(
+            result.getStdout().contains("\"retentionTimeInMinutes\" : -1"),
+            result.getStdout());
+        assertTrue(
+            result.getStdout().contains("\"retentionSizeInMB\" : -1"),
+            result.getStdout());
+    }
 }
