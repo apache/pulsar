@@ -1,7 +1,7 @@
 ---
 id: client-libraries-websocket
 title: Pulsar's WebSocket API
-sidebar_label: WebSocket API
+sidebar_label: WebSocket
 ---
 
 Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages that do not have an official [client library](getting-started-clients.md). Through WebSockets you can publish and consume messages and use all the features available in the [Java](client-libraries-java.md), [Python](client-libraries-python.md), and [C++](client-libraries-cpp.md) client libraries.
