@@ -20,11 +20,15 @@ package org.apache.pulsar.broker.offload.impl;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.io.Files;
+import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -49,9 +53,11 @@ import org.jclouds.blobstore.domain.BlobBuilder;
 import org.jclouds.blobstore.domain.MultipartPart;
 import org.jclouds.blobstore.domain.MultipartUpload;
 import org.jclouds.blobstore.options.PutOptions;
+import org.jclouds.domain.Credentials;
 import org.jclouds.domain.Location;
 import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
+import org.jclouds.googlecloud.GoogleCredentialsFromJson;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
 import org.jclouds.s3.reference.S3Constants;
@@ -63,6 +69,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     public static final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
 
+    // use these keys for both s3 and gcs.
     static final String METADATA_FORMAT_VERSION_KEY = "S3ManagedLedgerOffloaderFormatVersion";
     static final String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
     static final String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
@@ -72,11 +79,19 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(driver));
     }
 
+    public static boolean isS3Driver(String driver) {
+        return driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1]);
+    }
+
+    public static boolean isGcsDriver(String driver) {
+        return driver.equalsIgnoreCase(DRIVER_NAMES[2]);
+    }
+
     private static void addVersionInfo(BlobBuilder blobBuilder) {
         blobBuilder.userMetadata(ImmutableMap.of(
-            METADATA_FORMAT_VERSION_KEY, CURRENT_VERSION,
-            METADATA_SOFTWARE_VERSION_KEY, PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
-            METADATA_SOFTWARE_GITSHA_KEY, PulsarBrokerVersionStringUtils.getGitSha()));
+            METADATA_FORMAT_VERSION_KEY.toLowerCase(), CURRENT_VERSION,
+            METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
+            METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getGitSha()));
     }
 
     private final VersionCheck VERSION_CHECK = (key, blob) -> {
@@ -104,30 +119,90 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                          OrderedScheduler scheduler)
             throws PulsarServerException {
         String driver = conf.getManagedLedgerOffloadDriver();
-        String region = conf.getS3ManagedLedgerOffloadRegion();
-        String bucket = conf.getS3ManagedLedgerOffloadBucket();
-        String endpoint = conf.getS3ManagedLedgerOffloadServiceEndpoint();
-        int maxBlockSize = conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes();
-        int readBufferSize = conf.getS3ManagedLedgerOffloadReadBufferSizeInBytes();
+        if (!driverSupported(driver)) {
+            throw new PulsarServerException(
+                "Not support this kind of driver as offload backend: " + driver);
+        }
 
-        if (Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
+        String endpoint = conf.getS3ManagedLedgerOffloadServiceEndpoint();
+        String region = isS3Driver(driver) ?
+            conf.getS3ManagedLedgerOffloadRegion() :
+            conf.getGcsManagedLedgerOffloadRegion();
+        String bucket = isS3Driver(driver) ?
+            conf.getS3ManagedLedgerOffloadBucket() :
+            conf.getGcsManagedLedgerOffloadBucket();
+        int maxBlockSize = isS3Driver(driver) ?
+            conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes() :
+            conf.getGcsManagedLedgerOffloadMaxBlockSizeInBytes();
+        int readBufferSize = isS3Driver(driver) ?
+            conf.getS3ManagedLedgerOffloadReadBufferSizeInBytes() :
+            conf.getGcsManagedLedgerOffloadReadBufferSizeInBytes();
+
+        if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
             throw new PulsarServerException(
                     "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
                     + " if s3 offload enabled");
         }
+
         if (Strings.isNullOrEmpty(bucket)) {
-            throw new PulsarServerException("s3ManagedLedgerOffloadBucket cannot be empty if s3 offload enabled");
+            throw new PulsarServerException(
+                "ManagedLedgerOffloadBucket cannot be empty for s3 and gcs offload");
         }
         if (maxBlockSize < 5*1024*1024) {
-            throw new PulsarServerException("s3ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB");
+            throw new PulsarServerException(
+                "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for s3 and gcs offload");
         }
 
-        return new BlobStoreManagedLedgerOffloader(driver, bucket, scheduler, maxBlockSize, readBufferSize, endpoint, region);
+        Credentials credentials = getCredentials(driver, conf);
+
+        return new BlobStoreManagedLedgerOffloader(driver, bucket, scheduler, maxBlockSize, readBufferSize, endpoint, region, credentials);
+    }
+
+    public static Credentials getCredentials(String driver, ServiceConfiguration conf) throws PulsarServerException {
+        // credentials:
+        //   for s3, get by DefaultAWSCredentialsProviderChain.
+        //   for gcs, use downloaded file 'google_creds.json', which contains service account key by
+        //     following instructions in page https://support.google.com/googleapi/answer/6158849
+
+        if (isGcsDriver(driver)) {
+            String gcsKeyPath = conf.getGcsManagedLedgerOffloadServiceAccountKeyFile();
+            if (Strings.isNullOrEmpty(gcsKeyPath)) {
+                throw new PulsarServerException(
+                    "The service account key path is empty for GCS driver");
+            }
+            try {
+                String gcsKeyContent = Files.toString(new File(gcsKeyPath), Charset.defaultCharset());
+                return new GoogleCredentialsFromJson(gcsKeyContent).get();
+            } catch (IOException ioe) {
+                log.error("Cannot read GCS service account credentials file: {}", gcsKeyPath);
+                throw new PulsarServerException(ioe);
+            }
+        } else if (isS3Driver(driver)) {
+            AWSCredentials credentials = null;
+            try {
+                DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();
+                credentials = creds.getCredentials();
+            } catch (Exception e) {
+                // allowed, some mock s3 service not need credential
+                log.warn("Exception when get credentials for s3 ", e);
+            }
+
+            String id = "accesskey";
+            String key = "secretkey";
+            if (credentials != null) {
+                id = credentials.getAWSAccessKeyId();
+                key = credentials.getAWSSecretKey();
+            }
+            return new Credentials(id, key);
+        } else {
+            throw new PulsarServerException(
+                "Not support this kind of driver: " + driver);
+        }
     }
 
     // build context for jclouds BlobStoreContext
     BlobStoreManagedLedgerOffloader(String driver, String container, OrderedScheduler scheduler,
-                                    int maxBlockSize, int readBufferSize, String endpoint, String region) {
+                           int maxBlockSize, int readBufferSize, String endpoint, String region, Credentials credentials) {
         this.scheduler = scheduler;
         this.readBufferSize = readBufferSize;
 
@@ -142,24 +217,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
 
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(driver);
+        contextBuilder.credentials(credentials.identity, credentials.credential);
 
-        AWSCredentials credentials = null;
-        try {
-            DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();
-            credentials = creds.getCredentials();
-        } catch (Exception e) {
-            log.error("Exception when get credentials for s3 ", e);
-        }
-
-        String id = "accesskey";
-        String key = "secretkey";
-        if (credentials != null) {
-            id = credentials.getAWSAccessKeyId();
-            key = credentials.getAWSSecretKey();
-        }
-        contextBuilder.credentials(id, key);
-
-        if (!Strings.isNullOrEmpty(endpoint)) {
+        if (isS3Driver(driver) && !Strings.isNullOrEmpty(endpoint)) {
             contextBuilder.endpoint(endpoint);
             overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
         }
@@ -174,7 +234,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.blobStore = context.getBlobStore();
     }
 
-    // build context for jclouds BlobStoreContext
+    // build context for jclouds BlobStoreContext, mostly used in test
+    @VisibleForTesting
     BlobStoreManagedLedgerOffloader(BlobStore blobStore, String container, OrderedScheduler scheduler,
                                     int maxBlockSize, int readBufferSize) {
         this.scheduler = scheduler;
@@ -190,6 +251,14 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     static String indexBlockOffloadKey(long ledgerId, UUID uuid) {
         return String.format("%s-ledger-%d-index", uuid.toString(), ledgerId);
+    }
+
+    public boolean createBucket() {
+        return blobStore.createContainerInLocation(location, bucket);
+    }
+
+    public void deleteBucket() {
+        blobStore.deleteContainer(bucket);
     }
 
     // upload DataBlock to s3 using MultiPartUpload, and indexBlock in a new Block,

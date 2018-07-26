@@ -584,7 +584,7 @@ public class ServerCnx extends PulsarHandler {
                             }
                         }
 
-                        service.getOrCreateTopic(topicName.toString())
+                        service.getOrCreateTopic(topicName.toString(), schema)
                                 .thenCompose(topic -> {
                                     if (schema != null) {
                                         return topic.isSchemaCompatible(schema).thenCompose(isCompatible -> {
@@ -791,7 +791,7 @@ public class ServerCnx extends PulsarHandler {
 
                         log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
-                        service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
+                        service.getOrCreateTopic(topicName.toString(), schema).thenAccept((Topic topic) -> {
                             // Before creating producer, check if backlog quota exceeded
                             // on topic
                             if (topic.isBacklogQuotaExceeded(producerName)) {

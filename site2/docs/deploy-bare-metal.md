@@ -26,7 +26,7 @@ Each machine in your cluster will need to have [Java 8](http://www.oracle.com/te
 
 Here's a diagram showing the basic setup:
 
-![alt-text](/docs/assets/pulsar-basic-setup.png)
+![alt-text](assets/pulsar-basic-setup.png)
 
 In this diagram, connecting clients need to be able to communicate with the Pulsar cluster using a single URL, in this case `pulsar-cluster.acme.com`, that abstracts over all of the message-handling brokers. Pulsar message brokers run on machines alongside BookKeeper bookies; brokers and bookies, in turn, rely on ZooKeeper.
 

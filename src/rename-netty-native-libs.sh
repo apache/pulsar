@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,15 +18,37 @@
 # under the License.
 #
 
-set -ex
-id
-ulimit -a
-pwd
-df -h
-ps -eo euser,pid,ppid,pgid,start,pcpu,pmem,cmd
-docker network prune -f --filter name=pulsarnet_*
-docker system events > docker.debug-info & echo $! > docker-log.pid
-docker pull apachepulsar/s3mock:latest
-docker pull alpine/socat:latest
-docker pull cassandra:3
-docker pull confluentinc/cp-kafka:4.0.0
+set -e
+
+ARTIFACT_ID=$1
+JAR_PATH="$PWD/target/$ARTIFACT_ID.jar"
+
+FILE_PREFIX='META-INF/native'
+
+FILES_TO_RENAME=(
+    'libnetty_transport_native_epoll_x86_64.so liborg_apache_pulsar_shade_netty_transport_native_epoll_x86_64.so'
+    'libnetty_tcnative_linux_x86_64.so liborg_apache_pulsar_shade_netty_tcnative_linux_x86_64.so'
+)
+
+echo "----- Renaming epoll lib in $JAR_PATH ------"
+TMP_DIR=`mktemp -d`
+unzip -q $JAR_PATH -d $TMP_DIR
+
+pushd $TMP_DIR
+
+for line in "${FILES_TO_RENAME[@]}"; do
+    read -r -a A <<< "$line"
+    FROM=${A[0]}
+    TO=${A[1]}
+
+    if [ -f $FILE_PREFIX/$FROM ]; then
+        echo "Renaming $FROM -> $TO"
+        mv $FILE_PREFIX/$FROM $FILE_PREFIX/$TO
+    fi
+done
+
+# Overwrite the original ZIP archive
+zip -q -r $JAR_PATH .
+popd
+
+rm -rf $TMP_DIR
