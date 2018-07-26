@@ -27,21 +27,21 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="pulsar:binary_release_url" download>Pulsar pulsar:version binary release</a>
+  * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
 
 * from the Pulsar [downloads page](pulsar:download_page_url)
 * from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  $ wget 'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-pulsar:version/apache-pulsar-pulsar:version-bin.tar.gz' -O apache-pulsar-pulsar:version-bin.tar.gz
+  $ wget 'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-{{pulsar:version}}/apache-pulsar-{{pulsar:version}}-bin.tar.gz' -O apache-pulsar-{{pulsar:version}}-bin.tar.gz
   ```
 
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:
 
 ```bash
-$ tar xvfz apache-pulsar-pulsar:version-bin.tar.gz
-$ cd apache-pulsar-pulsar:version
+$ tar xvfz apache-pulsar-{{pulsar:version}}-bin.tar.gz
+$ cd apache-pulsar-{{pulsar:version}}
 ```
 
 ## What your package contains
@@ -211,7 +211,7 @@ As you can see from the example above, the following needs to be specified:
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the {% popover brokers %} in the cluster
 
-If you're using [TLS](administration-auth.md#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
+If you're using [TLS](security-tls.md), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
 
 Make sure to run `initialize-cluster-metadata` for each cluster in your instance.
 

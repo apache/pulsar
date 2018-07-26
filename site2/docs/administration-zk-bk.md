@@ -146,9 +146,6 @@ In Pulsar, ZooKeeper configuration is handled by two separate configuration file
 
 Configuration for local ZooKeeper is handled by the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. The table below shows the available parameters:
 
-{% include config.html id="zookeeper" %}
-
-
 |Name|Description|Default|
 |---|---|---|
 |tickTime|  The tick is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like heartbeats and timeouts. tickTime is the length of a single tick.  |2000|
@@ -173,8 +170,6 @@ BookKeeper is responsible for all durable message storage in Pulsar. BookKeeper 
 > For a guide to managing message persistence, retention, and expiry in Pulsar, see [this cookbook](cookbooks-retention-expiry.md).
 
 ### Deploying BookKeeper
-
-{% include explanations/deploying-bk.md %}
 
 BookKeeper provides [persistent message storage](getting-started-concepts-and-architecture.md#persistent-storage) for Pulsar.
 

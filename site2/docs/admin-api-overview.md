@@ -24,21 +24,25 @@ Full documentation for this tool can be found in the [Pulsar command-line tools]
 > #### The REST API is the admin interface
 > Under the hood, both the `pulsar-admin` CLI tool and the Java client both use the REST API. If you’d like to implement your own admin interface client, you should use the REST API as well. Full documentation can be found here.
 
-{% include message.html id="admin_rest_api" %}
-
 In this document, examples from each of the three available interfaces will be shown.
 
 ## Admin setup
 
-{% include explanations/admin-setup.md %}
-
-Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, the [Java admin API](/api/admin), and the [REST API](reference-rest-api.md)---requires some special setup if you have [authentication](administration-auth.md#authentication-providers) enabled in your Pulsar {% popover instance %}.
+Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, the [Java admin API](/api/admin), and the [REST API](reference-rest-api.md)---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar {% popover instance %}.
 
 ### pulsar-admin
 
-If you have [authentication](administration-auth.md#authentication-providers) enabled, you will need to provide an auth configuration to use the [`pulsar-admin`](reference-pulsar-admin.md) tool. By default, the configuration for the `pulsar-admin` tool is found in the [`conf/client.conf`](reference-configuration.md#client) file. Here are the available parameters:
+If you have [authentication](security-overview.md#authentication-providers) enabled, you will need to provide an auth configuration to use the [`pulsar-admin`](reference-pulsar-admin.md) tool. By default, the configuration for the `pulsar-admin` tool is found in the [`conf/client.conf`](reference-configuration.md#client) file. Here are the available parameters:
 
-{% include config.html id="client" %}
+|Name|Description|Default|
+|----|-----------|-------|
+|webServiceUrl|The web URL for the cluster.|http://localhost:8080/|
+|brokerServiceUrl|The Pulsar protocol URL for the cluster.|pulsar://localhost:6650/|
+|authPlugin|The authentication plugin.| |
+|authParams|The authentication parameters for the cluster, as a comma-separated string.| |
+|useTls|Whether or not TLS authentication will be enforced in the cluster.|false|
+|tlsAllowInsecureConnection|Accept untrusted TLS certificate from client.|false|
+|tlsTrustCertsFilePath|Path for the trusted TLS certificate file.| |
 
 ### REST API
 

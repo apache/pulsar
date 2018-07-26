@@ -4,14 +4,15 @@ title: Authentication and authorization in Pulsar
 sidebar_label: Authorization and ACLs
 ---
 
-n Pulsar, the [authentication provider](security-overview.md#authentication-providers) is charged with properly identifying clients and
+In Pulsar, the [authentication provider](security-overview.md#authentication-providers) is charged with properly identifying clients and
 associating them with [role tokens](security-overview.md#role-tokens). *Authorization* is the process that determines *what* clients are able to do.
 
 Authorization in Pulsar is managed at the {% popover tenant %} level, which means that you can have multiple authorization schemes active
 in a single Pulsar instance. You could, for example, create a `shopping` tenant that has one set of [roles](security-overview.md#role-tokens)
 and applies to a shopping application used by your company, while an `inventory` tenant would be used only by an inventory application.
 
-{% include message.html id="properties_multiple_clusters" %}
+> When working with properties, you can specify which of your Pulsar clusters your property is allowed to use.
+> This enables you to also have cluster-level authorization schemes.
 
 ## Creating a new tenant
 
@@ -31,7 +32,9 @@ A client that successfully identified itself as having the role `my-admin-role` 
 
 The structure of topic names in Pulsar reflects the hierarchy between tenants, clusters, and namespaces:
 
-{% include topic.html ten="tenant" n="namespace" t="topic" %}
+```shell
+persistent://tenant/namespace/topic
+```
 
 ## Managing permissions
 
@@ -47,7 +50,8 @@ Superusers are configured in the broker configuration file in [`conf/broker.conf
 superUserRoles=my-super-user-1,my-super-user-2
 ```
 
-{% include message.html id="broker_conf_doc" %}
+> A full listing of parameters available in the `conf/broker.conf` file, as well as the default
+> values for those parameters, can be found in [Broker Configuration](reference-configuration.md#broker).
 
 Typically, superuser roles are used for administrators and clients but also for broker-to-broker authorization. When using [geo-replication](administration-geo.md), every broker
 needs to be able to publish to other clusters' topics.

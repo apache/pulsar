@@ -10,7 +10,9 @@ persisting messages.
 
 In all of the instructions and commands below, the topic name structure is:
 
-{% include topic.html ten="tenant" n="namespace" t="topic" %}
+```shell
+persistent://tenant/namespace/topic
+```
 
 ## Non-persistent topics resources
 
