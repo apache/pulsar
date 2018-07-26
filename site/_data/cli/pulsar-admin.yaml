@@ -431,7 +431,7 @@ commands:
     argument: tenant/cluster/namespace
     options:
     - flags: -s, --size
-      description: The retention size limits (for example `10M`, `16G` or `3T`). 0 means no retention and -1 means infinite size retention
+      description: The retention size limits (for example `10M`, `16G` or `3T`). 0 or less than 1MB means no retention and -1 means infinite size retention
     - flags: -t, --time
       description: "The retention time in minutes, hours, days, or weeks. Examples: `100m`, `13h`, `2d`, `5w`. 0 means no retention and -1 means infinite time retention"
   - name: unload
