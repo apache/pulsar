@@ -30,7 +30,6 @@
     "Pulsar administration": [
       "administration-zk-bk",
       "administration-geo",
-      "administration-auth",
       "administration-dashboard",
       "administration-stats",
       "administration-load-distribution",
@@ -38,9 +37,9 @@
     ],
     "Security": [
       "security-overview",
+      "security-tls",
       "security-athenz",
       "security-authorization",
-      "security-tls",
       "security-encryption",
       "security-extending"
     ],
