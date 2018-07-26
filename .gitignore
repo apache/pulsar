@@ -67,3 +67,7 @@ pulsar-client-cpp/python/wheelhouse
 # CI generated files
 .repository
 docker.debug-info
+
+# Yarn
+
+**/yarn.lock
