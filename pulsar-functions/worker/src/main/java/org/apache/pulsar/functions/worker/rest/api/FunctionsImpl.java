@@ -508,6 +508,24 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(new Gson().toJson(members)).build();
     }
 
+    public WorkerInfo getClusterLeader() {
+        if (!isWorkerServiceAvailable()) {
+            throw new WebApplicationException(
+                    Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
+                            .entity(new ErrorData("Function worker service is not avaialable")).build());
+        }
+
+        MembershipManager membershipManager = worker().getMembershipManager();
+        WorkerInfo leader = membershipManager.getLeader();
+
+        if (leader == null) {
+            throw new WebApplicationException(
+                    Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
+                            .entity(new ErrorData("Leader cannot be determined")).build());}
+
+        return leader;
+    }
+
     public Response getAssignments() {
 
         if (!isWorkerServiceAvailable()) {
