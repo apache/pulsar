@@ -258,5 +258,5 @@ public interface Functions {
      * @return
      * @throws PulsarAdminException 
      */
-    List<WorkerInfo> getWorkers() throws PulsarAdminException;
+    List<WorkerInfo> getCluster() throws PulsarAdminException;
 }
