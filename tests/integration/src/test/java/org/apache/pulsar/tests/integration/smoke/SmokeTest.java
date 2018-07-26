@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.smoke;
 
+import static org.testng.Assert.assertEquals;
+
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -25,9 +27,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
-import org.testcontainers.containers.Container;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
@@ -69,15 +70,17 @@ public class SmokeTest extends PulsarClusterTestBase {
         }
         for (int i = 0; i < 10; i++) {
             Message m = consumer.receive();
-            Assert.assertEquals("smoke-message" + i, new String(m.getData()));
+            assertEquals("smoke-message" + i, new String(m.getData()));
         }
     }
 
-    private Container.ExecResult createTenantName(String tenantName,
-                                                  String clusterName,
-                                                  String roleName) throws Exception {
-        return pulsarCluster.runAdminCommandOnAnyBroker(
+    private ContainerExecResult createTenantName(String tenantName,
+                                                 String clusterName,
+                                                 String roleName) throws Exception {
+        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
             "tenants", "create", tenantName, "--allowed-clusters", clusterName,
             "--admin-roles", roleName);
+        assertEquals(0, result.getExitCode());
+        return result;
     }
 }

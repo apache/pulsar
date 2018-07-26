@@ -18,7 +18,7 @@ Pulsar IO connectors come in two types:
 
 This diagram illustrates the relationship between sources, sinks, and Pulsar:
 
-![Pulsar IO diagram](/docs/assets/pulsar-io.png "Pulsar IO connectors (sources and sinks")
+![Pulsar IO diagram](assets/pulsar-io.png "Pulsar IO connectors (sources and sinks")
 
 ## Working with connectors
 

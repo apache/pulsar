@@ -43,7 +43,7 @@ import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
-import org.testcontainers.containers.Container.ExecResult;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 
@@ -315,15 +315,15 @@ public class PulsarCluster {
         return brokerContainers.values();
     }
 
-    public ExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
+    public ContainerExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
         return runCommandOnAnyBrokerWithScript(ADMIN_SCRIPT, commands);
     }
 
-    public ExecResult runPulsarBaseCommandOnAnyBroker(String...commands) throws Exception {
+    public ContainerExecResult runPulsarBaseCommandOnAnyBroker(String...commands) throws Exception {
         return runCommandOnAnyBrokerWithScript(PULSAR_COMMAND_SCRIPT, commands);
     }
 
-    private ExecResult runCommandOnAnyBrokerWithScript(String scriptType, String...commands) throws Exception {
+    private ContainerExecResult runCommandOnAnyBrokerWithScript(String scriptType, String...commands) throws Exception {
         BrokerContainer container = getAnyBroker();
         String[] cmds = new String[commands.length + 1];
         cmds[0] = scriptType;
@@ -339,13 +339,13 @@ public class PulsarCluster {
         brokerContainers.values().forEach(BrokerContainer::start);
     }
 
-    public ExecResult createNamespace(String nsName) throws Exception {
+    public ContainerExecResult createNamespace(String nsName) throws Exception {
         return runAdminCommandOnAnyBroker(
             "namespaces", "create", "public/" + nsName,
             "--clusters", clusterName);
     }
 
-    public ExecResult enableDeduplication(String nsName, boolean enabled) throws Exception {
+    public ContainerExecResult enableDeduplication(String nsName, boolean enabled) throws Exception {
         return runAdminCommandOnAnyBroker(
             "namespaces", "set-deduplication", "public/" + nsName,
             enabled ? "--enable" : "--disable");

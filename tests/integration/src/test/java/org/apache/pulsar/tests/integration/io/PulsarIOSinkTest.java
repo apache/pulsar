@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
 import com.google.common.base.Stopwatch;
@@ -32,11 +34,11 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec.PulsarClusterSpecBuilder;
-import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
@@ -131,7 +133,8 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
             "--inputs", inputTopicName
         };
         log.info("Run command : {}", StringUtils.join(commands, ' '));
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        assertEquals(0, result.getExitCode());
         assertTrue(
             result.getStdout().contains("\"Created successfully\""),
             result.getStdout());
@@ -146,8 +149,9 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sinkName
         };
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         log.info("Get sink info : {}", result.getStdout());
+        assertEquals(0, result.getExitCode());
         assertTrue(
             result.getStdout().contains("\"builtin\": \"" + tester.sinkType + "\""),
             result.getStdout()
@@ -164,9 +168,9 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
             "--name", sinkName
         };
         while (true) {
-            ExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+            ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
             log.info("Get sink status : {}", result.getStdout());
-            if (result.getStdout().contains("\"running\": true")) {
+            if (0 == result.getExitCode() && result.getStdout().contains("\"running\": true")) {
                 return;
             }
             log.info("Backoff 1 second until the function is running");
@@ -211,9 +215,10 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
         };
         Stopwatch stopwatch = Stopwatch.createStarted();
         while (true) {
-            ExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+            ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
             log.info("Get sink status : {}", result.getStdout());
-            if (result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\"")) {
+            if (0 == result.getExitCode()
+                && result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\"")) {
                 return;
             }
             log.info("{} ms has elapsed but the sink hasn't process {} messages, backoff to wait for another 1 second",
@@ -231,7 +236,8 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sinkName
         };
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        assertEquals(0, result.getExitCode());
         assertTrue(
             result.getStdout().contains("Deleted successfully"),
             result.getStdout()
@@ -251,7 +257,8 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sinkName
         };
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        assertNotEquals(0, result.getExitCode());
         assertTrue(result.getStderr().contains("Reason: Function " + sinkName + " doesn't exist"));
     }
 }

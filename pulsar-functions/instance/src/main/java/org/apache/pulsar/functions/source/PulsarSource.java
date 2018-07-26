@@ -103,18 +103,13 @@ public class PulsarSource<T> implements Source<T> {
         org.apache.pulsar.client.api.Message<byte[]> message = this.inputConsumer.receive();
 
         String topicName;
-        int partitionId;
 
         // If more than one topics are being read than the Message return by the consumer will be TopicMessageImpl
         // If there is only topic being read then the Message returned by the consumer wil be MessageImpl
         if (message instanceof TopicMessageImpl) {
             topicName = ((TopicMessageImpl<?>) message).getTopicName();
-            TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) message.getMessageId();
-            MessageIdImpl messageId = (MessageIdImpl) topicMessageId.getInnerMessageId();
-            partitionId = messageId.getPartitionIndex();
         } else {
             topicName = this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet().iterator().next();
-            partitionId = ((MessageIdImpl) message.getMessageId()).getPartitionIndex();
         }
 
         Object object;

@@ -14,7 +14,7 @@ Tiered storage should be used when you have a topic for which you want to keep a
 
 A topic in Pulsar is backed by a log, known as a managed ledger. This log is composed of an ordered list of segments. Pulsar only every writes to the final segment of the log. All previous segments are sealed. The data within the segment is immutable. This is known as a segment oriented architecture.
 
-![Tiered storage](/docs/assets/pulsar-tiered-storage.png "Tiered Storage")
+![Tiered storage](assets/pulsar-tiered-storage.png "Tiered Storage")
 
 The Tiered Storage offloading mechanism takes advantage of this segment oriented architecture. When offloading is requested, the segments of the log are copied, one-by-one, to tiered storage. All segments of the log, apart from the segment currently being written to can be offloaded.
 
