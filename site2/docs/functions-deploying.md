@@ -21,7 +21,7 @@ In order to deploy and manage Pulsar Functions, you need to have a Pulsar cluste
 * You can run a [standalone cluster](getting-started-standalone.md) locally on your own machine
 * You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal.md), [DC/OS](deploy-dcos.md), and more
 
-If you're running a non-{% popover standalone %} cluster, you'll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.
+If you're running a non-[standalone](reference-terminology.md#standalone) cluster, you'll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.
 
 ## Command-line interface
 
@@ -76,7 +76,7 @@ $ bin/pulsar-admin functions localrun \
   --output persistent://public/default/output-1
 ```
 
-By default, the function will connect to a Pulsar cluster running on the same machine, via a local {% popover broker %} service URL of `pulsar://localhost:6650`. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the `--brokerServiceUrl` flag. Here's an example:
+By default, the function will connect to a Pulsar cluster running on the same machine, via a local [broker](reference-terminology.md#broker) service URL of `pulsar://localhost:6650`. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the `--brokerServiceUrl` flag. Here's an example:
 
 ```bash
 $ bin/pulsar-admin functions localrun \
@@ -230,7 +230,7 @@ This function has been triggered with a value of hello world
 
 Pulsar supports three different [subscription types](getting-started-concepts-and-architecture.md#subscription-modes) (or subscription modes) for Pulsar clients:
 
-* With [exclusive](getting-started-concepts-and-architecture.md#exclusive) subscriptions, only a single {% popover consumer %} is allowed to attach to the subscription.
+* With [exclusive](getting-started-concepts-and-architecture.md#exclusive) subscriptions, only a single [consumer](reference-terminology.md#consumer) is allowed to attach to the subscription.
 * With [shared](getting-started-concepts-and-architecture.md#shared) . Please note that strict message ordering is *not* guaranteed with shared subscriptions.
 * With [failover](getting-started-concepts-and-architecture.md#failover) subscriptions
 

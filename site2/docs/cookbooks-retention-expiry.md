@@ -35,7 +35,7 @@ size retention.
 
 ### Defaults
 
-There are two configuration parameters that you can use to set {% popover instance %}-wide defaults for message retention: [`defaultRetentionTimeInMinutes=0`](reference-configuration.md#broker-defaultRetentionTimeInMinutes) and [`defaultRetentionSizeInMB=0`](reference-configuration.md#broker-defaultRetentionSizeInMB).
+There are two configuration parameters that you can use to set [instance](reference-terminology.md#instance)-wide defaults for message retention: [`defaultRetentionTimeInMinutes=0`](reference-configuration.md#broker-defaultRetentionTimeInMinutes) and [`defaultRetentionSizeInMB=0`](reference-configuration.md#broker-defaultRetentionSizeInMB).
 
 Both of these parameters are in the [`broker.conf`](reference-configuration.md#broker) configuration file.
 
@@ -130,7 +130,7 @@ admin.namespaces().getRetention(namespace);
 You can control the allowable size of backlogs, at the namespace level, using *backlog quotas*. Setting a backlog quota involves setting:
 
 * an allowable *size threshold* for each topic in the namespace
-* a *retention policy* that determines which action the {% popover broker %} takes if the threshold is exceeded.
+* a *retention policy* that determines which action the [broker](reference-terminology.md#broker) takes if the threshold is exceeded.
 
 The following retention policies are available:
 
@@ -149,7 +149,7 @@ Backlog quotas are handled at the namespace level. They can be managed via:
 
 ### Set size thresholds and backlog retention policies
 
-You can set a size threshold and backlog retention policy for all of the topics in a {% popover namespace %} by specifying the namespace, a size limit, and a policy by name.
+You can set a size threshold and backlog retention policy for all of the topics in a [namespace](reference-terminology.md#namespace) by specifying the namespace, a size limit, and a policy by name.
 
 #### pulsar-admin
 

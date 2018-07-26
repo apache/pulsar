@@ -85,8 +85,8 @@ The following configurable parameters are available for Pulsar clients:
 Parameter | Description | Default
 :---------|:------------|:-------
 `URL` | The connection URL for the Pulsar cluster. See [above](#urls) for more info |
-`IOThreads` | The number of threads to use for handling connections to Pulsar {% popover brokers %} | 1
-`OperationTimeoutSeconds` | The timeout for some Go client operations (creating producers, subscribing to and unsubscribing from {% popover topics %}). Retries will occur until this threshold is reached, at which point the operation will fail. | 30
+`IOThreads` | The number of threads to use for handling connections to Pulsar [brokers](reference-terminology.md#broker) | 1
+`OperationTimeoutSeconds` | The timeout for some Go client operations (creating producers, subscribing to and unsubscribing from [topics](reference-terminology.md#topic)). Retries will occur until this threshold is reached, at which point the operation will fail. | 30
 `MessageListenerThreads` | The number of threads used by message listeners ([consumers](#consumers) and [readers](#readers)) | 1
 `ConcurrentLookupRequests` | The number of concurrent lookup requests that can be sent on each broker connection. Setting a maximum helps to keep from overloading brokers. You should set values over the default of 5000 only if the client needs to produce and/or subscribe to thousands of Pulsar topics. | 5000
 `Logger` | A custom logger implementation for the client (as a function that takes a log level, file path, line number, and message). All info, warn, and error messages will be routed to this function. | `nil`
@@ -129,7 +129,7 @@ Pulsar Go producers have the following methods available:
 
 Method | Description | Return type
 :------|:------------|:-----------
-`Topic()` | Fetches the producer's {% popover topic %} | `string`
+`Topic()` | Fetches the producer's [topic](reference-terminology.md#topic)| `string`
 `Name()` | Fetchs the producer's name | `string`
 `Send(context.Context, ProducerMessage) error` | Publishes a [message](#messages) to the producer's topic. This call will block until the message is successfully acknowledged by the Pulsar broker, or an error will be thrown if the timeout set using the `SendTimeout` in the producer's [configuration](#producer-configuration) is exceeded. | `error`
 `SendAsync(context.Context, ProducerMessage, func(ProducerMessage, error))` | Publishes a [message](#messages) to the producer's topic asynchronously. The third argument is a callback function that specifies what happens either when the message is acknowledged or an error is thrown. |
@@ -193,10 +193,10 @@ func main() {
 
 Parameter | Description | Default
 :---------|:------------|:-------
-`Topic` | The Pulsar {% popover topic %} to which the producer will publish messages |
+`Topic` | The Pulsar [topic](reference-terminology.md#topic) to which the producer will publish messages |
 `Name` | A name for the producer. If you don't explicitly assign a name, Pulsar will automatically generate a globally unique name that you can access later using the `Name()` method.  If you choose to explicitly assign a name, it will need to be unique across *all* Pulsar clusters, otherwise the creation operation will throw an error. |
-`SendTimeout` | When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar {% popover broker %}. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set `SendTimeout` to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication.md) feature. | 30 seconds
-`MaxPendingMessages` | The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the {% popover broker %}). By default, when the queue is full all calls to the `Send` and `SendAsync` methods will fail *unless* `BlockIfQueueFull` is set to `true`. |
+`SendTimeout` | When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar [broker](reference-terminology.md#broker). If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set `SendTimeout` to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication.md) feature. | 30 seconds
+`MaxPendingMessages` | The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the [broker](reference-terminology.md#broker)). By default, when the queue is full all calls to the `Send` and `SendAsync` methods will fail *unless* `BlockIfQueueFull` is set to `true`. |
 `MaxPendingMessagesAcrossPartitions` | |
 `BlockIfQueueFull` | If set to `true`, the producer's `Send` and `SendAsync` methods will block when the outgoing message queue is full rather than failing and throwing an error (the size of that queue is dictated by the `MaxPendingMessages` parameter); if set to `false` (the default), `Send` and `SendAsync` operations will fail and throw a `ProducerQueueIsFullError` when the queue is full. | `false`
 `MessageRoutingMode` | The message routing logic (for producers on [partitioned topics](getting-started-concepts-and-architecture.md#partitioned-topics)). This logic is applied only when no key is set on messages. The available options are: round robin (`pulsar.RoundRobinDistribution`, the default), publishing all messages to a single partition (`pulsar.UseSinglePartition`), or a custom partitioning scheme (`pulsar.CustomPartition`). | `pulsar.RoundRobinDistribution`
@@ -246,13 +246,13 @@ Pulsar Go consumers have the following methods available:
 
 Method | Description | Return type
 :------|:------------|:-----------
-`Topic()` | Returns the consumer's {% popover topic %} | `string`
+`Topic()` | Returns the consumer's [topic](reference-terminology.md#topic) | `string`
 `Subscription()` | Returns the consumer's subscription name | `string`
 `Unsubcribe()` | Unsubscribes the consumer from the assigned topic. Throws an error if the unsubscribe operation is somehow unsuccessful. | `error`
 `Receive(context.Context)` | Receives a single message from the topic. This method blocks until a message is available. | `(Message, error)`
-`Ack(Message)` | {% popover Acknowledges %} a message to the Pulsar {% popover broker %} | `error`
-`AckID(MessageID)` | {% popover Acknowledges %} a message to the Pulsar {% popover broker %} by message ID | `error`
-`AckCumulative(Message)` | {% popover Acknowledges %} *all* the messages in the stream, up to and including the specified message. The `AckCumulative` method will block until the ack has been sent to the broker. After that, the messages will *not* be redelivered to the consumer. Cumulative acking can only be used with a [shared](getting-started-concepts-and-architecture.md#shared) subscription type.
+`Ack(Message)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) | `error`
+`AckID(MessageID)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) by message ID | `error`
+`AckCumulative(Message)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) *all* the messages in the stream, up to and including the specified message. The `AckCumulative` method will block until the ack has been sent to the broker. After that, the messages will *not* be redelivered to the consumer. Cumulative acking can only be used with a [shared](getting-started-concepts-and-architecture.md#shared) subscription type.
 `Close()` | Closes the consumer, disabling its ability to receive messages from the broker | `error`
 `RedeliverUnackedMessages()` | Redelivers *all* unacknowledged messages on the topic. In [failover](getting-started-concepts-and-architecture.md#failover) mode, this request is ignored if the consumer isn't active on the specified topic; in [shared](getting-started-concepts-and-architecture.md#shared) mode, redelivered messages are distributed across all consumers connected to the topic. **Note**: this is a *non-blocking* operation that doesn't throw an error. |
 
@@ -305,7 +305,7 @@ func main() {
 
 Parameter | Description | Default
 :---------|:------------|:-------
-`Topic` | The Pulsar {% popover topic %} on which the consumer will establish a subscription and listen for messages |
+`Topic` | The Pulsar [topic](reference-terminology.md#topic) on which the consumer will establish a subscription and listen for messages |
 `SubscriptionName` | The subscription name for this consumer |
 `Name` | The name of the consumer |
 `AckTimeout` | | 0
@@ -335,7 +335,7 @@ Pulsar Go readers have the following methods available:
 
 Method | Description | Return type
 :------|:------------|:-----------
-`Topic()` | Returns the reader's {% popover topic %} | `string`
+`Topic()` | Returns the reader's [topic](reference-terminology.md#topic) | `string`
 `Next(context.Context)` | Receives the next message on the topic (analogous to the `Receive` method for [consumers](#consumer-operations)). This method blocks until a message is available. | `(Message, error)`
 `Close()` | Closes the reader, disabling its ability to receive messages from the broker | `error`
 
@@ -396,7 +396,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 
 Parameter | Description | Default
 :---------|:------------|:-------
-`Topic` | The Pulsar {% popover topic %} on which the reader will establish a subscription and listen for messages |
+`Topic` | The Pulsar [topic](reference-terminology.md#topic) on which the reader will establish a subscription and listen for messages |
 `Name` | The name of the reader |
 `StartMessageID` | THe initial reader position, i.e. the message at which the reader begins processing messages. The options are `pulsar.EarliestMessage` (the earliest available message on the topic), `pulsar.LatestMessage` (the latest available message on the topic), or a `MessageID` object for a position that isn't earliest or latest. |
 `MessageChannel` | The Go channel used by the reader. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |

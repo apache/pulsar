@@ -6,10 +6,10 @@ sidebar_label: Brokers
 
 Pulsar brokers consist of two components:
 
-1. An HTTP server exposing a [REST interface](reference-rest-api.md) administration and {% popover topic %} lookup.
-2. A dispatcher that handles all Pulsar {% popover message %} transfers.
+1. An HTTP server exposing a [REST interface](reference-rest-api.md) administration and [topic](reference-terminology.md#topic) lookup.
+2. A dispatcher that handles all Pulsar [message](reference-terminology.md#message) transfers.
 
-{% popover Brokers %} can be managed via:
+[Brokers](reference-terminology.md#broker) can be managed via:
 
 * The [`brokers`](reference-pulsar-admin.md#brokers) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
 * The `/admin/v2/brokers` endpoint of the admin [REST API](reference-rest-api.md)
@@ -80,9 +80,9 @@ admin.brokers().getOwnedNamespaces(cluster,brokerUrl);
 
 ### Dynamic broker configuration
 
-One way to configure a Pulsar {% popover broker %} is to supply a [configuration](reference-configuration.md#broker) when the broker is [started up](reference-cli-tools.md#pulsar-broker).
+One way to configure a Pulsar [broker](reference-terminology.md#broker) is to supply a [configuration](reference-configuration.md#broker) when the broker is [started up](reference-cli-tools.md#pulsar-broker).
 
-But since all broker configuration in Pulsar is stored in {% popover ZooKeeper %}, configuration values can also be dynamically updated *while the broker is running*. When you update broker configuration dynamically, ZooKeeper will notify the broker of the change and the broker will then override any existing configuration values.
+But since all broker configuration in Pulsar is stored in ZooKeeper, configuration values can also be dynamically updated *while the broker is running*. When you update broker configuration dynamically, ZooKeeper will notify the broker of the change and the broker will then override any existing configuration values.
 
 * The [`brokers`](reference-pulsar-admin.md#brokers) command for the [`pulsar-admin`](reference-pulsar-admin.md) tool has a variety of subcommands that enable you to manipulate a broker's configuration dynamically, enabling you to [update config values](#update-dynamic-configuration) and more.
 * In the Pulsar admin [REST API](reference-rest-api.md), dynamic configuration is managed through the `/admin/v2/brokers/configuration` endpoint.

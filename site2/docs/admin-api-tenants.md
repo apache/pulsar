@@ -15,7 +15,7 @@ Tenants, like namespaces, can be managed using the [admin API](admin-api-overvie
 
 #### pulsar-admin
 
-You can list all of the tenants associated with an {% popover instance %} using the [`list`](reference-pulsar-admin.md#tenants-list) subcommand:
+You can list all of the tenants associated with an [instance](reference-terminology.md#instance) using the [`list`](reference-pulsar-admin.md#tenants-list) subcommand:
 
 ```shell
 $ pulsar-admin tenants list

@@ -39,8 +39,8 @@ $ dcos marathon group add PulsarGroups.json
 
 This command will deploy Docker container instances in three groups, which together comprise a Pulsar cluster:
 
-* 3 bookies (1 {% popover bookie %} on each agent node and 1 [bookie recovery](http://bookkeeper.apache.org/docs/latest/admin/autorecovery/) instance)
-* 3 Pulsar {% popover brokers %} (1 broker on each node and 1 admin instance)
+* 3 bookies (1 [bookie](reference-terminology.md#bookie) on each agent node and 1 [bookie recovery](http://bookkeeper.apache.org/docs/latest/admin/autorecovery/) instance)
+* 3 Pulsar [brokers](reference-terminology.md#broker) (1 broker on each node and 1 admin instance)
 * 1 [Prometheus](http://prometheus.io/) instance and 1 [Grafana](https://grafana.com/) instance
 
 
@@ -58,7 +58,7 @@ To monitor the status of the BookKeeper cluster deployment, click on the **bookk
 
 ![DC/OS bookkeeper status](assets/dcos_bookkeeper_status.png)
 
-At this point, 3 {% popover bookies %} should be shown as green, which means that they have been deployed successfully and are now running.
+At this point, 3 [bookies](reference-terminology.md#bookie) should be shown as green, which means that they have been deployed successfully and are now running.
  
 ![DC/OS bookkeeper running](assets/dcos_bookkeeper_run.png)
  

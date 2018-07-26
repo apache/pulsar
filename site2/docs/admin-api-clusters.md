@@ -4,7 +4,8 @@ title: Managing Clusters
 sidebar_label: Clusters
 ---
 
-Pulsar clusters consist of one or more Pulsar {% popover brokers %}, one or more {% popover BookKeeper %} servers (aka {% popover bookies %}), and a {% popover ZooKeeper %} cluster that provides configuration and coordination management.
+Pulsar clusters consist of one or more Pulsar [brokers](reference-terminology.md#broker), one or more [BookKeeper](reference-terminology.md#bookkeeper)
+servers (aka [bookies](reference-terminology.md#bookie)), and a [ZooKeeper](https://zookeeper.apache.org) cluster that provides configuration and coordination management.
 
 Clusters can be managed via:
 
@@ -56,7 +57,7 @@ When provision a new cluster, you need to initialize that cluster's [metadata](g
 * The local ZooKeeper connection string for the cluster
 * The global ZooKeeper connection string for the entire instance
 * The web service URL for the cluster
-* A broker service URL enabling interaction with the {% popover brokers %} in the cluster
+* A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
 
 You must initialize cluster metadata *before* starting up any [brokers](admin-api-brokers.md) that will belong to the cluster.
 
@@ -147,7 +148,7 @@ admin.clusters().updateCluster(clusterName, clusterData);
 
 ### Delete
 
-Clusters can be deleted from a Pulsar {% popover instance %}.
+Clusters can be deleted from a Pulsar [instance](reference-terminology.md#instance).
 
 #### pulsar-admin
 
@@ -171,7 +172,7 @@ admin.clusters().deleteCluster(clusterName);
 
 ### List
 
-You can fetch a list of all clusters in a Pulsar {% popover instance %}.
+You can fetch a list of all clusters in a Pulsar [instance](reference-terminology.md#instance).
 
 #### pulsar-admin
 
@@ -197,7 +198,7 @@ admin.clusters().getClusters();
 
 ### Update peer-cluster data
 
-Peer clusters can be configured for a given cluster in a Pulsar {% popover instance %}.
+Peer clusters can be configured for a given cluster in a Pulsar [instance](reference-terminology.md#instance).
 
 #### pulsar-admin
 
