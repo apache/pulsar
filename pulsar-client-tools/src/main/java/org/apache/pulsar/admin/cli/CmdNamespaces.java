@@ -342,7 +342,7 @@ public class CmdNamespaces extends CmdBase {
         private String retentionTimeStr;
 
         @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
-                + "0 means no retention and -1 means infinite size retention", required = true)
+                + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 
         @Override
@@ -351,8 +351,12 @@ public class CmdNamespaces extends CmdBase {
             long sizeLimit = validateSizeString(limitStr);
             int retentionTimeInMin = validateTimeString(retentionTimeStr);
 
-            sizeLimit = sizeLimit / (1024 * 1024);
-            int retentionSizeInMB = (int) sizeLimit;
+            int retentionSizeInMB;
+            if (sizeLimit != -1) {
+                retentionSizeInMB = (int) (sizeLimit / (1024 * 1024));
+            } else {
+                retentionSizeInMB = -1;
+            }
             admin.namespaces().setRetention(namespace, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
         }
     }
