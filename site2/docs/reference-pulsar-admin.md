@@ -1091,6 +1091,7 @@ Subcommands
 * `create-partitioned-topic`
 * `delete-partitioned-topic`
 * `get-partitioned-topic-metadata`
+* `update-partitioned-topic`
 * `list`
 * `list-in-bundle`
 * `terminate`
@@ -1194,6 +1195,19 @@ Usage
 ```bash
 $ pulsar-admin topics get-partitioned-topic-metadata {persistent|non-persistent}://tenant/namespace/topic
 ```
+
+### `update-partitioned-topic`
+Update existing non-global partitioned topic. New updating number of partitions must be greater than existing number of partitions.
+
+Usage
+```bash
+$ pulsar-admin topics update-partitioned-topic {persistent|non-persistent}://tenant/namespace/topic options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`-p`, `--partitions`|The number of partitions for the topic|0|
 
 ### `list`
 Get the list of topics under a namespace
