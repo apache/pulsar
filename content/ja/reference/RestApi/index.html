@@ -826,10 +826,6 @@
         
         
         
-        <li><a href="/admin/functions/workers"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>workers</code></a></li>
-        
-        
-        
         <li><a href="/admin/functions/:tenant/:namespace"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span></code></a></li>
         
         
@@ -3653,44 +3649,6 @@
   
   
   
-  <div class="card" id="/admin/functions/workers">
-    <div class="card-title">
-      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>workers</code></h5>
-    </div>
-    <div class="card-group">
-        
-        <div class="card">
-          <h5>
-            <code class="highlighter-rouge get">GET</code>
-          </h5>
-          <p>Get all current member workers.</p>
-           <!-- if method_info.parameters -->
-          
-          <h5>Responses</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td>200</td>
-                <td>successful operation</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.responses -->
-        </div>
-         <!-- for method in route[1] -->
-      </div>
-  </div>
-  
-  
-  
   <div class="card" id="/admin/functions/:tenant/:namespace">
     <div class="card-title">
       <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span></code></h5>
@@ -4380,7 +4338,7 @@
           <h5>
             <code class="highlighter-rouge get">GET</code>
           </h5>
-          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing property</p>
+          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing tenant</p>
           
           <h5>URL parameters</h5>
           <table>
@@ -4409,7 +4367,7 @@
               </tr>
               
               <tr>
-                <td><code class="highlighter-rouge">property</code></td>
+                <td><code class="highlighter-rouge">tenant</code></td>
                 <td>query</td>
                 <td>false</td>
                 <td>string</td>

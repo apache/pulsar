@@ -150,12 +150,18 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i4" class="altColor">
+<td class="colFirst"><code>List&lt;WorkerInfo&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getCluster--">getCluster</a></span>()</code>
+<div class="block">Get list of workers present under a cluster</div>
+</td>
+</tr>
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>List&lt;ConnectorDefinition&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getConnectorsList--">getConnectorsList</a></span>()</code>
 <div class="block">Fetches a list of supported Pulsar IO connectors currently running in cluster mode</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>FunctionDetails</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunction-java.lang.String-java.lang.String-java.lang.String-">getFunction</a></span>(String&nbsp;tenant,
            String&nbsp;namespace,
@@ -163,14 +169,14 @@ var activeTableTab = "activeTableTab";
 <div class="block">Get the configuration for the specified function.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunctions-java.lang.String-java.lang.String-">getFunctions</a></span>(String&nbsp;tenant,
             String&nbsp;namespace)</code>
 <div class="block">Get the list of functions.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>FunctionStatusList</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunctionStatus-java.lang.String-java.lang.String-java.lang.String-">getFunctionStatus</a></span>(String&nbsp;tenant,
                  String&nbsp;namespace,
@@ -178,22 +184,16 @@ var activeTableTab = "activeTableTab";
 <div class="block">Gets the current status of a function.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>Set&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getSinks--">getSinks</a></span>()</code>
 <div class="block">Fetches a list of supported Pulsar IO sinks currently running in cluster mode</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>Set&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getSources--">getSources</a></span>()</code>
 <div class="block">Fetches a list of supported Pulsar IO sources currently running in cluster mode</div>
-</td>
-</tr>
-<tr id="i10" class="altColor">
-<td class="colFirst"><code>List&lt;WorkerInfo&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getWorkers--">getWorkers</a></span>()</code>
-<div class="block">Get list of workers present under a cluster</div>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
@@ -545,13 +545,13 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="getWorkers--">
+<a name="getCluster--">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
-<h4>getWorkers</h4>
-<pre>List&lt;WorkerInfo&gt;&nbsp;getWorkers()
+<h4>getCluster</h4>
+<pre>List&lt;WorkerInfo&gt;&nbsp;getCluster()
                      throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get list of workers present under a cluster</div>
 <dl>
