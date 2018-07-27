@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.io;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.base.Stopwatch;
 import com.google.gson.Gson;
@@ -35,6 +36,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
@@ -145,7 +147,6 @@ public class PulsarIOSourceTest extends PulsarFunctionsTestBase {
         };
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-        assertEquals(0, result.getExitCode());
         assertTrue(
             result.getStdout().contains("\"Created successfully\""),
             result.getStdout());
@@ -162,7 +163,6 @@ public class PulsarIOSourceTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         log.info("Get source info : {}", result.getStdout());
-        assertEquals(0, result.getExitCode());
         assertTrue(
             result.getStdout().contains("\"builtin\": \"" + tester.sourceType + "\""),
             result.getStdout()
@@ -179,10 +179,14 @@ public class PulsarIOSourceTest extends PulsarFunctionsTestBase {
             "--name", sourceName
         };
         while (true) {
-            ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-            log.info("Get source status : {}", result.getStdout());
-            if (0 == result.getExitCode() && result.getStdout().contains("\"running\": true")) {
-                return;
+            try {
+                ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+                log.info("Get source status : {}", result.getStdout());
+                if (result.getStdout().contains("\"running\": true")) {
+                    return;
+                }
+            } catch (ContainerExecException e) {
+                // expected for early iterations
             }
             log.info("Backoff 1 second until the function is running");
             TimeUnit.SECONDS.sleep(1);
@@ -212,11 +216,14 @@ public class PulsarIOSourceTest extends PulsarFunctionsTestBase {
         };
         Stopwatch stopwatch = Stopwatch.createStarted();
         while (true) {
-            ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-            log.info("Get source status : {}", result.getStdout());
-            if (0 == result.getExitCode()
-                && result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\"")) {
-                return;
+            try {
+                ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+                log.info("Get source status : {}", result.getStdout());
+                if (result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\"")) {
+                    return;
+                }
+            } catch (ContainerExecException e) {
+                // expected for early iterations
             }
             log.info("{} ms has elapsed but the source hasn't process {} messages, backoff to wait for another 1 second",
                 stopwatch.elapsed(TimeUnit.MILLISECONDS), numMessages);
@@ -234,7 +241,6 @@ public class PulsarIOSourceTest extends PulsarFunctionsTestBase {
             "--name", sourceName
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-        assertEquals(0, result.getExitCode());
         assertTrue(
             result.getStdout().contains("Delete source successfully"),
             result.getStdout()
@@ -254,8 +260,11 @@ public class PulsarIOSourceTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sourceName
         };
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-        assertNotEquals(0, result.getExitCode());
-        assertTrue(result.getStderr().contains("Reason: Function " + sourceName + " doesn't exist"));
+        try {
+            pulsarCluster.getAnyWorker().execCmd(commands);
+            fail("Command should have exited with non-zero");
+        } catch (ContainerExecException e) {
+            assertTrue(e.getResult().getStderr().contains("Reason: Function " + sourceName + " doesn't exist"));
+        }
     }
 }
