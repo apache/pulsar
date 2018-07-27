@@ -39,7 +39,7 @@ producer.send("Partitioned topic message".getBytes());
 
 #### Custom message router
 
-To use a custom message router, you need to provide an implementation of the {% javadoc MessageRouter client org.apache.pulsar.client.api.MessageRouter %} interface, which has just one `choosePartition` method:
+To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
 
 ```java
 public interface MessageRouter extends Serializable {

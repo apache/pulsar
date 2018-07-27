@@ -86,7 +86,7 @@ Messages can be acknowledged either one by one or cumulatively. With cumulative 
 
 #### Listeners
 
-Client libraries can provide their own listener implementations for consumers. The [Java client](client-libraries-java.md), for example, provides a {% javadoc MesssageListener client org.apache.pulsar.client.api.MessageListener %} interface. In this interface, the `received` method is called whenever a new message is received.
+Client libraries can provide their own listener implementations for consumers. The [Java client](client-libraries-java.md), for example, provides a {@inject: javadoc:MesssageListener:/client/org/apache/pulsar/client/api/MessageListener} interface. In this interface, the `received` method is called whenever a new message is received.
 
 ### Topics
 
@@ -220,7 +220,7 @@ Key hash | If a key property has been specified on the message, the partitioned 
 Single default partition | If no key is provided, each producer's message will be routed to a dedicated partition, initially random selected | Per-producer ordering
 Round robin distribution | If no key is provided, all messages will be routed to different partitions in round-robin fashion to achieve maximum throughput. | None
 
-In addition to these default modes, you can also create a custom routing mode if you're using the [Java client](client-libraries-java.md) by implementing the {% javadoc MessageRouter client org.apache.pulsar.client.api.MessageRouter %} interface.
+In addition to these default modes, you can also create a custom routing mode if you're using the [Java client](client-libraries-java.md) by implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
 
 
 

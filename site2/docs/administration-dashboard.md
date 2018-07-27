@@ -12,7 +12,7 @@ A [Django](https://www.djangoproject.com) web app is used to render the collecte
 
 ## Install
 
-The easiest way to use the dashboard is to run it inside a [Docker](https://www.docker.com/products/docker) container. A [`Dockerfile`](pulsar:repo_url/dashboard/Dockerfile) to generate the image is provided.
+The easiest way to use the dashboard is to run it inside a [Docker](https://www.docker.com/products/docker) container. A {@inject: github:`Dockerfile`:/dashboard/Dockerfile} to generate the image is provided.
 
 To generate the Docker image:
 

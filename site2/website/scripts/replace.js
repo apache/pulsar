@@ -21,14 +21,9 @@ function downloadPageUrl() {
   return `${siteConfig.baseUrl}download`
 }
 
-function pulsarRepoUrl() {
-  return siteConfig.githubUrl;
-}
-
 function binaryReleaseUrl(version) {
   return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-bin.tar.gz`
 }
-
 
 function doReplace(options) {
   replace(options)
@@ -52,7 +47,6 @@ const from = [
   /{{pulsar:version}}/g, 
   /pulsar:binary_release_url/g,
   /pulsar:download_page_url/g,
-  /pulsar:repo_url/g
 ];
 
 
@@ -66,8 +60,7 @@ const options = {
   to: [
     `${latestVersion}-incubating`, 
     binaryReleaseUrl(`${latestVersion}-incubating`), 
-    downloadPageUrl(),
-    pulsarRepoUrl()
+    downloadPageUrl()
   ],
   dry: false
 };
@@ -89,8 +82,7 @@ for (v of versions) {
     to: [
       `${v}-incubating`, 
       binaryReleaseUrl(`${v}-incubating`),
-      downloadPageUrl(),
-      pulsarRepoUrl()
+      downloadPageUrl()
     ],
     dry: true
   };

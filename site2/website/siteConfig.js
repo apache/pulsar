@@ -13,6 +13,14 @@ const createVariableInjectionPlugin = variables => {
     // the passed Remarkable instance.
     // -> the Markdown markup in the variable will be converted to HTML.
     inject: (key) => {
+      keyparts = key.split(":");
+      // javadoc:<name>:<url_path>
+      if (keyparts[0] == 'javadoc') {
+          return renderUrl(initializedPlugin, javadocUrl, keyparts);
+      // githubUrl:<name>:<path> 
+      } else if (keyparts[0] == 'github') {
+          return renderUrl(initializedPlugin, githubUrl + "/tree/master/", keyparts);
+      }
       return initializedPlugin.render(variables[key])
     }
   });
@@ -29,14 +37,21 @@ const createVariableInjectionPlugin = variables => {
   };
 };
 
+const renderUrl = (initializedPlugin, baseUrl, keyparts) => {
+    content = '[' + keyparts[1] + '](' + baseUrl + keyparts[2] + ')';
+    rendered_content = initializedPlugin.render(content);
+    rendered_content = rendered_content.replace('<p>', '');
+    rendered_content = rendered_content.replace('</p>', '');
+    return rendered_content;
+};
 
 const url = 'https://pulsar.incubator.apache.org';
+const javadocUrl = url + '/api';
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
 const baseUrl = '/staging/';
 
 const siteVariables = {
 };
-
 
 const siteConfig = {
   title: 'Apache Pulsar' /* title for your website */,
