@@ -19,7 +19,7 @@ class ReleaseNotes extends React.Component {
         <Container className="mainContainer documentContainer postContainer">
           <div className="post">
             <header className="postHeader">
-              <h1>Apache Pulsar downloads</h1>
+              <h1>Apache Pulsar Release Notes</h1>
               <hr />
             </header>
             <MarkdownBlock>
