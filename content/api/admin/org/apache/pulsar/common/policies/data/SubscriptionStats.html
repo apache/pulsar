@@ -132,54 +132,60 @@ extends Object</pre>
 <th class="colLast" scope="col">Field and Description</th>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html#activeConsumerName">activeConsumerName</a></span></code>
+<div class="block">The name of the consumer that is active for single active consumer subscriptions i.e.</div>
+</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html#blockedSubscriptionOnUnackedMsgs">blockedSubscriptionOnUnackedMsgs</a></span></code>
 <div class="block">Flag to verify if subscription is blocked due to reaching threshold of unacked messages</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>List&lt;<a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html#consumers">consumers</a></span></code>
 <div class="block">List of connected consumers on this subscription w/ their stats</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgBacklog">msgBacklog</a></span></code>
 <div class="block">Number of messages in the subscription backlog</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgRateExpired">msgRateExpired</a></span></code>
 <div class="block">Total rate of messages expired on this subscription.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgRateOut">msgRateOut</a></span></code>
 <div class="block">Total rate of messages delivered on this subscription.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgRateRedeliver">msgRateRedeliver</a></span></code>
 <div class="block">Total rate of messages redelivered on this subscription.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgThroughputOut">msgThroughputOut</a></span></code>
 <div class="block">Total throughput delivered on this subscription.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>SubType</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html#type">type</a></span></code>
-<div class="block">whether this subscription is Exclusive or Shared or Failover</div>
+<div class="block">Whether this subscription is Exclusive or Shared or Failover</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html#unackedMessages">unackedMessages</a></span></code>
 <div class="block">Number of unacknowledged messages for the subscription</div>
@@ -314,7 +320,17 @@ extends Object</pre>
 <li class="blockList">
 <h4>type</h4>
 <pre>public&nbsp;SubType type</pre>
-<div class="block">whether this subscription is Exclusive or Shared or Failover</div>
+<div class="block">Whether this subscription is Exclusive or Shared or Failover</div>
+</li>
+</ul>
+<a name="activeConsumerName">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>activeConsumerName</h4>
+<pre>public&nbsp;String activeConsumerName</pre>
+<div class="block">The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive</div>
 </li>
 </ul>
 <a name="msgRateExpired">

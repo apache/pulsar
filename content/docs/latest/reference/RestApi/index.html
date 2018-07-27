@@ -467,20 +467,6 @@
           
           
           <li>
-            <a href="../../deployment/Kubernetes/#pulsar-on-google-kubernetes-engine">
-              Pulsar on Google Kubernetes Engine
-            </a>
-          </li>
-          
-          
-          <li>
-            <a href="../../deployment/Kubernetes/#pulsar-on-amazon-web-services">
-              Pulsar on AWS
-            </a>
-          </li>
-          
-          
-          <li>
             <a href="../../deployment/dcos">
               Pulsar on DC/OS
             </a>
@@ -1133,6 +1119,10 @@
         
         
         <li><a href="/admin/functions/cluster"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>cluster</code></a></li>
+        
+        
+        
+        <li><a href="/admin/functions/cluster/leader"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>cluster<span class="slash">/</span>leader</code></a></li>
         
         
         
@@ -3871,6 +3861,49 @@
   
   
   
+  <div class="card" id="/admin/functions/cluster/leader">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>cluster<span class="slash">/</span>leader</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Fetches info about the leader node of the Pulsar cluster running Pulsar Functions</p>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>The requester doesn't have admin permissions</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
   <div class="card" id="/admin/functions/connectors">
     <div class="card-title">
       <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>connectors</code></h5>
@@ -4651,7 +4684,7 @@
           <h5>
             <code class="highlighter-rouge get">GET</code>
           </h5>
-          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing tenant</p>
+          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing property</p>
           
           <h5>URL parameters</h5>
           <table>
@@ -4680,7 +4713,7 @@
               </tr>
               
               <tr>
-                <td><code class="highlighter-rouge">tenant</code></td>
+                <td><code class="highlighter-rouge">property</code></td>
                 <td>query</td>
                 <td>false</td>
                 <td>string</td>
