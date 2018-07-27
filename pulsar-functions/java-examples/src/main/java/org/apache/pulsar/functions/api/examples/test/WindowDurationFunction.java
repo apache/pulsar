@@ -18,15 +18,12 @@
  */
 package org.apache.pulsar.functions.api.examples.test;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import java.util.Collection;
 
-@Getter
-@Setter
-@AllArgsConstructor
-public class CustomBaseObject {
-    private long baseValue;
+public class WindowDurationFunction implements java.util.function.Function<Collection<String>, String> {
+    @Override
+    public String apply(Collection<String> integers) {
+        long time = System.currentTimeMillis();
+        return String.format("%s:%s", String.join(",", integers), time);
+    }
 }
-
-
