@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.functions.runtime;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
@@ -29,6 +30,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
@@ -107,7 +109,6 @@ public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             commands);
-        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("\"Created successfully\""));
     }
 
@@ -120,21 +121,22 @@ public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
             "--namespace", "default",
             "--name", functionName
         );
-        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("\"name\": \"" + functionName + "\""));
     }
 
     private static void getFunctionInfoNotFound(String functionName) throws Exception {
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-            PulsarCluster.ADMIN_SCRIPT,
-            "functions",
-            "get",
-            "--tenant", "public",
-            "--namespace", "default",
-            "--name", functionName
-        );
-        assertNotEquals(0, result.getExitCode());
-        assertTrue(result.getStderr().contains("Reason: Function " + functionName + " doesn't exist"));
+        try {
+            pulsarCluster.getAnyWorker().execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "functions",
+                    "get",
+                    "--tenant", "public",
+                    "--namespace", "default",
+                    "--name", functionName);
+            fail("Command should have exited with non-zero");
+        } catch (ContainerExecException e) {
+            assertTrue(e.getResult().getStderr().contains("Reason: Function " + functionName + " doesn't exist"));
+        }
     }
 
     private static void getFunctionStatus(String functionName, int numMessages) throws Exception {
@@ -146,7 +148,6 @@ public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
             "--namespace", "default",
             "--name", functionName
         );
-        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("\"running\": true"));
         assertTrue(result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\""));
         assertTrue(result.getStdout().contains("\"numSuccessfullyProcessed\": \"" + numMessages + "\""));
@@ -186,7 +187,6 @@ public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
             "--namespace", "default",
             "--name", functionName
         );
-        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("Deleted successfully"));
         assertTrue(result.getStderr().isEmpty());
     }

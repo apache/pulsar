@@ -106,8 +106,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     public ContainerExecResult execCmd(String... commands) throws Exception {
         DockerClient client = this.getDockerClient();
         String dockerId = this.getContainerId();
-        return DockerUtils.runCommand(
-            client, dockerId, true, commands);
+        return DockerUtils.runCommand(client, dockerId, commands);
     }
 
     @Override
