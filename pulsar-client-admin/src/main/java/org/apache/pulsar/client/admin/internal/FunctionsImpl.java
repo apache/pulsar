@@ -273,9 +273,9 @@ public class FunctionsImpl extends BaseResource implements Functions {
                 .map(ConnectorDefinition::getName).collect(Collectors.toSet());
     }
 
-    public List<WorkerInfo> getWorkers() throws PulsarAdminException {
+    public List<WorkerInfo> getCluster() throws PulsarAdminException {
         try {
-            return request(functions.path("workers")).get(new GenericType<List<WorkerInfo>>() {
+            return request(functions.path("cluster")).get(new GenericType<List<WorkerInfo>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
