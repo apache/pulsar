@@ -545,7 +545,14 @@ public class CmdFunctions extends CmdBase {
 
             Class<?>[] typeArgs = null;
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                typeArgs = Utils.getFunctionTypes(functionConfig);
+                if (functionConfig.getJar().startsWith(Utils.FILE)) {
+                    // server derives the arg-type by loading a class
+                    if (isBlank(functionConfig.getClassName())) {
+                        throw new ParameterException("Class-name must be present for jar with file-url");
+                    }
+                } else {
+                    typeArgs = Utils.getFunctionTypes(functionConfig);
+                }
             }
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
