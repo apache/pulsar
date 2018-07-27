@@ -53,7 +53,7 @@ function Versions(props) {
                 <th>master</th>
                 <td>
                   <a
-                    href={`${siteConfig.baseUrl}docs/standalone`}>
+                    href={`${siteConfig.baseUrl}docs/${props.language}/standalone`}>
                     Documentation
                   </a>
                 </td>

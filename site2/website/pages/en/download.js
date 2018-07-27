@@ -7,6 +7,8 @@ const GridBlock = CompLibrary.GridBlock;
 
 const CWD = process.cwd();
 
+const translate = require('../../server/translate.js').translate;
+
 const siteConfig = require(`${CWD}/siteConfig.js`);
 const releases = require(`${CWD}/releases.json`);
 
@@ -46,9 +48,9 @@ class Download extends React.Component {
             <table className="versions" style={{width:'100%'}}>
               <thead>
                 <tr>
-                  <th>Release</th>
-                  <th>Link</th>
-                  <th>Crypto files</th>
+                  <th><translate>Release</translate></th>
+                  <th><translate>Link</translate></th>
+                  <th><translate>Crypto files</translate></th>
                 </tr>
               </thead>
               <tbody>
@@ -100,7 +102,7 @@ class Download extends React.Component {
               <p>
                 Once you've downloaded a Pulsar release, instructions on getting up and running with a standalone cluster 
                 that you can run on your laptop can be found in the{' '}
-                <a href={`${siteConfig.baseUrl}docs/standalone`}>Run Pulsar locally</a> tutorial.
+                <a href={`${siteConfig.baseUrl}docs/${this.props.language}/standalone`}>Run Pulsar locally</a> tutorial.
               </p>
             </div>
             <p>
@@ -116,19 +118,19 @@ class Download extends React.Component {
               </thead>
               <tbody>
                 <tr key={'java'}>
-                  <td><a href={'docs/client-libraries-java'}>The Pulsar java client</a></td>
+                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-java`}>The Pulsar java client</a></td>
                   <td>The Pulsar java client</td>
                 </tr>
                 <tr key={'go'}>
-                  <td><a href={'docs/client-libraries-go'}>The Pulsar go client</a></td>
+                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-go`}>The Pulsar go client</a></td>
                   <td>The Pulsar go client</td>
                 </tr>
                 <tr key={'python'}>
-                  <td><a href={'docs/client-libraries-python'}>The Pulsar python client</a></td>
+                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-python`}>The Pulsar python client</a></td>
                   <td>The Pulsar python client</td>
                 </tr>
                 <tr key={'cpp'}>
-                  <td><a href={'docs/client-libraries-cpp'}>The Pulsar C++ client</a></td>
+                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-cpp`}>The Pulsar C++ client</a></td>
                   <td>The Pulsar C++ client</td>
                 </tr>
               </tbody>
@@ -165,7 +167,7 @@ class Download extends React.Component {
                             <a href={`${info.srcArchiveUrl}.sha512`}>sha512</a>)
                         </td>
                         <td>
-                          <a href={`${siteConfig.baseUrl}release-notes#${info.version}`}>Release Notes</a>
+                          <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes#${info.version}`}>Release Notes</a>
                         </td>
                       </tr>
                     )

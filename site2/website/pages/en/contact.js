@@ -10,10 +10,6 @@ const CWD = process.cwd();
 
 const siteConfig = require(`${CWD}/siteConfig.js`);
 
-function docUrl(doc, language) {
-  return siteConfig.baseUrl + 'docs/' + (language ? language + '/' : '') + doc;
-}
-
 class Contact extends React.Component {
   render() {
     let language = this.props.language || '';
@@ -40,24 +36,6 @@ class Contact extends React.Component {
         archives: 'http://mail-archives.apache.org/mod_mbox/incubator-pulsar-commits/'
       }
     ]
-
-    const supportLinks = [
-      {
-        content: `Learn more using the [documentation on this site.](${docUrl(
-          'doc1.html',
-          language
-        )})`,
-        title: 'Browse Docs',
-      },
-      {
-        content: 'Ask questions about the documentation and project',
-        title: 'Join the community',
-      },
-      {
-        content: "Find out what's new with this project",
-        title: 'Stay up to date',
-      },
-    ];
 
     return (
       <div className="docMainWrapper wrapper">

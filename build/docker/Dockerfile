@@ -57,6 +57,10 @@ RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
 RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
 RUN apt-get update && apt-get install yarn
 
+# Install crowdin
+RUN wget https://artifacts.crowdin.com/repo/deb/crowdin.deb -O crowdin.deb
+RUN dpkg -i crowdin.deb
+
 # Install PIP and PDoc
 RUN wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py
 RUN pip install pdoc
