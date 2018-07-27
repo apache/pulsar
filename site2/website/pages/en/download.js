@@ -89,15 +89,20 @@ class Download extends React.Component {
 
 
             <h2>Release notes</h2>
-            <MarkdownBlock>
-              [Release notes](/release-notes) for all Pulsar's versions
-            </MarkdownBlock>
+            <div>
+              <p>
+                <a href={`${siteConfig.baseUrl}/release-notes`}>Release notes</a> for all Pulsar's versions
+              </p>
+            </div>
 
             <h2>Getting started</h2>
-            <MarkdownBlock>
-              Once you've downloaded a Pulsar release, instructions on getting up and running with a standalone cluster 
-              that you can run on your laptop can be found in the [Run Pulsar locally](/docs/standalone) tutorial.
-            </MarkdownBlock>
+            <div>
+              <p>
+                Once you've downloaded a Pulsar release, instructions on getting up and running with a standalone cluster 
+                that you can run on your laptop can be found in the{' '}
+                <a href={`${siteConfig.baseUrl}docs/standalone`}>Run Pulsar locally</a> tutorial.
+              </p>
+            </div>
             <p>
               If you need to connect to an existing Pulsar cluster or instance using an officially supported client, 
               see the client docs for these languages:
@@ -160,7 +165,7 @@ class Download extends React.Component {
                             <a href={`${info.srcArchiveUrl}.sha512`}>sha512</a>)
                         </td>
                         <td>
-                          <a href={''}>Release Notes</a>
+                          <a href={`${siteConfig.baseUrl}release-notes#${info.version}`}>Release Notes</a>
                         </td>
                       </tr>
                     )
