@@ -24,7 +24,7 @@ You can configure message deduplication in Pulsar using the [`broker.conf`](refe
 
 Parameter | Description | Default
 :---------|:------------|:-------
-`brokerDeduplicationEnabled` | Sets the default behavior for message deduplication in the Pulsar {% popover broker %}. If set to `true`, message deduplication will be enabled by default on all namespaces; if set to `false` (the default), deduplication will have to be [enabled](#enabling) and [disabled](#disabling) on a per-namespace basis. | `false`
+`brokerDeduplicationEnabled` | Sets the default behavior for message deduplication in the Pulsar [broker](reference-terminology.md#broker). If set to `true`, message deduplication will be enabled by default on all namespaces; if set to `false` (the default), deduplication will have to be [enabled](#enabling) and [disabled](#disabling) on a per-namespace basis. | `false`
 `brokerDeduplicationMaxNumberOfProducers` | The maximum number of producers for which information will be stored for deduplication purposes. | `10000`
 `brokerDeduplicationEntriesInterval` | The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). | `1000`
 `brokerDeduplicationProducerInactivityTimeoutMinutes` | The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. | `360` (6 hours)

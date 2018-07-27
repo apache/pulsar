@@ -54,7 +54,7 @@ Pulsar Functions could be described as
 
 The core programming model behind Pulsar Functions is very simple:
 
-* Functions receive messages from one or more **input {% popover topics %}**. Every time a message is received, the function can do a variety of things:
+* Functions receive messages from one or more **input [topics](reference-teminology.md#topic)**. Every time a message is received, the function can do a variety of things:
   * Apply some processing logic to the input and write output to:
     * An **output topic** in Pulsar
     * [Apache BookKeeper](#state-storage)
@@ -268,7 +268,7 @@ The Pulsar Functions feature was built to support a variety of deployment option
 Deployment mode | Description
 :---------------|:-----------
 [Local run mode](#local-run) | The function runs in your local environment, for example on your laptop
-[Cluster mode](#cluster-run) | The function runs *inside of* your Pulsar cluster, on the same machines as your Pulsar popover brokers
+[Cluster mode](#cluster-run) | The function runs *inside of* your Pulsar cluster, on the same machines as your Pulsar [brokers](reference-terminology.md#broker)
 
 ### Local run mode
 

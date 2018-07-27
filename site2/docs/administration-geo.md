@@ -44,7 +44,7 @@ All messages produced in any cluster will be delivered to all subscriptions in a
 
 ## Configuring replication
 
-As stated [above](#geo-replication-and-pulsar-properties), geo-replication in Pulsar is managed at the {% popover property %} level.
+As stated [above](#geo-replication-and-pulsar-properties), geo-replication in Pulsar is managed at the [tenant](reference-terminology.md#tenant) level.
 
 ### Granting permissions to properties
 

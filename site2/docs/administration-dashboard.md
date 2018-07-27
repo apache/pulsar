@@ -4,7 +4,7 @@ title: The Pulsar dashboard
 sidebar_label: Dashboard
 ---
 
-The Pulsar dashboard is a web application that enables users to monitor current stats for all {% popover topics %} in tabular form.
+The Pulsar dashboard is a web application that enables users to monitor current stats for all [topics](reference-terminology.md#topic) in tabular form.
 
 The dashboard is a data collector that polls stats from all the brokers in a Pulsar instance (across multiple clusters) and stores all the information in a [PostgreSQL](https://www.postgresql.org/) database.
 

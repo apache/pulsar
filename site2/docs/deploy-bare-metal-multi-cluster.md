@@ -209,7 +209,7 @@ As you can see from the example above, the following needs to be specified:
 * The local ZooKeeper connection string for the cluster
 * The configuration store connection string for the entire instance
 * The web service URL for the cluster
-* A broker service URL enabling interaction with the {% popover brokers %} in the cluster
+* A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
 
 If you're using [TLS](security-tls.md), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
 
@@ -268,7 +268,7 @@ Brokers can be configured using the [`conf/broker.conf`](reference-configuration
 
 The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you'll need to specify only those ZooKeeper servers located in the same cluster).
 
-You also need to specify the name of the {% popover cluster %} to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter.
+You also need to specify the name of the [cluster](reference-terminology.md#cluster) to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter.
 
 Here's an example configuration:
 
@@ -314,7 +314,8 @@ You can also use your own service discovery system if you'd like. If you use you
 
 The service discovery mechanism included with Pulsar maintains a list of active brokers, stored in ZooKeeper, and supports lookup using HTTP and also Pulsar's [binary protocol](developing-binary-protocol.md).
 
-To get started setting up Pulsar's built-in service discovery, you need to change a few parameters in the [`conf/discovery.conf`](reference-configuration.md#service-discovery) configuration file. Set the [`zookeeperServers`](reference-configuration.md#service-discovery-zookeeperServers) parameter to the cluster's ZooKeeper quorum connection string and the [`configurationStoreServers`](reference-configuration.md#service-discovery-configurationStoreServers) setting to the {% popover configuration store %} quorum connection string.
+To get started setting up Pulsar's built-in service discovery, you need to change a few parameters in the [`conf/discovery.conf`](reference-configuration.md#service-discovery) configuration file. Set the [`zookeeperServers`](reference-configuration.md#service-discovery-zookeeperServers) parameter to the cluster's ZooKeeper quorum connection string and the [`configurationStoreServers`](reference-configuration.md#service-discovery-configurationStoreServers) setting to the [configuration
+store](reference-terminology.md#configuration-store) quorum connection string.
 
 ```properties
 # Zookeeper quorum connection string
@@ -356,7 +357,7 @@ $ bin/pulsar-admin tenants create test-tentant \
 
 This will allow users who identify with role `test-admin-role` to administer the configuration for the tenant `test` which will only be allowed to use the cluster `us-west`. From now on, this tenant will be able to self-manage its resources.
 
-Once a tenant has been created, you will need to create {% popover namespaces %} for topics within that tenant.
+Once a tenant has been created, you will need to create [namespaces](reference-terminology.md#namespace) for topics within that tenant.
 
 The first step is to create a namespace. A namespace is an administrative unit that can contain many topics. A common practice is to create a namespace for each different use case from a single tenant.
 

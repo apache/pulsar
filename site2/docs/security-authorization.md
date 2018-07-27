@@ -7,7 +7,7 @@ sidebar_label: Authorization and ACLs
 In Pulsar, the [authentication provider](security-overview.md#authentication-providers) is charged with properly identifying clients and
 associating them with [role tokens](security-overview.md#role-tokens). *Authorization* is the process that determines *what* clients are able to do.
 
-Authorization in Pulsar is managed at the {% popover tenant %} level, which means that you can have multiple authorization schemes active
+Authorization in Pulsar is managed at the [tenant](reference-terminology.md#tenant) level, which means that you can have multiple authorization schemes active
 in a single Pulsar instance. You could, for example, create a `shopping` tenant that has one set of [roles](security-overview.md#role-tokens)
 and applies to a shopping application used by your company, while an `inventory` tenant would be used only by an inventory application.
 
@@ -16,7 +16,7 @@ and applies to a shopping application used by your company, while an `inventory`
 
 ## Creating a new tenant
 
-A Pulsar {% popover tenant %} is typically provisioned by Pulsar {% popover instance %} administrators or by some kind of self-service portal.
+A Pulsar [tenant](reference-terminology.md#tenant) is typically provisioned by Pulsar [instance](reference-terminology.md#instance) administrators or by some kind of self-service portal.
 
 Tenants are managed using the [`pulsar-admin`](reference-pulsar-admin.md) tool. Here's an example tenant creation command:
 

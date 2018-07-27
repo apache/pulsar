@@ -88,7 +88,7 @@ For the client common name, you need to use a string that you intend to use as t
 
 ## Configure the broker for TLS
 
-To configure a Pulsar {% popover broker %} to use TLS authentication, you'll need to make some changes to the `broker.conf` configuration file, which is located in the `conf` directory of your [Pulsar installation](getting-started-standalone.md).
+To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS authentication, you'll need to make some changes to the `broker.conf` configuration file, which is located in the `conf` directory of your [Pulsar installation](getting-started-standalone.md).
 
 Add these values to the configuration file (substituting the appropriate certificate paths where necessary):
 
@@ -110,7 +110,7 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 
 ## Configure the discovery service
 
-The {% popover discovery %} service used by Pulsar brokers needs to redirect all HTTPS requests, which means that it needs to be trusted by the client as well. Add this configuration in `conf/discovery.conf` in your Pulsar installation:
+The [discovery service](reference-terminology.md#service-discovery) used by Pulsar brokers needs to redirect all HTTPS requests, which means that it needs to be trusted by the client as well. Add this configuration in `conf/discovery.conf` in your Pulsar installation:
 
 ```properties
 tlsEnabled=true

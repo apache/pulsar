@@ -71,7 +71,7 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 
 ## Client configuration
 
-You can instantiate a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object using just a URL for the target Pulsar {% popover cluster %}, like this:
+You can instantiate a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object using just a URL for the target Pulsar [cluster](reference-terminology.md#cluster), like this:
 
 ```java
 PulsarClient client = PulsarClient.builder()
@@ -89,7 +89,7 @@ Check out the Javadoc for the {% javadoc PulsarClient client org.apache.pulsar.c
 
 ## Producers
 
-In Pulsar, producers write messages to topics. Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object (as in the section [above](#client-configuration)), you can create a {% javadoc Producer client org.apache.pulsar.client.api.Producer %} for a specific Pulsar {% popover topic %}.
+In Pulsar, producers write messages to topics. Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object (as in the section [above](#client-configuration)), you can create a {% javadoc Producer client org.apache.pulsar.client.api.Producer %} for a specific Pulsar [topic](reference-terminology.md#topic).
 
 ```java
 Producer<byte[]> producer = client.newProducer()
@@ -176,9 +176,9 @@ get a future returned.
 
 ## Consumers
 
-In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new {% popover consumer %} by first instantiating a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object and passing it a URL for a Pulsar broker (as [above](#client-configuration)).
+In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new [consumer](reference-terminology.md#consumer) by first instantiating a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object and passing it a URL for a Pulsar broker (as [above](#client-configuration)).
 
-Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Consumer client org.apache.pulsar.client.api.Consumer %} by specifying a {% popover topic %} and a [subscription](getting-started-concepts-and-architecture.md#subscription-modes).
+Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Consumer client org.apache.pulsar.client.api.Consumer %} by specifying a [topic](reference-terminology.md#topic) and a [subscription](getting-started-concepts-and-architecture.md#subscription-modes).
 
 ```java
 Consumer consumer = client.newConsumer()
@@ -187,7 +187,7 @@ Consumer consumer = client.newConsumer()
         .subscribe();
 ```
 
-The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then {% popover acknowledges %} that the message has been processed:
+The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed:
 
 ```java
 do {
@@ -335,7 +335,7 @@ Producer<byte[]> producer = client.newProducer()
         .create();
 ```
 
-The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the {% popover topic %}.
+The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the [topic](reference-terminology.md#topic).
 
 ### Schema example
 
