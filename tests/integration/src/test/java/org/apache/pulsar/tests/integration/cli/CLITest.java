@@ -22,8 +22,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
@@ -39,7 +41,6 @@ public class CLITest extends PulsarClusterTestBase {
         String tenantName = "test-deprecated-commands";
 
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("--help");
-        assertEquals(0, result.getExitCode());
         assertFalse(result.getStdout().isEmpty());
         assertFalse(result.getStdout().contains("Usage: properties "));
         result = pulsarCluster.runAdminCommandOnAnyBroker(
@@ -73,7 +74,6 @@ public class CLITest extends PulsarClusterTestBase {
                 "--subscription",
                 "" + subscriptionPrefix + i
             );
-            assertEquals(0, result.getExitCode());
             assertTrue(result.getStdout().isEmpty());
             assertTrue(result.getStderr().isEmpty());
             i++;
@@ -93,7 +93,6 @@ public class CLITest extends PulsarClusterTestBase {
             "1",
             topicName);
 
-        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("1 messages successfully produced"));
 
         // terminate the topic
@@ -102,20 +101,21 @@ public class CLITest extends PulsarClusterTestBase {
             "persistent",
             "terminate",
             topicName);
-        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("Topic succesfully terminated at"));
 
         // try to produce should fail
-        result = pulsarCluster.getAnyBroker().execCmd(
-            PulsarCluster.CLIENT_SCRIPT,
-            "produce",
-            "-m",
-            "\"test topic termination\"",
-            "-n",
-            "1",
-            topicName);
-        assertNotEquals(0, result.getExitCode());
-        assertTrue(result.getStdout().contains("Topic was already terminated"));
+        try {
+            pulsarCluster.getAnyBroker().execCmd(PulsarCluster.CLIENT_SCRIPT,
+                                                 "produce",
+                                                 "-m",
+                                                 "\"test topic termination\"",
+                                                 "-n",
+                                                 "1",
+                                                 topicName);
+            fail("Command should have exited with non-zero");
+        } catch (ContainerExecException e) {
+            assertTrue(e.getResult().getStdout().contains("Topic was already terminated"));
+        }
     }
 
     @Test
@@ -131,7 +131,6 @@ public class CLITest extends PulsarClusterTestBase {
             "-n",
             "1",
             topicName);
-        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("1 messages successfully produced"));
 
         result = container.execCmd(
@@ -142,7 +141,6 @@ public class CLITest extends PulsarClusterTestBase {
             "-f",
             "/pulsar/conf/schema_example.conf"
         );
-        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().isEmpty());
         assertTrue(result.getStderr().isEmpty());
 
@@ -152,7 +150,6 @@ public class CLITest extends PulsarClusterTestBase {
             "schemas",
             "get",
             topicName);
-        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().contains("\"type\" : \"STRING\""));
 
         // delete the schema
@@ -161,19 +158,20 @@ public class CLITest extends PulsarClusterTestBase {
             "schemas",
             "delete",
             topicName);
-        assertEquals(0, result.getExitCode());
         assertTrue(result.getStdout().isEmpty());
         assertTrue(result.getStderr().isEmpty());
 
         // get schema again
-        result = container.execCmd(
-            PulsarCluster.ADMIN_SCRIPT,
-            "schemas",
-            "get",
-            "persistent://public/default/test-schema-cli"
-        );
-        assertNotEquals(0, result.getExitCode());
-        assertTrue(result.getStderr().contains("Reason: HTTP 404 Not Found"));
+        try {
+            container.execCmd(PulsarCluster.ADMIN_SCRIPT,
+                              "schemas",
+                              "get",
+                              "persistent://public/default/test-schema-cli"
+                              );
+            fail("Command should have exited with non-zero");
+        } catch (ContainerExecException e) {
+            assertTrue(e.getResult().getStderr().contains("Reason: HTTP 404 Not Found"));
+        }
     }
 
     @Test
@@ -190,7 +188,6 @@ public class CLITest extends PulsarClusterTestBase {
         };
 
         result = pulsarCluster.runAdminCommandOnAnyBroker(setCommand);
-        assertEquals(0, result.getExitCode());
         assertTrue(
             result.getStdout().isEmpty(),
             result.getStdout()
@@ -205,7 +202,6 @@ public class CLITest extends PulsarClusterTestBase {
         };
 
         result = pulsarCluster.runAdminCommandOnAnyBroker(getCommand);
-        assertEquals(0, result.getExitCode());
         assertTrue(
             result.getStdout().contains("\"retentionTimeInMinutes\" : -1"),
             result.getStdout());

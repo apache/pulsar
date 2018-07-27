@@ -45,6 +45,7 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -164,16 +165,10 @@ public class DockerUtils {
         throw new IllegalArgumentException("Container " + containerId + " has no networks");
     }
 
-    public static ContainerExecResult runCommand(DockerClient docker, String containerId, String... cmd)
-            throws Exception {
-        return runCommand(docker, containerId, false, cmd);
-    }
-
     public static ContainerExecResult runCommand(DockerClient docker,
                                                  String containerId,
-                                                 boolean ignoreError,
                                                  String... cmd)
-            throws Exception {
+            throws ContainerExecException {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         String execid = docker.execCreateCmd(containerId)
             .withCmd(cmd)
@@ -228,23 +223,17 @@ public class DockerUtils {
             resp = docker.inspectExecCmd(execid).exec();
         }
         int retCode = resp.getExitCode();
-        if (retCode != 0) {
-            if (!ignoreError) {
-                LOG.error("DOCKER.exec({}:{}): failed with {} :\nStdout:\n{}\n\nStderr:\n{}",
-                    containerId, cmdString, retCode, stdout.toString(), stderr.toString());
-                throw new Exception(String.format("cmd(%s) failed on %s with exitcode %d",
-                    cmdString, containerId, retCode));
-            } else {
-                LOG.error("DOCKER.exec({}:{}): failed with {}", containerId, cmdString, retCode);
-            }
-        } else {
-            LOG.info("DOCKER.exec({}:{}): completed with {}", containerId, cmdString, retCode);
-        }
-        return ContainerExecResult.of(
+        ContainerExecResult result = ContainerExecResult.of(
             retCode,
             stdout.toString(),
             stderr.toString()
         );
+        LOG.info("DOCKER.exec({}:{}): completed with {}", containerId, cmdString, retCode);
+
+        if (retCode != 0) {
+            throw new ContainerExecException(cmdString, containerId, result);
+        }
+        return result;
     }
 
     public static Optional<String> getContainerCluster(DockerClient docker, String containerId) {
