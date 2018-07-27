@@ -865,6 +865,8 @@ public class FunctionsImpl {
 
         // validate function class-type
         Object functionObject = createInstance(functionDetailsBuilder.getClassName(), classLoader);
+        Class<?>[] typeArgs = org.apache.pulsar.functions.utils.Utils.getFunctionTypes(functionObject, false);
+        
         if (!(functionObject instanceof org.apache.pulsar.functions.api.Function)
                 && !(functionObject instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
@@ -891,6 +893,9 @@ public class FunctionsImpl {
                 log.error("Failed to validate source class", e);
                 throw new IllegalArgumentException("Failed to validate source class-name", e);
             }
+        } else {
+            functionDetailsBuilder
+                    .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(typeArgs[0].getName()));
         }
 
         if (functionDetailsBuilder.hasSink() && functionDetailsBuilder.getSink() != null
@@ -913,7 +918,11 @@ public class FunctionsImpl {
                 log.error("Failed to validate sink class", e);
                 throw new IllegalArgumentException("Failed to validate sink class-name", e);
             }
+        } else {
+            functionDetailsBuilder
+                    .setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(typeArgs[1].getName()));
         }
+
     }
 
     private Class<?> getTypeArg(String className, Class<?> funClass, URLClassLoader classLoader)
