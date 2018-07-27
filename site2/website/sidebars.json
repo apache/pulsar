@@ -83,6 +83,7 @@
       "develop-cpp"
     ],
     "Reference": [
+      "reference-terminology",
       "reference-rest-api",
       "reference-cli-tools",
       "pulsar-admin",

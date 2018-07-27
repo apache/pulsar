@@ -4,7 +4,7 @@ title: Getting started with Pulsar Functions
 sidebar_label: Getting started
 ---
 
-This tutorial will walk you through running a {% popover standalone %} Pulsar {% popover cluster %} on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar {% popover cluster %}), while the second will run in cluster mode (inside your cluster).
+This tutorial will walk you through running a [standalone](reference-teminology.md#standalone) Pulsar [cluster](reference-teminology.md#cluster) on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar [cluster](reference-teminology.md#cluster)), while the second will run in cluster mode (inside your cluster).
 
 > In local run mode, your Pulsar Function will communicate with your Pulsar cluster but will run outside of the cluster.
 
@@ -14,7 +14,7 @@ In order to follow along with this tutorial, you'll need to have [Maven](https:/
 
 ## Run a standalone Pulsar cluster
 
-In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in {% popover standalone %} mode. Follow these steps to start up a standalone cluster:
+In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in [standalone](reference-teminology.md#standalone) mode. Follow these steps to start up a standalone cluster:
 
 ```bash
 $ wget https://repository.apache.org/content/repositories/snapshots/org/apache/pulsar/distribution/2.0.0-incubating-SNAPSHOT/distribution-2.0.0-incubating-{{ site.preview_version_id }}-bin.tar.gz

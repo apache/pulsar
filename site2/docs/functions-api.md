@@ -103,7 +103,7 @@ Both the [Java](#java-sdk) and [Python](#python-sdk) SDKs provide access to a **
 * The name of the topic on which the message was sent
 * The names of all input topics as well as the output topic associated with the function
 * The name of the class used for [SerDe](#serde)
-* The {% popover tenant %} and namespace associated with the function
+* The [tenant](reference-terminology.md#tenant) and namespace associated with the function
 * The ID of the Pulsar Functions instance running the function
 * The version of the function
 * The [logger object](#logging) used by the function, which can be used to create function log messages
@@ -518,7 +518,7 @@ Regardless of which [deployment mode](functions-deploying.md) you're using, you'
 * grpcio
 * grpcio-tools
 
-That could be your local machine for [local run mode](functions-deploying.md#local-run) or a machine running a Pulsar {% popover broker %} for [cluster mode](functions-deploying.md#cluster-mode). To install those libraries using pip:
+That could be your local machine for [local run mode](functions-deploying.md#local-run) or a machine running a Pulsar [broker](reference-terminology.md#broker) for [cluster mode](functions-deploying.md#cluster-mode). To install those libraries using pip:
 
 ```bash
 $ pip install pulsar-client protobuf futures grpcio grpcio-tools
@@ -577,7 +577,7 @@ Method | What it provides
 `record_metric` | Records a per-key [metric](#python-metrics)
 `publish` | Publishes a message to the specified Pulsar topic
 `get_output_serde_class_name` | The name of the output [SerDe](#python-serde) class
-`ack` | {% popover Acks %} the message being processed to Pulsar
+`ack` | [Acks](reference-terminology.md#acknowledgment-ack) the message being processed to Pulsar
 
 ### Python SerDe
 

@@ -4,7 +4,7 @@ title: Managing Namespaces
 sidebar_label: Namespaces
 ---
 
-Pulsar {% popover namespaces %} are logical groupings of {% popover topics %}.
+Pulsar [namespaces](reference-terminology.md#namespace) are logical groupings of [topics](reference-terminology.md#topic).
 
 Namespaces can be managed via:
 
@@ -16,7 +16,7 @@ Namespaces can be managed via:
 
 ### Create
 
-You can create new namespaces under a given {% popover tenant %}.
+You can create new namespaces under a given [tenant](reference-terminology.md#tenant).
 
 #### pulsar-admin
 
@@ -85,7 +85,7 @@ admin.namespaces().getPolicies(namespace);
 
 ### List namespaces within a tenant
 
-You can list all namespaces within a given Pulsar {% popover tenant %}.
+You can list all namespaces within a given Pulsar [tenant](reference-terminology.md#tenant).
 
 #### pulsar-admin
 
@@ -631,7 +631,7 @@ Coming soon.
 
 ### Unloading from a broker
 
-You can unload a namespace, or a {% popover namespace bundle %}, from the Pulsar {% popover broker %} that is currently responsible for it.
+You can unload a namespace, or a [namespace bundle](reference-terminology.md#namespace-bundle), from the Pulsar [broker](reference-terminology.md#broker) that is currently responsible for it.
 
 #### pulsar-admin
 

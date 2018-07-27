@@ -38,7 +38,8 @@ To get started, you'll need:
 
 You can create a new GKE cluster using the [`container clusters create`](https://cloud.google.com/sdk/gcloud/reference/container/clusters/create) command for `gcloud`. This command enables you to specify the number of nodes in the cluster, the machine types of those nodes, and more.
 
-As an example, we'll create a new GKE cluster for Kubernetes version [1.6.4](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v164) in the [us-central1-a](https://cloud.google.com/compute/docs/regions-zones/regions-zones#available) zone. The cluster will be named `pulsar-gke-cluster` and will consist of three VMs, each using two locally attached SSDs and running on [n1-standard-8](https://cloud.google.com/compute/docs/machine-types) machines. These SSDs will be used by {% popover bookie %} instances, one for the BookKeeper [journal](getting-started-concepts-and-architecture.md#journal-storage) and the other for storing the actual message data.
+As an example, we'll create a new GKE cluster for Kubernetes version [1.6.4](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v164) in the [us-central1-a](https://cloud.google.com/compute/docs/regions-zones/regions-zones#available) zone. The cluster will be named `pulsar-gke-cluster` and will consist of three VMs, each using two locally attached SSDs and running on [n1-standard-8](https://cloud.google.com/compute/docs/machine-types) machines. These SSDs will be used by
+[bookie](reference-terminology.md#bookie) instances, one for the BookKeeper [journal](getting-started-concepts-and-architecture.md#journal-storage) and the other for storing the actual message data.
 
 ```bash
 $ gcloud container clusters create pulsar-gke-cluster \
@@ -161,7 +162,7 @@ This step may take several minutes, as Kubernetes needs to download the Docker i
 
 #### Initialize cluster metadata
 
-Once ZooKeeper is running, you need to [initialize the metadata](#cluster-metadata-initialization) for the Pulsar cluster in ZooKeeper. This includes system metadata for {% popover BookKeeper %} and Pulsar more broadly. There is a Kubernetes [job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) in the `cluster-metadata.yaml` file that you only need to run once:
+Once ZooKeeper is running, you need to [initialize the metadata](#cluster-metadata-initialization) for the Pulsar cluster in ZooKeeper. This includes system metadata for [BookKeeper](reference-terminology.md#bookkeeper) and Pulsar more broadly. There is a Kubernetes [job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) in the `cluster-metadata.yaml` file that you only need to run once:
 
 ```bash
 $ kubectl apply -f cluster-metadata.yaml
@@ -235,7 +236,7 @@ Now that you have a namespace and property set up, you can move on to [experimen
 
 #### Experimenting with your cluster
 
-Now that a property and namespace have been created, you can begin experimenting with your running Pulsar cluster. Using the same `pulsar-admin` pod via an alias, as in the section above, you can use [`pulsar-perf`](reference-cli-tools.md#pulsar-perf) to create a test {% popover producer %} to publish 10,000 messages a second on a topic in the {% popover property %} and {% popover namespace %} you created.
+Now that a property and namespace have been created, you can begin experimenting with your running Pulsar cluster. Using the same `pulsar-admin` pod via an alias, as in the section above, you can use [`pulsar-perf`](reference-cli-tools.md#pulsar-perf) to create a test [producer](reference-terminology.md#producer) to publish 10,000 messages a second on a topic in the [tenant](reference-terminology.md#tenant) and [namespace](reference-terminology.md#namespace) you created.
 
 First, create an alias to use the `pulsar-perf` tool via the admin pod:
 
@@ -250,7 +251,7 @@ $ pulsar-perf produce persistent://public/default/my-topic \
   --rate 10000
 ```
 
-Similarly, you can start a {% popover consumer %} to subscribe to and receive all the messages on that topic:
+Similarly, you can start a [consumer](reference-terminology.md#consumer) to subscribe to and receive all the messages on that topic:
 
 ```bash
 $ pulsar-perf consume persistent://public/default/my-topic \
@@ -273,7 +274,7 @@ All Pulsar metrics in Kubernetes are collected by a [Prometheus](https://prometh
 
 #### Grafana
 
-In your Kubernetes cluster, you can use [Grafana](https://grafana.com) to view dashbaords for Pulsar {% popover namespaces %} (message rates, latency, and storage), JVM stats, {% popover ZooKeeper %}, and {% popover BookKeeper %}. You can get access to the pod serving Grafana using `kubectl`'s [`port-forward`](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster) command:
+In your Kubernetes cluster, you can use [Grafana](https://grafana.com) to view dashbaords for Pulsar [namespaces](reference-terminology.md#namespace) (message rates, latency, and storage), JVM stats, [ZooKeeper](https://zookeeper.apache.org), and [BookKeeper](reference-terminology.md#bookkeeper). You can get access to the pod serving Grafana using `kubectl`'s [`port-forward`](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster) command:
 
 ```bash
 $ kubectl port-forward \
@@ -284,7 +285,7 @@ You can then access the dashboard in your web browser at [localhost:3000](http:/
 
 #### Pulsar dashboard
 
-While Grafana and Prometheus are used to provide graphs with historical data, [Pulsar dashboard](administration-dashboard.md) reports more detailed current data for individual {% popover topics %}.
+While Grafana and Prometheus are used to provide graphs with historical data, [Pulsar dashboard](administration-dashboard.md) reports more detailed current data for individual [topics](reference-terminology.md#topic).
 
 For example, you can have sortable tables showing all namespaces, topics, and broker stats, with details on the IP address for consumers, how long they've been connected, and much more.
 

@@ -28,7 +28,7 @@ webSocketServiceEnabled=true
 
 ### As a separate component
 
-In this mode, the WebSocket service will be run from a Pulsar {% popover broker %} as a separate service. Configuration for this mode is handled in the [`conf/websocket.conf`](reference-configuration.md#websocket) configuration file. You'll need to set *at least* the following parameters:
+In this mode, the WebSocket service will be run from a Pulsar [broker](reference-terminology.md#broker) as a separate service. Configuration for this mode is handled in the [`conf/websocket.conf`](reference-configuration.md#websocket) configuration file. You'll need to set *at least* the following parameters:
 
 * [`globalZookeeperServers`](reference-configuration.md#websocket-globalZookeeperServers)
 * [`webServicePort`](reference-configuration.md#websocket-webServicePort)
@@ -96,7 +96,7 @@ Key | Type | Required? | Explanation
 `properties` | key-value pairs | no | Application-defined properties
 `context` | string | no | Application-defined request identifier
 `key` | string | no | For partitioned topics, decides which partition to use
-`replicationClusters` | array | no | Restrict replication to this list of {% popover clusters %}, specified by name
+`replicationClusters` | array | no | Restrict replication to this list of [clusters](reference-terminology.md#cluster), specified by name
 
 
 ##### Example success response
@@ -268,7 +268,7 @@ You can also download it from [PyPI](https://pypi.python.org/pypi/websocket-clie
 
 #### Python producer
 
-Here's an example Python producer that sends a simple message to a Pulsar {% popover topic %}:
+Here's an example Python producer that sends a simple message to a Pulsar [topic](reference-terminology.md#topic):
 
 ```python
 import websocket, base64, json

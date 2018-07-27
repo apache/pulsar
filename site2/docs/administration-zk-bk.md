@@ -245,7 +245,7 @@ In Pulsar, you can set *persistence policies*, at the namespace level, that dete
 
 ### Set persistence policies
 
-You can set persistence policies for BookKeeper at the {% popover namespace %} level.
+You can set persistence policies for BookKeeper at the [namespace](reference-terminology.md#namespace) level.
 
 #### pulsar-admin
 
@@ -254,7 +254,7 @@ Use the [`set-persistence`](reference-pulsar-admin.md#namespaces-set-persistence
 Flag | Description | Default
 :----|:------------|:-------
 `-a`, `--bookkeeper-ack-quorom` | The number of acks (guaranteed copies) to wait on for each entry | 0
-`-e`, `--bookkeeper-ensemble` | The number of {% popover bookies %} to use for topics in the namespace | 0
+`-e`, `--bookkeeper-ensemble` | The number of [bookies](reference-terminology.md#bookie) to use for topics in the namespace | 0
 `-w`, `--bookkeeper-write-quorum` | How many writes to make for each entry | 0
 `-r`, `--ml-mark-delete-max-rate` | Throttling rate for mark-delete operations (0 means no throttle) | 0
 

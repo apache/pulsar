@@ -14,7 +14,7 @@ sidebar_label: Non-persistent messaging
 
 By default, Pulsar persistently stores *all* unacknowledged messages on multiple [BookKeeper](#persistent-storage) bookies (storage nodes). Data for messages on persistent topics can thus survive broker restarts and subscriber failover.
 
-Pulsar also, however, supports **non-persistent topics**, which are topics on which messages are *never* persisted to disk and live only in memory. When using non-persistent delivery, killing a Pulsar {% popover broker %} or disconnecting a subscriber to a topic means that all in-transit messages are lost on that (non-persistent) topic, meaning that clients may see message loss.
+Pulsar also, however, supports **non-persistent topics**, which are topics on which messages are *never* persisted to disk and live only in memory. When using non-persistent delivery, killing a Pulsar [broker](reference-terminology.md#broker) or disconnecting a subscriber to a topic means that all in-transit messages are lost on that (non-persistent) topic, meaning that clients may see message loss.
 
 Non-persistent topics have names of this form (note the `non-persistent` in the name):
 

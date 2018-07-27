@@ -4,11 +4,11 @@ title: The Pulsar admin interface
 sidebar_label: Overview
 ---
 
-The Pulsar admin interface enables you to manage all of the important entities in a Pulsar {% popover instance %}, such as {% popover properties %}, {% popover topics %}, and {% popover namespaces %}.
+The Pulsar admin interface enables you to manage all of the important entities in a Pulsar [instance](reference-terminology.md#instance), such as [tenants](reference-terminology.md#tenant), [topics](reference-terminology.md#topic), and [namespaces](reference-terminology.md#namespace).
 
 You can currently interact with the admin interface via:
 
-- Making HTTP calls against the admin [REST API](reference-rest-api.md) provided by Pulsar {% popover brokers %}. For some restful apis, they might be redirected to topic owner brokers for serving
+- Making HTTP calls against the admin [REST API](reference-rest-api.md) provided by Pulsar [brokers](reference-terminology.md#broker). For some restful apis, they might be redirected to topic owner brokers for serving
    with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you are using `curl`, you should specify `-L`
    to handle redirections.
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your [Pulsar installation](getting-started-standalone.md):
@@ -28,7 +28,7 @@ In this document, examples from each of the three available interfaces will be s
 
 ## Admin setup
 
-Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, the [Java admin API](/api/admin), and the [REST API](reference-rest-api.md)---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar {% popover instance %}.
+Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, the [Java admin API](/api/admin), and the [REST API](reference-rest-api.md)---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar [instance](reference-terminology.md#instance).
 
 ### pulsar-admin
 
@@ -46,11 +46,11 @@ If you have [authentication](security-overview.md#authentication-providers) enab
 
 ### REST API
 
-You can find documentation for the REST API exposed by Pulsar {% popover brokers %} in [this reference document](reference-rest-api.md).
+You can find documentation for the REST API exposed by Pulsar [brokers](reference-terminology.md#broker) in [this reference document](reference-rest-api.md).
 
 ### Java admin client
 
-To use the Java admin API, instantiate a {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object, specifying a URL for a Pulsar {% popover broker %} and a {% javadoc ClientConfiguration admin org.apache.pulsar.client.admin.ClientConfiguration %}. Here's a minimal example using `localhost`:
+To use the Java admin API, instantiate a {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object, specifying a URL for a Pulsar [broker](reference-terminology.md#broker) and a {% javadoc ClientConfiguration admin org.apache.pulsar.client.admin.ClientConfiguration %}. Here's a minimal example using `localhost`:
 
 ```java
 URL url = new URL("http://localhost:8080");

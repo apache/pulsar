@@ -40,7 +40,7 @@ Once a subscription has been created, all messages will be [retained](#persisten
 
 ### Producers
 
-A producer is a process that attaches to a topic and publishes messages to a Pulsar {% popover broker %} for processing.
+A producer is a process that attaches to a topic and publishes messages to a Pulsar [broker](reference-terminology.md#broker) for processing.
 
 #### Send modes
 
@@ -68,7 +68,7 @@ A consumer is a process that attaches to a topic via a subscription and then rec
 
 #### Receive modes
 
-Messages can be received from {% popover brokers %} either synchronously (sync) or asynchronously (async).
+Messages can be received from [brokers](reference-terminology.md#broker) either synchronously (sync) or asynchronously (async).
 
 | Mode          | Description                                                                                                                                                                                                   |
 |:--------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -90,7 +90,7 @@ Client libraries can provide their own listener implementations for consumers. T
 
 ### Topics
 
-As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from {% popover producers %} to {% popover consumers %}. Topic names are URLs that have a well-defined structure:
+As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from [producers](reference-terminology.md#producer) to [consumers](reference-terminology.md#consumer). Topic names are URLs that have a well-defined structure:
 
 ```http
 {persistent|non-persistent}://tenant/namespace/topic
@@ -334,7 +334,7 @@ Pulsar uses a system called [Apache BookKeeper](http://bookkeeper.apache.org/) f
 * It's horizontally scalable in both capacity and throughput. Capacity can be immediately increased by adding more bookies to a cluster.
 * Bookies are designed to handle thousands of ledgers with concurrent reads and writes. By using multiple disk devices---one for journal and another for general storage--bookies are able to isolate the effects of read operations from the latency of ongoing write operations.
 
-In addition to message data, *cursors* are also persistently stored in BookKeeper. Cursors are {% popover subscription %} positions for {% popover consumers %}. BookKeeper enables Pulsar to store consumer position in a scalable fashion.
+In addition to message data, *cursors* are also persistently stored in BookKeeper. Cursors are [subscription](reference-terminology.md#subscription) positions for [consumers](reference-terminology.md#consumer). BookKeeper enables Pulsar to store consumer position in a scalable fashion.
 
 At the moment, Pulsar only supports persistent message storage. This accounts for the `persistent` in all topic names. Here's an example:
 
@@ -419,7 +419,7 @@ In the second scenario at the bottom, the producer publishes message 1, which is
 
 ### Producer idempotency
 
-The other available approach to message deduplication is to ensure that each message is *only produced once*. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the {% popover broker %} level, which means that you don't need to modify your Pulsar client code. Instead, you only need to make administrative changes (see the [Managing message deduplication](cookbooks-deduplication.md) cookbook for a guide).
+The other available approach to message deduplication is to ensure that each message is *only produced once*. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the [broker](reference-terminology.md#broker) level, which means that you don't need to modify your Pulsar client code. Instead, you only need to make administrative changes (see the [Managing message deduplication](cookbooks-deduplication.md) cookbook for a guide).
 
 ### Deduplication and effectively-once semantics
 
@@ -445,7 +445,7 @@ As you can see, the tenant is the most basic unit of categorization for topics (
 To each tenant in a Pulsar instance you can assign:
 
 * An [authorization](security-authorization.md) scheme
-* The set of {% popover clusters %} to which the tenant's configuration applies
+* The set of [clusters](reference-terminology.md#cluster) to which the tenant's configuration applies
 
 ### Namespaces
 
@@ -533,7 +533,7 @@ client = Client('pulsar://pulsar-cluster.acme.com:6650')
 
 ## Reader interface
 
-In Pulsar, the "standard" [consumer interface](#consumers) involves using consumers to listen on {% popover topics %}, process incoming messages, and finally acknowledge those messages when they've been processed. Whenever a consumer connects to a topic, it automatically begins reading from the earliest un-acked message onward because the topic's cursor is automatically managed by Pulsar.
+In Pulsar, the "standard" [consumer interface](#consumers) involves using consumers to listen on [topics](reference-terminology.md#topic), process incoming messages, and finally acknowledge those messages when they've been processed. Whenever a consumer connects to a topic, it automatically begins reading from the earliest un-acked message onward because the topic's cursor is automatically managed by Pulsar.
 
 The **reader interface** for Pulsar enables applications to manually manage cursors. When you use a reader to connect to a topic---rather than a consumer---you need to specify *which* message the reader begins reading from when it connects to a topic. When connecting to a topic, the reader interface enables you to begin with:
 
@@ -613,7 +613,7 @@ When topic compaction is triggered [via the CLI](cookbooks-compaction.md), Pulsa
 
 After that, the broker will create a new [BookKeeper ledger](#ledgers) and make a second iteration through each message on the topic. For each message, if the key matches the latest occurrence of that key, then the key's data payload, message ID, and metadata will be written to the newly created ledger. If the key doesn't match the latest then the message will be skipped and left alone. If any given message has an empty payload, it will be skipped and considered deleted (akin to the concept of [tombstones](https://en.wikipedia.org/wiki/Tombstone_(data_store)) in key-value databases). At the end of this second iteration through the topic, the newly created BookKeeper ledger is closed and two things are written to the topic's metadata: the ID of the BookKeeper ledger and the message ID of the last compacted message (this is known as the **compaction horizon** of the topic). Once this metadata is written compaction is complete.
 
-After the initial compaction operation, the Pulsar {% popover broker %} that owns the topic is notified whenever any future changes are made to the compaction horizon and compacted backlog. When such changes occur:
+After the initial compaction operation, the Pulsar [broker](reference-terminology.md#broker) that owns the topic is notified whenever any future changes are made to the compaction horizon and compacted backlog. When such changes occur:
 
 * Clients (consumers and readers) that have read compacted enabled will attempt to read messages from a topic and either:
   * Read from the topic like normal (if the message ID is greater than or equal to the compaction horizon) or
