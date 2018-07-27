@@ -15,7 +15,7 @@ For a guide to accessing metrics created by Pulsar Functions, see the guide to [
 
 ## Java SDK
 
-If you're creating a Pulsar Function using the [Java SDK](functions-api.md#java-sdk), the {% javadoc Context client org.apache.pulsar.functions.api.Context %} object has a `recordMetric` method that you can use to register both a name for the metric and a value. Here's the signature for that method:
+If you're creating a Pulsar Function using the [Java SDK](functions-api.md#java-sdk), the {@inject: javadoc:Context:/client/org/apache/pulsar/functions/api/Context} object has a `recordMetric` method that you can use to register both a name for the metric and a value. Here's the signature for that method:
 
 ```java
 void recordMetric(String metricName, double value);

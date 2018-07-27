@@ -6,7 +6,7 @@ sidebar_label: Kubernetes
 
 Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or [Amazon Web Services](https://aws.amazon.com/) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
-The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/reference/). The [`kubernetes`](pulsar:repo_url/kubernetes) subdirectory of the [Pulsar package](pulsar:download_page_url) holds resource definitions for:
+The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/reference/). The {@inject: github:`kubernetes`:/kubernetes} subdirectory of the [Pulsar package](pulsar:download_page_url) holds resource definitions for:
 
 * A two-bookie BookKeeper cluster
 * A three-node ZooKeeper cluster
