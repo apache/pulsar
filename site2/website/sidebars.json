@@ -87,8 +87,7 @@
       "reference-rest-api",
       "reference-cli-tools",
       "pulsar-admin",
-      "reference-configuration",
-      "reference-auth"
+      "reference-configuration"
     ]
   },
   "docs-other": {
