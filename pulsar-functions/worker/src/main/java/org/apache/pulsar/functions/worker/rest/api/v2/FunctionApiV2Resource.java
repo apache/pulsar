@@ -131,7 +131,9 @@ public class FunctionApiV2Resource extends FunctionApiResource {
 
     @GET
     @Path("/cluster")
-    public Response getCluster() {
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Fetches information about the Pulsar cluster running Pulsar Functions")
+    public List<WorkerInfo> getCluster() {
         return functions.getCluster();
     }
 
@@ -179,14 +181,4 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions.getListOfConnectors();
     }
-    
-    @GET
-    @Path("/workers")
-    @ApiOperation(value = "Get all current member workers.")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
-    public List<WorkerInfo> getWorkers() {
-        return functions.getWorkers();
-    }
-    
 }

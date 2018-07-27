@@ -488,24 +488,13 @@ public class FunctionsImpl {
         return this.worker().getConnectorsManager().getConnectors();
     }
 
-    public List<WorkerInfo> getWorkers() {
+    public List<WorkerInfo> getCluster() {
         if (!isWorkerServiceAvailable()) {
             throw new WebApplicationException(
                     Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
                             .entity(new ErrorData("Function worker service is not avaialable")).build());
         }
         return worker().getMembershipManager().getCurrentMembership();
-    }
-
-    public Response getCluster() {
-
-        if (!isWorkerServiceAvailable()) {
-            return getUnavailableResponse();
-        }
-
-        MembershipManager membershipManager = worker().getMembershipManager();
-        List<WorkerInfo> members = membershipManager.getCurrentMembership();
-        return Response.status(Status.OK).entity(new Gson().toJson(members)).build();
     }
 
     public WorkerInfo getClusterLeader() {

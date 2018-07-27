@@ -212,7 +212,7 @@ public class PulsarFunctionAdminTest {
 
     @Test
     public void testGetWokersApi() throws Exception {
-        List<WorkerInfo> workers = admin.functions().getWorkers();
+        List<WorkerInfo> workers = admin.functions().getCluster();
         Assert.assertEquals(workers.size(), 1);
         Assert.assertEquals(workers.get(0).getPort(), workerServicePort);
     }

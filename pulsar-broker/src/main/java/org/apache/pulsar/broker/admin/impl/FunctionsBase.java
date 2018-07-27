@@ -209,7 +209,8 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
 
     })
     @Path("/cluster")
-    public Response getCluster() {
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<WorkerInfo> getCluster() {
         return functions.getCluster();
     }
 
@@ -302,14 +303,4 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions.getListOfConnectors();
     }
-
-    @GET
-    @Path("/workers")
-    @ApiOperation(value = "Get all current member workers.")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
-    public List<WorkerInfo> getWorkers() {
-        return functions.getWorkers();
-    }
-    
 }
