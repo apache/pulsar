@@ -86,6 +86,7 @@ public class FunctionConfig {
     @isValidTopicName
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
+    private boolean retainOrdering;
     private Map<String, Object> userConfig;
     private Runtime runtime;
     private boolean autoAck;
