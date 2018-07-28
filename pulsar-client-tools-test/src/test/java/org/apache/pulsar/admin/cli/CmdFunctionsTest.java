@@ -76,6 +76,7 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNull;
 
 /**
  * Unit test of {@link CmdFunctions}.
@@ -434,7 +435,31 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreateWithoutOutputTopicWithSkipFlug() throws Exception {
+        String inputTopicName = TEST_NAME + "-input-topic";
+        cmd.run(new String[] {
+                "create",
+                "--inputs", inputTopicName,
+                "----skip-output",
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertNull(creater.getFunctionConfig().getOutput());
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+
+    }
+
+    
+    @Test
     public void testCreateWithoutOutputTopic() throws Exception {
+
+        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
+        consoleOutputCapturer.start();
+
         String inputTopicName = TEST_NAME + "-input-topic";
         cmd.run(new String[] {
                 "create",
@@ -446,8 +471,10 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals(inputTopicName + "-" + "CmdFunctionsTest$DummyFunction" + "-output", creater.getFunctionConfig().getOutput());
-        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+        consoleOutputCapturer.stop();
+        String output = consoleOutputCapturer.getStderr();
+        assertNull(creater.getFunctionConfig().getOutput());
+        assertTrue(output.contains("output topic is not present"));
     }
 
     @Test
