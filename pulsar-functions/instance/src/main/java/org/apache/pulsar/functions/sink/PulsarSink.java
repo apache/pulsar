@@ -82,7 +82,14 @@ public class PulsarSink<T> implements Sink<T> {
         public void sendOutputMessage(MessageBuilder outputMsgBuilder,
                                       Record<T> recordContext) throws Exception {
             Message<byte[]> outputMsg = outputMsgBuilder.build();
-            this.producer.sendAsync(outputMsg);
+            this.producer.sendAsync(outputMsg).handle((messageId, e) -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] failed to sink message {}", recordContext.getTopicName().orElseGet(() -> null),
+                            e.getMessage());
+                }
+                recordContext.ack();
+                return null;
+            });
         }
 
         @Override
