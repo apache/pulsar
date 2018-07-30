@@ -502,7 +502,9 @@ public class ValidatorImpls {
             FunctionConfig functionConfig = (FunctionConfig) o;
             doCommonChecks(functionConfig);
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                doJavaChecks(functionConfig, name);
+                if (!functionConfig.getJar().startsWith(Utils.FILE)) {
+                    doJavaChecks(functionConfig, name);
+                }
             } else {
                 doPythonChecks(functionConfig, name);
             }

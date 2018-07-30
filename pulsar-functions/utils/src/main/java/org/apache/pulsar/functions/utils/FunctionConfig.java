@@ -69,7 +69,6 @@ public class FunctionConfig {
     @NotNull
     private String name;
     @NotNull
-    @isImplementationOfClasses(implementsClasses = {Function.class, java.util.function.Function.class})
     private String className;
     @isListEntryCustom(entryValidatorClasses = {ValidatorImpls.TopicNameValidator.class})
     private Collection<String> inputs;
