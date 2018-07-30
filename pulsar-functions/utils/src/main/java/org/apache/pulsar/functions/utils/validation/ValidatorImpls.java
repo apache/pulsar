@@ -380,7 +380,7 @@ public class ValidatorImpls {
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements Schema or SerDe classes
 
-            functionConfig.getTopicsSchema().forEach((topicName, conf) -> {
+            functionConfig.getInputSpecs().forEach((topicName, conf) -> {
                 if (StringUtils.isEmpty(conf.getSchemaTypeOrClassName())
                         || conf.getSchemaTypeOrClassName().equals(DEFAULT_SERDE)) {
                     // If it's empty, we use the default schema and no need to validate
@@ -425,7 +425,7 @@ public class ValidatorImpls {
                 throw new IllegalArgumentException("There is currently no support windowing in python");
             }
 
-            functionConfig.getTopicsSchema().forEach((topic, conf) -> {
+            functionConfig.getInputSpecs().forEach((topic, conf) -> {
                 if (conf.isRegexPattern()) {
                     throw new IllegalArgumentException("Topic-patterns is not supported for python runtime");
                 }
@@ -441,12 +441,12 @@ public class ValidatorImpls {
         }
 
         private static void doCommonChecks(FunctionConfig functionConfig) {
-            if (functionConfig.getTopicsSchema().isEmpty()) {
+            if (functionConfig.getInputSpecs().isEmpty()) {
                 throw new RuntimeException("No input topic(s) specified for the function");
             }
 
             // Ensure that topics aren't being used as both input and output
-            verifyNoTopicClash(functionConfig.getTopicsSchema().keySet(), functionConfig.getOutput());
+            verifyNoTopicClash(functionConfig.getInputSpecs().keySet(), functionConfig.getOutput());
 
             WindowConfig windowConfig = functionConfig.getWindowConfig();
             if (windowConfig != null) {

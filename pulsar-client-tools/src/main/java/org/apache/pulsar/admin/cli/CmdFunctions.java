@@ -83,7 +83,6 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.utils.ConsumerConfig;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -302,7 +301,7 @@ public class CmdFunctions extends CmdBase {
 
             if (null != inputs) {
                 Arrays.asList(inputs.split(",")).forEach(topic -> {
-                    functionConfig.getTopicsSchema().put(topic, ConsumerConfig.builder()
+                    functionConfig.getInputSpecs().put(topic, ConsumerConfig.builder()
                             .schemaTypeOrClassName(schemaTypeOrClassName)
                             .isRegexPattern(false)
                             .build());
@@ -313,16 +312,16 @@ public class CmdFunctions extends CmdBase {
                 Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
 
                 customSerdeInputMap.forEach((topic, serde) -> {
-                    functionConfig.getTopicsSchema().put(topic, ConsumerConfig.builder()
+                    functionConfig.getInputSpecs().put(topic, ConsumerConfig.builder()
                             .schemaTypeOrClassName(serde)
                             .isRegexPattern(false)
                             .build());
                 });
             }
             if (null != topicsPattern) {
-                ConsumerConfig conf = functionConfig.getTopicsSchema().get(topicsPattern);
+                ConsumerConfig conf = functionConfig.getInputSpecs().get(topicsPattern);
                 String schema = (conf != null) ? conf.getSchemaTypeOrClassName() : "";
-                functionConfig.getTopicsSchema().put(topicsPattern, ConsumerConfig.builder()
+                functionConfig.getInputSpecs().put(topicsPattern, ConsumerConfig.builder()
                         .schemaTypeOrClassName(schema)
                         .isRegexPattern(false)
                         .build());
@@ -552,11 +551,11 @@ public class CmdFunctions extends CmdBase {
         }
 
         private String getUniqueInput(FunctionConfig functionConfig) {
-            if (functionConfig.getTopicsSchema().size() != 1) {
+            if (functionConfig.getInputSpecs().size() != 1) {
                 throw new IllegalArgumentException();
             }
 
-            return functionConfig.getTopicsSchema().keySet().iterator().next();
+            return functionConfig.getInputSpecs().keySet().iterator().next();
         }
 
         protected FunctionDetails convert(FunctionConfig functionConfig)
@@ -574,7 +573,7 @@ public class CmdFunctions extends CmdBase {
 
             // Setup source
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            functionConfig.getTopicsSchema().forEach((topic, conf) -> {
+            functionConfig.getInputSpecs().forEach((topic, conf) -> {
                 sourceSpecBuilder.putTopicsToSchema(topic,
                         ConsumerSpec.newBuilder()
                                 .setSchemaTypeOrClassName(conf.getSchemaTypeOrClassName())

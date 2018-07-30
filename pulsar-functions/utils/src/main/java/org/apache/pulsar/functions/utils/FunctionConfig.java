@@ -73,7 +73,7 @@ public class FunctionConfig {
     @isImplementationOfClasses(implementsClasses = {Function.class, java.util.function.Function.class})
     private String className;
 
-    private Map<String, ConsumerConfig> topicsSchema = new TreeMap<>();
+    private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
 
     @isValidTopicName
     private String output;
