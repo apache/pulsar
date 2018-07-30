@@ -68,12 +68,12 @@ class Contact extends React.Component {
               <hr />
             </header>
             <p>
-            There are many ways to get help from the Apache Pulsar community. 
-            The mailing lists are the primary place where all Pulsar committers are present. 
-            Bugs and feature requests can either be discussed on the dev mailing list or 
-            by opening an issue on <a href="">GitHub</a>.
+            There are many ways to get help from the Apache Pulsar community.
+            The mailing lists are the primary place where all Pulsar committers are present.
+            Bugs and feature requests can either be discussed on the dev mailing list or
+            by opening an issue on <a href="https://github.com/apache/incubator-pulsar/" target="_blank">GitHub</a>.
             </p>
-            
+
             <h2>Mailing Lists</h2>
             <table className="versions">
               <thead>
@@ -102,12 +102,12 @@ class Contact extends React.Component {
 
             <h2>Slack</h2>
             <p>There is a Pulsar slack channel that is used for informal discussions for devs and users.</p>
-            <MarkdownBlock>
-              The Slack instance is at [https://apache-pulsar.slack.com/](https://apache-pulsar.slack.com/)
-            </MarkdownBlock>
-            <MarkdownBlock>
-              You can self-register at [https://apache-pulsar.herokuapp.com/](https://apache-pulsar.herokuapp.com/)
-            </MarkdownBlock>
+
+            <p>The Slack instance is at <a href="https://apache-pulsar.slack.com/" target="_blank">
+                    https://apache-pulsar.slack.com/</a></p>
+
+            <p>You can self-register at <a href="https://apache-pulsar.herokuapp.com/" target="_blank">
+                    https://apache-pulsar.herokuapp.com/</a></p>
           </div>
         </Container>
       </div>
