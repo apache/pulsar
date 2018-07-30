@@ -24,7 +24,7 @@ import org.apache.pulsar.functions.api.Function;
 import java.util.Optional;
 
 /**
- * This function utilizes a user config value for the return payload
+ * An example demonstrate retrieving user config value from Context
  */
 public class UserConfigFunction implements Function<String, String> {
 

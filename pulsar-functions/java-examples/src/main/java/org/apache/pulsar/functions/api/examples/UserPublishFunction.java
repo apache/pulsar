@@ -25,7 +25,7 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import java.util.Optional;
 
 /**
- * A custom function to publish to topic controlled by a config value
+ * An example demonstrate publishing messages through Context
  */
 public class UserPublishFunction implements Function<String, Void> {
 
