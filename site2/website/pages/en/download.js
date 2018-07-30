@@ -12,6 +12,9 @@ const releases = require(`${CWD}/releases.json`);
 
 const archiveRootUrl = siteConfig.archiveRootUrl;
 
+function getLatestArchiveMirrorUrl(version, type) {
+  return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
+}
 
 function archiveUrl(version, type) {
   return `${archiveRootUrl}/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
@@ -22,6 +25,8 @@ class Download extends React.Component {
     const latestRelease = releases[0];
 
     const latestVersion = `${latestRelease}-incubating`
+    const latestArchiveMirrorUrl = getLatestArchiveMirrorUrl(latestVersion, 'bin');
+    const latestSrcArchiveMirrorUrl = getLatestArchiveMirrorUrl(latestVersion, 'src');
     const latestArchiveUrl = archiveUrl(latestVersion, 'bin');
     const latestSrcArchiveUrl = archiveUrl(latestVersion, 'src')
 
@@ -55,22 +60,22 @@ class Download extends React.Component {
                 <tr key={'binary'}>
                   <th>Binary</th>
                   <td>
-                    <a href={latestArchiveUrl}>pulsar-{latestVersion}-bin.tar.gz</a>
+                    <a href={latestArchiveMirrorUrl}>pulsar-{latestVersion}-bin.tar.gz</a>
                   </td>
                   <td>
-                    <a href={`${latestArchiveUrl}.asc`}>asc</a>, 
-                    <a href={`${latestArchiveUrl}.sha1`}>sha1</a>, 
+                    <a href={`${latestArchiveUrl}.asc`}>asc</a>,
+                    <a href={`${latestArchiveUrl}.sha1`}>sha1</a>,
                     <a href={`${latestArchiveUrl}.sha512`}>sha512</a>
                   </td>
                 </tr>
                 <tr key={'source'}>
                   <th>Source</th>
                   <td>
-                    <a href={latestSrcArchiveUrl}>pulsar-{latestVersion}-src.tar.gz</a>
+                    <a href={latestSrcArchiveMirrorUrl}>pulsar-{latestVersion}-src.tar.gz</a>
                   </td>
                   <td>
-                    <a href={`${latestSrcArchiveUrl}.asc`}>asc</a>, 
-                    <a href={`${latestSrcArchiveUrl}.sha1`}>sha1</a>, 
+                    <a href={`${latestSrcArchiveUrl}.asc`}>asc</a>,
+                    <a href={`${latestSrcArchiveUrl}.sha1`}>sha1</a>,
                     <a href={`${latestSrcArchiveUrl}.sha512`}>sha512</a>
                   </td>
                 </tr>
@@ -98,13 +103,13 @@ class Download extends React.Component {
             <h2>Getting started</h2>
             <div>
               <p>
-                Once you've downloaded a Pulsar release, instructions on getting up and running with a standalone cluster 
+                Once you've downloaded a Pulsar release, instructions on getting up and running with a standalone cluster
                 that you can run on your laptop can be found in the{' '}
                 <a href={`${siteConfig.baseUrl}docs/standalone`}>Run Pulsar locally</a> tutorial.
               </p>
             </div>
             <p>
-              If you need to connect to an existing Pulsar cluster or instance using an officially supported client, 
+              If you need to connect to an existing Pulsar cluster or instance using an officially supported client,
               see the client docs for these languages:
             </p>
             <table className="clients">
