@@ -5,7 +5,7 @@ tags: [admin, tiered-storage]
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
-Tiered storage currently leverage [Apache Jclouds](https://jclouds.apache.org) to supports [S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short) for long term storage. And by Jclouds, it is easy to add more [supported](https://jclouds.apache.org/reference/providers/#blobstore-providers) cloud storage provider in the future.
+Tiered storage currently uses [Apache Jclouds](https://jclouds.apache.org) to supports [Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short) for long term storage. With Jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
 ## When should I use Tiered Storage?
 
@@ -19,48 +19,42 @@ A topic in Pulsar is backed by a log, known as a managed ledger. This log is com
 
 The Tiered Storage offloading mechanism takes advantage of this segment oriented architecture. When offloading is requested, the segments of the log are copied, one-by-one, to tiered storage. All segments of the log, apart from the segment currently being written to can be offloaded.
 
-On the broker, the administrator must configure the bucket or credentials for the cloud storage service. The configured bucket must exist before attempting to offload. If it does not exist, the offload operation will fail.
+On the broker, the administrator must configure the bucket and credentials for the cloud storage service. The configured bucket must exist before attempting to offload. If it does not exist, the offload operation will fail.
 
 Pulsar uses multi-part objects to upload the segment data. It is possible that a broker could crash while uploading the data. We recommend you add a life cycle rule your bucket to expire incomplete multi-part upload after a day or two to avoid getting charged for incomplete uploads.
 
-## Configuring the driver for "aws-s3" or "google-cloud-storage" in the broker
+## Configuring the offload driver
 
 Offloading is configured in ```broker.conf```. 
 
-At a minimum, the administrator must configure the driver, the bucket and the authenticating.  There is also some other knobs to configure, like the bucket regions, the max block size in backed storage, etc.
+At a minimum, the administrator must configure the driver, the bucket and the authenticating credentials.  There is also some other knobs to configure, like the bucket region, the max block size in backed storage, etc.
 
 Currently we support driver of types: { "aws-s3", "google-cloud-storage" }, 
-{% include admonition.html type="warning" content="Driver names are case-insensitive for driver's name. "s3" and "aws-s3" are similar, with "aws-s3" you just don't need to define the url of the endpoint because it is aligned with region, and default is `s3.amazonaws.com`; while with s3, you must provide the endpoint url by `s3ManagedLedgerOffloadServiceEndpoint`." %}
+{% include admonition.html type="warning" content="Driver names are case-insensitive for driver's name. There is a third driver type, "s3", which is identical to "aws-s3", though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if using a S3 compatible data store, other than AWS." %}
 
 ```conf
 managedLedgerOffloadDriver=aws-s3
 ```
 
-### Configuring for "aws-s3" driver
+### "aws-s3" Driver configuration
 
-#### Configuring the Bucket
+#### Bucket and Region
 
-On the broker, the administrator must configure the bucket and credentials for the cloud storage service. The configured bucket and credentials must exist before attempting to offload. If it does not exist, the offload operation will fail.
-
-Regarding AWS S3, the administrator should configure `s3ManagedLedgerOffloadBucket`.
+Buckets are the basic containers that hold your data. Everything that you store in Cloud Storage must be contained in a bucket. You can use buckets to organize your data and control access to your data, but unlike directories and folders, you cannot nest buckets.
 
 ```conf
 s3ManagedLedgerOffloadBucket=pulsar-topic-offload
 ```
 
-#### Configuring the Bucket Region
+Bucket Region is the region where bucket located. Bucket Region is not a required but a recommended configuration. If it is not configured, It will use the default region.
 
-Bucket Region is the region where bucket located. 
-
-Regarding AWS S3, the default region is `US East (N. Virginia)`. Page [AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html) contains more information.
-
-- AWS S3 Region example:
+With AWS S3, the default region is `US East (N. Virginia)`. Page [AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html) contains more information.
 
 ```conf
 s3ManagedLedgerOffloadRegion=eu-west-3
 ```
 
-#### Configuring the Authenticating
+#### Authentication with AWS
 
 To be able to access AWS S3, you need to authenticate with AWS S3. Pulsar does not provide any direct means of configuring authentication for AWS S3, but relies on the mechanisms supported by the [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html).
 
@@ -103,43 +97,36 @@ Pulsar also provides some knobs to configure the size of requests sent to AWS S3
 In both cases, these should not be touched unless you know what you are doing.
 
 
-### Configuring for "google-cloud-storage" driver
+### "google-cloud-storage" Driver Configuration
 
-#### Configuring the Bucket
+#### Bucket and Region
 
-On the broker, the administrator must configure the bucket and credentials for the cloud storage service. The configured bucket and credentials must exist before attempting to offload. If it does not exist, the offload operation will fail.
-
-Regarding driver type "google-cloud-storage", the administrator should configure `gcsManagedLedgerOffloadBucket`.
+Buckets are the basic containers that hold your data. Everything that you store in Cloud Storage must be contained in a bucket. You can use buckets to organize your data and control access to your data, but unlike directories and folders, you cannot nest buckets.
 
 ```conf
 gcsManagedLedgerOffloadBucket=pulsar-topic-offload
 ```
 
-#### Configuring the Bucket Region
-
-Bucket Region is the region where bucket located. 
+Bucket Region is the region where bucket located. Bucket Region is not a required but a recommended configuration. If it is not configured, It will use the default region.
 
 Regarding GCS, buckets are default created in the `us multi-regional location`,  page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
-
-- GCS Region example:
 
 ```conf
 gcsManagedLedgerOffloadRegion=europe-west3
 ```
 
-#### Configuring the Authenticating
+#### Authentication with GCS
 
-The administrator need configure `gcsManagedLedgerOffloadServiceAccountKeyFile` in `broker.conf` to get GCS service available.  It is a Json file, which contains GCS credentials of service account key. 
-[This page](https://support.google.com/googleapi/answer/6158849) contains more information of how to create this key file for authentication. You could also get more information regarding google cloud [IAM](https://cloud.google.com/storage/docs/access-control/iam).
+The administrator needs to configure `gcsManagedLedgerOffloadServiceAccountKeyFile` in `broker.conf` for the broker to be able to access the GCS service. `gcsManagedLedgerOffloadServiceAccountKeyFile` is a Json file, containing the GCS credentials of a service account.
+[Service Accounts section of this page](https://support.google.com/googleapi/answer/6158849) contains more information of how to create this key file for authentication. More information about google cloud IAM is available [here](https://cloud.google.com/storage/docs/access-control/iam).
 
 Usually these are the steps to create the authentication file:
 1. Open the API Console Credentials page.
 2. If it's not already selected, select the project that you're creating credentials for.
 3. To set up a new service account, click New credentials and then select Service account key.
 4. Choose the service account to use for the key.
-5. Choose whether to download the service account's public/private key as a JSON file that can be loaded by a Google API client library.
+5. Download the service account's public/private key as a JSON file that can be loaded by a Google API client library.
 
-Here is an example:
 ```conf
 gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/hello/Downloads/project-804d5e6a6f33.json"
 ```
