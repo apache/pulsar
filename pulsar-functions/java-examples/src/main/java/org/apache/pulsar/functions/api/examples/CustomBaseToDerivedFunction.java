@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
-public class CustomDerivedToDerivedFunction implements Function<CustomDerivedObject, CustomDerivedObject> {
+/**
+ * Examplf of fucntion doing a type object conversion between input an output
+ */
+public class CustomBaseToDerivedFunction implements Function<CustomBaseObject, CustomDerivedObject> {
 
     @Override
-    public CustomDerivedObject process(CustomDerivedObject input, Context context) {
-        return new CustomDerivedObject(input.getBaseValue() + 101, input.getDerivedValue() + 150);
+    public CustomDerivedObject process(CustomBaseObject input, Context context) {
+        return new CustomDerivedObject(input.getBaseValue() + 100, (int)input.getBaseValue() + 50);
     }
 }
 

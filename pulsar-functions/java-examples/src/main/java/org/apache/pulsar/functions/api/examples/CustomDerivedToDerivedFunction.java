@@ -16,23 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 
-import java.util.Optional;
-
-public class UserPublishFunction implements Function<String, Void> {
+/**
+ * Example of 2nd order conversion from a base object for composition pipelines
+ */
+public class CustomDerivedToDerivedFunction implements Function<CustomDerivedObject, CustomDerivedObject> {
 
     @Override
-    public Void process(String input, Context context) {
-        Optional<Object> topicToWrite = context.getUserConfigValue("topic");
-        if (topicToWrite.get() != null) {
-            context.publish((String)topicToWrite.get(), input, DefaultSerDe.class.getName());
-        }
-        return null;
+    public CustomDerivedObject process(CustomDerivedObject input, Context context) {
+        return new CustomDerivedObject(input.getBaseValue() + 101, input.getDerivedValue() + 150);
     }
 }
 

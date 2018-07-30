@@ -16,19 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
-import lombok.Getter;
-import lombok.Setter;
+import org.apache.pulsar.functions.api.SerDe;
 
-@Getter
-@Setter
-public class CustomDerivedObject extends CustomBaseObject {
-    private int derivedValue;
-    public CustomDerivedObject(long baseValue, int derivedValue) {
-        super(baseValue);
-        this.derivedValue = derivedValue;
+import java.nio.ByteBuffer;
+
+/**
+ * Example of using a byte buffer serialization for Custom object
+ */
+public class CustomBaseSerde implements SerDe<CustomBaseObject> {
+    @Override
+    public CustomBaseObject deserialize(byte[] bytes) {
+        ByteBuffer buffer =  ByteBuffer.wrap(bytes);
+        return new CustomBaseObject(buffer.getLong());
+    }
+
+    @Override
+    public byte[] serialize(CustomBaseObject object) {
+        ByteBuffer buffer = ByteBuffer.allocate(8);
+        buffer.putLong(object.getBaseValue());
+        return buffer.array();
     }
 }
-
 

@@ -16,16 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
+import java.util.Collection;
 
-public class CustomBaseToDerivedFunction implements Function<CustomBaseObject, CustomDerivedObject> {
-
+/**
+ * Comma based aggregation window function example
+ */
+public class CommaWindowFunction implements java.util.function.Function<Collection<String>, String> {
     @Override
-    public CustomDerivedObject process(CustomBaseObject input, Context context) {
-        return new CustomDerivedObject(input.getBaseValue() + 100, (int)input.getBaseValue() + 50);
+    public String apply(Collection<String> integers) {
+        return String.join(",", integers);
     }
 }
-

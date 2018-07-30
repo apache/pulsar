@@ -16,24 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
 
-import java.nio.ByteBuffer;
+import java.util.Optional;
 
-public class CustomBaseSerde implements SerDe<CustomBaseObject> {
+/**
+ * This function utilizes a user config value for the return payload
+ */
+public class UserConfigFunction implements Function<String, String> {
+
     @Override
-    public CustomBaseObject deserialize(byte[] bytes) {
-        ByteBuffer buffer =  ByteBuffer.wrap(bytes);
-        return new CustomBaseObject(buffer.getLong());
-    }
-
-    @Override
-    public byte[] serialize(CustomBaseObject object) {
-        ByteBuffer buffer = ByteBuffer.allocate(8);
-        buffer.putLong(object.getBaseValue());
-        return buffer.array();
+    public String process(String input, Context context) {
+        Optional<Object> whatToWrite = context.getUserConfigValue("WhatToWrite");
+        if (whatToWrite.get() != null) {
+            return (String)whatToWrite.get();
+        } else {
+            return "Not a nice way";
+        }
     }
 }
 

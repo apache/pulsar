@@ -16,11 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
+
+/**
+ * This Function simulates a pulsar function encountering runtime errors.
+ */
 public class UserExceptionFunction implements Function<String, String> {
     @Override
     public String process(String input, Context context) {

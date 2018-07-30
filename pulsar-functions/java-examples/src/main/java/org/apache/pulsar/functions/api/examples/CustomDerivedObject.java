@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
+import lombok.Getter;
+import lombok.Setter;
 
-public class CustomBaseToBaseFunction implements Function<CustomBaseObject, CustomBaseObject> {
-
-    @Override
-    public CustomBaseObject process(CustomBaseObject input, Context context) {
-        return new CustomBaseObject(input.getBaseValue() + 100);
+@Getter
+@Setter
+public class CustomDerivedObject extends CustomBaseObject {
+    private int derivedValue;
+    public CustomDerivedObject(long baseValue, int derivedValue) {
+        super(baseValue);
+        this.derivedValue = derivedValue;
     }
 }
+
 

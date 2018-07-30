@@ -16,14 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
-import java.util.Collection;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
 
-public class WindowDurationFunction implements java.util.function.Function<Collection<String>, String> {
+/**
+ * Example of function converting a derived object to a base object.
+ */
+public class CustomDerivedToBaseFunction implements Function<CustomDerivedObject, CustomBaseObject> {
+
     @Override
-    public String apply(Collection<String> integers) {
-        long time = System.currentTimeMillis();
-        return String.format("%s:%s", String.join(",", integers), time);
+    public CustomBaseObject process(CustomDerivedObject input, Context context) {
+        return new CustomBaseObject(input.getBaseValue() + 101);
     }
 }
+

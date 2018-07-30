@@ -16,23 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.SerDe;
 
-import java.util.Optional;
+import java.nio.ByteBuffer;
 
-public class UserConfigFunction implements Function<String, String> {
+/**
+ *  Example to derived object serialization
+ */
+public class CustomDerivedSerde implements SerDe<CustomDerivedObject> {
+    @Override
+    public CustomDerivedObject deserialize(byte[] bytes) {
+        ByteBuffer buffer =  ByteBuffer.wrap(bytes);
+        return new CustomDerivedObject(buffer.getLong(), buffer.getInt());
+    }
 
     @Override
-    public String process(String input, Context context) {
-        Optional<Object> whatToWrite = context.getUserConfigValue("WhatToWrite");
-        if (whatToWrite.get() != null) {
-            return (String)whatToWrite.get();
-        } else {
-            return "Not a nice way";
-        }
+    public byte[] serialize(CustomDerivedObject object) {
+        ByteBuffer buffer = ByteBuffer.allocate(12);
+        buffer.putLong(object.getBaseValue());
+        buffer.putInt(object.getDerivedValue());
+        return buffer.array();
     }
 }
 

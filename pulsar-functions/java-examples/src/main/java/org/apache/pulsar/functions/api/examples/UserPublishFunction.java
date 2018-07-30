@@ -16,13 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
-import java.util.Collection;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 
-public class WindowFunction implements java.util.function.Function<Collection<String>, String> {
+import java.util.Optional;
+
+/**
+ * A custom function to publish to topic controlled by a config value
+ */
+public class UserPublishFunction implements Function<String, Void> {
+
     @Override
-    public String apply(Collection<String> integers) {
-        return String.join(",", integers);
+    public Void process(String input, Context context) {
+        Optional<Object> topicToWrite = context.getUserConfigValue("topic");
+        if (topicToWrite.get() != null) {
+            context.publish((String)topicToWrite.get(), input, DefaultSerDe.class.getName());
+        }
+        return null;
     }
 }
+

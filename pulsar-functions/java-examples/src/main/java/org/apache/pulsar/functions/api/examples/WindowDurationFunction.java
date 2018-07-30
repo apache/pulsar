@@ -16,25 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.SerDe;
+import java.util.Collection;
 
-import java.nio.ByteBuffer;
-
-public class CustomDerivedSerde implements SerDe<CustomDerivedObject> {
+/**
+ * This functions collects th time stamp during the window operation
+ */
+public class WindowDurationFunction implements java.util.function.Function<Collection<String>, String> {
     @Override
-    public CustomDerivedObject deserialize(byte[] bytes) {
-        ByteBuffer buffer =  ByteBuffer.wrap(bytes);
-        return new CustomDerivedObject(buffer.getLong(), buffer.getInt());
-    }
-
-    @Override
-    public byte[] serialize(CustomDerivedObject object) {
-        ByteBuffer buffer = ByteBuffer.allocate(12);
-        buffer.putLong(object.getBaseValue());
-        buffer.putInt(object.getDerivedValue());
-        return buffer.array();
+    public String apply(Collection<String> integers) {
+        long time = System.currentTimeMillis();
+        return String.format("%s:%s", String.join(",", integers), time);
     }
 }
-

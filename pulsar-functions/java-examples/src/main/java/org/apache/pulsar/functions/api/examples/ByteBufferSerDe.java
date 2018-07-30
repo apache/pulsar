@@ -16,16 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples.test;
+package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.SerDe;
 
-public class CustomDerivedToBaseFunction implements Function<CustomDerivedObject, CustomBaseObject> {
+import java.nio.ByteBuffer;
+
+/**
+ * Simple ByteBuffer Serializer and de Serializer
+ */
+public class ByteBufferSerDe implements SerDe<Integer> {
+    @Override
+    public Integer deserialize(byte[] bytes) {
+        return ByteBuffer.wrap(bytes).getInt();
+    }
 
     @Override
-    public CustomBaseObject process(CustomDerivedObject input, Context context) {
-        return new CustomBaseObject(input.getBaseValue() + 101);
+    public byte[] serialize(Integer integer) {
+        return ByteBuffer.allocate(4).putInt(integer).array();
     }
 }
 
