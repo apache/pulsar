@@ -52,8 +52,8 @@ public interface Context {
     String getOutputTopic();
 
     /**
-     * Get output Serde class
-     * @return output serde class
+     * Get output schema builtin type or custom class name
+     * @return output schema builtin type or custom class name
      */
     String getOutputSchemaType();
 

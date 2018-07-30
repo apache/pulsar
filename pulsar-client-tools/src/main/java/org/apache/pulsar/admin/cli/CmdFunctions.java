@@ -323,7 +323,7 @@ public class CmdFunctions extends CmdBase {
                 String schema = (conf != null) ? conf.getSchemaTypeOrClassName() : "";
                 functionConfig.getInputSpecs().put(topicsPattern, ConsumerConfig.builder()
                         .schemaTypeOrClassName(schema)
-                        .isRegexPattern(false)
+                        .isRegexPattern(true)
                         .build());
             }
             if (null != output) {
