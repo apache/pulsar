@@ -70,13 +70,13 @@
                         <descriptor>src/main/assembly/assembly.xml</descriptor>
                     </descriptors>
                 </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>io.airlift</groupId>
-                        <artifactId>packaging</artifactId>
-                        <version>0.163</version>
-                    </dependency>
-                </dependencies>
+                <!--<dependencies>-->
+                    <!--<dependency>-->
+                        <!--<groupId>io.airlift</groupId>-->
+                        <!--<artifactId>packaging</artifactId>-->
+                        <!--<version>0.163</version>-->
+                    <!--</dependency>-->
+                <!--</dependencies>-->
                 <executions>
                     <execution>
                         <id>package</id>

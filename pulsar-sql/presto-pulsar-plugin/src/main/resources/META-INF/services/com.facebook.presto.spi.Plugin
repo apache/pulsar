@@ -1,1 +1,1 @@
-com.facebook.presto.pulsar.PulsarPlugin
+org.apache.pulsar.sql.presto.PulsarPlugin

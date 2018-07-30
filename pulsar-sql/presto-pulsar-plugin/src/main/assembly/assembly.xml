@@ -34,7 +34,7 @@
     <dependencySets>
         <dependencySet>
             <outputDirectory>/</outputDirectory>
-            <useProjectArtifact>true</useProjectArtifact>
+            <useProjectArtifact>false</useProjectArtifact>
             <scope>runtime</scope>
         </dependencySet>
     </dependencySets>
