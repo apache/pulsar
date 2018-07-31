@@ -200,7 +200,6 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-
     /**
      * Commands that require a function config
      */
