@@ -125,16 +125,17 @@ class Footer extends React.Component {
 
     const communityMenuJs = `
       const community = document.querySelector("a[href='#community']").parentNode;
-      const communityMenu = 
+      const communityMenu =
         '<li>' +
-        '<a id="community-menu" href="#">Community</a>' + 
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
         '<div id="community-dropdown" class="hide">' +
           '<ul id="community-dropdown-items">' +
-            '<li><a href="${contactUrl}">Contant</a></li>' +
+            '<li><a href="${contactUrl}">Contact</a></li>' +
             '<li><a href="${eventsUrl}">Events</a></li>' +
-            '<li><a href="${twitterUrl}">Twitter</a></li>' +
-            '<li><a href="${wikiUrl}">Wiki</a></li>' +
-            '<li><a href="${issuesUrl}">Issue tracking</a></li>' +
+            '<li><a href="${twitterUrl}" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="${wikiUrl}" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="${issuesUrl}" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
             '<li><a href="${resourcesUrl}">Resources</a></li>' +
             '<li><a href="${teamUrl}">Team</a></li>' +
           '</ul>' +
