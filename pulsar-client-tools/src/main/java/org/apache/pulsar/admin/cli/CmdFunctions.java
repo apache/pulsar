@@ -307,19 +307,19 @@ public class CmdFunctions extends CmdBase {
 
 
         private void mergeArgs() {
-            className = DEPRECATED_className;
-            topicsPattern = DEPRECATED_topicsPattern;
-            logTopic = DEPRECATED_logTopic;
-            outputSerdeClassName = DEPRECATED_outputSerdeClassName;
-            fnConfigFile = DEPRECATED_fnConfigFile;
-            processingGuarantees = DEPRECATED_processingGuarantees;
-            userConfigString = DEPRECATED_userConfigString;
-            windowLengthCount = DEPRECATED_windowLengthCount;
-            windowLengthDurationMs = DEPRECATED_windowLengthDurationMs;
-            slidingIntervalCount = DEPRECATED_slidingIntervalCount;
-            slidingIntervalDurationMs = DEPRECATED_slidingIntervalDurationMs;
-            autoAck = DEPRECATED_autoAck;
-            timeoutMs = DEPRECATED_timeoutMs;
+            if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
+            if (!StringUtils.isBlank(DEPRECATED_topicsPattern)) topicsPattern = DEPRECATED_topicsPattern;
+            if (!StringUtils.isBlank(DEPRECATED_topicsPattern)) logTopic = DEPRECATED_topicsPattern;
+            if (!StringUtils.isBlank(DEPRECATED_topicsPattern)) outputSerdeClassName = DEPRECATED_topicsPattern;
+            if (!StringUtils.isBlank(DEPRECATED_fnConfigFile)) fnConfigFile = DEPRECATED_fnConfigFile;
+            if (DEPRECATED_processingGuarantees != FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) processingGuarantees = DEPRECATED_processingGuarantees;
+            if (!StringUtils.isBlank(DEPRECATED_userConfigString)) userConfigString = DEPRECATED_userConfigString;
+            if (DEPRECATED_windowLengthCount != null) windowLengthCount = DEPRECATED_windowLengthCount;
+            if (DEPRECATED_windowLengthDurationMs != null) windowLengthDurationMs = DEPRECATED_windowLengthDurationMs;
+            if (DEPRECATED_slidingIntervalCount != null) slidingIntervalCount = DEPRECATED_slidingIntervalCount;
+            if (DEPRECATED_slidingIntervalDurationMs != null) slidingIntervalDurationMs = DEPRECATED_slidingIntervalDurationMs;
+            if (DEPRECATED_autoAck != null) autoAck = DEPRECATED_autoAck;
+            if (DEPRECATED_timeoutMs != null) timeoutMs = DEPRECATED_timeoutMs;
         }
 
         @Override
@@ -758,17 +758,17 @@ public class CmdFunctions extends CmdBase {
         protected String clientAuthParams;
         // for backwards compatibility purposes
         @Parameter(names = "--use_tls", description = "Use tls connection\n", hidden = true)
-        protected boolean DEPRECATED_useTls;
+        protected Boolean DEPRECATED_useTls = null;
         @Parameter(names = "--use-tls", description = "Use tls connection\n")
         protected boolean useTls;
         // for backwards compatibility purposes
         @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n", hidden = true)
-        protected boolean DEPRECATED_tlsAllowInsecureConnection;
+        protected Boolean DEPRECATED_tlsAllowInsecureConnection = null;
         @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection\n")
         protected boolean tlsAllowInsecureConnection;
         // for backwards compatibility purposes
         @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification", hidden = true)
-        protected boolean DEPRECATED_tlsHostNameVerificationEnabled;
+        protected Boolean DEPRECATED_tlsHostNameVerificationEnabled = null;
         @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification")
         protected boolean tlsHostNameVerificationEnabled;
         // for backwards compatibility purposes
@@ -778,20 +778,20 @@ public class CmdFunctions extends CmdBase {
         protected String tlsTrustCertFilePath;
         // for backwards compatibility purposes
         @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset", hidden = true)
-        protected Integer DEPRECATED_instanceIdOffset = 0;
+        protected Integer DEPRECATED_instanceIdOffset = null;
         @Parameter(names = "--instance-id-offset", description = "Start the instanceIds from this offset")
         protected Integer instanceIdOffset = 0;
 
         private void mergeArgs() {
-            stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;
-            brokerServiceUrl = DEPRECATED_brokerServiceUrl;
-            clientAuthPlugin = DEPRECATED_clientAuthPlugin;
-            clientAuthParams = DEPRECATED_clientAuthParams;
-            useTls = DEPRECATED_useTls;
-            tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
-            tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
-            tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
-            instanceIdOffset = DEPRECATED_instanceIdOffset;
+            if (!StringUtils.isBlank(DEPRECATED_stateStorageServiceUrl)) stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;
+            if (!StringUtils.isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
+            if (!StringUtils.isBlank(DEPRECATED_clientAuthPlugin)) clientAuthPlugin = DEPRECATED_clientAuthPlugin;
+            if (!StringUtils.isBlank(DEPRECATED_clientAuthParams)) clientAuthParams = DEPRECATED_clientAuthParams;
+            if (DEPRECATED_useTls != null) useTls = DEPRECATED_useTls;
+            if (DEPRECATED_tlsAllowInsecureConnection != null) tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
+            if (DEPRECATED_tlsHostNameVerificationEnabled != null) tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
+            if (!StringUtils.isBlank(DEPRECATED_tlsTrustCertFilePath)) tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+            if (DEPRECATED_instanceIdOffset != null) instanceIdOffset = DEPRECATED_instanceIdOffset;
         }
 
         @Override
@@ -946,8 +946,8 @@ public class CmdFunctions extends CmdBase {
         protected String topic;
 
         public void mergeArgs() {
-            triggerValue = DEPRECATED_triggerValue;
-            triggerFile = DEPRECATED_triggerFile;
+            if (!StringUtils.isBlank(DEPRECATED_triggerValue)) triggerValue = DEPRECATED_triggerValue;
+            if (!StringUtils.isBlank(DEPRECATED_triggerFile)) triggerFile = DEPRECATED_triggerFile;
         }
 
         @Override
@@ -981,7 +981,7 @@ public class CmdFunctions extends CmdBase {
         protected String path;
 
         private void mergeArgs() {
-            sourceFile = DEPRECATED_sourceFile;
+            if (!StringUtils.isBlank(DEPRECATED_sourceFile)) sourceFile = DEPRECATED_sourceFile;
         }
 
         @Override
@@ -1015,7 +1015,7 @@ public class CmdFunctions extends CmdBase {
         protected String path;
 
         private void mergeArgs() {
-            destinationFile = DEPRECATED_destinationFile;
+            if (!StringUtils.isBlank(DEPRECATED_destinationFile)) destinationFile = DEPRECATED_destinationFile;
         }
 
         @Override
