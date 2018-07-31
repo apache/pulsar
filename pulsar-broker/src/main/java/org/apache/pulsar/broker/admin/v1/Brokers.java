@@ -26,7 +26,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
 @Path("/brokers")
-@Api(value = "/brokers", description = "BrokersBase admin apis", tags = "brokers")
+@Api(value = "/brokers", description = "BrokersBase admin apis", tags = "brokers", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
 public class Brokers extends BrokersBase {
 }

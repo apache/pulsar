@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import com.wordnik.swagger.annotations.Api;
-
+import io.swagger.annotations.Api;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
