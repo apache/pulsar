@@ -77,10 +77,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
 
 #### REST API
 
-```http
-POST /admin/v2/namespaces/:tenant/:namespace/retention
-```
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/retention)
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention}
 
 #### Java
 
@@ -111,11 +108,7 @@ $ pulsar-admin namespaces get-retention my-tenant/my-ns
 
 #### REST API
 
-```http
-GET /admin/v2/namespaces/:tenant/:namespace/retention
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/retention)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention}
 
 #### Java
 
@@ -165,11 +158,7 @@ $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
 
 #### REST API
 
-```http
-POST /admin/v2/namespaces/:tenant/:namespace/backlogQuota
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/backlogQuota)
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap}
 
 #### Java
 
@@ -200,13 +189,7 @@ $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:property/:cluster/:namespace/backlogQuotaMap %}
-
-```http
-GET /admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/backlogQuota)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap}
 
 #### Java
 
@@ -227,12 +210,7 @@ $ pulsar-admin namespaces remove-backlog-quotas my-tenant/my-ns
 
 #### REST API
 
-```http
-DELETE /admin/v2/namespaces/:tenant/:namespace/backlogQuota
-```
-
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/backlogQuota)
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota}
 
 #### Java
 
@@ -273,13 +251,7 @@ $ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:property/:cluster/:namespace/messageTTL %}
-
-```http
-POST /admin/v2/namespaces/:tenant/:namespace/messageTTL
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/messageTTL)
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL}
 
 #### Java
 
@@ -302,14 +274,7 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:property/:cluster/:namespace/messageTTL %}
-
-```http
-GET /admin/v2/namespaces/:tenant/:namespace/messageTTL
-```
-
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/messageTTL)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL}
 
 #### Java
 

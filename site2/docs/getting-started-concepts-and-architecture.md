@@ -289,7 +289,7 @@ At the broader instance level, an instance-wide ZooKeeper cluster called the con
 
 The Pulsar message broker is a stateless component that's primarily responsible for running two other components:
 
-* An HTTP server that exposes a REST API for both [administrative tasks](reference-rest-api.md) and [topic lookup](#client-setup-phase) for producers and consumers
+* An HTTP server that exposes a {@inject: rest:REST:/} API for both administrative tasks and [topic lookup](#client-setup-phase) for producers and consumers
 * A dispatcher, which is an asynchronous TCP server over a custom [binary protocol](developing-binary-protocol.md) used for all data transfers
 
 Messages are typically dispatched out of a [managed ledger](#managed-ledgers) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from BookKeeper.
@@ -649,7 +649,7 @@ Both approaches are available in Pulsar, and you're free to adopt one or the oth
 
 ### Basic architecture
 
-In Pulsar, schemas are uploaded to, fetched from, and update via Pulsar's [REST API](reference-rest-api.md).
+In Pulsar, schemas are uploaded to, fetched from, and update via Pulsar's {@inject: rest:REST:/} API.
 
 > #### Other schema registry backends
 > Out of the box, Pulsar uses the [Apache BookKeeper](#persistent-storage) log storage system for schema storage. You can, however, use different backends if you wish. Documentation for custom schema storage logic is coming soon.

@@ -20,5 +20,8 @@
   },
   "jest": {
     "preset": "jest-puppeteer"
+  },
+  "dependencies": {
+    "redoc": "^2.0.0-alpha.30"
   }
 }

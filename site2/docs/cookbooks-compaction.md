@@ -49,7 +49,7 @@ $ bin/pulsar-admin topics compact \
   persistent://my-tenant/my-namespace/my-topic
 ```
 
-The `pulsar-admin` tool runs compaction via the Pulsar [REST API](reference-rest-api.md). To run compaction in its own dedicated process, i.e. *not* through the REST API, you can use the [`pulsar compact-topic`](reference-cli-tools.md#pulsar-compact-topic) command. Here's an example:
+The `pulsar-admin` tool runs compaction via the Pulsar {@inject: rest:REST:/} API. To run compaction in its own dedicated process, i.e. *not* through the REST API, you can use the [`pulsar compact-topic`](reference-cli-tools.md#pulsar-compact-topic) command. Here's an example:
 
 ```bash
 $ bin/pulsar compact-topic \
