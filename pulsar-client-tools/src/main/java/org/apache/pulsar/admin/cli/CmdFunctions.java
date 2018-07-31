@@ -294,9 +294,9 @@ public class CmdFunctions extends CmdBase {
         protected Long slidingIntervalDurationMs;
         // for backwards compatibility purposes
         @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages", hidden = true)
-        protected Boolean DEPRECATED_autoAck;
+        protected Boolean DEPRECATED_autoAck = null;
         @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages")
-        protected Boolean autoAck;
+        protected Boolean autoAck ;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
         protected Long DEPRECATED_timeoutMs;
