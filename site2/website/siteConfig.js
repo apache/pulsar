@@ -17,7 +17,7 @@ const createVariableInjectionPlugin = variables => {
       // javadoc:<name>:<url_path>
       if (keyparts[0] == 'javadoc') {
           return renderUrl(initializedPlugin, javadocUrl, keyparts);
-      // githubUrl:<name>:<path> 
+      // githubUrl:<name>:<path>
       } else if (keyparts[0] == 'github') {
           return renderUrl(initializedPlugin, githubUrl + "/tree/master/", keyparts);
       }
@@ -105,7 +105,7 @@ const siteConfig = {
   copyright:
     'Copyright © ' +
     new Date().getFullYear() +
-    ' The Apache Software Foundation. All Rights Reserved.' + 
+    ' The Apache Software Foundation. All Rights Reserved.' +
     ' Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.',
 
   highlight: {
@@ -139,10 +139,10 @@ const siteConfig = {
   },
 
   githubUrl: githubUrl,
-  archiveRootUrl: 'http://archive.apache.org/dist/incubator/pulsar',
+  archiveRootUrl: 'https://archive.apache.org/dist/incubator/pulsar',
 
   projectDescription: `
-    Apache Pulsar is an open-source distributed pub-sub messaging system originally 
+    Apache Pulsar is an open-source distributed pub-sub messaging system originally
     created at Yahoo and now part of the Apache Software Foundation
   `,
 
