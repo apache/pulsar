@@ -1013,7 +1013,7 @@
 
 <span class="kd">public</span> <span class="kd">class</span> <span class="nc">MetricRecordingFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Void</span><span class="o">&gt;</span> <span class="o">{</span>
     <span class="nd">@Override</span>
-    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">apply</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">,</span> <span class="n">Context</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+    <span class="kd">public</span> <span class="n">Void</span> <span class="nf">process</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">,</span> <span class="n">Context</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
         <span class="n">context</span><span class="o">.</span><span class="na">recordMetric</span><span class="o">(</span><span class="s">"number-of-characters"</span><span class="o">,</span> <span class="n">input</span><span class="o">.</span><span class="na">length</span><span class="o">());</span>
         <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
     <span class="o">}</span>
