@@ -200,6 +200,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+
     /**
      * Commands that require a function config
      */
@@ -213,7 +214,10 @@ public class CmdFunctions extends CmdBase {
         protected String namespace;
         @Parameter(names = "--name", description = "The function's name")
         protected String functionName;
-        @Parameter(names = "--className", description = "The function's class name")
+        // for backwards compatibility purposes
+        @Parameter(names = "--className", description = "The function's class name", hidden = true)
+        protected String DEPRECATED_className;
+        @Parameter(names = "--classname", description = "The function's class name")
         protected String className;
         @Parameter(names = "--jar", description = "Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
@@ -224,21 +228,42 @@ public class CmdFunctions extends CmdBase {
         protected String pyFile;
         @Parameter(names = "--inputs", description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
-        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)")
+        // for backwards compatibility purposes
+        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)", hidden = true)
+        protected String DEPRECATED_topicsPattern;
+        @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)")
         protected String topicsPattern;
         @Parameter(names = "--output", description = "The function's output topic")
         protected String output;
-        @Parameter(names = "--logTopic", description = "The topic to which the function's logs are produced")
+        // for backwards compatibility purposes
+        @Parameter(names = "--logTopic", description = "The topic to which the function's logs are produced", hidden = true)
+        protected String DEPRECATED_logTopic;
+        @Parameter(names = "--log-topic", description = "The topic to which the function's logs are produced")
         protected String logTopic;
-        @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)")
+        // for backwards compatibility purposes
+        @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
+        protected String DEPRECATED_customSerdeInputString;
+        @Parameter(names = "--custom-serde-inputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
-        @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function")
+        // for backwards compatibility purposes
+        @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
+        protected String DEPRECATED_outputSerdeClassName;
+        @Parameter(names = "--output-serde-classname", description = "The SerDe class to be used for messages output by the function")
         protected String outputSerdeClassName;
-        @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file specifying the function's configuration")
+        // for backwards compatibility purposes
+        @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file specifying the function's configuration", hidden = true)
+        protected String DEPRECATED_fnConfigFile;
+        @Parameter(names = "--function-config-file", description = "The path to a YAML config file specifying the function's configuration")
         protected String fnConfigFile;
-        @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the function")
+        // for backwards compatibility purposes
+        @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the function", hidden = true)
+        protected FunctionConfig.ProcessingGuarantees DEPRECATED_processingGuarantees;
+        @Parameter(names = "--processing-guarantees", description = "The processing guarantees (aka delivery semantics) applied to the function")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--userConfig", description = "User-defined config key/values")
+        // for backwards compatibility purposes
+        @Parameter(names = "--userConfig", description = "User-defined config key/values", hidden = true)
+        protected String DEPRECATED_userConfigString;
+        @Parameter(names = "--user-config", description = "User-defined config key/values")
         protected String userConfigString;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
         protected Integer parallelism;
@@ -248,24 +273,61 @@ public class CmdFunctions extends CmdBase {
         protected Long ram;
         @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
         protected Long disk;
-        @Parameter(names = "--windowLengthCount", description = "The number of messages per window")
+        // for backwards compatibility purposes
+        @Parameter(names = "--windowLengthCount", description = "The number of messages per window", hidden = true)
+        protected Integer DEPRECATED_windowLengthCount;
+        @Parameter(names = "--window-length-count", description = "The number of messages per window")
         protected Integer windowLengthCount;
-        @Parameter(names = "--windowLengthDurationMs", description = "The time duration of the window in milliseconds")
+        // for backwards compatibility purposes
+        @Parameter(names = "--windowLengthDurationMs", description = "The time duration of the window in milliseconds", hidden = true)
+        protected Long DEPRECATED_windowLengthDurationMs;
+        @Parameter(names = "--window-length-duration-ms", description = "The time duration of the window in milliseconds")
         protected Long windowLengthDurationMs;
-        @Parameter(names = "--slidingIntervalCount", description = "The number of messages after which the window slides")
+        // for backwards compatibility purposes
+        @Parameter(names = "--slidingIntervalCount", description = "The number of messages after which the window slides", hidden = true)
+        protected Integer DEPRECATED_slidingIntervalCount;
+        @Parameter(names = "--sliding-interval-count", description = "The number of messages after which the window slides")
         protected Integer slidingIntervalCount;
-        @Parameter(names = "--slidingIntervalDurationMs", description = "The time duration after which the window slides")
+        // for backwards compatibility purposes
+        @Parameter(names = "--slidingIntervalDurationMs", description = "The time duration after which the window slides", hidden = true)
+        protected Long DEPRECATED_slidingIntervalDurationMs;
+        @Parameter(names = "--sliding-interval-duration-ms", description = "The time duration after which the window slides")
         protected Long slidingIntervalDurationMs;
-        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages")
+        // for backwards compatibility purposes
+        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages", hidden = true)
+        protected Boolean DEPRECATED_autoAck;
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages")
         protected Boolean autoAck;
-        @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds")
+        // for backwards compatibility purposes
+        @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
+        protected Long DEPRECATED_timeoutMs;
+        @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
+
+        private void mergeArgs() {
+            className = DEPRECATED_className;
+            topicsPattern = DEPRECATED_topicsPattern;
+            logTopic = DEPRECATED_logTopic;
+            outputSerdeClassName = DEPRECATED_outputSerdeClassName;
+            fnConfigFile = DEPRECATED_fnConfigFile;
+            processingGuarantees = DEPRECATED_processingGuarantees;
+            userConfigString = DEPRECATED_userConfigString;
+            windowLengthCount = DEPRECATED_windowLengthCount;
+            windowLengthDurationMs = DEPRECATED_windowLengthDurationMs;
+            slidingIntervalCount = DEPRECATED_slidingIntervalCount;
+            slidingIntervalDurationMs = DEPRECATED_slidingIntervalDurationMs;
+            autoAck = DEPRECATED_autoAck;
+            timeoutMs = DEPRECATED_timeoutMs;
+        }
+
         @Override
         void processArguments() throws Exception {
             super.processArguments();
+            // merge deprecated args with new args
+            mergeArgs();
 
             // Initialize config builder either from a supplied YAML config file or from scratch
             if (null != fnConfigFile) {
@@ -453,7 +515,6 @@ public class CmdFunctions extends CmdBase {
                 // Need to load jar and set context class loader before calling
                 ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name());
             } catch (Exception e) {
-                log.info("ex: {}", e, e);
                 throw new ParameterException(e.getMessage());
             }
         }
@@ -676,35 +737,67 @@ public class CmdFunctions extends CmdBase {
     class LocalRunner extends FunctionDetailsCommand {
 
         // TODO: this should become bookkeeper url and it should be fetched from pulsar client.
-        @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service (by default Apache BookKeeper)")
+        // for backwards compatibility purposes
+        @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service (by default Apache BookKeeper)", hidden = true)
+        protected String DEPRECATED_stateStorageServiceUrl;
+        @Parameter(names = "--state-storag-service-url", description = "The URL for the state storage service (by default Apache BookKeeper)")
         protected String stateStorageServiceUrl;
-
-        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
+        // for backwards compatibility purposes
+        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
+        protected String DEPRECATED_brokerServiceUrl;
+        @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
-
-        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker")
+        // for backwards compatibility purposes
+        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker", hidden = true)
+        protected String DEPRECATED_clientAuthPlugin;
+        @Parameter(names = "--client-auth-plugin", description = "Client authentication plugin using which function-process can connect to broker")
         protected String clientAuthPlugin;
-
-        @Parameter(names = "--clientAuthParams", description = "Client authentication param")
+        // for backwards compatibility purposes
+        @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
+        protected String DEPRECATED_clientAuthParams;
+        @Parameter(names = "--client-auth-params", description = "Client authentication param")
         protected String clientAuthParams;
-
-        @Parameter(names = "--use_tls", description = "Use tls connection\n")
+        // for backwards compatibility purposes
+        @Parameter(names = "--use_tls", description = "Use tls connection\n", hidden = true)
+        protected boolean DEPRECATED_useTls;
+        @Parameter(names = "--use-tls", description = "Use tls connection\n")
         protected boolean useTls;
-
-        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+        // for backwards compatibility purposes
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n", hidden = true)
+        protected boolean DEPRECATED_tlsAllowInsecureConnection;
+        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection\n")
         protected boolean tlsAllowInsecureConnection;
-
-        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
+        // for backwards compatibility purposes
+        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification", hidden = true)
+        protected boolean DEPRECATED_tlsHostNameVerificationEnabled;
+        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification")
         protected boolean tlsHostNameVerificationEnabled;
-
-        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
+        // for backwards compatibility purposes
+        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path", hidden = true)
+        protected String DEPRECATED_tlsTrustCertFilePath;
+        @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path")
         protected String tlsTrustCertFilePath;
-
-        @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset")
+        // for backwards compatibility purposes
+        @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset", hidden = true)
+        protected Integer DEPRECATED_instanceIdOffset = 0;
+        @Parameter(names = "--instance-id-offset", description = "Start the instanceIds from this offset")
         protected Integer instanceIdOffset = 0;
+
+        private void mergeArgs() {
+            stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;
+            brokerServiceUrl = DEPRECATED_brokerServiceUrl;
+            clientAuthPlugin = DEPRECATED_clientAuthPlugin;
+            clientAuthParams = DEPRECATED_clientAuthParams;
+            useTls = DEPRECATED_useTls;
+            tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
+            tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
+            tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+            instanceIdOffset = DEPRECATED_instanceIdOffset;
+        }
 
         @Override
         void runCmd() throws Exception {
+            mergeArgs();
             CmdFunctions.startLocalRun(convertProto2(functionConfig), functionConfig.getParallelism(),
                     instanceIdOffset, brokerServiceUrl, stateStorageServiceUrl,
                     AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
@@ -840,14 +933,27 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Triggers the specified Pulsar Function with a supplied value")
     class TriggerFunction extends FunctionCommand {
-        @Parameter(names = "--triggerValue", description = "The value with which you want to trigger the function")
+        // for backward compatibility purposes
+        @Parameter(names = "--triggerValue", description = "The value with which you want to trigger the function", hidden = true)
+        protected String DEPRECATED_triggerValue;
+        @Parameter(names = "--trigger-value", description = "The value with which you want to trigger the function")
         protected String triggerValue;
-        @Parameter(names = "--triggerFile", description = "The path to the file that contains the data with which you'd like to trigger the function")
+        // for backward compatibility purposes
+        @Parameter(names = "--triggerFile", description = "The path to the file that contains the data with which you'd like to trigger the function", hidden = true)
+        protected String DEPRECATED_triggerFile;
+        @Parameter(names = "--trigger-file", description = "The path to the file that contains the data with which you'd like to trigger the function")
         protected String triggerFile;
         @Parameter(names = "--topic", description = "The specific topic name that the function consumes from that you want to inject the data to")
         protected String topic;
+
+        public void mergeArgs() {
+            triggerValue = DEPRECATED_triggerValue;
+            triggerFile = DEPRECATED_triggerFile;
+        }
+
         @Override
         void runCmd() throws Exception {
+            mergeArgs();
             if (triggerFile == null && triggerValue == null) {
                 throw new ParameterException("Either a trigger value or a trigger filepath needs to be specified");
             }
@@ -858,18 +964,33 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Upload File Data to Pulsar", hidden = true)
     class UploadFunction extends BaseCommand {
+        // for backward compatibility purposes
         @Parameter(
                 names = "--sourceFile",
                 description = "The file whose contents need to be uploaded",
-                listConverter = StringConverter.class, required = true)
+                listConverter = StringConverter.class, hidden = true)
+        protected String DEPRECATED_sourceFile;
+        @Parameter(
+                names = "--source-file",
+                description = "The file whose contents need to be uploaded",
+                listConverter = StringConverter.class)
         protected String sourceFile;
         @Parameter(
                 names = "--path",
                 description = "Path where the contents need to be stored",
                 listConverter = StringConverter.class, required = true)
         protected String path;
+
+        private void mergeArgs() {
+            sourceFile = DEPRECATED_sourceFile;
+        }
+
         @Override
         void runCmd() throws Exception {
+            mergeArgs();
+            if (StringUtils.isBlank(sourceFile)) {
+                throw new ParameterException("--source-file needs to be specified");
+            }
             admin.functions().uploadFunction(sourceFile, path);
             print("Uploaded successfully");
         }
@@ -877,10 +998,16 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Download File Data from Pulsar", hidden = true)
     class DownloadFunction extends BaseCommand {
+        // for backward compatibility purposes
         @Parameter(
                 names = "--destinationFile",
                 description = "The file where downloaded contents need to be stored",
-                listConverter = StringConverter.class, required = true)
+                listConverter = StringConverter.class, hidden = true)
+        protected String DEPRECATED_destinationFile;
+        @Parameter(
+                names = "--destination-file",
+                description = "The file where downloaded contents need to be stored",
+                listConverter = StringConverter.class)
         protected String destinationFile;
         @Parameter(
                 names = "--path",
@@ -888,8 +1015,16 @@ public class CmdFunctions extends CmdBase {
                 listConverter = StringConverter.class, required = true)
         protected String path;
 
+        private void mergeArgs() {
+            destinationFile = DEPRECATED_destinationFile;
+        }
+
         @Override
         void runCmd() throws Exception {
+            mergeArgs();
+            if (StringUtils.isBlank(destinationFile)) {
+                throw new ParameterException("--destination-file needs to be specified");
+            }
             admin.functions().downloadFunction(destinationFile, path);
             print("Downloaded successfully");
         }
