@@ -101,6 +101,7 @@ const siteConfig = {
     primaryColor: '#188fff',
     secondaryColor: '#205C3B',
   },
+  translationRecruitingLink: 'https://crowdin.com/project/apache-pulsar',
   // This copyright info is used in /core/Footer.js and blog rss/atom feeds.
   copyright:
     'Copyright © ' +
