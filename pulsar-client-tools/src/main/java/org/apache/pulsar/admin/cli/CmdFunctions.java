@@ -86,6 +86,7 @@ import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.WindowConfig;
+import org.apache.pulsar.functions.utils.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassesValidator;
 import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
@@ -565,9 +566,12 @@ public class CmdFunctions extends CmdBase {
                 sourceSpecBuilder.setTopicsPattern(functionConfig.getTopicsPattern());
             }
 
-            // Set subscription type based on ordering semantics
-            sourceSpecBuilder.setSubscriptionType(
-                    functionConfig.isRetainOrdering() ? SubscriptionType.FAILOVER : SubscriptionType.SHARED);
+            // Set subscription type based on ordering and EFFECTIVELY_ONCE semantics
+            SubscriptionType subType = (functionConfig.isRetainOrdering()
+                    || ProcessingGuarantees.EFFECTIVELY_ONCE.equals(functionConfig.getProcessingGuarantees()))
+                            ? SubscriptionType.FAILOVER
+                            : SubscriptionType.SHARED;
+            sourceSpecBuilder.setSubscriptionType(subType);
             
             if (typeArgs != null) {
                 sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
