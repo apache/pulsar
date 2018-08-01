@@ -282,6 +282,10 @@
 <dd>
 <div class="block">Clear backlog for a given subscription on all topics on a namespace bundle</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#clearOffloadDeleteLag-java.lang.String-">clearOffloadDeleteLag(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Clear the offload deletion lag for a namespace.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html#clone--">clone()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin">PulsarAdminBuilder</a></dt>
 <dd>
 <div class="block">Create a copy of the current client builder.</div>
@@ -965,6 +969,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BundlesData.html#getNumBundles--">getNumBundles()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BundlesData.html" title="class in org.apache.pulsar.common.policies.data">BundlesData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getOffloadDeleteLagMs-java.lang.String-">getOffloadDeleteLagMs(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Get the offload deletion lag for a namespace, in milliseconds.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getOffloadThreshold-java.lang.String-">getOffloadThreshold(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Get the offloadThreshold for a namespace.</div>
@@ -1506,6 +1514,8 @@
 </a>
 <h2 class="title">O</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#offload_deletion_lag_ms">offload_deletion_lag_ms</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#offload_threshold">offload_threshold</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.LedgerInfo.html#offloaded">offloaded</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.LedgerInfo.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.LedgerInfo</a></dt>
@@ -1940,6 +1950,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BundlesData.html#setNumBundles-int-">setNumBundles(int)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BundlesData.html" title="class in org.apache.pulsar.common.policies.data">BundlesData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setOffloadDeleteLag-java.lang.String-long-java.util.concurrent.TimeUnit-">setOffloadDeleteLag(String, long, TimeUnit)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Set the offload deletion lag for a namespace.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setOffloadThreshold-java.lang.String-long-">setOffloadThreshold(String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Set the offloadThreshold for a namespace.</div>
