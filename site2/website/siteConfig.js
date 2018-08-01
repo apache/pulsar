@@ -64,7 +64,7 @@ const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
 
 const url = 'https://pulsar.incubator.apache.org';
 const javadocUrl = url + '/api';
-const restApiUrl = 'http://localhost:3000/staging/en' + "/admin-rest-api";
+const restApiUrl = url + '/staging/en' + "/admin-rest-api";
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
 const baseUrl = '/staging/';
 

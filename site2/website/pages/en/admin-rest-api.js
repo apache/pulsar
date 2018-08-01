@@ -11,7 +11,7 @@ class AdminRestApi extends React.Component {
     return (
       <div className="pageContainer">
         <Container className="mainContainer documentContainer postContainer" >
-          <redoc spec-url="//localhost:3000/staging/swagger/swagger.json" lazy-rendering="true"></redoc>
+          <redoc spec-url={`${swaggerUrl}`} lazy-rendering="true"></redoc>
           <script src="//cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js"/>
         </Container>
       </div>
