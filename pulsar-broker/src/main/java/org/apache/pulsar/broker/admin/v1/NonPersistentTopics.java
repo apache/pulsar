@@ -41,7 +41,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
@@ -62,7 +61,7 @@ import org.slf4j.LoggerFactory;
  */
 @Path("/non-persistent")
 @Produces(MediaType.APPLICATION_JSON)
-@Api(value = "/non-persistent", description = "Non-Persistent topic admin apis", tags = "non-persistent topic")
+@Api(value = "/non-persistent", description = "Non-Persistent topic admin apis", tags = "non-persistent topic", hidden = true)
 @SuppressWarnings("deprecation")
 public class NonPersistentTopics extends PersistentTopics {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopics.class);

@@ -57,6 +57,7 @@
       "admin-api-brokers",
       "admin-api-namespaces",
       "admin-api-permissions",
+      "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
       "admin-api-partitioned-topics"
     ],
@@ -84,7 +85,6 @@
     ],
     "Reference": [
       "reference-terminology",
-      "reference-rest-api",
       "reference-cli-tools",
       "pulsar-admin",
       "reference-configuration"

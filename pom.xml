@@ -612,13 +612,13 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>io.swagger</groupId>
         <artifactId>swagger-core</artifactId>
-        <version>1.5.3</version>
+        <version>1.5.20</version>
       </dependency>
 
       <dependency>
-        <groupId>com.wordnik</groupId>
+        <groupId>io.swagger</groupId>
         <artifactId>swagger-annotations</artifactId>
-        <version>1.5.3-M1</version>
+        <version>1.5.20</version>
       </dependency>
 
       <dependency>
