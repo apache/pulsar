@@ -45,6 +45,7 @@ public class KinesisSinkConfig implements Serializable {
     private String awsCredentialPluginName;
     private String awsCredentialPluginParam;
     private MessageFormat messageFormat = MessageFormat.ONLY_RAW_PAYLOAD; // default : ONLY_RAW_PAYLOAD
+    private boolean retainOrdering;
 
     public static KinesisSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
