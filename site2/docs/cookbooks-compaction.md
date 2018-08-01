@@ -4,7 +4,7 @@ title: Topic compaction
 sidebar_label: Topic compaction
 ---
 
-Pulsar's [topic compaction](getting-started-concepts-and-architecture.md#compaction) feature enables you to create **compacted** topics in which older, "obscured" entries are pruned from the topic, allowing for faster reads through the topic's history (which messages are deemed obscured/outdated/irrelevant will depend on your use case).
+Pulsar's [topic compaction](concepts-topic-compaction.md#compaction) feature enables you to create **compacted** topics in which older, "obscured" entries are pruned from the topic, allowing for faster reads through the topic's history (which messages are deemed obscured/outdated/irrelevant will depend on your use case).
 
 To use compaction:
 

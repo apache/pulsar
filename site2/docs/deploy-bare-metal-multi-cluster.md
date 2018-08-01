@@ -217,7 +217,7 @@ Make sure to run `initialize-cluster-metadata` for each cluster in your instance
 
 ## Deploying BookKeeper
 
-BookKeeper provides [persistent message storage](getting-started-concepts-and-architecture.md#persistent-storage) for Pulsar.
+BookKeeper provides [persistent message storage](concepts-architecture-overview.md#persistent-storage) for Pulsar.
 
 Each Pulsar broker needs to have its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
 
