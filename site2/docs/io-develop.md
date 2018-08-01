@@ -142,7 +142,7 @@ licensing and copyrights of all libraries of your connector.
 
 #### Creating a NAR package
 
-The most easiest approach to packaging a Pulsar IO connector is to create a NAR package using
+The easiest approach to packaging a Pulsar IO connector is to create a NAR package using
 [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin).
 
 NAR stands for NiFi Archive. It is a custom packaging mechanism used by Apache NiFi, to provide

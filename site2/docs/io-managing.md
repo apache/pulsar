@@ -51,24 +51,46 @@ Pulsar connectors can be managed using the [`source`](reference-pulsar-admin.md#
 
 ### Running sources
 
-You can use the [`create`](reference-pulsar-admin.md#source-create)
-
-You can submit a sink to be run in an existing Pulsar cluster using a command of this form:
+You can submit a source to be run in an existing Pulsar cluster using a command of this form:
 
 ```bash
-$ ./bin/pulsar-admin sink create --className  <classname> --jar <jar-location> --tenant test --namespace <namespace> --name <sink-name> --inputs <input-topics>
+$ ./bin/pulsar-admin source create --className  <classname> --jar <jar-location> --tenant <tenant> --namespace <namespace> --name <source-name> --destinationTopicName <output-topic>
 ```
 
 Here’s an example command:
 
 ```bash
-bin/pulsar-admin source create --className  org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant test --namespace ns1 --name twitter-source --destinationTopicName twitter_data
+bin/pulsar-admin source create --className org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant test --namespace ns1 --name twitter-source --destinationTopicName twitter_data
 ```
 
 Instead of submitting a source to run on an existing Pulsar cluster, you alternatively can run a source as a process on your local machine:
 
 ```bash
 bin/pulsar-admin source localrun --className  org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant test --namespace ns1 --name twitter-source --destinationTopicName twitter_data
+```
+
+If you are submitting a built-in source, you don't need to specify `--className` and `--jar`.
+You can simply specify the source type `--source-type`. The command to submit a built-in source is
+in following form:
+
+```bash
+./bin/pulsar-admin source create \
+    --tenant <tenant> \
+    --namespace <namespace> \
+    --name <source-name> \
+    --destinationTopicName <input-topics> \
+    --source-type <source-type>
+```
+
+Here's an example to submit a Kafka source:
+
+```bash
+./bin/pulsar-admin source create \
+    --tenant test-tenant \
+    --namespace test-namespace \
+    --name test-kafka-source \
+    --destinationTopicName pulsar_sink_topic \
+    --source-type kafka
 ```
 
 ### Running Sinks
@@ -89,6 +111,30 @@ Instead of submitting a sink to run on an existing Pulsar cluster, you alternati
 
 ```bash
 ./bin/pulsar-admin sink localrun --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant test --namespace ns1 --name cassandra-sink --inputs test_topic
+```
+
+If you are submitting a built-in sink, you don't need to specify `--className` and `--jar`.
+You can simply specify the sink type `--sink-type`. The command to submit a built-in sink is
+in following form:
+
+```bash
+./bin/pulsar-admin sink create \
+    --tenant <tenant> \
+    --namespace <namespace> \
+    --name <sink-name> \
+    --inputs <input-topics> \
+    --sink-type <sink-type>
+```
+
+Here's an example to submit a Cassandra sink:
+
+```bash
+./bin/pulsar-admin sink create \
+    --tenant test-tenant \
+    --namespace test-namespace \
+    --name test-cassandra-sink \
+    --inputs pulsar_input_topic \
+    --sink-type cassandra
 ```
 
 ## Monitoring Connectors
