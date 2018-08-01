@@ -16,14 +16,25 @@ The Pulsar Go client can be used to create Pulsar [producers](#producers), [cons
 
 Pulsar Go client library is based on the C++ client library. Follow
 the instructions for [C++ library](client-libraries-cpp.md) for installing the binaries
-through RPM, Deb or Homebrew packages.
+through [RPM](client-libraries-cpp.md#rpm), [Deb](client-libraries-cpp.md#deb) or [Homebrew packages](client-libraries-cpp.md#macos).
 
 ### Installing go package
 
 You can install the `pulsar` library locally using `go get`:
 
+> #### NOTE
+> 
+> `go get` doesn't support fetching a specific tag. so it will always pull in pulsar go client
+> from latest master. You need to make sure you have installed the right pulsar cpp client library.
+
 ```bash
 $ go get -u github.com/apache/incubator-pulsar/pulsar-client-go/pulsar
+```
+
+Or you can use [dep](https://github.com/golang/dep) for managing the dependencies.
+
+```bash
+$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v{{pulsar.version}}
 ```
 
 Once installed locally, you can import it into your project:
