@@ -47,6 +47,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 import org.apache.pulsar.functions.worker.WorkerInfo;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
@@ -281,7 +282,23 @@ public class FunctionsImpl extends BaseResource implements Functions {
             throw getApiException(e);
         }
     }
-    
+
+    @Override
+    public Metrics getMetrics() throws PulsarAdminException {
+        try {
+            Response response = request(functions.path("metrics")).get();
+           if (!response.getStatusInfo().equals(Response.Status.OK)) {
+               throw new ClientErrorException(response);
+           }
+           String jsonResponse = response.readEntity(String.class);
+           Metrics.Builder metricsBuilder = Metrics.newBuilder();
+           mergeJson(jsonResponse, metricsBuilder);
+           return metricsBuilder.build();
+       } catch (Exception e) {
+           throw getApiException(e);
+       }
+   }
+
     public static void mergeJson(String json, Builder builder) throws IOException {
         JsonFormat.parser().merge(json, builder);
     }
