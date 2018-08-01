@@ -19,7 +19,8 @@
       "io-overview",
       "io-quickstart",
       "io-managing",
-      "io-connectors"
+      "io-connectors",
+      "io-develop"
     ],
     "Deployment": [
       "deploy-aws",
