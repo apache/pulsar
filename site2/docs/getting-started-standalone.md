@@ -77,7 +77,7 @@ If Pulsar has been successfully started, you should see `INFO`-level log message
 ```
 
 > #### Automatically created namespace
-> When you start a local standalone cluster, Pulsar will automatically create a `public/default` [namespace](getting-started-concepts-and-architecture.md#namespaces) that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see [Topics](getting-started-concepts-and-architecture.md#topics).
+> When you start a local standalone cluster, Pulsar will automatically create a `public/default` [namespace](concepts-messaging.md#namespaces) that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see [Topics](concepts-messaging.md#topics).
 
 
 ## Testing your cluster setup

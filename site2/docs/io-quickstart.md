@@ -4,7 +4,7 @@ title: Pulsar IO Overview
 sidebar_label: Getting started
 ---
 
-[Pulsar IO](getting-started-concepts-and-architecture.md#pulsar-io) is a feature of Pulsar that enables you to easily create and manage **connectors** that interface with external systems, such as databases and other messaging systems.
+Pulsar IO is a feature of Pulsar that enables you to easily create and manage **connectors** that interface with external systems, such as databases and other messaging systems.
 
 ## Setup
 
