@@ -79,7 +79,7 @@ client.close()
 
 ### Reader interface example
 
-You can use the Pulsar Python API to use the Pulsar [reader interface](getting-started-concepts-and-architecture.md#reader-interface). Here's an example:
+You can use the Pulsar Python API to use the Pulsar [reader interface](concepts-clients.md#reader-interface). Here's an example:
 
 ```python
 # MessageId taken from a previously fetched message

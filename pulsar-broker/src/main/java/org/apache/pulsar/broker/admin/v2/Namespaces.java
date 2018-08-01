@@ -715,5 +715,49 @@ public class Namespaces extends NamespacesBase {
         internalSetOffloadThreshold(newThreshold);
     }
 
+    @GET
+    @Path("/{property}/{namespace}/offloadDeletionLagMs")
+    @ApiOperation(value = "Number of milliseconds to wait before deleting a ledger segment which has been offloaded"
+                          + " from the Pulsar cluster's local storage (i.e. BookKeeper)",
+                  notes = "A negative value denotes that deletion has been completely disabled."
+                          + " 'null' denotes that the topics in the namespace will fall back to the"
+                          + " broker default for deletion lag.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public Long getOffloadDeletionLag(@PathParam("property") String property,
+                                      @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        return internalGetOffloadDeletionLag();
+    }
+
+    @PUT
+    @Path("/{property}/{namespace}/offloadDeletionLagMs")
+    @ApiOperation(value = "Set number of milliseconds to wait before deleting a ledger segment which has been offloaded"
+                          + " from the Pulsar cluster's local storage (i.e. BookKeeper)",
+                  notes = "A negative value disables the deletion completely.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification"),
+                            @ApiResponse(code = 412, message = "offloadDeletionLagMs value is not valid") })
+    public void setOffloadDeletionLag(@PathParam("property") String property,
+                                      @PathParam("namespace") String namespace,
+                                      long newDeletionLagMs) {
+        validateNamespaceName(property, namespace);
+        internalSetOffloadDeletionLag(newDeletionLagMs);
+    }
+
+    @DELETE
+    @Path("/{property}/{namespace}/offloadDeletionLagMs")
+    @ApiOperation(value = "Clear the namespace configured offload deletion lag. The topics in the namespace"
+                          + " will fallback to using the default configured deletion lag for the broker")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void clearOffloadDeletionLag(@PathParam("property") String property,
+                                        @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        internalSetOffloadDeletionLag(null);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

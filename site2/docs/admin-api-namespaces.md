@@ -9,7 +9,7 @@ Pulsar [namespaces](reference-terminology.md#namespace) are logical groupings of
 Namespaces can be managed via:
 
 * The [`namespaces`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
-* The `/admin/v2/namespaces` endpoint of the admin [REST API](reference-rest-api.md)
+* The `/admin/v2/namespaces` endpoint of the admin {@inject: rest:REST:/} API
 * The `namespaces` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md)
 
 ## Namespaces resources
@@ -28,9 +28,7 @@ $ pulsar-admin namespaces create test-tenant/test-namespace
 
 #### REST API
 
-{% endpoint PUT /admin/v2/namespaces/:tenant/:namespace %}
-
-[More info](reference-rest-api.md#/admin/namespaces/:tenant/:namespace)
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/createNamespace}
 
 #### Java
 
@@ -73,9 +71,7 @@ $ pulsar-admin namespaces policies test-tenant/test-namespace
 
 #### REST API
 
-{% endpoint GET /admin/v2/namespaces/:tenant/:namespace %}
-
-[More info](reference-rest-api.md#/admin/namespaces/:tenant/:namespace)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace|operation/getPolicies}
 
 #### Java
 
@@ -99,9 +95,7 @@ test-tenant/ns2
 
 #### REST API
 
-{% endpoint GET /admin/v2/namespaces/:tenant %}
-
-[More info](reference-rest-api.md#/admin/namespaces/:tenant)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant|operation/getTenantNamespaces}
 
 #### Java
 
@@ -130,9 +124,7 @@ $ pulsar-admin namespaces delete test-tenant/ns1
 
 #### REST
 
-{% endpoint DELETE /admin/v2/namespaces/:tenant/:namespace %}
-
-[More info](reference-rest-api.md#/admin/namespaces/:tenant/:namespace)
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace|operation/deleteNamespace}
 
 #### Java
 
@@ -155,7 +147,7 @@ $ pulsar-admin namespaces set-clusters test-tenant/ns1 \
 ###### REST
 
 ```
-{% endpoint POST /admin/v2/namespaces/:tenant/:namespace/replication %}
+{@inject: endpoint POST|/admin/v2/namespaces/:tenant/:namespace/replication|operation/setNamespaceReplicationClusters}
 ```
 
 ###### Java

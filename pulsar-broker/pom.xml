@@ -206,7 +206,7 @@
     </dependency>
 
     <dependency>
-      <groupId>com.wordnik</groupId>
+      <groupId>io.swagger</groupId>
       <artifactId>swagger-annotations</artifactId>
     </dependency>
 
@@ -361,12 +361,11 @@
                   <springmvc>false</springmvc>
                   <locations>org.apache.pulsar.broker.admin</locations>
                   <schemes>http,https</schemes>
-                  <basePath>/admin</basePath>
+                  <basePath>/admin/v2</basePath>
                   <info>
                     <title>Pulsar Admin REST API</title>
-                    <version>v1</version>
-                    <description>This provides the REST API for admin
-                      operations</description>
+                    <version>v2</version>
+                    <description>This provides the REST API for admin operations</description>
                     <license>
                       <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
                       <name>Apache 2.0</name>

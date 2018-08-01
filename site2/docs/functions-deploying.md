@@ -47,7 +47,7 @@ Function name | Whichever value is specified for the class name (minus org, libr
 Tenant | Derived from the input topics' names. If the input topics are under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/{namespace}/{topicName}`---then the tenant will be `marketing`.
 Namespace | Derived from the input topics' names. If the input topics are under the `asia` namespace under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace will be `asia`.
 Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation`, for example, would have an output topic of `incoming-exclamation-output`.
-Subscription type | For at-least-once and at-most-once [processing guarantees](functions-gaurantees.md), the [`SHARED`](getting-started-concepts-and-architecture.md#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](getting-started-concepts-and-architecture.md#failover) is applied
+Subscription type | For at-least-once and at-most-once [processing guarantees](functions-gaurantees.md), the [`SHARED`](concepts-messaging.md#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](concepts-messaging.md#failover) is applied
 Processing guarantees | [`ATLEAST_ONCE`](functions-gaurantees.md)
 Pulsar service URL | `pulsar://localhost:6650`
 
@@ -228,11 +228,11 @@ This function has been triggered with a value of hello world
 <!--
 ## Subscription types
 
-Pulsar supports three different [subscription types](getting-started-concepts-and-architecture.md#subscription-modes) (or subscription modes) for Pulsar clients:
+Pulsar supports three different [subscription types](concepts-messaging.md#subscription-modes) (or subscription modes) for Pulsar clients:
 
-* With [exclusive](getting-started-concepts-and-architecture.md#exclusive) subscriptions, only a single [consumer](reference-terminology.md#consumer) is allowed to attach to the subscription.
-* With [shared](getting-started-concepts-and-architecture.md#shared) . Please note that strict message ordering is *not* guaranteed with shared subscriptions.
-* With [failover](getting-started-concepts-and-architecture.md#failover) subscriptions
+* With [exclusive](concepts-messaging.md#exclusive) subscriptions, only a single [consumer](reference-terminology.md#consumer) is allowed to attach to the subscription.
+* With [shared](concepts-messaging.md#shared) . Please note that strict message ordering is *not* guaranteed with shared subscriptions.
+* With [failover](concepts-messaging.md#failover) subscriptions
 
 Pulsar Functions can also be assigned a subscription type when you [create](#cluster-mode) them or run them [locally](#local-run). In cluster mode, the subscription can also be [updated](#updating) after the function has been created.
 -->

@@ -20,6 +20,15 @@ const createVariableInjectionPlugin = variables => {
       // githubUrl:<name>:<path>
       } else if (keyparts[0] == 'github') {
           return renderUrl(initializedPlugin, githubUrl + "/tree/master/", keyparts);
+      // rest api: rest:<name>:<path>
+      } else if (keyparts[0] == 'rest') {
+          return renderUrl(initializedPlugin, restApiUrl + "#", keyparts);
+      } else {
+        keyparts = key.split("|");
+        // endpoint api: endpoint|<op>
+        if (keyparts[0] == 'endpoint') {
+            return renderEndpoint(initializedPlugin, restApiUrl + "#", keyparts);
+        }
       }
       return initializedPlugin.render(variables[key])
     }
@@ -45,8 +54,17 @@ const renderUrl = (initializedPlugin, baseUrl, keyparts) => {
     return rendered_content;
 };
 
+const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
+    content = '[<b>' + keyparts[1] + '</b> <i>' + keyparts[2] + '</i>](' + baseUrl + keyparts[3] + ')';
+    rendered_content = initializedPlugin.render(content);
+    rendered_content = rendered_content.replace('<p>', '');
+    rendered_content = rendered_content.replace('</p>', '');
+    return rendered_content;
+};
+
 const url = 'https://pulsar.incubator.apache.org';
 const javadocUrl = url + '/api';
+const restApiUrl = url + '/staging/en' + "/admin-rest-api";
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
 const baseUrl = '/staging/';
 
@@ -76,6 +94,7 @@ const siteConfig = {
     {doc: 'standalone', label: 'Documentation'},
     {page: 'download', label: 'Download'},
     {doc: 'client-libraries', label: 'Client libraries'},
+    {page: 'admin-rest-api', label: 'REST API'},
     {href: '#community', label: 'Community'},
     {href: '#apache', label: 'Apache'},
     // Determines search bar position among links

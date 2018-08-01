@@ -7,7 +7,7 @@ sidebar_label: ZooKeeper and BookKeeper
 Pulsar relies on two external systems for essential tasks:
 
 * [ZooKeeper](https://zookeeper.apache.org/) is responsible for a wide variety of configuration- and coordination-related tasks.
-* [BookKeeper](http://bookkeeper.apache.org/) is responsible for [persistent storage](getting-started-concepts-and-architecture.md#persistent-storage) of message data.
+* [BookKeeper](http://bookkeeper.apache.org/) is responsible for [persistent storage](concepts-architecture-overview.md#persistent-storage) of message data.
 
 ZooKeeper and BookKeeper are both open-source [Apache](https://www.apache.org/) projects.
 
@@ -171,7 +171,7 @@ BookKeeper is responsible for all durable message storage in Pulsar. BookKeeper 
 
 ### Deploying BookKeeper
 
-BookKeeper provides [persistent message storage](getting-started-concepts-and-architecture.md#persistent-storage) for Pulsar.
+BookKeeper provides [persistent message storage](concepts-architecture-overview.md#persistent-storage) for Pulsar.
 
 Each Pulsar broker needs to have its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
 
@@ -268,11 +268,7 @@ $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
 
 #### REST API
 
-```http
-POST /admin/v2/namespaces/:tenant/:namespace/persistence
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/persistence)
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence}
 
 #### Java
 
@@ -308,11 +304,7 @@ $ pulsar-admin namespaces get-persistence my-tenant/my-ns
 
 #### REST API
 
-```http
-GET /admin/v2/namespaces/:tenant/:namespace/persistence
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/persistence)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence}
 
 #### Java
 

@@ -4,13 +4,13 @@ title: Non-persistent messaging
 sidebar_label: Partitioned Topics
 ---
 
-By default, Pulsar topics are served by a single broker. Using only a single broker, however, limits a topic's maximum throughput. *Partitioned topics* are a special type of topic that can span multiple brokers and thus allow for much higher throughput. For an explanation of how partitioned topics work, see the [Partitioned Topics](getting-started-concepts-and-architecture.md#partitioned-topics) concepts.
+By default, Pulsar topics are served by a single broker. Using only a single broker, however, limits a topic's maximum throughput. *Partitioned topics* are a special type of topic that can span multiple brokers and thus allow for much higher throughput. For an explanation of how partitioned topics work, see the [Partitioned Topics](concepts-messaging.md#partitioned-topics) concepts.
 
 You can [publish](#publishing-to-partitioned-topics) to partitioned topics using Pulsar's client libraries and you can [create and manage](#managing-partitioned-topics) partitioned topics using Pulsar's [admin API](admin-api-overview.md).
 
 ## Publishing to partitioned topics
 
-When publishing to partitioned topics, the only difference from non-partitioned topics is that you need to specify a [routing mode](getting-started-concepts-and-architecture.md#routing-modes) when you create a new [producer](reference-terminology.md#producer). Examples for [Java](#java) are below.
+When publishing to partitioned topics, the only difference from non-partitioned topics is that you need to specify a [routing mode](concepts-messaging.md#routing-modes) when you create a new [producer](reference-terminology.md#producer). Examples for [Java](#java) are below.
 
 ### Java
 

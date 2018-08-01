@@ -10,7 +10,7 @@ servers (aka [bookies](reference-terminology.md#bookie)), and a [ZooKeeper](http
 Clusters can be managed via:
 
 * The [`clusters`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
-* The `/admin/v2/clusters` endpoint of the admin [REST API](reference-rest-api.md)
+* The `/admin/v2/clusters` endpoint of the admin {@inject: rest:REST:/} API
 * The `clusters` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md)
 
 ## Clusters resources
@@ -33,9 +33,7 @@ $ pulsar-admin clusters create cluster-1 \
 
 #### REST API
 
-{% endpoint PUT /admin/v2/clusters/:cluster %}
-
-[More info](reference-rest-api.md#/admin/clusters/:cluster)
+{@inject: endpoint|PUT|/admin/v2/clusters/:cluster|operation/createCluster}
 
 #### Java
 
@@ -51,7 +49,7 @@ admin.clusters().createCluster(clusterName, clusterData);
 
 ### Initialize cluster metadata
 
-When provision a new cluster, you need to initialize that cluster's [metadata](getting-started-concepts-and-architecture.md#metadata-store). When initializing cluster metadata, you need to specify all of the following:
+When provision a new cluster, you need to initialize that cluster's [metadata](concepts-architecture-overview.md#metadata-store). When initializing cluster metadata, you need to specify all of the following:
 
 * The name of the cluster
 * The local ZooKeeper connection string for the cluster
@@ -104,9 +102,7 @@ $ pulsar-admin clusters get cluster-1
 
 #### REST API
 
-{% endpoint GET /admin/v2/clusters/:cluster %}
-
-[More info](reference-rest-api.md#/admin/clusters/:cluster)
+{@inject: endpoint|GET|/admin/v2/clusters/:cluster|operation/getCluster}
 
 #### Java
 
@@ -130,9 +126,7 @@ $ pulsar-admin clusters update cluster-1 \
 
 #### REST
 
-{% endpoint POST /admin/v2/clusters/:cluster %}
-
-[More info](reference-rest-api.md#/admin/clusters/:cluster)
+{@inject: endpoint|POST|/admin/v2/clusters/:cluster|operation/updateCluster}
 
 #### Java
 
@@ -160,9 +154,7 @@ $ pulsar-admin clusters delete cluster-1
 
 #### REST API
 
-{% endpoint DELETE /admin/v2/clusters/:cluster %}
-
-[More info](reference-rest-api.md#/admin/clusters/:cluster)
+{@inject: endpoint|DELETE|/admin/v2/clusters/:cluster|operation/deleteCluster}
 
 #### Java
 
@@ -186,9 +178,7 @@ cluster-2
 
 #### REST API
 
-{% endpoint GET /admin/v2/clusters %}
-
-[More info](reference-rest-api.md#/admin/clusters)
+{@inject: endpoint|GET|/admin/v2/clusters|operation/getClusters}
 
 ###### Java
 
@@ -210,9 +200,7 @@ $ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 
 #### REST API
 
-{% endpoint POST /admin/v2/clusters/:cluster/peers %}
-
-[More info](reference-rest-api.md#/admin/clusters/:cluster/peers)
+{@inject: endpoint|POST|/admin/v2/clusters/:cluster/peers|operation/setPeerClusterNames}
 
 #### Java
 

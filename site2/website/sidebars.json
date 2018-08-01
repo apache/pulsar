@@ -4,8 +4,19 @@
       "pulsar-2.0",
       "standalone",
       "standalone-docker",
-      "client-libraries",
-      "concepts-architecture"
+      "client-libraries"
+    ],
+    "Concepts and Architecture": [
+      "concepts-overview",
+      "concepts-messaging",
+      "concepts-architecture-overview",
+      "concepts-clients",
+      "concepts-replication",
+      "concepts-multi-tenancy",
+      "concepts-authentication",
+      "concepts-topic-compaction",
+      "concepts-tiered-storage",
+      "concepts-schema-registry"
     ],
     "Pulsar Functions": [
       "functions-overview",
@@ -30,7 +41,7 @@
       "deploy-dcos",
       "deploy-monitoring"
     ],
-    "Pulsar administration": [
+    "Administration": [
       "administration-zk-bk",
       "administration-geo",
       "administration-dashboard",
@@ -60,6 +71,7 @@
       "admin-api-brokers",
       "admin-api-namespaces",
       "admin-api-permissions",
+      "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
       "admin-api-partitioned-topics"
     ],
@@ -87,7 +99,6 @@
     ],
     "Reference": [
       "reference-terminology",
-      "reference-rest-api",
       "reference-cli-tools",
       "pulsar-admin",
       "reference-configuration"

@@ -61,5 +61,5 @@ Input topic name | Translated topic name
 `my-topic` | `persistent://public/default/my-topic`
 `my-tenant/my-namespace/my-topic` | `persistent://my-tenant/my-namespace/my-topic`
 
-> For [non-persistent topics](getting-started-concepts-and-architecture.md#non-persistent-topics) you'll need to continue to specify the entire topic name, as the default-based rules for persistent topic names don't apply. Thus you cannot use a shorthand name like `non-persistent://my-topic` and would need to use `non-persistent://public/default/my-topic` instead
+> For [non-persistent topics](concepts-messaging.md#non-persistent-topics) you'll need to continue to specify the entire topic name, as the default-based rules for persistent topic names don't apply. Thus you cannot use a shorthand name like `non-persistent://my-topic` and would need to use `non-persistent://public/default/my-topic` instead
 
