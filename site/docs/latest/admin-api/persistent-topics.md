@@ -562,8 +562,8 @@ $ pulsar-admin persistent lookup \
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
-admin.lookup().lookupDestination(destination);
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.lookup().lookupTopic(topic);
 ```
 
 ### Get bundle
