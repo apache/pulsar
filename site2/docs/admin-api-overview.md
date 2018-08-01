@@ -8,7 +8,7 @@ The Pulsar admin interface enables you to manage all of the important entities i
 
 You can currently interact with the admin interface via:
 
-- Making HTTP calls against the admin [REST API](reference-rest-api.md) provided by Pulsar [brokers](reference-terminology.md#broker). For some restful apis, they might be redirected to topic owner brokers for serving
+- Making HTTP calls against the admin {@inject: rest:REST:/} API provided by Pulsar [brokers](reference-terminology.md#broker). For some restful apis, they might be redirected to topic owner brokers for serving
    with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you are using `curl`, you should specify `-L`
    to handle redirections.
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your [Pulsar installation](getting-started-standalone.md):
@@ -28,7 +28,7 @@ In this document, examples from each of the three available interfaces will be s
 
 ## Admin setup
 
-Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, the [Java admin API](/api/admin), and the [REST API](reference-rest-api.md)---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar [instance](reference-terminology.md#instance).
+Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, the [Java admin API](/api/admin), and the {@inject: rest:REST:/} API ---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar [instance](reference-terminology.md#instance).
 
 ### pulsar-admin
 
@@ -46,7 +46,7 @@ If you have [authentication](security-overview.md#authentication-providers) enab
 
 ### REST API
 
-You can find documentation for the REST API exposed by Pulsar [brokers](reference-terminology.md#broker) in [this reference document](reference-rest-api.md).
+You can find documentation for the REST API exposed by Pulsar [brokers](reference-terminology.md#broker) in this reference {@inject: rest:document:/}.
 
 ### Java admin client
 

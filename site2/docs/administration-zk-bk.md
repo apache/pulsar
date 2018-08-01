@@ -268,11 +268,7 @@ $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
 
 #### REST API
 
-```http
-POST /admin/v2/namespaces/:tenant/:namespace/persistence
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/persistence)
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence}
 
 #### Java
 
@@ -308,11 +304,7 @@ $ pulsar-admin namespaces get-persistence my-tenant/my-ns
 
 #### REST API
 
-```http
-GET /admin/v2/namespaces/:tenant/:namespace/persistence
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/persistence)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence}
 
 #### Java
 

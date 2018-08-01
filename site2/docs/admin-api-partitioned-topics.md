@@ -34,11 +34,7 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 
 #### REST API
 
-```http
-PUT /admin/v2/persistent/:tenant/:namespace/:topic/partitions
-```
-
-[More info](reference-admin-rest-api.md#/admin/v2/persistent/:tenant/:namespace/:topic/partitions)
+{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic}
 
 #### Java
 
@@ -73,11 +69,7 @@ $ pulsar-admin topics get-partitioned-topic-metadata \
 
 #### REST API
 
-```http
-GET /admin/v2/persistent/:tenant/:namespace/:topic/partitions %}
-```
-
-[More info](reference-admin-rest-api.md#/admin/v2/persistent/:tenant/:namespace/:topic/partitions)
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata}
 
 #### Java
 
@@ -112,11 +104,7 @@ $ pulsar-admin topics update-partitioned-topic \
 
 #### REST API
 
-```http
-POST /admin/v2/persistent/:tenant/:cluster/:namespace/:destination/partitions
-```
-
-[More info](reference-rest-api.md#/admin/v2/persistent/:tenant/:namespace/:topic/partitions)
+{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic}
 
 #### Java
 
@@ -138,11 +126,7 @@ $ bin/pulsar-admin topics delete-partitioned-topic \
 
 #### REST API
 
-```http
-DELETE /admin/v2/persistent/:topic/:namespace/:destination/partitions
-```
-
-[More info](reference-rest-api.md#/admin/v2/persistent/:tenant/:namespace/:topic/partitions)
+{@inject: endpoint|DELETE|/admin/v2/persistent/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic}
 
 #### Java
 
@@ -164,11 +148,7 @@ persistent://tenant/namespace/topic2
 
 #### REST API
 
-```http
-GET /admin/v2/persistent/:tenant/:namespace
-```
-
-[More info](reference-rest-api.md#/admin/v2/persistent/:tenant/:namespace)
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace|operation/getPartitionedTopicList}
 
 #### Java
 
@@ -256,11 +236,7 @@ $ pulsar-admin topics partitioned-stats \
 
 #### REST API
 
-```http
-GET /admin/v2/persistent/:tenant/:namespace/:topic/partitioned-stats
-```
-
-[More info](reference-rest-api.md#/admin/v2/persistent/:tenant/:namespace/:topic/partitioned-stats)
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats}
 
 #### Java
 
@@ -347,11 +323,7 @@ $ pulsar-admin topics stats-internal \
 
 #### REST API
 
-```http
-GET /admin/v2/persistent/:tenant/:namespace/:topic/internalStats
-```
-
-[More info](reference-rest-api.md#/admin/v2/persistent/:tenant/:namespace/:topic/internalStats)
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
 
 #### Java
 
