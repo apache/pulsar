@@ -8,7 +8,7 @@ sidebar_label: Message deduplication
 
 Using message deduplication in Pulsar involves making some [configuration changes](#configuration) to your Pulsar brokers as well as some minor changes to the behavior of Pulsar [clients](#clients).
 
-> For a more thorough theoretical explanation of message deduplication, see the [Concepts and Architecture](getting-started-concepts-and-architecture.md#message-deduplication) document.
+> For a more thorough theoretical explanation of message deduplication, see the [Concepts and Architecture](concepts-messaging.md#message-deduplication) document.
 
 
 ## How it works

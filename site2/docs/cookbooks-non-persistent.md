@@ -4,7 +4,7 @@ title: Non-persistent messaging
 sidebar_label: Non-persistent messaging
 ---
 
-**Non-persistent topics** are Pulsar topics in which message data is *never* [persistently stored](getting-started-concepts-and-architecture.md#persistent-storage) and kept only in memory. This cookbook provides:
+**Non-persistent topics** are Pulsar topics in which message data is *never* [persistently stored](concepts-architecture-overview.md#persistent-storage) and kept only in memory. This cookbook provides:
 
 * A basic [conceptual overview](#overview) of non-persistent topics
 * Information about [configurable parameters](#configuration) related to non-persistent topics
@@ -22,7 +22,7 @@ Non-persistent topics have names of this form (note the `non-persistent` in the 
 non-persistent://tenant/namespace/topic
 ```
 
-> For more high-level information about non-persistent topics, see the [Concepts and Architecture](getting-started-concepts-and-architecture.md#non-persistent-topics) documentation.
+> For more high-level information about non-persistent topics, see the [Concepts and Architecture](concepts-messaging.md#non-persistent-topics) documentation.
 
 ## Using
 
