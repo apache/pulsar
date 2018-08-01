@@ -15,7 +15,7 @@ You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client
 To install the `pulsar-client` library as a pre-built package using the [pip](https://pip.pypa.io/en/stable/) package manager:
 
 ```shell
-$ pip install pulsar-client --upgrade
+$ pip install pulsar-client=={{pulsar:version_number}}
 ```
 
 Installation via PyPi is available for the following Python versions:
