@@ -25,6 +25,10 @@ function binaryReleaseUrl(version) {
   return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-bin.tar.gz`
 }
 
+function connectorReleaseUrl(version) {
+  return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-io-connectors-${version}-bin.tar.gz`
+}
+
 function doReplace(options) {
   replace(options)
     .then(changes => {
@@ -46,6 +50,7 @@ const latestVersion = versions[0];
 const from = [
   /{{pulsar:version}}/g, 
   /pulsar:binary_release_url/g,
+  /pulsar:connector_release_url/g,
   /pulsar:download_page_url/g,
 ];
 
@@ -60,6 +65,7 @@ const options = {
   to: [
     `${latestVersion}-incubating`, 
     binaryReleaseUrl(`${latestVersion}-incubating`), 
+    connectorReleaseUrl(`${latestVersion}-incubating`), 
     downloadPageUrl()
   ],
   dry: false
@@ -82,6 +88,7 @@ for (v of versions) {
     to: [
       `${v}-incubating`, 
       binaryReleaseUrl(`${v}-incubating`),
+      connectorReleaseUrl(`${v}-incubating`),
       downloadPageUrl()
     ],
     dry: true

@@ -4,6 +4,11 @@ title: Deploying Pulsar on DC/OS
 sidebar_label: DC/OS
 ---
 
+> ### Tips
+>
+> If you want to enable all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
+> `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
+
 [DC/OS](https://dcos.io/) (the <strong>D</strong>ata<strong>C</strong>enter <strong>O</strong>perating <strong>S</strong>ystem) is a distributed operating system used for deploying and managing applications and systems on [Apache Mesos](http://mesos.apache.org/). DC/OS is an open-source tool created and maintained by [Mesosphere](https://mesosphere.com/).
 
 Apache Pulsar is available as a [Marathon Application Group](https://mesosphere.github.io/marathon/docs/application-groups.html), which runs multiple applications as manageable sets.

@@ -17,7 +17,9 @@
     ],
     "Pulsar IO": [
       "io-overview",
-      "io-quickstart"
+      "io-quickstart",
+      "io-managing",
+      "io-connectors"
     ],
     "Deployment": [
       "deploy-aws",
