@@ -582,13 +582,13 @@ $ pulsar-admin persistent bundle-range \
 
 #### REST API
 
-{% endpoint GET /lookup/v2/destination/:destination_domain/:tenant/:namespace/:destination/bundle %}
+{% endpoint GET /lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle %}
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
-admin.lookup().getBundleRange(destination);
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.lookup().getBundleRange(topic);
 ```
 
 
