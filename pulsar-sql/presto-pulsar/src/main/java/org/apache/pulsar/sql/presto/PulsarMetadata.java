@@ -294,6 +294,7 @@ public class PulsarMetadata implements ConnectorMetadata {
         return new ConnectorTableMetadata(schemaTableName, builder.build());
     }
 
+    // TODO support nested fields
     private List<PulsarColumnMetadata> getColumns(String name, Schema fieldSchema, int index) {
 
         List<PulsarColumnMetadata> columnMetadataList = new LinkedList<>();

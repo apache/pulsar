@@ -53,6 +53,9 @@ public class PulsarColumnHandle implements ColumnHandle {
      */
     private final boolean internal;
 
+    /**
+     * The index of the field in the schema associated with this column.
+     */
     private Integer positionIndex;
 
     @JsonCreator
