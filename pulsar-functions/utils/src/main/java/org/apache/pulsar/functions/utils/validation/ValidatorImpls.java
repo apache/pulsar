@@ -411,6 +411,9 @@ public class ValidatorImpls {
                     || functionConfig.getOutputSchemaOrClassName().equals(DEFAULT_SERDE)) {
                 // Default schema will be working for any type
                 return;
+            } else if (getBuiltinSchemaType(functionConfig.getOutputSchemaOrClassName()) != null) {
+                // If it's built-in, no need to validate
+                return;
             } else {
                 validateSchemaOrSerDeType(functionConfig.getOutputSchemaOrClassName(), typeArgs[1], clsLoader);
             }

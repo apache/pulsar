@@ -80,7 +80,8 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     // consume message even if can't decrypt and deliver it along with encryption-ctx
                     .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                     .subscriptionName(pulsarSourceConfig.getSubscriptionName())
-                    .subscriptionType(pulsarSourceConfig.getSubscriptionType());
+                    .subscriptionType(pulsarSourceConfig.getSubscriptionType())
+                    .messageListener(this);
 
             if (conf.isRegexPattern) {
                 cb.topicsPattern(topic);

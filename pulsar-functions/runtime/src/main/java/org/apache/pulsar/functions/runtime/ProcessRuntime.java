@@ -250,6 +250,11 @@ class ProcessRuntime implements Runtime {
                 && !instanceConfig.getFunctionDetails().getSink().getTopic().isEmpty()) {
             args.add("--sink_topic");
             args.add(instanceConfig.getFunctionDetails().getSink().getTopic());
+
+            if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+                args.add("--sink_topic_schema_type");
+                args.add(instanceConfig.getFunctionDetails().getSink().getSchemaTypeOrClassName());
+            }
         }
         if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() != null
                 && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {

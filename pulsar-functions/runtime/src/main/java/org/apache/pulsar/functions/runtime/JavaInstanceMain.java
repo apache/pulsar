@@ -45,6 +45,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.utils.ConsumerConfig;
+import org.inferred.freebuilder.shaded.org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -153,6 +154,9 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--sink_topic", description = "The sink Topic Name\n")
     protected String sinkTopic;
 
+    @Parameter(names = "--sink_topic_schema_type", description = "The sink Topic schema\n")
+    protected String sinkSchemaTypeOrClassName;
+
     @Parameter(names = "--sink_serde_classname", description = "Sink SerDe\n")
     protected String sinkSerdeClassName;
 
@@ -222,6 +226,11 @@ public class JavaInstanceMain implements AutoCloseable {
         if (sinkTopic != null && !sinkTopic.isEmpty()) {
             sinkSpecBuilder.setTopic(sinkTopic);
         }
+
+        if (!StringUtils.isEmpty(sinkSchemaTypeOrClassName)) {
+            sinkSpecBuilder.setSchemaTypeOrClassName(sinkSchemaTypeOrClassName);
+        }
+
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         FunctionDetails functionDetails = functionDetailsBuilder.build();
