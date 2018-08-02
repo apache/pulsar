@@ -1,0 +1,82 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+configs:
+- name: workerId
+  description: An identifier for the worker
+  default: standalone
+- name: workerHostname
+  description: The hostname used by the worker daemon
+  default: localhost
+- name: workerPort
+  description: The port used by the worker daemon
+  default: 6750
+- name: functionMetadataTopicName
+  description: The Pulsar topic used for worker daemon metadata transfer
+  default: metadata
+#- name: functionMetadataSnapshotsTopicPath
+#  description: TODO
+#  default: snapshots
+- name: clusterCoordinationTopicName
+  description: The Pulsar topic used for worker daemon cluster coordination
+  default: coordinate
+- name: pulsarFunctionsNamespace
+  description: The Pulsar namespace used for Pulsar-Functions-specific functionality
+  default: public/functions
+- name: pulsarFunctionsCluster
+  default: standalone
+- name: pulsarServiceUrl
+  description: The `pulsar` scheme URL for the Pulsar broker associated with the worker daemon
+  default: pulsar://localhost:6650
+- name: pulsarWebServiceUrl
+  description: The HTTP service URL for the Pulsar broker associated with the worker daemon
+  default: http://localhost:8080
+- name: numFunctionPackageReplicas
+  description: The number of replicas of the function package (i.e. the code resources for the function) to store
+  default: 1
+- name: downloadDirectory
+  description: The directory in which function packages are downloaded
+  default: /tmp/pulsar_functions
+- name: processContainerFactory
+  description: Add this parameter (with an optional [`logDirectory`](#logDirectory) sub-parameter) if you'd like to use the process-based runtime for Pulsar Functions (each function instance is run in its own process). This is the default runtime.
+- name: logDirectory
+  description: Optional sub-parameter for the process-based runtime
+- name: threadContainerFactory
+  description: Add this parameter if you'd like to use the thread-based runtime for Pulsar Functions (each function instance is run in its own JVM thread). The process-based runtime is the default.
+- name: schedulerClassName
+  description: The Java class name for the worker daemon scheduler implementation
+  default: org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler
+- name: functionAssignmentTopicName
+  description: The Pulsar topic used for function-assignment-related tasks
+  default: assignments
+- name: failureCheckFreqMs
+  description: The frequency with which the daemon worker checks for failure (in milliseconds)
+  default: 30000
+- name: rescheduleTimeoutMs
+  description: The timeout applied to Pulsar Function reschedule operations (in milliseconds)
+  default: 60000
+- name: initialBrokerReconnectMaxRetries
+  description: The maximum allowed number of retries when initializing broker reconnect to the daemon worker
+  default: 60
+- name: assignmentWriteMaxRetries
+  description: The maximum allowed number of retries when attempting to assign functions
+  default: 60
+- name: instanceLivenessCheckFreqMs
+  description: The frequency with which the daemon worker checks the liveness of Pulsar Function instances
+  default: 30000

@@ -232,3 +232,64 @@ Pulsar supports three different [subscription types](../../getting-started/Conce
 
 Pulsar Functions can also be assigned a subscription type when you [create](#cluster-mode) them or run them [locally](#local-run). In cluster mode, the subscription can also be [updated](#updating) after the function has been created.
 -->
+
+## The Pulsar Functions worker {#worker}
+
+Deployment of Pulsar Functions is handled by a dedicated worker process that runs alongside the Pulsar {% popover broker %}. The Pulsar Functions worker is responsible for running [instances](#parallelism) of Pulsar Functions, starting them, stopping them, etc.
+
+### Execution runtimes
+
+The Pulsar Functions worker supports two available execution runtimes:
+
+* The [process-based](#process) runtime runs Pulsar Function [instances](#parallelism) as separate processes
+* The [thread-based](#thread) runtime runs Pulsar Function instances as separate [JVM threads](https://docs.oracle.com/javase/tutorial/essential/concurrency/procthread.html). Please note that the thread-based runtime is available *only* for [Java](../api#java) functions.
+
+You can select the runtime when you start up a Pulsar {% popover broker %} via the broker's [configuration](#config).
+
+{% include admonition.html type="success" title="Other runtimes" content="The process-based and thread-based runtimes for Pulsar Functions" %}
+
+##### Process-based runtime {#process}
+
+The process-based runtime for Pulsar Functions runs function [instances](#parallelism) in separate processes. For instructions on using the process-based runtime, see [below](#using-process).
+
+{% include admonition.html type="info" content="The processed-based runtime is the **default** for Pulsar Functions." %}
+
+#### Thread-based runtime {#thread}
+
+The thread-based runtime for Pulsar Functions runs function [instances](#parallelism) in separate [JVM](https://en.wikipedia.org/wiki/Java_virtual_machine) threads. For instructions on using the thread-based runtime, see [below](#using-thread).
+
+{% include admonition.html type="warning" title="Java only" content="The thread-based runtime can only be used with Pulsar Functions written in [Java](../api#java). If you choose the thread-based runtime, you won't be able to run non-Java functions." %}
+
+#### Docker runtime (coming soon) {#docker}
+
+A future release of Pulsar will feature a [Docker](https://docker.com)-based runtime that runs Pulsar Function instances in Docker containers, which facilitates using container orchestration platforms like [Kubernetes](https://kubernetes.io).
+### Configuration {#runtime-config}
+
+The following configurable parameters are available in the [`functions_worker.yml`](../../reference/Configuration#worker) configuration file for Pulsar {% popover brokers %}:
+
+{% include config.html id="functions_worker" %}
+
+#### Using the process-based runtime {#using-process}
+
+The process-based runtime for Pulsar Functions is the **default**. In the [`functions_worker.yaml`](#runtime-config) configuration file, you'll see this parameter present:
+
+```yaml
+processContainerFactory:
+  logDirectory:
+```
+
+Leave the `processContainerFactor` parameter in place if you'd like to use the process-based runtime. You can also specify a logging directory using the `logDirectory` parameter. Here's an example configuration for the process-based runtime:
+
+```yaml
+processContainerFactory:
+  logDirectory: /path/to/logging/dir
+```
+
+#### Using the thread-based runtime {#using-thread}
+
+In order to use the thread-based runtime for Pulsar Functions you'll need to remove the `processContainerFactory` parameter present by default in the `functions_worker.yml` [config file](#runtime-config) and replace it with a `threadContainerFactory` parameter as well as a `threadGroupName` sub-parameter. Here's an example:
+
+```yaml
+threadContainerFactory:
+  threadGroupName: "Thread Function Container Group"
+```

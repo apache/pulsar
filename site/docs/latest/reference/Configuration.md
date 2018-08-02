@@ -30,6 +30,7 @@ Pulsar configuration can be managed either via a series of configuration files c
 * [Client](#client)
 * [Service discovery](#service-discovery)
 * [Configuration store](#configuration-store)
+* [Pulsar Functions worker](#pulsar-functions-worker)
 * [Log4j](#log4j)
 * [Log4j shell](#log4j-shell)
 * [Standalone](#standalone)
@@ -61,6 +62,12 @@ The [`pulsar-client`](../CliTools#pulsar-client) CLI tool can be used to publish
 ## Configuration store
 
 {% include config.html id="configuration-store" %}
+
+## Pulsar Functions worker {#worker}
+
+Configuration for the [worker](../../functions/deployment#worker) process that drives [Pulsar Functions](../../functions/overview).
+
+{% include config.html id="functions_worker" %}
 
 ## Log4j
 
