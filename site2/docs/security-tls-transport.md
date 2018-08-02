@@ -43,7 +43,7 @@ Create a directory for your CA, and place [this openssl configuration file](http
 ```bash
 $ mkdir my-ca
 $ cd my-ca
-$ wget {{ "/docs/latest/security/openssl.cnf" | absolute_url }}
+$ wget https://github.com/apache/incubator-pulsar/tree/master/site2/website/static/examples/openssl.cnf
 $ export CA_HOME=$(pwd)
 ```
 
