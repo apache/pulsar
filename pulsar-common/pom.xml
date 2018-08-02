@@ -48,7 +48,7 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>protobuf-shaded</artifactId>
-      <version>${project.version}</version>
+      <version>${pulsar.protobuf.shaded.version}</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.protobuf</groupId>
