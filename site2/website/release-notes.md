@@ -11,7 +11,8 @@ It is a feature release, including several new features and major improvements:
 - A list of [Builtin Connectors]:
   - [Aerospike Connector](/docs/en/io-aerospike/)
   - [Cassandra Connector](/docs/en/io-cassandra/)
-  - [Kafka Connector (Source & Sink)](/docs/en/io-kafka/)
+  - [Kafka Connector](/docs/en/io-kafka/)
+  - [Kinesis Connector](/docs/en/io-kinesis/)
   - [RabbitMQ Connector](/docs/en/io-rabbitmq/)
   - [Twitter Firehose Connector](/docs/en/io-twitter/) 
 - [Tiered Storage](/docs/en/concepts-tiered-storage/): An extension in Pulsar segment store to offload older segments into long term storage (e.g. HDFS, S3).
