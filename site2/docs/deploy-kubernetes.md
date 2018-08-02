@@ -4,6 +4,11 @@ title: Deploying Pulsar on Kubernetes
 sidebar_label: Kubernetes
 ---
 
+> ### Tips
+>
+> If you want to enable all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
+> `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
+
 Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or [Amazon Web Services](https://aws.amazon.com/) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
 The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/reference/). The {@inject: github:`kubernetes`:/kubernetes} subdirectory of the [Pulsar package](pulsar:download_page_url) holds resource definitions for:
@@ -39,7 +44,7 @@ To get started, you'll need:
 You can create a new GKE cluster using the [`container clusters create`](https://cloud.google.com/sdk/gcloud/reference/container/clusters/create) command for `gcloud`. This command enables you to specify the number of nodes in the cluster, the machine types of those nodes, and more.
 
 As an example, we'll create a new GKE cluster for Kubernetes version [1.6.4](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v164) in the [us-central1-a](https://cloud.google.com/compute/docs/regions-zones/regions-zones#available) zone. The cluster will be named `pulsar-gke-cluster` and will consist of three VMs, each using two locally attached SSDs and running on [n1-standard-8](https://cloud.google.com/compute/docs/machine-types) machines. These SSDs will be used by
-[bookie](reference-terminology.md#bookie) instances, one for the BookKeeper [journal](getting-started-concepts-and-architecture.md#journal-storage) and the other for storing the actual message data.
+[bookie](reference-terminology.md#bookie) instances, one for the BookKeeper [journal](concepts-architecture-overview.md#journal-storage) and the other for storing the actual message data.
 
 ```bash
 $ gcloud container clusters create pulsar-gke-cluster \
@@ -111,7 +116,7 @@ $ for vm in node-01 node-02 node-03; do
   done
 ```
 
-Bookies expect two logical devices to mount for [journal](getting-started-concepts-and-architecture.md#journal-storage) and persistent message storage to be available. In this VM exercise, we created two directories on each VM.
+Bookies expect two logical devices to mount for [journal](concepts-architecture-overview.md#journal-storage) and persistent message storage to be available. In this VM exercise, we created two directories on each VM.
 
 Once the cluster is up, you can verify that `kubectl` can access it:
 

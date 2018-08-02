@@ -16,14 +16,25 @@ The Pulsar Go client can be used to create Pulsar [producers](#producers), [cons
 
 Pulsar Go client library is based on the C++ client library. Follow
 the instructions for [C++ library](client-libraries-cpp.md) for installing the binaries
-through RPM, Deb or Homebrew packages.
+through [RPM](client-libraries-cpp.md#rpm), [Deb](client-libraries-cpp.md#deb) or [Homebrew packages](client-libraries-cpp.md#macos).
 
 ### Installing go package
 
 You can install the `pulsar` library locally using `go get`:
 
+> #### NOTE
+> 
+> `go get` doesn't support fetching a specific tag. so it will always pull in pulsar go client
+> from latest master. You need to make sure you have installed the right pulsar cpp client library.
+
 ```bash
 $ go get -u github.com/apache/incubator-pulsar/pulsar-client-go/pulsar
+```
+
+Or you can use [dep](https://github.com/golang/dep) for managing the dependencies.
+
+```bash
+$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v{{pulsar.version}}
 ```
 
 Once installed locally, you can import it into your project:
@@ -48,7 +59,7 @@ A URL for a production Pulsar cluster may look something like this:
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you're using [TLS](security-tls.md) authentication, the URL will look like something like this:
+If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
 
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
@@ -199,7 +210,7 @@ Parameter | Description | Default
 `MaxPendingMessages` | The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the [broker](reference-terminology.md#broker)). By default, when the queue is full all calls to the `Send` and `SendAsync` methods will fail *unless* `BlockIfQueueFull` is set to `true`. |
 `MaxPendingMessagesAcrossPartitions` | |
 `BlockIfQueueFull` | If set to `true`, the producer's `Send` and `SendAsync` methods will block when the outgoing message queue is full rather than failing and throwing an error (the size of that queue is dictated by the `MaxPendingMessages` parameter); if set to `false` (the default), `Send` and `SendAsync` operations will fail and throw a `ProducerQueueIsFullError` when the queue is full. | `false`
-`MessageRoutingMode` | The message routing logic (for producers on [partitioned topics](getting-started-concepts-and-architecture.md#partitioned-topics)). This logic is applied only when no key is set on messages. The available options are: round robin (`pulsar.RoundRobinDistribution`, the default), publishing all messages to a single partition (`pulsar.UseSinglePartition`), or a custom partitioning scheme (`pulsar.CustomPartition`). | `pulsar.RoundRobinDistribution`
+`MessageRoutingMode` | The message routing logic (for producers on [partitioned topics](concepts-architecture-overview.md#partitioned-topics)). This logic is applied only when no key is set on messages. The available options are: round robin (`pulsar.RoundRobinDistribution`, the default), publishing all messages to a single partition (`pulsar.UseSinglePartition`), or a custom partitioning scheme (`pulsar.CustomPartition`). | `pulsar.RoundRobinDistribution`
 `HashingScheme` | The hashing function that determines the partition on which a particular message is published (partitioned topics only). The available options are: `pulsar.JavaStringHash` (the equivalent of `String.hashCode()` in Java), `pulsar.Murmur3_32Hash` (applies the [Murmur3](https://en.wikipedia.org/wiki/MurmurHash) hashing function), or `pulsar.BoostHash` (applies the hashing function from C++'s [Boost](https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html) library) | `pulsar.JavaStringHash`
 `CompressionType` | The message data compression type used by the producer. The available options are [`LZ4`](https://github.com/lz4/lz4) and [`ZLIB`](https://zlib.net/). | No compression
 `MessageRouter` | By default, Pulsar uses a round-robin routing scheme for [partitioned topics](cookbooks-partitioned.md). The `MessageRouter` parameter enables you to specify custom routing logic via a function that takes the Pulsar message and topic metadata as an argument and returns an integer (where the ), i.e. a function signature of `func(Message, TopicMetadata) int`. |
@@ -252,9 +263,9 @@ Method | Description | Return type
 `Receive(context.Context)` | Receives a single message from the topic. This method blocks until a message is available. | `(Message, error)`
 `Ack(Message)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) | `error`
 `AckID(MessageID)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) by message ID | `error`
-`AckCumulative(Message)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) *all* the messages in the stream, up to and including the specified message. The `AckCumulative` method will block until the ack has been sent to the broker. After that, the messages will *not* be redelivered to the consumer. Cumulative acking can only be used with a [shared](getting-started-concepts-and-architecture.md#shared) subscription type.
+`AckCumulative(Message)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) *all* the messages in the stream, up to and including the specified message. The `AckCumulative` method will block until the ack has been sent to the broker. After that, the messages will *not* be redelivered to the consumer. Cumulative acking can only be used with a [shared](concepts-messaging.md#shared) subscription type.
 `Close()` | Closes the consumer, disabling its ability to receive messages from the broker | `error`
-`RedeliverUnackedMessages()` | Redelivers *all* unacknowledged messages on the topic. In [failover](getting-started-concepts-and-architecture.md#failover) mode, this request is ignored if the consumer isn't active on the specified topic; in [shared](getting-started-concepts-and-architecture.md#shared) mode, redelivered messages are distributed across all consumers connected to the topic. **Note**: this is a *non-blocking* operation that doesn't throw an error. |
+`RedeliverUnackedMessages()` | Redelivers *all* unacknowledged messages on the topic. In [failover](concepts-messaging.md#failover) mode, this request is ignored if the consumer isn't active on the specified topic; in [shared](concepts-messaging.md#shared) mode, redelivered messages are distributed across all consumers connected to the topic. **Note**: this is a *non-blocking* operation that doesn't throw an error. |
 
 #### Receive example
 
@@ -435,7 +446,7 @@ Parameter | Description
 
 ## TLS encryption and authentication
 
-In order to use [TLS encryption](security-tls.md), you'll need to configure your client to do so:
+In order to use [TLS encryption](security-tls-transport.md), you'll need to configure your client to do so:
 
  * Use `pulsar+ssl` URL type
  * Set `TLSTrustCertsFilePath` to the path to the TLS certs used by your client and the Pulsar broker

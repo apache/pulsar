@@ -4,7 +4,15 @@ title: Deploying a multi-cluster on bare metal
 sidebar_label: Bare metal multi-cluster
 ---
 
-> Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you're interested in experimenting with Pulsar or using it in a startup or on a single team, we recommend opting for a single cluster. For instructions on deploying a single cluster, see the guide [here](deploy-bare-metal.md).
+> ### Tips
+>
+> 1. Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you're interested in experimenting with
+> Pulsar or using it in a startup or on a single team, we recommend opting for a single cluster. For instructions on deploying a single cluster,
+> see the guide [here](deploy-bare-metal.md).
+>
+> 2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
+> package and make sure it is installed under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you
+> have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
 
 A Pulsar *instance* consists of multiple Pulsar clusters working in unison. Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using [geo-replication](administration-geo.md). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 
@@ -211,13 +219,13 @@ As you can see from the example above, the following needs to be specified:
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
 
-If you're using [TLS](security-tls.md), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
+If you're using [TLS](security-tls-transport.md), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
 
 Make sure to run `initialize-cluster-metadata` for each cluster in your instance.
 
 ## Deploying BookKeeper
 
-BookKeeper provides [persistent message storage](getting-started-concepts-and-architecture.md#persistent-storage) for Pulsar.
+BookKeeper provides [persistent message storage](concepts-architecture-overview.md#persistent-storage) for Pulsar.
 
 Each Pulsar broker needs to have its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
 

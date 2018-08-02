@@ -20,7 +20,7 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="pulsar:binary_release_url" download>Pulsar pulsar:version binary release</a>
+  * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
 
 * from the Pulsar [downloads page](pulsar:download_page_url)
 * from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
@@ -33,8 +33,8 @@ To get started running Pulsar, download a binary tarball release in one of the f
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:
 
 ```bash
-$ tar xvfz apache-pulsar-pulsar:version-bin.tar.gz
-$ cd apache-pulsar-pulsar:version
+$ tar xvfz apache-pulsar-{{pulsar:version}}-bin.tar.gz
+$ cd apache-pulsar-{{pulsar:version}}
 ```
 
 ## What your package contains
@@ -58,7 +58,51 @@ Directory | Contains
 `logs` | Logs created by the installation
 
 
+## Installing Builtin Connectors
 
+Since release `2.1.0-incubating`, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
+If you would like to enable those `builtin` connectors, you can download the connectors tarball release in one of the following ways:
+
+* by clicking the link below and downloading the release from an Apache mirror:
+
+  * <a href="pulsar:connector_release_url" download>Pulsar IO Connectors {{pulsar:version}} release</a>
+
+* from the Pulsar [downloads page](pulsar:download_page_url)
+* from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
+* using [wget](https://www.gnu.org/software/wget):
+
+  ```shell
+  $ wget pulsar:connector_release_url
+  ```
+
+Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as `connectors`
+in the pulsar directory:
+
+```bash
+$ tar xvfz /path/to/apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
+
+// you will find a directory named `apache-pulsar-io-connectors-{{pulsar:version}}` in the pulsar directory
+// then copy the connectors
+
+$ cd apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
+
+$ ls connectors
+pulsar-io-aerospike-{{pulsar.version}}.nar
+pulsar-io-cassandra-{{pulsar.version}}.nar 
+pulsar-io-kafka-{{pulsar.version}}.nar     
+pulsar-io-kinesis-{{pulsar.version}}.nar   
+pulsar-io-rabbitmq-{{pulsar.version}}.nar  
+pulsar-io-twitter-{{pulsar.version}}.nar
+...
+```
+
+> #### NOTES
+>
+> If you are running Pulsar in a bare mental cluster, you need to make sure `connectors` tarball is unzipped in every broker's pulsar directory
+> (or in every function-worker's pulsar directory if you are running a separate worker cluster for Pulsar functions).
+> 
+> If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)),
+> you can use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
 ## Starting the cluster
 
@@ -77,7 +121,7 @@ If Pulsar has been successfully started, you should see `INFO`-level log message
 ```
 
 > #### Automatically created namespace
-> When you start a local standalone cluster, Pulsar will automatically create a `public/default` [namespace](getting-started-concepts-and-architecture.md#namespaces) that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see [Topics](getting-started-concepts-and-architecture.md#topics).
+> When you start a local standalone cluster, Pulsar will automatically create a `public/default` [namespace](concepts-messaging.md#namespaces) that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see [Topics](concepts-messaging.md#topics).
 
 
 ## Testing your cluster setup

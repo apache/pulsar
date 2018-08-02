@@ -17,9 +17,18 @@ const createVariableInjectionPlugin = variables => {
       // javadoc:<name>:<url_path>
       if (keyparts[0] == 'javadoc') {
           return renderUrl(initializedPlugin, javadocUrl, keyparts);
-      // githubUrl:<name>:<path> 
+      // githubUrl:<name>:<path>
       } else if (keyparts[0] == 'github') {
           return renderUrl(initializedPlugin, githubUrl + "/tree/master/", keyparts);
+      // rest api: rest:<name>:<path>
+      } else if (keyparts[0] == 'rest') {
+          return renderUrl(initializedPlugin, restApiUrl + "#", keyparts);
+      } else {
+        keyparts = key.split("|");
+        // endpoint api: endpoint|<op>
+        if (keyparts[0] == 'endpoint') {
+            return renderEndpoint(initializedPlugin, restApiUrl + "#", keyparts);
+        }
       }
       return initializedPlugin.render(variables[key])
     }
@@ -45,8 +54,17 @@ const renderUrl = (initializedPlugin, baseUrl, keyparts) => {
     return rendered_content;
 };
 
+const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
+    content = '[<b>' + keyparts[1] + '</b> <i>' + keyparts[2] + '</i>](' + baseUrl + keyparts[3] + ')';
+    rendered_content = initializedPlugin.render(content);
+    rendered_content = rendered_content.replace('<p>', '');
+    rendered_content = rendered_content.replace('</p>', '');
+    return rendered_content;
+};
+
 const url = 'https://pulsar.incubator.apache.org';
 const javadocUrl = url + '/api';
+const restApiUrl = url + '/staging/en' + "/admin-rest-api";
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
 const baseUrl = '/staging/';
 
@@ -76,6 +94,7 @@ const siteConfig = {
     {doc: 'standalone', label: 'Documentation'},
     {page: 'download', label: 'Download'},
     {doc: 'client-libraries', label: 'Client libraries'},
+    {page: 'admin-rest-api', label: 'REST API'},
     {href: '#community', label: 'Community'},
     {href: '#apache', label: 'Apache'},
     // Determines search bar position among links
@@ -101,11 +120,12 @@ const siteConfig = {
     primaryColor: '#188fff',
     secondaryColor: '#205C3B',
   },
+  translationRecruitingLink: 'https://crowdin.com/project/apache-pulsar',
   // This copyright info is used in /core/Footer.js and blog rss/atom feeds.
   copyright:
     'Copyright © ' +
     new Date().getFullYear() +
-    ' The Apache Software Foundation. All Rights Reserved.' + 
+    ' The Apache Software Foundation. All Rights Reserved.' +
     ' Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.',
 
   highlight: {
@@ -139,10 +159,10 @@ const siteConfig = {
   },
 
   githubUrl: githubUrl,
-  archiveRootUrl: 'http://archive.apache.org/dist/incubator/pulsar',
+  archiveRootUrl: 'https://archive.apache.org/dist/incubator/pulsar',
 
   projectDescription: `
-    Apache Pulsar is an open-source distributed pub-sub messaging system originally 
+    Apache Pulsar is an open-source distributed pub-sub messaging system originally
     created at Yahoo and now part of the Apache Software Foundation
   `,
 

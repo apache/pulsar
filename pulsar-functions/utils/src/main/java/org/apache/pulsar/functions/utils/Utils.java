@@ -102,16 +102,21 @@ public class Utils {
     }
 
     public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig) {
-
-        Object userClass = createInstance(functionConfig.getClassName(), Thread.currentThread().getContextClassLoader());
+        Object userClass = createInstance(functionConfig.getClassName(),
+                Thread.currentThread().getContextClassLoader());
+        boolean isWindowConfigPresent = functionConfig.getWindowConfig() != null;
+        return getFunctionTypes(userClass, isWindowConfigPresent);
+    }
+    
+    public static Class<?>[] getFunctionTypes(Object userClass, boolean isWindowConfigPresent) {
 
         Class<?>[] typeArgs;
         // if window function
-        if (functionConfig.getWindowConfig() != null) {
+        if (isWindowConfigPresent) {
             java.util.function.Function function = (java.util.function.Function) userClass;
             if (function == null) {
-                throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated",
-                        functionConfig.getClassName()));
+                throw new IllegalArgumentException(
+                        String.format("The Java util function class %s could not be instantiated", userClass));
             }
             typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
             if (!typeArgs[0].equals(Collection.class)) {

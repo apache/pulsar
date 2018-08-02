@@ -4,7 +4,16 @@ title: Deploying a cluster on bare metal
 sidebar_label: Bare metal
 ---
 
-> Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you're interested in experimenting with Pulsar or using it in a startup or on a single team, we recommend opting for a single cluster. If you do need to run a multi-cluster Pulsar instance, however, see the guide [here](deploy-bare-metal-multi-cluster.md).
+
+> ### Tips
+>
+> 1. Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you're interested in experimenting with
+> Pulsar or using it in a startup or on a single team, we recommend opting for a single cluster. If you do need to run a multi-cluster Pulsar instance,
+> however, see the guide [here](deploy-bare-metal-multi-cluster.md).
+>
+> 2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
+> package and make sure it is installed under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you
+> have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
 
 Deploying a Pulsar cluster involves doing the following (in order):
 
@@ -48,20 +57,20 @@ For machines running a bookie and a Pulsar broker, we recommend using more power
 To get started deploying a Pulsar cluster on bare metal, you'll need to download a binary tarball release in one of the following ways:
 
 * By clicking on the link directly below, which will automatically trigger a download:
-  * <a href="pulsar:binary_release_url" download>Pulsar pulsar:version binary release</a>
+  * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
 * From the Pulsar [downloads page](pulsar:download_page_url)
 * From the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest) on [GitHub](https://github.com)
 * Using [wget](https://www.gnu.org/software/wget):
 
 ```bash
-$ wget http://archive.apache.org/dist/incubator/pulsar/pulsar-pulsar:version/apache-pulsar-pulsar:version-bin.tar.gz
+$ wget pulsar:binary_release_url
 ```
 
 Once you've downloaded the tarball, untar it and `cd` into the resulting directory:
 
 ```bash
-$ tar xvzf apache-pulsar-pulsar:version-bin.tar.gz
-$ cd apache-pulsar-pulsar:version
+$ tar xvzf apache-pulsar-{{pulsar:version}}-bin.tar.gz
+$ cd apache-pulsar-{{pulsar:version}}
 ```
 
 The untarred directory contains the following subdirectories:
@@ -130,9 +139,9 @@ Flag | Description
 `--zookeeper` | A "local" ZooKeeper connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--configuration-store` | The configuration store connection string for the entire instance. As with the `--zookeeper` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--web-service-url` | The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (we don't recommend using a different port).
-`--web-service-url-tls` | If you're using [TLS](security-tls.md), you'll also need to specify a TLS web service URL for the cluster. The default port is 8443 (we don't recommend using a different port).
+`--web-service-url-tls` | If you're using [TLS](security-tls-transport.md), you'll also need to specify a TLS web service URL for the cluster. The default port is 8443 (we don't recommend using a different port).
 `--broker-service-url` | A broker service URL enabling interaction with the brokers in the cluster. This URL should use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (we don't recommend using a different port).
-`--broker-service-url-tls` | If you're using [TLS](security-tls.md), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (we don't recommend using a different port).
+`--broker-service-url-tls` | If you're using [TLS](security-tls-transport.md), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (we don't recommend using a different port).
 
 ## Deploying a BookKeeper cluster
 

@@ -10,10 +10,6 @@ const CWD = process.cwd();
 
 const siteConfig = require(`${CWD}/siteConfig.js`);
 
-function docUrl(doc, language) {
-  return siteConfig.baseUrl + 'docs/' + (language ? language + '/' : '') + doc;
-}
-
 class Contact extends React.Component {
   render() {
     let language = this.props.language || '';
@@ -41,24 +37,6 @@ class Contact extends React.Component {
       }
     ]
 
-    const supportLinks = [
-      {
-        content: `Learn more using the [documentation on this site.](${docUrl(
-          'doc1.html',
-          language
-        )})`,
-        title: 'Browse Docs',
-      },
-      {
-        content: 'Ask questions about the documentation and project',
-        title: 'Join the community',
-      },
-      {
-        content: "Find out what's new with this project",
-        title: 'Stay up to date',
-      },
-    ];
-
     return (
       <div className="docMainWrapper wrapper">
         <Container className="mainContainer documentContainer postContainer">
@@ -68,12 +46,12 @@ class Contact extends React.Component {
               <hr />
             </header>
             <p>
-            There are many ways to get help from the Apache Pulsar community. 
-            The mailing lists are the primary place where all Pulsar committers are present. 
-            Bugs and feature requests can either be discussed on the dev mailing list or 
-            by opening an issue on <a href="">GitHub</a>.
+            There are many ways to get help from the Apache Pulsar community.
+            The mailing lists are the primary place where all Pulsar committers are present.
+            Bugs and feature requests can either be discussed on the dev mailing list or
+            by opening an issue on <a href="https://github.com/apache/incubator-pulsar/" target="_blank">GitHub</a>.
             </p>
-            
+
             <h2>Mailing Lists</h2>
             <table className="versions">
               <thead>
@@ -102,12 +80,12 @@ class Contact extends React.Component {
 
             <h2>Slack</h2>
             <p>There is a Pulsar slack channel that is used for informal discussions for devs and users.</p>
-            <MarkdownBlock>
-              The Slack instance is at [https://apache-pulsar.slack.com/](https://apache-pulsar.slack.com/)
-            </MarkdownBlock>
-            <MarkdownBlock>
-              You can self-register at [https://apache-pulsar.herokuapp.com/](https://apache-pulsar.herokuapp.com/)
-            </MarkdownBlock>
+
+            <p>The Slack instance is at <a href="https://apache-pulsar.slack.com/" target="_blank">
+                    https://apache-pulsar.slack.com/</a></p>
+
+            <p>You can self-register at <a href="https://apache-pulsar.herokuapp.com/" target="_blank">
+                    https://apache-pulsar.herokuapp.com/</a></p>
           </div>
         </Container>
       </div>

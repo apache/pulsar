@@ -57,6 +57,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.utils.SinkConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
@@ -468,7 +469,6 @@ public class CmdSinks extends CmdBase {
             // set source spec
             // source spec classname should be empty so that the default pulsar source will be used
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
             if (sinkConfig.getTopicToSerdeClassName() != null) {
                 sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
             }
@@ -483,9 +483,12 @@ public class CmdSinks extends CmdBase {
                 sourceSpecBuilder.setSubscriptionName(sinkConfig.getSourceSubscriptionName());
             }
             
-            sourceSpecBuilder.setSubscriptionType(
-                    sinkConfig.isRetainOrdering() ? SubscriptionType.FAILOVER : SubscriptionType.SHARED);
-            
+            SubscriptionType subType = (sinkConfig.isRetainOrdering()
+                    || ProcessingGuarantees.EFFECTIVELY_ONCE.equals(sinkConfig.getProcessingGuarantees()))
+                            ? SubscriptionType.FAILOVER
+                            : SubscriptionType.SHARED;
+            sourceSpecBuilder.setSubscriptionType(subType);
+
             functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 

@@ -59,6 +59,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.testng.collections.Maps;
 
 @Slf4j
 class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
@@ -131,8 +132,8 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
             Assert.fail("Shouldn't be able to add to bucket");
         } catch (ExecutionException e) {
-            log.error("Exception: ", e.getMessage());
-            Assert.assertTrue(e.getMessage().contains("not found"));
+            log.error("Exception: ", e);
+            Assert.assertTrue(e.getMessage().toLowerCase().contains("not found"));
         }
     }
 
@@ -520,8 +521,11 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
         String dataKey = dataBlockOffloadKey(toWrite.getId(), uuid);
 
-        Map<String, String> userMeta = blobStore.blobMetadata(BUCKET, dataKey).getUserMetadata();
-        userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
+        // Here it will return a Immutable map.
+        Map<String, String> immutableMap = blobStore.blobMetadata(BUCKET, dataKey).getUserMetadata();
+        Map<String, String> userMeta = Maps.newHashMap();
+        userMeta.putAll(immutableMap);
+        userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY.toLowerCase(), String.valueOf(-12345));
         blobStore.copyBlob(BUCKET, dataKey, BUCKET, dataKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
@@ -533,7 +537,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.assertTrue(e.getCause().getMessage().contains("Error reading from BlobStore"));
         }
 
-        userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
+        userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY.toLowerCase(), String.valueOf(12345));
         blobStore.copyBlob(BUCKET, dataKey, BUCKET, dataKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
@@ -555,8 +559,11 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
         String indexKey = indexBlockOffloadKey(toWrite.getId(), uuid);
 
-        Map<String, String> userMeta = blobStore.blobMetadata(BUCKET, indexKey).getUserMetadata();
-        userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
+        // Here it will return a Immutable map.
+        Map<String, String> immutableMap = blobStore.blobMetadata(BUCKET, indexKey).getUserMetadata();
+        Map<String, String> userMeta = Maps.newHashMap();
+        userMeta.putAll(immutableMap);
+        userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY.toLowerCase(), String.valueOf(-12345));
         blobStore.copyBlob(BUCKET, indexKey, BUCKET, indexKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try {
@@ -567,7 +574,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
         }
 
-        userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
+        userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY.toLowerCase(), String.valueOf(12345));
         blobStore.copyBlob(BUCKET, indexKey, BUCKET, indexKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try {

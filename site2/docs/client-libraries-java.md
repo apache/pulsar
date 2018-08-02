@@ -63,7 +63,7 @@ A URL for a production Pulsar cluster may look something like this:
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you're using [TLS](security-tls.md) authentication, the URL will look like something like this:
+If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
 
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
@@ -146,7 +146,7 @@ When using partitioned topics, you can specify the routing mode whenever you pub
 
 ### Async send
 
-You can also publish messages [asynchronously](getting-started-concepts-and-architecture.md#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the broker in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
+You can also publish messages [asynchronously](concepts-messaging.md#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the broker in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
 
 Here's an example async send operation:
 
@@ -178,7 +178,7 @@ get a future returned.
 
 In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new [consumer](reference-terminology.md#consumer) by first instantiating a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object and passing it a URL for a Pulsar broker (as [above](#client-configuration)).
 
-Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object, you can create a {@inject: javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer} by specifying a [topic](reference-terminology.md#topic) and a [subscription](getting-started-concepts-and-architecture.md#subscription-modes).
+Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object, you can create a {@inject: javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer} by specifying a [topic](reference-terminology.md#topic) and a [subscription](concepts-messaging.md#subscription-modes).
 
 ```java
 Consumer consumer = client.newConsumer()
@@ -218,7 +218,7 @@ Consumer consumer = client.newConsumer()
 
 ### Async receive
 
-The `receive` method will receive messages synchronously (the consumer process will be blocked until a message is available). You can also use [async receive](getting-started-concepts-and-architecture.md#receive-modes), which will return immediately with a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object that completes once a new message is available.
+The `receive` method will receive messages synchronously (the consumer process will be blocked until a message is available). You can also use [async receive](concepts-messaging.md#receive-modes), which will return immediately with a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object that completes once a new message is available.
 
 Here's an example:
 
@@ -230,7 +230,7 @@ Async receive operations return a {@inject javadoc:Message:/client/org/apache/pu
 
 ### Multi-topic subscriptions
 
-In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](getting-started-concepts-and-architecture.md#multi-topic-subscriptions). To use multi-topic subscriptions you can supply either a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
+In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](concepts-messaging.md#multi-topic-subscriptions). To use multi-topic subscriptions you can supply either a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
 
 Here are some examples:
 
@@ -302,7 +302,7 @@ consumerBuilder
 
 ## Reader interface {#readers}
 
-With the [reader interface](getting-started-concepts-and-architecture.md#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic, a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}, and {@inject javadoc:ReaderConfiguration:/client/org/apache/pulsar/client/api/ReaderConfiguration}.
+With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic, a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}, and {@inject javadoc:ReaderConfiguration:/client/org/apache/pulsar/client/api/ReaderConfiguration}.
 
 Here's an example:
 
@@ -327,7 +327,7 @@ The code sample above shows pointing the `Reader` object to a specific message (
 
 ## Schemas
 
-In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](getting-started-concepts-and-architecture.md#schema-registry) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](concepts-schema-registry.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
 
 ```java
 Producer<byte[]> producer = client.newProducer()
@@ -407,11 +407,11 @@ The following schema formats are currently available for Java:
 
 ## Authentication
 
-Pulsar currently supports two authentication schemes: [TLS](security-tls.md) and [Athenz](security-athenz.md). The Pulsar Java client can be used with both.
+Pulsar currently supports two authentication schemes: [TLS](security-tls-authentication.md) and [Athenz](security-athenz.md). The Pulsar Java client can be used with both.
 
 ### TLS Authentication
 
-To use [TLS](security-tls.md), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](security-tls-authentication.md), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 Here's an example configuration:
 

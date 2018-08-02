@@ -107,7 +107,7 @@ producer.newMessage()
 
 #### Topic stats
 
-Topic-specific statistics for global topics are available via the [`pulsar-admin`](reference-pulsar-admin.md) tool and [REST API](reference-rest-api.md):
+Topic-specific statistics for global topics are available via the [`pulsar-admin`](reference-pulsar-admin.md) tool and {@inject: rest:REST:/} API:
 
 ```shell
 $ bin/pulsar-admin persistent stats persistent://my-tenant/my-namespace/my-topic

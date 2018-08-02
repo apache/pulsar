@@ -549,9 +549,4 @@ message CommandPartitionedTopicMetadataResponse {
 
 ## Protobuf interface
 
-{% include protobuf.html %}
-
-
-
-
-
+All Pulsar's Protobuf definitions can be found {@inject: github:here:/pulsar-common/src/main/proto/PulsarApi.proto}.

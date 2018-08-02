@@ -405,7 +405,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 
 ## Pulsar proxy 
 
-The [Pulsar proxy](getting-started-concepts-and-architecture.md#pulsar-proxy) can be configured in the `conf/proxy.conf` file.
+The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be configured in the `conf/proxy.conf` file.
 
 
 |Name|Description|Default|
