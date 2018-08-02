@@ -242,7 +242,7 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String outputSerdeClassName;
 
-        @Parameter(names = {"-st", "--schemaType"}, description = "The SerDe class to be used for messages output by the function")
+        @Parameter(names = {"-st", "--schemaType"}, description = "The builtin schema type or custom schema class name to be used for messages output by the function")
         protected String schemaTypeOrClassName;
 
         @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file specifying the function's configuration")
