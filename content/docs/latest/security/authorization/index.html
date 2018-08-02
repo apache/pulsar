@@ -565,8 +565,15 @@
           
           
           <li>
+            <a href="../../security/tls-transport">
+              Transport Encryption with TLS
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../security/tls">
-              Encryption and Authentication using TLS
+              Authentication using TLS
             </a>
           </li>
           
@@ -998,6 +1005,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1116,8 +1125,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1211,6 +1218,8 @@
           
           
           <li><a href="/docs/latest/cookbooks/tiered-storage/">Tiered Storage</a></li>
+          
+          
           
           
           
@@ -1405,6 +1414,8 @@
           
           
           <li><a href="/docs/latest/security/extending/">Extending Authentication and Authorization in Pulsar</a></li>
+          
+          
           
           
           
@@ -1707,6 +1718,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1869,6 +1882,8 @@
           
           
           <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
+          
+          
           
           
           
@@ -2195,6 +2210,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -2232,6 +2249,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -2360,8 +2379,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -2421,6 +2438,8 @@
           
           
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
           
           
           
@@ -2522,6 +2541,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
           
           
@@ -2612,9 +2633,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
+          
+          
           
           
           
@@ -2732,11 +2753,21 @@
 -->
 
 <p>In Pulsar, the <a href="../overview#authentication-providers">authentication provider</a> is charged with properly identifying clients and
-associating them with <a href="../overview#role-tokens">role tokens</a>. <em>Authorization</em> is the process that determines <em>what</em> clients are able to do.</p>
+associating them with <a href="../overview#role-tokens">role tokens</a>. If only authentication is enabled, an authenticated role token will have the ability to access all resources in the cluster. <em>Authorization</em> is the process that determines <em>what</em> clients are able to do.</p>
 
-<p>Authorization in Pulsar is managed at the <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> level, which means that you can have multiple authorization schemes active
-in a single Pulsar instance. You could, for example, create a <code class="highlighter-rouge">shopping</code> tenant that has one set of <a href="../overview#role-tokens">roles</a>
-and applies to a shopping application used by your company, while an <code class="highlighter-rouge">inventory</code> tenant would be used only by an inventory application.</p>
+<p>The role tokens with the most privileges are the <em>superusers</em>. The <em>superusers</em> can create and destroy tenants, along with having full access to all tenant resources.</p>
+
+<p>When a <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> is created by a superuser, that tenant is assigned an admin role. A client with the admin role token can then create, modify and destroy namespaces, and grant and revoke permissions to <em>other role tokens</em> on those namespaces.</p>
+
+<h2 id="broker-and-proxy-setup">Broker and Proxy Setup</h2>
+
+<h3 id="enabling-authorization-and-assigning-superusers">Enabling Authorization and Assigning Superusers</h3>
+
+<p>Authorization is enabled and superusers are assigned in the broker (<a href="../../reference/Configuration#broker"><code class="highlighter-rouge">conf/broker.conf</code></a>) and proxy (<a href="../../reference/Configuration#proxy"><code class="highlighter-rouge">conf/proxy.conf</code></a>) configuration files.</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">authorizationEnabled</span><span class="p">=</span><span class="s">true</span>
+<span class="py">superUserRoles</span><span class="p">=</span><span class="s">my-super-user-1,my-super-user-2</span>
+</code></pre></div></div>
 
 <!--
 
@@ -2760,14 +2791,38 @@ and applies to a shopping application used by your company, while an <code class
 -->
 
 <div class="admonition">
-  <div class="success">
+  <div class="info">
     
-    <p>When working with properties, you can specify which of your Pulsar clusters your property is allowed to use. This enables you to also have cluster-level authorization schemes.</p>
+    <p>A full listing of parameters available in the <code class="highlighter-rouge">conf/broker.conf</code> file, as well as the default values for those parameters, can be found in <a href="../../reference/Configuration#broker">Broker Configuration</a>.</p>
 
   </div>
 </div>
 
-<h2 id="creating-a-new-tenant">Creating a new tenant</h2>
+<p>Typically, superuser roles are used for administrators and clients but also for broker-to-broker authorization. When using <a href="../GeoReplication">geo-replication</a>, every broker needs to be able to publish to all the other clusters’ topics.</p>
+
+<h3 id="proxy-roles">Proxy Roles</h3>
+
+<p>By default, the broker treats the connection between a proxy and the broker as a normal user connection. The user is authenticated as the role configured in <code class="highlighter-rouge">proxy.conf</code> (see <a href="../tls#-on-proxies">“Enabling TLS Authentication on Proxies”</a>). However, this is rarely the behaviour that the user desires when connecting to the cluster through a proxy. The user expects to be able to interact with the cluster as the role for which they have authenticated with the proxy.</p>
+
+<p>Pulsar uses <em>Proxy roles</em> to enable this. Proxy roles are specified in the broker configuration file, <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">conf/broker.conf</code></a>. If a client that is authenticated with a broker is one of its <code class="highlighter-rouge">proxyRoles</code>, all requests from that client must also carry information about the role of the client that is authenticated with the proxy. If this information, which we call the <em>original principal</em>, is missing, the client will not be able to access anything.</p>
+
+<p>Both the <em>proxy role</em> and the <em>original principle</em> must be authorized to access a resource for that resource to be accessible via the proxy. Administrators can take two approaches to this.</p>
+
+<p>The more secure approach is to grant access to the proxy roles each time you grant access to a resource. For example, if you have a proxy role <code class="highlighter-rouge">proxy1</code>, when a tenant is created by the superuser, <code class="highlighter-rouge">proxy1</code> should be specified as one of the admin roles. When a role is granted permissions to produce or consume from a namespace, if that client wants to produce or consume through a proxy, <code class="highlighter-rouge">proxy1</code> should also be granted the same permissions.</p>
+
+<p>Another approach is to make the proxy role a superuser. This will allow the proxy to access all resources. The client will still need to authenticate with the proxy, and all requests made through the proxy will have their role downgraded to the <em>original principal</em> of the authenticated client. However, if the proxy is compromised, a bad actor could get full access to your cluster.</p>
+
+<p>Roles can be specified as proxy roles in <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">conf/broker.conf</code></a>.</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">proxyRoles</span><span class="p">=</span><span class="s">my-proxy-role</span>
+
+<span class="c"># if you want to allow superusers to use the proxy (see above)
+</span><span class="py">superUserRoles</span><span class="p">=</span><span class="s">my-super-user-1,my-super-user-2,my-proxy-role</span>
+</code></pre></div></div>
+
+<h2 id="administering-tenants">Administering Tenants</h2>
+
+<h3 id="creating-a-new-tenant">Creating a new tenant</h3>
 
 <p>A Pulsar <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> is typically provisioned by Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> administrators or by some kind of self-service portal.</p>
 
@@ -2808,7 +2863,7 @@ and applies to a shopping application used by your company, while an <code class
   persistent://<span class="property">tenant</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
 </section>
 
-<h2 id="managing-permissions">Managing permissions</h2>
+<h3 id="managing-permissions">Managing permissions</h3>
 
 <!--
 
@@ -2936,48 +2991,7 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
 </code></pre></div></div>
 
-<h2 id="superusers">Superusers</h2>
-
-<p>In Pulsar you can assign certain roles to be <em>superusers</em> of the system. A superuser is allowed to perform all administrative tasks on all tenants and namespaces, as well as to publish and subscribe to all topics.</p>
-
-<p>Superusers are configured in the broker configuration file in <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">conf/broker.conf</code></a> configuration file, using the <a href="../../reference/Configuration#broker-superUserRoles"><code class="highlighter-rouge">superUserRoles</code></a> parameter:</p>
-
-<pre><code class="language-tenants">superUserRoles=my-super-user-1,my-super-user-2
-</code></pre>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<div class="admonition">
-  <div class="info">
-    
-    <p>A full listing of parameters available in the <code class="highlighter-rouge">conf/broker.conf</code> file, as well as the default values for those parameters, can be found in <a href="../../reference/Configuration#broker">Broker Configuration</a>.</p>
-
-  </div>
-</div>
-
-<p>Typically, superuser roles are used for administrators and clients but also for broker-to-broker authorization. When using <a href="../GeoReplication">geo-replication</a>, every broker
-needs to be able to publish to other clusters’ topics.</p>
-
-<h2 id="pulsar-admin-authentication">Pulsar admin authentication</h2>
+<h3 id="pulsar-admin-authentication">Pulsar admin authentication</h3>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1:value1"</span><span class="o">;</span>

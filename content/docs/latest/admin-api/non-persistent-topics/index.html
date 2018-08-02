@@ -565,8 +565,15 @@
           
           
           <li>
+            <a href="../../security/tls-transport">
+              Transport Encryption with TLS
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../security/tls">
-              Encryption and Authentication using TLS
+              Authentication using TLS
             </a>
           </li>
           
@@ -1147,12 +1154,12 @@ persisting messages.</p>
 
 <h4 id="rest-api">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/non-persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/stats</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/non-persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/stats</code></pre></div>
 
 <h4 id="java">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"non-persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">nonPersistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"non-persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">nonPersistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="get-internal-stats">Get internal stats</h3>
@@ -1185,12 +1192,12 @@ persisting messages.</p>
 
 <h4 id="rest-api-1">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/non-persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/internalStats</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/non-persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/internalStats</code></pre></div>
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"non-persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">nonPersistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"non-persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">nonPersistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="create-partitioned-topic">Create partitioned topic</h3>
@@ -1206,7 +1213,7 @@ persisting messages.</p>
 
 <h4 id="rest-api-2">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/v2/non-persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitions</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/v2/non-persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/partitions</code></pre></div>
 
 <h4 id="java-2">Java</h4>
 
@@ -1245,7 +1252,7 @@ persisting messages.</p>
 
 <h4 id="rest-api-3">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/non-persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/partitions</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/non-persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/partitions</code></pre></div>
 
 <h4 id="java-3">Java</h4>
 
@@ -1267,14 +1274,14 @@ persisting messages.</p>
 
 <h4 id="rest-api-4">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/v2/non-persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/unload</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/v2/non-persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/unload</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/non-persistent/:tenant/:namespace/:destination/unload">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/non-persistent/:tenant/:namespace/:topic/unload">More info</a></p>
 
 <h4 id="java-4">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"non-persistent://my-tenantmy-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">nonPersistentTopics</span><span class="o">().</span><span class="na">unload</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"non-persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">nonPersistentTopics</span><span class="o">().</span><span class="na">unload</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
       </section>

@@ -565,8 +565,15 @@
           
           
           <li>
+            <a href="../../security/tls-transport">
+              Transport Encryption with TLS
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../security/tls">
-              Encryption and Authentication using TLS
+              Authentication using TLS
             </a>
           </li>
           
@@ -1061,10 +1068,10 @@
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">role</span> <span class="o">=</span> <span class="s">"test-role"</span><span class="o">;</span>
 <span class="n">Set</span><span class="o">&lt;</span><span class="n">AuthAction</span><span class="o">&gt;</span> <span class="n">actions</span>  <span class="o">=</span> <span class="n">Sets</span><span class="o">.</span><span class="na">newHashSet</span><span class="o">(</span><span class="n">AuthAction</span><span class="o">.</span><span class="na">produce</span><span class="o">,</span> <span class="n">AuthAction</span><span class="o">.</span><span class="na">consume</span><span class="o">);</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">grantPermission</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">actions</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">grantPermission</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">actions</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="get-permission">Get permission</h3>
@@ -1088,12 +1095,12 @@
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/permissions</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:tenant:namespace/permissions">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions">More info</a></p>
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="revoke-permission">Revoke permission</h3>
@@ -1118,15 +1125,15 @@
 
 <h4 id="rest-api-3">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span><span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/v2/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
 
 <p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions/:role">More info</a></p>
 
 <h4 id="java-3">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">role</span> <span class="o">=</span> <span class="s">"test-role"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">revokePermissions</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">revokePermissions</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="delete-topic">Delete topic</h3>
@@ -1143,14 +1150,14 @@
 
 <h4 id="rest-api-4">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic">More info</a></p>
 
 <h4 id="java-4">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">delete</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">delete</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="unload-topic">Unload topic</h3>
@@ -1167,14 +1174,14 @@
 
 <h4 id="rest-api-5">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/unload</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/unload</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/unload">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/unload">More info</a></p>
 
 <h4 id="java-5">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">unload</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">unload</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="get-stats">Get stats</h3>
@@ -1304,14 +1311,14 @@
 
 <h4 id="rest-api-6">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/stats</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/stats</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:tenant:namespace/:destination/stats">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/stats">More info</a></p>
 
 <h4 id="java-6">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="get-internal-stats">Get internal stats</h3>
@@ -1436,14 +1443,14 @@
 
 <h4 id="rest-api-7">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/internalStats</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/internalStats</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/internalStats">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/internalStats">More info</a></p>
 
 <h4 id="java-7">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="peek-messages">Peek messages</h3>
@@ -1463,16 +1470,16 @@ msg-payload
 
 <h4 id="rest-api-8">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/position/<span class="endpoint">:messagePosition</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/subscription/<span class="endpoint">:subName</span>/position/<span class="endpoint">:messagePosition</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/position/:messagePosition">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition">More info</a></p>
 
 <h4 id="java-8">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
 <span class="kt">int</span> <span class="n">numMessages</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">peekMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">peekMessages</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="skip-messages">Skip messages</h3>
@@ -1488,16 +1495,16 @@ msg-payload
 
 <h4 id="rest-api-9">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/skip/<span class="endpoint">:numMessages</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/subscription/<span class="endpoint">:subName</span>/skip/<span class="endpoint">:numMessages</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip/:numMessages">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages">More info</a></p>
 
 <h4 id="java-9">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
 <span class="kt">int</span> <span class="n">numMessages</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipMessages</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="skip-all-messages">Skip all messages</h3>
@@ -1513,15 +1520,15 @@ msg-payload
 
 <h4 id="rest-api-10">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/skip_all</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/subscription/<span class="endpoint">:subName</span>/skip_all</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip_all">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all">More info</a></p>
 
 <h4 id="java-10">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipAllMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipAllMessages</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">subName</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="reset-cursor">Reset cursor</h3>
@@ -1537,21 +1544,21 @@ msg-payload
 
 <h4 id="rest-api-11">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/resetcursor/<span class="endpoint">:timestamp</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/subscription/<span class="endpoint">:subName</span>/resetcursor/<span class="endpoint">:timestamp</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/resetcursor/:timestamp">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp">More info</a></p>
 
 <h4 id="java-11">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
 <span class="kt">long</span> <span class="n">timestamp</span> <span class="o">=</span> <span class="mi">2342343L</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipAllMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">timestamp</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipAllMessages</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">timestamp</span><span class="o">);</span>
 </code></pre></div></div>
 
-<h3 id="lookup-of-topic">Lookup of topic</h3>
+<h3 id="lookup-topic">Lookup topic</h3>
 
-<p>It locates broker url which is serving the given topic.</p>
+<p>It locates the broker url which is serving the given topic.</p>
 
 <h4 id="pulsar-admin-12">pulsar-admin</h4>
 
@@ -1563,12 +1570,12 @@ msg-payload
 
 <h4 id="rest-api-12">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/lookup/v2/destination/persistent/<span class="endpoint">:tenant</span><span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/lookup/v2/topic/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
 
 <h4 id="java-12">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">lookup</span><span class="o">().</span><span class="na">lookupDestination</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">lookup</span><span class="o">().</span><span class="na">lookupTopic</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="get-bundle">Get bundle</h3>
@@ -1585,12 +1592,12 @@ msg-payload
 
 <h4 id="rest-api-13">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/lookup/v2/destination/<span class="endpoint">:destination_domain</span>/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/bundle</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/lookup/v2/topic/<span class="endpoint">:topic_domain</span>/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/bundle</code></pre></div>
 
 <h4 id="java-13">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">lookup</span><span class="o">().</span><span class="na">getBundleRange</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">lookup</span><span class="o">().</span><span class="na">getBundleRange</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="get-subscriptions">Get subscriptions</h3>
@@ -1607,14 +1614,14 @@ msg-payload
 
 <h4 id="rest-api-14">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscriptions</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/v2/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/subscriptions</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscriptions">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscriptions">More info</a></p>
 
 <h4 id="java-14">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getSubscriptions</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getSubscriptions</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="unsubscribe">Unsubscribe</h3>
@@ -1636,9 +1643,9 @@ msg-payload
 
 <h4 id="java-15">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subscriptionName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
-<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">deleteSubscription</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subscriptionName</span><span class="o">);</span>
+<span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">deleteSubscription</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">subscriptionName</span><span class="o">);</span>
 </code></pre></div></div>
 
       </section>
