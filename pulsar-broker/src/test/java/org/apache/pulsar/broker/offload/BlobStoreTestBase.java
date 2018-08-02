@@ -36,16 +36,41 @@ public class BlobStoreTestBase {
 
     @BeforeMethod
     public void start() throws Exception {
-        context = ContextBuilder.newBuilder("transient").build(BlobStoreContext.class);
-        blobStore = context.getBlobStore();
-        boolean create = blobStore.createContainerInLocation(null, BUCKET);
-
-        log.debug("TestBase Create Bucket: {}, in blobStore, result: {}", BUCKET, create);
+        if (Boolean.parseBoolean(System.getProperty("testRealAWS", "false"))) {
+            log.info("TestReal AWS S3, bucket: {}", BUCKET);
+            // To use this, must config credentials using "aws_access_key_id" as S3ID,
+            // and "aws_secret_access_key" as S3Key. And bucket should exist in default region. e.g.
+            //        props.setProperty("S3ID", "AXXXXXXQ");
+            //        props.setProperty("S3Key", "HXXXXXß");
+            context = ContextBuilder.newBuilder("aws-s3")
+                .credentials(System.getProperty("S3ID"), System.getProperty("S3Key"))
+                .build(BlobStoreContext.class);
+            blobStore = context.getBlobStore();
+            // To use this, ~/.aws must be configured with credentials and a default region
+            //s3client = AmazonS3ClientBuilder.standard().build();
+        } else if (Boolean.parseBoolean(System.getProperty("testRealGCS", "false"))) {
+            log.info("TestReal GCS, bucket: {}", BUCKET);
+            // To use this, must config credentials using "client_email" as GCSID and "private_key" as GCSKey.
+            // And bucket should exist in default region. e.g.
+            //        props.setProperty("GCSID", "5XXXXXXXXXX6-compute@developer.gserviceaccount.com");
+            //        props.setProperty("GCSKey", "XXXXXX");
+            context = ContextBuilder.newBuilder("google-cloud-storage")
+                .credentials(System.getProperty("GCSID"), System.getProperty("GCSKey"))
+                .build(BlobStoreContext.class);
+            blobStore = context.getBlobStore();
+        } else {
+            context = ContextBuilder.newBuilder("transient").build(BlobStoreContext.class);
+            blobStore = context.getBlobStore();
+            boolean create = blobStore.createContainerInLocation(null, BUCKET);
+            log.debug("TestBase Create Bucket: {}, in blobStore, result: {}", BUCKET, create);
+        }
     }
 
     @AfterMethod
     public void tearDown() {
-        if (blobStore != null) {
+        if (blobStore != null &&
+            (!Boolean.parseBoolean(System.getProperty("testRealGCS", "false")) &&
+             !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")))) {
             blobStore.deleteContainer(BUCKET);
         }
 
