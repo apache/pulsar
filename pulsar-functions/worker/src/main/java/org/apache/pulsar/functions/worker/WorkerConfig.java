@@ -53,6 +53,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String workerId;
     private String workerHostname;
     private int workerPort;
+    private int workerPortTls;
     private String connectorsDirectory = "./connectors";
     private String functionMetadataTopicName;
     private String pulsarServiceUrl;
@@ -73,10 +74,21 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private long instanceLivenessCheckFreqMs;
     private String clientAuthenticationPlugin;
     private String clientAuthenticationParameters;
-    private boolean useTls = false;
+    /***** --- TLS --- ****/
+    // Enable TLS
+    private boolean tlsEnabled = false;
+    // Path for the TLS certificate file
+    private String tlsCertificateFilePath;
+    // Path for the TLS private key file
+    private String tlsKeyFilePath;
+    // Path for the trusted TLS certificate file
     private String tlsTrustCertsFilePath = "";
+    // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
+    private boolean tlsRequireTrustedClientCertOnConnect = false;
+    private boolean useTls = false;
     private boolean tlsHostnameVerificationEnable = false;
+    
     private int metricsSamplingPeriodSec = 60;
     // Enforce authentication
     private boolean authenticationEnabled = false;
