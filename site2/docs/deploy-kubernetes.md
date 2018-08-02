@@ -4,6 +4,11 @@ title: Deploying Pulsar on Kubernetes
 sidebar_label: Kubernetes
 ---
 
+> ### Tips
+>
+> If you want to enable all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
+> `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
+
 Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or [Amazon Web Services](https://aws.amazon.com/) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
 The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/reference/). The {@inject: github:`kubernetes`:/kubernetes} subdirectory of the [Pulsar package](pulsar:download_page_url) holds resource definitions for:
