@@ -79,7 +79,7 @@
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>protobuf-shaded</artifactId>
-      <version>${project.version}</version>
+      <version>${pulsar.protobuf.shaded.version}</version>
     </dependency>
 
     <dependency>

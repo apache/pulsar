@@ -99,7 +99,6 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-kafka-compat</module>
     <module>pulsar-zookeeper</module>
     <module>pulsar-log4j2-appender</module>
-    <module>protobuf-shaded</module>
     <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
     <module>jclouds-shaded</module>
 
@@ -126,6 +125,9 @@ flexible messaging model and an intuitive client API.</description>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
+
+    <!-- pin the protobuf-shaded version to make the pulsar build friendly to intellij -->
+    <pulsar.protobuf.shaded.version>2.1.0-incubating</pulsar.protobuf.shaded.version>
 
     <!-- apache commons -->
     <commons-compress.version>1.15</commons-compress.version>
