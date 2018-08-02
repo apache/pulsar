@@ -131,7 +131,7 @@ $ bin/pulsar proxy \
 Some important things to know about the Pulsar proxy:
 
 * Connecting clients don't need to provide *any* specific configuration to use the Pulsar proxy. You won't need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you're running a load balancer over the Pulsar proxy).
-* [TLS encryption and authentication](security-tls.md) is supported by the Pulsar proxy
+* [TLS encryption](security-tls-transport.md) and [authentication](security-tls-authentication.md) is supported by the Pulsar proxy
 
 ## Service discovery
 

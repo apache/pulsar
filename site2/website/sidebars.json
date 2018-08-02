@@ -51,7 +51,8 @@
     ],
     "Security": [
       "security-overview",
-      "security-tls",
+      "security-tls-transport",
+      "security-tls-authentication",
       "security-athenz",
       "security-authorization",
       "security-encryption",
