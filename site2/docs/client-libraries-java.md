@@ -63,7 +63,7 @@ A URL for a production Pulsar cluster may look something like this:
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you're using [TLS](security-tls.md) authentication, the URL will look like something like this:
+If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
 
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
@@ -407,11 +407,11 @@ The following schema formats are currently available for Java:
 
 ## Authentication
 
-Pulsar currently supports two authentication schemes: [TLS](security-tls.md) and [Athenz](security-athenz.md). The Pulsar Java client can be used with both.
+Pulsar currently supports two authentication schemes: [TLS](security-tls-authentication.md) and [Athenz](security-athenz.md). The Pulsar Java client can be used with both.
 
 ### TLS Authentication
 
-To use [TLS](security-tls.md), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](security-tls-authentication.md), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 Here's an example configuration:
 

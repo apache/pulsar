@@ -48,7 +48,7 @@ A URL for a production Pulsar cluster may look something like this:
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you're using [TLS](security-tls.md) authentication, the URL will look like something like this:
+If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
 
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
@@ -435,7 +435,7 @@ Parameter | Description
 
 ## TLS encryption and authentication
 
-In order to use [TLS encryption](security-tls.md), you'll need to configure your client to do so:
+In order to use [TLS encryption](security-tls-transport.md), you'll need to configure your client to do so:
 
  * Use `pulsar+ssl` URL type
  * Set `TLSTrustCertsFilePath` to the path to the TLS certs used by your client and the Pulsar broker
