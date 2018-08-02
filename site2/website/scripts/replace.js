@@ -25,6 +25,10 @@ function binaryReleaseUrl(version) {
   return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-bin.tar.gz`
 }
 
+function connectorReleaseUrl(version) {
+  return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-io-connectors-${version}-bin.tar.gz`
+}
+
 function rpmReleaseUrl(version, type) {
   rpmVersion = version.replace('incubating', '1_incubating');
   return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}.x86_64.rpm`
@@ -56,6 +60,7 @@ const from = [
   /{{pulsar:version_number}}/g,
   /{{pulsar:version}}/g, 
   /pulsar:binary_release_url/g,
+  /pulsar:connector_release_url/g,
   /pulsar:download_page_url/g,
   /{{pulsar:rpm:client}}/g,
   /{{pulsar:rpm:client-debuginfo}}/g,
@@ -75,6 +80,7 @@ const options = {
     `${latestVersion}`, 
     `${latestVersion}-incubating`, 
     binaryReleaseUrl(`${latestVersion}-incubating`), 
+    connectorReleaseUrl(`${latestVersion}-incubating`), 
     downloadPageUrl(),
     rpmReleaseUrl(`${latestVersion}-incubating`, ""),
     rpmReleaseUrl(`${latestVersion}-incubating`, "-debuginfo"),
@@ -103,6 +109,7 @@ for (v of versions) {
       `${v}`, 
       `${v}-incubating`, 
       binaryReleaseUrl(`${v}-incubating`),
+      connectorReleaseUrl(`${v}-incubating`),
       downloadPageUrl(),
       rpmReleaseUrl(`${v}-incubating`, ""),
       rpmReleaseUrl(`${v}-incubating`, "-debuginfo"),
