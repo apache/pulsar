@@ -118,7 +118,7 @@ public class NamespaceStatsAggregator {
                         .computeIfAbsent(consumer, k -> new AggregatedConsumerStats());
 
                 consumerStats.unackedMessages += consumer.getStats().unackedMessages;
-                consumerStats.msgRateRedeliver += consumer.getStats().msgRateRedeliver;
+                consumerStats.msgRateRedeliver = consumer.getStats().msgRateRedeliver;
                 consumerStats.blockedSubscriptionOnUnackedMsgs = consumer.getStats().blockedConsumerOnUnackedMsgs;
 
                 subsStats.unackedMessages += consumer.getStats().unackedMessages;
