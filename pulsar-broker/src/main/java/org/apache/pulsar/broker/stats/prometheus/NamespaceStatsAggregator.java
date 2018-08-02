@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -76,7 +76,7 @@ public class NamespaceStatsAggregator {
 
         if (topic instanceof PersistentTopic) {
             // Managed Ledger stats
-            ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ((PersistentTopic)topic).getManagedLedger().getStats();
+            ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ((PersistentTopic) topic).getManagedLedger().getStats();
 
             stats.storageSize = mlStats.getStoredMessagesSize();
 
@@ -108,11 +108,33 @@ public class NamespaceStatsAggregator {
             stats.subscriptionsCount++;
             stats.msgBacklog += subscription.getNumberOfEntriesInBacklog();
 
+            AggregatedSubscriptionStats subsStats = stats.subscriptionStats
+                    .computeIfAbsent(name, k -> new AggregatedSubscriptionStats());
+            subsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog();
+
             subscription.getConsumers().forEach(consumer -> {
+
+                AggregatedConsumerStats consumerStats = subsStats.consumerStat
+                        .computeIfAbsent(consumer, k -> new AggregatedConsumerStats());
+
+                consumerStats.unackedMessages += consumer.getStats().unackedMessages;
+                consumerStats.msgRateRedeliver += consumer.getStats().msgRateRedeliver;
+                consumerStats.blockedSubscriptionOnUnackedMsgs = consumer.getStats().blockedConsumerOnUnackedMsgs;
+
+                subsStats.unackedMessages += consumer.getStats().unackedMessages;
+                subsStats.msgRateRedeliver += consumer.getStats().msgRateRedeliver;
+
                 stats.consumersCount++;
                 stats.rateOut += consumer.getStats().msgRateOut;
                 stats.throughputOut += consumer.getStats().msgThroughputOut;
             });
+
+            for (AggregatedConsumerStats consumerStats : subsStats.consumerStat.values()) {
+                if (consumerStats.blockedSubscriptionOnUnackedMsgs) {
+                    subsStats.blockedSubscriptionOnUnackedMsgs = true;
+                    break;
+                }
+            }
         });
 
         topic.getReplicators().forEach((cluster, replicator) -> {
@@ -127,7 +149,7 @@ public class NamespaceStatsAggregator {
     }
 
     private static void printNamespaceStats(SimpleTextOutputStream stream, String cluster, String namespace,
-            AggregatedNamespaceStats stats) {
+                                            AggregatedNamespaceStats stats) {
         metric(stream, cluster, namespace, "pulsar_topics_count", stats.topicsCount);
         metric(stream, cluster, namespace, "pulsar_subscriptions_count", stats.subscriptionsCount);
         metric(stream, cluster, namespace, "pulsar_producers_count", stats.producersCount);
@@ -192,19 +214,19 @@ public class NamespaceStatsAggregator {
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String name,
-            long value) {
+                               long value) {
         stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String name,
-            double value) {
+                               double value) {
         stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metricWithRemoteCluster(SimpleTextOutputStream stream, String cluster, String namespace,
-            String name, String remoteCluster, double value) {
+                                                String name, String remoteCluster, double value) {
         stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace);
         stream.write("\", remote_cluster=\"").write(remoteCluster).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
