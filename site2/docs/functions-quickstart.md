@@ -4,7 +4,7 @@ title: Getting started with Pulsar Functions
 sidebar_label: Getting started
 ---
 
-This tutorial will walk you through running a [standalone](reference-teminology.md#standalone) Pulsar [cluster](reference-teminology.md#cluster) on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar [cluster](reference-teminology.md#cluster)), while the second will run in cluster mode (inside your cluster).
+This tutorial will walk you through running a [standalone](reference-terminology.md#standalone) Pulsar [cluster](reference-terminology.md#cluster) on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar [cluster](reference-terminology.md#cluster)), while the second will run in cluster mode (inside your cluster).
 
 > In local run mode, your Pulsar Function will communicate with your Pulsar cluster but will run outside of the cluster.
 
@@ -14,12 +14,12 @@ In order to follow along with this tutorial, you'll need to have [Maven](https:/
 
 ## Run a standalone Pulsar cluster
 
-In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in [standalone](reference-teminology.md#standalone) mode. Follow these steps to start up a standalone cluster:
+In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in [standalone](reference-terminology.md#standalone) mode. Follow these steps to start up a standalone cluster:
 
 ```bash
-$ wget https://repository.apache.org/content/repositories/snapshots/org/apache/pulsar/distribution/2.0.0-incubating-SNAPSHOT/distribution-2.0.0-incubating-{{ site.preview_version_id }}-bin.tar.gz
-$ tar xvf distribution-2.0.0-incubating-{{ site.preview_version_id }}-bin.tar.gz
-$ cd apache-pulsar-2.0.0-incubating-SNAPSHOT
+$ wget pulsar:binary_release_url
+$ tar xvfz apache-pulsar-{{pulsar:version}}-bin.tar.gz
+$ cd apache-pulsar-{{pulsar:version}}
 $ bin/pulsar standalone \
   --advertised-address 127.0.0.1
 ```
@@ -60,7 +60,7 @@ $ bin/pulsar-admin functions localrun \
 > --inputs topic1,topic2
 > ```
 
-We can open up another shell and use the [`pulsar-client`](reference-pulsar-admin.md#pulsar-client) tool to listen for messages on the output topic:
+We can open up another shell and use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool to listen for messages on the output topic:
 
 ```bash
 $ bin/pulsar-client consume persistent://public/default/exclamation-output \
@@ -95,7 +95,7 @@ Here's what happened:
 
 ## Run a Pulsar Function in cluster mode
 
-[Local run mode](#local-run-mode) is useful for development and experimentation, but if you want to use Pulsar Functions in a real Pulsar deployment, you'll want to run them in **cluster mode**. In this mode, Pulsar Functions run *inside* your Pulsar cluster and are managed using the same [`pulsar-admin functions`](reference-pulsar-admin.md#pulsar-admin-functions) interface that we've been using thus far.
+[Local run mode](#run-a-pulsar-function-in-local-run-mode) is useful for development and experimentation, but if you want to use Pulsar Functions in a real Pulsar deployment, you'll want to run them in **cluster mode**. In this mode, Pulsar Functions run *inside* your Pulsar cluster and are managed using the same [`pulsar-admin functions`](reference-pulsar-admin.md#functions) interface that we've been using thus far.
 
 This command, for example, would deploy the same exclamation function we ran locally above *in our Pulsar cluster* (rather than outside it):
 
@@ -208,7 +208,7 @@ If you see `Deleted successfully` in the output, then you've succesfully run, up
 
 ## Writing and running a new function
 
-> In order to write and run the [Python](functions-api.md#python) function below, you'll need to install a few dependencies:
+> In order to write and run the [Python](functions-api.md#functions-for-python) function below, you'll need to install a few dependencies:
 > ```bash
 > $ pip install pulsar-client protobuf futures grpcio grpcio-tools
 > ```
@@ -241,7 +241,7 @@ $ bin/pulsar-admin functions create \
   --name reverse
 ```
 
-If you see `Created successfully`, the function is ready to accept incoming messages. Because the function is running in cluster mode, we can **trigger** the function using the [`trigger`](reference-pulsar-admin.md#pulsar-admin-functions-trigger) command. This command will send a message that we specify to the function and also give us the function's output. Here's an example:
+If you see `Created successfully`, the function is ready to accept incoming messages. Because the function is running in cluster mode, we can **trigger** the function using the [`trigger`](reference-pulsar-admin.md#trigger) command. This command will send a message that we specify to the function and also give us the function's output. Here's an example:
 
 ```bash
 $ bin/pulsar-admin functions trigger \
@@ -257,7 +257,7 @@ You should get this output:
 This string was backwards but is now forwards
 ```
 
-Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster in [cluster mode](#cluster-mode) and successfully triggered the function. If you're ready for more, check out one of these docs:
+Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster in [cluster mode](#run-a-pulsar-function-in-cluster-mode) and successfully triggered the function. If you're ready for more, check out one of these docs:
 
 * [The Pulsar Functions API](functions-api.md)
 * [Deploying Pulsar Functions](functions-deploying.md)
