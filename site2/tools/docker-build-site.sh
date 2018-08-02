@@ -38,6 +38,7 @@ echo "---- Build Pulsar website using image $IMAGE"
 CI_USER=$(id -u)
 CI_GROUP=$(id -g)
 
+# crowdin keys
 CROWDIN_DOCUSAURUS_PROJECT_ID=${CROWDIN_DOCUSAURUS_PROJECT_ID:-"apache-pulsar"}
 CROWDIN_DOCUSAURUS_API_KEY=${CROWDIN_DOCUSAURUS_API_KEY:-UNSET}
 
