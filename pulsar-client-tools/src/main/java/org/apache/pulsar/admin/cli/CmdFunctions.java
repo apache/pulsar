@@ -86,6 +86,7 @@ import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.WindowConfig;
+import org.apache.pulsar.functions.utils.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassesValidator;
 import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
@@ -240,6 +241,8 @@ public class CmdFunctions extends CmdBase {
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         @Parameter(names = "--userConfig", description = "User-defined config key/values")
         protected String userConfigString;
+        @Parameter(names = "--retainOrdering", description = "Function consumes and processes messages in order")
+        protected boolean retainOrdering;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
@@ -315,6 +318,9 @@ public class CmdFunctions extends CmdBase {
             if (null != processingGuarantees) {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
             }
+            
+            functionConfig.setRetainOrdering(retainOrdering);
+            
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
@@ -567,24 +573,13 @@ public class CmdFunctions extends CmdBase {
                 sourceSpecBuilder.setTopicsPattern(functionConfig.getTopicsPattern());
             }
 
-            // Set subscription type based on processing semantics
-            if (functionConfig.getProcessingGuarantees() != null) {
-                switch (functionConfig.getProcessingGuarantees()) {
-                    case ATMOST_ONCE:
-                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.SHARED);
-                        break;
-                    case ATLEAST_ONCE:
-                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.SHARED);
-                        break;
-                    case EFFECTIVELY_ONCE:
-                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.FAILOVER);
-                        break;
-                    default:
-                        throw new RuntimeException("Unknown processing guarantee: "
-                                + functionConfig.getProcessingGuarantees().name());
-                }
-            }
-
+            // Set subscription type based on ordering and EFFECTIVELY_ONCE semantics
+            SubscriptionType subType = (functionConfig.isRetainOrdering()
+                    || ProcessingGuarantees.EFFECTIVELY_ONCE.equals(functionConfig.getProcessingGuarantees()))
+                            ? SubscriptionType.FAILOVER
+                            : SubscriptionType.SHARED;
+            sourceSpecBuilder.setSubscriptionType(subType);
+            
             if (typeArgs != null) {
                 sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
             }
