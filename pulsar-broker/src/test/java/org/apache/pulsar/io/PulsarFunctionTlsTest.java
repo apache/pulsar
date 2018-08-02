@@ -74,7 +74,6 @@ public class PulsarFunctionTlsTest {
     String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
     String workerId;
     WorkerServer workerServer;
-    Thread serverThread;
     PulsarAdmin functionAdmin;
     private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
     private final int workerServicePort = PortManager.nextFreePort();
@@ -128,8 +127,7 @@ public class PulsarFunctionTlsTest {
         when(functionsWorkerService.getFunctionMetaDataManager()).thenReturn(dataManager);
 
         workerServer = new WorkerServer(functionsWorkerService);
-        serverThread = new Thread(workerServer, workerServer.getThreadName());
-        serverThread.start();
+        workerServer.start();
         Thread.sleep(2000);
         String functionTlsUrl = String.format("https://%s:%s",
                 functionsWorkerService.getWorkerConfig().getWorkerHostname(), workerServicePortTls);
@@ -153,14 +151,6 @@ public class PulsarFunctionTlsTest {
         functionAdmin.close();
         bkEnsemble.stop();
         workerServer.stop();
-        if (null != serverThread) {
-            serverThread.interrupt();
-            try {
-                serverThread.join();
-            } catch (InterruptedException e) {
-                log.warn("Worker server thread is interrupted", e);
-            }
-        }
         functionsWorkerService.stop();
     }
 
