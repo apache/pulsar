@@ -14,7 +14,7 @@ Delivery semantics | Description
 
 ## Applying processing guarantees to a function
 
-You can set the processing guarantees for a Pulsar Function when you create the Function. This [`pulsar-function create`](reference-pulsar-admin.md#pulsar-admin-functions-create) command, for example, would apply effectively-once guarantees to the Function:
+You can set the processing guarantees for a Pulsar Function when you create the Function. This [`pulsar-function create`](reference-pulsar-admin.md#create-1) command, for example, would apply effectively-once guarantees to the Function:
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -32,7 +32,7 @@ The available options are:
 
 ## Updating the processing guarantees of a function
 
-You can change the processing guarantees applied to a function once it's already been created using the [`update`](reference-pulsar-admin.md#pulsar-admin-functions-update) command. Here's an example:
+You can change the processing guarantees applied to a function once it's already been created using the [`update`](reference-pulsar-admin.md#update-1) command. Here's an example:
 
 ```bash
 $ bin/pulsar-admin functions update \
