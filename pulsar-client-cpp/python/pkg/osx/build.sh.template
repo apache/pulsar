@@ -23,21 +23,29 @@ set -e
 GITTAG=#TAG#
 PYTHONVER=#PYTHONVER#
 
+BOOST_VERSION=1.67
+
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 
-brew install openssl git boost pkg-config jsoncpp cmake protobuf260 log4cxx
+brew install openssl git boost@$BOOST_VERSION pkg-config jsoncpp cmake protobuf260 log4cxx
+
+brew link --force boost@$BOOST_VERSION
 
 if [ "$PYTHONVER" = "PYTHON2" ]
 then
-	brew install python@2 boost-python
+	brew install python@2 boost-python@$BOOST_VERSION
+
+	brew link --force boost-python@$BOOST_VERSION
 fi
 
 if [ "$PYTHONVER" = "PYTHON3" ]
 then
-	brew install python boost-python3
+	brew install python boost-python3@BOOST_VERSION
+	brew link --force boost-python3@$BOOST_VERSION
 fi
 
 brew link --force protobuf260
+
 rm -rf incubator-pulsar
 git clone --depth 1 --branch $GITTAG https://github.com/apache/incubator-pulsar.git
 cd incubator-pulsar/pulsar-client-cpp
