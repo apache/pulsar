@@ -1,7 +1,8 @@
 ---
-id: io-quickstart
+id: version-2.1.0-incubating-io-quickstart
 title: "Tutorial: Connecting Pulsar with Apache Cassandra"
 sidebar_label: Getting started
+original_id: io-quickstart
 ---
 
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.
