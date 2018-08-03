@@ -170,13 +170,13 @@ public class WorkerServer implements Runnable {
     public void stop() {
         if (this.server != null) {
             try {
-                this.server.stop();
+                this.server.destroy();
             } catch (Exception e) {
                 log.error("Failed to stop function web-server ", e);
             }
-            if (this.webServerExecutor != null && !this.webServerExecutor.isShutdown()) {
-                this.webServerExecutor.shutdown();
-            }
+        }
+        if (this.webServerExecutor != null && !this.webServerExecutor.isShutdown()) {
+            this.webServerExecutor.shutdown();
         }
     }
     
