@@ -64,9 +64,9 @@ const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
 
 const url = 'https://pulsar.incubator.apache.org';
 const javadocUrl = url + '/api';
-const restApiUrl = url + '/staging/en' + "/admin-rest-api";
+const restApiUrl = url + '/en' + "/admin-rest-api";
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
-const baseUrl = '/staging/';
+const baseUrl = '/';
 
 const siteVariables = {
 };
@@ -91,16 +91,16 @@ const siteConfig = {
 
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [
-    {doc: 'standalone', label: 'Documentation'},
+    {doc: 'standalone', label: 'Docs'},
     {page: 'download', label: 'Download'},
-    {doc: 'client-libraries', label: 'Client libraries'},
+    {doc: 'client-libraries', label: 'Clients'},
     {page: 'admin-rest-api', label: 'REST API'},
     {href: '#community', label: 'Community'},
     {href: '#apache', label: 'Apache'},
     // Determines search bar position among links
     //{ search: true },
     // Determines language drop down position among links
-    //{ languages: true }
+    { languages: true }
   ],
 
   // If you have users set above, you add it here:
@@ -113,6 +113,9 @@ const siteConfig = {
   algolia: {
     apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
     indexName: 'apache_pulsar',
+    algoliaOptions: {
+      facetFilters: ['language:LANGUAGE', 'version:VERSION'],
+    },
   },
 
   /* colors for website */
