@@ -90,6 +90,9 @@ public class WorkerServer implements Runnable {
             final String message = getErrorMessage(server, this.workerConfig.getWorkerPort(), ex);
             log.error(message);
         } finally {
+            if (this.webServerExecutor != null && !this.webServerExecutor.isShutdown()) {
+                this.webServerExecutor.shutdown();
+            }
             server.destroy();
         }
     }
@@ -166,6 +169,9 @@ public class WorkerServer implements Runnable {
     @VisibleForTesting
     public void stop() {
         if (this.server != null) {
+            if (this.webServerExecutor != null && !this.webServerExecutor.isShutdown()) {
+                this.webServerExecutor.shutdown();
+            }
             try {
                 this.server.stop();
             } catch (Exception e) {
