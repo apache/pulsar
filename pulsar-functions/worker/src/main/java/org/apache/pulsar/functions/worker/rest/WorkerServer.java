@@ -53,7 +53,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 @Slf4j
-public class WorkerServer implements Runnable {
+public class WorkerServer {
 
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
@@ -77,24 +77,6 @@ public class WorkerServer implements Runnable {
         this.workerService = workerService;
         this.webServerExecutor = Executors.newFixedThreadPool(NUM_ACCEPTORS, new DefaultThreadFactory("function-web"));
         init();
-    }
-
-    @Override
-    public void run() {
-        try {
-            start();
-            server.join();
-        } catch (Exception ex) {
-            log.error("ex: {}", ex, ex);
-            final String message = getErrorMessage(server, this.workerConfig.getWorkerPort(), ex);
-            log.error(message);
-            System.exit(1);
-        } finally {
-            server.destroy();
-            if (this.webServerExecutor != null && !this.webServerExecutor.isShutdown()) {
-                this.webServerExecutor.shutdown();
-            }
-        }
     }
 
     public void start() throws Exception {
@@ -142,10 +124,6 @@ public class WorkerServer implements Runnable {
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
         connectors.forEach(c -> c.setAcceptQueueSize(MAX_CONCURRENT_REQUESTS / connectors.size()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
-    }
-
-    public String getThreadName() {
-        return "worker-server-thread-" + this.workerConfig.getWorkerId();
     }
 
     public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService) {
