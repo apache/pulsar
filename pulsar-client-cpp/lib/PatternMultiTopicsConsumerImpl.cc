@@ -110,7 +110,7 @@ void PatternMultiTopicsConsumerImpl::timerGetTopicsOfNamespace(const Result resu
     };
 
     // call to subscribe new added topics, then in its callback do unsubscribe
-    onTopicsAdded(topicsListsMinus(*newTopics, *oldTopics), topicsAddedCallback);
+    onTopicsAdded(topicsAdded, topicsAddedCallback);
 }
 
 void PatternMultiTopicsConsumerImpl::onTopicsAdded(NamespaceTopicsPtr addedTopics, ResultCallback callback) {

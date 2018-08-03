@@ -1021,7 +1021,7 @@ void ClientConnection::handleIncomingCommand() {
 
                         NamespaceTopicsPtr topicsPtr =
                             boost::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
-                        
+
                         getTopicsPromise.setValue(topicsPtr);
                     } else {
                         lock.unlock();
