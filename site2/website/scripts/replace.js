@@ -55,6 +55,7 @@ function doReplace(options) {
 const versions = getVersions();
 
 const latestVersion = versions[0];
+const latestVersionWithoutIncubating = latestVersion.replace('-incubating', '');
 
 const from = [
   /{{pulsar:version_number}}/g,
@@ -77,16 +78,16 @@ const options = {
   ignore: versions.map(v => `${docsDir}/${v}/**/*`), // TODO add next and assets
   from: from,
   to: [
+    `${latestVersionWithoutIncubating}`, 
     `${latestVersion}`, 
-    `${latestVersion}-incubating`, 
-    binaryReleaseUrl(`${latestVersion}-incubating`), 
-    connectorReleaseUrl(`${latestVersion}-incubating`), 
+    binaryReleaseUrl(`${latestVersion}`), 
+    connectorReleaseUrl(`${latestVersion}`), 
     downloadPageUrl(),
-    rpmReleaseUrl(`${latestVersion}-incubating`, ""),
-    rpmReleaseUrl(`${latestVersion}-incubating`, "-debuginfo"),
-    rpmReleaseUrl(`${latestVersion}-incubating`, "-devel"),
-    debReleaseUrl(`${latestVersion}-incubating`, ""),
-    debReleaseUrl(`${latestVersion}-incubating`, "-dev"),
+    rpmReleaseUrl(`${latestVersion}`, ""),
+    rpmReleaseUrl(`${latestVersion}`, "-debuginfo"),
+    rpmReleaseUrl(`${latestVersion}`, "-devel"),
+    debReleaseUrl(`${latestVersion}`, ""),
+    debReleaseUrl(`${latestVersion}`, "-dev"),
   ],
   dry: false
 };
@@ -99,6 +100,7 @@ for (v of versions) {
   if (v === latestVersion) {
     continue
   }
+  const vWithoutIncubating = v.replace('-incubating', '');
   const opts = {
     files: [
       `${docsDir}/${v}/*.html`, 
@@ -106,16 +108,16 @@ for (v of versions) {
     ],
     from: from,
     to: [
+      `${vWithoutIncubating}`, 
       `${v}`, 
-      `${v}-incubating`, 
-      binaryReleaseUrl(`${v}-incubating`),
-      connectorReleaseUrl(`${v}-incubating`),
+      binaryReleaseUrl(`${v}`),
+      connectorReleaseUrl(`${v}`),
       downloadPageUrl(),
-      rpmReleaseUrl(`${v}-incubating`, ""),
-      rpmReleaseUrl(`${v}-incubating`, "-debuginfo"),
-      rpmReleaseUrl(`${v}-incubating`, "-devel"),
-      debReleaseUrl(`${v}-incubating`, ""),
-      debReleaseUrl(`${v}-incubating`, "-dev"),
+      rpmReleaseUrl(`${v}`, ""),
+      rpmReleaseUrl(`${v}`, "-debuginfo"),
+      rpmReleaseUrl(`${v}`, "-devel"),
+      debReleaseUrl(`${v}`, ""),
+      debReleaseUrl(`${v}`, "-dev"),
     ],
     dry: true
   };

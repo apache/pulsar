@@ -108,17 +108,17 @@ const features_lang = language => {
       },
       {
         content: 'Pulsar has run in production at Yahoo scale for over 3 years, with millions of messages per second across millions of topics',
-        title: `[Proven in production](${docUrl('concepts-architecture', language)})`,
+        title: `[Proven in production](${docUrl('concepts-architecture-overview', language)})`,
       },
       {
         content: 'Seamlessly expand capacity to hundreds of nodes',
-        title: `[Horizontally scalable](${docUrl('concepts-architecture', language)})`,
+        title: `[Horizontally scalable](${docUrl('concepts-architecture-overview', language)})`,
       }
     ],
     row2: [
       {
         content: 'Designed for low publish latency (< 5ms) at scale with strong durabilty guarantees',
-        title: `[Low latency with durability](${docUrl('concepts-architecture', language)})`,
+        title: `[Low latency with durability](${docUrl('concepts-architecture-overview', language)})`,
       },
       {
         content: 'Designed for configurable replication between data centers across multiple geographic regions',
@@ -126,13 +126,13 @@ const features_lang = language => {
       },
       {
         content: 'Built from the ground up as a multi-tenant system. Supports Isolation, Authentication, Authorization and Quotas',
-        title: `[Multi-tenancy](${docUrl('concepts-architecture', language)})`,
+        title: `[Multi-tenancy](${docUrl('concepts-multi-tenancy', language)})`,
       }
     ],
     row3: [
       {
         content: `Persistent message storage based on Apache BookKeeper. Provides IO-level isolation between write and read operations`,
-        title: `[Persistent storage](${docUrl('concepts-architecture', language)})`,
+        title: `[Persistent storage](${docUrl('concepts-architecture-overview#persistent-storage', language)})`,
       },
       {
         content: 'Flexible messaging models with high-level APIs for Java, C++, Python and GO',
