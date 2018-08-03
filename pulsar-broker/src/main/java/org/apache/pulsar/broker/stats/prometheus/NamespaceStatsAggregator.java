@@ -43,7 +43,7 @@ public class NamespaceStatsAggregator {
         }
     };
 
-    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, SimpleTextOutputStream stream) {
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics, SimpleTextOutputStream stream) {
         String cluster = pulsar.getConfiguration().getClusterName();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
         TopicStats topicStats = localTopicStats.get();
@@ -53,7 +53,7 @@ public class NamespaceStatsAggregator {
 
             bundlesMap.forEach((bundle, topicsMap) -> {
                 topicsMap.forEach((name, topic) -> {
-                    getTopicStats(topic, topicStats);
+                    getTopicStats(topic, topicStats, includeConsumerMetrics);
 
                     if (includeTopicMetrics) {
                         TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats);
@@ -71,7 +71,7 @@ public class NamespaceStatsAggregator {
         });
     }
 
-    private static void getTopicStats(Topic topic, TopicStats stats) {
+    private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics) {
         stats.reset();
 
         if (topic instanceof PersistentTopic) {
@@ -114,12 +114,18 @@ public class NamespaceStatsAggregator {
 
             subscription.getConsumers().forEach(consumer -> {
 
-                AggregatedConsumerStats consumerStats = subsStats.consumerStat
-                        .computeIfAbsent(consumer, k -> new AggregatedConsumerStats());
+                // Consumer stats can be a lot if a subscription has many consumers
+                if (includeConsumerMetrics) {
+                    AggregatedConsumerStats consumerStats = subsStats.consumerStat
+                            .computeIfAbsent(consumer, k -> new AggregatedConsumerStats());
+                    consumerStats.unackedMessages += consumer.getStats().unackedMessages;
+                    consumerStats.msgRateRedeliver = consumer.getStats().msgRateRedeliver;
+                    consumerStats.blockedSubscriptionOnUnackedMsgs = consumer.getStats().blockedConsumerOnUnackedMsgs;
+                }
 
-                consumerStats.unackedMessages += consumer.getStats().unackedMessages;
-                consumerStats.msgRateRedeliver = consumer.getStats().msgRateRedeliver;
-                consumerStats.blockedSubscriptionOnUnackedMsgs = consumer.getStats().blockedConsumerOnUnackedMsgs;
+                if (!subsStats.blockedSubscriptionOnUnackedMsgs && consumer.getStats().blockedConsumerOnUnackedMsgs) {
+                    subsStats.blockedSubscriptionOnUnackedMsgs = true;
+                }
 
                 subsStats.unackedMessages += consumer.getStats().unackedMessages;
                 subsStats.msgRateRedeliver += consumer.getStats().msgRateRedeliver;
@@ -128,13 +134,6 @@ public class NamespaceStatsAggregator {
                 stats.rateOut += consumer.getStats().msgRateOut;
                 stats.throughputOut += consumer.getStats().msgThroughputOut;
             });
-
-            for (AggregatedConsumerStats consumerStats : subsStats.consumerStat.values()) {
-                if (consumerStats.blockedSubscriptionOnUnackedMsgs) {
-                    subsStats.blockedSubscriptionOnUnackedMsgs = true;
-                    break;
-                }
-            }
         });
 
         topic.getReplicators().forEach((cluster, replicator) -> {

@@ -470,6 +470,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- Metrics --- ****/
     // If true, export topic level metrics otherwise namespace level
     private boolean exposeTopicLevelMetricsInPrometheus = true;
+    private boolean exposeConsumerLevelMetricsInPrometheus = false;
 
     /**** --- Functions --- ****/
     private boolean functionsWorkerEnabled = false;
@@ -1615,8 +1616,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return exposeTopicLevelMetricsInPrometheus;
     }
 
+    public boolean exposeConsumerLevelMetricsInPrometheus() {
+        return exposeConsumerLevelMetricsInPrometheus;
+    }
+
     public void setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
         this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
+    }
+
+    public void setExposeConsumerLevelMetricsInPrometheus(boolean exposeConsumerLevelMetricsInPrometheus) {
+        this.exposeConsumerLevelMetricsInPrometheus = exposeConsumerLevelMetricsInPrometheus;
     }
 
     public String getSchemaRegistryStorageClassName() {
