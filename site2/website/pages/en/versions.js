@@ -9,12 +9,12 @@ const CWD = process.cwd();
 
 const siteConfig = require(`${CWD}/siteConfig.js`);
 // versions post docusaurus
-// const versions = require(`${CWD}/versions.json`);
+const versions = require(`${CWD}/versions.json`);
 // versions pre docusaurus
 const oldversions = require(`${CWD}/oldversions.json`);
 
 function Versions(props) {
-    const latestStableVersion = oldversions[0];
+    const latestStableVersion = versions[0];
     const repoUrl = `https://github.com/${siteConfig.organizationName}/${
       siteConfig.projectName
     }`;
@@ -33,7 +33,7 @@ function Versions(props) {
                 <th>{latestStableVersion}</th>
                 <td>
                   <a
-                    href={`${siteConfig.url}/docs/v${latestStableVersion}/getting-started/LocalCluster/`}>
+                    href={`${siteConfig.baseUrl}docs/${props.language}/standalone`}>
                     Documentation
                   </a>
                 </td>
@@ -53,7 +53,7 @@ function Versions(props) {
                 <th>master</th>
                 <td>
                   <a
-                    href={`${siteConfig.baseUrl}docs/${props.language}/standalone`}>
+                    href={`${siteConfig.baseUrl}docs/${props.language}/next/standalone`}>
                     Documentation
                   </a>
                 </td>
@@ -69,6 +69,25 @@ function Versions(props) {
           </p>
           <table className="versions">
             <tbody>
+              {versions.map(
+                version =>
+                  version !== latestStableVersion && (
+                    <tr key={version}>
+                      <th>{version}</th>
+                      <td>
+                        <a
+                          href={`${siteConfig.baseUrl}docs/${props.language}/${version}/standalone`}>
+                          Documentation
+                        </a>
+                      </td>
+                      <td>
+                        <a href={`${siteConfig.baseUrl}/release-notes#${version}`}>
+                          Release Notes
+                        </a>
+                      </td>
+                    </tr>
+                  )
+              )}
               {oldversions.map(
                 version =>
                   version !== latestStableVersion && (
