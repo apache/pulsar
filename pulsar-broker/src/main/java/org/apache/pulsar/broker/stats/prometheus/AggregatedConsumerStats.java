@@ -25,4 +25,10 @@ public class AggregatedConsumerStats {
     public double msgRateRedeliver;
 
     public long unackedMessages;
+
+    public double msgRateOut;
+
+    public double msgThroughputOut;
+
+    public long availablePermits;
 }

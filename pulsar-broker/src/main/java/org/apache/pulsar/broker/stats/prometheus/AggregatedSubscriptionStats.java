@@ -33,5 +33,9 @@ public class AggregatedSubscriptionStats {
 
     public long unackedMessages;
 
+    public double msgRateOut;
+
+    public double msgThroughputOut;
+
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
 }

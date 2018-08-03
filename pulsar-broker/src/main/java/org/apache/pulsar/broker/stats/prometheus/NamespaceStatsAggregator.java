@@ -110,7 +110,7 @@ public class NamespaceStatsAggregator {
 
             AggregatedSubscriptionStats subsStats = stats.subscriptionStats
                     .computeIfAbsent(name, k -> new AggregatedSubscriptionStats());
-            subsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog();
+            subsStats.msgBacklog = subscription.getNumberOfEntriesInBacklog();
 
             subscription.getConsumers().forEach(consumer -> {
 
@@ -118,17 +118,21 @@ public class NamespaceStatsAggregator {
                 if (includeConsumerMetrics) {
                     AggregatedConsumerStats consumerStats = subsStats.consumerStat
                             .computeIfAbsent(consumer, k -> new AggregatedConsumerStats());
-                    consumerStats.unackedMessages += consumer.getStats().unackedMessages;
+                    consumerStats.unackedMessages = consumer.getStats().unackedMessages;
                     consumerStats.msgRateRedeliver = consumer.getStats().msgRateRedeliver;
+                    consumerStats.msgRateOut = consumer.getStats().msgRateOut;
+                    consumerStats.msgThroughputOut = consumer.getStats().msgThroughputOut;
+                    consumerStats.availablePermits = consumer.getStats().availablePermits;
                     consumerStats.blockedSubscriptionOnUnackedMsgs = consumer.getStats().blockedConsumerOnUnackedMsgs;
-                }
-
-                if (!subsStats.blockedSubscriptionOnUnackedMsgs && consumer.getStats().blockedConsumerOnUnackedMsgs) {
-                    subsStats.blockedSubscriptionOnUnackedMsgs = true;
                 }
 
                 subsStats.unackedMessages += consumer.getStats().unackedMessages;
                 subsStats.msgRateRedeliver += consumer.getStats().msgRateRedeliver;
+                subsStats.msgRateOut += consumer.getStats().msgRateOut;
+                subsStats.msgThroughputOut += consumer.getStats().msgThroughputOut;
+                if (!subsStats.blockedSubscriptionOnUnackedMsgs && consumer.getStats().blockedConsumerOnUnackedMsgs) {
+                    subsStats.blockedSubscriptionOnUnackedMsgs = true;
+                }
 
                 stats.consumersCount++;
                 stats.rateOut += consumer.getStats().msgRateOut;
