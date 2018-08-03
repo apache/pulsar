@@ -8,7 +8,7 @@ This is the seventh release of Apache Pulsar since entering the ASF incubator.
 It is a feature release, including several new features and major improvements:
 
 - [Pulsar IO](/docs/en/io-overview/): A connector framework for moving data in and out of Apache Pulsar leveraging [Pulsar Functions](/docs/en/functions-overview/) runtime.
-- A list of [Builtin Connectors]:
+- A list of [Builtin Connectors](/docs/en/io-connectors):
   - [Aerospike Connector](/docs/en/io-aerospike/)
   - [Cassandra Connector](/docs/en/io-cassandra/)
   - [Kafka Connector](/docs/en/io-kafka/)
