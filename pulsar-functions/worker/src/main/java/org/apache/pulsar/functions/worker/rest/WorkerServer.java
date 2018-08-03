@@ -86,14 +86,14 @@ public class WorkerServer implements Runnable {
             server.join();
         } catch (Exception ex) {
             log.error("ex: {}", ex, ex);
-            System.exit(1);
             final String message = getErrorMessage(server, this.workerConfig.getWorkerPort(), ex);
             log.error(message);
+            System.exit(1);
         } finally {
+            server.destroy();
             if (this.webServerExecutor != null && !this.webServerExecutor.isShutdown()) {
                 this.webServerExecutor.shutdown();
             }
-            server.destroy();
         }
     }
 
@@ -169,13 +169,13 @@ public class WorkerServer implements Runnable {
     @VisibleForTesting
     public void stop() {
         if (this.server != null) {
-            if (this.webServerExecutor != null && !this.webServerExecutor.isShutdown()) {
-                this.webServerExecutor.shutdown();
-            }
             try {
                 this.server.stop();
             } catch (Exception e) {
                 log.error("Failed to stop function web-server ", e);
+            }
+            if (this.webServerExecutor != null && !this.webServerExecutor.isShutdown()) {
+                this.webServerExecutor.shutdown();
             }
         }
     }
