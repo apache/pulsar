@@ -70,13 +70,8 @@ Besides the official released clients, there are also multiple projects on devel
 
 > if you have developed a Pulsar client, but it doesn't show up here. Feel free to submit a pull request to add your client to the list below.
 
-### Scala
-
-- [pulsar4s](https://github.com/sksamuel/pulsar4s) provides an idomatic, typesafe, and reactive Scala client for Apache Pulsar. [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
-### Go
-
-Following clients are native golang clients for Pulsar.
-
-- [pulsar-client-go](https://github.com/Comcast/pulsar-client-go): [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-- [go-pulsar](https://github.com/t2y/go-pulsar): [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) 
+| Language | Project | Maintainer | License | Description |
+|----------|---------|------------|---------|-------------|
+| Go | [pulsar-client-go](https://github.com/Comcast/pulsar-client-go) | [Comcast](https://github.com/Comcast) | [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) | A native golang client |
+| Go | [go-pulsar](https://github.com/t2y/go-pulsar) | [t2y](https://github.com/t2y) | [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) | |
+| Scala | [pulsar4s](https://github.com/sksamuel/pulsar4s) | [sksamuel](https://github.com/sksamuel) | [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) | Idomatic, typesafe, and reactive Scala client for Apache Pulsar |
