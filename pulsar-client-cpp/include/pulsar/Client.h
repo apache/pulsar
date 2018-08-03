@@ -114,15 +114,15 @@ class Client {
     /**
      * subscribe for multiple topics, which match given regexPattern, under the same namespace.
      */
-    Result subscribe(const std::string& regexPattern, const std::string& consumerName, Consumer& consumer,
-                     bool useRegex);
-    Result subscribe(const std::string& regexPattern, const std::string& consumerName,
-                     const ConsumerConfiguration& conf, Consumer& consumer, bool useRegex);
+    Result subscribeWithRegex(const std::string& regexPattern, const std::string& consumerName,
+                              Consumer& consumer);
+    Result subscribeWithRegex(const std::string& regexPattern, const std::string& consumerName,
+                              const ConsumerConfiguration& conf, Consumer& consumer);
 
-    void subscribeAsync(const std::string& regexPattern, const std::string& consumerName, bool useRegex,
-                        SubscribeCallback callback);
-    void subscribeAsync(const std::string& regexPattern, const std::string& consumerName,
-                        const ConsumerConfiguration& conf, bool useRegex, SubscribeCallback callback);
+    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+                                 SubscribeCallback callback);
+    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+                                 const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     /**
      * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified

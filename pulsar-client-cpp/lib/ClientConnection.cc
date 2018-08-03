@@ -856,34 +856,37 @@ void ClientConnection::handleIncomingCommand() {
                                         << " -- req_id: " << error.request_id());
 
                     Lock lock(mutex_);
-                    if (pendingRequests_.find(error.request_id()) != pendingRequests_.end()) {
-                        PendingRequestsMap::iterator it = pendingRequests_.find(error.request_id());
+
+                    PendingRequestsMap::iterator it = pendingRequests_.find(error.request_id());
+                    if (it != pendingRequests_.end()) {
                         PendingRequestData requestData = it->second;
                         pendingRequests_.erase(it);
                         lock.unlock();
 
                         requestData.promise.setFailed(getResult(error.error()));
                         requestData.timer->cancel();
-                    } else if (pendingGetLastMessageIdRequests_.find(error.request_id()) !=
-                               pendingGetLastMessageIdRequests_.end()) {
+                    } else {
                         PendingGetLastMessageIdRequestsMap::iterator it =
                             pendingGetLastMessageIdRequests_.find(error.request_id());
-                        Promise<Result, MessageId> getLastMessageIdPromise = it->second;
-                        pendingGetLastMessageIdRequests_.erase(it);
-                        lock.unlock();
+                        if (it != pendingGetLastMessageIdRequests_.end()) {
+                            Promise<Result, MessageId> getLastMessageIdPromise = it->second;
+                            pendingGetLastMessageIdRequests_.erase(it);
+                            lock.unlock();
 
-                        getLastMessageIdPromise.setFailed(getResult(error.error()));
-                    } else if (pendingGetNamespaceTopicsRequests_.find(error.request_id()) !=
-                               pendingGetNamespaceTopicsRequests_.end()) {
-                        PendingGetNamespaceTopicsMap::iterator it =
-                            pendingGetNamespaceTopicsRequests_.find(error.request_id());
-                        Promise<Result, NamespaceTopicsPtr> getNamespaceTopicsPromise = it->second;
-                        pendingGetNamespaceTopicsRequests_.erase(it);
-                        lock.unlock();
+                            getLastMessageIdPromise.setFailed(getResult(error.error()));
+                        } else {
+                            PendingGetNamespaceTopicsMap::iterator it =
+                                pendingGetNamespaceTopicsRequests_.find(error.request_id());
+                            if (it != pendingGetNamespaceTopicsRequests_.end()) {
+                                Promise<Result, NamespaceTopicsPtr> getNamespaceTopicsPromise = it->second;
+                                pendingGetNamespaceTopicsRequests_.erase(it);
+                                lock.unlock();
 
-                        getNamespaceTopicsPromise.setFailed(getResult(error.error()));
-                    } else {
-                        lock.unlock();
+                                getNamespaceTopicsPromise.setFailed(getResult(error.error()));
+                            } else {
+                                lock.unlock();
+                            }
+                        }
                     }
                     break;
                 }
@@ -1002,10 +1005,7 @@ void ClientConnection::handleIncomingCommand() {
                         lock.unlock();
 
                         int numTopics = response.topics_size();
-                        NamespaceTopicsPtr topicsPtr =
-                            boost::make_shared<std::vector<std::string>>(numTopics);
-                        topicsPtr->clear();
-
+                        std::set<std::string> topicSet;
                         // get all topics
                         for (int i = 0; i < numTopics; i++) {
                             // remove partition part
@@ -1014,17 +1014,20 @@ void ClientConnection::handleIncomingCommand() {
                             std::string filteredName = topicName.substr(0, pos);
 
                             // filter duped topic name
-                            if (std::find(topicsPtr->begin(), topicsPtr->end(), filteredName) ==
-                                topicsPtr->end()) {
-                                topicsPtr->push_back(filteredName);
+                            if (topicSet.find(filteredName) == topicSet.end()) {
+                                topicSet.insert(filteredName);
                             }
                         }
 
+                        NamespaceTopicsPtr topicsPtr =
+                            boost::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
+                        
                         getTopicsPromise.setValue(topicsPtr);
                     } else {
                         lock.unlock();
                         LOG_WARN(
-                            "GetTopicsOfNamespaceResponse command - Received unknown request id from server: "
+                            "GetTopicsOfNamespaceResponse command - Received unknown request id from "
+                            "server: "
                             << response.request_id());
                     }
                     break;

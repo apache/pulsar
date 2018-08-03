@@ -1690,16 +1690,9 @@ TEST(BasicEndToEndTest, testPatternTopicsConsumerInvalid) {
 
     Consumer consumer;
     Promise<Result, Consumer> consumerPromise;
-    client.subscribeAsync(pattern, subName, true, WaitForCallbackValue<Consumer>(consumerPromise));
+    client.subscribeWithRegexAsync(pattern, subName, WaitForCallbackValue<Consumer>(consumerPromise));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
     Result result = consumerFuture.get(consumer);
-    ASSERT_EQ(ResultInvalidTopicName, result);
-
-    // invalid parameter (useRegex = false)
-    pattern = "persistent://prop/unit/ns/patternMultiTopicsConsumerInvalid.*";
-    client.subscribeAsync(pattern, subName, false, WaitForCallbackValue<Consumer>(consumerPromise));
-    consumerFuture = consumerPromise.getFuture();
-    result = consumerFuture.get(consumer);
     ASSERT_EQ(ResultInvalidTopicName, result);
 
     client.shutdown();
@@ -1759,8 +1752,8 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerPubSub) {
     consConfig.setReceiverQueueSize(10);  // size for each sub-consumer
     Consumer consumer;
     Promise<Result, Consumer> consumerPromise;
-    client.subscribeAsync(pattern, subName, consConfig, true,
-                          WaitForCallbackValue<Consumer>(consumerPromise));
+    client.subscribeWithRegexAsync(pattern, subName, consConfig,
+                                   WaitForCallbackValue<Consumer>(consumerPromise));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
     result = consumerFuture.get(consumer);
     ASSERT_EQ(ResultOk, result);
@@ -1837,8 +1830,8 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     consConfig.setPatternAutoDiscoveryPeriod(1);  // set waiting time for auto discovery
     Consumer consumer;
     Promise<Result, Consumer> consumerPromise;
-    client.subscribeAsync(pattern, subName, consConfig, true,
-                          WaitForCallbackValue<Consumer>(consumerPromise));
+    client.subscribeWithRegexAsync(pattern, subName, consConfig,
+                                   WaitForCallbackValue<Consumer>(consumerPromise));
     Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
     result = consumerFuture.get(consumer);
     ASSERT_EQ(ResultOk, result);

@@ -60,8 +60,8 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
     void subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
-    void subscribeAsync(const std::string& regexPattern, const std::string& consumerName,
-                        const ConsumerConfiguration& conf, bool useRegex, SubscribeCallback callback);
+    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+                                 const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     void createReaderAsync(const std::string& topic, const MessageId& startMessageId,
                            const ReaderConfiguration& conf, ReaderCallback callback);

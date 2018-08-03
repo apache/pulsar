@@ -283,9 +283,8 @@ NamespaceTopicsPtr HTTPLookupService::parseNamespaceTopicsData(const std::string
         return NamespaceTopicsPtr();
     }
 
-    NamespaceTopicsPtr topicsResultPtr = boost::make_shared<std::vector<std::string>>();
     Json::Value topicsArray = root["topics"];
-
+    std::set<std::string> topicSet;
     // get all topics
     for (int i = 0; i < topicsArray.size(); i++) {
         // remove partition part
@@ -294,11 +293,13 @@ NamespaceTopicsPtr HTTPLookupService::parseNamespaceTopicsData(const std::string
         std::string filteredName = topicName.substr(0, pos);
 
         // filter duped topic name
-        if (std::find(topicsResultPtr->begin(), topicsResultPtr->end(), filteredName) ==
-            topicsResultPtr->end()) {
-            topicsResultPtr->push_back(filteredName);
+        if (topicSet.find(filteredName) == topicSet.end()) {
+            topicSet.insert(filteredName);
         }
     }
+
+    NamespaceTopicsPtr topicsResultPtr =
+        boost::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
 
     return topicsResultPtr;
 }

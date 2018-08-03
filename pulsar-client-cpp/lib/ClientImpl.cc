@@ -217,9 +217,8 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
     consumers_.push_back(reader->getConsumer());
 }
 
-void ClientImpl::subscribeAsync(const std::string& regexPattern, const std::string& consumerName,
-                                const ConsumerConfiguration& conf, bool useRegex,
-                                SubscribeCallback callback) {
+void ClientImpl::subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+                                         const ConsumerConfiguration& conf, SubscribeCallback callback) {
     TopicNamePtr topicNamePtr = TopicName::get(regexPattern);
 
     Lock lock(mutex_);
@@ -232,11 +231,6 @@ void ClientImpl::subscribeAsync(const std::string& regexPattern, const std::stri
         if (!topicNamePtr) {
             LOG_ERROR("Topic pattern not valid: " << regexPattern);
             callback(ResultInvalidTopicName, Consumer());
-            return;
-        }
-        if (!useRegex) {
-            LOG_ERROR("Topic pattern subscribe only support regex now");
-            callback(ResultInvalidConfiguration, Consumer());
             return;
         }
     }
