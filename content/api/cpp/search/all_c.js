@@ -20,6 +20,7 @@ var searchData=
   ['setmessagelistener',['setMessageListener',['../classpulsar_1_1_consumer_configuration.html#aeb4301821f8f471c6c542f486df9639d',1,'pulsar::ConsumerConfiguration']]],
   ['setmessagelistenerthreads',['setMessageListenerThreads',['../classpulsar_1_1_client_configuration.html#a1c85175f7b3694565b4bfe029c66f49f',1,'pulsar::ClientConfiguration']]],
   ['setoperationtimeoutseconds',['setOperationTimeoutSeconds',['../classpulsar_1_1_client_configuration.html#aebd024ea26e160328a66192e453b4a00',1,'pulsar::ClientConfiguration']]],
+  ['setpatternautodiscoveryperiod',['setPatternAutoDiscoveryPeriod',['../classpulsar_1_1_consumer_configuration.html#a5910aa7539a7fb217a38813d846a9acb',1,'pulsar::ConsumerConfiguration']]],
   ['setproperties',['setProperties',['../classpulsar_1_1_message_builder.html#a648ad88a75f576abb87dcab5fcb04e07',1,'pulsar::MessageBuilder']]],
   ['setproperty',['setProperty',['../classpulsar_1_1_message_builder.html#a81a20821afe64d6222f1ba6bd026a6b4',1,'pulsar::MessageBuilder']]],
   ['setreaderlistener',['setReaderListener',['../classpulsar_1_1_reader_configuration.html#aa0d6dc39f30014d4d37872e9ddc85590',1,'pulsar::ReaderConfiguration']]],
@@ -27,5 +28,7 @@ var searchData=
   ['setreplicationclusters',['setReplicationClusters',['../classpulsar_1_1_message_builder.html#a4debd882e7450dee0b83ac0bdfdee775',1,'pulsar::MessageBuilder']]],
   ['setsequenceid',['setSequenceId',['../classpulsar_1_1_message_builder.html#ae1c62a5fb7a064714b615be585d5bf92',1,'pulsar::MessageBuilder']]],
   ['settopicname',['setTopicName',['../classpulsar_1_1_message_id.html#a3d84665dab3feb64ed00183a322b92f2',1,'pulsar::MessageId']]],
-  ['setunackedmessagestimeoutms',['setUnAckedMessagesTimeoutMs',['../classpulsar_1_1_consumer_configuration.html#ad55a4f0187517c984de8d01f8660fb8f',1,'pulsar::ConsumerConfiguration']]]
+  ['setunackedmessagestimeoutms',['setUnAckedMessagesTimeoutMs',['../classpulsar_1_1_consumer_configuration.html#ad55a4f0187517c984de8d01f8660fb8f',1,'pulsar::ConsumerConfiguration']]],
+  ['subscribe',['subscribe',['../classpulsar_1_1_client.html#aea2d7918286ecd127751d06e191a5471',1,'pulsar::Client']]],
+  ['subscribewithregex',['subscribeWithRegex',['../classpulsar_1_1_client.html#a4fdb7b45054200fb133a9496f9909796',1,'pulsar::Client']]]
 ];

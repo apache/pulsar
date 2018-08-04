@@ -164,6 +164,11 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>isReadCompacted</b> (
 <tr class="memitem:ae3f12b9f76982d8ea64f80adfb8af960"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae3f12b9f76982d8ea64f80adfb8af960"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>setReadCompacted</b> (bool compacted)</td></tr>
 <tr class="separator:ae3f12b9f76982d8ea64f80adfb8af960"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5910aa7539a7fb217a38813d846a9acb"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a5910aa7539a7fb217a38813d846a9acb">setPatternAutoDiscoveryPeriod</a> (int periodInSeconds)</td></tr>
+<tr class="separator:a5910aa7539a7fb217a38813d846a9acb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a04b8709d4fb7c8e56cad644c88692782"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a04b8709d4fb7c8e56cad644c88692782"></a>
+int&#160;</td><td class="memItemRight" valign="bottom"><b>getPatternAutoDiscoveryPeriod</b> () const </td></tr>
+<tr class="separator:a04b8709d4fb7c8e56cad644c88692782"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -299,6 +304,29 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <p>A message listener enables your application to configure how to process and acknowledge messages delivered. A listener will be called in order for every message received. </p>
+
+</div>
+</div>
+<a class="anchor" id="a5910aa7539a7fb217a38813d846a9acb"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::ConsumerConfiguration::setPatternAutoDiscoveryPeriod </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>periodInSeconds</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set the time duration in minutes, for which the PatternMultiTopicsConsumer will do a pattern auto discovery. The default value is 60 seconds. less than 0 will disable auto discovery.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">periodInSeconds</td><td>period in seconds to do an auto discovery </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
