@@ -109,7 +109,6 @@ public class CmdFunctions extends CmdBase {
     private final UploadFunction uploader;
     private final DownloadFunction downloader;
     private final GetCluster cluster;
-    private final Metrics metrics;
 
     /**
      * Base command
@@ -1035,16 +1034,6 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get function metrics")
-    class Metrics extends BaseCommand {
-        @Override
-        void runCmd() throws Exception {
-            String json = Utils.printJson(admin.functions().getMetrics());
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
-        }
-    }
-
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
@@ -1059,7 +1048,6 @@ public class CmdFunctions extends CmdBase {
         uploader = new UploadFunction();
         downloader = new DownloadFunction();
         cluster = new GetCluster();
-        metrics = new Metrics();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
@@ -1072,7 +1060,6 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("upload", getUploader());
         jcommander.addCommand("download", getDownloader());
         jcommander.addCommand("cluster", cluster);
-        jcommander.addCommand("metrics", metrics);
     }
 
     @VisibleForTesting

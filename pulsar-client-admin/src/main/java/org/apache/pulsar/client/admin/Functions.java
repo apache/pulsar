@@ -260,11 +260,4 @@ public interface Functions {
      * @throws PulsarAdminException 
      */
     List<WorkerInfo> getCluster() throws PulsarAdminException;
-    
-    /**
-     * Get function worker metrics
-     * @return
-     * @throws PulsarAdminException 
-     */
-    Metrics getMetrics() throws PulsarAdminException;
 }

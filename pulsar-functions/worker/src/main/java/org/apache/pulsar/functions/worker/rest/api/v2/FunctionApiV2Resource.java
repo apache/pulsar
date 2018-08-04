@@ -181,10 +181,4 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions.getListOfConnectors();
     }
-    
-    @GET
-    @Path("/metrics")
-    public Response getMetrics() throws IOException {
-        return functions.getMetrics();
-    }
 }

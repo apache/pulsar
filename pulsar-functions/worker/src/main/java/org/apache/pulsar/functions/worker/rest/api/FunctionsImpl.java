@@ -960,10 +960,10 @@ public class FunctionsImpl {
                 Utils.getUniquePackageName(Codec.encode(fileName)));
     }
 
-    private boolean isAuthorizedRole(String tenant, String clientRole) throws PulsarAdminException {
+    public boolean isAuthorizedRole(String tenant, String clientRole) throws PulsarAdminException {
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             // skip authorization if client role is super-user
-            if (clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole)) {
+            if (isSuperUser(clientRole)) {
                 return true;
             }
             TenantInfo tenantInfo = worker().getAdmin().tenants().getTenantInfo(tenant);
@@ -973,7 +973,20 @@ public class FunctionsImpl {
         return true;
     }
 
-    public Response getMetrics() throws IOException {
+    public boolean isSuperUser(String clientRole) {
+        return clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
+    }
+    
+    public Response getFunctionsMetrcis(String clientRole) throws IOException {
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
+            log.error("Client [{}] is not admin and authorized to get function-stats", clientRole);
+            return Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("client is not authorize to perform operation")).build();
+        }
+        return getFunctionsMetrcis();
+    }
+
+    private Response getFunctionsMetrcis() throws IOException {
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
