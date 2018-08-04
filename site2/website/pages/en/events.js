@@ -8,6 +8,8 @@ const GridBlock = CompLibrary.GridBlock;
 
 const CWD = process.cwd();
 
+const translate = require('../../server/translate.js').translate;
+
 const siteConfig = require(`${CWD}/siteConfig.js`);
 
 const iframeSrc = "https://calendar.google.com/calendar/embed?showTitle=0&amp;showPrint=0&amp;showCalendars=0&amp;mode=AGENDA&amp;height=300&amp;wkst=1&amp;hl=en&amp;bgcolor=%23FFFFFF&amp;src=22kknj432ap5io49lvsjaac71o%40group.calendar.google.com&amp;color=%232952A3&amp;ctz=America%2FLos_Angeles";
@@ -20,10 +22,10 @@ class Events extends React.Component {
         <Container className="mainContainer documentContainer postContainer">
           <div className="post">
             <header className="postHeader">
-              <h1>Events</h1>
+              <h1><translate>Events</translate></h1>
               <hr />
             </header>
-            <h2>Calander</h2>
+            <h2><translate>Calander</translate></h2>
 
             <iframe src={iframeSrc} 
               style={{borderWidth: 0}} 
@@ -31,7 +33,7 @@ class Events extends React.Component {
               frameBorder={0} scrolling={"no"}>
             </iframe>
             
-            <h2>Groups</h2>
+            <h2><translate>Groups</translate></h2>
             <MarkdownBlock>
               - [Apache Pulsar Bay Area Meetup Group](https://www.meetup.com/Apache-Pulsar-Meetup-Group/)
             </MarkdownBlock>
