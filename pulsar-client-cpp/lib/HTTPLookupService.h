@@ -52,7 +52,12 @@ class HTTPLookupService : public LookupService, public boost::enable_shared_from
 
     static LookupDataResultPtr parsePartitionData(const std::string&);
     static LookupDataResultPtr parseLookupData(const std::string&);
-    void sendHTTPRequest(LookupPromise, const std::string, RequestType);
+    static NamespaceTopicsPtr parseNamespaceTopicsData(const std::string&);
+
+    void handleLookupHTTPRequest(LookupPromise, const std::string, RequestType);
+    void handleNamespaceTopicsHTTPRequest(NamespaceTopicsPromise promise, const std::string completeUrl);
+
+    Result sendHTTPRequest(const std::string completeUrl, std::string& responseData);
 
    public:
     HTTPLookupService(const std::string&, const ClientConfiguration&, const AuthenticationPtr&);
@@ -60,6 +65,8 @@ class HTTPLookupService : public LookupService, public boost::enable_shared_from
     Future<Result, LookupDataResultPtr> lookupAsync(const std::string&);
 
     Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr&);
+
+    Future<Result, NamespaceTopicsPtr> getTopicsOfNamespaceAsync(const NamespaceNamePtr& nsName);
 };
 }  // namespace pulsar
 

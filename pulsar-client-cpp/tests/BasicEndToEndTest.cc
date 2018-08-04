@@ -34,6 +34,7 @@
 #include <set>
 #include <vector>
 #include <lib/MultiTopicsConsumerImpl.h>
+#include <lib/PatternMultiTopicsConsumerImpl.h>
 #include "lib/Future.h"
 #include "lib/Utils.h"
 DECLARE_LOG_OBJECT()
@@ -1674,6 +1675,262 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
     }
 
     LOG_INFO("Consumed and acked 300 messages by multiTopicsConsumer");
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testPatternTopicsConsumerInvalid) {
+    Client client(lookupUrl);
+
+    // invalid namespace
+    std::string pattern = "invalidDomain://prop/unit/ns/patternMultiTopicsConsumerInvalid.*";
+    std::string subName = "testPatternMultiTopicsConsumerInvalid";
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeWithRegexAsync(pattern, subName, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    Result result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultInvalidTopicName, result);
+
+    client.shutdown();
+}
+
+// create 4 topics, in which 3 topics match the pattern,
+// verify PatternMultiTopicsConsumer subscribed matched topics,
+// and only receive messages from matched topics.
+TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerPubSub) {
+    Client client(lookupUrl);
+    std::string pattern = "persistent://prop/unit/ns1/patternMultiTopicsConsumer.*";
+
+    std::string subName = "testPatternMultiTopicsConsumer";
+    std::string topicName1 = "persistent://prop/unit/ns1/patternMultiTopicsConsumerPubSub1";
+    std::string topicName2 = "persistent://prop/unit/ns1/patternMultiTopicsConsumerPubSub2";
+    std::string topicName3 = "persistent://prop/unit/ns1/patternMultiTopicsConsumerPubSub3";
+    // This will not match pattern
+    std::string topicName4 = "persistent://prop/unit/ns1/patternMultiTopicsNotMatchPubSub4";
+
+    // call admin api to make topics partitioned
+    std::string url1 =
+        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsConsumerPubSub1/partitions";
+    std::string url2 =
+        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsConsumerPubSub2/partitions";
+    std::string url3 =
+        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsConsumerPubSub3/partitions";
+    std::string url4 =
+        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsNotMatchPubSub4/partitions";
+
+    int res = makePutRequest(url1, "2");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url2, "3");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url3, "4");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url4, "4");
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer1;
+    Result result = client.createProducer(topicName1, producer1);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer2;
+    result = client.createProducer(topicName2, producer2);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer3;
+    result = client.createProducer(topicName3, producer3);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer4;
+    result = client.createProducer(topicName4, producer4);
+    ASSERT_EQ(ResultOk, result);
+
+    LOG_INFO("created 3 producers that match, with partitions: 2, 3, 4, and 1 producer not match");
+
+    int messageNumber = 100;
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerShared);
+    consConfig.setReceiverQueueSize(10);  // size for each sub-consumer
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeWithRegexAsync(pattern, subName, consConfig,
+                                   WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+    LOG_INFO("created topics consumer on a pattern that match 3 topics");
+
+    std::string msgContent = "msg-content";
+    LOG_INFO("Publishing 100 messages by producer 1 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer1.send(msg));
+    }
+
+    msgContent = "msg-content2";
+    LOG_INFO("Publishing 100 messages by producer 2 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer2.send(msg));
+    }
+
+    msgContent = "msg-content3";
+    LOG_INFO("Publishing 100 messages by producer 3 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer3.send(msg));
+    }
+
+    msgContent = "msg-content4";
+    LOG_INFO("Publishing 100 messages by producer 4 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer4.send(msg));
+    }
+
+    LOG_INFO("Consuming and acking 300 messages by multiTopicsConsumer");
+    for (int i = 0; i < 3 * messageNumber; i++) {
+        Message m;
+        ASSERT_EQ(ResultOk, consumer.receive(m, 1000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(m));
+    }
+    LOG_INFO("Consumed and acked 300 messages by multiTopicsConsumer");
+
+    // verify no more to receive, because producer4 not match pattern
+    Message m;
+    ASSERT_EQ(ResultTimeout, consumer.receive(m, 1000));
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+
+    client.shutdown();
+}
+
+// create a pattern consumer, which contains no match topics at beginning.
+// create 4 topics, in which 3 topics match the pattern.
+// verify PatternMultiTopicsConsumer subscribed matched topics, after a while,
+// and only receive messages from matched topics.
+TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
+    Client client(lookupUrl);
+    std::string pattern = "persistent://prop/unit/ns2/patternTopicsAutoConsumer.*";
+    Result result;
+    std::string subName = "testPatternTopicsAutoConsumer";
+
+    // 1.  create a pattern consumer, which contains no match topics at beginning.
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerShared);
+    consConfig.setReceiverQueueSize(10);          // size for each sub-consumer
+    consConfig.setPatternAutoDiscoveryPeriod(1);  // set waiting time for auto discovery
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeWithRegexAsync(pattern, subName, consConfig,
+                                   WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+    LOG_INFO("created pattern consumer with not match topics at beginning");
+
+    // 2. create 4 topics, in which 3 match the pattern.
+    std::string topicName1 = "persistent://prop/unit/ns2/patternTopicsAutoConsumerPubSub1";
+    std::string topicName2 = "persistent://prop/unit/ns2/patternTopicsAutoConsumerPubSub2";
+    std::string topicName3 = "persistent://prop/unit/ns2/patternTopicsAutoConsumerPubSub3";
+    // This will not match pattern
+    std::string topicName4 = "persistent://prop/unit/ns2/patternMultiTopicsNotMatchPubSub4";
+
+    // call admin api to make topics partitioned
+    std::string url1 =
+        adminUrl + "admin/persistent/prop/unit/ns2/patternTopicsAutoConsumerPubSub1/partitions";
+    std::string url2 =
+        adminUrl + "admin/persistent/prop/unit/ns2/patternTopicsAutoConsumerPubSub2/partitions";
+    std::string url3 =
+        adminUrl + "admin/persistent/prop/unit/ns2/patternTopicsAutoConsumerPubSub3/partitions";
+    std::string url4 =
+        adminUrl + "admin/persistent/prop/unit/ns2/patternMultiTopicsNotMatchPubSub4/partitions";
+
+    int res = makePutRequest(url1, "2");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url2, "3");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url3, "4");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url4, "4");
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer1;
+    result = client.createProducer(topicName1, producer1);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer2;
+    result = client.createProducer(topicName2, producer2);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer3;
+    result = client.createProducer(topicName3, producer3);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer4;
+    result = client.createProducer(topicName4, producer4);
+    ASSERT_EQ(ResultOk, result);
+    LOG_INFO("created 3 producers that match, with partitions: 2, 3, 4, and 1 producer not match");
+
+    // 3. wait enough time to trigger auto discovery
+    usleep(2 * 1000 * 1000);
+
+    // 4. produce data.
+    int messageNumber = 100;
+    std::string msgContent = "msg-content";
+    LOG_INFO("Publishing 100 messages by producer 1 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer1.send(msg));
+    }
+
+    msgContent = "msg-content2";
+    LOG_INFO("Publishing 100 messages by producer 2 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer2.send(msg));
+    }
+
+    msgContent = "msg-content3";
+    LOG_INFO("Publishing 100 messages by producer 3 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer3.send(msg));
+    }
+
+    msgContent = "msg-content4";
+    LOG_INFO("Publishing 100 messages by producer 4 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer4.send(msg));
+    }
+
+    // 5. pattern consumer already subscribed 3 topics
+    LOG_INFO("Consuming and acking 300 messages by pattern topics consumer");
+    for (int i = 0; i < 3 * messageNumber; i++) {
+        Message m;
+        ASSERT_EQ(ResultOk, consumer.receive(m, 1000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(m));
+    }
+    LOG_INFO("Consumed and acked 300 messages by pattern topics consumer");
+
+    // verify no more to receive, because producer4 not match pattern
+    Message m;
+    ASSERT_EQ(ResultTimeout, consumer.receive(m, 1000));
 
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
 

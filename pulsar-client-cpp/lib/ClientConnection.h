@@ -70,6 +70,8 @@ struct OpSendMsg;
 
 typedef std::pair<std::string, int64_t> ResponseData;
 
+typedef boost::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
+
 class ClientConnection : public boost::enable_shared_from_this<ClientConnection> {
     enum State
     {
@@ -81,7 +83,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
    public:
     typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
-    typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > TlsSocketPtr;
+    typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>> TlsSocketPtr;
     typedef boost::shared_ptr<ClientConnection> ConnectionPtr;
     typedef boost::function<void(const boost::system::error_code&, ConnectionPtr)> ConnectionListener;
     typedef std::vector<ConnectionListener>::iterator ListenerIterator;
@@ -143,6 +145,8 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     Future<Result, BrokerConsumerStatsImpl> newConsumerStats(uint64_t consumerId, uint64_t requestId);
 
     Future<Result, MessageId> newGetLastMessageId(uint64_t consumerId, uint64_t requestId);
+
+    Future<Result, NamespaceTopicsPtr> newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId);
 
    private:
     struct PendingRequestData {
@@ -264,11 +268,14 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     typedef std::map<long, ConsumerImplWeakPtr> ConsumersMap;
     ConsumersMap consumers_;
 
-    typedef std::map<uint64_t, Promise<Result, BrokerConsumerStatsImpl> > PendingConsumerStatsMap;
+    typedef std::map<uint64_t, Promise<Result, BrokerConsumerStatsImpl>> PendingConsumerStatsMap;
     PendingConsumerStatsMap pendingConsumerStatsMap_;
 
-    typedef std::map<long, Promise<Result, MessageId> > PendingGetLastMessageIdRequestsMap;
+    typedef std::map<long, Promise<Result, MessageId>> PendingGetLastMessageIdRequestsMap;
     PendingGetLastMessageIdRequestsMap pendingGetLastMessageIdRequests_;
+
+    typedef std::map<long, Promise<Result, NamespaceTopicsPtr>> PendingGetNamespaceTopicsMap;
+    PendingGetNamespaceTopicsMap pendingGetNamespaceTopicsRequests_;
 
     boost::mutex mutex_;
     typedef boost::unique_lock<boost::mutex> Lock;
