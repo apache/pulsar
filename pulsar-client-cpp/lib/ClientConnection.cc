@@ -219,7 +219,7 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
 }
 
 void ClientConnection::startConsumerStatsTimer(std::vector<uint64_t> consumerStatsRequests) {
-    std::vector<Promise<Result, BrokerConsumerStatsImpl> > consumerStatsPromises;
+    std::vector<Promise<Result, BrokerConsumerStatsImpl>> consumerStatsPromises;
     Lock lock(mutex_);
 
     for (int i = 0; i < consumerStatsRequests.size(); i++) {
@@ -856,6 +856,7 @@ void ClientConnection::handleIncomingCommand() {
                                         << " -- req_id: " << error.request_id());
 
                     Lock lock(mutex_);
+
                     PendingRequestsMap::iterator it = pendingRequests_.find(error.request_id());
                     if (it != pendingRequests_.end()) {
                         PendingRequestData requestData = it->second;
@@ -865,19 +866,28 @@ void ClientConnection::handleIncomingCommand() {
                         requestData.promise.setFailed(getResult(error.error()));
                         requestData.timer->cancel();
                     } else {
-                        PendingGetLastMessageIdRequestsMap::iterator it2 =
+                        PendingGetLastMessageIdRequestsMap::iterator it =
                             pendingGetLastMessageIdRequests_.find(error.request_id());
-                        if (it2 != pendingGetLastMessageIdRequests_.end()) {
-                            Promise<Result, MessageId> getLastMessageIdPromise = it2->second;
-                            pendingGetLastMessageIdRequests_.erase(it2);
+                        if (it != pendingGetLastMessageIdRequests_.end()) {
+                            Promise<Result, MessageId> getLastMessageIdPromise = it->second;
+                            pendingGetLastMessageIdRequests_.erase(it);
                             lock.unlock();
 
                             getLastMessageIdPromise.setFailed(getResult(error.error()));
                         } else {
-                            lock.unlock();
+                            PendingGetNamespaceTopicsMap::iterator it =
+                                pendingGetNamespaceTopicsRequests_.find(error.request_id());
+                            if (it != pendingGetNamespaceTopicsRequests_.end()) {
+                                Promise<Result, NamespaceTopicsPtr> getNamespaceTopicsPromise = it->second;
+                                pendingGetNamespaceTopicsRequests_.erase(it);
+                                lock.unlock();
+
+                                getNamespaceTopicsPromise.setFailed(getResult(error.error()));
+                            } else {
+                                lock.unlock();
+                            }
                         }
                     }
-
                     break;
                 }
 
@@ -974,6 +984,51 @@ void ClientConnection::handleIncomingCommand() {
                         LOG_WARN(
                             "getLastMessageIdResponse command - Received unknown request id from server: "
                             << getLastMessageIdResponse.request_id());
+                    }
+                    break;
+                }
+
+                case BaseCommand::GET_TOPICS_OF_NAMESPACE_RESPONSE: {
+                    const CommandGetTopicsOfNamespaceResponse& response =
+                        incomingCmd_.gettopicsofnamespaceresponse();
+
+                    LOG_DEBUG(cnxString_ << "Received GetTopicsOfNamespaceResponse from server. req_id: "
+                                         << response.request_id() << " topicsSize" << response.topics_size());
+
+                    Lock lock(mutex_);
+                    PendingGetNamespaceTopicsMap::iterator it =
+                        pendingGetNamespaceTopicsRequests_.find(response.request_id());
+
+                    if (it != pendingGetNamespaceTopicsRequests_.end()) {
+                        Promise<Result, NamespaceTopicsPtr> getTopicsPromise = it->second;
+                        pendingGetNamespaceTopicsRequests_.erase(it);
+                        lock.unlock();
+
+                        int numTopics = response.topics_size();
+                        std::set<std::string> topicSet;
+                        // get all topics
+                        for (int i = 0; i < numTopics; i++) {
+                            // remove partition part
+                            const std::string& topicName = response.topics(i);
+                            int pos = topicName.find("-partition-");
+                            std::string filteredName = topicName.substr(0, pos);
+
+                            // filter duped topic name
+                            if (topicSet.find(filteredName) == topicSet.end()) {
+                                topicSet.insert(filteredName);
+                            }
+                        }
+
+                        NamespaceTopicsPtr topicsPtr =
+                            boost::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
+
+                        getTopicsPromise.setValue(topicsPtr);
+                    } else {
+                        lock.unlock();
+                        LOG_WARN(
+                            "GetTopicsOfNamespaceResponse command - Received unknown request id from "
+                            "server: "
+                            << response.request_id());
                     }
                     break;
                 }
@@ -1278,6 +1333,23 @@ Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consume
     pendingGetLastMessageIdRequests_.insert(std::make_pair(requestId, promise));
     lock.unlock();
     sendCommand(Commands::newGetLastMessageId(consumerId, requestId));
+    return promise.getFuture();
+}
+
+Future<Result, NamespaceTopicsPtr> ClientConnection::newGetTopicsOfNamespace(const std::string& nsName,
+                                                                             uint64_t requestId) {
+    Lock lock(mutex_);
+    Promise<Result, NamespaceTopicsPtr> promise;
+    if (isClosed()) {
+        lock.unlock();
+        LOG_ERROR(cnxString_ << "Client is not connected to the broker");
+        promise.setFailed(ResultNotConnected);
+        return promise.getFuture();
+    }
+
+    pendingGetNamespaceTopicsRequests_.insert(std::make_pair(requestId, promise));
+    lock.unlock();
+    sendCommand(Commands::newGetTopicsOfNamespace(nsName, requestId));
     return promise.getFuture();
 }
 

@@ -152,6 +152,16 @@ class ConsumerConfiguration {
     bool isReadCompacted() const;
     void setReadCompacted(bool compacted);
 
+    /**
+     * Set the time duration in minutes, for which the PatternMultiTopicsConsumer will do a pattern auto
+     * discovery.
+     * The default value is 60 seconds. less than 0 will disable auto discovery.
+     *
+     * @param periodInSeconds       period in seconds to do an auto discovery
+     */
+    void setPatternAutoDiscoveryPeriod(int periodInSeconds);
+    int getPatternAutoDiscoveryPeriod() const;
+
     friend class PulsarWrapper;
 
    private:
