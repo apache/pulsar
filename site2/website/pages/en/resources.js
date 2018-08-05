@@ -7,6 +7,8 @@ const Container = CompLibrary.Container;
 
 const CWD = process.cwd();
 
+const translate = require('../../server/translate.js').translate;
+
 const siteConfig = require(`${CWD}/siteConfig.js`);
 const resources = require(`${CWD}/data/resources.js`)
 
@@ -20,16 +22,16 @@ class Resources extends React.Component {
         <Container className="mainContainer documentContainer postContainer">
           <div className="post">
             <header className="postHeader">
-              <h1>Resources</h1>
+              <h1><translate>Resources</translate></h1>
               <hr />
             </header>
             
-            <h2>Articles</h2>
+            <h2><translate>Articles</translate></h2>
             <table className="versions">
               <thead>
                 <tr>
-                  <th>Forum</th>
-                  <th>Link</th>
+                  <th><translate>Forum</translate></th>
+                  <th><translate>Link</translate></th>
                 </tr>
               </thead>
               <tbody>
@@ -44,14 +46,14 @@ class Resources extends React.Component {
               </tbody>
             </table>
 
-            <h2>Presentations</h2>
+            <h2><translate>Presentations</translate></h2>
             <table className="versions">
               <thead>
                 <tr>
-                  <th>Forum</th>
-                  <th>Data</th>
-                  <th>Presenter</th>
-                  <th>Link</th>
+                  <th><translate>Forum</translate></th>
+                  <th><translate>Data</translate></th>
+                  <th><translate>Presenter</translate></th>
+                  <th><translate>Link</translate></th>
                 </tr>
               </thead>
               <tbody>
