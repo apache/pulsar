@@ -53,7 +53,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 @Slf4j
-public class WorkerServer implements Runnable {
+public class WorkerServer {
 
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
@@ -76,42 +76,41 @@ public class WorkerServer implements Runnable {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
         this.webServerExecutor = Executors.newFixedThreadPool(NUM_ACCEPTORS, new DefaultThreadFactory("function-web"));
+        init();
     }
 
-    @Override
-    public void run() {
+    public void start() throws Exception {
+        server.start();
+        log.info("Worker Server started at {}", server.getURI());
+    }
+    
+    private void init() {
         server = new Server(new ExecutorThreadPool(webServerExecutor));
 
-        
         List<ServerConnector> connectors = new ArrayList<>();
         ServerConnector connector = new ServerConnector(server, 1, 1);
         connector.setPort(this.workerConfig.getWorkerPort());
         connector.setHost(this.workerConfig.getWorkerHostname());
         connectors.add(connector);
-        
+
         List<Handler> handlers = new ArrayList<>(3);
-        handlers.add(newServletContextHandler("/admin",
-                new ResourceConfig(Resources.getApiResources()), workerService));
-        handlers.add(newServletContextHandler("/admin/v2",
-                new ResourceConfig(Resources.getApiResources()), workerService));
-        handlers.add(newServletContextHandler("/",
-                new ResourceConfig(Resources.getRootResources()), workerService));
+        handlers.add(
+                newServletContextHandler("/admin", new ResourceConfig(Resources.getApiResources()), workerService));
+        handlers.add(
+                newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiResources()), workerService));
+        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService));
 
         ContextHandlerCollection contexts = new ContextHandlerCollection();
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
         HandlerCollection handlerCollection = new HandlerCollection();
-        handlerCollection.setHandlers(new Handler[] {
-            contexts, new DefaultHandler()
-        });
+        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler() });
         server.setHandler(handlerCollection);
-        
+
         if (this.workerConfig.isTlsEnabled()) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
-                        this.workerConfig.isTlsAllowInsecureConnection(),
-                        this.workerConfig.getTlsTrustCertsFilePath(),
-                        this.workerConfig.getTlsCertificateFilePath(),
-                        this.workerConfig.getTlsKeyFilePath(),
+                        this.workerConfig.isTlsAllowInsecureConnection(), this.workerConfig.getTlsTrustCertsFilePath(),
+                        this.workerConfig.getTlsCertificateFilePath(), this.workerConfig.getTlsKeyFilePath(),
                         this.workerConfig.isTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
                 tlsConnector.setPort(this.workerConfig.getWorkerPortTls());
@@ -125,24 +124,6 @@ public class WorkerServer implements Runnable {
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
         connectors.forEach(c -> c.setAcceptQueueSize(MAX_CONCURRENT_REQUESTS / connectors.size()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
-
-        try {
-            server.start();
-
-            log.info("Worker Server started at {}", server.getURI());
-
-            server.join();
-        } catch (Exception ex) {
-            log.error("ex: {}", ex, ex);
-            final String message = getErrorMessage(server, this.workerConfig.getWorkerPort(), ex);
-            log.error(message);
-        } finally {
-            server.destroy();
-        }
-    }
-
-    public String getThreadName() {
-        return "worker-server-thread-" + this.workerConfig.getWorkerId();
     }
 
     public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService) {
@@ -167,10 +148,13 @@ public class WorkerServer implements Runnable {
     public void stop() {
         if (this.server != null) {
             try {
-                this.server.stop();
+                this.server.destroy();
             } catch (Exception e) {
                 log.error("Failed to stop function web-server ", e);
             }
+        }
+        if (this.webServerExecutor != null && !this.webServerExecutor.isShutdown()) {
+            this.webServerExecutor.shutdown();
         }
     }
     
