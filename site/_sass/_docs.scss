@@ -162,6 +162,24 @@
         margin-right: 2px;
       }
 
+      figure {
+          margin: 2rem 0;
+
+          img {
+            display: block;
+            max-width: 100%;
+            margin: 0 auto;
+          }
+
+          figcaption {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 1.5rem;
+            font-weight: 500;
+          }
+        }
+
+
       p img {
         display: block;
         margin: 20px auto;

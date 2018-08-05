@@ -38,6 +38,7 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.io.InputStream;
 import java.util.*;
@@ -59,7 +60,7 @@ class ProcessRuntime implements Runtime {
     private List<String> processArgs;
     private int instancePort;
     @Getter
-    private Exception deathException;
+    private Throwable deathException;
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
     private ScheduledExecutorService timer;
@@ -90,6 +91,10 @@ class ProcessRuntime implements Runtime {
             args.add("java");
             args.add("-cp");
             args.add(instanceFile);
+
+            // Keep the same env property pointing to the Java instance file so that it can be picked up
+            // by the child process and manually added to classpath
+            args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
             args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
             args.add("-Dpulsar.log.dir=" + logDirectory);
             args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionDetails().getName());
@@ -186,7 +191,7 @@ class ProcessRuntime implements Runtime {
             if (instanceConfig.getFunctionDetails().getSource().getTypeClassName() != null
                 && !instanceConfig.getFunctionDetails().getSource().getTypeClassName().isEmpty()) {
                 args.add("--source_type_classname");
-                args.add(instanceConfig.getFunctionDetails().getSource().getTypeClassName());
+                args.add("\"" + instanceConfig.getFunctionDetails().getSource().getTypeClassName() + "\"");
             }
         }
 
@@ -217,7 +222,7 @@ class ProcessRuntime implements Runtime {
             if (instanceConfig.getFunctionDetails().getSink().getTypeClassName() != null
                     && !instanceConfig.getFunctionDetails().getSink().getTypeClassName().isEmpty()) {
                 args.add("--sink_type_classname");
-                args.add(instanceConfig.getFunctionDetails().getSink().getTypeClassName());
+                args.add("\"" + instanceConfig.getFunctionDetails().getSink().getTypeClassName() + "\"");
             }
         }
         if (instanceConfig.getFunctionDetails().getSink().getTopic() != null
@@ -342,6 +347,50 @@ class ProcessRuntime implements Runtime {
         return retval;
     }
 
+    @Override
+    public CompletableFuture<Void> resetMetrics() {
+        CompletableFuture<Void> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
+        ListenableFuture<Empty> response = stub.resetMetrics(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<Empty>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                retval.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(Empty t) {
+                retval.complete(null);
+            }
+        });
+        return retval;
+    }
+
+    @Override
+    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
+        CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
+        ListenableFuture<InstanceCommunication.MetricsData> response = stub.getMetrics(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                retval.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(InstanceCommunication.MetricsData t) {
+                retval.complete(t);
+            }
+        });
+        return retval;
+    }
+    
     public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
         CompletableFuture<InstanceCommunication.HealthCheckResult> retval = new CompletableFuture<>();
         if (stub == null) {
@@ -366,7 +415,7 @@ class ProcessRuntime implements Runtime {
     private void startProcess() {
         deathException = null;
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder(processArgs);
+            ProcessBuilder processBuilder = new ProcessBuilder(processArgs).inheritIO();
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();
         } catch (Exception ex) {

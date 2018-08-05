@@ -85,9 +85,10 @@ class AuthFactory {
      * @param dynamicLibPath
      * @return
      */
-    static AuthenticationPtr create(const std::string& dynamicLibPath);
-    static AuthenticationPtr create(const std::string& dynamicLibPath, const std::string& authParamsString);
-    static AuthenticationPtr create(const std::string& dynamicLibPath, ParamMap& params);
+    static AuthenticationPtr create(const std::string& pluginNameOrDynamicLibPath);
+    static AuthenticationPtr create(const std::string& pluginNameOrDynamicLibPath,
+                                    const std::string& authParamsString);
+    static AuthenticationPtr create(const std::string& pluginNameOrDynamicLibPath, ParamMap& params);
 
    protected:
     static bool isShutdownHookRegistered_;
@@ -102,6 +103,7 @@ class AuthTls : public Authentication {
    public:
     AuthTls(AuthenticationDataPtr&);
     ~AuthTls();
+    static AuthenticationPtr create(ParamMap& params);
     static AuthenticationPtr create(const std::string& certificatePath, const std::string& privateKeyPath);
     const std::string getAuthMethodName() const;
     Result getAuthData(AuthenticationDataPtr& authDataTls) const;

@@ -60,22 +60,33 @@ import com.google.common.collect.Sets;
  */
 public class BrokerBkEnsemblesTests {
     protected static int BROKER_SERVICE_PORT = 16650;
-    PulsarService pulsar;
+    protected PulsarService pulsar;
     ServiceConfiguration config;
 
     URL adminUrl;
-    PulsarAdmin admin;
+    protected PulsarAdmin admin;
 
     LocalBookkeeperEnsemble bkEnsemble;
 
     private final int ZOOKEEPER_PORT = 12759;
     protected final int BROKER_WEBSERVICE_PORT = 15782;
 
+    protected final int bkBasePort = 5001;
+    private final int numberOfBookies;
+
+    public BrokerBkEnsemblesTests() {
+        this(3);
+    }
+
+    public BrokerBkEnsemblesTests(int numberOfBookies) {
+        this.numberOfBookies = numberOfBookies;
+    }
+
     @BeforeMethod
-    void setup() throws Exception {
+    protected void setup() throws Exception {
         try {
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, 5001);
+            bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, ZOOKEEPER_PORT, 5001);
             bkEnsemble.start();
 
             // start pulsar service
@@ -107,7 +118,7 @@ public class BrokerBkEnsemblesTests {
     }
 
     @AfterMethod
-    void shutdown() throws Exception {
+    protected void shutdown() throws Exception {
         try {
             admin.close();
             pulsar.close();
@@ -160,7 +171,7 @@ public class BrokerBkEnsemblesTests {
             consumer.acknowledge(msg);
         }
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1, null).get();
         ManagedCursorImpl cursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
         retryStrategically((test) -> cursor.getState().equals("Open"), 5, 100);
 
@@ -195,7 +206,7 @@ public class BrokerBkEnsemblesTests {
         }
 
         // (5) Broker should create new cursor-ledger and remove old cursor-ledger
-        topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1, null).get();
         final ManagedCursorImpl cursor1 = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
         retryStrategically((test) -> cursor1.getState().equals("Open"), 5, 100);
         long newCursorLedgerId = cursor1.getCursorLedger();
@@ -243,7 +254,7 @@ public class BrokerBkEnsemblesTests {
         Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
                 .receiverQueueSize(5).subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1, null).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
         Field configField = ManagedCursorImpl.class.getDeclaredField("config");

@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.utils.functioncache;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -32,13 +33,17 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.pulsar.common.nar.NarClassLoader;
+
 /**
  * A cache entry in the function cache. Tracks which workers still reference
  * the dependencies. Once none reference it any more, the class loaders will
  * be cleaned up.
  */
 @Slf4j
-class FunctionCacheEntry implements AutoCloseable {
+public class FunctionCacheEntry implements AutoCloseable {
+
+    public static final String JAVA_INSTANCE_JAR_PROPERTY = "pulsar.functions.java.instance.jar";
 
     @Getter
     private final URLClassLoader classLoader;
@@ -59,6 +64,15 @@ class FunctionCacheEntry implements AutoCloseable {
             .map(URL::toString)
             .collect(Collectors.toSet());
         this.jarFiles = new HashSet<>(requiredJarFiles);
+        this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));
+    }
+
+    private static final Set<String> JAVA_INSTANCE_ADDITIONAL_JARS = Collections.singleton(System.getProperty(JAVA_INSTANCE_JAR_PROPERTY));
+
+    FunctionCacheEntry(String narArchive, String initialInstanceId) throws IOException {
+        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), JAVA_INSTANCE_ADDITIONAL_JARS);
+        this.classpaths = Collections.emptySet();
+        this.jarFiles = Collections.singleton(narArchive);
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));
     }
 

@@ -20,6 +20,10 @@
 workerId: standalone
 workerHostname: localhost
 workerPort: 6750
+workerPortTls: 6751
+
+connectorsDirectory: ./connectors
+
 functionMetadataTopicName: metadata
 functionMetadataSnapshotsTopicPath: snapshots
 clusterCoordinationTopicName: coordinate
@@ -33,7 +37,7 @@ downloadDirectory: /tmp/pulsar_functions
 #  threadGroupName: "Thread Function Container Group"
 processContainerFactory:
   logDirectory:
-  
+
 schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler"
 functionAssignmentTopicName: "assignments"
 failureCheckFreqMs: 30000
@@ -41,3 +45,24 @@ rescheduleTimeoutMs: 60000
 initialBrokerReconnectMaxRetries: 60
 assignmentWriteMaxRetries: 60
 instanceLivenessCheckFreqMs: 30000
+metricsSamplingPeriodSec: 60
+# Enforce authentication
+authenticationEnabled: false
+# Enforce authorization on accessing functions api
+authorizationEnabled: false
+# Set of autentication provider name list, which is a list of class names
+authenticationProviders: 
+# Set of role names that are treated as "super-user", meaning they will be able to access any admin-api
+superUserRoles: 
+
+#### tls configuration
+# Enable TLS
+tlsEnabled: false
+# Path for the TLS certificate file
+tlsCertificateFilePath: 
+# Path for the TLS private key file
+tlsKeyFilePath: 
+# Path for the trusted TLS certificate file 
+tlsTrustCertsFilePath:
+# Accept untrusted TLS certificate from client 
+tlsAllowInsecureConnection: false

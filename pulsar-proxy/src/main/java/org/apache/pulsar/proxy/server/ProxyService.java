@@ -56,7 +56,7 @@ public class ProxyService implements Closeable {
     private final String serviceUrl;
     private final String serviceUrlTls;
     private ConfigurationCacheService configurationCacheService;
-    private AuthenticationService authenticationService;
+    private final AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
     private ZooKeeperClientFactory zkClientFactory = null;
 
@@ -72,7 +72,8 @@ public class ProxyService implements Closeable {
 
     private static final int numThreads = Runtime.getRuntime().availableProcessors();
 
-    public ProxyService(ProxyConfiguration proxyConfig) throws IOException {
+    public ProxyService(ProxyConfiguration proxyConfig,
+                        AuthenticationService authenticationService) throws IOException {
         checkNotNull(proxyConfig);
         this.proxyConfig = proxyConfig;
 
@@ -90,16 +91,15 @@ public class ProxyService implements Closeable {
 
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
+        this.authenticationService = authenticationService;
     }
 
     public void start() throws Exception {
-        ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(proxyConfig);
-        authenticationService = new AuthenticationService(serviceConfiguration);
-
         if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getConfigurationStoreServers())) {
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
             this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
-            authorizationService = new AuthorizationService(serviceConfiguration, configurationCacheService);
+            authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(proxyConfig),
+                                                            configurationCacheService);
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();

@@ -27,21 +27,19 @@ import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import org.apache.pulsar.common.util.KeyValue;
-import org.apache.pulsar.io.core.SimpleSink;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 
 /**
  * A Simple abstract class for Cassandra sink
  * Users need to implement extractKeyValue function to use this sink
  */
-public abstract class CassandraAbstractSink<K, V> extends SimpleSink<byte[]> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(CassandraAbstractSink.class);
+public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
 
     // ----- Runtime fields
     private Cluster cluster;
@@ -50,7 +48,7 @@ public abstract class CassandraAbstractSink<K, V> extends SimpleSink<byte[]> {
     private PreparedStatement statement;
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         cassandraSinkConfig = CassandraSinkConfig.load(config);
         if (cassandraSinkConfig.getRoots() == null
                 || cassandraSinkConfig.getKeyspace() == null
@@ -71,24 +69,22 @@ public abstract class CassandraAbstractSink<K, V> extends SimpleSink<byte[]> {
     }
 
     @Override
-    public CompletableFuture<Void> write(byte[] record) {
+    public void write(Record<byte[]> record) {
         KeyValue<K, V> keyValue = extractKeyValue(record);
         BoundStatement bound = statement.bind(keyValue.getKey(), keyValue.getValue());
         ResultSetFuture future = session.executeAsync(bound);
-        CompletableFuture<Void> completable = new CompletableFuture<Void>();
         Futures.addCallback(future,
                 new FutureCallback<ResultSet>() {
                     @Override
                     public void onSuccess(ResultSet result) {
-                        completable.complete(null);
+                        record.ack();
                     }
 
                     @Override
                     public void onFailure(Throwable t) {
-                        completable.completeExceptionally(t);
+                        record.fail();
                     }
                 });
-        return completable;
     }
 
     private void createClient(String roots) {
@@ -109,5 +105,5 @@ public abstract class CassandraAbstractSink<K, V> extends SimpleSink<byte[]> {
         session.execute("USE " + cassandraSinkConfig.getKeyspace());
     }
 
-    public abstract KeyValue<K, V> extractKeyValue(byte[] message);
+    public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> record);
 }

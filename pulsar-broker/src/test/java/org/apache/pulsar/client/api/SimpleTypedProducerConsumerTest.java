@@ -141,8 +141,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(expectedExceptions = {PulsarClientException.class})
-    public void testJsonConsumerWithWrongPrestoredSchema() throws Exception {
+    @Test
+    public void testJsonConsumerWithWrongCorruptedSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         byte[] randomSchemaBytes = "hello".getBytes();
@@ -168,8 +168,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(expectedExceptions = {PulsarClientException.class})
-    public void testJsonProducerWithWrongPrestoredSchema() throws Exception {
+    @Test
+    public void testJsonProducerWithWrongCorruptedSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         byte[] randomSchemaBytes = "hello".getBytes();

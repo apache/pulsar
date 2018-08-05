@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +33,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.
  *
  * @since 2.0.0
  */
-public interface ConsumerBuilder<T> extends Serializable, Cloneable {
+public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Create a copy of the current consumer builder.
@@ -53,6 +52,26 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      * </pre>
      */
     ConsumerBuilder<T> clone();
+
+    /**
+     * Load the configuration from provided <tt>config</tt> map.
+     *
+     * <p>Example:
+     * <pre>
+     * Map&lt;String, Object&gt; config = new HashMap&lt;&gt;();
+     * config.put("ackTimeoutMillis", 1000);
+     * config.put("receiverQueueSize", 2000);
+     *
+     * ConsumerBuilder&lt;byte[]&gt; builder = ...;
+     * builder = builder.loadConf(config);
+     *
+     * Consumer&lt;byte[]&gt; consumer = builder.subscribe();
+     * </pre>
+     *
+     * @param config configuration to load
+     * @return consumer builder instance
+     */
+    ConsumerBuilder<T> loadConf(Map<String, Object> config);
 
     /**
      * Finalize the {@link Consumer} creation by subscribing to the topic.

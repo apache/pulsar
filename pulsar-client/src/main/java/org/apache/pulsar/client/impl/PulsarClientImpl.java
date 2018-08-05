@@ -23,12 +23,15 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -36,9 +39,9 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -64,6 +67,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
@@ -247,7 +251,8 @@ public class PulsarClientImpl implements PulsarClient {
         String topic = conf.getTopicName();
 
         if (!TopicName.isValid(topic)) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
         }
 
         CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
@@ -559,6 +564,23 @@ public class PulsarClientImpl implements PulsarClient {
         });
 
         return readerFuture;
+    }
+
+    /**
+     * Read the schema information for a given topic.
+     *
+     * If the topic does not exist or it has no schema associated, it will return an empty response
+     */
+    public CompletableFuture<Optional<SchemaInfo>> getSchema(String topic) {
+        TopicName topicName;
+        try {
+            topicName = TopicName.get(topic);
+        } catch (Throwable t) {
+            return FutureUtil
+                    .failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name: " + topic));
+        }
+
+        return lookup.getSchema(topicName);
     }
 
     @Override

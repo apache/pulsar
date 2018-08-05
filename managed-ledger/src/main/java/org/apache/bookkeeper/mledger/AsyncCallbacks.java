@@ -35,6 +35,12 @@ public interface AsyncCallbacks {
         void openLedgerFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    interface OpenReadOnlyCursorCallback {
+        void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx);
+
+        void openReadOnlyCursorFailed(ManagedLedgerException exception, Object ctx);
+    }
+
     interface DeleteLedgerCallback {
         void deleteLedgerComplete(Object ctx);
 

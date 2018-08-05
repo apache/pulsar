@@ -36,6 +36,9 @@ public class WebSocketProducerServlet extends WebSocketServlet {
     @Override
     public void configure(WebSocketServletFactory factory) {
         factory.getPolicy().setMaxTextMessageSize(WebSocketService.MaxTextFrameSize);
+        if (service.getConfig().getWebSocketSessionIdleTimeoutMillis() > 0) {
+            factory.getPolicy().setIdleTimeout(service.getConfig().getWebSocketSessionIdleTimeoutMillis());
+        }
         factory.setCreator((request, response) -> new ProducerHandler(service, request.getHttpServletRequest(), response));
     }
 }

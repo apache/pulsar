@@ -28,17 +28,16 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.io.core.SourceContext;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static java.util.Collections.emptyMap;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -77,13 +76,13 @@ public class PulsarSourceTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
         ConsumerBuilder consumerBuilder = mock(ConsumerBuilder.class);
         doReturn(consumerBuilder).when(consumerBuilder).topics(anyList());
+        doReturn(consumerBuilder).when(consumerBuilder).cryptoFailureAction(any());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(anyString());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(any());
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
-        doReturn(consumerBuilder).when(consumerBuilder).messageListener(anyObject());
         Consumer consumer = mock(Consumer.class);
         doReturn(consumer).when(consumerBuilder).subscribe();
-        doReturn(consumerBuilder).when(pulsarClient).newConsumer(anyObject());
+        doReturn(consumerBuilder).when(pulsarClient).newConsumer();
         return pulsarClient;
     }
 
@@ -123,7 +122,7 @@ public class PulsarSourceTest {
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
         try {
-            pulsarSource.open(new HashMap<>());
+            pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
             assertFalse(true);
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
@@ -147,7 +146,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
         try {
-            pulsarSource.open(new HashMap<>());
+            pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
@@ -171,7 +170,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
-        pulsarSource.open(emptyMap());
+        pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
     }
 
     /**
@@ -186,7 +185,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
-        pulsarSource.open(new HashMap<>());
+        pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
     }
 
     @Test

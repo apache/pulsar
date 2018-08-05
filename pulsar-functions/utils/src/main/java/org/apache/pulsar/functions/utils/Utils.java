@@ -55,7 +55,8 @@ public class Utils {
 
     public static String HTTP = "http";
     public static String FILE = "file";
-    
+    public static String BUILTIN = "builtin";
+
     public static final long getSequenceId(MessageId messageId) {
         MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
                 ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
@@ -101,16 +102,21 @@ public class Utils {
     }
 
     public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig) {
-
-        Object userClass = createInstance(functionConfig.getClassName(), Thread.currentThread().getContextClassLoader());
+        Object userClass = createInstance(functionConfig.getClassName(),
+                Thread.currentThread().getContextClassLoader());
+        boolean isWindowConfigPresent = functionConfig.getWindowConfig() != null;
+        return getFunctionTypes(userClass, isWindowConfigPresent);
+    }
+    
+    public static Class<?>[] getFunctionTypes(Object userClass, boolean isWindowConfigPresent) {
 
         Class<?>[] typeArgs;
         // if window function
-        if (functionConfig.getWindowConfig() != null) {
+        if (isWindowConfigPresent) {
             java.util.function.Function function = (java.util.function.Function) userClass;
             if (function == null) {
-                throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated",
-                        functionConfig.getClassName()));
+                throw new IllegalArgumentException(
+                        String.format("The Java util function class %s could not be instantiated", userClass));
             }
             typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
             if (!typeArgs[0].equals(Collection.class)) {
@@ -182,8 +188,12 @@ public class Utils {
     }
 
     public static Class<?> getSourceType(String className) {
+        return getSourceType(className, Thread.currentThread().getContextClassLoader());
+    }
 
-        Object userClass = Reflections.createInstance(className, Thread.currentThread().getContextClassLoader());
+    public static Class<?> getSourceType(String className, ClassLoader classloader) {
+
+        Object userClass = Reflections.createInstance(className, classloader);
         Class<?> typeArg;
         Source source = (Source) userClass;
         if (source == null) {
@@ -196,8 +206,12 @@ public class Utils {
     }
 
     public static Class<?> getSinkType(String className) {
+        return getSinkType(className, Thread.currentThread().getContextClassLoader());
+    }
 
-        Object userClass = Reflections.createInstance(className, Thread.currentThread().getContextClassLoader());
+    public static Class<?> getSinkType(String className, ClassLoader classLoader) {
+
+        Object userClass = Reflections.createInstance(className, classLoader);
         Class<?> typeArg;
         Sink sink = (Sink) userClass;
         if (sink == null) {
@@ -212,9 +226,9 @@ public class Utils {
     public static boolean fileExists(String file) {
         return new File(file).exists();
     }
-    
+
     public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
-        return isNotBlank(functionPkgUrl)
-                && (functionPkgUrl.startsWith(Utils.HTTP) || functionPkgUrl.startsWith(Utils.FILE));
+        return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(Utils.HTTP)
+                || functionPkgUrl.startsWith(Utils.FILE));
     }
 }

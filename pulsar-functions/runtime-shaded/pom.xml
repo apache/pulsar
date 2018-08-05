@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-functions</artifactId>
-    <version>2.1.0-incubating-SNAPSHOT</version>
+    <version>2.2.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -127,9 +127,6 @@
                   <include>com.google.googlejavaformat:google-java-format</include>
                   <include>com.google.errorprone:javac</include>
                   <include>net.jodah:typetools</include>
-                  <include>org.jboss:jboss-reflect</include>
-                  <include>org.jboss.logging:jboss-logging-spi</include>
-                  <include>org.jboss:jboss-common-core</include>
                   <include>com.beust:jcommander</include>
                   <include>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</include>
                   <include>org.yaml:snakeyaml</include>

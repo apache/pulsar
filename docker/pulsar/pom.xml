@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.1.0-incubating-SNAPSHOT</version>
+    <version>2.2.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.pulsar</groupId>
@@ -34,7 +34,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>distribution</artifactId>
+      <artifactId>pulsar-server-distribution</artifactId>
       <version>${project.parent.version}</version>
       <classifier>bin</classifier>
       <type>tar.gz</type>
@@ -95,7 +95,7 @@
               <pullNewerImage>false</pullNewerImage>
               <tag>${project.version}</tag>
               <buildArgs>
-                <PULSAR_TARBALL>target/distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
+                <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
               </buildArgs>
             </configuration>
           </plugin>
@@ -111,7 +111,7 @@
                 <phase>generate-resources</phase>
                 <configuration>
                   <outputDirectory>${project.build.directory}/</outputDirectory>
-                  <includeArtifactIds>distribution</includeArtifactIds>
+                  <includeArtifactIds>pulsar-server-distribution</includeArtifactIds>
                   <excludeTransitive>true</excludeTransitive>
                 </configuration>
               </execution>

@@ -54,6 +54,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -494,36 +495,15 @@ public class PersistentSubscription implements Subscription {
      */
     @Override
     public CompletableFuture<Void> close() {
-        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-
         synchronized (this) {
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                closeFuture.completeExceptionally(new SubscriptionBusyException("Subscription has active consumers"));
-                return closeFuture;
+                return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
             }
             IS_FENCED_UPDATER.set(this, TRUE);
-            log.info("[{}][{}] Successfully fenced cursor ledger [{}]", topicName, subName, cursor);
+            log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
         }
 
-        cursor.asyncClose(new CloseCallback() {
-            @Override
-            public void closeComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Successfully closed cursor ledger", topicName, subName);
-                }
-                closeFuture.complete(null);
-            }
-
-            @Override
-            public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-
-                log.error("[{}][{}] Error closing cursor for subscription", topicName, subName, exception);
-                closeFuture.completeExceptionally(new PersistenceException(exception));
-            }
-        }, null);
-
-        return closeFuture;
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -650,6 +630,12 @@ public class PersistentSubscription implements Subscription {
         }
 
         subStats.type = getType();
+        if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
+            Consumer activeConsumer = ((PersistentDispatcherSingleActiveConsumer) dispatcher).getActiveConsumer();
+            if (activeConsumer != null) {
+                subStats.activeConsumerName = activeConsumer.consumerName();
+            }
+        }
         if (SubType.Shared.equals(subStats.type)) {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                 subStats.unackedMessages = ((PersistentDispatcherMultipleConsumers) dispatcher)
@@ -660,6 +646,7 @@ public class PersistentSubscription implements Subscription {
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog();
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
+
         return subStats;
     }
 

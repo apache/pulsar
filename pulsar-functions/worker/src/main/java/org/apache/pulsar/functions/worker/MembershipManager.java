@@ -32,10 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -136,37 +132,36 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         return workerIds;
     }
 
+    public WorkerInfo getLeader() {
+        TopicStats topicStats = null;
+        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
+        try {
+            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
+        } catch (PulsarAdminException e) {
+            log.error("Failed to get status of coordinate topic {}",
+                    this.workerConfig.getClusterCoordinationTopic(), e);
+            throw new RuntimeException(e);
+        }
+
+        String activeConsumerName = topicStats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION).activeConsumerName;
+        WorkerInfo leader = null;
+        for (ConsumerStats consumerStats : topicStats.subscriptions
+                .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
+            if (consumerStats.consumerName.equals(activeConsumerName)) {
+                leader = WorkerInfo.parseFrom(consumerStats.metadata.get(WORKER_IDENTIFIER));
+            }
+        }
+        if (leader == null) {
+            log.warn("Failed to determine leader in functions cluster");
+        }
+        return leader;
+    }
+
     @Override
     public void close() throws PulsarClientException {
         consumer.close();
         if (this.pulsarAdminClient != null) {
             this.pulsarAdminClient.close();
-        }
-    }
-
-    @Getter
-    @AllArgsConstructor(access = AccessLevel.PRIVATE)
-    @ToString
-    public static class WorkerInfo {
-        private String workerId;
-        private String workerHostname;
-        private int port;
-
-        public static WorkerInfo of (String workerId, String workerHostname, int port) {
-            return new WorkerInfo(workerId, workerHostname, port);
-        }
-
-        public static WorkerInfo parseFrom(String str) {
-            String[] tokens = str.split(":");
-            if (tokens.length != 3) {
-                throw new IllegalArgumentException("Invalid string to parse WorkerInfo : " + str);
-            }
-
-            String workerId = tokens[0];
-            String workerHostname = tokens[1];
-            int port = Integer.parseInt(tokens[2]);
-
-            return new WorkerInfo(workerId, workerHostname, port);
         }
     }
 

@@ -181,8 +181,12 @@ void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result r
         }
 
         LOG_DEBUG(getName() << "Send initial flow permits: " << config_.getReceiverQueueSize());
-        if ((consumerTopicType_ == NonPartitioned || !firstTime) && config_.getReceiverQueueSize() != 0) {
-            receiveMessages(cnx, config_.getReceiverQueueSize());
+        if (consumerTopicType_ == NonPartitioned || !firstTime) {
+            if (config_.getReceiverQueueSize() != 0) {
+                receiveMessages(cnx, config_.getReceiverQueueSize());
+            } else if (messageListener_) {
+                receiveMessages(cnx, 1);
+            }
         }
         consumerCreatedPromise_.setValue(shared_from_this());
     } else {
@@ -286,7 +290,8 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         numOfMessageReceived = receiveIndividualMessagesFromBatch(cnx, m);
     } else {
         // config_.getReceiverQueueSize() != 0 or waiting For ZeroQueueSize Message`
-        if (config_.getReceiverQueueSize() != 0) {
+        if (config_.getReceiverQueueSize() != 0 ||
+            (config_.getReceiverQueueSize() == 0 && messageListener_)) {
             incomingMessages_.push(m);
         } else {
             Lock lock(mutex_);
@@ -444,6 +449,7 @@ void ConsumerImpl::internalListener() {
         // This will only happen when the connection got reset and we cleared the queue
         return;
     }
+    unAckedMessageTrackerPtr_->add(msg.getMessageId());
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
         messageListener_(Consumer(shared_from_this()), msg);

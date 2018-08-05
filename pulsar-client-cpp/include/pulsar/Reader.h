@@ -73,8 +73,14 @@ class Reader {
 
     void closeAsync(ResultCallback callback);
 
+    /**
+     * Asynchronously check if there is any message available to read from the current position.
+     */
     void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
 
+    /**
+     * Check if there is any message available to read from the current position.
+     */
     Result hasMessageAvailable(bool& hasMessageAvailable);
 
    private:

@@ -28,7 +28,7 @@ Pulsar clusters consist of one or more Pulsar {% popover brokers %}, one or more
 Clusters can be managed via:
 
 * The [`clusters`](../../reference/CliTools#pulsar-admin-clusters) command of the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool
-* The `/admin/clusters` endpoint of the admin [REST API](../../reference/RestApi)
+* The `/admin/v2/clusters` endpoint of the admin [REST API](../../reference/RestApi)
 * The `clusters` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../clients/Java)
 
 ## Clusters resources
@@ -51,7 +51,7 @@ $ pulsar-admin clusters create cluster-1 \
 
 #### REST API
 
-{% endpoint PUT /admin/clusters/:cluster %}
+{% endpoint PUT /admin/v2/clusters/:cluster %}
 
 [More info](../../reference/RestApi#/admin/clusters/:cluster)
 
@@ -96,7 +96,7 @@ bin/pulsar initialize-cluster-metadata \
   --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
 ```
 
-You'll need to use `--*-tls` flags only if you're using [TLS authentication](../../admin/Authz#tls-client-auth) in your instance.
+You'll need to use `--*-tls` flags only if you're using [TLS authentication](../../security/tls) in your instance.
 
 ### Get configuration
 
@@ -119,7 +119,7 @@ $ pulsar-admin clusters get cluster-1
 
 #### REST API
 
-{% endpoint GET /admin/clusters/:cluster %}
+{% endpoint GET /admin/v2/clusters/:cluster %}
 
 [More info](../../reference/RestApi#/admin/clusters/:cluster)
 
@@ -145,7 +145,7 @@ $ pulsar-admin clusters update cluster-1 \
 
 #### REST
 
-{% endpoint POST /admin/clusters/:cluster %}
+{% endpoint POST /admin/v2/clusters/:cluster %}
 
 [More info](../../reference/RestApi#/admin/clusters/:cluster)
 
@@ -175,7 +175,7 @@ $ pulsar-admin clusters delete cluster-1
 
 #### REST API
 
-{% endpoint DELETE /admin/clusters/:cluster %}
+{% endpoint DELETE /admin/v2/clusters/:cluster %}
 
 [More info](../../reference/RestApi#/admin/clusters/:cluster)
 
@@ -201,7 +201,7 @@ cluster-2
 
 #### REST API
 
-{% endpoint GET /admin/clusters %}
+{% endpoint GET /admin/v2/clusters %}
 
 [More info](../../reference/RestApi#/admin/clusters)
 
@@ -225,7 +225,7 @@ $ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 
 #### REST API
 
-{% endpoint POST /admin/clusters/:cluster/peers %}
+{% endpoint POST /admin/v2/clusters/:cluster/peers %}
 
 [More info](../../reference/RestApi#/admin/clusters/:cluster/peers)
 

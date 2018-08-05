@@ -18,21 +18,13 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import javax.swing.text.html.Option;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClient;
+
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
-import org.apache.pulsar.functions.source.PulsarSource;
-import org.apache.pulsar.io.core.Source;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
@@ -41,26 +33,15 @@ import org.slf4j.LoggerFactory;
  */
 @Slf4j
 public class JavaInstance implements AutoCloseable {
-    private ContextImpl context;
 
     @Getter(AccessLevel.PACKAGE)
+    private final ContextImpl context;
     private Function function;
     private java.util.function.Function javaUtilFunction;
-    private Optional<PulsarSource> optionalPulsarSource = Optional.empty();
 
-    public JavaInstance(InstanceConfig config, Object userClassObject,
-                 ClassLoader clsLoader,
-                 PulsarClient pulsarClient,
-                 Source source) {
-        // TODO: cache logger instances by functions?
-        Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionDetails().getName());
+    public JavaInstance(ContextImpl contextImpl, Object userClassObject) {
 
-        if (source instanceof PulsarSource) {
-            this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader);
-            optionalPulsarSource = Optional.of((PulsarSource) source);
-        } else {
-            this.context = null;
-        }
+        this.context = contextImpl;
 
         // create the functions
         if (userClassObject instanceof Function) {
@@ -68,17 +49,13 @@ public class JavaInstance implements AutoCloseable {
         } else {
             this.javaUtilFunction = (java.util.function.Function) userClassObject;
         }
-
     }
 
-    public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
-        optionalPulsarSource.ifPresent((pulsarSource) -> {
-            this.context.setInputConsumer(pulsarSource.getConsumerForTopic(topicName));
-            this.context.setCurrentMessageContext(messageId, topicName);
-        });
-
+    public JavaExecutionResult handleMessage(Record<?> record, Object input) {
+        if (context != null) {
+            context.setCurrentMessageContext(record);
+        }
         JavaExecutionResult executionResult = new JavaExecutionResult();
-
         try {
             Object output;
             if (function != null) {
@@ -93,15 +70,19 @@ public class JavaInstance implements AutoCloseable {
         return executionResult;
     }
 
-    public ContextImpl getContext() {
-        return this.context;
-    }
-
     @Override
     public void close() {
     }
 
-    public MetricsData getAndResetMetrics() {
+    public InstanceCommunication.MetricsData getAndResetMetrics() {
         return context.getAndResetMetrics();
+    }
+
+    public void resetMetrics() {
+        context.resetMetrics();
+    }
+
+    public InstanceCommunication.MetricsData getMetrics() {
+        return context.getMetrics();
     }
 }

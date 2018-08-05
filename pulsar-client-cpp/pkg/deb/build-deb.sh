@@ -25,8 +25,8 @@ SRC_ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $SRC_ROOT_DIR/pulsar-client-cpp/pkg/deb
 
 POM_VERSION=`cat ../../../pom.xml | xmllint --format - | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - |  grep -A 2 "matches pattern" |  grep text |  sed "s/.* [0-9] //g"`
-# Sanitize VERSION by removing `-incubating` since it's not legal in DEB
-VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`
+# Sanitize VERSION by removing `SNAPSHOT` if any since it's not legal in DEB
+VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`-incubating
 
 ROOT_DIR=apache-pulsar-$POM_VERSION
 CPP_DIR=$ROOT_DIR/pulsar-client-cpp
@@ -34,7 +34,7 @@ CPP_DIR=$ROOT_DIR/pulsar-client-cpp
 rm -rf BUILD
 mkdir BUILD
 cd BUILD
-tar xfz $SRC_ROOT_DIR/all/target/apache-pulsar-$POM_VERSION-src.tar.gz
+tar xfz $SRC_ROOT_DIR/distribution/server/target/apache-pulsar-$POM_VERSION-src.tar.gz
 pushd $CPP_DIR
 
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
@@ -42,23 +42,24 @@ make pulsarShared pulsarStatic -j 3
 strip lib/libpulsar.*
 popd
 
-DEST_DIR=pulsar-client
+DEST_DIR=apache-pulsar-client
 mkdir -p $DEST_DIR/DEBIAN
 cat <<EOF > $DEST_DIR/DEBIAN/control
-Package: pulsar-client
+Package: apache-pulsar-client
 Version: ${VERSION}
 Maintainer: Apache Pulsar <dev@pulsar.incubator.apache.org>
 Architecture: amd64
 Description: The Apache Pulsar client contains a C++ and C APIs to interact with Apache Pulsar brokers.
 EOF
 
-DEVEL_DEST_DIR=pulsar-client-dev
+DEVEL_DEST_DIR=apache-pulsar-client-dev
 mkdir -p $DEVEL_DEST_DIR/DEBIAN
 cat <<EOF > $DEVEL_DEST_DIR/DEBIAN/control
-Package: pulsar-client-dev
+Package: apache-pulsar-client-dev
 Version: ${VERSION}
 Maintainer: Apache Pulsar <dev@pulsar.incubator.apache.org>
 Architecture: amd64
+Depends: apache-pulsar-client
 Description: The Apache Pulsar client contains a C++ and C APIs to interact with Apache Pulsar brokers.
 EOF
 
@@ -86,8 +87,8 @@ cp $DEST_DIR/usr/share/doc/pulsar-client-$VERSION/* $DEVEL_DEST_DIR/usr/share/do
 
 
 ## Build actual debian packages
-dpkg-deb --build pulsar-client
-dpkg-deb --build pulsar-client-dev
+dpkg-deb --build $DEST_DIR
+dpkg-deb --build $DEVEL_DEST_DIR
 
 mkdir DEB
 mv *.deb DEB

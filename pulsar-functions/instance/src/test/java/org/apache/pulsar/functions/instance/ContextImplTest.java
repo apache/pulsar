@@ -26,7 +26,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.nio.ByteBuffer;
-import org.apache.pulsar.client.api.Consumer;
+import java.util.ArrayList;
+
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -43,7 +44,6 @@ public class ContextImplTest {
     private Logger logger;
     private PulsarClient client;
     private ClassLoader classLoader;
-    private Consumer consumer;
     private ContextImpl context;
 
     @Before
@@ -56,13 +56,12 @@ public class ContextImplTest {
         logger = mock(Logger.class);
         client = mock(PulsarClient.class);
         classLoader = getClass().getClassLoader();
-        consumer = mock(Consumer.class);
         context = new ContextImpl(
             config,
             logger,
             client,
             classLoader,
-            consumer
+            new ArrayList<>()
         );
     }
 

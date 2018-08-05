@@ -19,12 +19,15 @@
 package org.apache.pulsar.client.admin;
 
 import java.util.List;
+import java.util.Set;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.worker.WorkerInfo;
 
 /**
  * Admin interface for function management.
@@ -76,7 +79,7 @@ public interface Functions {
     FunctionDetails getFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
-     * Create a new function. 
+     * Create a new function.
      *
      * @param functionDetails
      *            the function configuration object
@@ -85,7 +88,7 @@ public interface Functions {
      *             Unexpected error
      */
     void createFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
-    
+
     /**
      * <pre>
      * Create a new function by providing url from which fun-pkg can be downloaded. supported url: http/file
@@ -93,7 +96,7 @@ public interface Functions {
      * File: file:/dir/fileName.jar
      * Http: http://www.repo.com/fileName.jar
      * </pre>
-     * 
+     *
      * @param functionDetails
      *            the function configuration object
      * @param pkgUrl
@@ -117,6 +120,28 @@ public interface Functions {
      *             Unexpected error
      */
     void updateFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a function.
+     * <pre>
+     * Update a function by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     *
+     * @param functionDetails
+     *            the function configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateFunctionWithUrl(FunctionDetails functionDetails, String pkgUrl) throws PulsarAdminException;
 
     /**
      * Delete an existing function
@@ -200,4 +225,38 @@ public interface Functions {
      *             Unexpected error
      */
     void downloadFunction(String destinationFile, String path) throws PulsarAdminException;
+
+    /**
+     * Fetches a list of supported Pulsar IO connectors currently running in cluster mode
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     *
+     */
+    List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException;
+
+    /**
+     * Fetches a list of supported Pulsar IO sources currently running in cluster mode
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     *
+     */
+    Set<String> getSources() throws PulsarAdminException;
+
+    /**
+     * Fetches a list of supported Pulsar IO sinks currently running in cluster mode
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     *
+     */
+    Set<String> getSinks() throws PulsarAdminException;
+    
+    /**
+     * Get list of workers present under a cluster
+     * @return
+     * @throws PulsarAdminException 
+     */
+    List<WorkerInfo> getCluster() throws PulsarAdminException;
 }
