@@ -120,7 +120,6 @@ TEST(AuthPluginTest, testTls) {
     ASSERT_EQ(i, numOfMessages);
 }
 
-
 TEST(AuthPluginTest, testTlsDetectPulsarSsl) {
     ClientConfiguration config = ClientConfiguration();
     config.setTlsTrustCertsFilePath("../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem");

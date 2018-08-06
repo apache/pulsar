@@ -69,7 +69,8 @@ static const ClientConfiguration detectTls(const std::string& serviceUrl,
     ClientConfiguration conf(clientConfiguration);
     std::string https("https");
     std::string pulsarSsl("pulsar+ssl");
-    if (serviceUrl.compare(0, https.size(), https) == 0 || serviceUrl.compare(0, pulsarSsl.size(), pulsarSsl) == 0) {
+    if (serviceUrl.compare(0, https.size(), https) == 0 ||
+        serviceUrl.compare(0, pulsarSsl.size(), pulsarSsl) == 0) {
         conf.setUseTls(true);
     }
     return conf;
