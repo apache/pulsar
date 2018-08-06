@@ -31,7 +31,6 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
 public class ClientBuilderImpl implements ClientBuilder {
-
     ClientConfigurationData conf;
 
     public ClientBuilderImpl() {
@@ -66,6 +65,7 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder serviceUrl(String serviceUrl) {
         conf.setServiceUrl(serviceUrl);
+        enableTls(serviceUrl.startsWith("pulsar+ssl") || serviceUrl.startsWith("https"));
         return this;
     }
 

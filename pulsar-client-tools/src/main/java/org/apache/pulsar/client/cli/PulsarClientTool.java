@@ -51,7 +51,6 @@ public class PulsarClientTool {
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
 
-    boolean useTls = false;
     boolean tlsAllowInsecureConnection = false;
     boolean tlsEnableHostnameVerification = false;
     String tlsTrustCertsFilePath = null;
@@ -69,7 +68,6 @@ public class PulsarClientTool {
         }
         this.authPluginClassName = properties.getProperty("authPlugin");
         this.authParams = properties.getProperty("authParams");
-        this.useTls = Boolean.parseBoolean(properties.getProperty("useTls"));
         this.tlsAllowInsecureConnection = Boolean
                 .parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
         this.tlsEnableHostnameVerification = Boolean
@@ -91,7 +89,6 @@ public class PulsarClientTool {
         if (isNotBlank(this.authPluginClassName)) {
             clientBuilder.authentication(authPluginClassName, authParams);
         }
-        clientBuilder.enableTls(this.useTls);
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
         clientBuilder.tlsTrustCertsFilePath(this.tlsTrustCertsFilePath);
         clientBuilder.serviceUrl(serviceURL);
