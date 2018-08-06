@@ -85,6 +85,7 @@ public class PulsarSourceTest {
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(anyString());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(any());
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
+        doReturn(consumerBuilder).when(consumerBuilder).messageListener(any());
         Consumer consumer = mock(Consumer.class);
         doReturn(consumer).when(consumerBuilder).subscribe();
         doReturn(consumerBuilder).when(pulsarClient).newConsumer(any());

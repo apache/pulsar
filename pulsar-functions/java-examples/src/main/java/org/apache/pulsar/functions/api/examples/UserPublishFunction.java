@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
+import java.util.Optional;
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-
-import java.util.Optional;
 
 /**
  * An example demonstrate publishing messages through Context
@@ -33,7 +32,7 @@ public class UserPublishFunction implements Function<String, Void> {
     public Void process(String input, Context context) {
         Optional<Object> topicToWrite = context.getUserConfigValue("topic");
         if (topicToWrite.get() != null) {
-            context.publish((String)topicToWrite.get(), input, DefaultSerDe.class.getName());
+            context.publish((String) topicToWrite.get(), input);
         }
         return null;
     }
