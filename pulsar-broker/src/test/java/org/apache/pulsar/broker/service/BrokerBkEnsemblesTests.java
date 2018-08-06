@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.testng.Assert.assertEquals;
+
+import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -53,8 +56,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
 
 /**
  */
@@ -236,8 +237,11 @@ public class BrokerBkEnsemblesTests {
      *
      * @throws Exception
      */
-    @Test(timeOut = 6000)
+    @Test
     public void testSkipCorruptDataLedger() throws Exception {
+        // Ensure intended state for autoSkipNonRecoverableData
+        admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "false");
+
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -246,9 +250,13 @@ public class BrokerBkEnsemblesTests {
         final int totalDataLedgers = 5;
         final int entriesPerLedger = totalMessages / totalDataLedgers;
 
-        admin.namespaces().createNamespace(ns1);
+        try {
+            admin.namespaces().createNamespace(ns1);
+        } catch (Exception e) {
 
-        final String topic1 = "persistent://" + ns1 + "/my-topic";
+        }
+
+        final String topic1 = "persistent://" + ns1 + "/my-topic-" + System.currentTimeMillis();
 
         // Create subscription
         Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
@@ -287,6 +295,7 @@ public class BrokerBkEnsemblesTests {
         // (2) delete first 4 data-ledgers
         ledgerInfo.entrySet().forEach(entry -> {
             if (!entry.equals(lastLedger)) {
+                assertEquals(entry.getValue().getEntries(), entriesPerLedger);
                 try {
                     bookKeeper.deleteLedger(entry.getKey());
                 } catch (Exception e) {
@@ -322,7 +331,7 @@ public class BrokerBkEnsemblesTests {
         // (5) consumer will be able to consume 20 messages from last non-deleted ledger
         consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
         for (int i = 0; i < entriesPerLedger; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = consumer.receive();
             System.out.println(i);
             consumer.acknowledge(msg);
         }
@@ -330,7 +339,6 @@ public class BrokerBkEnsemblesTests {
         producer.close();
         consumer.close();
         client.close();
-
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BrokerBkEnsemblesTests.class);
