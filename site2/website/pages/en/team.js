@@ -9,6 +9,8 @@ const GridBlock = CompLibrary.GridBlock;
 
 const CWD = process.cwd();
 
+const translate = require('../../server/translate.js').translate;
+
 const siteConfig = require(`${CWD}/siteConfig.js`);
 const team = require(`${CWD}/data/team.js`)
 
@@ -22,34 +24,40 @@ class Team extends React.Component {
         <Container className="mainContainer documentContainer postContainer">
           <div className="post">
             <header className="postHeader">
-              <h1>Contact</h1>
+              <h1><translate>Contact</translate></h1>
               <hr />
             </header>
             <p>
+            <translate>
               A successful project requires many people to play many roles. 
               Some members write code or documentation, while others are valuable as testers, 
               submitting patches and suggestions.
+            </translate>
             </p>
             <p>
+            <translate>
               The team is comprised of Members and Contributors. 
               Members have direct access to the source of a project and actively evolve the codebase. 
               Contributors improve the project through submission of patches and 
               suggestions to the Members. The number of Contributors to the project is unbounded. 
               Get involved today. All contributions to the project are greatly appreciated.
+            </translate>
             </p>
             
-            <h2>Committers</h2>
+            <h2><translate>Committers</translate></h2>
             <p>
+            <translate>
               The following is a list of developers with commit privileges that have directly 
               contributed to the project in one way or another.
+            </translate>
             </p>
             <table className="versions">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Apache Id</th>
-                  <th>Organization</th>
-                  <th>Roles</th>
+                  <th><translate>Name</translate></th>
+                  <th><translate>Apache Id</translate></th>
+                  <th><translate>Organization</translate></th>
+                  <th><translate>Roles</translate></th>
                 </tr>
               </thead>
               <tbody>
@@ -66,13 +74,13 @@ class Team extends React.Component {
               </tbody>
             </table>
 
-            <h2>Mentors</h2>
-            <p>The following people are the mentors of this incubator project</p>
+            <h2><translate>Mentors</translate></h2>
+            <p><translate>The following people are the mentors of this incubator project</translate></p>
             <table className="versions">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Apache Id</th>
+                  <th><translate>Name</translate></th>
+                  <th><translate>Apache Id</translate></th>
                 </tr>
               </thead>
               <tbody>

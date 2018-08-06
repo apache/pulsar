@@ -25,6 +25,19 @@ function binaryReleaseUrl(version) {
   return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-bin.tar.gz`
 }
 
+function connectorReleaseUrl(version) {
+  return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-io-connectors-${version}-bin.tar.gz`
+}
+
+function rpmReleaseUrl(version, type) {
+  rpmVersion = version.replace('incubating', '1_incubating');
+  return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}.x86_64.rpm`
+}
+
+function debReleaseUrl(version, type) {
+  return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/DEB/apache-pulsar-client${type}.deb`
+}
+
 function doReplace(options) {
   replace(options)
     .then(changes => {
@@ -42,13 +55,20 @@ function doReplace(options) {
 const versions = getVersions();
 
 const latestVersion = versions[0];
+const latestVersionWithoutIncubating = latestVersion.replace('-incubating', '');
 
 const from = [
+  /{{pulsar:version_number}}/g,
   /{{pulsar:version}}/g, 
   /pulsar:binary_release_url/g,
+  /pulsar:connector_release_url/g,
   /pulsar:download_page_url/g,
+  /{{pulsar:rpm:client}}/g,
+  /{{pulsar:rpm:client-debuginfo}}/g,
+  /{{pulsar:rpm:client-devel}}/g,
+  /{{pulsar:deb:client}}/g,
+  /{{pulsar:deb:client-devel}}/g,
 ];
-
 
 const options = {
   files: [
@@ -58,9 +78,16 @@ const options = {
   ignore: versions.map(v => `${docsDir}/${v}/**/*`), // TODO add next and assets
   from: from,
   to: [
-    `${latestVersion}-incubating`, 
-    binaryReleaseUrl(`${latestVersion}-incubating`), 
-    downloadPageUrl()
+    `${latestVersionWithoutIncubating}`, 
+    `${latestVersion}`, 
+    binaryReleaseUrl(`${latestVersion}`), 
+    connectorReleaseUrl(`${latestVersion}`), 
+    downloadPageUrl(),
+    rpmReleaseUrl(`${latestVersion}`, ""),
+    rpmReleaseUrl(`${latestVersion}`, "-debuginfo"),
+    rpmReleaseUrl(`${latestVersion}`, "-devel"),
+    debReleaseUrl(`${latestVersion}`, ""),
+    debReleaseUrl(`${latestVersion}`, "-dev"),
   ],
   dry: false
 };
@@ -73,6 +100,7 @@ for (v of versions) {
   if (v === latestVersion) {
     continue
   }
+  const vWithoutIncubating = v.replace('-incubating', '');
   const opts = {
     files: [
       `${docsDir}/${v}/*.html`, 
@@ -80,9 +108,16 @@ for (v of versions) {
     ],
     from: from,
     to: [
-      `${v}-incubating`, 
-      binaryReleaseUrl(`${v}-incubating`),
-      downloadPageUrl()
+      `${vWithoutIncubating}`, 
+      `${v}`, 
+      binaryReleaseUrl(`${v}`),
+      connectorReleaseUrl(`${v}`),
+      downloadPageUrl(),
+      rpmReleaseUrl(`${v}`, ""),
+      rpmReleaseUrl(`${v}`, "-debuginfo"),
+      rpmReleaseUrl(`${v}`, "-devel"),
+      debReleaseUrl(`${v}`, ""),
+      debReleaseUrl(`${v}`, "-dev"),
     ],
     dry: true
   };

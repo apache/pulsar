@@ -70,7 +70,6 @@ public class FunctionConfig {
     @NotNull
     private String name;
     @NotNull
-    @isImplementationOfClasses(implementsClasses = {Function.class, java.util.function.Function.class})
     private String className;
 
     private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
@@ -87,6 +86,7 @@ public class FunctionConfig {
     @isValidTopicName
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
+    private boolean retainOrdering;
     private Map<String, Object> userConfig;
     private Runtime runtime;
     private boolean autoAck;

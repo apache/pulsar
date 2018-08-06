@@ -4,8 +4,19 @@
       "pulsar-2.0",
       "standalone",
       "standalone-docker",
-      "client-libraries",
-      "concepts-architecture"
+      "client-libraries"
+    ],
+    "Concepts and Architecture": [
+      "concepts-overview",
+      "concepts-messaging",
+      "concepts-architecture-overview",
+      "concepts-clients",
+      "concepts-replication",
+      "concepts-multi-tenancy",
+      "concepts-authentication",
+      "concepts-topic-compaction",
+      "concepts-tiered-storage",
+      "concepts-schema-registry"
     ],
     "Pulsar Functions": [
       "functions-overview",
@@ -13,11 +24,15 @@
       "functions-api",
       "functions-deploying",
       "functions-guarantees",
+      "functions-state",
       "functions-metrics"
     ],
     "Pulsar IO": [
       "io-overview",
-      "io-quickstart"
+      "io-quickstart",
+      "io-managing",
+      "io-connectors",
+      "io-develop"
     ],
     "Deployment": [
       "deploy-aws",
@@ -27,7 +42,7 @@
       "deploy-dcos",
       "deploy-monitoring"
     ],
-    "Pulsar administration": [
+    "Administration": [
       "administration-zk-bk",
       "administration-geo",
       "administration-dashboard",
@@ -37,7 +52,8 @@
     ],
     "Security": [
       "security-overview",
-      "security-tls",
+      "security-tls-transport",
+      "security-tls-authentication",
       "security-athenz",
       "security-authorization",
       "security-encryption",
@@ -57,6 +73,7 @@
       "admin-api-brokers",
       "admin-api-namespaces",
       "admin-api-permissions",
+      "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
       "admin-api-partitioned-topics"
     ],
@@ -84,7 +101,6 @@
     ],
     "Reference": [
       "reference-terminology",
-      "reference-rest-api",
       "reference-cli-tools",
       "pulsar-admin",
       "reference-configuration"

@@ -65,6 +65,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.utils.SinkConfig;
 import org.apache.pulsar.functions.utils.ConsumerConfig;
 import org.apache.pulsar.functions.utils.Utils;
@@ -214,7 +215,7 @@ public class CmdSinks extends CmdBase {
         protected String topicsPattern;
 
         @Parameter(names = { "-st",
-                "--schemaType" }, description = "The builtin schema type (eg: 'avro', 'json', etc..) or the class name for a Schema or Serde implementation")
+                "--schema-type" }, description = "The builtin schema type (eg: 'avro', 'json', etc..) or the class name for a Schema or Serde implementation")
         protected String schemaTypeOrClassName = "";
 
         @Parameter(names = "--subsName", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
@@ -525,8 +526,11 @@ public class CmdSinks extends CmdBase {
                 sourceSpecBuilder.setSubscriptionName(sinkConfig.getSourceSubscriptionName());
             }
 
-            sourceSpecBuilder.setSubscriptionType(
-                    sinkConfig.isRetainOrdering() ? SubscriptionType.FAILOVER : SubscriptionType.SHARED);
+            SubscriptionType subType = (sinkConfig.isRetainOrdering()
+                    || ProcessingGuarantees.EFFECTIVELY_ONCE.equals(sinkConfig.getProcessingGuarantees()))
+                            ? SubscriptionType.FAILOVER
+                            : SubscriptionType.SHARED;
+            sourceSpecBuilder.setSubscriptionType(subType);
 
             functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);

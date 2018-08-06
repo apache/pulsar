@@ -58,7 +58,7 @@ import io.swagger.annotations.ApiResponses;
  */
 @Path("/persistent")
 @Produces(MediaType.APPLICATION_JSON)
-@Api(value = "/persistent", description = "Persistent topic admin apis", tags = "persistent topic")
+@Api(value = "/persistent", description = "Persistent topic admin apis", tags = "persistent topic", hidden = true)
 @SuppressWarnings("deprecation")
 public class PersistentTopics extends PersistentTopicsBase {
 

@@ -209,7 +209,7 @@ public class CmdSources extends CmdBase {
         protected String deserializationClassName;
 
         @Parameter(names = { "-st",
-                "--schemaType" }, description = "The schema type (either a builtin schema like 'avro', 'json', etc.."
+                "--schema-type" }, description = "The schema type (either a builtin schema like 'avro', 'json', etc.."
                         + " or custom Schema class name to be used to encode messages emitted from the source")
         protected String schemaTypeOrClassName;
 

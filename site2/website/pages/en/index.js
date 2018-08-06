@@ -8,6 +8,8 @@ const GridBlock = CompLibrary.GridBlock;
 
 const CWD = process.cwd();
 
+const translate = require('../../server/translate.js').translate;
+
 const siteConfig = require(`${CWD}/siteConfig.js`);
 
 function imgUrl(img) {
@@ -99,49 +101,51 @@ const Block = props => (
 );
 
 
-const features = {
-  row1: [
-    {
-      content: 'Easily deploy lightweight compute logic using developer-friendly APIs without needing to run your own stream processing engine',
-      title: `[Pulsar Functions](${docUrl('functions-overview')})`,
-    },
-    {
-      content: 'Pulsar has run in production at Yahoo scale for over 3 years, with millions of messages per second across millions of topics',
-      title: `[Proven in production](${docUrl('concepts-architecture')})`,
-    },
-    {
-      content: 'Seamlessly expand capacity to hundreds of nodes',
-      title: `[Horizontally scalable](${docUrl('concepts-architecture')})`,
-    }
-  ],
-  row2: [
-    {
-      content: 'Designed for low publish latency (< 5ms) at scale with strong durabilty guarantees',
-      title: `[Low latency with durability](${docUrl('concepts-architecture')})`,
-    },
-    {
-      content: 'Designed for configurable replication between data centers across multiple geographic regions',
-      title: `[Geo-replication](${docUrl('administration-geo')})`,
-    },
-    {
-      content: 'Built from the ground up as a multi-tenant system. Supports Isolation, Authentication, Authorization and Quotas',
-      title: `[Multi-tenancy](${docUrl('concepts-architecture')})`,
-    }
-  ],
-  row3: [
-    {
-      content: `Persistent message storage based on Apache BookKeeper. Provides IO-level isolation between write and read operations`,
-      title: `[Persistent storage](${docUrl('concepts-architecture')})`,
-    },
-    {
-      content: 'Flexible messaging models with high-level APIs for Java, C++, Python and GO',
-      title: `[Client libraries](${docUrl('client-libraries')})`,
-    },
-    {
-      content: 'REST Admin API for provisioning, administration, tools and monitoring. Deploy on bare metal or Kubernetes.',
-      title: `[Operability](${docUrl('admin-api-overview')})`,
-    }
-  ]
+const features_lang = language => {
+  return {
+    row1: [
+      {
+        content: 'Easily deploy lightweight compute logic using developer-friendly APIs without needing to run your own stream processing engine',
+        title: `[Pulsar Functions](${docUrl('functions-overview', language)})`,
+      },
+      {
+        content: 'Pulsar has run in production at Yahoo scale for over 3 years, with millions of messages per second across millions of topics',
+        title: `[Proven in production](${docUrl('concepts-architecture-overview', language)})`,
+      },
+      {
+        content: 'Seamlessly expand capacity to hundreds of nodes',
+        title: `[Horizontally scalable](${docUrl('concepts-architecture-overview', language)})`,
+      }
+    ],
+    row2: [
+      {
+        content: 'Designed for low publish latency (< 5ms) at scale with strong durabilty guarantees',
+        title: `[Low latency with durability](${docUrl('concepts-architecture-overview', language)})`,
+      },
+      {
+        content: 'Designed for configurable replication between data centers across multiple geographic regions',
+        title: `[Geo-replication](${docUrl('administration-geo', language)})`,
+      },
+      {
+        content: 'Built from the ground up as a multi-tenant system. Supports Isolation, Authentication, Authorization and Quotas',
+        title: `[Multi-tenancy](${docUrl('concepts-multi-tenancy', language)})`,
+      }
+    ],
+    row3: [
+      {
+        content: 'Persistent message storage based on Apache BookKeeper. Provides IO-level isolation between write and read operations',
+        title: `[Persistent storage](${docUrl('concepts-architecture-overview#persistent-storage', language)})`,
+      },
+      {
+        content: 'Flexible messaging models with high-level APIs for Java, C++, Python and GO',
+        title: `[Client libraries](${docUrl('client-libraries', language)})`,
+      },
+      {
+        content: 'REST Admin API for provisioning, administration, tools and monitoring. Deploy on bare metal or Kubernetes.',
+        title: `[Operability](${docUrl('admin-api-overview', language)})`,
+      }
+    ]
+  };
 };
 
 const KeyFeautresGrid = props => (
@@ -179,6 +183,7 @@ const ApacheBlock = prop => (
 class Index extends React.Component {
   render() {
     let language = this.props.language || '';
+    let features = features_lang(language);
 
     return (
       <div>
