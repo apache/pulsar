@@ -108,8 +108,8 @@ class Download extends React.Component {
               <translate>
                 Once you've downloaded a Pulsar release, instructions on getting up and running with a standalone cluster
                 that you can run on your laptop can be found in the{' '}
-                <a href={`${siteConfig.baseUrl}docs/${this.props.language}/standalone`}>Run Pulsar locally</a> tutorial.
               </translate>
+                <a href={`${siteConfig.baseUrl}docs/${this.props.language}/standalone`}><translate>Run Pulsar locally</translate></a> <translate>tutorial</translate>.
               </p>
             </div>
             <p>
