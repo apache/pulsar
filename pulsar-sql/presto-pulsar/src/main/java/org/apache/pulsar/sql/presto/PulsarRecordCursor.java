@@ -52,7 +52,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
@@ -202,10 +201,9 @@ public class PulsarRecordCursor implements RecordCursor {
                 throw new RuntimeException(e);
             }
 
-            newEntries.forEach(new Consumer<Entry>() {
-                @Override
-                public void accept(Entry entry) {
-                    completedBytes += entry.getData().length;
+            newEntries.forEach(entry -> {
+                try {
+                    completedBytes += entry.getDataBuffer().readableBytes();
                     // filter entries that is not part of my split
                     if (((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) < 0) {
                         try {
@@ -217,9 +215,9 @@ public class PulsarRecordCursor implements RecordCursor {
                             log.error(e, "Failed to parse message from pulsar topic %s", topicName.toString());
                             throw new RuntimeException(e);
                         }
-                    } else {
-                        entry.release();
                     }
+                } finally {
+                    entry.release();
                 }
             });
         }
