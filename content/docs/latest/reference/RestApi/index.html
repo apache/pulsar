@@ -1117,18 +1117,6 @@
         
         
         
-        <li><a href="/admin/v2/namespaces/:property/:namespace/compactionThreshold"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>compactionThreshold</code></a></li>
-        
-        
-        
-        <li><a href="/admin/v2/namespaces/:property/:namespace/offloadDeletionLagMs"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadDeletionLagMs</code></a></li>
-        
-        
-        
-        <li><a href="/admin/v2/namespaces/:property/:namespace/offloadThreshold"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadThreshold</code></a></li>
-        
-        
-        
         <li><a href="/admin/v2/namespaces/:tenant"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span></code></a></li>
         
         
@@ -1161,6 +1149,10 @@
         
         
         
+        <li><a href="/admin/v2/namespaces/:tenant/:namespace/compactionThreshold"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>compactionThreshold</code></a></li>
+        
+        
+        
         <li><a href="/admin/v2/namespaces/:tenant/:namespace/deduplication"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>deduplication</code></a></li>
         
         
@@ -1186,6 +1178,14 @@
         
         
         <li><a href="/admin/v2/namespaces/:tenant/:namespace/messageTTL"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>messageTTL</code></a></li>
+        
+        
+        
+        <li><a href="/admin/v2/namespaces/:tenant/:namespace/offloadDeletionLagMs"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadDeletionLagMs</code></a></li>
+        
+        
+        
+        <li><a href="/admin/v2/namespaces/:tenant/:namespace/offloadThreshold"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadThreshold</code></a></li>
         
         
         
@@ -3627,516 +3627,6 @@
   
   
   
-  <div class="card" id="/admin/v2/namespaces/:property/:namespace/compactionThreshold">
-    <div class="card-title">
-      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>compactionThreshold</code></h5>
-    </div>
-    <div class="card-group">
-        
-        <div class="card">
-          <h5>
-            <code class="highlighter-rouge get">GET</code>
-          </h5>
-          <p>Maximum number of uncompacted bytes in topics before compaction is triggered.</p>
-          
-          <h5>URL parameters</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>In</th>
-                <th>Required</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td><code class="highlighter-rouge">property</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-              
-              <tr>
-                <td><code class="highlighter-rouge">namespace</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.parameters -->
-          
-          <h5>Responses</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td>200</td>
-                <td>successful operation</td>
-              </tr>
-              
-              <tr>
-                <td>403</td>
-                <td>Don't have admin permission</td>
-              </tr>
-              
-              <tr>
-                <td>404</td>
-                <td>Namespace doesn't exist</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.responses -->
-        </div>
-        
-        <div class="card">
-          <h5>
-            <code class="highlighter-rouge put">PUT</code>
-          </h5>
-          <p>Set maximum number of uncompacted bytes in a topic before compaction is triggered.</p>
-          
-          <h5>URL parameters</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>In</th>
-                <th>Required</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td><code class="highlighter-rouge">property</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-              
-              <tr>
-                <td><code class="highlighter-rouge">namespace</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.parameters -->
-          
-          <h5>Responses</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td>403</td>
-                <td>Don't have admin permission</td>
-              </tr>
-              
-              <tr>
-                <td>404</td>
-                <td>Namespace doesn't exist</td>
-              </tr>
-              
-              <tr>
-                <td>409</td>
-                <td>Concurrent modification</td>
-              </tr>
-              
-              <tr>
-                <td>412</td>
-                <td>compactionThreshold value is not valid</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.responses -->
-        </div>
-         <!-- for method in route[1] -->
-      </div>
-  </div>
-  
-  
-  
-  <div class="card" id="/admin/v2/namespaces/:property/:namespace/offloadDeletionLagMs">
-    <div class="card-title">
-      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadDeletionLagMs</code></h5>
-    </div>
-    <div class="card-group">
-        
-        <div class="card">
-          <h5>
-            <code class="highlighter-rouge get">GET</code>
-          </h5>
-          <p>Number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)</p>
-          
-          <h5>URL parameters</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>In</th>
-                <th>Required</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td><code class="highlighter-rouge">property</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-              
-              <tr>
-                <td><code class="highlighter-rouge">namespace</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.parameters -->
-          
-          <h5>Responses</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td>200</td>
-                <td>successful operation</td>
-              </tr>
-              
-              <tr>
-                <td>403</td>
-                <td>Don't have admin permission</td>
-              </tr>
-              
-              <tr>
-                <td>404</td>
-                <td>Namespace doesn't exist</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.responses -->
-        </div>
-        
-        <div class="card">
-          <h5>
-            <code class="highlighter-rouge put">PUT</code>
-          </h5>
-          <p>Set number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)</p>
-          
-          <h5>URL parameters</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>In</th>
-                <th>Required</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td><code class="highlighter-rouge">property</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-              
-              <tr>
-                <td><code class="highlighter-rouge">namespace</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.parameters -->
-          
-          <h5>Responses</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td>403</td>
-                <td>Don't have admin permission</td>
-              </tr>
-              
-              <tr>
-                <td>404</td>
-                <td>Namespace doesn't exist</td>
-              </tr>
-              
-              <tr>
-                <td>409</td>
-                <td>Concurrent modification</td>
-              </tr>
-              
-              <tr>
-                <td>412</td>
-                <td>offloadDeletionLagMs value is not valid</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.responses -->
-        </div>
-        
-        <div class="card">
-          <h5>
-            <code class="highlighter-rouge delete">DELETE</code>
-          </h5>
-          <p>Clear the namespace configured offload deletion lag. The topics in the namespace will fallback to using the default configured deletion lag for the broker</p>
-          
-          <h5>URL parameters</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>In</th>
-                <th>Required</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td><code class="highlighter-rouge">property</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-              
-              <tr>
-                <td><code class="highlighter-rouge">namespace</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.parameters -->
-          
-          <h5>Responses</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td>403</td>
-                <td>Don't have admin permission</td>
-              </tr>
-              
-              <tr>
-                <td>404</td>
-                <td>Namespace doesn't exist</td>
-              </tr>
-              
-              <tr>
-                <td>409</td>
-                <td>Concurrent modification</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.responses -->
-        </div>
-         <!-- for method in route[1] -->
-      </div>
-  </div>
-  
-  
-  
-  <div class="card" id="/admin/v2/namespaces/:property/:namespace/offloadThreshold">
-    <div class="card-title">
-      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadThreshold</code></h5>
-    </div>
-    <div class="card-group">
-        
-        <div class="card">
-          <h5>
-            <code class="highlighter-rouge get">GET</code>
-          </h5>
-          <p>Maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage</p>
-          
-          <h5>URL parameters</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>In</th>
-                <th>Required</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td><code class="highlighter-rouge">property</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-              
-              <tr>
-                <td><code class="highlighter-rouge">namespace</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.parameters -->
-          
-          <h5>Responses</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td>200</td>
-                <td>successful operation</td>
-              </tr>
-              
-              <tr>
-                <td>403</td>
-                <td>Don't have admin permission</td>
-              </tr>
-              
-              <tr>
-                <td>404</td>
-                <td>Namespace doesn't exist</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.responses -->
-        </div>
-        
-        <div class="card">
-          <h5>
-            <code class="highlighter-rouge put">PUT</code>
-          </h5>
-          <p>Set maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage</p>
-          
-          <h5>URL parameters</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>In</th>
-                <th>Required</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td><code class="highlighter-rouge">property</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-              
-              <tr>
-                <td><code class="highlighter-rouge">namespace</code></td>
-                <td>path</td>
-                <td>true</td>
-                <td>string</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.parameters -->
-          
-          <h5>Responses</h5>
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              <tr>
-                <td>403</td>
-                <td>Don't have admin permission</td>
-              </tr>
-              
-              <tr>
-                <td>404</td>
-                <td>Namespace doesn't exist</td>
-              </tr>
-              
-              <tr>
-                <td>409</td>
-                <td>Concurrent modification</td>
-              </tr>
-              
-              <tr>
-                <td>412</td>
-                <td>offloadThreshold value is not valid</td>
-              </tr>
-               <!-- for param in parameters -->
-            </tbody>
-          </table>
-           <!-- if method_info.responses -->
-        </div>
-         <!-- for method in route[1] -->
-      </div>
-  </div>
-  
-  
-  
   <div class="card" id="/admin/v2/namespaces/:tenant">
     <div class="card-title">
       <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span></code></h5>
@@ -5123,6 +4613,154 @@
   
   
   
+  <div class="card" id="/admin/v2/namespaces/:tenant/:namespace/compactionThreshold">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>compactionThreshold</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Maximum number of uncompacted bytes in topics before compaction is triggered.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Set maximum number of uncompacted bytes in a topic before compaction is triggered.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>compactionThreshold value is not valid</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
   <div class="card" id="/admin/v2/namespaces/:tenant/:namespace/deduplication">
     <div class="card-title">
       <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>deduplication</code></h5>
@@ -5980,6 +5618,368 @@
               <tr>
                 <td>412</td>
                 <td>Invalid TTL</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/v2/namespaces/:tenant/:namespace/offloadDeletionLagMs">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadDeletionLagMs</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Set number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>offloadDeletionLagMs value is not valid</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge delete">DELETE</code>
+          </h5>
+          <p>Clear the namespace configured offload deletion lag. The topics in the namespace will fallback to using the default configured deletion lag for the broker</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/v2/namespaces/:tenant/:namespace/offloadThreshold">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadThreshold</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Set maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>offloadThreshold value is not valid</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>

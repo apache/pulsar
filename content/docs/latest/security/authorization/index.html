@@ -1005,6 +1005,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1123,8 +1125,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1187,11 +1187,11 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
           
           
           
@@ -2299,6 +2299,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
           
           
@@ -2342,8 +2344,6 @@
           
           
           <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
-          
-          
           
           
           
@@ -2433,11 +2433,11 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
           
           
           
@@ -2541,9 +2541,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
-          
-          
           
           
           
@@ -2995,34 +2995,30 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1:value1"</span><span class="o">;</span>
-<span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
 <span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">tlsTrustCertsFilePath</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
 
 <span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
 <span class="n">config</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">authParams</span><span class="o">);</span>
-<span class="n">config</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="n">useTls</span><span class="o">);</span>
 <span class="n">config</span><span class="o">.</span><span class="na">setTlsAllowInsecureConnection</span><span class="o">(</span><span class="n">tlsAllowInsecureConnection</span><span class="o">);</span>
 <span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
 
-<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="s">"pulsar+ssl://service:6651"</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
 </code></pre></div></div>
 
 <p>To use TLS:</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1:value1"</span><span class="o">;</span>
-<span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
 <span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">tlsTrustCertsFilePath</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
 
 <span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
 <span class="n">config</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">authParams</span><span class="o">);</span>
-<span class="n">config</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="n">useTls</span><span class="o">);</span>
 <span class="n">config</span><span class="o">.</span><span class="na">setTlsAllowInsecureConnection</span><span class="o">(</span><span class="n">tlsAllowInsecureConnection</span><span class="o">);</span>
 <span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
 
-<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="s">"pulsar+ssl://service:6651"</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
 </code></pre></div></div>
 
       </section>

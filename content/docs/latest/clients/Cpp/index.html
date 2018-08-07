@@ -1005,6 +1005,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1019,9 +1021,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/project/CompileCpp/">Building Pulsar C++ client</a></li>
+          
+          
           
           
           
@@ -1096,8 +1098,6 @@
           
           
           <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
-          
-          
           
           
           
@@ -1287,9 +1287,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
-          
-          
           
           
           
@@ -1671,7 +1671,6 @@ client lib on MacOS.</p>
 <h2 id="authentication">Authentication</h2>
 
 <div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="n">ClientConfiguration</span><span class="p">();</span>
-<span class="n">config</span><span class="p">.</span><span class="n">setUseTls</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
 <span class="n">config</span><span class="p">.</span><span class="n">setTlsTrustCertsFilePath</span><span class="p">(</span><span class="s">"/path/to/cacert.pem"</span><span class="p">);</span>
 <span class="n">config</span><span class="p">.</span><span class="n">setTlsAllowInsecureConnection</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
 <span class="n">config</span><span class="p">.</span><span class="n">setAuth</span><span class="p">(</span><span class="n">pulsar</span><span class="o">::</span><span class="n">AuthTls</span><span class="o">::</span><span class="n">create</span><span class="p">(</span>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://pulsar.incubator.apache.org/blog</id>
+    <title>Apache Pulsar Blog</title>
+    <updated>2018-08-06T06:00:00Z</updated>
+    <generator>Feed for Node.js</generator>
+    <link rel="alternate" href="https://pulsar.incubator.apache.org/blog"/>
+    <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
+    <logo>https://pulsar.incubator.apache.org/img/pulsar.svg</logo>
+    <rights>Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.1.0-incubating]]></title>
+        <id>https://pulsar.incubator.apache.org/blog/2018/08/06/Apache-Pulsar-2-1-0.html</id>
+        <link href="https://pulsar.incubator.apache.org/blog/2018/08/06/Apache-Pulsar-2-1-0.html">
+        </link>
+        <updated>2018-08-06T06:00:00Z</updated>
+        <summary type="html"><![CDATA[<p>We are glad to present the new 2.1.0-incubating release of Pulsar.
+This release is the culmination of 2 months of work that have
+brought multiple new features and improvements to Pulsar.</p>
+<p>In Pulsar 2.1 you'll see:</p>
+<ul>
+<li><a href="/docs/io-overview">Pulsar IO</a> connector framework and a list of <a href="/docs/io-connectors">builtin connectors</a></li>
+<li><a href="https://github.com/apache/incubator-pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics">PIP-17</a>: <a href="/docs/docs/concepts-tiered-storage">Tiered Storage</a></li>
+<li>Pulsar <a href="/docs/functions-state">Stateful Functions</a></li>
+<li><a href="/docs/client-libraries-go">Go Client</a></li>
+<li><a href="https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/AvroSchema.java">Avro</a>
+and <a href="https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/ProtobufSchema.java">Protobuf</a> Schemas</li>
+</ul>
+<p>For details information please check the detailed <a href="/release-notes/#2.1.0-incubating">release notes</a> and <a href="/versions">2.1.0 documentation</a>.</p>
+]]></summary>
+        <author>
+            <name>Sijie Guo</name>
+            <uri>https://twitter.com/sijieg</uri>
+        </author>
+    </entry>
+</feed>

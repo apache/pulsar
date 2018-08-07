@@ -1185,7 +1185,6 @@
 
 <div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">webServiceUrl</span><span class="p">=</span><span class="s">https://broker.example.com:8443/</span>
 <span class="py">brokerServiceUrl</span><span class="p">=</span><span class="s">pulsar+ssl://broker.example.com:6651/</span>
-<span class="py">useTls</span><span class="p">=</span><span class="s">true</span>
 <span class="py">tlsAllowInsecureConnection</span><span class="p">=</span><span class="s">false</span>
 <span class="py">tlsTrustCertsFilePath</span><span class="p">=</span><span class="s">/path/to/ca.cert.pem</span>
 </code></pre></div></div>
@@ -1196,7 +1195,6 @@
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
     <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="s">"pulsar+ssl://broker.example.com:6651/"</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">enableTls</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
     <span class="o">.</span><span class="na">tlsTrustCertsFilePath</span><span class="o">(</span><span class="s">"/path/to/ca.cert.pem"</span><span class="o">)</span>
     <span class="o">.</span><span class="na">build</span><span class="o">();</span>
 </code></pre></div></div>
@@ -1215,7 +1213,6 @@
 <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;pulsar/Client.h&gt;
 </span>
 <span class="n">pulsar</span><span class="o">::</span><span class="n">ClientConfiguration</span> <span class="n">config</span><span class="p">;</span>
-<span class="n">config</span><span class="p">.</span><span class="n">setUseTls</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
 <span class="n">config</span><span class="p">.</span><span class="n">setTlsTrustCertsFilePath</span><span class="p">(</span><span class="s">"/path/to/ca.cert.pem"</span><span class="p">);</span>
 <span class="n">config</span><span class="p">.</span><span class="n">setTlsAllowInsecureConnection</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
 

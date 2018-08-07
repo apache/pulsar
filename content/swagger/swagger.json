@@ -1007,243 +1007,6 @@
         }
       }
     },
-    "/namespaces/{property}/{namespace}/compactionThreshold" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Maximum number of uncompacted bytes in topics before compaction is triggered.",
-        "description" : "The backlog size is compared to the threshold periodically. A threshold of 0 disabled automatic compaction",
-        "operationId" : "getCompactionThreshold",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "property",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "integer",
-              "format" : "int64"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          }
-        }
-      },
-      "put" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Set maximum number of uncompacted bytes in a topic before compaction is triggered.",
-        "description" : "The backlog size is compared to the threshold periodically. A threshold of 0 disabled automatic compaction",
-        "operationId" : "setCompactionThreshold",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "property",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          },
-          "412" : {
-            "description" : "compactionThreshold value is not valid"
-          }
-        }
-      }
-    },
-    "/namespaces/{property}/{namespace}/offloadDeletionLagMs" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)",
-        "description" : "A negative value denotes that deletion has been completely disabled. 'null' denotes that the topics in the namespace will fall back to the broker default for deletion lag.",
-        "operationId" : "getOffloadDeletionLag",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "property",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "integer",
-              "format" : "int64"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          }
-        }
-      },
-      "put" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Set number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)",
-        "description" : "A negative value disables the deletion completely.",
-        "operationId" : "setOffloadDeletionLag",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "property",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          },
-          "412" : {
-            "description" : "offloadDeletionLagMs value is not valid"
-          }
-        }
-      },
-      "delete" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Clear the namespace configured offload deletion lag. The topics in the namespace will fallback to using the default configured deletion lag for the broker",
-        "description" : "",
-        "operationId" : "clearOffloadDeletionLag",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "property",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          }
-        }
-      }
-    },
-    "/namespaces/{property}/{namespace}/offloadThreshold" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage",
-        "description" : "A negative value disables automatic offloading",
-        "operationId" : "getOffloadThreshold",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "property",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "integer",
-              "format" : "int64"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          }
-        }
-      },
-      "put" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Set maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage",
-        "description" : "A negative value disables automatic offloading",
-        "operationId" : "setOffloadThreshold",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "property",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          },
-          "412" : {
-            "description" : "offloadThreshold value is not valid"
-          }
-        }
-      }
-    },
     "/namespaces/{tenant}" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -1705,6 +1468,75 @@
         }
       }
     },
+    "/namespaces/{tenant}/{namespace}/compactionThreshold" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Maximum number of uncompacted bytes in topics before compaction is triggered.",
+        "description" : "The backlog size is compared to the threshold periodically. A threshold of 0 disabled automatic compaction",
+        "operationId" : "getCompactionThreshold",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set maximum number of uncompacted bytes in a topic before compaction is triggered.",
+        "description" : "The backlog size is compared to the threshold periodically. A threshold of 0 disabled automatic compaction",
+        "operationId" : "setCompactionThreshold",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "compactionThreshold value is not valid"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}/{namespace}/deduplication" : {
       "post" : {
         "tags" : [ "namespaces" ],
@@ -2094,6 +1926,174 @@
           },
           "412" : {
             "description" : "Invalid TTL"
+          }
+        }
+      }
+    },
+    "/namespaces/{tenant}/{namespace}/offloadDeletionLagMs" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)",
+        "description" : "A negative value denotes that deletion has been completely disabled. 'null' denotes that the topics in the namespace will fall back to the broker default for deletion lag.",
+        "operationId" : "getOffloadDeletionLag",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set number of milliseconds to wait before deleting a ledger segment which has been offloaded from the Pulsar cluster's local storage (i.e. BookKeeper)",
+        "description" : "A negative value disables the deletion completely.",
+        "operationId" : "setOffloadDeletionLag",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "offloadDeletionLagMs value is not valid"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Clear the namespace configured offload deletion lag. The topics in the namespace will fallback to using the default configured deletion lag for the broker",
+        "description" : "",
+        "operationId" : "clearOffloadDeletionLag",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      }
+    },
+    "/namespaces/{tenant}/{namespace}/offloadThreshold" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage",
+        "description" : "A negative value disables automatic offloading",
+        "operationId" : "getOffloadThreshold",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage",
+        "description" : "A negative value disables automatic offloading",
+        "operationId" : "setOffloadThreshold",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "offloadThreshold value is not valid"
           }
         }
       }
@@ -3753,7 +3753,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "403" : {
@@ -6337,10 +6337,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -6666,9 +6666,6 @@
         "overLoaded" : {
           "type" : "boolean"
         },
-        "loadReportType" : {
-          "type" : "string"
-        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -6678,8 +6675,8 @@
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "loadReportType" : {
+          "type" : "string"
         },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
@@ -6695,6 +6692,9 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -6854,13 +6854,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -7558,13 +7558,13 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {

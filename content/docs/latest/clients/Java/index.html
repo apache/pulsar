@@ -1005,6 +1005,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1019,9 +1021,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/project/CompileCpp/">Building Pulsar C++ client</a></li>
+          
+          
           
           
           
@@ -1096,8 +1098,6 @@
           
           
           <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
-          
-          
           
           
           
@@ -1301,6 +1301,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
           
           
@@ -1344,8 +1346,6 @@
           
           
           <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
-          
-          
           
           
           
@@ -1435,11 +1435,11 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
           
           
           
@@ -1557,9 +1557,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
-          
-          
           
           
           
@@ -1805,9 +1805,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
-          
-          
           
           
           
@@ -2505,7 +2505,7 @@ get a future returned.</p>
 
 <h3 id="tls-authentication">TLS Authentication</h3>
 
-<p>To use <a href="../../security/tls">TLS</a>, you need to set TLS to <code class="highlighter-rouge">true</code> using the <code class="highlighter-rouge">setUseTls</code> method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.</p>
+<p>To use <a href="../../security/tls">TLS</a>, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.</p>
 
 <p>Here’s an example configuration:</p>
 
@@ -2518,7 +2518,6 @@ get a future returned.</p>
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
         <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">enableTls</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
         <span class="o">.</span><span class="na">tlsTrustCertsFilePath</span><span class="o">(</span><span class="s">"/path/to/cacert.pem"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">authentication</span><span class="o">(</span><span class="n">tlsAuth</span><span class="o">)</span>
         <span class="o">.</span><span class="na">build</span><span class="o">();</span>
@@ -2526,7 +2525,7 @@ get a future returned.</p>
 
 <h3 id="athenz">Athenz</h3>
 
-<p>To use <a href="../../security/athenz">Athenz</a> as an authentication provider, you need to <a href="#tls-authentication">use TLS</a> and provide values for four parameters in a hash:</p>
+<p>To use <a href="../../security/athenz">Athenz</a> as an authentication provider, you need to <a href="../../security/tls-transport">use TLS transport</a> and provide values for four parameters in a hash:</p>
 
 <ul>
   <li><code class="highlighter-rouge">tenantDomain</code></li>
@@ -2549,7 +2548,6 @@ get a future returned.</p>
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
         <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">enableTls</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
         <span class="o">.</span><span class="na">tlsTrustCertsFilePath</span><span class="o">(</span><span class="s">"/path/to/cacert.pem"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">authentication</span><span class="o">(</span><span class="n">athenzAuth</span><span class="o">)</span>
         <span class="o">.</span><span class="na">build</span><span class="o">();</span>
