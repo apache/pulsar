@@ -75,7 +75,8 @@
       "admin-api-permissions",
       "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
-      "admin-api-partitioned-topics"
+      "admin-api-partitioned-topics",
+      "admin-api-schemas"
     ],
     "Adaptors": [
       "adaptors-kafka",
