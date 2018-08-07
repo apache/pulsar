@@ -63,6 +63,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.Builder;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
+import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
@@ -560,19 +561,19 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Object object;
         // If sink classname is not set, we default pulsar sink
         if (sinkSpec.getClassName().isEmpty()) {
-            PulsarSinkConfig pulsarSinkConfig = new PulsarSinkConfig();
-            pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
-                    this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
-            pulsarSinkConfig.setTopic(sinkSpec.getTopic());
-            pulsarSinkConfig.setSerDeClassName(sinkSpec.getSerDeClassName());
-            pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
 
-            Object[] params = {this.client, pulsarSinkConfig};
-            Class[] paramTypes = {PulsarClient.class, PulsarSinkConfig.class};
+            if (StringUtils.isEmpty(sinkSpec.getTopic())) {
+                object = PulsarSinkDisable.INSTANCE;
+            } else {
+                PulsarSinkConfig pulsarSinkConfig = new PulsarSinkConfig();
+                pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees
+                        .valueOf(this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
+                pulsarSinkConfig.setTopic(sinkSpec.getTopic());
+                pulsarSinkConfig.setSerDeClassName(sinkSpec.getSerDeClassName());
+                pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
+                object = new PulsarSink(this.client, pulsarSinkConfig);
+            }
 
-            object = Reflections.createInstance(
-                    PulsarSink.class.getName(),
-                    PulsarSink.class.getClassLoader(), params, paramTypes);
         } else {
             object = Reflections.createInstance(
                     sinkSpec.getClassName(),

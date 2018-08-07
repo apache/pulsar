@@ -233,8 +233,10 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_topicsPattern;
         @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)")
         protected String topicsPattern;
-        @Parameter(names = "--output", description = "The function's output topic")
+        @Parameter(names = "--output", description = "The function's output topic (use skipOutput flag to skip output topic)")
         protected String output;
+        @Parameter(names = "--skip-output", description = "Skip publishing function output to output topic")
+        protected boolean skipOutput;
         // for backwards compatibility purposes
         @Parameter(names = "--logTopic", description = "The topic to which the function's logs are produced", hidden = true)
         protected String DEPRECATED_logTopic;
@@ -367,6 +369,7 @@ public class CmdFunctions extends CmdBase {
             if (null != output) {
                 functionConfig.setOutput(output);
             }
+            functionConfig.setSkipOutput(skipOutput);
             if (null != logTopic) {
                 functionConfig.setLogTopic(logTopic);
             }
@@ -461,6 +464,11 @@ public class CmdFunctions extends CmdBase {
         }
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
+            
+            if (isBlank(functionConfig.getOutput()) && !functionConfig.isSkipOutput()) {
+                throw new ParameterException(
+                        "output topic is not present (pass skipOutput flag to skip publish output on topic)");
+            }
 
             if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"
@@ -534,9 +542,6 @@ public class CmdFunctions extends CmdBase {
             if (StringUtils.isEmpty(functionConfig.getNamespace())) {
                 inferMissingNamespace(functionConfig);
             }
-            if (StringUtils.isEmpty(functionConfig.getOutput())) {
-                inferMissingOutput(functionConfig);
-            }
 
             if (functionConfig.getParallelism() == 0) {
                 functionConfig.setParallelism(1);
@@ -579,17 +584,6 @@ public class CmdFunctions extends CmdBase {
 
         private void inferMissingNamespace(FunctionConfig functionConfig) {
             functionConfig.setNamespace(DEFAULT_NAMESPACE);
-        }
-
-        private void inferMissingOutput(FunctionConfig functionConfig) {
-            try {
-                String inputTopic = getUniqueInput(functionConfig);
-                String outputTopic = String.format("%s-%s-output", inputTopic, functionConfig.getName());
-                functionConfig.setOutput(outputTopic);
-            } catch (IllegalArgumentException ex) {
-                // It might be that we really don't need an output topic
-                // So we cannot really throw an exception
-            }
         }
 
         private String getUniqueInput(FunctionConfig functionConfig) {
