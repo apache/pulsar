@@ -435,12 +435,12 @@ public class CmdFunctionsTest {
     }
 
     @Test
-    public void testCreateWithoutOutputTopicWithSkipFlug() throws Exception {
+    public void testCreateWithoutOutputTopicWithSkipFlag() throws Exception {
         String inputTopicName = TEST_NAME + "-input-topic";
         cmd.run(new String[] {
                 "create",
                 "--inputs", inputTopicName,
-                "----skip-output",
+                "--skip-output",
                 "--jar", "SomeJar.jar",
                 "--tenant", "sample",
                 "--namespace", "ns1",
