@@ -18,30 +18,15 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import lombok.Getter;
-import lombok.Setter;
-import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
-import org.apache.pulsar.functions.instance.state.StateContextImpl;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.slf4j.Logger;
 
-import java.io.IOException;
-import java.util.Arrays;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -49,16 +34,35 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Getter;
+import lombok.Setter;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.instance.state.StateContextImpl;
+import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.SourceContext;
+import org.slf4j.Logger;
+
 /**
  * This class implements the Context interface exposed to the user.
  */
-class ContextImpl implements Context {
+class ContextImpl implements Context, SinkContext, SourceContext {
     private InstanceConfig config;
     private Logger logger;
 
     // Per Message related
-    private MessageId messageId;
-    private String currentTopicName;
+    private Record<?> record;
 
     @Getter
     @Setter
@@ -85,29 +89,34 @@ class ContextImpl implements Context {
         }
     }
 
+    private ConcurrentMap<String, AccumulatedMetricDatum> currentAccumulatedMetrics;
     private ConcurrentMap<String, AccumulatedMetricDatum> accumulatedMetrics;
 
     private Map<String, Producer> publishProducers;
     private Map<String, SerDe> publishSerializers;
     private ProducerConfiguration producerConfiguration;
     private PulsarClient pulsarClient;
-    private ClassLoader classLoader;
-    Consumer inputConsumer;
+    private final ClassLoader classLoader;
+
+    private final List<String> inputTopics;
+
+
     @Getter
     @Setter
     private StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       ClassLoader classLoader, Consumer inputConsumer) {
+                       ClassLoader classLoader, List<String> inputTopics) {
         this.config = config;
         this.logger = logger;
         this.pulsarClient = client;
         this.classLoader = classLoader;
+        this.currentAccumulatedMetrics = new ConcurrentHashMap<>();
         this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
         this.publishSerializers = new HashMap<>();
-        this.inputConsumer = inputConsumer;
+        this.inputTopics = inputTopics;
         producerConfiguration = new ProducerConfiguration();
         producerConfiguration.setBlockIfQueueFull(true);
         producerConfiguration.setBatchingEnabled(true);
@@ -121,28 +130,18 @@ class ContextImpl implements Context {
         }
     }
 
-    public void setCurrentMessageContext(MessageId messageId, String topicName) {
-        this.messageId = messageId;
-        this.currentTopicName = topicName;
+    public void setCurrentMessageContext(Record<?> record) {
+        this.record = record;
     }
 
     @Override
-    public byte[] getMessageId() {
-        return messageId.toByteArray();
-    }
-
-    @Override
-    public String getCurrentMessageTopicName() {
-        return currentTopicName;
+    public Record<?> getCurrentRecord() {
+        return record;
     }
 
     @Override
     public Collection<String> getInputTopics() {
-        if (inputConsumer instanceof MultiTopicsConsumerImpl) {
-            return ((MultiTopicsConsumerImpl) inputConsumer).getTopics();
-        } else {
-            return Arrays.asList(inputConsumer.getTopic());
-        }
+        return inputTopics;
     }
 
     @Override
@@ -206,12 +205,48 @@ class ContextImpl implements Context {
         return userConfigs;
     }
 
+
+    private void ensureStateEnabled() {
+        checkState(null != stateContext, "State is not enabled.");
+    }
+
     @Override
     public void incrCounter(String key, long amount) {
-        if (null != stateContext) {
+        ensureStateEnabled();
+        try {
             stateContext.incr(key, amount);
-        } else {
-            throw new RuntimeException("State is not enabled.");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to increment key '" + key + "' by amount '" + amount + "'", e);
+        }
+    }
+
+    @Override
+    public long getCounter(String key) {
+        ensureStateEnabled();
+        try {
+            return stateContext.getAmount(key);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve counter from key '" + key + "'");
+        }
+    }
+
+    @Override
+    public void putState(String key, ByteBuffer value) {
+        ensureStateEnabled();
+        try {
+            stateContext.put(key, value);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to update the state value for key '" + key + "'");
+        }
+    }
+
+    @Override
+    public ByteBuffer getState(String key) {
+        ensureStateEnabled();
+        try {
+            return stateContext.getValue(key);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'");
         }
     }
 
@@ -260,26 +295,25 @@ class ContextImpl implements Context {
                 .thenApply(msgId -> null);
     }
 
-    //TODO remove topic argument
-    @Override
-    public CompletableFuture<Void> ack(byte[] messageId) {
-        MessageId actualMessageId = null;
-        try {
-            actualMessageId = MessageId.fromByteArray(messageId);
-
-        } catch (IOException e) {
-            throw new RuntimeException("Invalid message id to ack", e);
-        }
-        return  inputConsumer.acknowledgeAsync(actualMessageId);
-    }
-
     @Override
     public void recordMetric(String metricName, double value) {
-        accumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
-        accumulatedMetrics.get(metricName).update(value);
+        currentAccumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
+        currentAccumulatedMetrics.get(metricName).update(value);
     }
 
     public MetricsData getAndResetMetrics() {
+        MetricsData retval = getMetrics();
+        resetMetrics();
+        return retval;
+    }
+
+    public void resetMetrics() {
+        this.accumulatedMetrics.clear();
+        this.accumulatedMetrics.putAll(currentAccumulatedMetrics);
+        this.currentAccumulatedMetrics.clear();
+    }
+
+    public MetricsData getMetrics() {
         MetricsData.Builder metricsDataBuilder = MetricsData.newBuilder();
         for (String metricName : accumulatedMetrics.keySet()) {
             MetricsData.DataDigest.Builder bldr = MetricsData.DataDigest.newBuilder();
@@ -290,7 +324,6 @@ class ContextImpl implements Context {
             metricsDataBuilder.putMetrics(metricName, bldr.build());
         }
         MetricsData retval = metricsDataBuilder.build();
-        accumulatedMetrics.clear();
         return retval;
     }
 }

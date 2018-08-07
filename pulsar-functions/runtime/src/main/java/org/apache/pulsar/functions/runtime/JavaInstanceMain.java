@@ -155,6 +155,7 @@ public class JavaInstanceMain implements AutoCloseable {
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
+    private ThreadRuntimeFactory containerFactory;
     private Long lastHealthCheckTs = null;
     private ScheduledExecutorService timer;
 
@@ -222,7 +223,7 @@ public class JavaInstanceMain implements AutoCloseable {
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
 
-        ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
+        containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageServiceUrl,
                 AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthenticationPlugin)
                         .clientAuthenticationParameters(clientAuthenticationParameters).useTls(isTrue(useTls))
@@ -302,6 +303,9 @@ public class JavaInstanceMain implements AutoCloseable {
             if (timer != null) {
                 timer.shutdown();
             }
+            if (containerFactory != null) {
+                containerFactory.close();
+            }
         } catch (Exception ex) {
             System.err.println(ex);
         }
@@ -344,6 +348,37 @@ public class JavaInstanceMain implements AutoCloseable {
             }
         }
 
+        @Override
+        public void getMetrics(com.google.protobuf.Empty request,
+                                       io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData> responseObserver) {
+            Runtime runtime = runtimeSpawner.getRuntime();
+            if (runtime != null) {
+                try {
+                    InstanceCommunication.MetricsData metrics = runtime.getMetrics().get();
+                    responseObserver.onNext(metrics);
+                    responseObserver.onCompleted();
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Exception in JavaInstance doing getAndResetMetrics", e);
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        public void resetMetrics(com.google.protobuf.Empty request,
+                io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+            Runtime runtime = runtimeSpawner.getRuntime();
+            if (runtime != null) {
+                try {
+                    runtime.resetMetrics().get();
+                    responseObserver.onNext(com.google.protobuf.Empty.getDefaultInstance());
+                    responseObserver.onCompleted();
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Exception in JavaInstance doing resetMetrics", e);
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        
         @Override
         public void healthCheck(com.google.protobuf.Empty request,
                                 io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult> responseObserver) {

@@ -24,6 +24,7 @@ import org.apache.pulsar.functions.utils.Exceptions;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -101,6 +102,29 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
                     eid,
                     requiredJarFiles,
                     requiredClasspaths);
+            }
+        }
+    }
+
+    @Override
+    public void registerFunctionInstanceWithArchive(String fid, String eid, String narArchive) throws IOException {
+        if (fid == null) {
+            throw new NullPointerException("FunctionID not set");
+        }
+
+        synchronized (cacheFunctions) {
+            FunctionCacheEntry entry = cacheFunctions.get(fid);
+
+            if (null != entry) {
+                entry.register(eid, Collections.singleton(narArchive), Collections.emptyList());
+                return;
+            }
+
+            // Create new cache entry
+            try {
+                cacheFunctions.put(fid, new FunctionCacheEntry(narArchive, eid));
+            } catch (Throwable cause) {
+                Exceptions.rethrowIOException(cause);
             }
         }
     }

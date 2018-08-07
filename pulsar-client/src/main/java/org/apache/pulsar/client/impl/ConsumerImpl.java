@@ -27,17 +27,20 @@ import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import static java.util.Base64.getEncoder;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -50,6 +53,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
+
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerStats;
@@ -61,17 +65,22 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.EncryptionContext;
+import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
+import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +105,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final int partitionIndex;
 
     private final int receiverQueueRefillThreshold;
-    private final CompressionCodecProvider codecProvider;
 
     private volatile boolean waitingOnReceiveForZeroQueueSize = false;
 
@@ -148,11 +156,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         this.partitionIndex = partitionIndex;
         this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
-        this.codecProvider = new CompressionCodecProvider();
         this.priorityLevel = conf.getPriorityLevel();
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
-        this.acknowledgmentsGroupingTracker = new AcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
+
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.isPersistent()) {
+            this.acknowledgmentsGroupingTracker =
+                new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
+        } else {
+            this.acknowledgmentsGroupingTracker =
+                NonPersistentAcknowledgmentGroupingTracker.of();
+        }
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -370,11 +385,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.debug("[{}] [{}] can ack message to broker {}, acktype {}, cardinality {}, length {}", subscription,
                         consumerName, batchMessageId, ackType, outstandingAcks, batchSize);
             }
-            // increment Acknowledge-msg counter with number of messages in batch only if AckType is Individual.
-            // CumulativeAckType is handled while sending ack to broker
-            if (ackType == AckType.Individual) {
-                stats.incrementNumAcksSent(batchSize);
-            }
             return true;
         } else {
             if (AckType.Cumulative == ackType
@@ -418,11 +428,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                     Map<String,Long> properties) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
 
-
         if (ackType == AckType.Individual) {
-            unAckedMessageTracker.remove(msgId);
-            // increment counter by 1 for non-batch msg
-            if (!(messageId instanceof BatchMessageIdImpl)) {
+            if (messageId instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+
+                stats.incrementNumAcksSent(batchMessageId.getBatchSize());
+                unAckedMessageTracker.remove(new MessageIdImpl(batchMessageId.getLedgerId(),
+                        batchMessageId.getEntryId(), batchMessageId.getPartitionIndex()));
+            } else {
+                // increment counter by 1 for non-batch msg
+                unAckedMessageTracker.remove(msgId);
                 stats.incrementNumAcksSent(1);
             }
         } else if (ackType == AckType.Cumulative) {
@@ -485,7 +500,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     AVAILABLE_PERMITS_UPDATER.set(this, 0);
                     // For zerosize queue : If the connection is reset and someone is waiting for the messages
                     // or queue was not empty: send a flow command
-                    if (waitingOnReceiveForZeroQueueSize || (conf.getReceiverQueueSize() == 0 && currentSize > 0)) {
+                    if (waitingOnReceiveForZeroQueueSize
+                            || (conf.getReceiverQueueSize() == 0 && (currentSize > 0 || listener != null))) {
                         sendFlowPermitsToBroker(cnx, 1);
                     }
                 } else {
@@ -678,6 +694,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.debug("[{}][{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
                         topic, subscription, msgId);
             }
+            if (conf.getReceiverQueueSize() == 0) {
+                increaseAvailablePermits(cnx);
+            }
             return;
         }
 
@@ -698,11 +717,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         ByteBuf decryptedPayload = decryptPayloadIfNeeded(messageId, msgMetadata, payload, cnx);
+
+        boolean isMessageUndecryptable = isMessageUndecryptable(msgMetadata);
+
         if (decryptedPayload == null) {
             // Message was discarded or CryptoKeyReader isn't implemented
             return;
         }
-        ByteBuf uncompressedPayload = uncompressPayloadIfNeeded(messageId, msgMetadata, decryptedPayload, cnx);
+
+        // uncompress decryptedPayload and release decryptedPayload-ByteBuf
+        ByteBuf uncompressedPayload = isMessageUndecryptable ? decryptedPayload.retain()
+                : uncompressPayloadIfNeeded(messageId, msgMetadata, decryptedPayload, cnx);
         decryptedPayload.release();
         if (uncompressedPayload == null) {
             // Message was discarded on decompression error
@@ -711,8 +736,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         final int numMessages = msgMetadata.getNumMessagesInBatch();
 
-        if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
-            final MessageImpl<T> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload, cnx, schema);
+        // if message is not decryptable then it can't be parsed as a batch-message. so, add EncyrptionCtx to message
+        // and return undecrypted payload
+        if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
+            final MessageImpl<T> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload,
+                    createEncryptionContext(msgMetadata), cnx, schema);
             uncompressedPayload.release();
             msgMetadata.recycle();
 
@@ -722,12 +750,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
                 // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
                 unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
-                boolean asyncReceivedWaiting = !pendingReceives.isEmpty();
-                if ((conf.getReceiverQueueSize() != 0 || waitingOnReceiveForZeroQueueSize) && !asyncReceivedWaiting) {
-                    incomingMessages.add(message);
-                }
-                if (asyncReceivedWaiting) {
+                if (!pendingReceives.isEmpty()) {
                     notifyPendingReceivedCallback(message, null);
+                } else if (conf.getReceiverQueueSize() != 0 || waitingOnReceiveForZeroQueueSize) {
+                    incomingMessages.add(message);
+                } else if (conf.getReceiverQueueSize() == 0 && listener != null) {
+                    triggerZeroQueueSizeListener(message);
                 }
             } finally {
                 lock.readLock().unlock();
@@ -754,7 +782,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             msgMetadata.recycle();
         }
 
-        if (listener != null) {
+        if (listener != null && conf.getReceiverQueueSize() != 0) {
             // Trigger the notification on the message listener in a separate thread to avoid blocking the networking
             // thread while the message processing happens
             listenerExecutor.execute(() -> {
@@ -816,6 +844,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    private void triggerZeroQueueSizeListener(final Message<T> message) {
+        checkArgument(conf.getReceiverQueueSize() == 0);
+        checkNotNull(listener, "listener can't be null");
+        checkNotNull(message, "unqueued message can't be null");
+
+        listenerExecutor.execute(() -> {
+            stats.updateNumMsgsReceived(message);
+            try {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Calling message listener for unqueued message {}", topic, subscription,
+                            message.getMessageId());
+                }
+                listener.received(ConsumerImpl.this, message);
+            } catch (Throwable t) {
+                log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
+                        message.getMessageId(), t);
+            }
+            increaseAvailablePermits(cnx());
+        });
+    }
+
     void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, ByteBuf uncompressedPayload,
             MessageIdData messageId, ClientCnx cnx) {
         int batchSize = msgMetadata.getNumMessagesInBatch();
@@ -863,7 +912,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), getPartitionIndex(), i, acker);
                 final MessageImpl<T> message = new MessageImpl<>(batchMessageIdImpl, msgMetadata,
-                        singleMessageMetadataBuilder.build(), singleMessagePayload, cnx, schema);
+                        singleMessageMetadataBuilder.build(), singleMessagePayload,
+                        createEncryptionContext(msgMetadata), cnx, schema);
                 lock.readLock().lock();
                 try {
                     if (pendingReceives.isEmpty()) {
@@ -993,7 +1043,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private ByteBuf uncompressPayloadIfNeeded(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload,
             ClientCnx currentCnx) {
         CompressionType compressionType = msgMetadata.getCompression();
-        CompressionCodec codec = codecProvider.getCodec(compressionType);
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         int uncompressedSize = msgMetadata.getUncompressedSize();
         int payloadSize = payload.readableBytes();
         if (payloadSize > PulsarDecoder.MaxMessageSize) {
@@ -1092,7 +1142,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
         if (cnx == null || (getState() == State.Connecting)) {
-            log.warn("[{}] Client Connection needs to be establised for redelivery of unacknowledged messages", this);
+            log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
         } else {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
@@ -1139,7 +1189,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
         if (cnx == null || (getState() == State.Connecting)) {
-            log.warn("[{}] Client Connection needs to be establised for redelivery of unacknowledged messages", this);
+            log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
         } else {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
@@ -1288,6 +1338,45 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             messageId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
         }
         return messageId;
+    }
+
+
+    private boolean isMessageUndecryptable(MessageMetadata msgMetadata) {
+        return (msgMetadata.getEncryptionKeysCount() > 0 && conf.getCryptoKeyReader() == null
+                && conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.CONSUME);
+    }
+
+    /**
+     * Create EncryptionContext if message payload is encrypted
+     *
+     * @param msgMetadata
+     * @return {@link Optional}<{@link EncryptionContext}>
+     */
+    private Optional<EncryptionContext> createEncryptionContext(MessageMetadata msgMetadata) {
+
+        EncryptionContext encryptionCtx = null;
+        if (msgMetadata.getEncryptionKeysCount() > 0) {
+            encryptionCtx = new EncryptionContext();
+            Map<String, EncryptionKey> keys = msgMetadata.getEncryptionKeysList().stream()
+                    .collect(
+                            Collectors.toMap(EncryptionKeys::getKey,
+                                    e -> new EncryptionKey(e.getValue().toByteArray(),
+                                            e.getMetadataList() != null
+                                                    ? e.getMetadataList().stream().collect(
+                                                            Collectors.toMap(KeyValue::getKey, KeyValue::getValue))
+                                                    : null)));
+            byte[] encParam = new byte[MessageCrypto.ivLen];
+            msgMetadata.getEncryptionParam().copyTo(encParam, 0);
+            Optional<Integer> batchSize = Optional
+                    .ofNullable(msgMetadata.hasNumMessagesInBatch() ? msgMetadata.getNumMessagesInBatch() : null);
+            encryptionCtx.setKeys(keys);
+            encryptionCtx.setParam(encParam);
+            encryptionCtx.setAlgorithm(msgMetadata.getEncryptionAlgo());
+            encryptionCtx.setCompressionType(msgMetadata.getCompression());
+            encryptionCtx.setUncompressedMessageSize(msgMetadata.getUncompressedSize());
+            encryptionCtx.setBatchSize(batchSize);
+        }
+        return Optional.ofNullable(encryptionCtx);
     }
 
     private int removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {

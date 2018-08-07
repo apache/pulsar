@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -48,6 +49,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         .timestamp(MockClock.millis())
         .isDeleted(false)
         .data("message { required int64 a = 1};".getBytes())
+        .props(new TreeMap<>())
         .build();
 
     private SchemaData schema2 = SchemaData.builder()
@@ -56,6 +58,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         .timestamp(MockClock.millis())
         .isDeleted(false)
         .data("message { required int64 b = 1};".getBytes())
+        .props(new TreeMap<>())
         .build();
 
     private SchemaData schema3 = SchemaData.builder()
@@ -64,6 +67,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         .timestamp(MockClock.millis())
         .isDeleted(false)
         .data("message { required int64 c = 1};".getBytes())
+        .props(new TreeMap<>())
         .build();
 
     private SchemaRegistryServiceImpl schemaRegistryService;
@@ -247,6 +251,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             .timestamp(MockClock.millis())
             .isDeleted(false)
             .data(randomString.toString().getBytes())
+            .props(new TreeMap<>())
             .build();
     }
 

@@ -27,14 +27,12 @@ import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.utils.Utils;
 import static org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime.PYTHON;
@@ -51,7 +49,7 @@ public class RuntimeSpawner implements AutoCloseable {
     private Timer processLivenessCheckTimer;
     private int numRestarts;
     private long instanceLivenessCheckFreqMs;
-    private Exception runtimeDeathException;
+    private Throwable runtimeDeathException;
 
 
     public RuntimeSpawner(InstanceConfig instanceConfig,
@@ -67,7 +65,7 @@ public class RuntimeSpawner implements AutoCloseable {
     public void start() throws Exception {
         log.info("RuntimeSpawner starting function {} - {}", this.instanceConfig.getFunctionDetails().getName(),
                 this.instanceConfig.getInstanceId());
-        
+
         if (instanceConfig.getFunctionDetails().getRuntime() == PYTHON
                 && instanceConfig.getFunctionDetails().getSource() != null
                 && StringUtils.isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {
@@ -84,7 +82,9 @@ public class RuntimeSpawner implements AutoCloseable {
                 @Override
                 public void run() {
                     if (!runtime.isAlive()) {
-                        log.error("Function Container is dead with exception", runtime.getDeathException());
+                        log.error("[{}-{}] Function Container is dead with exception",
+                                instanceConfig.getFunctionDetails().getName(), instanceConfig.getInstanceId(),
+                                runtime.getDeathException());
                         log.error("Restarting...");
                         // Just for the sake of sanity, just destroy the runtime
                         runtime.stop();
@@ -129,9 +129,6 @@ public class RuntimeSpawner implements AutoCloseable {
         if (null != runtime) {
             runtime.stop();
             runtime = null;
-        }
-        if (runtimeFactory != null) {
-            runtimeFactory.close();
         }
         if (processLivenessCheckTimer != null) {
             processLivenessCheckTimer.cancel();

@@ -57,6 +57,17 @@ Message Reader_readNextTimeout(Reader& reader, int timeoutMs) {
     return msg;
 }
 
+bool Reader_hasMessageAvailable(Reader& reader) {
+    bool available = false;
+    Result res;
+    Py_BEGIN_ALLOW_THREADS
+        res = reader.hasMessageAvailable(available);
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
+    return available;
+}
+
 void Reader_close(Reader& reader) {
     Result res;
     Py_BEGIN_ALLOW_THREADS
@@ -73,6 +84,7 @@ void export_reader() {
             .def("topic", &Reader::getTopic, return_value_policy<copy_const_reference>())
             .def("read_next", &Reader_readNext)
             .def("read_next", &Reader_readNextTimeout)
+            .def("has_message_available", &Reader_hasMessageAvailable)
             .def("close", &Reader_close)
             ;
 }

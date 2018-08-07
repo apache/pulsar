@@ -21,9 +21,10 @@
 
 from unittest import TestCase, main
 import time
+import os
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
-            AuthenticationTLS
+            AuthenticationTLS, Authentication
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -125,7 +126,9 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_tls_auth(self):
-        certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
         client = Client(self.serviceUrlTls,
                         tls_trust_certs_file_path=certs_dir + 'cacert.pem',
                         tls_allow_insecure_connection=False,
@@ -148,6 +151,83 @@ class PulsarTest(TestCase):
             pass  # Exception is expected
 
         client.close()
+
+    def test_tls_auth2(self):
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        authPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls"
+        authParams = "tlsCertFile:%s/client-cert.pem,tlsKeyFile:%s/client-key.pem" % (certs_dir, certs_dir)
+
+        client = Client(self.serviceUrlTls,
+                        tls_trust_certs_file_path=certs_dir + 'cacert.pem',
+                        tls_allow_insecure_connection=False,
+                        authentication=Authentication(authPlugin, authParams))
+
+        consumer = client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://property/cluster/namespace/my-python-topic-producer-consumer')
+        producer.send('hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        client.close()
+
+    def test_tls_auth3(self):
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        authPlugin = "tls"
+        authParams = "tlsCertFile:%s/client-cert.pem,tlsKeyFile:%s/client-key.pem" % (certs_dir, certs_dir)
+
+        client = Client(self.serviceUrlTls,
+                        tls_trust_certs_file_path=certs_dir + 'cacert.pem',
+                        tls_allow_insecure_connection=False,
+                        authentication=Authentication(authPlugin, authParams))
+
+        consumer = client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://property/cluster/namespace/my-python-topic-producer-consumer')
+        producer.send('hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        client.close()
+
+    def test_auth_junk_params(self):
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        authPlugin = "someoldjunk.so"
+        authParams = "blah"
+        client = Client(self.serviceUrlTls,
+                        tls_trust_certs_file_path=certs_dir + 'cacert.pem',
+                        tls_allow_insecure_connection=False,
+                        authentication=Authentication(authPlugin, authParams))
+        try:
+            client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+                             'my-sub',
+                             consumer_type=ConsumerType.Shared)
+        except:
+            pass  # Exception is expected
 
     def test_message_listener(self):
         client = Client(self.serviceUrl)
@@ -486,6 +566,88 @@ class PulsarTest(TestCase):
         self.assertEqual(msg1.data(), b'hello-1')
         consumer2.acknowledge(msg1)
         consumer2.close()
+        client.close()
+
+    def test_reader_has_message_available(self):
+        # create client, producer, reader
+        client = Client(self.serviceUrl)
+        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-reader-has-message-available')
+        reader = client.create_reader('persistent://sample/standalone/ns/my-python-topic-reader-has-message-available',
+                                      MessageId.latest)
+
+        # before produce data, expected not has message available
+        self.assertFalse(reader.has_message_available());
+
+        for i in range(10):
+            producer.send('hello-%d' % i)
+
+        # produced data, expected has message available
+        self.assertTrue(reader.has_message_available());
+
+        for i in range(10):
+            msg = reader.read_next()
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
+
+        # consumed all data, expected not has message available
+        self.assertFalse(reader.has_message_available());
+
+        for i in range(10, 20):
+            producer.send('hello-%d' % i)
+
+        # produced data again, expected has message available
+        self.assertTrue(reader.has_message_available());
+        reader.close()
+        producer.close()
+        client.close()
+
+    def test_seek(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-seek',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-seek')
+
+        for i in range(100):
+            producer.send('hello-%d' % i)
+
+        for i in range(100):
+            msg = consumer.receive()
+            self.assertEqual(msg.data(), b'hello-%d' % i)
+            consumer.acknowledge(msg)
+
+        # seek, and after reconnect, expected receive first message.
+        consumer.seek(MessageId.earliest)
+        time.sleep(0.5)
+        msg = consumer.receive()
+        self.assertEqual(msg.data(), b'hello-0')
+        client.close()
+
+    def test_v2_topics(self):
+        self._v2_topics(self.serviceUrl)
+
+    def test_v2_topics_http(self):
+        self._v2_topics(self.adminUrl)
+
+    def _v2_topics(self, url):
+        client = Client(url)
+        consumer = client.subscribe('my-v2-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-v2-topic-producer-consumer')
+        producer.send('hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+        consumer.acknowledge(msg)
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
         client.close()
 
     def _check_value_error(self, fun):

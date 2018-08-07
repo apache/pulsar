@@ -29,6 +29,8 @@ class PulsarWrapper;
 class PulsarFriend;
 class ReaderImpl;
 
+typedef boost::function<void(Result result, bool hasMessageAvailable)> HasMessageAvailableCallback;
+
 /**
  * A Reader can be used to scan through all the messages currently available in a topic.
  */
@@ -70,6 +72,16 @@ class Reader {
     Result close();
 
     void closeAsync(ResultCallback callback);
+
+    /**
+     * Asynchronously check if there is any message available to read from the current position.
+     */
+    void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
+
+    /**
+     * Check if there is any message available to read from the current position.
+     */
+    Result hasMessageAvailable(bool& hasMessageAvailable);
 
    private:
     typedef boost::shared_ptr<ReaderImpl> ReaderImplPtr;

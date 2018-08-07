@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
 
@@ -33,7 +34,8 @@ import java.nio.file.Paths;
 @Slf4j
 public class ProcessRuntimeFactory implements RuntimeFactory {
 
-    private String pulsarServiceUrl;
+    private final String pulsarServiceUrl;
+    private final String stateStorageServiceUrl;
     private AuthenticationConfig authConfig;
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
@@ -41,12 +43,13 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
+                                 String stateStorageServiceUrl,
                                  AuthenticationConfig authConfig,
                                  String javaInstanceJarFile,
                                  String pythonInstanceFile,
                                  String logDirectory) {
-
         this.pulsarServiceUrl = pulsarServiceUrl;
+        this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
@@ -54,7 +57,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
         // if things are not specified, try to figure out by env properties
         if (this.javaInstanceJarFile == null) {
-            String envJavaInstanceJarLocation = System.getProperty("pulsar.functions.java.instance.jar");
+            String envJavaInstanceJarLocation = System.getProperty(FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY);
             if (null != envJavaInstanceJarLocation) {
                 log.info("Java instance jar location is not defined,"
                         + " using the location defined in system environment : {}", envJavaInstanceJarLocation);
@@ -106,6 +109,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             logDirectory,
             codeFile,
             pulsarServiceUrl,
+            stateStorageServiceUrl,
             authConfig);
     }
 

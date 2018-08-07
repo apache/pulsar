@@ -1,0 +1,113 @@
+{
+  "docs": {
+    "Getting started": [
+      "pulsar-2.0",
+      "standalone",
+      "standalone-docker",
+      "client-libraries"
+    ],
+    "Concepts and Architecture": [
+      "concepts-overview",
+      "concepts-messaging",
+      "concepts-architecture-overview",
+      "concepts-clients",
+      "concepts-replication",
+      "concepts-multi-tenancy",
+      "concepts-authentication",
+      "concepts-topic-compaction",
+      "concepts-tiered-storage",
+      "concepts-schema-registry"
+    ],
+    "Pulsar Functions": [
+      "functions-overview",
+      "functions-quickstart",
+      "functions-api",
+      "functions-deploying",
+      "functions-guarantees",
+      "functions-state",
+      "functions-metrics"
+    ],
+    "Pulsar IO": [
+      "io-overview",
+      "io-quickstart",
+      "io-managing",
+      "io-connectors",
+      "io-develop"
+    ],
+    "Deployment": [
+      "deploy-aws",
+      "deploy-kubernetes",
+      "deploy-bare-metal",
+      "deploy-bare-metal-multi-cluster",
+      "deploy-dcos",
+      "deploy-monitoring"
+    ],
+    "Administration": [
+      "administration-zk-bk",
+      "administration-geo",
+      "administration-dashboard",
+      "administration-stats",
+      "administration-load-distribution",
+      "administration-proxy"
+    ],
+    "Security": [
+      "security-overview",
+      "security-tls-transport",
+      "security-tls-authentication",
+      "security-athenz",
+      "security-authorization",
+      "security-encryption",
+      "security-extending"
+    ],
+    "Client libraries": [
+      "client-libraries-java",
+      "client-libraries-go",
+      "client-libraries-python",
+      "client-libraries-cpp",
+      "client-libraries-websocket"
+    ],
+    "Admin API": [
+      "admin-api-overview",
+      "admin-api-clusters",
+      "admin-api-tenants",
+      "admin-api-brokers",
+      "admin-api-namespaces",
+      "admin-api-permissions",
+      "admin-api-persistent-topics",
+      "admin-api-non-persistent-topics",
+      "admin-api-partitioned-topics",
+      "admin-api-schemas"
+    ],
+    "Adaptors": [
+      "adaptors-kafka",
+      "adaptors-spark",
+      "adaptors-storm"
+    ],
+    "Cookbooks": [
+      "cookbooks-tiered-storage",
+      "cookbooks-compaction",
+      "cookbooks-deduplication",
+      "cookbooks-non-persistent",
+      "cookbooks-partitioned",
+      "cookbooks-retention-expiry",
+      "cookbooks-encryption",
+      "cookbooks-message-queue"
+    ],
+    "Development": [
+      "develop-tools",
+      "develop-binary-protocol",
+      "develop-schema",
+      "develop-load-manager",
+      "develop-cpp"
+    ],
+    "Reference": [
+      "reference-terminology",
+      "reference-cli-tools",
+      "pulsar-admin",
+      "reference-configuration"
+    ]
+  },
+  "docs-other": {
+    "First Category": ["doc4", "doc5"]
+  }
+}

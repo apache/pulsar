@@ -50,13 +50,11 @@ import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.pulsar.functions.proto.Function;
+import static org.apache.pulsar.functions.utils.Utils.FILE;
 
 @Slf4j
 public final class Utils {
 
-    public static String HTTP = "http";
-    public static String FILE = "file";
-    
     private Utils(){}
 
     public static Object getObject(byte[] byteArr) throws IOException, ClassNotFoundException {
@@ -243,8 +241,4 @@ public final class Utils {
         return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
     }
     
-    public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
-        return isNotBlank(functionPkgUrl)
-                && (functionPkgUrl.startsWith(Utils.HTTP) || functionPkgUrl.startsWith(Utils.FILE));
-    }
 }

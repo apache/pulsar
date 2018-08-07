@@ -17,6 +17,8 @@
 # under the License.
 #
 
+set(CMAKE_C_FLAGS " -std=c99 ${CMAKE_C_FLAGS}")
+
 set(SAMPLE_ASYNC_PRODUCER_SOURCES
   SampleAsyncProducer.cc
 )

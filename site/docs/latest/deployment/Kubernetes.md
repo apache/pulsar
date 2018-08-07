@@ -221,7 +221,7 @@ $ kubectl get pods -w -l app=pulsar
 Once all of the components are up and running, you'll need to create at least one Pulsar {% popover property %} and at least one {% popover namespace %}.
 
 {% include admonition.html type='info' content='
-This step is not strictly required if Pulsar [authentication and authorization](../../admin/Authz) is turned on, though it allows you to change [policies](../../admin/PropertiesNamespaces#managing-namespaces) for each of the namespaces later.
+This step is not strictly required if Pulsar [authentication and authorization](../../security/overview) is turned on, though it allows you to change [policies](../../admin/PropertiesNamespaces#managing-namespaces) for each of the namespaces later.
 ' %}
 
 You can create properties and namespaces (and perform any other administrative tasks) using the `pulsar-admin` pod that is already configured to act as an admin client for your newly created Pulsar cluster. One easy way to perform administrative tasks is to create an alias for the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool installed on the admin pod.

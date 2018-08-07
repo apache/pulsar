@@ -304,9 +304,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(minValue = 1)
     private int managedLedgerDefaultAckQuorum = 1;
 
-    // Default type of checksum to use when writing to BookKeeper. Default is "CRC32"
-    // Other possible options are "CRC32C" (which is faster), "MAC" or "DUMMY" (no checksum).
-    private DigestType managedLedgerDigestType = DigestType.CRC32;
+    // Default type of checksum to use when writing to BookKeeper. Default is "CRC32C"
+    // Other possible options are "CRC32", "MAC" or "DUMMY" (no checksum).
+    private DigestType managedLedgerDigestType = DigestType.CRC32C;
 
     // Max number of bookies to use when creating a ledger
     @FieldContext(minValue = 1)
@@ -464,10 +464,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
     // Number of connections per Broker in Pulsar Client used in WebSocket proxy
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+    // Time in milliseconds that idle WebSocket session times out
+    private int webSocketSessionIdleTimeoutMillis = 300000;
 
     /**** --- Metrics --- ****/
     // If true, export topic level metrics otherwise namespace level
     private boolean exposeTopicLevelMetricsInPrometheus = true;
+    private boolean exposeConsumerLevelMetricsInPrometheus = false;
 
     /**** --- Functions --- ****/
     private boolean functionsWorkerEnabled = false;
@@ -499,6 +502,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // For Amazon S3 ledger offload, Read buffer size in bytes.
     @FieldContext(minValue = 1024)
     private int s3ManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
+
+    // For Google Cloud Storage ledger offload, region where offload bucket is located.
+    // reference this page for more details: https://cloud.google.com/storage/docs/bucket-locations
+    private String gcsManagedLedgerOffloadRegion = null;
+
+    // For Google Cloud Storage ledger offload, Bucket to place offloaded ledger into
+    private String gcsManagedLedgerOffloadBucket = null;
+
+    // For Google Cloud Storage ledger offload, Max block size in bytes.
+    @FieldContext(minValue = 5242880) // 5MB
+    private int gcsManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024; // 64MB
+
+    // For Google Cloud Storage ledger offload, Read buffer size in bytes.
+    @FieldContext(minValue = 1024)
+    private int gcsManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
+
+    // For Google Cloud Storage, path to json file containing service account credentials.
+    // For more details, see the "Service Accounts" section of https://support.google.com/googleapi/answer/6158849
+    private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -1582,12 +1604,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setWebSocketConnectionsPerBroker(int webSocketConnectionsPerBroker) { this.webSocketConnectionsPerBroker = webSocketConnectionsPerBroker; }
 
+    public int getWebSocketSessionIdleTimeoutMillis() {
+        return webSocketSessionIdleTimeoutMillis;
+    }
+
+    public void setWebSocketSessionIdleTimeoutMillis(int webSocketSessionIdleTimeoutMillis) {
+        this.webSocketSessionIdleTimeoutMillis = webSocketSessionIdleTimeoutMillis;
+    }
+
     public boolean exposeTopicLevelMetricsInPrometheus() {
         return exposeTopicLevelMetricsInPrometheus;
     }
 
+    public boolean exposeConsumerLevelMetricsInPrometheus() {
+        return exposeConsumerLevelMetricsInPrometheus;
+    }
+
     public void setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
         this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
+    }
+
+    public void setExposeConsumerLevelMetricsInPrometheus(boolean exposeConsumerLevelMetricsInPrometheus) {
+        this.exposeConsumerLevelMetricsInPrometheus = exposeConsumerLevelMetricsInPrometheus;
     }
 
     public String getSchemaRegistryStorageClassName() {
@@ -1721,6 +1759,46 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getS3ManagedLedgerOffloadReadBufferSizeInBytes() {
         return this.s3ManagedLedgerOffloadReadBufferSizeInBytes;
+    }
+
+    public void setGcsManagedLedgerOffloadRegion(String region) {
+        this.gcsManagedLedgerOffloadRegion = region;
+    }
+
+    public String getGcsManagedLedgerOffloadRegion() {
+        return this.gcsManagedLedgerOffloadRegion;
+    }
+
+    public void setGcsManagedLedgerOffloadBucket(String bucket) {
+        this.gcsManagedLedgerOffloadBucket = bucket;
+    }
+
+    public String getGcsManagedLedgerOffloadBucket() {
+        return this.gcsManagedLedgerOffloadBucket;
+    }
+
+    public void setGcsManagedLedgerOffloadMaxBlockSizeInBytes(int blockSizeInBytes) {
+        this.gcsManagedLedgerOffloadMaxBlockSizeInBytes = blockSizeInBytes;
+    }
+
+    public int getGcsManagedLedgerOffloadMaxBlockSizeInBytes() {
+        return this.gcsManagedLedgerOffloadMaxBlockSizeInBytes;
+    }
+
+    public void setGcsManagedLedgerOffloadReadBufferSizeInBytes(int readBufferSizeInBytes) {
+        this.gcsManagedLedgerOffloadReadBufferSizeInBytes = readBufferSizeInBytes;
+    }
+
+    public int getGcsManagedLedgerOffloadReadBufferSizeInBytes() {
+        return this.gcsManagedLedgerOffloadReadBufferSizeInBytes;
+    }
+
+    public void setGcsManagedLedgerOffloadServiceAccountKeyFile(String keyPath) {
+        this.gcsManagedLedgerOffloadServiceAccountKeyFile = keyPath;
+    }
+
+    public String getGcsManagedLedgerOffloadServiceAccountKeyFile() {
+        return this.gcsManagedLedgerOffloadServiceAccountKeyFile;
     }
 
     public void setBrokerServiceCompactionMonitorIntervalInSeconds(int interval) {

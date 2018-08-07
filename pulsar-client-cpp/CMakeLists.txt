@@ -44,10 +44,6 @@ endif(NOT CXX_STANDARD)
 
 set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
 
-if (!APPLE)
-    # Hide all non-exported symbols to avoid conflicts
-    set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
-endif ()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -94,9 +90,9 @@ else()
     endif (NOT PROTOBUF_LIBRARIES)
 
     find_library(LIB_JSON jsoncpp)
-    find_library(LOG4CXX_LIBRARY_PATH log4cxx)
     find_library(CURL_LIBRARY_PATH curl)
     if (USE_LOG4CXX)
+        find_library(LOG4CXX_LIBRARY_PATH log4cxx)
         find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
@@ -164,6 +160,14 @@ else (NOT JSON_INCLUDE_PATH)
     set(JSON_INCLUDE_PATH ${JSON_INCLUDE_PATH}/jsoncpp/)
 endif (NOT JSON_INCLUDE_PATH)
 
+if (NOT APPLE)
+    # we don't set options below to build _pulsar.so
+    set(CMAKE_CXX_FLAGS_PYTHON "${CMAKE_CXX_FLAGS}")
+    # Hide all non-exported symbols to avoid conflicts
+    set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
+endif ()
+
+
 set(ADDITIONAL_LIBRARIES $ENV{PULSAR_ADDITIONAL_LIBRARIES})
 link_directories( $ENV{PULSAR_ADDITIONAL_LIBRARY_PATH} )
 
@@ -193,17 +197,23 @@ set(COMMON_LIBS
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARY_PATH}
   ${PROTOBUF_LIBRARIES}
-  ${LOG4CXX_LIBRARY_PATH}
-  ${APR_LIBRARY_PATH}
-  ${APR_UTIL_LIBRARY_PATH}
-  ${EXPAT_LIBRARY_PATH}
-  ${ICONV_LIBRARY_PATH}
   ${CURL_LIBRARY_PATH}
   ${ADDITIONAL_LIBRARIES}
   ${LIB_JSON}
   dl
   pthread
 )
+
+if (USE_LOG4CXX)
+    set(COMMON_LIBS
+      ${COMMON_LIBS}
+      ${LOG4CXX_LIBRARY_PATH}
+      ${APR_LIBRARY_PATH}
+      ${APR_UTIL_LIBRARY_PATH}
+      ${EXPAT_LIBRARY_PATH}
+      ${ICONV_LIBRARY_PATH}
+    )
+endif ()
 
 if(NOT APPLE)
     set(COMMON_LIBS ${COMMON_LIBS} rt)

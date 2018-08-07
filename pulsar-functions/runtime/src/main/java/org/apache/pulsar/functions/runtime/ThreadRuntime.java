@@ -98,20 +98,41 @@ class ThreadRuntime implements Runtime {
 
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
+        CompletableFuture<FunctionStatus> statsFuture = new CompletableFuture<>();
         if (!isAlive()) {
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
             functionStatusBuilder.setFailureException(getDeathException().getMessage());
-            return CompletableFuture.completedFuture(functionStatusBuilder.build());
+            statsFuture.complete(functionStatusBuilder.build());
+            return statsFuture;
         }
         FunctionStatus.Builder functionStatusBuilder = javaInstanceRunnable.getFunctionStatus();
         functionStatusBuilder.setRunning(true);
-        return CompletableFuture.completedFuture(functionStatusBuilder.build());
+        getMetrics().handle((metrics, e) -> {
+            if (e == null) {
+                functionStatusBuilder.setMetrics(metrics);
+            }
+            statsFuture.complete(functionStatusBuilder.build());
+            return null;
+        });
+        return statsFuture;
     }
 
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getAndResetMetrics());
+    }
+    
+    
+    @Override
+    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
+        return CompletableFuture.completedFuture(javaInstanceRunnable.getMetrics());
+    }
+
+    @Override
+    public CompletableFuture<Void> resetMetrics() {
+        javaInstanceRunnable.resetMetrics();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -124,7 +145,7 @@ class ThreadRuntime implements Runtime {
     }
 
     @Override
-    public Exception getDeathException() {
+    public Throwable getDeathException() {
         if (isAlive()) {
             return null;
         } else if (null != javaInstanceRunnable) {

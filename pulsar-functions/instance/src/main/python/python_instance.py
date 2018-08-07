@@ -97,6 +97,22 @@ class Stats(object):
     else:
       return self.latency / self.nsuccessfullyprocessed
 
+  def update(self, object):
+    self.nprocessed = object.nprocessed
+    self.nsuccessfullyprocessed = object.nsuccessfullyprocessed
+    self.nuserexceptions = object.nuserexceptions
+    self.nsystemexceptions = object.nsystemexceptions
+    self.nserialization_exceptions = object.nserialization_exceptions
+    self.latency = object.latency
+    self.lastinvocationtime = object.lastinvocationtime
+    self.latestuserexceptions = []
+    self.latestsystemexceptions = []
+    self.ndeserialization_exceptions.clear()
+    self.latestuserexceptions.append(object.latestuserexceptions)
+    self.latestsystemexceptions.append(object.latestsystemexceptions)
+    self.ndeserialization_exceptions.update(object.ndeserialization_exceptions)
+    
+
 class PythonInstance(object):
   def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, user_code, log_topic, pulsar_client):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
@@ -119,6 +135,7 @@ class PythonInstance(object):
     self.contextimpl = None
     self.total_stats = Stats()
     self.current_stats = Stats()
+    self.stats = Stats()
     self.last_health_check_ts = time.time()
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
 
@@ -278,18 +295,29 @@ class PythonInstance(object):
 
   def get_and_reset_metrics(self):
     # First get any user metrics
-    metrics = self.contextimpl.get_and_reset_metrics()
-    # Now add system metrics as well
-    self.add_system_metrics("__total_processed__", self.current_stats.nprocessed, metrics)
-    self.add_system_metrics("__total_successfully_processed__", self.current_stats.nsuccessfullyprocessed, metrics)
-    self.add_system_metrics("__total_system_exceptions__", self.current_stats.nsystemexceptions, metrics)
-    self.add_system_metrics("__total_user_exceptions__", self.current_stats.nuserexceptions, metrics)
-    for (topic, metric) in self.current_stats.ndeserialization_exceptions.items():
-      self.add_system_metrics("__total_deserialization_exceptions__" + topic, metric, metrics)
-    self.add_system_metrics("__total_serialization_exceptions__", self.current_stats.nserialization_exceptions, metrics)
-    self.add_system_metrics("__avg_latency_ms__", self.current_stats.compute_latency(), metrics)
-    self.current_stats.reset()
+    metrics = self.get_metrics()
+    self.reset_metrics()
     return metrics
+
+  def reset_metrics(self):
+    self.stats.update(self.current_stats)
+    self.current_stats.reset()
+    self.contextimpl.reset_metrics()
+
+  def get_metrics(self):
+    # First get any user metrics
+    metrics = self.contextimpl.get_metrics()
+    # Now add system metrics as well
+    self.add_system_metrics("__total_processed__", self.stats.nprocessed, metrics)
+    self.add_system_metrics("__total_successfully_processed__", self.stats.nsuccessfullyprocessed, metrics)
+    self.add_system_metrics("__total_system_exceptions__", self.stats.nsystemexceptions, metrics)
+    self.add_system_metrics("__total_user_exceptions__", self.stats.nuserexceptions, metrics)
+    for (topic, metric) in self.stats.ndeserialization_exceptions.items():
+      self.add_system_metrics("__total_deserialization_exceptions__" + topic, metric, metrics)
+    self.add_system_metrics("__total_serialization_exceptions__", self.stats.nserialization_exceptions, metrics)
+    self.add_system_metrics("__avg_latency_ms__", self.stats.compute_latency(), metrics)
+    return metrics
+
 
   def add_system_metrics(self, metric_name, value, metrics):
     metrics.metrics[metric_name].count = value
@@ -318,6 +346,7 @@ class PythonInstance(object):
     status.serializationExceptions = self.total_stats.nserialization_exceptions
     status.averageLatency = self.total_stats.compute_latency()
     status.lastInvocationTime = self.total_stats.lastinvocationtime
+    status.metrics.CopyFrom(self.get_metrics())
     return status
 
   def join(self):

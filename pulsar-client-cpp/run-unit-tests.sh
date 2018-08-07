@@ -23,13 +23,14 @@
 
 rm -rf ./pulsar-dist
 mkdir pulsar-dist
-tar xfz ../all/target/apache-pulsar*bin.tar.gz  -C pulsar-dist --strip-components 1
+tar xfz ../distribution/server/target/apache-pulsar*bin.tar.gz  -C pulsar-dist --strip-components 1
 
-PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone.conf pulsar-dist/bin/pulsar standalone --no-functions-worker > broker.log &
+PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone.conf pulsar-dist/bin/pulsar standalone --no-functions-worker --no-stream-storage > broker.log &
 standalone_pid=$!;
 
 PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone-ssl.conf pulsar-dist/bin/pulsar standalone \
               --no-functions-worker \
+              --no-stream-storage \
               --zookeeper-port 2191 --bookkeeper-port 3191 \
               --zookeeper-dir data2/standalone/zookeeper --bookkeeper-dir \
               data2/standalone/bookkeeper > broker-tls.log &
@@ -56,7 +57,7 @@ PULSAR_CLIENT_CONF=$PWD/test-conf/client-ssl.conf pulsar-dist/bin/pulsar-admin c
 
 sleep 5
 
-cd tests
+pushd tests
 
 if [ -f /gtest-parallel/gtest-parallel ]; then
     echo "---- Run unit tests in parallel"
@@ -67,11 +68,29 @@ else
     RES=$?
 fi
 
+popd
+
 if [ $RES -eq 0 ]; then
+    pushd python
+    echo "---- Build Python Wheel file"
+    python setup.py bdist_wheel
+
+    echo "---- Installing  Python Wheel file"
+    pip install dist/pulsar_client-*-linux_x86_64.whl
+
     echo "---- Running Python unit tests"
-    cd ../python
+
+    # Running tests from a different directory to avoid importing directly
+    # from the current dir, but rather using the installed wheel file
+    cp pulsar_test.py /tmp
+    pushd /tmp
+
     python pulsar_test.py
     RES=$?
+
+    popd
+    popd
+
 fi
 
 kill -9 $standalone_pid $auth_pid

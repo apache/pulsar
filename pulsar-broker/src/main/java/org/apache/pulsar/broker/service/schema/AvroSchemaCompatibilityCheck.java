@@ -30,13 +30,13 @@ import java.util.Arrays;
 
 public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
 
-    private final CompatibilityStrategy compatibilityStrategy;
+    private final SchemaCompatibilityStrategy compatibilityStrategy;
 
     public AvroSchemaCompatibilityCheck () {
-        this(CompatibilityStrategy.FULL);
+        this(SchemaCompatibilityStrategy.FULL);
     }
 
-    public AvroSchemaCompatibilityCheck(CompatibilityStrategy compatibilityStrategy) {
+    public AvroSchemaCompatibilityCheck(SchemaCompatibilityStrategy compatibilityStrategy) {
         this.compatibilityStrategy = compatibilityStrategy;
     }
 
@@ -62,13 +62,7 @@ public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
         return true;
     }
 
-    public enum CompatibilityStrategy {
-        BACKWARD,
-        FORWARD,
-        FULL
-    }
-
-    private static SchemaValidator createSchemaValidator(CompatibilityStrategy compatibilityStrategy,
+    private static SchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy,
                                                   boolean onlyLatestValidator) {
         final SchemaValidatorBuilder validatorBuilder = new SchemaValidatorBuilder();
         switch (compatibilityStrategy) {

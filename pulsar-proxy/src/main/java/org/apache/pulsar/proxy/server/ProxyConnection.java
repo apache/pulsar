@@ -39,6 +39,7 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -140,6 +141,10 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             directProxyHandler.outboundChannel.close();
         }
 
+        if (client != null) {
+            client.close();
+        }
+        
         LOG.info("[{}] Connection closed", remoteAddress);
     }
 
@@ -233,6 +238,13 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         lookupProxyHandler.handlePartitionMetadataResponse(partitionMetadata);
     }
 
+    @Override
+    protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
+        checkArgument(state == State.ProxyLookupRequests);
+
+        lookupProxyHandler.handleGetTopicsOfNamespace(commandGetTopicsOfNamespace);
+    }
+
     /**
      * handles discovery request from client ands sends next active broker address
      */
@@ -274,7 +286,9 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             this.clientAuthentication = clientConf.getAuthentication();
 
             if (!service.getConfiguration().isAuthenticationEnabled()) {
-                this.client = new PulsarClientImpl(clientConf, service.getWorkerGroup());
+                this.client = new PulsarClientImpl(clientConf, service.getWorkerGroup(),
+                        new ProxyConnectionPool(clientConf, service.getWorkerGroup(), () -> new ClientCnx(clientConf,
+                                service.getWorkerGroup())));
                 return true;
             }
             
@@ -311,7 +325,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private PulsarClientImpl createClient(final ClientConfigurationData clientConf, final String clientAuthData,
             final String clientAuthMethod) throws PulsarClientException {
         return new PulsarClientImpl(clientConf, service.getWorkerGroup(),
-                new ConnectionPool(clientConf, service.getWorkerGroup(), () -> new ProxyClientCnx(clientConf,
+                new ProxyConnectionPool(clientConf, service.getWorkerGroup(), () -> new ProxyClientCnx(clientConf,
                         service.getWorkerGroup(), clientAuthRole, clientAuthData, clientAuthMethod)));
     }
 

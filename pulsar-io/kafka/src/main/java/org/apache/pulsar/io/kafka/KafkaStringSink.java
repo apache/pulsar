@@ -19,7 +19,8 @@
 
 package org.apache.pulsar.io.kafka;
 
-import org.apache.pulsar.common.util.KeyValue;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.KeyValue;
 
 /**
  * Kafka sink that treats incoming messages on the input topic as Strings
@@ -27,7 +28,7 @@ import org.apache.pulsar.common.util.KeyValue;
  */
 public class KafkaStringSink extends KafkaAbstractSink<String, String> {
     @Override
-    public KeyValue<String, String> extractKeyValue(byte[] message) {
-        return new KeyValue<>(new String(message), new String(message));
+    public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {
+        return new KeyValue<>(record.getKey().orElse(null), new String(record.getValue()));
     }
 }

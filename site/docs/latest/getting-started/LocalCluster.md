@@ -84,8 +84,8 @@ Here's an example producer for a Pulsar {% popover topic %} using the [Java](../
 ```java
 String localClusterUrl = "pulsar://localhost:6650";
 
-PulsarClient client = PulsarClient.create(localClusterUrl);
-Producer producer = client.createProducer("my-topic");
+PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
+Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
 ```
 
 Here's an example [Python](../../clients/Python) producer:

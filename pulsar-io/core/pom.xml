@@ -24,10 +24,36 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>2.1.0-incubating-SNAPSHOT</version>
+    <version>2.2.0-incubating-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-core</artifactId>
   <name>Pulsar IO :: IO</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>protobuf-shaded</artifactId>
+      <version>${pulsar.protobuf.shaded.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+  </dependencies>
 
 </project>

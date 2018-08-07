@@ -25,11 +25,11 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.1.0-incubating-SNAPSHOT</version>
+    <version>2.2.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>managed-ledger</artifactId>
+  <artifactId>managed-ledger-original</artifactId>
   <name>Managed Ledger</name>
 
   <dependencies>

@@ -105,4 +105,10 @@ bool ConsumerConfiguration::isReadCompacted() const { return impl_->readCompacte
 
 void ConsumerConfiguration::setReadCompacted(bool compacted) { impl_->readCompacted = compacted; }
 
+void ConsumerConfiguration::setPatternAutoDiscoveryPeriod(int periodInSeconds) {
+    impl_->patternAutoDiscoveryPeriod = periodInSeconds;
+}
+
+int ConsumerConfiguration::getPatternAutoDiscoveryPeriod() const { return impl_->patternAutoDiscoveryPeriod; }
+
 }  // namespace pulsar

@@ -38,6 +38,7 @@ import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.testng.annotations.Test;
+import static org.apache.pulsar.functions.utils.Utils.FILE;
 
 /**
  * Unit test of {@link FunctionActioner}.
@@ -46,7 +47,7 @@ public class FunctionActionerTest {
 
     /**
      * Validates FunctionActioner tries to download file from bk.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -67,7 +68,8 @@ public class FunctionActionerTest {
         LinkedBlockingQueue<FunctionAction> queue = new LinkedBlockingQueue<>();
 
         @SuppressWarnings("resource")
-        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace, queue);
+        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace, queue,
+                new ConnectorsManager(workerConfig));
         Runtime runtime = mock(Runtime.class);
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
@@ -109,11 +111,12 @@ public class FunctionActionerTest {
         LinkedBlockingQueue<FunctionAction> queue = new LinkedBlockingQueue<>();
 
         @SuppressWarnings("resource")
-        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace, queue);
+        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace, queue,
+                new ConnectorsManager(workerConfig));
 
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
         // RuntimeSpawner
-        String pkgPathLocation = Utils.FILE + ":/user/my-file.jar";
+        String pkgPathLocation = FILE + ":/user/my-file.jar";
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
                         .setNamespace("test-namespace").setName("func-1"))

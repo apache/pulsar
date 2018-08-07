@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -342,7 +343,7 @@ public class CmdNamespaces extends CmdBase {
         private String retentionTimeStr;
 
         @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
-                + "0 means no retention and -1 means infinite size retention", required = true)
+                + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 
         @Override
@@ -351,8 +352,12 @@ public class CmdNamespaces extends CmdBase {
             long sizeLimit = validateSizeString(limitStr);
             int retentionTimeInMin = validateTimeString(retentionTimeStr);
 
-            sizeLimit = sizeLimit / (1024 * 1024);
-            int retentionSizeInMB = (int) sizeLimit;
+            int retentionSizeInMB;
+            if (sizeLimit != -1) {
+                retentionSizeInMB = (int) (sizeLimit / (1024 * 1024));
+            } else {
+                retentionSizeInMB = -1;
+            }
             admin.namespaces().setRetention(namespace, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
         }
     }
@@ -796,53 +801,82 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    private static long validateSizeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        switch (last) {
-        case 'k':
-        case 'K':
-            return Long.parseLong(subStr) * 1024;
+    @Parameters(commandDescription = "Get offloadThreshold for a namespace")
+    private class GetOffloadThreshold extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
 
-        case 'm':
-        case 'M':
-            return Long.parseLong(subStr) * 1024 * 1024;
-
-        case 'g':
-        case 'G':
-            return Long.parseLong(subStr) * 1024 * 1024 * 1024;
-
-        case 't':
-        case 'T':
-            return Long.parseLong(subStr) * 1024 * 1024 * 1024 * 1024;
-
-        default:
-            return Long.parseLong(s);
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getOffloadThreshold(namespace));
         }
     }
 
-    private static int validateTimeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        switch (last) {
-        case 'm':
-        case 'M':
-            return Integer.parseInt(subStr);
+    @Parameters(commandDescription = "Set offloadThreshold for a namespace")
+    private class SetOffloadThreshold extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
 
-        case 'h':
-        case 'H':
-            return Integer.parseInt(subStr) * 60;
+        @Parameter(names = { "--size", "-s" },
+                   description = "Maximum number of bytes stored in the pulsar cluster for a topic before data will"
+                                 + " start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100)."
+                                 + " Negative values disable automatic offload."
+                                 + " 0 triggers offloading as soon as possible.",
+                   required = true)
+        private String threshold = "-1";
 
-        case 'd':
-        case 'D':
-            return Integer.parseInt(subStr) * 24 * 60;
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setOffloadThreshold(namespace, validateSizeString(threshold));
+        }
+    }
 
-        case 'w':
-        case 'W':
-            return Integer.parseInt(subStr) * 7 * 24 * 60;
+    @Parameters(commandDescription = "Get offloadDeletionLag, in minutes, for a namespace")
+    private class GetOffloadDeletionLag extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
 
-        default:
-            return Integer.parseInt(s);
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            Long lag = admin.namespaces().getOffloadDeleteLagMs(namespace);
+            if (lag != null) {
+                System.out.println(TimeUnit.MINUTES.convert(lag, TimeUnit.MILLISECONDS) + " minute(s)");
+            } else {
+                System.out.println("Unset for namespace. Defaulting to broker setting.");
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Set offloadDeletionLag for a namespace")
+    private class SetOffloadDeletionLag extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--lag", "-l" },
+                   description = "Duration to wait after offloading a ledger segment, before deleting the copy of that"
+                                  + " segment from cluster local storage. (eg: 10m, 5h, 3d, 2w).",
+                   required = true)
+        private String lag = "-1";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setOffloadDeleteLag(namespace, validateTimeString(lag), TimeUnit.MINUTES);
+        }
+    }
+
+    @Parameters(commandDescription = "Clear offloadDeletionLag for a namespace")
+    private class ClearOffloadDeletionLag extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().clearOffloadDeleteLag(namespace);
         }
     }
 
@@ -907,5 +941,13 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-compaction-threshold", new GetCompactionThreshold());
         jcommander.addCommand("set-compaction-threshold", new SetCompactionThreshold());
+
+        jcommander.addCommand("get-offload-threshold", new GetOffloadThreshold());
+        jcommander.addCommand("set-offload-threshold", new SetOffloadThreshold());
+
+        jcommander.addCommand("get-offload-deletion-lag", new GetOffloadDeletionLag());
+        jcommander.addCommand("set-offload-deletion-lag", new SetOffloadDeletionLag());
+        jcommander.addCommand("clear-offload-deletion-lag", new ClearOffloadDeletionLag());
+
     }
 }
