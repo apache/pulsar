@@ -41,6 +41,24 @@ $ cd incubator-pulsar/deployment/terraform-ansible/aws
 
 ## SSH setup
 
+> If you already have an SSH key and would like to use it, you skip generating the SSH keys and update `private_key_file` setting
+> in `ansible.cfg` file and `public_key_path` setting in `terraform.tfvars` file.
+>
+> For example, if you already had a private SSH key in `~/.ssh/pulsar_aws` and a public key in `~/.ssh/pulsar_aws.pub`,
+> you can do followings:
+>
+> 1. update `ansible.cfg` with following values:
+>
+> ```shell
+> private_key_file=~/.ssh/pulsar_aws
+> ```
+>
+> 2. update `terraform.tfvars` with following values:
+>
+> ```shell
+> public_key_path=~/.ssh/pulsar_aws.pub
+> ```
+
 In order to create the necessary AWS resources using Terraform, you'll need to create an SSH key. To create a private SSH key in `~/.ssh/id_rsa` and a public key in `~/.ssh/id_rsa.pub`:
 
 ```bash
@@ -133,6 +151,25 @@ At any point, you can destroy all AWS resources associated with your cluster usi
 $ terraform destroy
 ```
 
+## Setup Disks
+
+Before you run the Pulsar playbook, you want to mount the disks to the correct directories on those bookie nodes.
+Since different type of machines would have different disk layout, if you change the `instance_types` in your terraform
+config, you need to update the task defined in `setup-disk.yaml` file.
+
+To setup disks on bookie nodes, use this command:
+
+```bash
+$ ansible-playbook \
+  --user='ec2-user' \
+  --inventory=`which terraform-inventory` \
+  setup-disk.yaml
+```
+
+After running this command, the disks will be mounted under `/mnt/journal` as journal disk, and `/mnt/storage` as ledger disk.
+It is important to run this command only once! If you attempt to run this command again after you have run Pulsar playbook,
+it might be potentially erase your disks again and cause the bookies to fail to start up.
+
 ## Running the Pulsar playbook
 
 Once you've created the necessary AWS resources using Terraform, you can install and run Pulsar on the Terraform-created EC2 instances using Ansible. To do so, use this command:
@@ -150,7 +187,6 @@ If you've created a private SSH key at a location different from `~/.ssh/id_rsa`
 $ ansible-playbook \
   --user='ec2-user' \
   --inventory=`which terraform-inventory` \
-  --private-key="~/.ssh/some-non-default-key" \
   ../deploy-pulsar.yaml
 ```
 

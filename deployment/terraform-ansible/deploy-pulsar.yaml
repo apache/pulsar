@@ -17,24 +17,6 @@
 # under the License.
 #
 
-- name: Disk setup
-  hosts: pulsar
-  connection: ssh
-  become: true
-  tasks:
-    - command: >
-        tuned-adm profile latency-performance
-    - name: Create and mount disks
-      mount:
-        path: "{{ item.path }}"
-        src: "{{ item.src }}"
-        fstype: xfs
-        opts: defaults,noatime,nodiscard
-        state: present
-      with_items:
-        - { path: "/mnt/journal", src: "/dev/nvme0n1" }
-        - { path: "/mnt/storage", src: "/dev/nvme1n1" }
-
 - name: Pulsar setup
   hosts: all
   connection: ssh
@@ -56,7 +38,7 @@
         zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
         service_url: "pulsar://{{ hostvars[groups['pulsar'][0]].public_ip }}:6650/"
         http_url: "http://{{ hostvars[groups['pulsar'][0]].public_ip }}:8080/"
-        pulsar_version: "2.0.0-rc1-incubating"
+        pulsar_version: "2.1.0-incubating"
 
     - name: Download Pulsar binary package
       unarchive:
