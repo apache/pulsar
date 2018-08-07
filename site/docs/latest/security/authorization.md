@@ -98,17 +98,15 @@ The structure of topic names in Pulsar reflects the hierarchy between tenants, c
 ```java
 String authPluginClassName = "com.org.MyAuthPluginClass";
 String authParams = "param1:value1";
-boolean useTls = false;
 boolean tlsAllowInsecureConnection = false;
 String tlsTrustCertsFilePath = null;
 
 ClientConfiguration config = new ClientConfiguration();
 config.setAuthentication(authPluginClassName, authParams);
-config.setUseTls(useTls);
 config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
 config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
 
-PulsarAdmin admin = new PulsarAdmin(url, config);
+PulsarAdmin admin = new PulsarAdmin("pulsar+ssl://service:6651", config);
 ```
 
 To use TLS:
@@ -116,15 +114,13 @@ To use TLS:
 ```java
 String authPluginClassName = "com.org.MyAuthPluginClass";
 String authParams = "param1:value1";
-boolean useTls = false;
 boolean tlsAllowInsecureConnection = false;
 String tlsTrustCertsFilePath = null;
 
 ClientConfiguration config = new ClientConfiguration();
 config.setAuthentication(authPluginClassName, authParams);
-config.setUseTls(useTls);
 config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
 config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
 
-PulsarAdmin admin = new PulsarAdmin(url, config);
+PulsarAdmin admin = new PulsarAdmin("pulsar+ssl://service:6651", config);
 ```
