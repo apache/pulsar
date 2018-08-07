@@ -1026,11 +1026,11 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Run the Pulsar Function on a Kubernetes cluster")
     class K8Runner extends FunctionDetailsCommand {
 
-        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
+        @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
 
-        @Parameter(names = "--k8Config", description = "Kubernetes config file")
-        protected String k8ConfgiFile;
+        @Parameter(names = "--k8-config", description = "Kubernetes config file")
+        protected String k8ConfigFile;
 
         @Override
         void runCmd() throws Exception {
@@ -1041,7 +1041,7 @@ public class CmdFunctions extends CmdBase {
             if (serviceUrl == null) {
                 serviceUrl = "pulsar://localhost:6650";
             }
-            KubernetesController k8Controller = new KubernetesController(k8ConfgiFile);
+            KubernetesController k8Controller = new KubernetesController(k8ConfigFile);
             // Let's first upload user code to bk.
             String userCodeFile;
             if (jarFile != null) {
@@ -1060,12 +1060,12 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Kill Pulsar Function running in Kubernetes cluster")
     class K8Killer extends FunctionCommand {
-        @Parameter(names = "--k8Config", description = "Kubernetes config file")
-        protected String k8ConfgiFile;
+        @Parameter(names = "--k8-config", description = "Kubernetes config file")
+        protected String k8ConfigFile;
 
         @Override
         void runCmd() throws Exception {
-            KubernetesController k8Controller = new KubernetesController(k8ConfgiFile);
+            KubernetesController k8Controller = new KubernetesController(k8ConfigFile);
             k8Controller.delete(tenant, namespace, functionName);
         }
     }
