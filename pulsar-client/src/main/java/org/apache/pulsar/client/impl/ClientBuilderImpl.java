@@ -65,7 +65,9 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder serviceUrl(String serviceUrl) {
         conf.setServiceUrl(serviceUrl);
-        enableTls(serviceUrl.startsWith("pulsar+ssl") || serviceUrl.startsWith("https"));
+        if (!conf.isUseTls()) {
+            enableTls(serviceUrl.startsWith("pulsar+ssl") || serviceUrl.startsWith("https"));
+        }
         return this;
     }
 

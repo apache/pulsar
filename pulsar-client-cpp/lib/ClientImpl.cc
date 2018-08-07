@@ -64,11 +64,12 @@ const std::string generateRandomName() {
 }
 typedef boost::unique_lock<boost::mutex> Lock;
 
+static const std::string https("https");
+static const std::string pulsarSsl("pulsar+ssl");
+
 static const ClientConfiguration detectTls(const std::string& serviceUrl,
                                            const ClientConfiguration& clientConfiguration) {
     ClientConfiguration conf(clientConfiguration);
-    std::string https("https");
-    std::string pulsarSsl("pulsar+ssl");
     if (serviceUrl.compare(0, https.size(), https) == 0 ||
         serviceUrl.compare(0, pulsarSsl.size(), pulsarSsl) == 0) {
         conf.setUseTls(true);
