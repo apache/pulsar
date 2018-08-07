@@ -6337,10 +6337,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -6660,16 +6660,28 @@
           "type" : "number",
           "format" : "double"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "underLoaded" : {
+          "type" : "boolean"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -6683,18 +6695,6 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -6854,13 +6854,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -7558,13 +7558,13 @@
             "type" : "string"
           }
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
