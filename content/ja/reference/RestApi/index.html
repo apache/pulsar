@@ -1154,6 +1154,14 @@
         
         
         
+        <li><a href="/admin/v2/schemas/:tenant/:namespace/:topic/schema"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>schemas<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>schema</code></a></li>
+        
+        
+        
+        <li><a href="/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>schemas<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>schema<span class="slash">/</span><span class="endpoint">:version</span></code></a></li>
+        
+        
+        
         <li><a href="/admin/v2/tenants"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>tenants</code></a></li>
         
         
@@ -13286,6 +13294,394 @@
               <tr>
                 <td>409</td>
                 <td>Concurrent modification</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/v2/schemas/:tenant/:namespace/:topic/schema">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>schemas<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>schema</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get the schema of a topic</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">topic</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>307</td>
+                <td>Current broker doesn't serve the namespace of this topic</td>
+              </tr>
+              
+              <tr>
+                <td>401</td>
+                <td>Client is not authorized or Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Client is not authenticated</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>Failed to find the ownership for the topic</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Update the schema of a topic</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">topic</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">body</code></td>
+                <td>body</td>
+                <td>false</td>
+                <td></td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>307</td>
+                <td>Current broker doesn't serve the namespace of this topic</td>
+              </tr>
+              
+              <tr>
+                <td>401</td>
+                <td>Client is not authorized or Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Client is not authenticated</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Tenant or Namespace or Topic doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>Failed to find the ownership for the topic</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge delete">DELETE</code>
+          </h5>
+          <p>Delete the schema of a topic</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">topic</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>307</td>
+                <td>Current broker doesn't serve the namespace of this topic</td>
+              </tr>
+              
+              <tr>
+                <td>401</td>
+                <td>Client is not authorized or Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Client is not authenticated</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Tenant or Namespace or Topic doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>Failed to find the ownership for the topic</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>schemas<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span><span class="endpoint">:topic</span><span class="slash">/</span>schema<span class="slash">/</span><span class="endpoint">:version</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get the schema of a topic at a given version</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">topic</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">version</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>307</td>
+                <td>Current broker doesn't serve the namespace of this topic</td>
+              </tr>
+              
+              <tr>
+                <td>401</td>
+                <td>Client is not authorized or Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Client is not authenticated</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>Failed to find the ownership for the topic</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>

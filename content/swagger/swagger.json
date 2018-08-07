@@ -27,6 +27,8 @@
   }, {
     "name" : "resource-quotas"
   }, {
+    "name" : "schemas"
+  }, {
     "name" : "tenants"
   } ],
   "schemes" : [ "http", "https" ],
@@ -3751,7 +3753,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "403" : {
@@ -5798,6 +5800,211 @@
         }
       }
     },
+    "/schemas/{tenant}/{namespace}/{topic}/schema" : {
+      "get" : {
+        "tags" : [ "schemas" ],
+        "summary" : "Get the schema of a topic",
+        "description" : "",
+        "operationId" : "getSchema",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/GetSchemaResponse"
+            }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
+          "401" : {
+            "description" : "Client is not authorized or Don't have admin permission"
+          },
+          "403" : {
+            "description" : "Client is not authenticated"
+          },
+          "404" : {
+            "description" : "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"
+          },
+          "412" : {
+            "description" : "Failed to find the ownership for the topic"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "schemas" ],
+        "summary" : "Update the schema of a topic",
+        "description" : "",
+        "operationId" : "postSchema",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "A JSON value presenting a schema playload. An example of the expected schema can be found down here.",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/PostSchemaPayload"
+          },
+          "x-examples" : {
+            "application/json" : "{\"type\": \"STRING\", \"schema\": \"\", \"properties\": { \"key1\" : \"value1\" + } }"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/PostSchemaResponse"
+            }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
+          "401" : {
+            "description" : "Client is not authorized or Don't have admin permission"
+          },
+          "403" : {
+            "description" : "Client is not authenticated"
+          },
+          "404" : {
+            "description" : "Tenant or Namespace or Topic doesn't exist"
+          },
+          "412" : {
+            "description" : "Failed to find the ownership for the topic"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "schemas" ],
+        "summary" : "Delete the schema of a topic",
+        "description" : "",
+        "operationId" : "deleteSchema",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/DeleteSchemaResponse"
+            }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
+          "401" : {
+            "description" : "Client is not authorized or Don't have admin permission"
+          },
+          "403" : {
+            "description" : "Client is not authenticated"
+          },
+          "404" : {
+            "description" : "Tenant or Namespace or Topic doesn't exist"
+          },
+          "412" : {
+            "description" : "Failed to find the ownership for the topic"
+          }
+        }
+      }
+    },
+    "/schemas/{tenant}/{namespace}/{topic}/schema/{version}" : {
+      "get" : {
+        "tags" : [ "schemas" ],
+        "summary" : "Get the schema of a topic at a given version",
+        "description" : "",
+        "operationId" : "getSchema",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "version",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/GetSchemaResponse"
+            }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
+          "401" : {
+            "description" : "Client is not authorized or Don't have admin permission"
+          },
+          "403" : {
+            "description" : "Client is not authenticated"
+          },
+          "404" : {
+            "description" : "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"
+          },
+          "412" : {
+            "description" : "Failed to find the ownership for the topic"
+          }
+        }
+      }
+    },
     "/tenants" : {
       "get" : {
         "tags" : [ "tenants" ],
@@ -6208,6 +6415,15 @@
         }
       }
     },
+    "DeleteSchemaResponse" : {
+      "type" : "object",
+      "properties" : {
+        "version" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      }
+    },
     "DispatchRate" : {
       "type" : "object",
       "properties" : {
@@ -6232,6 +6448,32 @@
           "type" : "array",
           "uniqueItems" : true,
           "items" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "GetSchemaResponse" : {
+      "type" : "object",
+      "properties" : {
+        "version" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "type" : {
+          "type" : "string",
+          "enum" : [ "NONE", "STRING", "JSON", "PROTOBUF", "AVRO" ]
+        },
+        "timestamp" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "data" : {
+          "type" : "string"
+        },
+        "properties" : {
+          "type" : "object",
+          "additionalProperties" : {
             "type" : "string"
           }
         }
@@ -6418,13 +6660,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "directMemory" : {
@@ -6434,22 +6673,25 @@
           "type" : "integer",
           "format" : "int64"
         },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "underLoaded" : {
           "type" : "boolean"
         },
         "overLoaded" : {
           "type" : "boolean"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
         },
         "loadReportType" : {
           "type" : "string"
@@ -7266,6 +7508,31 @@
         }
       }
     },
+    "PostSchemaPayload" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string"
+        },
+        "schema" : {
+          "type" : "string"
+        },
+        "properties" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "PostSchemaResponse" : {
+      "type" : "object",
+      "properties" : {
+        "version" : {
+          "$ref" : "#/definitions/SchemaVersion"
+        }
+      }
+    },
     "PublisherStats" : {
       "type" : "object",
       "properties" : {
@@ -7432,6 +7699,9 @@
           "format" : "int64"
         }
       }
+    },
+    "SchemaVersion" : {
+      "type" : "object"
     },
     "SubscriptionStats" : {
       "type" : "object",
