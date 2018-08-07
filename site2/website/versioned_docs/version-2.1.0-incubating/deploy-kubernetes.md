@@ -238,11 +238,11 @@ $ pulsar-admin namespaces list ten
 ns
 ```
 
-Now that you have a namespace and property set up, you can move on to [experimenting with your Pulsar cluster](#experimenting-with-your-cluster) from within the cluster or [connecting to the cluster](#client-connections) using a Pulsar client.
+Now that you have a namespace and tenant set up, you can move on to [experimenting with your Pulsar cluster](#experimenting-with-your-cluster) from within the cluster or [connecting to the cluster](#client-connections) using a Pulsar client.
 
 #### Experimenting with your cluster
 
-Now that a property and namespace have been created, you can begin experimenting with your running Pulsar cluster. Using the same `pulsar-admin` pod via an alias, as in the section above, you can use [`pulsar-perf`](reference-cli-tools.md#pulsar-perf) to create a test [producer](reference-terminology.md#producer) to publish 10,000 messages a second on a topic in the [tenant](reference-terminology.md#tenant) and [namespace](reference-terminology.md#namespace) you created.
+Now that a tenant and namespace have been created, you can begin experimenting with your running Pulsar cluster. Using the same `pulsar-admin` pod via an alias, as in the section above, you can use [`pulsar-perf`](reference-cli-tools.md#pulsar-perf) to create a test [producer](reference-terminology.md#producer) to publish 10,000 messages a second on a topic in the [tenant](reference-terminology.md#tenant) and [namespace](reference-terminology.md#namespace) you created.
 
 First, create an alias to use the `pulsar-perf` tool via the admin pod:
 
