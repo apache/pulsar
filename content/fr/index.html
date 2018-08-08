@@ -1,0 +1,86 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Apache Pulsar · </title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content=""/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Apache Pulsar · "/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/index.html"/><meta property="og:description" content=""/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/fr/standalone" target="_self">Documentation</a></li><li class=""><a href="/fr/download" target="_self">Télécharger</a></li><li class=""><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="/fr/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/en">English</a></li><li><a href="/ja">日本語</a></li><li><a href="/zh-CN">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div><div class="homeContainer"><div class="homeSplashFade" style="margin-top:5rem"><div class="wrapper homeWrapper"><div class="" style="width:500px;align-items:center;margin:auto"><img src="/img/pulsar.svg"/></div><div class="inner"><h2 class="projectTitle" style="max-width:1024px;margin:auto"><small style="color:black;font-size:2.0rem">
+    Apache Pulsar is an open-source distributed pub-sub messaging system originally
+    created at Yahoo and now part of the Apache Software Foundation
+  </small></h2><div class="section promoSection"><div class="promoRow"><div class="pluginRowBlock"><div class="pluginWrapper buttonWrapper"><a class="button" href="/docs/fr/standalone" target="_self">Read the docs</a></div><div class="pluginWrapper buttonWrapper"><a class="button" href="https://github.com/apache/incubator-pulsar" target="_self">GitHub</a></div></div></div></div></div></div></div></div><div class="mainContainer"><div class="container paddingBottom" id="key-features"><div class="wrapper"><div class="gridBlock"><div class="blockElement alignCenter threeByGridBlock"><div class="blockContent"><h2><div><span><p><a href="/docs/fr/functions-overview">Pulsar Functions</a></p>
+</span></div></h2><div><span><p>Easily deploy lightweight compute logic using developer-friendly APIs without needing to run your own stream processing engine</p>
+</span></div></div></div><div class="blockElement alignCenter threeByGridBlock"><div class="blockContent"><h2><div><span><p><a href="/docs/fr/concepts-architecture-overview">Proven in production</a></p>
+</span></div></h2><div><span><p>Pulsar has run in production at Yahoo scale for over 3 years, with millions of messages per second across millions of topics</p>
+</span></div></div></div><div class="blockElement alignCenter threeByGridBlock"><div class="blockContent"><h2><div><span><p><a href="/docs/fr/concepts-architecture-overview">Horizontally scalable</a></p>
+</span></div></h2><div><span><p>Seamlessly expand capacity to hundreds of nodes</p>
+</span></div></div></div></div><div class="gridBlock"><div class="blockElement alignCenter threeByGridBlock"><div class="blockContent"><h2><div><span><p><a href="/docs/fr/concepts-architecture-overview">Low latency with durability</a></p>
+</span></div></h2><div><span><p>Designed for low publish latency (&lt; 5ms) at scale with strong durabilty guarantees</p>
+</span></div></div></div><div class="blockElement alignCenter threeByGridBlock"><div class="blockContent"><h2><div><span><p><a href="/docs/fr/administration-geo">Geo-replication</a></p>
+</span></div></h2><div><span><p>Designed for configurable replication between data centers across multiple geographic regions</p>
+</span></div></div></div><div class="blockElement alignCenter threeByGridBlock"><div class="blockContent"><h2><div><span><p><a href="/docs/fr/concepts-multi-tenancy">Multi-tenancy</a></p>
+</span></div></h2><div><span><p>Built from the ground up as a multi-tenant system. Supports Isolation, Authentication, Authorization and Quotas</p>
+</span></div></div></div></div><div class="gridBlock"><div class="blockElement alignCenter threeByGridBlock"><div class="blockContent"><h2><div><span><p><a href="/docs/fr/concepts-architecture-overview#persistent-storage">Persistent storage</a></p>
+</span></div></h2><div><span><p>Persistent message storage based on Apache BookKeeper. Provides IO-level isolation between write and read operations</p>
+</span></div></div></div><div class="blockElement alignCenter threeByGridBlock"><div class="blockContent"><h2><div><span><p><a href="/docs/fr/client-libraries">Client libraries</a></p>
+</span></div></h2><div><span><p>Flexible messaging models with high-level APIs for Java, C++, Python and GO</p>
+</span></div></div></div><div class="blockElement alignCenter threeByGridBlock"><div class="blockContent"><h2><div><span><p><a href="/docs/fr/admin-api-overview">Operability</a></p>
+</span></div></h2><div><span><p>REST Admin API for provisioning, administration, tools and monitoring. Deploy on bare metal or Kubernetes.</p>
+</span></div></div></div></div></div></div><div class="container"><div class="wrapper"><div class="Block" style="text-align:center"><div class="" style="align-items:center;margin:auto"><img src="/img/apache_incubator.png"/></div><p>Apache Pulsar is an effort undergoing incubation at The <a href="http://www.apache.org">Apache Software Foundation (ASF)</a>sponsored by the Apache Incubator PMC. Incubation is required of all newly accepted projects until a further review indicates that the infrastructure, communications, and decision making process have stabilized in a manner consistent with other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF. Apache Pulsar (incubating) is available under the <a href="https://www.apache.org/licenses">Apache License, version 2.0</a>.</p></div></div></div></div></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/contact">Contact</a></li>' +
+            '<li><a href="/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/incubator-pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/resources">Resources</a></li>' +
+            '<li><a href="/team">Team</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span><span><script src="/js/pjax-api.min.js"></script><script>window.navfoo = new Pjax({
+            areas: [
+              // try to use the first query.
+              '.mainContainer, .docsNavContainer .toc .navWrapper, .onPageNav',
+              // fallback
+              'body'
+            ],
+            link: '.docsNavContainer:not(.docsSliderActive) a',
+            update: {
+              script: false,
+            }
+          });
+        </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.1.0-incubating"]}
+              });
+            </script></body></html>

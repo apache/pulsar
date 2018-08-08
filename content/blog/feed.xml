@@ -24,7 +24,7 @@ brought multiple new features and improvements to Pulsar.</p>
 <p>In Pulsar 2.1 you'll see:</p>
 <ul>
 <li><a href="/docs/io-overview">Pulsar IO</a> connector framework and a list of <a href="/docs/io-connectors">builtin connectors</a></li>
-<li><a href="https://github.com/apache/incubator-pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics">PIP-17</a>: <a href="/docs/docs/concepts-tiered-storage">Tiered Storage</a></li>
+<li><a href="https://github.com/apache/incubator-pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics">PIP-17</a>: <a href="/docs/concepts-tiered-storage">Tiered Storage</a></li>
 <li>Pulsar <a href="/docs/functions-state">Stateful Functions</a></li>
 <li><a href="/docs/client-libraries-go">Go Client</a></li>
 <li><a href="https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/AvroSchema.java">Avro</a>
