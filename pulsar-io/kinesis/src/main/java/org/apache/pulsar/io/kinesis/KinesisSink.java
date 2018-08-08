@@ -231,8 +231,8 @@ public class KinesisSink implements Sink<byte[]> {
 
         @Override
         public void onFailure(Throwable exception) {
-            LOG.error("[{}] Failed to published message for replicator of {}-{} ", kinesisSink.streamName,
-                    resultContext.getPartitionId(), resultContext.getRecordSequence());
+            LOG.error("[{}] Failed to published message for replicator of {}-{}, {} ", kinesisSink.streamName,
+                    resultContext.getPartitionId(), resultContext.getRecordSequence(), exception.getMessage());
             kinesisSink.previousPublishFailed = TRUE;
             if (kinesisSink.sinkContext != null) {
                 kinesisSink.sinkContext.recordMetric(METRICS_TOTAL_FAILURE, 1);

@@ -281,7 +281,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             throw getApiException(e);
         }
     }
-    
+
     public static void mergeJson(String json, Builder builder) throws IOException {
         JsonFormat.parser().merge(json, builder);
     }
