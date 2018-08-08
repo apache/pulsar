@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -47,6 +48,7 @@ import java.util.Map;
 @EqualsAndHashCode
 @ToString
 @isValidFunctionConfig
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class FunctionConfig {
 
     public enum ProcessingGuarantees {
