@@ -11,7 +11,7 @@ brought multiple new features and improvements to Pulsar.
 In Pulsar 2.1 you'll see:
 
 - [Pulsar IO](/docs/io-overview) connector framework and a list of [builtin connectors](/docs/io-connectors)
-- [PIP-17](https://github.com/apache/incubator-pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics): [Tiered Storage](/docs/docs/concepts-tiered-storage)
+- [PIP-17](https://github.com/apache/incubator-pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics): [Tiered Storage](/docs/concepts-tiered-storage)
 - Pulsar [Stateful Functions](/docs/functions-state)
 - [Go Client](/docs/client-libraries-go)
 - [Avro](https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/AvroSchema.java)
@@ -63,7 +63,7 @@ offloading mechanisms and metadata management are transparent to applications.
 Currently [S3](https://aws.amazon.com/s3/) is supported in 2.1. More offloaders (such as Google GCS, Azure Blobstore, and HDFS) are coming
 in future releases.
 
-If you are interested in this feature, you can checkout more details [here](cookbooks-tiered-storage).
+If you are interested in this feature, you can checkout more details [here](/docs/cookbooks-tiered-storage).
 
 ## Stateful Function
 
