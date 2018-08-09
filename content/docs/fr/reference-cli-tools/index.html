@@ -62,7 +62,7 @@ $ pulsar command
 </code></pre>
 <p>Commands: * <code>bookie</code> * <code>broker</code> * <code>compact-topic</code> * <code>discovery</code> * <code>configuration-store</code> * <code>initialize-cluster-metadata</code> * <code>proxy</code> * <code>standalone</code> * <code>websocket</code> * <code>zookeeper</code> * <code>zookeeper-shell</code></p>
 <p>Example:</p>
-<pre><code class="hljs css languages- bash">$ pulsar broker --conf /path/to/broker.conf
+<pre><code class="hljs css languages- bash">$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 </code></pre>
 <p>The table below lists the environment variables that you can use to configure the <code>pulsar</code> tool.</p>
 <table>
@@ -95,16 +95,14 @@ $ pulsar command
 <tr><th>Option</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-c</code>, <code>--config</code></td><td>Configuration for the bookie server</td><td></td></tr>
 <tr><td><code>-readOnly</code></td><td>Force start a read-only bookie server</td><td>false</td></tr>
 <tr><td><code>-withAutoRecovery</code></td><td>Start auto-recover service bookie server</td><td>false</td></tr>
 </tbody>
 </table>
 <p>Example</p>
-<pre><code class="hljs css languages- bash">$ pulsar bookie \
+<pre><code class="hljs css languages- bash">$ PULSAR_BOOKKEEPER_CONF=/path/to/bookkeeper.conf pulsar bookie \
   -readOnly \
-  -withAutoRecovery \
-  --conf /path/to/bookkeeper.conf
+  -withAutoRecovery
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>broker</code></h3>
 <p>Starts up a Pulsar broker</p>
@@ -117,14 +115,13 @@ $ pulsar command
 <tr><th>Option</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-c</code> , <code>--broker-conf</code></td><td>Configuration file for the broker</td><td></td></tr>
 <tr><td><code>-bc</code> , <code>--bookie-conf</code></td><td>Configuration file for BookKeeper</td><td></td></tr>
 <tr><td><code>-rb</code> , <code>--run-bookie</code></td><td>Run a BookKeeper bookie on the same host as the Pulsar broker</td><td>false</td></tr>
 <tr><td><code>-ra</code> , <code>--run-bookie-autorecovery</code></td><td>Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker</td><td>false</td></tr>
 </tbody>
 </table>
 <p>Example</p>
-<pre><code class="hljs css languages- bash">$ pulsar broker --broker-conf /path/to/broker.conf
+<pre><code class="hljs css languages- bash">$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="compact-topic"></a><a href="#compact-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>compact-topic</code></h3>
 <p>Run compaction against a Pulsar topic (in a new process)</p>
@@ -138,7 +135,6 @@ $ pulsar command
 </thead>
 <tbody>
 <tr><td><code>-t</code> , <code>--topic</code></td><td>The Pulsar topic that you would like to compact</td><td></td></tr>
-<tr><td><code>-c</code> , <code>--broker-conf</code></td><td>Configuration file for the broker</td><td>${pulsarDirectory}/conf/broker.conf</td></tr>
 </tbody>
 </table>
 <p>Example</p>
@@ -147,34 +143,19 @@ $ pulsar command
 <h3><a class="anchor" aria-hidden="true" id="discovery"></a><a href="#discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>discovery</code></h3>
 <p>Run a discovery server</p>
 <p>Usage</p>
-<pre><code class="hljs css languages- bash">$ pulsar discovery options
+<pre><code class="hljs css languages- bash">$ pulsar discovery
 </code></pre>
-<p>Options</p>
-<table>
-<thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
-</thead>
-<tbody>
-<tr><td><code>-c</code> , <code>--conf</code></td><td>Configuration file for the discovery service</td><td></td></tr>
-</tbody>
-</table>
 <p>Example</p>
-<pre><code class="hljs css languages- bash">$ pulsar discovery --conf /path/to/discovery.conf
+<pre><code class="hljs css languages- bash">$ PULSAR_DISCOVERY_CONF=/path/to/discovery.conf pulsar discovery
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>configuration-store</code></h3>
 <p>Starts up the Pulsar configuration store</p>
 <p>Usage</p>
-<pre><code class="hljs css languages- bash">$ pulsar configuration-store options
+<pre><code class="hljs css languages- bash">$ pulsar configuration-store
 </code></pre>
-<p>Options</p>
-<table>
-<thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
-</thead>
-<tbody>
-<tr><td><code>-c</code> , <code>--conf</code></td><td>Configuration file for the configuration store</td><td></td></tr>
-</tbody>
-</table>
+<p>Example</p>
+<pre><code class="hljs css languages- bash">$ PULSAR_CONFIGURATION_STORE_CONF=/path/to/configuration_store.conf pulsar configuration-store
+</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="initialize-cluster-metadata"></a><a href="#initialize-cluster-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>initialize-cluster-metadata</code></h3>
 <p>One-time cluster metadata initialization</p>
 <p>Usage</p>
@@ -206,13 +187,12 @@ $ pulsar command
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-c</code> , <code>--config</code></td><td>Path to a Pulsar proxy configuration file</td><td></td></tr>
 <tr><td><code>--configuration-store</code></td><td>Configuration store connection string</td><td></td></tr>
 <tr><td><code>-zk</code> , <code>--zookeeper-servers</code></td><td>Local ZooKeeper connection string</td><td></td></tr>
 </tbody>
 </table>
 <p>Example</p>
-<pre><code class="hljs css languages- bash">$ pulsar proxy \
+<pre><code class="hljs css languages- bash">$ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk2 \
   --configuration-store zk-0,zk-1,zk-2
 </code></pre>
@@ -230,7 +210,6 @@ $ pulsar command
 <tr><td><code>-a</code> , <code>--advertised-address</code></td><td>The standalone broker advertised address</td><td></td></tr>
 <tr><td><code>--bookkeeper-dir</code></td><td>Local bookies’ base data directory</td><td>data/standalone/bookeeper</td></tr>
 <tr><td><code>--bookkeeper-port</code></td><td>Local bookies’ base port</td><td>3181</td></tr>
-<tr><td><code>-c</code> , <code>--config</code></td><td>Configuration file path</td><td></td></tr>
 <tr><td><code>--no-broker</code></td><td>Only start ZooKeeper and BookKeeper services, not the broker</td><td>false</td></tr>
 <tr><td><code>--num-bookies</code></td><td>The number of local bookies</td><td>1</td></tr>
 <tr><td><code>--only-broker</code></td><td>Only start the Pulsar broker service (not ZooKeeper or BookKeeper)</td><td></td></tr>
@@ -239,33 +218,24 @@ $ pulsar command
 <tr><td><code>--zookeeper-port</code></td><td>Local ZooKeeper’s port</td><td>2181</td></tr>
 </tbody>
 </table>
+<p>Example</p>
+<pre><code class="hljs css languages- bash">$ PULSAR_STANDALONE_CONF=/path/to/standalone.conf pulsar standalone
+</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>websocket</code></h3>
 <p>Usage</p>
-<pre><code class="hljs css languages- bash">$ pulsar websocket options
+<pre><code class="hljs css languages- bash">$ pulsar websocket
 </code></pre>
-<p>Options</p>
-<table>
-<thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
-</thead>
-<tbody>
-<tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration file for WebSocket service</td><td></td></tr>
-</tbody>
-</table>
+<p>Example</p>
+<pre><code class="hljs css languages- bash">$ PULSAR_WEBSOCKET_CONF=/path/to/websocket.conf pulsar websocket
+</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>zookeeper</code></h3>
 <p>Starts up a ZooKeeper cluster</p>
 <p>Usage</p>
-<pre><code class="hljs css languages- bash">$ pulsar zookeeper options
+<pre><code class="hljs css languages- bash">$ pulsar zookeeper
 </code></pre>
-<p>Options</p>
-<table>
-<thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
-</thead>
-<tbody>
-<tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration file for ZooKeeper</td><td></td></tr>
-</tbody>
-</table>
+<p>Example</p>
+<pre><code class="hljs css languages- bash">$ PULSAR_ZK_CONF=/path/to/zookeeper.conf pulsar zookeeper
+</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zookeeper-shell"></a><a href="#zookeeper-shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>zookeeper-shell</code></h3>
 <p>Connects to a running ZooKeeper cluster using the ZooKeeper shell</p>
 <p>Usage</p>
