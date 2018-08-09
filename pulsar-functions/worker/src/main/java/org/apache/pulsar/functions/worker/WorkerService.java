@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.stats.JvmMetrics;
 
 /**
  * A service component contains everything to run a worker except rest server.
@@ -63,11 +64,13 @@ public class WorkerService {
     private AuthenticationService authenticationService;
     private ConnectorsManager connectorsManager;
     private PulsarAdmin admin;
+    private final MetricsGenerator metricsGenerator;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
+        this.metricsGenerator = new MetricsGenerator(this.statsUpdater);
     }
 
     public void start(URI dlogUri) throws InterruptedException {

@@ -24,6 +24,7 @@ import org.apache.pulsar.functions.utils.Utils;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 
@@ -33,8 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Parameters(commandDescription = "Operations to collect function-worker statistics")
 public class CmdFunctionWorkerStats extends CmdBase {
-
-    private final FunctionsStats functionsStats;
 
     /**
      * Base command
@@ -70,10 +69,27 @@ public class CmdFunctionWorkerStats extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "dump metrics for Monitoring")
+    class CmdMonitoringMetrics extends BaseCommand {
+
+        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        boolean indent = false;
+
+        @Override
+        void runCmd() throws Exception {
+            String json = new Gson().toJson(admin.workerStats().getMetrics());
+            GsonBuilder gsonBuilder = new GsonBuilder();
+            if (indent) {
+                gsonBuilder.setPrettyPrinting();
+            }
+            System.out.println(gsonBuilder.create().toJson(new JsonParser().parse(json)));
+        }
+    }
+
     public CmdFunctionWorkerStats(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
-        functionsStats = new FunctionsStats();
-        jcommander.addCommand("functions", functionsStats);
+        jcommander.addCommand("functions", new FunctionsStats());
+        jcommander.addCommand("monitoring-metrics", new CmdMonitoringMetrics());
     }
 
 }

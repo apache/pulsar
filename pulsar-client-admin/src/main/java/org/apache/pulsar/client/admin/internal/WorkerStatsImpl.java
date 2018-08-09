@@ -18,15 +18,20 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static org.apache.pulsar.client.admin.internal.FunctionsImpl.mergeJson;
+
+import java.util.Collection;
+import java.util.List;
+
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.WorkerStats;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
-import static org.apache.pulsar.client.admin.internal.FunctionsImpl.mergeJson;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -55,4 +60,15 @@ public class WorkerStatsImpl extends BaseResource implements WorkerStats {
            throw getApiException(e);
        }
    }
+
+    @Override
+    public Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws PulsarAdminException {
+        try {
+            return request(workerStats.path("metrics"))
+                    .get(new GenericType<List<org.apache.pulsar.common.stats.Metrics>>() {
+                    });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
 }
