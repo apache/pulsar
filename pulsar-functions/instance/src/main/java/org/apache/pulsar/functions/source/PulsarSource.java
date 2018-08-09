@@ -20,23 +20,17 @@ package org.apache.pulsar.functions.source;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
@@ -49,6 +43,10 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 
+import com.google.common.annotations.VisibleForTesting;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 
 @Slf4j
@@ -142,8 +140,18 @@ public class PulsarSource<T> implements Source<T> {
                 .message(message)
                 .topicName(topicName)
                 .ackFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        inputConsumer.acknowledgeCumulativeAsync(message);
+                    if (pulsarSourceConfig
+                            .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                        // try to find actual consumer of the messageId
+                        if (inputConsumer instanceof MultiTopicsConsumerImpl) {
+                            TopicMessageIdImpl msgId = (TopicMessageIdImpl) message.getMessageId();
+                            Optional<org.apache.pulsar.client.api.Consumer> individualConsumer = ((MultiTopicsConsumerImpl) inputConsumer)
+                                    .getConsumer(msgId);
+                            individualConsumer.orElse(inputConsumer)
+                                    .acknowledgeCumulativeAsync(msgId.getInnerMessageId());
+                        } else {
+                            inputConsumer.acknowledgeCumulativeAsync(message);
+                        }
                     } else {
                         inputConsumer.acknowledgeAsync(message);
                     }

@@ -839,6 +839,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     public List<ConsumerImpl<T>> getConsumers() {
         return consumers.values().stream().collect(Collectors.toList());
     }
+    
+    public Optional<Consumer> getConsumer(TopicMessageIdImpl messageId) {
+        return Optional.ofNullable(consumers.get(messageId.getTopicName()));
+    }
 
     private static final Logger log = LoggerFactory.getLogger(MultiTopicsConsumerImpl.class);
 }
