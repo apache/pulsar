@@ -58,6 +58,7 @@ message FunctionDetails {
     SourceSpec source = 11;
     SinkSpec sink = 12;
     Resources resources = 13;
+    string packageUrl = 14; //present only if function submitted with package-url
 }
 
 message SourceSpec {
