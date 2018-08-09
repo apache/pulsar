@@ -391,9 +391,8 @@ Future<Result, ClientConnectionWeakPtr> ClientImpl::getConnection(const std::str
 void ClientImpl::handleLookup(Result result, LookupDataResultPtr data,
                               Promise<Result, ClientConnectionWeakPtr> promise) {
     if (data) {
-
         const std::string& logicalAddress =
-            clientConfiguration_.isUseTls() ? data->getBrokerUrlTls() :  data->getBrokerUrl();
+            clientConfiguration_.isUseTls() ? data->getBrokerUrlTls() : data->getBrokerUrl();
         LOG_DEBUG("Getting connection to broker: " << logicalAddress);
         const std::string& physicalAddress =
             data->shouldProxyThroughServiceUrl() ? serviceUrl_ : logicalAddress;

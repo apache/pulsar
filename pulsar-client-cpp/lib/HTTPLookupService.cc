@@ -191,12 +191,12 @@ Result HTTPLookupService::sendHTTPRequest(const std::string completeUrl, std::st
 
     // TLS
     if (isUseTls_) {
-        if(curl_easy_setopt(handle, CURLOPT_SSLENGINE, NULL) != CURLE_OK) {
+        if (curl_easy_setopt(handle, CURLOPT_SSLENGINE, NULL) != CURLE_OK) {
             LOG_ERROR("Unable to load SSL engine for url " << completeUrl);
             curl_easy_cleanup(handle);
             return ResultConnectError;
         }
-        if(curl_easy_setopt(handle, CURLOPT_SSLENGINE_DEFAULT, 1L) != CURLE_OK) {
+        if (curl_easy_setopt(handle, CURLOPT_SSLENGINE_DEFAULT, 1L) != CURLE_OK) {
             LOG_ERROR("Unable to load SSL engine as default, for url " << completeUrl);
             curl_easy_cleanup(handle);
             return ResultConnectError;
