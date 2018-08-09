@@ -511,7 +511,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         removeExpiredMessagesFromQueue(messageIds);
         messageIds.stream().map(messageId -> (TopicMessageIdImpl)messageId)
-            .collect(Collectors.groupingBy(TopicMessageIdImpl::getTopicName, Collectors.toSet()))
+            .collect(Collectors.groupingBy(TopicMessageIdImpl::getTopicPartitionName, Collectors.toSet()))
             .forEach((topicName, messageIds1) ->
                 consumers.get(topicName)
                     .redeliverUnacknowledgedMessages(messageIds1.stream()

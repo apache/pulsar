@@ -19,6 +19,9 @@
 
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkState;
+import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
+
 import java.util.Map;
 import java.util.Optional;
 
@@ -28,6 +31,7 @@ import org.apache.pulsar.common.api.EncryptionContext;
 
 public class TopicMessageImpl<T> implements Message<T> {
 
+    /** This topicName is get from ConsumerImpl, it contains partition part. */
     private final String topicName;
     private final Message<T> msg;
     private final TopicMessageIdImpl messageId;
@@ -40,10 +44,20 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     /**
-     * Get the topic name of this message.
+     * Get the topic name without partition part of this message.
      * @return the name of the topic on which this message was published
      */
     public String getTopicName() {
+        int position = topicName.lastIndexOf(PARTITIONED_TOPIC_SUFFIX);
+        checkState(position != -1, "Topic Name not contains partition part. " + topicName);
+        return topicName.substring(0, position);
+    }
+
+    /**
+     * Get the topic name which contains partition part for this message.
+     * @return the topic name which contains Partition part
+     */
+    public String getTopicPartitionName() {
         return topicName;
     }
 
