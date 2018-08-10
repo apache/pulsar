@@ -30,7 +30,7 @@ Offloading is configured in ```broker.conf```.
 At a minimum, the administrator must configure the driver, the bucket and the authenticating credentials.  There is also some other knobs to configure, like the bucket region, the max block size in backed storage, etc.
 
 Currently we support driver of types: { "aws-s3", "google-cloud-storage" }, 
-{% include admonition.html type="warning" content="Driver names are case-insensitive for driver's name. There is a third driver type, "s3", which is identical to "aws-s3", though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if using a S3 compatible data store, other than AWS." %}
+{% include admonition.html type="warning" content="Driver names are case-insensitive for driver's name. There is a third driver type, \"s3\", which is identical to \"aws-s3\", though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if using a S3 compatible data store, other than AWS." %}
 
 ```conf
 managedLedgerOffloadDriver=aws-s3

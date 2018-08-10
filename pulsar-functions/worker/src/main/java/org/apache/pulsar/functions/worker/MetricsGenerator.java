@@ -16,23 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.containers;
+package org.apache.pulsar.functions.worker;
 
-/**
- * A pulsar container that runs functions worker.
- */
-public class WorkerContainer extends PulsarContainer<WorkerContainer> {
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
-    public static final String NAME = "pulsar-worker";
+import org.apache.pulsar.common.stats.JvmMetrics;
+import org.apache.pulsar.common.stats.Metrics;
 
-    public WorkerContainer(String clusterName, String hostname) {
-        super(
-            clusterName,
-            hostname,
-            hostname,
-            "bin/run-functions-worker.sh",
-            -1,
-            BROKER_HTTP_PORT,
-            "/admin/v2/functions/cluster");
+public class MetricsGenerator {
+
+    private final JvmMetrics jvmMetrics;
+
+    public MetricsGenerator(ScheduledExecutorService executor) {
+        this.jvmMetrics = new JvmMetrics(executor, "fun");
     }
+
+    public List<Metrics> generate() {
+        List<Metrics> metricsCollection = new ArrayList<Metrics>();
+        metricsCollection.addAll(jvmMetrics.generate());
+        // add more metrics here..
+
+        return metricsCollection;
+    }
+
 }

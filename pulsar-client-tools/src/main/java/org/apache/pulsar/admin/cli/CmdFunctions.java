@@ -1027,7 +1027,7 @@ public class CmdFunctions extends CmdBase {
             System.out.println(gson.toJson(new JsonParser().parse(json)));
         }
     }
-    
+
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();

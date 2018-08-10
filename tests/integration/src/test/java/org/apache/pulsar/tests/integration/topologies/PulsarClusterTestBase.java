@@ -19,8 +19,6 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import lombok.extern.slf4j.Slf4j;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 
 import java.util.concurrent.ThreadLocalRandom;
@@ -70,7 +68,6 @@ public abstract class PulsarClusterTestBase {
 
     protected static PulsarCluster pulsarCluster;
 
-    @BeforeClass
     public void setupCluster() throws Exception {
         this.setupCluster("");
     }
@@ -92,17 +89,23 @@ public abstract class PulsarClusterTestBase {
         return specBuilder;
     }
 
+    protected void beforeStartCluster() throws Exception {
+        // no-op
+    }
+
     protected void setupCluster(PulsarClusterSpec spec) throws Exception {
         log.info("Setting up cluster {} with {} bookies, {} brokers",
                 spec.clusterName(), spec.numBookies(), spec.numBrokers());
 
         pulsarCluster = PulsarCluster.forSpec(spec);
+
+        beforeStartCluster();
+
         pulsarCluster.start();
 
         log.info("Cluster {} is setup", spec.clusterName());
     }
 
-    @AfterClass
     public void tearDownCluster() {
         if (null != pulsarCluster) {
             pulsarCluster.stop();

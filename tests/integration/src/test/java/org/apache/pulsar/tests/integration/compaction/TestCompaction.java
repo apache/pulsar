@@ -18,18 +18,21 @@
  */
 package org.apache.pulsar.tests.integration.compaction;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
-import org.testng.annotations.Test;
-
 import static org.testng.Assert.assertEquals;
 
-public class TestCompaction extends PulsarClusterTestBase {
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.testng.annotations.Test;
+
+/**
+ * Test cases for compaction.
+ */
+public class TestCompaction extends PulsarTestSuite {
 
     @Test(dataProvider = "ServiceUrls")
     public void testPublishCompactAndConsumeCLI(String serviceUrl) throws Exception {
@@ -45,29 +48,42 @@ public class TestCompaction extends PulsarClusterTestBase {
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try(Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
-                producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
-                producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
+            try(Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topic).create()) {
+                producer.newMessage()
+                    .key("key0")
+                    .value("content0")
+                    .send();
+                producer.newMessage()
+                    .key("key0")
+                    .value("content1")
+                    .send();
             }
 
-            try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
-                    .readCompacted(true).subscriptionName("sub1").subscribe()) {
-                Message<byte[]> m = consumer.receive();
+            try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .readCompacted(true)
+                .subscriptionName("sub1")
+                .subscribe()) {
+                Message<String> m = consumer.receive();
                 assertEquals(m.getKey(), "key0");
-                assertEquals(m.getData(), "content0".getBytes());
+                assertEquals(m.getValue(), "content0");
 
                 m = consumer.receive();
                 assertEquals(m.getKey(), "key0");
-                assertEquals(m.getData(), "content1".getBytes());
+                assertEquals(m.getValue(), "content1");
             }
 
             pulsarCluster.runPulsarBaseCommandOnAnyBroker("compact-topic", "-t", topic);
 
-            try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
-                    .readCompacted(true).subscriptionName("sub1").subscribe()) {
-                Message<byte[]> m = consumer.receive();
+            try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .readCompacted(true)
+                .subscriptionName("sub1")
+                .subscribe()) {
+                Message<String> m = consumer.receive();
                 assertEquals(m.getKey(), "key0");
-                assertEquals(m.getData(), "content1".getBytes());
+                assertEquals(m.getValue(), "content1");
             }
         }
     }
@@ -89,32 +105,38 @@ public class TestCompaction extends PulsarClusterTestBase {
         try (PulsarClient client = PulsarClient.create(serviceUrl)) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try(Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
-                producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
-                producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
+            try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
+                producer.newMessage()
+                    .key("key0")
+                    .value("content0")
+                    .send();
+                producer.newMessage()
+                    .key("key0")
+                    .value("content1")
+                    .send();
             }
 
-            try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+            try (Consumer<String> consumer = client.newConsumer(Schema.STRING).topic(topic)
                     .readCompacted(true).subscriptionName("sub1").subscribe()) {
-                Message<byte[]> m = consumer.receive();
+                Message<String> m = consumer.receive();
                 assertEquals(m.getKey(), "key0");
-                assertEquals(m.getData(), "content0".getBytes());
+                assertEquals(m.getValue(), "content0");
 
                 m = consumer.receive();
                 assertEquals(m.getKey(), "key0");
-                assertEquals(m.getData(), "content1".getBytes());
+                assertEquals(m.getValue(), "content1");
             }
-            pulsarCluster.runAdminCommandOnAnyBroker("persistent",
+            pulsarCluster.runAdminCommandOnAnyBroker("topics",
                     "compact", topic);
 
-            pulsarCluster.runAdminCommandOnAnyBroker("persistent",
+            pulsarCluster.runAdminCommandOnAnyBroker("topics",
                 "compaction-status", "-w", topic);
 
-            try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+            try (Consumer<String> consumer = client.newConsumer(Schema.STRING).topic(topic)
                     .readCompacted(true).subscriptionName("sub1").subscribe()) {
-                Message<byte[]> m = consumer.receive();
+                Message<String> m = consumer.receive();
                 assertEquals(m.getKey(), "key0");
-                assertEquals(m.getData(), "content1".getBytes());
+                assertEquals(m.getValue(), "content1");
             }
         }
     }
@@ -122,21 +144,21 @@ public class TestCompaction extends PulsarClusterTestBase {
     private static void waitAndVerifyCompacted(PulsarClient client, String topic,
                                                String sub, String expectedKey, String expectedValue) throws Exception {
         for (int i = 0; i < 60; i++) {
-            try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+            try (Consumer<String> consumer = client.newConsumer(Schema.STRING).topic(topic)
                  .readCompacted(true).subscriptionName(sub).subscribe()) {
-                Message<byte[]> m = consumer.receive();
+                Message<String> m = consumer.receive();
                 assertEquals(m.getKey(), expectedKey);
-                if (new String(m.getData()).equals(expectedValue)) {
+                if (m.getValue() == expectedValue) {
                     break;
                 }
             }
             Thread.sleep(1000);
         }
-        try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+        try (Consumer<String> consumer = client.newConsumer(Schema.STRING).topic(topic)
                 .readCompacted(true).subscriptionName(sub).subscribe()) {
-            Message<byte[]> m = consumer.receive();
+            Message<String> m = consumer.receive();
             assertEquals(m.getKey(), expectedKey);
-            assertEquals(new String(m.getData()), expectedValue);
+            assertEquals(m.getValue(), expectedValue);
         }
     }
 
@@ -154,18 +176,27 @@ public class TestCompaction extends PulsarClusterTestBase {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
                 "set-compaction-threshold", "--threshold", "1", namespace);
 
-        try (PulsarClient client = PulsarClient.create(serviceUrl)) {
-            client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
+            client.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try(Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
-                producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
-                producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
+            try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
+                producer.newMessage()
+                    .key("key0")
+                    .value("content0")
+                    .send();
+                producer.newMessage()
+                    .key("key0")
+                    .value("content1")
+                    .send();
             }
 
             waitAndVerifyCompacted(client, topic, "sub1", "key0", "content1");
 
-            try(Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
-                producer.send(MessageBuilder.create().setKey("key0").setContent("content2".getBytes()).build());
+            try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
+                producer.newMessage()
+                    .key("key0")
+                    .value("content2")
+                    .send();
             }
             waitAndVerifyCompacted(client, topic, "sub1", "key0", "content2");
         }
@@ -190,5 +221,6 @@ public class TestCompaction extends PulsarClusterTestBase {
         assertEquals(0, result.getExitCode());
         return result;
     }
+
 
 }

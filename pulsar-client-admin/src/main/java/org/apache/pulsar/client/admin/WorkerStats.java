@@ -16,23 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.containers;
+package org.apache.pulsar.client.admin;
+
+import java.util.Collection;
+
+import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 
 /**
- * A pulsar container that runs functions worker.
+ * Admin interface for worker stats management.
  */
-public class WorkerContainer extends PulsarContainer<WorkerContainer> {
-
-    public static final String NAME = "pulsar-worker";
-
-    public WorkerContainer(String clusterName, String hostname) {
-        super(
-            clusterName,
-            hostname,
-            hostname,
-            "bin/run-functions-worker.sh",
-            -1,
-            BROKER_HTTP_PORT,
-            "/admin/v2/functions/cluster");
-    }
+public interface WorkerStats {
+    
+    
+    /**
+     * Get all functions stats on a worker
+     * @return
+     * @throws PulsarAdminException 
+     */
+    Metrics getFunctionsStats() throws PulsarAdminException;
+    
+    /**
+     * Get worker metrics.
+     * @return
+     * @throws PulsarAdminException
+     */
+    Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws PulsarAdminException;
 }
