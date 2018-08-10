@@ -258,7 +258,7 @@ public abstract class AdminResource extends PulsarWebResource {
         // first, it has to be a validate topic name
         validateTopicName(tenant, namespace, encodedTopic);
         // second, "-partition-" is not allowed
-        if (encodedTopic.contains("-partition-")) {
+        if (encodedTopic.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
             throw new RestException(Status.PRECONDITION_FAILED, "Partitioned Topic Name should not contain '-partition-'");
         }
     }
