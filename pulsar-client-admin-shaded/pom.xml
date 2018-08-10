@@ -77,7 +77,6 @@
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
                   <include>org.apache.pulsar:pulsar-common</include>
-                  <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.glassfish.jersey*:*</include>
                   <include>javax.ws.rs:*</include>
