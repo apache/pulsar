@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6};
+var methods = {"i0":6,"i1":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -125,6 +125,12 @@ var activeTableTab = "activeTableTab";
 <div class="block">Get all functions stats on a worker</div>
 </td>
 </tr>
+<tr id="i1" class="rowColor">
+<td class="colFirst"><code>Collection&lt;org.apache.pulsar.common.stats.Metrics&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/WorkerStats.html#getMetrics--">getMetrics</a></span>()</code>
+<div class="block">Get worker metrics.</div>
+</td>
+</tr>
 </table>
 </li>
 </ul>
@@ -143,12 +149,28 @@ var activeTableTab = "activeTableTab";
 <a name="getFunctionsStats--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getFunctionsStats</h4>
 <pre>Metrics&nbsp;getFunctionsStats()
                    throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get all functions stats on a worker</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="getMetrics--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getMetrics</h4>
+<pre>Collection&lt;org.apache.pulsar.common.stats.Metrics&gt;&nbsp;getMetrics()
+                                                       throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Get worker metrics.</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dt><span class="throwsLabel">Throws:</span></dt>
