@@ -176,7 +176,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validatePartitionedTopicName(tenant, namespace, encodedTopic);
+        validateTopicName(tenant, namespace, encodedTopic);
         return internalGetPartitionedMetadata(authoritative);
     }
 
