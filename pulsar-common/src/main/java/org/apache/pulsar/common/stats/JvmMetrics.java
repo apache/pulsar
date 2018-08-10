@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats.metrics;
+package org.apache.pulsar.common.stats;
 
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +43,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.internal.PlatformDependent;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class JvmMetrics extends AbstractMetrics {
+public class JvmMetrics {
 
     private volatile long accumulatedYoungGcCount = 0;
     private volatile long currentYoungGcCount = 0;
@@ -55,6 +57,8 @@ public class JvmMetrics extends AbstractMetrics {
     
     private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
     private static Field directMemoryUsage = null;
+    
+    private final String componentName;
     static {
         try {
             directMemoryUsage = PlatformDependent.class.getDeclaredField("DIRECT_MEMORY_COUNTER");
@@ -64,13 +68,14 @@ public class JvmMetrics extends AbstractMetrics {
         }
     }
 
-    public JvmMetrics(PulsarService pulsar) {
-        super(pulsar);
-        pulsar.getExecutor().scheduleAtFixedRate(this::updateGcStats, 0, 1, TimeUnit.MINUTES);
+    public JvmMetrics(ScheduledExecutorService executor, String componentName) {
+        if (executor != null) {
+            executor.scheduleAtFixedRate(this::updateGcStats, 0, 1, TimeUnit.MINUTES);
+        }
+        this.componentName = componentName;
     }
 
     @SuppressWarnings("restriction")
-    @Override
     public List<Metrics> generate() {
 
         Metrics m = createMetrics();
@@ -105,8 +110,8 @@ public class JvmMetrics extends AbstractMetrics {
             }
         }
 
-        m.put("brk_default_pool_allocated", totalAllocated);
-        m.put("brk_default_pool_used", totalUsed);
+        m.put(this.componentName + "_default_pool_allocated", totalAllocated);
+        m.put(this.componentName + "_default_pool_used", totalUsed);
 
         return Lists.newArrayList(m);
     }
@@ -172,6 +177,15 @@ public class JvmMetrics extends AbstractMetrics {
         }
 
         return parentThreadGroup.activeCount();
+    }
+    
+    private Metrics createMetrics() {
+        return createMetrics(Collections.singletonMap("metric", "jvm_metrics"));
+    }
+
+    private Metrics createMetrics(Map<String, String> dimensionMap) {
+        // create with current version
+        return Metrics.create(dimensionMap);
     }
 
 }
