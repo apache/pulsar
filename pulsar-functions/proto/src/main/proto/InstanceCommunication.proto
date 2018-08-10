@@ -79,3 +79,12 @@ service InstanceControl {
     rpc GetMetrics(google.protobuf.Empty) returns (MetricsData) {}
     rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResult) {}
 }
+
+message Metrics {
+	message InstanceMetrics {
+		string name = 1;
+		int32 instanceId = 2;
+		MetricsData metricsData = 3;
+	}
+	repeated InstanceMetrics metrics = 1;
+}

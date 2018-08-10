@@ -27,6 +27,12 @@ public class WorkerContainer extends PulsarContainer<WorkerContainer> {
 
     public WorkerContainer(String clusterName, String hostname) {
         super(
-            clusterName, hostname, hostname, "bin/run-functions-worker.sh", -1, BROKER_HTTP_PORT);
+            clusterName,
+            hostname,
+            hostname,
+            "bin/run-functions-worker.sh",
+            -1,
+            BROKER_HTTP_PORT,
+            "/admin/v2/functions/cluster");
     }
 }

@@ -11,7 +11,7 @@ brought multiple new features and improvements to Pulsar.
 In Pulsar 2.1 you'll see:
 
 - [Pulsar IO](/docs/io-overview) connector framework and a list of [builtin connectors](/docs/io-connectors)
-- [PIP-17](https://github.com/apache/incubator-pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics): [Tiered Storage](/docs/docs/concepts-tiered-storage)
+- [PIP-17](https://github.com/apache/incubator-pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics): [Tiered Storage](/docs/concepts-tiered-storage)
 - Pulsar [Stateful Functions](/docs/functions-state)
 - [Go Client](/docs/client-libraries-go)
 - [Avro](https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/AvroSchema.java)
@@ -57,26 +57,26 @@ pickup the new storage nodes and start using them without rebalancing partitions
 
 Pulsar mitigates this cost/size trade-off by providing Tiered Storage. Tiered Storage turns your Pulsar topics into real *infinite* streams,
 by offloading older segments into a long term storage, such as AWS S3, GCS and HDFS, which is designed for storing cold data. To the end user,
-there is no perceivable difference between consuming streams whose data is tored in BookKeeper or in long term storage. All the underlying
-offloading mechanisms and metadata management are transprent to applications.
+there is no perceivable difference between consuming streams whose data is stored in BookKeeper or in long term storage. All the underlying
+offloading mechanisms and metadata management are transparent to applications.
 
 Currently [S3](https://aws.amazon.com/s3/) is supported in 2.1. More offloaders (such as Google GCS, Azure Blobstore, and HDFS) are coming
 in future releases.
 
-If you are interested in this feature, you can checkout more details [here](cookbooks-tiered-storage).
+If you are interested in this feature, you can checkout more details [here](/docs/cookbooks-tiered-storage).
 
 ## Stateful Function
 
-The most challenging thing that stream processing engines facing is managing *state*. So does Pulsar Functions. As the goal for Pulsar Functions
-is to simplify developing stream native processing logic, we also want to provide an easiest way for Pulsar Functions to manage its state.
+The greatest challenge that stream processing engines face is managing *state*. So does Pulsar Functions. As the goal for Pulsar Functions
+is to simplify developing stream native processing logic, we also want to provide an easier way for Pulsar Functions to manage their state.
 We introduced a set of [State API](/docs/functions-state/#api) for Pulsar Functions to store their state. It integrates with the table service
 in Apache BookKeeper for storing the state.
 
-It is released as a developer preview feature in Pulsar Functions Java SDK. We would like to collect feedbacks to improve it in future releases.
+It is released as a developer preview feature in Pulsar Functions Java SDK. We would like to collect feedback to improve it in future releases.
 
 ## Schemas
 
-Pulsar 2.0 introduces the native support for schemas in Pulsar. It means you can declare how message data looks and have Pulsar enforce that
+Pulsar 2.0 introduces native support for schemas in Pulsar. It means you can declare how message data looks and have Pulsar enforce that
 producers can only publish valid data on the topics. In 2.0, Pulsar only supports `String`, `bytes` and `JSON` schemas. We introduced the
 support for [Avro](https://avro.apache.org/) and [Protobuf](https://developers.google.com/protocol-buffers/) in this release. 
 

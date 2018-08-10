@@ -18,23 +18,21 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testng.annotations.Test;
 
 /**
  * Test Pulsar CLI.
  */
-public class CLITest extends PulsarClusterTestBase {
+public class CLITest extends PulsarTestSuite {
 
     @Test
     public void testDeprecatedCommands() throws Exception {
@@ -68,7 +66,7 @@ public class CLITest extends PulsarClusterTestBase {
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
             ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
-                "persistent",
+                "topics",
                 "create-subscription",
                 "persistent://public/default/" + topic,
                 "--subscription",
@@ -98,7 +96,7 @@ public class CLITest extends PulsarClusterTestBase {
         // terminate the topic
         result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
-            "persistent",
+            "topics",
             "terminate",
             topicName);
         assertTrue(result.getStdout().contains("Topic succesfully terminated at"));
@@ -209,4 +207,5 @@ public class CLITest extends PulsarClusterTestBase {
             result.getStdout().contains("\"retentionSizeInMB\" : -1"),
             result.getStdout());
     }
+
 }
