@@ -593,7 +593,7 @@ public class NamespaceService {
                                        boolean unload,
                                        AtomicInteger counter,
                                        CompletableFuture<Void> unloadFuture) {
-        CompletableFuture<NamespaceBundles> updateFuture = new CompletableFuture<>();
+        CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
 
         final Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
             2 /* by default split into 2 */);
@@ -622,7 +622,7 @@ public class NamespaceService {
                             // namespace bundle
                             bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
 
-                            updateFuture.complete(splittedBundles.getLeft());
+                            updateFuture.complete(splittedBundles.getRight());
                         } else if (rc == Code.BADVERSION.intValue()) {
                             KeeperException keeperException = KeeperException.create(KeeperException.Code.get(rc));
                             String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s " +
@@ -680,7 +680,7 @@ public class NamespaceService {
 
                 if (unload) {
                     // unload new split bundles
-                    r.getBundles().forEach(splitBundle -> {
+                    r.forEach(splitBundle -> {
                         try {
                             unloadNamespaceBundle(splitBundle);
                         } catch (Exception e) {

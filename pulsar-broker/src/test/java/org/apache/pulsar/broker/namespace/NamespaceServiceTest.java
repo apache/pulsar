@@ -429,6 +429,48 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
+    @Test
+    public void testRemoveOwnershipAndSplitBundle() throws Exception {
+        OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        doNothing().when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
+
+        Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
+        ownership.setAccessible(true);
+        ownership.set(pulsar.getNamespaceService(), ownershipCache);
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
+        NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+        NamespaceBundle originalBundle = bundles.findBundle(topicName);
+
+        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(originalBundle, false);
+        try {
+            result1.get();
+        } catch (Exception e) {
+            fail("split bundle faild", e);
+        }
+
+        NamespaceBundles updatedNsBundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+        assertNotNull(updatedNsBundles);
+        NamespaceBundle splittedBundle = updatedNsBundles.findBundle(topicName);
+
+        updatedNsBundles.getBundles().stream().filter(bundle -> !bundle.equals(splittedBundle)).forEach(bundle -> {
+            try {
+                ownershipCache.removeOwnership(bundle).get();
+            } catch (Exception e) {
+                fail("faild to remove ownership", e);
+            }
+        });
+
+        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splittedBundle, true);
+        try {
+            result2.get();
+        } catch (Exception e) {
+            // make sure: NPE does not occur
+            fail("split bundle faild", e);
+        }
+    }
 
     @SuppressWarnings("unchecked")
     private Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundleFactory utilityFactory,
