@@ -102,9 +102,6 @@
             <currentVersion>${project.version}</currentVersion>
             <maven.buildDirectory>${project.build.directory}</maven.buildDirectory>
           </systemPropertyVariables>
-          <suiteXmlFiles>
-            <file>src/test/resources/suite.xml</file>
-          </suiteXmlFiles>
         </configuration>
       </plugin>
     </plugins>
