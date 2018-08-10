@@ -25,7 +25,6 @@ workerPortTls: 6751
 connectorsDirectory: ./connectors
 
 functionMetadataTopicName: metadata
-functionMetadataSnapshotsTopicPath: snapshots
 clusterCoordinationTopicName: coordinate
 pulsarFunctionsNamespace: public/functions
 pulsarFunctionsCluster: standalone
