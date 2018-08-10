@@ -141,6 +141,28 @@ TEST(AuthPluginTest, testTlsDetectPulsarSsl) {
     ASSERT_EQ(ResultOk, result);
 }
 
+TEST(AuthPluginTest, testTlsDetectHttps) {
+    ClientConfiguration config = ClientConfiguration();
+    config.setUseTls(true);  // shouldn't be needed soon
+    config.setTlsTrustCertsFilePath("../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem");
+    config.setTlsAllowInsecureConnection(false);
+    AuthenticationPtr auth =
+        pulsar::AuthTls::create("../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem",
+                                "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem");
+    config.setAuth(auth);
+
+    Client client("https://localhost:9766", config);
+
+    std::string topicName = "persistent://property/cluster/namespace/test-tls-detect-https";
+
+    Producer producer;
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+}
+
 namespace testAthenz {
 std::string principalToken;
 void mockZTS() {
