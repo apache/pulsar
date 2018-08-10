@@ -799,7 +799,7 @@ public class PulsarService implements AutoCloseable {
 
     public static String brokerUrlTls(ServiceConfiguration config) {
         if (config.isTlsEnabled()) {
-            return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePortTls();
+            return "pulsar+ssl://" + advertisedAddress(config) + ":" + config.getBrokerServicePortTls();
         } else {
             return "";
         }

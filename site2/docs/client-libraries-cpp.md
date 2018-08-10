@@ -12,7 +12,7 @@ The Pulsar C++ client has been successfully tested on **MacOS** and **Linux**.
 
 ### Install
 
-> Since 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can choose download
+> Since the 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can choose to download
 > and install those packages instead of building them yourself.
 
 #### RPM
@@ -23,7 +23,7 @@ The Pulsar C++ client has been successfully tested on **MacOS** and **Linux**.
 | [client-debuginfo]({{pulsar:rpm:client-debuginfo}}) | [asc]({{pulsar:rpm:client-debuginfo}}.asc), [sha1]({{pulsar:rpm:client-debuginfo}}.sha1), [sha512]({{pulsar:rpm:client-debuginfo}}.sha512) |
 | [client-devel]({{pulsar:rpm:client-devel}}) | [asc]({{pulsar:rpm:client-devel}}.asc), [sha1]({{pulsar:rpm:client-devel}}.sha1), [sha512]({{pulsar:rpm:client-devel}}.sha512) |
 
-To install a RPM package, down the RPM packages and install them using following command:
+To install a RPM package, download the RPM packages and install them using the following command:
 
 ```bash
 $ rpm -ivh apache-pulsar-client*.rpm
@@ -36,7 +36,7 @@ $ rpm -ivh apache-pulsar-client*.rpm
 | [client]({{pulsar:deb:client}}) | [asc]({{pulsar:deb:client}}.asc), [sha1]({{pulsar:deb:client}}.sha1), [sha512]({{pulsar:deb:client}}.sha512) |
 | [client-devel]({{pulsar:deb:client-devel}}) | [asc]({{pulsar:deb:client-devel}}.asc), [sha1]({{pulsar:deb:client-devel}}.sha1), [sha512]({{pulsar:deb:client-devel}}.sha512) |
 
-To install a RPM package, down the DEB packages and install them using following command:
+To install a RPM package, download the DEB packages and install them using the following command:
 
 ```bash
 $ apt-install apache-pulsar-client*.deb
@@ -106,7 +106,7 @@ This will install the package with the library and headers.
 
 To connect to Pulsar using client libraries, you need to specify a Pulsar protocol URL.
 
-Pulsar protocol URLs are assigned to specific clusters, use the pulsar scheme and have a default port of 6650. Here’s an example for localhost:
+Pulsar protocol URLs are assigned to specific clusters, use the pulsar URI scheme and have a default port of 6650. Here’s an example for localhost:
 
 ```http
 pulsar://localhost:6650

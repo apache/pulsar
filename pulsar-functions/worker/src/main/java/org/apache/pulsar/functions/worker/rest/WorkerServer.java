@@ -26,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -90,7 +89,6 @@ public class WorkerServer {
         List<ServerConnector> connectors = new ArrayList<>();
         ServerConnector connector = new ServerConnector(server, 1, 1);
         connector.setPort(this.workerConfig.getWorkerPort());
-        connector.setHost(this.workerConfig.getWorkerHostname());
         connectors.add(connector);
 
         List<Handler> handlers = new ArrayList<>(3);
@@ -114,7 +112,6 @@ public class WorkerServer {
                         this.workerConfig.isTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
                 tlsConnector.setPort(this.workerConfig.getWorkerPortTls());
-                tlsConnector.setHost(this.workerConfig.getWorkerHostname());
                 connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {
                 throw new RuntimeException(e);
