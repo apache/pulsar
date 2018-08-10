@@ -16,29 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin;
+package org.apache.pulsar.functions.worker;
 
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
+import org.apache.pulsar.common.stats.JvmMetrics;
+import org.apache.pulsar.common.stats.Metrics;
 
-/**
- * Admin interface for worker stats management.
- */
-public interface WorkerStats {
-    
-    
-    /**
-     * Get all functions stats on a worker
-     * @return
-     * @throws PulsarAdminException 
-     */
-    Metrics getFunctionsStats() throws PulsarAdminException;
-    
-    /**
-     * Get worker metrics.
-     * @return
-     * @throws PulsarAdminException
-     */
-    Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws PulsarAdminException;
+public class MetricsGenerator {
+
+    private final JvmMetrics jvmMetrics;
+
+    public MetricsGenerator(ScheduledExecutorService executor) {
+        this.jvmMetrics = new JvmMetrics(executor, "fun");
+    }
+
+    public List<Metrics> generate() {
+        List<Metrics> metricsCollection = new ArrayList<Metrics>();
+        metricsCollection.addAll(jvmMetrics.generate());
+        // add more metrics here..
+
+        return metricsCollection;
+    }
+
 }
