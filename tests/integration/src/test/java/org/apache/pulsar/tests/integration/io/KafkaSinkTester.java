@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -35,7 +36,6 @@ import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
-import org.testng.collections.Maps;
 
 /**
  * A tester for testing kafka sink.
@@ -64,21 +64,16 @@ public class KafkaSinkTester extends SinkTester {
     }
 
     @Override
-    protected Map<String, GenericContainer<?>> newSinkService(String clusterName) {
-        this.kafkaContainer = new KafkaContainer()
-            .withEmbeddedZookeeper()
-            .withNetworkAliases(NAME)
-            .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
-                .withName(NAME)
-                .withHostName(clusterName + "-" + NAME));
+    public void findSinkServiceContainer(Map<String, GenericContainer<?>> containers) {
+        GenericContainer<?> container = containers.get(NAME);
+        checkState(container instanceof KafkaContainer,
+            "No kafka service found in the cluster");
 
-        Map<String, GenericContainer<?>> containers = Maps.newHashMap();
-        containers.put("kafka", kafkaContainer);
-        return containers;
+        this.kafkaContainer = (KafkaContainer) container;
     }
 
     @Override
-    protected void prepareSink() throws Exception {
+    public void prepareSink() throws Exception {
         ExecResult execResult = kafkaContainer.execInContainer(
             "/usr/bin/kafka-topics",
             "--create",
@@ -108,7 +103,7 @@ public class KafkaSinkTester extends SinkTester {
     }
 
     @Override
-    protected void validateSinkResult(Map<String, String> kvs) {
+    public void validateSinkResult(Map<String, String> kvs) {
         Iterator<Map.Entry<String, String>> kvIter = kvs.entrySet().iterator();
         while (kvIter.hasNext()) {
             ConsumerRecords<String, String> records = kafkaConsumer.poll(1000);

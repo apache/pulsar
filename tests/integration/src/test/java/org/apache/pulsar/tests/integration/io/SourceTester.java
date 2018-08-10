@@ -19,12 +19,14 @@
 package org.apache.pulsar.tests.integration.io;
 
 import java.util.Map;
+import lombok.Getter;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.collections.Maps;
 
 /**
  * A tester used for testing a specific source.
  */
+@Getter
 public abstract class SourceTester {
 
     protected final String sourceType;
@@ -35,18 +37,18 @@ public abstract class SourceTester {
         this.sourceConfig = Maps.newHashMap();
     }
 
-    protected abstract Map<String, GenericContainer<?>> newSourceService(String clusterName);
+    public abstract void findSourceServiceContainer(Map<String, GenericContainer<?>> externalServices);
 
-    protected String sourceType() {
+    public String sourceType() {
         return sourceType;
     }
 
-    protected Map<String, Object> sourceConfig() {
+    public Map<String, Object> sourceConfig() {
         return sourceConfig;
     }
 
-    protected abstract void prepareSource() throws Exception;
+    public abstract void prepareSource() throws Exception;
 
-    protected abstract Map<String, String> produceSourceMessages(int numMessages) throws Exception;
+    public abstract Map<String, String> produceSourceMessages(int numMessages) throws Exception;
 
 }

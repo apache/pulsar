@@ -20,16 +20,17 @@ package org.apache.pulsar.tests.integration.functions;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 
 /**
  * A cluster to run pulsar functions for testing functions related features.
  */
 @Slf4j
-public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
+public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     @DataProvider(name = "FunctionRuntimeTypes")
     public static Object[][] getData() {
@@ -49,12 +50,20 @@ public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
         this.functionRuntimeType = functionRuntimeType;
     }
 
-    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
-        String clusterName,
-        PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
-        return super.beforeSetupCluster(clusterName, specBuilder)
-            .functionRuntimeType(functionRuntimeType)
-            .numFunctionWorkers(2);
+    @BeforeClass
+    public void setupFunctionWorkers() {
+        final int numFunctionWorkers = 2;
+        log.info("Setting up {} function workers : function runtime type = {}",
+            numFunctionWorkers, functionRuntimeType);
+        pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numFunctionWorkers);
+        log.info("{} function workers has started", numFunctionWorkers);
+    }
+
+    @AfterClass
+    public void teardownFunctionWorkers() {
+        log.info("Tearing down function workers ...");
+        pulsarCluster.stopWorkers();
+        log.info("All functions workers are stopped.");
     }
 
     //
