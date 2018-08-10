@@ -131,6 +131,10 @@
               -Dio.netty.leakDetectionLevel=advanced
               </argLine>
               <skipTests>false</skipTests>
+              <suiteXmlFiles>
+                <file>src/test/resources/pulsar.xml</file>
+              </suiteXmlFiles>
+              <forkCount>1</forkCount>
             </configuration>
           </plugin>
         </plugins>

@@ -16,23 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.containers;
+package org.apache.pulsar.tests.integration.functions;
+
+import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 
 /**
- * A pulsar container that runs functions worker.
+ * Thread based test.
  */
-public class WorkerContainer extends PulsarContainer<WorkerContainer> {
-
-    public static final String NAME = "pulsar-worker";
-
-    public WorkerContainer(String clusterName, String hostname) {
-        super(
-            clusterName,
-            hostname,
-            hostname,
-            "bin/run-functions-worker.sh",
-            -1,
-            BROKER_HTTP_PORT,
-            "/admin/v2/functions/cluster");
+public class PulsarFunctionsThreadTest extends PulsarFunctionsTest {
+    public PulsarFunctionsThreadTest() {
+        super(FunctionRuntimeType.THREAD);
     }
 }
