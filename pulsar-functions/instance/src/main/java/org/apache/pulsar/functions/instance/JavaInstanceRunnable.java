@@ -236,7 +236,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
         } catch (Throwable t) {
             log.error("[{}] Uncaught exception in Java Instance", functionName, t);
-            deathException = (t instanceof Exception) ? (Exception) t : t.getCause();
+            deathException = t;
             return;
         } finally {
             log.info("Closing instance");
