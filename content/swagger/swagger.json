@@ -3441,6 +3441,9 @@
           },
           "404" : {
             "description" : "Topic does not exist"
+          },
+          "412" : {
+            "description" : "Partitioned topic name is invalid"
           }
         }
       }
@@ -3514,6 +3517,9 @@
           },
           "409" : {
             "description" : "Partitioned topic does not exist"
+          },
+          "412" : {
+            "description" : "Partitioned topic name is invalid"
           }
         }
       },
@@ -3594,6 +3600,9 @@
           },
           "404" : {
             "description" : "Partitioned topic does not exist"
+          },
+          "412" : {
+            "description" : "Partitioned topic name is invalid"
           }
         }
       }
@@ -4801,6 +4810,9 @@
           },
           "404" : {
             "description" : "Topic does not exist"
+          },
+          "412" : {
+            "description" : "Partitioned topic name is invalid"
           }
         }
       }
@@ -4843,6 +4855,12 @@
           },
           "403" : {
             "description" : "Don't have admin permission"
+          },
+          "409" : {
+            "description" : "Partitioned topic does not exist"
+          },
+          "412" : {
+            "description" : "Partitioned topic name is invalid"
           }
         }
       },
@@ -4874,6 +4892,9 @@
           },
           "409" : {
             "description" : "Partitioned topic does not exist"
+          },
+          "412" : {
+            "description" : "Partitioned topic name is invalid"
           }
         }
       },
@@ -4911,6 +4932,9 @@
           },
           "409" : {
             "description" : "Partitioned topic already exist"
+          },
+          "412" : {
+            "description" : "Partitioned topic name is invalid"
           }
         }
       },
@@ -4954,6 +4978,9 @@
           },
           "404" : {
             "description" : "Partitioned topic does not exist"
+          },
+          "412" : {
+            "description" : "Partitioned topic name is invalid"
           }
         }
       }
@@ -6660,7 +6687,19 @@
           "type" : "number",
           "format" : "double"
         },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
         "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "directMemory" : {
@@ -6670,31 +6709,19 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         },
         "underLoaded" : {
           "type" : "boolean"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -6854,10 +6881,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -7558,10 +7585,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
