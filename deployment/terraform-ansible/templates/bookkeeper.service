@@ -17,20 +17,17 @@
 # under the License.
 #
 
-- name: Disk setup
-  hosts: bookie
-  connection: ssh
-  become: true
-  tasks:
-    - command: >
-        tuned-adm profile latency-performance
-    - name: Create and mount disks
-      mount:
-        path: "{{ item.path }}"
-        src: "{{ item.src }}"
-        fstype: xfs
-        opts: defaults,noatime,nodiscard
-        state: present
-      with_items:
-        - { path: "/mnt/journal", src: "/dev/nvme0n1" }
-        - { path: "/mnt/storage", src: "/dev/nvme1n1" }
+[Unit]
+Description=BookKeeper
+After=network.target
+
+[Service]
+ExecStart=/opt/pulsar/bin/pulsar bookie
+WorkingDirectory=/opt/pulsar
+RestartSec=1s
+Restart=on-failure
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
+
