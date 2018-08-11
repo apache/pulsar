@@ -191,7 +191,7 @@ If you've created a private SSH key at a location different from `~/.ssh/id_rsa`
 $ ansible-playbook \
   --user='ec2-user' \
   --inventory=`which terraform-inventory` \
-  --private-key=/path/to/private/key \
+  --private-key="~/.ssh/some-non-default-key" \
   ../deploy-pulsar.yaml
 ```
 
