@@ -26,13 +26,21 @@ import org.apache.pulsar.client.api.MessageId;
 
 public class TopicMessageIdImpl implements MessageId {
 
-    /** This topicName is get from ConsumerImpl, it contains partition part. */
+    /** This topicPartitionName is get from ConsumerImpl, it contains partition part. */
+    private final String topicPartitionName;
     private final String topicName;
     private final MessageId messageId;
 
-    TopicMessageIdImpl(String topicName, MessageId messageId) {
-        this.topicName = topicName;
+    TopicMessageIdImpl(String topicPartitionName, MessageId messageId) {
         this.messageId = messageId;
+        this.topicPartitionName = topicPartitionName;
+
+        int position = topicPartitionName.lastIndexOf(PARTITIONED_TOPIC_SUFFIX);
+        if (position != -1) {
+            this.topicName = topicPartitionName.substring(0, position);
+        } else {
+            this.topicName = topicPartitionName;
+        }
     }
 
     /**
@@ -40,9 +48,7 @@ public class TopicMessageIdImpl implements MessageId {
      * @return the name of the topic on which this message was published
      */
     public String getTopicName() {
-        int position = topicName.lastIndexOf(PARTITIONED_TOPIC_SUFFIX);
-        checkState(position != -1, "Topic Name not contains partition part. " + topicName);
-        return topicName.substring(0, position);
+        return this.topicName;
     }
 
     /**
@@ -50,7 +56,7 @@ public class TopicMessageIdImpl implements MessageId {
      * @return the topic name which contains Partition part
      */
     public String getTopicPartitionName() {
-        return topicName;
+        return this.topicPartitionName;
     }
 
     public MessageId getInnerMessageId() {
@@ -68,7 +74,7 @@ public class TopicMessageIdImpl implements MessageId {
             return false;
         }
         TopicMessageIdImpl other = (TopicMessageIdImpl) obj;
-        return Objects.equals(topicName, other.topicName)
+        return Objects.equals(topicPartitionName, other.topicPartitionName)
             && Objects.equals(messageId, other.messageId);
     }
 

@@ -31,16 +31,24 @@ import org.apache.pulsar.common.api.EncryptionContext;
 
 public class TopicMessageImpl<T> implements Message<T> {
 
-    /** This topicName is get from ConsumerImpl, it contains partition part. */
+    /** This topicPartitionName is get from ConsumerImpl, it contains partition part. */
+    private final String topicPartitionName;
     private final String topicName;
     private final Message<T> msg;
     private final TopicMessageIdImpl messageId;
 
-    TopicMessageImpl(String topicName,
+    TopicMessageImpl(String topicPartitionName,
                      Message<T> msg) {
-        this.topicName = topicName;
+        this.topicPartitionName = topicPartitionName;
+        int position = topicPartitionName.lastIndexOf(PARTITIONED_TOPIC_SUFFIX);
+        if (position != -1) {
+            this.topicName = topicPartitionName.substring(0, position);
+        } else {
+            this.topicName = topicPartitionName;
+        }
+
         this.msg = msg;
-        this.messageId = new TopicMessageIdImpl(topicName, msg.getMessageId());
+        this.messageId = new TopicMessageIdImpl(topicPartitionName, msg.getMessageId());
     }
 
     /**
@@ -48,9 +56,7 @@ public class TopicMessageImpl<T> implements Message<T> {
      * @return the name of the topic on which this message was published
      */
     public String getTopicName() {
-        int position = topicName.lastIndexOf(PARTITIONED_TOPIC_SUFFIX);
-        checkState(position != -1, "Topic Name not contains partition part. " + topicName);
-        return topicName.substring(0, position);
+        return topicName;
     }
 
     /**
@@ -58,7 +64,7 @@ public class TopicMessageImpl<T> implements Message<T> {
      * @return the topic name which contains Partition part
      */
     public String getTopicPartitionName() {
-        return topicName;
+        return topicPartitionName;
     }
 
     @Override
