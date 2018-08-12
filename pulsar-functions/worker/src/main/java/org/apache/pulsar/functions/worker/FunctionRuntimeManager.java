@@ -20,6 +20,9 @@ package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.MessageId;
@@ -35,9 +38,13 @@ import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -315,6 +322,60 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
 
         return functionStatus;
+    }
+
+    public Response restartFunctionInstance(String tenant, String namespace, String functionName, int instanceId) {
+        Assignment assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
+        final String assignedWorkerId = assignment.getWorkerId();
+        final String workerId = this.workerConfig.getWorkerId();
+
+        final String fullFunctionName = String.format("%s/%s/%s/%s", tenant, namespace, functionName, instanceId);
+        if (assignment == null) {
+            return Response.status(Status.BAD_REQUEST.getStatusCode(), fullFunctionName + " doesn't exist").build();
+        }
+
+        if (assignedWorkerId.equals(workerId)) {
+            String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+            FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(fullyQualifiedInstanceId);
+            if (functionRuntimeInfo != null) {
+                this.functionActioner.stopFunction(functionRuntimeInfo);
+                try {
+                    this.functionActioner.startFunction(functionRuntimeInfo);
+                } catch (Exception ex) {
+                    log.info("{}/{}/{}/{} Error starting function", tenant, namespace, functionName, instanceId, ex);
+                    functionRuntimeInfo.setStartupException(ex);
+                }
+            }
+        } else {
+            // query other worker
+            List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
+            WorkerInfo workerInfo = null;
+            for (WorkerInfo entry : workerInfoList) {
+                if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                    workerInfo = entry;
+                }
+            }
+            if (workerInfo == null) {
+                return Response
+                        .status(Status.BAD_REQUEST.getStatusCode(), fullFunctionName + " has not not assigned yet")
+                        .build();
+            }
+
+            URI redirect = null;
+            final String redirectUrl = String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/restart",
+                    workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName, instanceId);
+            try {
+                redirect = new URI(redirectUrl);
+            } catch (URISyntaxException e) {
+                log.error("Error in preparing redirect url for {}/{}/{}/{}: {}", tenant, namespace, functionName,
+                        instanceId, e.getMessage(), e);
+                return Response
+                        .status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), redirectUrl + " invalid redirection url")
+                        .build();
+            }
+            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+        }
+        return Response.status(Status.OK).build();
     }
 
     /**

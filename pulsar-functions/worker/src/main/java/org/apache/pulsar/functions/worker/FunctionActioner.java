@@ -127,7 +127,7 @@ public class FunctionActioner implements AutoCloseable {
     }
 
     @VisibleForTesting
-    protected void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
+    public void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
         FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData();
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
 
@@ -225,7 +225,7 @@ public class FunctionActioner implements AutoCloseable {
         }
     }
 
-    private void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+    public void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         log.info("Stopping function {} - {}...",
