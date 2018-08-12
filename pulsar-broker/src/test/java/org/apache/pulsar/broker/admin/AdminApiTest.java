@@ -620,11 +620,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // Ok, got the non authorized exception since usc cluster is not in the allowed clusters list.
         }
 
+        // test with url style role.
+        admin.namespaces().grantPermissionOnNamespace("prop-xyz/ns1",
+            "spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         admin.namespaces().grantPermissionOnNamespace("prop-xyz/ns1", "my-role", EnumSet.allOf(AuthAction.class));
 
         Policies policies = new Policies();
         policies.replication_clusters = Sets.newHashSet("test");
         policies.bundles = Policies.defaultBundle();
+        policies.auth_policies.namespace_auth.put("spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.allOf(AuthAction.class));
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
@@ -632,7 +636,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.namespaces().getTopics("prop-xyz/ns1"), Lists.newArrayList());
 
+        admin.namespaces().revokePermissionsOnNamespace("prop-xyz/ns1", "spiffe://developer/passport-role");
         admin.namespaces().revokePermissionsOnNamespace("prop-xyz/ns1", "my-role");
+        policies.auth_policies.namespace_auth.remove("spiffe://developer/passport-role");
         policies.auth_policies.namespace_auth.remove("my-role");
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
 
