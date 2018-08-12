@@ -65,6 +65,21 @@
 $ <span class="hljs-built_in">cd</span> incubator-pulsar/deployment/terraform-ansible/aws
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="ssh-setup"></a><a href="#ssh-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>SSH setup</h2>
+<blockquote>
+<p>If you already have an SSH key and would like to use it, you skip generating the SSH keys and update <code>private_key_file</code> setting in <code>ansible.cfg</code> file and <code>public_key_path</code> setting in <code>terraform.tfvars</code> file.</p>
+<p>For example, if you already had a private SSH key in <code>~/.ssh/pulsar_aws</code> and a public key in <code>~/.ssh/pulsar_aws.pub</code>, you can do followings:</p>
+<ol>
+<li>update <code>ansible.cfg</code> with following values:</li>
+</ol>
+<pre><code class="hljs css languages- shell"></code></pre>
+</blockquote>
+<p>private_key_file=~/.ssh/pulsar_aws</p>
+<pre><code class="hljs">
+1. <span class="hljs-keyword">update</span> <span class="hljs-symbol">`terraform.tfvars`</span> <span class="hljs-keyword">with</span> following <span class="hljs-keyword">values</span>:
+
+<span class="hljs-symbol">``</span><span class="hljs-symbol">`shell
+public_key_path=~/.ssh/pulsar_aws.pub
+</span></code></pre>
 <p>In order to create the necessary AWS resources using Terraform, you'll need to create an SSH key. To create a private SSH key in <code>~/.ssh/id_rsa</code> and a public key in <code>~/.ssh/id_rsa.pub</code>:</p>
 <pre><code class="hljs css languages- bash">$ ssh-keygen -t rsa
 </code></pre>
@@ -100,18 +115,22 @@ id_rsa               id_rsa.pub
 <tr><td style="text-align:left"><code>availability_zone</code></td><td style="text-align:left">The AWS availability zone in which the Pulsar cluster will run</td><td style="text-align:left"><code>us-west-2a</code></td></tr>
 <tr><td style="text-align:left"><code>aws_ami</code></td><td style="text-align:left">The <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html">Amazon Machine Image</a> (AMI) that will be used by the cluster</td><td style="text-align:left"><code>ami-9fa343e7</code></td></tr>
 <tr><td style="text-align:left"><code>num_zookeeper_nodes</code></td><td style="text-align:left">The number of <a href="https://zookeeper.apache.org">ZooKeeper</a> nodes in the ZooKeeper cluster</td><td style="text-align:left">3</td></tr>
-<tr><td style="text-align:left"><code>num_pulsar_brokers</code></td><td style="text-align:left">The number of Pulsar brokers and BookKeeper bookies that will run in the cluster</td><td style="text-align:left">3</td></tr>
+<tr><td style="text-align:left"><code>num_bookie_nodes</code></td><td style="text-align:left">The number of bookies that will run in the cluster</td><td style="text-align:left">3</td></tr>
+<tr><td style="text-align:left"><code>num_broker_nodes</code></td><td style="text-align:left">The number of Pulsar brokers that will run in the cluster</td><td style="text-align:left">2</td></tr>
+<tr><td style="text-align:left"><code>num_proxy_nodes</code></td><td style="text-align:left">The number of Pulsar proxies that will run in the cluster</td><td style="text-align:left">1</td></tr>
 <tr><td style="text-align:left"><code>base_cidr_block</code></td><td style="text-align:left">The root <a href="https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing">CIDR</a> that will be used by network assets for the cluster</td><td style="text-align:left"><code>10.0.0.0/16</code></td></tr>
-<tr><td style="text-align:left"><code>instance_types</code></td><td style="text-align:left">The EC2 instance types to be used. This variable is a map with two keys: <code>zookeeper</code> for the ZooKeeper instances and <code>pulsar</code> for the Pulsar brokers and BookKeeper bookies</td><td style="text-align:left"><code>t2.small</code> (ZooKeeper) and <code>i3.xlarge</code> (Pulsar/BookKeeper)</td></tr>
+<tr><td style="text-align:left"><code>instance_types</code></td><td style="text-align:left">The EC2 instance types to be used. This variable is a map with two keys: <code>zookeeper</code> for the ZooKeeper instances, <code>bookie</code> for the BookKeeper bookies and <code>broker</code> and <code>proxy</code> for Pulsar brokers and bookies</td><td style="text-align:left"><code>t2.small</code> (ZooKeeper), <code>i3.xlarge</code> (BookKeeper) and <code>c5.2xlarge</code> (Brokers/Proxies)</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="what-is-installed"></a><a href="#what-is-installed" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What is installed</h3>
 <p>When you run the Ansible playbook, the following AWS resources will be used:</p>
 <ul>
-<li>6 total <a href="https://aws.amazon.com/ec2">Elastic Compute Cloud</a> (EC2) instances running the <a href="https://access.redhat.com/articles/3135091">ami-9fa343e7</a> Amazon Machine Image (AMI), which runs <a href="https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html-single/7.4_release_notes/index">Red Hat Enterprise Linux (RHEL) 7.4</a>. By default, that includes:
+<li>9 total <a href="https://aws.amazon.com/ec2">Elastic Compute Cloud</a> (EC2) instances running the <a href="https://access.redhat.com/articles/3135091">ami-9fa343e7</a> Amazon Machine Image (AMI), which runs <a href="https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html-single/7.4_release_notes/index">Red Hat Enterprise Linux (RHEL) 7.4</a>. By default, that includes:
 <ul>
 <li>3 small VMs for ZooKeeper (<a href="https://www.ec2instances.info/?selected=t2.small">t2.small</a> instances)</li>
-<li>3 larger VMs for Pulsar <a href="/docs/fr/reference-terminology#broker">brokers</a> and BookKeeper <a href="/docs/fr/reference-terminology#bookie">bookies</a> (<a href="https://www.ec2instances.info/?selected=i3.4xlarge">i3.4xlarge</a> instances)</li>
+<li>3 larger VMs for BookKeeper <a href="/docs/fr/reference-terminology#bookie">bookies</a> (<a href="https://www.ec2instances.info/?selected=i3.xlarge">i3.xlarge</a> instances)</li>
+<li>2 larger VMs for Pulsar <a href="/docs/fr/reference-terminology#broker">brokers</a> (<a href="https://www.ec2instances.info/?selected=c5.2xlarge">c5.2xlarge</a> instances)</li>
+<li>1 larger VMs for Pulsar <a href="/docs/fr/reference-terminology#proxy">proxy</a> (<a href="https://www.ec2instances.info/?selected=c5.2xlarge">c5.2xlarge</a> instances)</li>
 </ul></li>
 <li>An EC2 <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html">security group</a></li>
 <li>A <a href="https://aws.amazon.com/vpc/">virtual private cloud</a> (VPC) for security</li>
@@ -131,6 +150,15 @@ id_rsa               id_rsa.pub
 <p>At any point, you can destroy all AWS resources associated with your cluster using Terraform's <code>destroy</code> command:</p>
 <pre><code class="hljs css languages- bash">$ terraform destroy
 </code></pre>
+<h2><a class="anchor" aria-hidden="true" id="setup-disks"></a><a href="#setup-disks" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setup Disks</h2>
+<p>Before you run the Pulsar playbook, you want to mount the disks to the correct directories on those bookie nodes. Since different type of machines would have different disk layout, if you change the <code>instance_types</code> in your terraform config, you need to update the task defined in <code>setup-disk.yaml</code> file.</p>
+<p>To setup disks on bookie nodes, use this command:</p>
+<pre><code class="hljs css languages- bash">$ ansible-playbook \
+  --user=<span class="hljs-string">'ec2-user'</span> \
+  --inventory=`<span class="hljs-built_in">which</span> terraform-inventory` \
+  setup-disk.yaml
+</code></pre>
+<p>After running this command, the disks will be mounted under <code>/mnt/journal</code> as journal disk, and <code>/mnt/storage</code> as ledger disk. It is important to run this command only once! If you attempt to run this command again after you have run Pulsar playbook, it might be potentially erase your disks again and cause the bookies to fail to start up.</p>
 <h2><a class="anchor" aria-hidden="true" id="running-the-pulsar-playbook"></a><a href="#running-the-pulsar-playbook" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Running the Pulsar playbook</h2>
 <p>Once you've created the necessary AWS resources using Terraform, you can install and run Pulsar on the Terraform-created EC2 instances using Ansible. To do so, use this command:</p>
 <pre><code class="hljs css languages- bash">$ ansible-playbook \
@@ -162,7 +190,7 @@ id_rsa               id_rsa.pub
 <span class="hljs-meta">&gt;&gt;&gt; </span>client.close()
 </code></pre>
 <p>If all of these commands are successful, your cluster can now be used by Pulsar clients!</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/io-develop">← Develop Connectors</a><a class="docs-next button" href="/docs/fr/deploy-kubernetes">Deploying Pulsar on Kubernetes →</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#requirements-and-setup">Requirements and setup</a></li><li><a href="#installation">Installation</a></li><li><a href="#ssh-setup">SSH setup</a></li><li><a href="#creating-aws-resources-using-terraform">Creating AWS resources using Terraform</a><ul class="toc-headings"><li><a href="#applying-a-non-default-configuration">Applying a non-default configuration</a></li><li><a href="#what-is-installed">What is installed</a></li><li><a href="#fetching-your-pulsar-connection-url">Fetching your Pulsar connection URL</a></li><li><a href="#destroying-your-cluster">Destroying your cluster</a></li></ul></li><li><a href="#running-the-pulsar-playbook">Running the Pulsar playbook</a></li><li><a href="#accessing-the-cluster">Accessing the cluster</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/io-develop">← Develop Connectors</a><a class="docs-next button" href="/docs/fr/deploy-kubernetes">Deploying Pulsar on Kubernetes →</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#requirements-and-setup">Requirements and setup</a></li><li><a href="#installation">Installation</a></li><li><a href="#ssh-setup">SSH setup</a></li><li><a href="#creating-aws-resources-using-terraform">Creating AWS resources using Terraform</a><ul class="toc-headings"><li><a href="#applying-a-non-default-configuration">Applying a non-default configuration</a></li><li><a href="#what-is-installed">What is installed</a></li><li><a href="#fetching-your-pulsar-connection-url">Fetching your Pulsar connection URL</a></li><li><a href="#destroying-your-cluster">Destroying your cluster</a></li></ul></li><li><a href="#setup-disks">Setup Disks</a></li><li><a href="#running-the-pulsar-playbook">Running the Pulsar playbook</a></li><li><a href="#accessing-the-cluster">Accessing the cluster</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
