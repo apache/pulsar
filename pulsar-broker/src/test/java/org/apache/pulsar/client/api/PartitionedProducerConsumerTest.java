@@ -290,19 +290,14 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         }
 
         try {
-            producer = pulsarClient.newProducer().topic(topicName.toString())
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
+            producer = pulsarClient.newProducer().topic(topicName.toString()).enableBatching(false)
+                    .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
             consumer = pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName("my-sub").subscribe();
             producer.send("message1".getBytes());
             producer.send("message2".getBytes());
             /* Message<byte[]> msg1 = */ consumer.receive();
             Message<byte[]> msg2 = consumer.receive();
             consumer.acknowledgeCumulative(msg2);
-            Assert.fail("should fail since ack cumulative is not supported for partitioned topic");
-        } catch (PulsarClientException e) {
-            Assert.assertTrue(e instanceof PulsarClientException.NotSupportedException);
         } finally {
             producer.close();
             consumer.unsubscribe();
