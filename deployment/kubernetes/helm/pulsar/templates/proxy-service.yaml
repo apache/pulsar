@@ -33,7 +33,7 @@ metadata:
   annotations:
 {{ toYaml .Values.proxy.service.annotations | indent 4 }}
 spec:
-  type: NodePort
+  type: {{ .Values.proxy.service.type }}
   ports:
 {{ toYaml .Values.proxy.service.ports | indent 2 }}
   selector:
