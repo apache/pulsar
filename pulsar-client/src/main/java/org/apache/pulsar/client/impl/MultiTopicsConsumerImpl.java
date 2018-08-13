@@ -362,22 +362,27 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String,Long> properties) {
         checkArgument(messageId instanceof TopicMessageIdImpl);
-        TopicMessageIdImpl messageId1 = (TopicMessageIdImpl) messageId;
+        TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
 
         if (getState() != State.Ready) {
             return FutureUtil.failedFuture(new PulsarClientException("Consumer already closed"));
         }
 
         if (ackType == AckType.Cumulative) {
-            return FutureUtil.failedFuture(new PulsarClientException.NotSupportedException(
-                    "Cumulative acknowledge not supported for topics consumer"));
+            Consumer individualConsumer = consumers.get(topicMessageId.getTopicName());
+            if (individualConsumer != null) {
+                MessageId innerId = topicMessageId.getInnerMessageId();
+                return individualConsumer.acknowledgeCumulativeAsync(innerId);
+            } else {
+                return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+            }
         } else {
-            ConsumerImpl<T> consumer = consumers.get(messageId1.getTopicName());
+            ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicName());
 
-            MessageId innerId = messageId1.getInnerMessageId();
+            MessageId innerId = topicMessageId.getInnerMessageId();
             return consumer.doAcknowledge(innerId, ackType, properties)
                 .thenRun(() ->
-                    unAckedMessageTracker.remove(messageId1));
+                    unAckedMessageTracker.remove(topicMessageId));
         }
     }
 
