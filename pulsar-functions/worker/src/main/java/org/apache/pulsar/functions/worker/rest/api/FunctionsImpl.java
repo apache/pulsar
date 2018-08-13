@@ -733,9 +733,8 @@ public class FunctionsImpl {
             throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
         }
         Utils.validateFileUrl(functionPkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
-        File jarWithFileUrl = functionPkgUrl.startsWith(FILE) ? (new File((new URL(functionPkgUrl)).toURI())) : null;
         FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                functionDetailsJson, jarWithFileUrl);
+                functionDetailsJson, functionPkgUrl);
         return functionDetails;
     }
 
@@ -789,7 +788,7 @@ public class FunctionsImpl {
     }
 
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
-            String functionDetailsJson, File jarWithFileUrl) throws IllegalArgumentException {
+            String functionDetailsJson, String functionPkgUrl) throws IllegalArgumentException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -806,7 +805,14 @@ public class FunctionsImpl {
         try {
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
             org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
-            validateFunctionClassTypes(jarWithFileUrl, functionDetailsBuilder);
+            if (isNotBlank(functionPkgUrl)) {
+                // validate function details by loading function-jar from local file-system
+                File jarWithFileUrl = functionPkgUrl.startsWith(FILE) ? (new File((new URL(functionPkgUrl)).toURI()))
+                        : null;
+                validateFunctionClassTypes(jarWithFileUrl, functionDetailsBuilder);
+                // set package-url if present
+                functionDetailsBuilder.setPackageUrl(functionPkgUrl);
+            }
             FunctionDetails functionDetails = functionDetailsBuilder.build();
 
             List<String> missingFields = new LinkedList<>();
