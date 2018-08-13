@@ -330,4 +330,18 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Set subscriptionInitialPosition for the consumer
     */
     ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition);
+
+    /**
+     * Set maximum number of redelivery.
+     * Message exceeding the maximum number of redelivery will send to Dead Letter Topic and acknowledged automatic.
+     * @param maxRedeliveryCount maximum number of redelivery
+     */
+    ConsumerBuilder<T> maxRedeliveryCount(int maxRedeliveryCount);
+
+    /**
+     * Set name of Dead Letter Topic.
+     * Before set name of Dead Letter Topic, ensure that maxRedeliveryCount > 0
+     * @param deadLetterTopic name of dead letter topic
+     */
+    ConsumerBuilder<T> deadLetterTopic(String deadLetterTopic);
 }

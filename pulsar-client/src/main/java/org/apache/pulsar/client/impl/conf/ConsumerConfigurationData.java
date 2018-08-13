@@ -82,6 +82,10 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private int patternAutoDiscoveryPeriod = 1;
 
+    private int maxRedeliveryCount = 0;
+
+    private String deadLetterTopic;
+
     @JsonIgnore
     public String getSingleTopic() {
         checkArgument(topicNames.size() == 1);
