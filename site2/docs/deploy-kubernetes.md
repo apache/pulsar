@@ -87,12 +87,36 @@ If `kubectl` is working with your cluster, you can proceed to [deploy Pulsar com
 
 Pulsar can be deployed on a custom, non-GKE Kubernetes cluster as well. You can find detailed documentation on how to choose a Kubernetes installation method that suits your needs in the [Picking the Right Solution](https://kubernetes.io/docs/setup/pick-right-solution) guide in the Kubernetes docs.
 
-### Local cluster
-
 The easiest way to run a Kubernetes cluster is to do so locally. To install a mini local cluster for testing purposes, running in local VMs, you can either:
 
 1. Use [minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) to run a single-node Kubernetes cluster
 1. Create a local cluster running on multiple VMs on the same machine
+
+### Minikube
+
+1. [Install and configure minikube](https://github.com/kubernetes/minikube#installation) with
+   a [VM driver](https://github.com/kubernetes/minikube#requirements), e.g. `kvm2` on Linux or `hyperkit` or `VirtualBox` on macOS.
+1. Create a kubernetes cluster on Minikube.
+    ```shell
+    minikube start --memory=8192 --cpus=4 \
+        --kubernetes-version=v1.10.5
+    ```
+1. Set `kubectl` to use Minikube.
+    ```shell
+    kubectl config use-context minikube
+    ```
+
+In order to use the [Kubernetes Dashboard](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/)
+with local Kubernetes cluster on Minikube, run:
+
+```bash
+$ minikube dashboard
+```
+
+The command will automatically trigger open a webpage in your browser. At first your local cluster will be empty,
+but that will change as you begin deploying Pulsar [components](#deploying-pulsar-components).
+
+### Multiple VMs
 
 For the second option, follow the [instructions](https://github.com/pires/kubernetes-vagrant-coreos-cluster) for running Kubernetes using [CoreOS](https://coreos.com/) on [Vagrant](https://www.vagrantup.com/). We'll provide an abridged version of those instructions here.
 
@@ -129,8 +153,6 @@ NAME           STATUS                     AGE       VERSION
 172.17.8.104   Ready                      4m        v1.6.4
 ```
 
-### Dashboard
-
 In order to use the [Kubernetes Dashboard](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/) with your local Kubernetes cluster, first use `kubectl` to create a proxy to the cluster:
 
 ```bash
@@ -143,9 +165,15 @@ Now you can access the web interface at [localhost:8001/ui](http://localhost:800
 
 Now that you've set up a Kubernetes cluster, either on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or on a [custom cluster](#pulsar-on-a-custom-kubernetes-cluster), you can begin deploying the components that make up Pulsar. The YAML resource definitions for Pulsar components can be found in the `kubernetes` folder of the [Pulsar source package](pulsar:download_page_url).
 
-In that package, there are two sets of resource definitions, one for Google Kubernetes Engine (GKE) in the `deployment/kubernetes/google-kubernetes-engine` folder and one for a custom Kubernetes cluster in the `deployment/kubernetes/generic` folder. To begin, `cd` into the appropriate folder.
+In that package, there are different sets of resource definitions for different environments.
 
-### ZooKeeper
+- `deployment/kubernetes/google-kubernetes-engine`: for Google Kubernetes Engine (GKE)
+- `deployment/kubernetes/aws`: for AWS
+- `deployment/kubernetes/generic`: for a custom Kubernetes cluster
+
+To begin, `cd` into the appropriate folder.
+
+### Deploy ZooKeeper
 
 You *must* deploy ZooKeeper as the first Pulsar component, as it is a dependency for the others.
 
@@ -165,7 +193,7 @@ zk-2      0/1       Running            6          15m
 
 This step may take several minutes, as Kubernetes needs to download the Docker image on the VMs.
 
-#### Initialize cluster metadata
+### Initialize cluster metadata
 
 Once ZooKeeper is running, you need to [initialize the metadata](#cluster-metadata-initialization) for the Pulsar cluster in ZooKeeper. This includes system metadata for [BookKeeper](reference-terminology.md#bookkeeper) and Pulsar more broadly. There is a Kubernetes [job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) in the `cluster-metadata.yaml` file that you only need to run once:
 
@@ -177,22 +205,23 @@ For the sake of reference, that job runs the following command on an ephemeral p
 
 ```bash
 $ bin/pulsar initialize-cluster-metadata \
-  --cluster us-central \
+  --cluster local \
   --zookeeper zookeeper \
   --global-zookeeper zookeeper \
   --web-service-url http://broker.default.svc.cluster.local:8080/ \
   --broker-service-url pulsar://broker.default.svc.cluster.local:6650/
 ```
 
-#### Deploy the rest of the components
+### Deploy the rest of the components
 
 Once cluster metadata has been successfully initialized, you can then deploy the bookies, brokers, monitoring stack ([Prometheus](https://prometheus.io), [Grafana](https://grafana.com), and the [Pulsar dashboard](administration-dashboard.md)), and Pulsar cluster proxy:
 
 ```bash
 $ kubectl apply -f bookie.yaml
 $ kubectl apply -f broker.yaml
-$ kubectl apply -f monitoring.yaml
 $ kubectl apply -f proxy.yaml
+$ kubectl apply -f monitoring.yaml
+$ kubectl apply -f admin.yaml
 ```
 
 You can check on the status of the pods for these components either in the Kubernetes Dashboard or using `kubectl`:
@@ -201,7 +230,7 @@ You can check on the status of the pods for these components either in the Kuber
 $ kubectl get pods -w -l app=pulsar
 ```
 
-#### Set up properties and namespaces
+### Set up properties and namespaces
 
 Once all of the components are up and running, you'll need to create at least one Pulsar tenant and at least one namespace.
 
@@ -218,7 +247,7 @@ Now, any time you run `pulsar-admin`, you will be running commands from that pod
 ```bash
 $ pulsar-admin tenants create ten \
   --admin-roles admin \
-  --allowed-clusters us-central
+  --allowed-clusters local
 ```
 
 This command will create a `ns` namespace under the `ten` tenant:
@@ -231,15 +260,16 @@ To verify that everything has gone as planned:
 
 ```bash
 $ pulsar-admin tenants list
+public
 ten
 
 $ pulsar-admin namespaces list ten
-ns
+ten/ns
 ```
 
 Now that you have a namespace and tenant set up, you can move on to [experimenting with your Pulsar cluster](#experimenting-with-your-cluster) from within the cluster or [connecting to the cluster](#client-connections) using a Pulsar client.
 
-#### Experimenting with your cluster
+### Experimenting with your cluster
 
 Now that a tenant and namespace have been created, you can begin experimenting with your running Pulsar cluster. Using the same `pulsar-admin` pod via an alias, as in the section above, you can use [`pulsar-perf`](reference-cli-tools.md#pulsar-perf) to create a test [producer](reference-terminology.md#producer) to publish 10,000 messages a second on a topic in the [tenant](reference-terminology.md#tenant) and [namespace](reference-terminology.md#namespace) you created.
 
@@ -273,6 +303,15 @@ $ pulsar-admin persistent stats persistent://public/default/my-topic
 
 The default monitoring stack for Pulsar on Kubernetes has consists of [Prometheus](#prometheus), [Grafana](#grafana), and the [Pulsar dashbaord](administration-dashboard.md).
 
+> If you deployed the cluster to Minikube, the following monitoring ports are mapped at the minikube VM:
+>
+> - Prometheus port: 30003
+> - Grafana port: 30004
+> - Dashboard port: 30005
+>
+> You can use `minikube ip` to find the ip address of the minikube VM, and then use their mapped ports
+> to access corresponding services. For example, you can access Pulsar dashboard at `http://$(minikube ip):30005`.
+
 #### Prometheus
 
 All Pulsar metrics in Kubernetes are collected by a [Prometheus](https://prometheus.io) instance running inside the cluster. Typically, there is no need to access Prometheus directly. Instead, you can use the [Grafana interface](#grafana) that displays the data stored in Prometheus.
@@ -304,6 +343,14 @@ $ kubectl port-forward \
 You can then access the dashboard in your web browser at [localhost:8080](http://localhost:8080).
 
 ### Client connections
+
+> If you deployed the cluster to Minikube, the proxy ports are mapped at the minikube VM:
+>
+> - Http port: 30001
+> - Pulsar binary protocol port: 30002
+>
+> You can use `minikube ip` to find the ip address of the minikube VM, and then use their mapped ports
+> to access corresponding services. For example, pulsar webservice url will be at `http://$(minikube ip):30001`.
 
 Once your Pulsar cluster is running on Kubernetes, you can connect to it using a Pulsar client. You can fetch the IP address for the Pulsar proxy running in your Kubernetes cluster using kubectl:
 

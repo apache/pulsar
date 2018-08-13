@@ -23,10 +23,10 @@ kind: ConfigMap
 metadata:
     name: proxy-config
 data:
-    PULSAR_MEM: "\" -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g\""
-    zookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-    configurationStoreServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-    clusterName: us-central
+    PULSAR_MEM: "\" -Xms64m -Xmx128m -XX:MaxDirectMemorySize=128m\""
+    zookeeperServers: zookeeper
+    configurationStoreServers: zookeeper
+    clusterName: local
 ---
 ##
 ## Proxy deployment definition
@@ -36,7 +36,7 @@ kind: Deployment
 metadata:
     name: proxy
 spec:
-    replicas: 5
+    replicas: 2
     template:
         metadata:
             labels:
@@ -48,7 +48,7 @@ spec:
         spec:
             containers:
               - name: proxy
-                image: apachepulsar/pulsar:latest
+                image: apachepulsar/pulsar-all:latest
                 command: ["sh", "-c"]
                 args:
                   - >
