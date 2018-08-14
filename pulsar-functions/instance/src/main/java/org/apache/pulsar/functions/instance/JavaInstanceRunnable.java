@@ -181,8 +181,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
      */
     @Override
     public void run() {
+        String functionName = null;
         try {
             ContextImpl contextImpl = setupContext();
+            functionName = String.format("%s-%s", contextImpl.getTenant(), contextImpl.getFunctionName());
             javaInstance = setupJavaInstance(contextImpl);
             if (null != stateTable) {
                 StateContextImpl stateContext = new StateContextImpl(stateTable);
@@ -229,8 +231,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
             }
         } catch (Throwable t) {
-            log.error("Uncaught exception in Java Instance", t);
-            deathException = (Exception) t;
+            log.error("[{}] Uncaught exception in Java Instance", functionName, t);
+            deathException = t;
             return;
         } finally {
             log.info("Closing instance");
