@@ -56,6 +56,7 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.Instance;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
@@ -99,7 +100,10 @@ public class FunctionActioner implements AutoCloseable {
                         try {
                             startFunction(action.getFunctionRuntimeInfo());
                         } catch (Exception ex) {
-                            log.info("Error starting function", ex);
+                            FunctionDetails details = action.getFunctionRuntimeInfo().getFunctionInstance()
+                                    .getFunctionMetaData().getFunctionDetails();
+                            log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
+                                    details.getName(), ex);
                             action.getFunctionRuntimeInfo().setStartupException(ex);
                         }
                     } else {
@@ -132,7 +136,8 @@ public class FunctionActioner implements AutoCloseable {
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
 
         FunctionDetails.Builder functionDetails = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
-        log.info("Starting function {} - {} ...", functionDetails.getName(), instanceId);
+        log.info("{}/{}/{}-{} Starting function ...", functionDetails.getTenant(), functionDetails.getNamespace(),
+                functionDetails.getName(), instanceId);
         File pkgFile = null;
 
         String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
@@ -164,7 +169,8 @@ public class FunctionActioner implements AutoCloseable {
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
 
-        log.info("start process with instance config {}", instanceConfig);
+        log.info("{}/{}/{}-{} start process with instance config {}", functionDetails.getTenant(), functionDetails.getNamespace(),
+                functionDetails.getName(), instanceId, instanceConfig);
 
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
                 runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
@@ -175,6 +181,7 @@ public class FunctionActioner implements AutoCloseable {
 
     private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData, int instanceId) throws FileNotFoundException, IOException {
 
+        FunctionDetails details = functionMetaData.getFunctionDetails();
         File pkgDir = pkgFile.getParentFile();
 
         if (pkgFile.exists()) {
@@ -194,7 +201,8 @@ public class FunctionActioner implements AutoCloseable {
         }
         String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
         boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
-        log.info("Function package file {} will be downloaded from {}", tempPkgFile,
+        log.info("{}/{}/{} Function package file {} will be downloaded from {}", tempPkgFile, details.getTenant(),
+                details.getNamespace(), details.getName(),
                 downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());
 
         if(downloadFromHttp) {
@@ -228,8 +236,9 @@ public class FunctionActioner implements AutoCloseable {
     public void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
-        log.info("Stopping function {} - {}...",
-                functionMetaData.getFunctionDetails().getName(), instance.getInstanceId());
+        FunctionDetails details = functionMetaData.getFunctionDetails();
+        log.info("{}/{}/{}-{} Stopping function...", details.getTenant(), details.getNamespace(), details.getName(),
+                instance.getInstanceId());
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
             functionRuntimeInfo.setRuntimeSpawner(null);
