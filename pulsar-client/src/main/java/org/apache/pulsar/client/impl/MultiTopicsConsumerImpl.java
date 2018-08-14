@@ -694,7 +694,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
             CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
             ConsumerImpl<T> newConsumer = new ConsumerImpl<>(client, topicName, internalConfig,
-                client.externalExecutorProvider().getExecutor(), -1, subFuture, schema);
+                client.externalExecutorProvider().getExecutor(), 0, subFuture, schema);
             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
 
             futureList = Collections.singletonList(subFuture);
