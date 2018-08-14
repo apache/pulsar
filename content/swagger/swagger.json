@@ -6687,14 +6687,18 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "overLoaded" : {
-          "type" : "boolean"
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "loadReportType" : {
-          "type" : "string"
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         },
         "msgThroughputOut" : {
           "type" : "number",
@@ -6710,18 +6714,14 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
+        "underLoaded" : {
+          "type" : "boolean"
         },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "overLoaded" : {
+          "type" : "boolean"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
