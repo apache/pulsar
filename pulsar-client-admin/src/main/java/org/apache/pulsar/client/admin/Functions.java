@@ -181,6 +181,39 @@ public interface Functions {
      *             Unexpected error
      */
     FunctionStatusList getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException;
+    
+    /**
+     * Restart function instance
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @param instanceId
+     *            Function instanceId
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void restartFunction(String tenant, String namespace, String function, int instanceId) throws PulsarAdminException;
+    
+    /**
+     * Restart all function instances
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void restartFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
      * Triggers the function by writing to the input topic.

@@ -102,7 +102,8 @@ public class CmdFunctions extends CmdBase {
     private final DeleteFunction deleter;
     private final UpdateFunction updater;
     private final GetFunction getter;
-    private final GetFunctionStatus statuser;
+    private final GetFunctionStatus functionStatus;
+    private final RestartFunction restart;
     private final ListFunctions lister;
     private final StateGetter stateGetter;
     private final TriggerFunction triggerer;
@@ -164,7 +165,7 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--name", description = "The function's name")
         protected String functionName;
-
+        
         @Override
         void processArguments() throws Exception {
             super.processArguments();
@@ -831,6 +832,27 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Restart function instance")
+    class RestartFunction extends FunctionCommand {
+        
+        @Parameter(names = "--instance-id", description = "The function instanceId (restart all instances if instance-id is not provided")
+        protected String instanceId;
+        
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.functions().restartFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.functions().restartFunction(tenant, namespace, functionName);
+            }
+            System.out.println("Restarted successfully");
+        }
+    }
+    
     @Parameters(commandDescription = "Delete a Pulsar Function that's running on a Pulsar cluster")
     class DeleteFunction extends FunctionCommand {
         @Override
@@ -1035,18 +1057,20 @@ public class CmdFunctions extends CmdBase {
         deleter = new DeleteFunction();
         updater = new UpdateFunction();
         getter = new GetFunction();
-        statuser = new GetFunctionStatus();
+        functionStatus = new GetFunctionStatus();
         lister = new ListFunctions();
         stateGetter = new StateGetter();
         triggerer = new TriggerFunction();
         uploader = new UploadFunction();
         downloader = new DownloadFunction();
         cluster = new GetCluster();
+        restart = new RestartFunction();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
         jcommander.addCommand("update", getUpdater());
         jcommander.addCommand("get", getGetter());
+        jcommander.addCommand("restart", getRestarter());
         jcommander.addCommand("getstatus", getStatuser());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
@@ -1082,7 +1106,7 @@ public class CmdFunctions extends CmdBase {
     }
 
     @VisibleForTesting
-    GetFunctionStatus getStatuser() { return statuser; }
+    GetFunctionStatus getStatuser() { return functionStatus; }
 
     @VisibleForTesting
     ListFunctions getLister() {
@@ -1107,6 +1131,11 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     DownloadFunction getDownloader() {
         return downloader;
+    }
+
+    @VisibleForTesting
+    RestartFunction getRestarter() {
+        return restart;
     }
 
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
