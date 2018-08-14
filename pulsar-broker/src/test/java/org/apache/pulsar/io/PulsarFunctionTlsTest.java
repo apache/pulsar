@@ -206,7 +206,7 @@ public class PulsarFunctionTlsTest {
         String jarFilePathUrl = String.format("%s:%s", Utils.FILE,
                 PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath());
         FunctionDetails functionDetails = PulsarSinkE2ETest.createSinkConfig(jarFilePathUrl, tenant, namespacePortion,
-                functionName, sinkTopic, subscriptionName);
+                functionName, "my.*", sinkTopic, subscriptionName);
 
         try {
             functionAdmin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
