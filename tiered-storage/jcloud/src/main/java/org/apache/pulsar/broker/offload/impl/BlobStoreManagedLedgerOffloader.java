@@ -25,6 +25,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
@@ -38,12 +39,10 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.offload.BlockAwareSegmentInputStream;
 import org.apache.pulsar.broker.offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.offload.OffloadIndexBlockBuilder;
-import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
+import org.apache.pulsar.broker.offload.TieredStorageConfigurationData;
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
@@ -71,8 +70,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     // use these keys for both s3 and gcs.
     static final String METADATA_FORMAT_VERSION_KEY = "S3ManagedLedgerOffloaderFormatVersion";
-    static final String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
-    static final String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
     static final String CURRENT_VERSION = String.valueOf(1);
 
     public static boolean driverSupported(String driver) {
@@ -87,11 +84,11 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return driver.equalsIgnoreCase(DRIVER_NAMES[2]);
     }
 
-    private static void addVersionInfo(BlobBuilder blobBuilder) {
-        blobBuilder.userMetadata(ImmutableMap.of(
-            METADATA_FORMAT_VERSION_KEY.toLowerCase(), CURRENT_VERSION,
-            METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
-            METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getGitSha()));
+    private static void addVersionInfo(BlobBuilder blobBuilder, Map<String, String> userMetadata) {
+        ImmutableMap.Builder<String, String> metadataBuilder = ImmutableMap.builder();
+        metadataBuilder.putAll(userMetadata);
+        metadataBuilder.put(METADATA_FORMAT_VERSION_KEY.toLowerCase(), CURRENT_VERSION);
+        blobBuilder.userMetadata(metadataBuilder.build());
     }
 
     private final VersionCheck VERSION_CHECK = (key, blob) -> {
@@ -99,7 +96,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         String version = blob.getMetadata().getUserMetadata().get(METADATA_FORMAT_VERSION_KEY.toLowerCase());
         if (version == null || !version.equals(CURRENT_VERSION)) {
             throw new IOException(String.format("Invalid object version %s for %s, expect %s",
-                                                version, key, CURRENT_VERSION));
+                version, key, CURRENT_VERSION));
         }
     };
 
@@ -114,13 +111,21 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private BlobStoreContext context;
     private BlobStore blobStore;
     Location location = null;
+    private final Map<String, String> userMetadata;
 
-    public static BlobStoreManagedLedgerOffloader create(ServiceConfiguration conf,
+    @VisibleForTesting
+    static BlobStoreManagedLedgerOffloader create(TieredStorageConfigurationData conf,
+                                                  OrderedScheduler scheduler) throws IOException {
+        return create(conf, Maps.newHashMap(), scheduler);
+    }
+
+    public static BlobStoreManagedLedgerOffloader create(TieredStorageConfigurationData conf,
+                                                         Map<String, String> userMetadata,
                                                          OrderedScheduler scheduler)
-            throws PulsarServerException {
+            throws IOException {
         String driver = conf.getManagedLedgerOffloadDriver();
         if (!driverSupported(driver)) {
-            throw new PulsarServerException(
+            throw new IOException(
                 "Not support this kind of driver as offload backend: " + driver);
         }
 
@@ -139,26 +144,27 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             conf.getGcsManagedLedgerOffloadReadBufferSizeInBytes();
 
         if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
-            throw new PulsarServerException(
+            throw new IOException(
                     "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
                     + " if s3 offload enabled");
         }
 
         if (Strings.isNullOrEmpty(bucket)) {
-            throw new PulsarServerException(
+            throw new IOException(
                 "ManagedLedgerOffloadBucket cannot be empty for s3 and gcs offload");
         }
         if (maxBlockSize < 5*1024*1024) {
-            throw new PulsarServerException(
+            throw new IOException(
                 "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for s3 and gcs offload");
         }
 
         Credentials credentials = getCredentials(driver, conf);
 
-        return new BlobStoreManagedLedgerOffloader(driver, bucket, scheduler, maxBlockSize, readBufferSize, endpoint, region, credentials);
+        return new BlobStoreManagedLedgerOffloader(driver, bucket, scheduler,
+            maxBlockSize, readBufferSize, endpoint, region, credentials, userMetadata);
     }
 
-    public static Credentials getCredentials(String driver, ServiceConfiguration conf) throws PulsarServerException {
+    public static Credentials getCredentials(String driver, TieredStorageConfigurationData conf) throws IOException {
         // credentials:
         //   for s3, get by DefaultAWSCredentialsProviderChain.
         //   for gcs, use downloaded file 'google_creds.json', which contains service account key by
@@ -167,7 +173,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         if (isGcsDriver(driver)) {
             String gcsKeyPath = conf.getGcsManagedLedgerOffloadServiceAccountKeyFile();
             if (Strings.isNullOrEmpty(gcsKeyPath)) {
-                throw new PulsarServerException(
+                throw new IOException(
                     "The service account key path is empty for GCS driver");
             }
             try {
@@ -175,7 +181,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 return new GoogleCredentialsFromJson(gcsKeyContent).get();
             } catch (IOException ioe) {
                 log.error("Cannot read GCS service account credentials file: {}", gcsKeyPath);
-                throw new PulsarServerException(ioe);
+                throw new IOException(ioe);
             }
         } else if (isS3Driver(driver)) {
             AWSCredentials credentials = null;
@@ -195,19 +201,27 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             }
             return new Credentials(id, key);
         } else {
-            throw new PulsarServerException(
+            throw new IOException(
                 "Not support this kind of driver: " + driver);
         }
     }
 
+
     // build context for jclouds BlobStoreContext
     BlobStoreManagedLedgerOffloader(String driver, String container, OrderedScheduler scheduler,
-                           int maxBlockSize, int readBufferSize, String endpoint, String region, Credentials credentials) {
+                                    int maxBlockSize, int readBufferSize, String endpoint, String region, Credentials credentials) {
+        this(driver, container, scheduler, maxBlockSize, readBufferSize, endpoint, region, credentials, Maps.newHashMap());
+    }
+
+    BlobStoreManagedLedgerOffloader(String driver, String container, OrderedScheduler scheduler,
+                                    int maxBlockSize, int readBufferSize,
+                                    String endpoint, String region, Credentials credentials,
+                                    Map<String, String> userMetadata) {
         this.scheduler = scheduler;
         this.readBufferSize = readBufferSize;
-
         this.bucket = container;
         this.maxBlockSize = maxBlockSize;
+        this.userMetadata = userMetadata;
 
         Properties overrides = new Properties();
         // This property controls the number of parts being uploaded in parallel.
@@ -238,11 +252,18 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     @VisibleForTesting
     BlobStoreManagedLedgerOffloader(BlobStore blobStore, String container, OrderedScheduler scheduler,
                                     int maxBlockSize, int readBufferSize) {
+        this(blobStore, container, scheduler, maxBlockSize, readBufferSize, Maps.newHashMap());
+    }
+
+    BlobStoreManagedLedgerOffloader(BlobStore blobStore, String container, OrderedScheduler scheduler,
+                                    int maxBlockSize, int readBufferSize,
+                                    Map<String, String> userMetadata) {
         this.scheduler = scheduler;
         this.readBufferSize = readBufferSize;
         this.bucket = container;
         this.maxBlockSize = maxBlockSize;
         this.blobStore = blobStore;
+        this.userMetadata = userMetadata;
     }
 
     static String dataBlockOffloadKey(long ledgerId, UUID uuid) {
@@ -285,7 +306,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             // init multi part upload for data block.
             try {
                 BlobBuilder blobBuilder = blobStore.blobBuilder(dataBlockKey);
-                addVersionInfo(blobBuilder);
+                addVersionInfo(blobBuilder, userMetadata);
                 Blob blob = blobBuilder.build();
                 mpu = blobStore.initiateMultipartUpload(bucket, blob.getMetadata(), new PutOptions());
             } catch (Throwable t) {
@@ -348,7 +369,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                  OffloadIndexBlock.IndexInputStream indexStream = index.toStream()) {
                 // write the index block
                 BlobBuilder blobBuilder = blobStore.blobBuilder(indexBlockKey);
-                addVersionInfo(blobBuilder);
+                addVersionInfo(blobBuilder, userMetadata);
                 Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
                 indexPayload.getContentMetadata().setContentLength((long)indexStream.getStreamSize());
                 indexPayload.getContentMetadata().setContentType("application/octet-stream");
