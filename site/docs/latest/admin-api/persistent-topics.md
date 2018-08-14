@@ -46,7 +46,7 @@ $ pulsar-admin persistent list \
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:tenant/:namespace %}
+{% endpoint GET /admin/v2/persistent/:tenant/:namespace %}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace)
 
@@ -74,17 +74,17 @@ $ pulsar-admin persistent grant-permission \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:tenant/:namespace/permissions/:role %}
+{% endpoint POST /admin/v2/namespaces/:tenant/:namespace/permissions/:role %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions/:role)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
+String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 Set<AuthAction> actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);
-admin.persistentTopics().grantPermission(destination, role, actions);
+admin.persistentTopics().grantPermission(topic, role, actions);
 ```
 
 ### Get permission
@@ -107,15 +107,15 @@ $ pulsar-admin persistent permissions \
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:tenant/:namespace/permissions %}
+{% endpoint GET /admin/v2/namespaces/:tenant/:namespace/permissions %}
 
-[More info](../../reference/RestApi#/admin/namespaces/:tenant:namespace/permissions)
+[More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getPermissions(destination);
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.persistentTopics().getPermissions(topic);
 ```
 
 ### Revoke permission
@@ -141,16 +141,16 @@ $ pulsar-admin persistent revoke-permission \
 
 #### REST API
 
-{% endpoint DELETE /admin/namespaces/:tenant:namespace/permissions/:role %}
+{% endpoint DELETE /admin/v2/namespaces/:tenant/:namespace/permissions/:role %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions/:role)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
+String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
-admin.persistentTopics().revokePermissions(destination, role);
+admin.persistentTopics().revokePermissions(topic, role);
 ```
 
 ### Delete topic
@@ -168,15 +168,15 @@ $ pulsar-admin persistent delete \
 
 #### REST API
 
-{% endpoint DELETE /admin/persistent/:tenant/:namespace/:destination %}
+{% endpoint DELETE /admin/v2/persistent/:tenant/:namespace/:topic %}
 
-[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().delete(destination);
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.persistentTopics().delete(topic);
 ```
 
 ### Unload topic
@@ -194,15 +194,15 @@ $ pulsar-admin persistent unload \
 
 #### REST API
 
-{% endpoint PUT /admin/persistent/:tenant/:namespace/:destination/unload %}
+{% endpoint PUT /admin/v2/persistent/:tenant/:namespace/:topic/unload %}
 
-[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/unload)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/unload)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().unload(destination);
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.persistentTopics().unload(topic);
 ```
 
 ### Get stats
@@ -305,15 +305,15 @@ $ pulsar-admin persistent stats \
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/stats %}
+{% endpoint GET /admin/v2/persistent/:tenant/:namespace/:topic/stats %}
 
-[More info](../../reference/RestApi#/admin/persistent/:tenant:namespace/:destination/stats)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/stats)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getStats(destination);
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.persistentTopics().getStats(topic);
 ```
 
 ### Get internal stats
@@ -415,15 +415,15 @@ $ pulsar-admin persistent stats-internal \
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/internalStats %}
+{% endpoint GET /admin/v2/persistent/:tenant/:namespace/:topic/internalStats %}
 
-[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/internalStats)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/internalStats)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getInternalStats(destination);
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.persistentTopics().getInternalStats(topic);
 ```
 
 ### Peek messages
@@ -445,17 +445,17 @@ msg-payload
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/position/:messagePosition %}
+{% endpoint GET /admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition %}
 
-[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/position/:messagePosition)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
+String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
-admin.persistentTopics().peekMessages(destination, subName, numMessages);
+admin.persistentTopics().peekMessages(topic, subName, numMessages);
 ```
 
 ### Skip messages
@@ -473,17 +473,17 @@ $ pulsar-admin persistent skip \
 
 #### REST API
 
-{% endpoint POST /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip/:numMessages %}
+{% endpoint POST /admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages %}
 
-[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip/:numMessages)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
+String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
-admin.persistentTopics().skipMessages(destination, subName, numMessages);
+admin.persistentTopics().skipMessages(topic, subName, numMessages);
 ```
 
 ### Skip all messages
@@ -501,16 +501,16 @@ $ pulsar-admin persistent skip-all \
 
 #### REST API
 
-{% endpoint POST /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip_all %}
+{% endpoint POST /admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all %}
 
-[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip_all)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
+String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
-admin.persistentTopics().skipAllMessages(destination, subName);
+admin.persistentTopics().skipAllMessages(topic, subName);
 ```
 
 ### Reset cursor
@@ -528,22 +528,22 @@ $ pulsar-admin persistent reset-cursor \
 
 #### REST API
 
-{% endpoint POST /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/resetcursor/:timestamp %}
+{% endpoint POST /admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp %}
 
-[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/resetcursor/:timestamp)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
+String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 long timestamp = 2342343L;
-admin.persistentTopics().skipAllMessages(destination, subName, timestamp);
+admin.persistentTopics().skipAllMessages(topic, subName, timestamp);
 ```
 
-### Lookup of topic
+### Lookup topic
 
-It locates broker url which is serving the given topic.
+It locates the broker url which is serving the given topic.
 
 #### pulsar-admin
 
@@ -557,16 +557,16 @@ $ pulsar-admin persistent lookup \
 
 #### REST API
 
-{% endpoint GET /lookup/v2/destination/persistent/:tenant:namespace/:destination %}
+{% endpoint GET /lookup/v2/topic/persistent/:tenant/:namespace/:topic %}
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
-admin.lookup().lookupDestination(destination);
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.lookup().lookupTopic(topic);
 ```
 
-### Get bundle 
+### Get bundle
 
 It gives range of the bundle which contains given topic
 
@@ -582,13 +582,13 @@ $ pulsar-admin persistent bundle-range \
 
 #### REST API
 
-{% endpoint GET /lookup/v2/destination/:destination_domain/:tenant/:namespace/:destination/bundle %}
+{% endpoint GET /lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle %}
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
-admin.lookup().getBundleRange(destination);
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.lookup().getBundleRange(topic);
 ```
 
 
@@ -607,15 +607,15 @@ $ pulsar-admin persistent subscriptions \
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/subscriptions %}
+{% endpoint GET /admin/v2/persistent/:tenant/:namespace/:topic/subscriptions %}
 
-[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscriptions)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscriptions)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
-admin.persistentTopics().getSubscriptions(destination);
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.persistentTopics().getSubscriptions(topic);
 ```
 
 ### Unsubscribe
@@ -633,14 +633,14 @@ $ pulsar-admin persistent unsubscribe \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:tenant/:namespace/unsubscribe/:subscription %}
+{% endpoint POST /admin/v2/namespaces/:tenant/:namespace/unsubscribe/:subscription %}
 
 [More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/unsubscribe/:subscription)
 
 #### Java
 
 ```java
-String destination = "persistent://my-tenant/my-namespace/my-topic";
+String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subscriptionName = "my-subscription";
-admin.persistentTopics().deleteSubscription(destination, subscriptionName);
+admin.persistentTopics().deleteSubscription(topic, subscriptionName);
 ```

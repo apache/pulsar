@@ -122,7 +122,7 @@ public class ProxyServiceStarter {
         // create proxy service
         ProxyService proxyService = new ProxyService(config, authenticationService);
         // create a web-service
-        final WebServer server = new WebServer(config);
+        final WebServer server = new WebServer(config, authenticationService);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {

@@ -324,6 +324,18 @@ SharedBuffer Commands::newGetLastMessageId(uint64_t consumerId, uint64_t request
     return buffer;
 }
 
+SharedBuffer Commands::newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::GET_TOPICS_OF_NAMESPACE);
+    CommandGetTopicsOfNamespace* getTopics = cmd.mutable_gettopicsofnamespace();
+    getTopics->set_request_id(requestId);
+    getTopics->set_namespace_(nsName);
+
+    const SharedBuffer buffer = writeMessageWithSize(cmd);
+    cmd.clear_gettopicsofnamespace();
+    return buffer;
+}
+
 std::string Commands::messageType(BaseCommand_Type type) {
     switch (type) {
         case BaseCommand::CONNECT:
@@ -415,6 +427,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
             break;
         case BaseCommand::GET_LAST_MESSAGE_ID_RESPONSE:
             return "GET_LAST_MESSAGE_ID_RESPONSE";
+            break;
+        case BaseCommand::GET_TOPICS_OF_NAMESPACE:
+            return "GET_TOPICS_OF_NAMESPACE";
+            break;
+        case BaseCommand::GET_TOPICS_OF_NAMESPACE_RESPONSE:
+            return "GET_TOPICS_OF_NAMESPACE_RESPONSE";
             break;
     };
 }

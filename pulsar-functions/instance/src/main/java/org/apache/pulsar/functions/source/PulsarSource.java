@@ -18,31 +18,34 @@
  */
 package org.apache.pulsar.functions.source;
 
-import com.google.common.annotations.VisibleForTesting;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
-
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Source;
+import org.apache.pulsar.io.core.SourceContext;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import com.google.common.annotations.VisibleForTesting;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
 
 @Slf4j
 public class PulsarSource<T> implements Source<T> {
@@ -51,9 +54,10 @@ public class PulsarSource<T> implements Source<T> {
     private PulsarSourceConfig pulsarSourceConfig;
     private Map<String, SerDe> topicToSerDeMap = new HashMap<>();
     private boolean isTopicsPattern;
+    private List<String> inputTopics;
 
     @Getter
-    private org.apache.pulsar.client.api.Consumer inputConsumer;
+    private org.apache.pulsar.client.api.Consumer<byte[]> inputConsumer;
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
         this.pulsarClient = pulsarClient;
@@ -61,47 +65,47 @@ public class PulsarSource<T> implements Source<T> {
     }
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         // Setup Serialization/Deserialization
         setupSerDe();
 
         // Setup pulsar consumer
         ConsumerBuilder<byte[]> consumerBuilder = this.pulsarClient.newConsumer()
                 //consume message even if can't decrypt and deliver it along with encryption-ctx
-                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)  
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
                 .subscriptionType(this.pulsarSourceConfig.getSubscriptionType());
 
         if(isNotBlank(this.pulsarSourceConfig.getTopicsPattern())) {
-            consumerBuilder.topicsPattern(this.pulsarSourceConfig.getTopicsPattern());    
+            consumerBuilder.topicsPattern(this.pulsarSourceConfig.getTopicsPattern());
             isTopicsPattern = true;
         }else {
-            consumerBuilder.topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()));    
+            consumerBuilder.topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()));
         }
-        
+
         if (pulsarSourceConfig.getTimeoutMs() != null) {
             consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
         this.inputConsumer = consumerBuilder.subscribe();
+        if (inputConsumer instanceof MultiTopicsConsumerImpl) {
+            inputTopics = ((MultiTopicsConsumerImpl<?>) inputConsumer).getTopics();
+        } else {
+            inputTopics = Collections.singletonList(inputConsumer.getTopic());
+        }
     }
 
     @Override
     public Record<T> read() throws Exception {
-        org.apache.pulsar.client.api.Message<T> message = this.inputConsumer.receive();
+        org.apache.pulsar.client.api.Message<byte[]> message = this.inputConsumer.receive();
 
         String topicName;
-        String partitionId;
 
         // If more than one topics are being read than the Message return by the consumer will be TopicMessageImpl
         // If there is only topic being read then the Message returned by the consumer wil be MessageImpl
         if (message instanceof TopicMessageImpl) {
-            topicName = ((TopicMessageImpl) message).getTopicName();
-            TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) message.getMessageId();
-            MessageIdImpl messageId = (MessageIdImpl) topicMessageId.getInnerMessageId();
-            partitionId = Long.toString(messageId.getPartitionIndex());
+            topicName = ((TopicMessageImpl<?>) message).getTopicName();
         } else {
             topicName = this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet().iterator().next();
-            partitionId = Long.toString(((MessageIdImpl) message.getMessageId()).getPartitionIndex());
         }
 
         Object object;
@@ -129,16 +133,13 @@ public class PulsarSource<T> implements Source<T> {
             throw new RuntimeException("Error in casting input to expected type:", e);
         }
 
-        PulsarRecord<T> pulsarMessage = (PulsarRecord<T>) PulsarRecord.builder()
+        return PulsarRecord.<T>builder()
                 .value(input)
-                .messageId(message.getMessageId())
-                .partitionId(String.format("%s-%s", topicName, partitionId))
-                .recordSequence(Utils.getSequenceId(message.getMessageId()))
+                .message(message)
                 .topicName(topicName)
-                .properties(message.getProperties())
-                .encryptionCtx(message.getEncryptionCtx())
                 .ackFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    if (pulsarSourceConfig
+                            .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         inputConsumer.acknowledgeCumulativeAsync(message);
                     } else {
                         inputConsumer.acknowledgeAsync(message);
@@ -149,7 +150,6 @@ public class PulsarSource<T> implements Source<T> {
                     }
                 })
                 .build();
-        return pulsarMessage;
     }
 
     @Override
@@ -193,5 +193,9 @@ public class PulsarSource<T> implements Source<T> {
                 }
             }
         }
+    }
+
+    public List<String> getInputTopics() {
+        return inputTopics;
     }
 }

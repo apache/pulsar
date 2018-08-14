@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM apachepulsar/pulsar:latest
+FROM apachepulsar/pulsar-all:latest
 
 RUN apt-get update && apt-get install -y supervisor python-pip
 

@@ -20,7 +20,14 @@ package org.apache.pulsar.functions.worker;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.net.URI;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,9 +35,13 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.stats.JvmMetrics;
 
 /**
  * A service component contains everything to run a worker except rest server.
@@ -49,13 +60,26 @@ public class WorkerService {
     private MembershipManager membershipManager;
     private SchedulerManager schedulerManager;
     private boolean isInitialized = false;
+    private final ScheduledExecutorService statsUpdater;
+    private AuthenticationService authenticationService;
+    private ConnectorsManager connectorsManager;
+    private PulsarAdmin admin;
+    private final MetricsGenerator metricsGenerator;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
+        this.statsUpdater = Executors
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
+        this.metricsGenerator = new MetricsGenerator(this.statsUpdater);
     }
 
     public void start(URI dlogUri) throws InterruptedException {
         log.info("Starting worker {}...", workerConfig.getWorkerId());
+        
+        this.admin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
+                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
+        
         try {
             log.info("Worker Configs: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
                     .writeValueAsString(workerConfig));
@@ -100,12 +124,14 @@ public class WorkerService {
             this.functionMetaDataManager = new FunctionMetaDataManager(
                     this.workerConfig, this.schedulerManager, this.client);
 
+            this.connectorsManager = new ConnectorsManager(workerConfig);
+
             //create membership manager
             this.membershipManager = new MembershipManager(this.workerConfig, this.client);
 
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(
-                    this.workerConfig, this.client, this.dlogNamespace, this.membershipManager);
+                    this.workerConfig, this.client, this.dlogNamespace, this.membershipManager, connectorsManager);
 
             // Setting references to managers in scheduler
             this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
@@ -114,6 +140,8 @@ public class WorkerService {
 
             // initialize function metadata manager
             this.functionMetaDataManager.initialize();
+            
+            authenticationService = new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
 
             // Starting cluster services
             log.info("Start cluster services...");
@@ -134,9 +162,17 @@ public class WorkerService {
             // indicate function worker service is done intializing
             this.isInitialized = true;
 
-        } catch (Exception e) {
-            log.error("Error Starting up in worker", e);
-            throw new RuntimeException(e);
+            this.connectorsManager = new ConnectorsManager(workerConfig);
+            
+            int metricsSamplingPeriodSec = this.workerConfig.getMetricsSamplingPeriodSec();
+            if (metricsSamplingPeriodSec > 0) {
+                this.statsUpdater.scheduleAtFixedRate(() -> this.functionRuntimeManager.updateRates(),
+                        metricsSamplingPeriodSec, metricsSamplingPeriodSec, TimeUnit.SECONDS);
+            }
+
+        } catch (Throwable t) {
+            log.error("Error Starting up in worker", t);
+            throw new RuntimeException(t);
         }
     }
 
@@ -177,6 +213,10 @@ public class WorkerService {
 
         if (null != schedulerManager) {
             schedulerManager.close();
+        }
+        
+        if (null != this.admin) {
+            this.admin.close();
         }
     }
 

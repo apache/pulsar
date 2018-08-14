@@ -222,10 +222,13 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder enableTcpNoDelay(boolean enableTcpNoDelay);
 
     /**
-     * Configure whether to use TLS encryption on the connection <i>(default: false)</i>
+     * Configure whether to use TLS encryption on the connection
+     * <i>(default: true if serviceUrl starts with "pulsar+ssl://", false otherwise)</i>
      *
      * @param enableTls
+     * @deprecated use "pulsar+ssl://" in serviceUrl to enable
      */
+    @Deprecated
     ClientBuilder enableTls(boolean enableTls);
 
     /**

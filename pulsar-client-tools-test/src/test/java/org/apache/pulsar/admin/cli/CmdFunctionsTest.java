@@ -31,6 +31,7 @@ import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
+import org.apache.pulsar.admin.cli.CmdFunctions.RestartFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.admin.cli.CmdSinks.CreateSink;
 import org.apache.pulsar.admin.cli.CmdSources.CreateSource;
@@ -44,7 +45,6 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.io.core.RecordContext;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -77,6 +77,7 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNull;
 
 /**
  * Unit test of {@link CmdFunctions}.
@@ -110,7 +111,7 @@ public class CmdFunctionsTest {
             return null;
         }
     }
-    
+
     private String generateCustomSerdeInputs(String topic, String serde) {
         Map<String, String> map = new HashMap<>();
         map.put(topic, serde);
@@ -213,16 +214,44 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
 
     }
-    
+
+    @Test
+    public void restartFunction() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String tenant = "sample";
+        String namespace = "ns1";
+        int instanceId = 0;
+        cmd.run(new String[] { "restart", "--tenant", tenant, "--namespace", namespace, "--name", fnName,
+                "--instance-id", Integer.toString(instanceId)});
+
+        RestartFunction restarter = cmd.getRestarter();
+        assertEquals(fnName, restarter.getFunctionName());
+
+        verify(functions, times(1)).restartFunction(tenant, namespace, fnName, instanceId);
+    }
+
+    @Test
+    public void restartFunctionInstances() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String tenant = "sample";
+        String namespace = "ns1";
+        cmd.run(new String[] { "restart", "--tenant", tenant, "--namespace", namespace, "--name", fnName });
+
+        RestartFunction restarter = cmd.getRestarter();
+        assertEquals(fnName, restarter.getFunctionName());
+
+        verify(functions, times(1)).restartFunction(tenant, namespace, fnName);
+    }
+
     @Test
     public void testCreateFunctionWithHttpUrl() throws Exception {
         String fnName = TEST_NAME + "-function";
         String inputTopicName = TEST_NAME + "-input-topic";
         String outputTopicName = TEST_NAME + "-output-topic";
-        
+
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
         consoleOutputCapturer.start();
-        
+
         final String url = "http://localhost:1234/test";
         cmd.run(new String[] {
             "create",
@@ -236,10 +265,10 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        
+
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
-        
+
         assertTrue(output.contains("Failed to download jar"));
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
@@ -251,7 +280,7 @@ public class CmdFunctionsTest {
         String fnName = TEST_NAME + "-function";
         String inputTopicName = TEST_NAME + "-input-topic";
         String outputTopicName = TEST_NAME + "-output-topic";
-        
+
         final String url = "file:/usr/temp/myfile.jar";
         cmd.run(new String[] {
             "create",
@@ -265,19 +294,19 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        
+
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionDetails.class), anyString());
     }
-    
+
     @Test
     public void testCreateSink() throws Exception {
         String fnName = TEST_NAME + "-function";
         String inputTopicName = TEST_NAME + "-input-topic";
-        
-        
+
+
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
         consoleOutputCapturer.start();
 
@@ -286,26 +315,24 @@ public class CmdFunctionsTest {
             "create",
             "--name", fnName,
             "--inputs", inputTopicName,
-            "--jar", url,
+            "--archive", url,
             "--tenant", "sample",
-            "--namespace", "ns1",
-            "--className", "DummySink"
+            "--namespace", "ns1"
         });
 
         CreateSink creater = cmdSinks.getCreateSink();
-        
+
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
-        
-        assertTrue(output.contains("Failed to download jar"));
-        assertEquals("DummySink", creater.className);
-        assertEquals(url, creater.jarFile);
+
+        assertTrue(output.contains("Failed to download archive"));
+        assertEquals(url, creater.archive);
     }
-    
+
     @Test
     public void testCreateSource() throws Exception {
         String fnName = TEST_NAME + "-function";
-        
+
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
         consoleOutputCapturer.start();
 
@@ -313,22 +340,20 @@ public class CmdFunctionsTest {
         cmdSources.run(new String[] {
             "create",
             "--name", fnName,
-            "--jar", url,
+            "--archive", url,
             "--tenant", "sample",
             "--namespace", "ns1",
-            "--className", "DummySink"
         });
 
         CreateSource creater = cmdSources.getCreateSource();
-        
+
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
-        
-        assertTrue(output.contains("Failed to download jar"));
-        assertEquals("DummySink", creater.className);
-        assertEquals(url, creater.jarFile);
+
+        assertTrue(output.contains("Failed to download archive"));
+        assertEquals(url, creater.archive);
     }
-    
+
     @Test
     public void testCreateFunctionWithTopicPatterns() throws Exception {
         String fnName = TEST_NAME + "-function";
@@ -353,7 +378,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
 
     }
-    
+
     @Test
     public void testCreateWithoutTenant() throws Exception {
         String fnName = TEST_NAME + "-function";
@@ -439,7 +464,31 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreateWithoutOutputTopicWithSkipFlag() throws Exception {
+        String inputTopicName = TEST_NAME + "-input-topic";
+        cmd.run(new String[] {
+                "create",
+                "--inputs", inputTopicName,
+                "--skip-output",
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertNull(creater.getFunctionConfig().getOutput());
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+
+    }
+
+    
+    @Test
     public void testCreateWithoutOutputTopic() throws Exception {
+
+        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
+        consoleOutputCapturer.start();
+
         String inputTopicName = TEST_NAME + "-input-topic";
         cmd.run(new String[] {
                 "create",
@@ -451,8 +500,10 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals(inputTopicName + "-" + "CmdFunctionsTest$DummyFunction" + "-output", creater.getFunctionConfig().getOutput());
-        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+        consoleOutputCapturer.stop();
+        String output = consoleOutputCapturer.getStderr();
+        assertNull(creater.getFunctionConfig().getOutput());
+        assertTrue(output.contains("output topic is not present"));
     }
 
     @Test

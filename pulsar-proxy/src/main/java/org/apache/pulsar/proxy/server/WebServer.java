@@ -28,12 +28,17 @@ import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.servlet.DispatcherType;
+
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Connector;
@@ -45,6 +50,7 @@ import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -59,15 +65,21 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class WebServer {
+    private static final String MATCH_ALL = "/*";
+
     private final Server server;
     private final ExecutorService webServiceExecutor;
+    private final AuthenticationService authenticationService;
     private final List<Handler> handlers = Lists.newArrayList();
+    private final ProxyConfiguration config;
     protected final int externalServicePort;
 
-    public WebServer(ProxyConfiguration config) {
+    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
         this.webServiceExecutor = Executors.newFixedThreadPool(32, new DefaultThreadFactory("pulsar-external-web"));
         this.server = new Server(new ExecutorThreadPool(webServiceExecutor));
         this.externalServicePort = config.getWebServicePort();
+        this.authenticationService = authenticationService;
+        this.config = config;
 
         List<ServerConnector> connectors = Lists.newArrayList();
 
@@ -111,6 +123,11 @@ public class WebServer {
         for (Pair<String, Object> attribute : attributes) {
             context.setAttribute(attribute.getLeft(), attribute.getRight());
         }
+        if (config.isAuthenticationEnabled()) {
+            FilterHolder filter = new FilterHolder(new AuthenticationFilter(authenticationService));
+            context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
         handlers.add(context);
     }
 

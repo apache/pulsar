@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
@@ -42,6 +44,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -50,10 +53,12 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.PositionInfo;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
@@ -251,6 +256,64 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             callback.openLedgerComplete(ml, ctx);
         }).exceptionally(exception -> {
             callback.openLedgerFailed((ManagedLedgerException) exception.getCause(), ctx);
+            return null;
+        });
+    }
+
+
+
+    @Override
+    public ReadOnlyCursor openReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config)
+            throws InterruptedException, ManagedLedgerException {
+        class Result {
+            ReadOnlyCursor c = null;
+            ManagedLedgerException e = null;
+        }
+        final Result r = new Result();
+        final CountDownLatch latch = new CountDownLatch(1);
+        asyncOpenReadOnlyCursor(managedLedgerName, startPosition, config, new OpenReadOnlyCursorCallback() {
+            @Override
+            public void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx) {
+                r.c = cursor;
+                latch.countDown();
+            }
+
+            @Override
+            public void openReadOnlyCursorFailed(ManagedLedgerException exception, Object ctx) {
+                r.e = exception;
+                latch.countDown();
+            }
+        }, null);
+
+        latch.await();
+
+        if (r.e != null) {
+            throw r.e;
+        }
+        return r.c;
+    }
+
+    @Override
+    public void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
+            OpenReadOnlyCursorCallback callback, Object ctx) {
+        checkArgument(startPosition instanceof PositionImpl);
+        ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this, bookKeeper, store, config,
+                scheduledExecutor, orderedExecutor, managedLedgerName);
+
+        roManagedLedger.initializeAndCreateCursor((PositionImpl) startPosition).thenAccept(roCursor -> {
+            callback.openReadOnlyCursorComplete(roCursor, ctx);
+        }).exceptionally(ex -> {
+            Throwable t = ex;
+            if (t instanceof CompletionException) {
+                t = ex.getCause();
+            }
+
+            if (t instanceof ManagedLedgerException) {
+                callback.openReadOnlyCursorFailed((ManagedLedgerException) t, ctx);
+            } else {
+                callback.openReadOnlyCursorFailed(new ManagedLedgerException(t), ctx);
+            }
+
             return null;
         });
     }

@@ -2434,7 +2434,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
-        
+
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .subscribe();
@@ -2450,7 +2450,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
     private String decryptMessage(TopicMessageImpl<byte[]> msg, String encryptionKeyName, CryptoKeyReader reader)
             throws Exception {
         Optional<EncryptionContext> ctx = msg.getEncryptionCtx();
@@ -2552,4 +2552,114 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
+    public void testFlushBatchEnabled() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            .topic("persistent://my-property/my-ns/test-flush-enabled")
+            .subscriptionName("my-subscriber-name").subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/test-flush-enabled")
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .batchingMaxMessages(10000);
+
+        try (Producer<byte[]> producer = producerBuilder.create()) {
+            for (int i = 0; i < 10; i++) {
+                String message = "my-message-" + i;
+                producer.sendAsync(message.getBytes());
+            }
+            producer.flush();
+        }
+
+        Message<byte[]> msg = null;
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = 0; i < 10; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testFlushBatchDisabled() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            .topic("persistent://my-property/my-ns/test-flush-disabled")
+            .subscriptionName("my-subscriber-name").subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/test-flush-disabled")
+                .enableBatching(false);
+
+        try (Producer<byte[]> producer = producerBuilder.create()) {
+            for (int i = 0; i < 10; i++) {
+                String message = "my-message-" + i;
+                producer.sendAsync(message.getBytes());
+            }
+            producer.flush();
+        }
+
+        Message<byte[]> msg = null;
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = 0; i < 10; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    // Issue 1452: https://github.com/apache/incubator-pulsar/issues/1452
+    // reachedEndOfTopic should be called only once if a topic has been terminated before subscription
+    @Test
+    public void testReachedEndOfTopic() throws Exception
+    {
+        String topicName = "persistent://my-property/my-ns/testReachedEndOfTopic";
+        Producer producer = pulsarClient.newProducer()
+            .topic(topicName)
+            .enableBatching(false).create();
+        producer.close();
+
+        admin.topics().terminateTopicAsync(topicName).get();
+
+        CountDownLatch latch = new CountDownLatch(2);
+        Consumer consumer = pulsarClient.newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscriber-name")
+            .messageListener(new MessageListener()
+            {
+                @Override
+                public void reachedEndOfTopic(Consumer consumer)
+                {
+                    log.info("called reachedEndOfTopic  {}", methodName);
+                    latch.countDown();
+                }
+
+                @Override
+                public void received(Consumer consumer, Message message)
+                {
+                    // do nothing
+                }
+            })
+            .subscribe();
+
+        assertFalse(latch.await(1, TimeUnit.SECONDS));
+        assertEquals(latch.getCount(), 1);
+        consumer.close();
+    }
 }

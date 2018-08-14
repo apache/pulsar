@@ -103,7 +103,6 @@
                   <include>com.github.zafarkhaja:java-semver</include>
                   <include>org.aspectj:*</include>
                   <include>com.ea.agentloader:*</include>
-                  <include>com.wordnik:swagger-annotations</include>
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
                   <include>org.apache.httpcomponents:httpcore</include>
@@ -341,6 +340,30 @@
                   <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
                 </relocation>
               </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- This plugin is used to run a script after the package phase in order to rename
+            libnetty_transport_native_epoll_x86_64.so from Netty into
+            liborg_apache_pulsar_shade_netty_transport_native_epoll_x86_64.so
+            to reflect the shade that is being applied.
+         -->
+        <artifactId>exec-maven-plugin</artifactId>
+        <groupId>org.codehaus.mojo</groupId>
+        <executions>
+          <execution>
+            <id>rename-epoll-library</id>
+            <phase>package</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>${project.parent.basedir}/src/rename-netty-native-libs.sh</executable>
+              <arguments>
+                <argument>${project.artifactId}</argument>
+              </arguments>
             </configuration>
           </execution>
         </executions>

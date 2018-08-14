@@ -57,6 +57,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
@@ -66,7 +67,10 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +92,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private long createProducerTimeout;
     private final int maxNumMessagesInBatch;
     private final BatchMessageContainer batchMessageContainer;
+    private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
 
     // Globally unique producer name
     private String producerName;
@@ -204,6 +209,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         sendAsync(message, new SendCallback() {
             SendCallback nextCallback = null;
+            MessageImpl<?> nextMsg = null;
             long createdAt = System.nanoTime();
 
             @Override
@@ -217,6 +223,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             @Override
+            public MessageImpl<?> getNextMessage() {
+                return nextMsg;
+            }
+
+            @Override
             public void sendComplete(Exception e) {
                 if (e != null) {
                     stats.incrementSendFailed();
@@ -227,20 +238,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
                 while (nextCallback != null) {
                     SendCallback sendCallback = nextCallback;
+                    MessageImpl<?> msg = nextMsg;
                     if (e != null) {
                         stats.incrementSendFailed();
                         sendCallback.getFuture().completeExceptionally(e);
                     } else {
-                        sendCallback.getFuture().complete(message.getMessageId());
+                        sendCallback.getFuture().complete(msg.getMessageId());
                         stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                     }
+                    nextMsg = nextCallback.getNextMessage();
                     nextCallback = nextCallback.getNextSendCallback();
-                    sendCallback = null;
                 }
             }
 
             @Override
-            public void addCallback(SendCallback scb) {
+            public void addCallback(MessageImpl<?> msg, SendCallback scb) {
+                nextMsg = msg;
                 nextCallback = scb;
             }
         });
@@ -322,6 +335,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // batch size and/or max message size
                     if (batchMessageContainer.hasSpaceInBatch(msg)) {
                         batchMessageContainer.add(msg, callback);
+                        lastSendFuture = callback.getFuture();
                         payload.release();
                         if (batchMessageContainer.numMessagesInBatch == maxNumMessagesInBatch
                                 || batchMessageContainer.currentBatchSizeBytes >= BatchMessageContainer.MAX_MESSAGE_BATCH_SIZE_BYTES) {
@@ -342,6 +356,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     op.setNumMessagesInBatch(1);
                     op.setBatchSizeByte(encryptedPayload.readableBytes());
                     pendingMessages.put(op);
+                    lastSendFuture = callback.getFuture();
 
                     // Read the connection before validating if it's still connected, so that we avoid reading a null
                     // value
@@ -416,6 +431,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         batchMessageAndSend();
         batchMessageContainer.add(msg, callback);
+        lastSendFuture = callback.getFuture();
         payload.release();
     }
 
@@ -845,9 +861,28 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         long requestId = client.newRequestId();
 
+        SchemaInfo schemaInfo = null;
+        if (schema != null) {
+            if (schema.getSchemaInfo() != null) {
+                if (schema.getSchemaInfo().getType() == SchemaType.JSON) {
+                    // for backwards compatibility purposes
+                    // JSONSchema originally generated a schema for pojo based of of the JSON schema standard
+                    // but now we have standardized on every schema to generate an Avro based schema
+                    if (Commands.peerSupportJsonSchemaAvroFormat(cnx.getRemoteEndpointProtocolVersion())) {
+                        schemaInfo = schema.getSchemaInfo();
+                    } else {
+                        JSONSchema jsonSchema = (JSONSchema) schema;
+                        schemaInfo = jsonSchema.getBackwardsCompatibleJsonSchemaInfo();
+                    }
+                } else {
+                    schemaInfo = schema.getSchemaInfo();
+                }
+            }
+        }
+
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                    schema == null ? null : schema.getSchemaInfo()),
+                       schemaInfo),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
@@ -1188,7 +1223,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     };
 
     @Override
-    protected void flush() {
+    public CompletableFuture<Void> flushAsync() {
+        CompletableFuture<MessageId> lastSendFuture;
+        synchronized (ProducerImpl.this) {
+            if (isBatchMessagingEnabled()) {
+                batchMessageAndSend();
+            }
+            lastSendFuture = this.lastSendFuture;
+        }
+        return lastSendFuture.thenApply(ignored -> null);
+    }
+
+    @Override
+    protected void triggerFlush() {
         if (isBatchMessagingEnabled()) {
             synchronized (ProducerImpl.this) {
                 batchMessageAndSend();

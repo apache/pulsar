@@ -22,6 +22,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.common.io.ConnectorDefinition;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -30,11 +35,20 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.io.InputStream;
+
+import org.apache.pulsar.functions.worker.WorkerInfo;
+import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataParam;
+
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Path("/functions")
@@ -51,8 +65,8 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                      final @FormDataParam("url") String functionPkgUrl,
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        return functions.registerFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl, functionDetailsJson);
+        return functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+                functionPkgUrl, functionDetailsJson, clientAppId());
 
     }
 
@@ -67,8 +81,8 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                    final @FormDataParam("url") String functionPkgUrl,
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        return functions.updateFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl, functionDetailsJson);
+        return functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+                functionPkgUrl, functionDetailsJson, clientAppId());
 
     }
 
@@ -76,10 +90,8 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     @DELETE
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
-                                       final @PathParam("namespace") String namespace,
-                                       final @PathParam("functionName") String functionName) {
-        return functions.deregisterFunction(
-            tenant, namespace, functionName);
+            final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
+        return functions.deregisterFunction(tenant, namespace, functionName, clientAppId());
     }
 
     @GET
@@ -122,8 +134,17 @@ public class FunctionApiV2Resource extends FunctionApiResource {
 
     @GET
     @Path("/cluster")
-    public Response getCluster() {
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Fetches information about the Pulsar cluster running Pulsar Functions")
+    public List<WorkerInfo> getCluster() {
         return functions.getCluster();
+    }
+
+    @GET
+    @Path("/cluster/leader")
+    @Produces(MediaType.APPLICATION_JSON)
+    public WorkerInfo getClusterLeader() {
+        return functions.getClusterLeader();
     }
 
     @GET
@@ -137,13 +158,38 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response triggerFunction(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
-                                    final @PathParam("name") String functionName,
+                                    final @PathParam("functionName") String functionName,
                                     final @FormDataParam("data") String input,
                                     final @FormDataParam("dataStream") InputStream uploadedInputStream,
                                     final @FormDataParam("topic") String topic) {
         return functions.triggerFunction(tenant, namespace, functionName, input, uploadedInputStream, topic);
     }
 
+    @POST
+    @ApiOperation(value = "Restart function instance", response = Void.class)
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/restart")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response restartFunction(final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
+            final @PathParam("instanceId") String instanceId) {
+        return functions.restartFunctionInstance(tenant, namespace, functionName, instanceId);
+    }
+
+    @POST
+    @ApiOperation(value = "Restart all function instances", response = Void.class)
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    @Path("/{tenant}/{namespace}/{functionName}/restart")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response restartFunction(final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
+        return functions.restartFunctionInstances(tenant, namespace, functionName);
+    }
+    
     @POST
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -158,4 +204,9 @@ public class FunctionApiV2Resource extends FunctionApiResource {
         return functions.downloadFunction(path);
     }
 
+    @GET
+    @Path("/connectors")
+    public List<ConnectorDefinition> getConnectorsList() throws IOException {
+        return functions.getListOfConnectors();
+    }
 }

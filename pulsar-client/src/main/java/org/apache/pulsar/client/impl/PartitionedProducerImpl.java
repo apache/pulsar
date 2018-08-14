@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRouter;
@@ -167,8 +168,15 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     @Override
-    void flush() {
-        producers.forEach(ProducerImpl::flush);
+    public CompletableFuture<Void> flushAsync() {
+        List<CompletableFuture<Void>> flushFutures =
+            producers.stream().map(ProducerImpl::flushAsync).collect(Collectors.toList());
+        return CompletableFuture.allOf(flushFutures.toArray(new CompletableFuture[flushFutures.size()]));
+    }
+
+    @Override
+    void triggerFlush() {
+        producers.forEach(ProducerImpl::triggerFlush);
     }
 
     @Override

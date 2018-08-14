@@ -19,46 +19,45 @@
 
 package org.apache.pulsar.io.kafka;
 
+import java.io.IOException;
+import java.util.Map;
+import java.util.Properties;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
-import org.apache.pulsar.io.core.SimpleSink;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 
 /**
  * A Simple abstract class for Kafka sink
  * Users need to implement extractKeyValue function to use this sink
  */
-public abstract class KafkaAbstractSink<K, V> extends SimpleSink<byte[]> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSink.class);
+@Slf4j
+public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
 
     private Producer<K, V> producer;
     private Properties props = new Properties();
     private KafkaSinkConfig kafkaSinkConfig;
 
     @Override
-    public CompletableFuture<Void> write(byte[] message) {
-        KeyValue<K, V> keyValue = extractKeyValue(message);
+    public void write(Record<byte[]> sourceRecord) {
+        KeyValue<K, V> keyValue = extractKeyValue(sourceRecord);
         ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), keyValue.getKey(), keyValue.getValue());
-        LOG.debug("Record sending to kafka, record={}.", record);
-        Future f = producer.send(record);
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                f.get();
-                return null;
-            } catch (InterruptedException|ExecutionException e) {
-                throw new RuntimeException(e);
+        if (log.isDebugEnabled()) {
+            log.debug("Record sending to kafka, record={}.", record);
+        }
+
+        producer.send(record, (metadata, exception) -> {
+            if (exception == null) {
+                sourceRecord.ack();
+            } else {
+                sourceRecord.fail();
             }
         });
     }
@@ -67,12 +66,12 @@ public abstract class KafkaAbstractSink<K, V> extends SimpleSink<byte[]> {
     public void close() throws IOException {
         if (producer != null) {
             producer.close();
-            LOG.info("Kafka sink stopped.");
+            log.info("Kafka sink stopped.");
         }
     }
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         kafkaSinkConfig = KafkaSinkConfig.load(config);
         if (kafkaSinkConfig.getTopic() == null
                 || kafkaSinkConfig.getBootstrapServers() == null
@@ -92,8 +91,8 @@ public abstract class KafkaAbstractSink<K, V> extends SimpleSink<byte[]> {
 
         producer = new KafkaProducer<>(props);
 
-        LOG.info("Kafka sink started.");
+        log.info("Kafka sink started.");
     }
 
-    public abstract KeyValue<K, V> extractKeyValue(byte[] message);
+    public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> message);
 }

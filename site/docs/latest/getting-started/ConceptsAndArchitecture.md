@@ -52,7 +52,7 @@ Sequence ID | Each Pulsar message belongs to an ordered sequence on its {% popov
 Publish time | The timestamp of when the message was published (automatically applied by the {% popover producer %})
 Event time | An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.
 
-{% include admonition.html type="info" content="For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's [binary protocol](../../reference/BinaryProtocol)." %}
+{% include admonition.html type="info" content="For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's [binary protocol](../../project/BinaryProtocol)." %}
 
 ## Producers, consumers, topics, and subscriptions
 
@@ -263,7 +263,7 @@ At the broader {% popover instance %} level, an instance-wide ZooKeeper cluster 
 The Pulsar message {% popover broker %} is a stateless component that's primarily responsible for running two other components:
 
 * An HTTP server that exposes a REST API for both [administrative tasks](../../reference/RestApi) and [topic lookup](#client-setup-phase) for producers and consumers
-* A {% popover dispatcher %}, which is an asynchronous TCP server over a custom [binary protocol](../../reference/BinaryProtocol) used for all data transfers
+* A {% popover dispatcher %}, which is an asynchronous TCP server over a custom [binary protocol](../../project/BinaryProtocol) used for all data transfers
 
 Messages are typically dispatched out of a [managed ledger](#managed-ledger) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from {% popover BookKeeper %}.
 
@@ -406,7 +406,7 @@ More in-depth information can be found in [this post](https://blog.streaml.io/pu
 
 ## Multi-tenancy
 
-Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover tenants %}. Tenants can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
+Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover tenants %}. Tenants can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../security/overview) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
 
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 
@@ -420,7 +420,7 @@ As you can see, the tenant is the most basic unit of categorization for topics (
 
 ## Authentication and Authorization
 
-Pulsar supports a pluggable [authentication](../../admin/Authz) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
+Pulsar supports a pluggable [authentication](../../security/overview) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
 
 ## Client interface
 
@@ -464,7 +464,7 @@ For documentation on using the Pulsar proxy, see the [Pulsar proxy admin documen
 Some important things to know about the Pulsar proxy:
 
 * Connecting clients don't need to provide *any* specific configuration to use the Pulsar proxy. You won't need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you're running a load balancer over the Pulsar proxy).
-* [TLS encryption and authentication](../../admin/Authz/#tls-client-auth) is supported by the Pulsar proxy
+* [TLS encryption and authentication](../../security/tls) is supported by the Pulsar proxy
 
 ## Service discovery
 
@@ -575,7 +575,7 @@ After the initial compaction operation, the Pulsar {% popover broker %} that own
 
 Pulsar's segment oriented architecture allows for topic backlogs to grow very large, effectively without limit. However, this can become expensive over time.
 
-One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from bookkeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed. 
+One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from bookkeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed.
 
 {% include figure.html src="/img/pulsar-tiered-storage.png" alt="Tiered Storage" width="80" %}
 
@@ -584,34 +584,6 @@ One way to alleviate this cost is to use Tiered Storage. With tiered storage, ol
 Pulsar currently supports S3 as a long term store. Offloading to S3 triggered via a Rest API or command line interface. The user passes in the amount of topic data they wish to retain on bookkeeper, and the broker will copy the backlog data to S3. The original data will then be deleted from bookkeeper after a configured delay (4 hours by default).
 
 {% include admonition.html type="info" content="For a guide for setting up tiered storage, see the [Tiered storage cookbook](../../cookbooks/tiered-storage)." %}
-
-## Pulsar IO
-
-Messaging systems are most powerful when you can easily use them in conjunction with external systems like databases and other messaging systems. **Pulsar IO** is a feature of Pulsar that enables you to easily create, deploy, and manage Pulsar **connectors** that interact with external systems, such as [Apache Cassandra](https://cassandra.apache.org), [Aerospike](https://www.aerospike.com), and many others.
-
-{% include admonition.html type="info" title="Pulsar IO and Pulsar Functions"
-   content="Under the hood, Pulsar IO connectors are specialized [Pulsar Functions](#pulsar-functions) purpose-built to interface with external systems. The [administrative interface](../../cookbooks/pulsar-io) for Pulsar IO is, in fact, quite similar to that of Pulsar Functions." %}
-
-### Sources and sinks
-
-Pulsar IO connectors come in two types:
-
-* **Sources** feed data *into* Pulsar from other systems. Common sources include other messaging systems and "firehose"-style data pipeline APIs.
-* **Sinks** are fed data *from* Pulsar. Common sinks include other messaging systems and SQL and NoSQL databases.
-
-This diagram illustrates the relationship between sources, sinks, and Pulsar:
-
-{% include figure.html src="/img/pulsar-io.png" alt="Pulsar IO diagram" caption="Pulsar IO connectors (sources and sinks)" width="80" %}
-
-### Working with connectors
-
-Pulsar IO connectors can be managed via the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, in particular the [`source`](../../reference/CliTools#pulsar-admin-source) and [`sink`](../../reference/CliTools#pulsar-admin-sink) commands.
-
-{% include admonition.html type="info" content="For a guide to managing connectors in your Pulsar installation, see the [Pulsar IO cookbook](../../cookbooks/pulsar-io#managing-connectors)." %}
-
-The following connectors are currently available for Pulsar:
-
-{% include connectors.html %}
 
 ## Schema registry
 
