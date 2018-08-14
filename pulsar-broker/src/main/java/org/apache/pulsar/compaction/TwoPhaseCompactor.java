@@ -105,7 +105,6 @@ public class TwoPhaseCompactor extends Compactor {
             return;
         }
         CompletableFuture<RawMessage> future = reader.readNextAsync();
-        scheduleTimeout(future);
         future.whenCompleteAsync(
                 (m, exception) -> {
                     try {
@@ -142,15 +141,6 @@ public class TwoPhaseCompactor extends Compactor {
                         m.close();
                     }
                 }, scheduler);
-    }
-
-    private void scheduleTimeout(CompletableFuture<RawMessage> future) {
-        Future<?> timeout = scheduler.schedule(() -> {
-                future.completeExceptionally(new TimeoutException("Timeout"));
-            }, 10, TimeUnit.SECONDS);
-        future.whenComplete((res, exception) -> {
-                timeout.cancel(true);
-            });
     }
 
     private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to,
