@@ -99,6 +99,12 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>tiered-storage-jcloud</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker-common</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -123,11 +129,6 @@
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
 
     <!-- functions related dependencies (begin) -->
@@ -274,11 +275,6 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>jclouds-shaded</artifactId>
-      <version>${project.version}</version>
-    </dependency>
   </dependencies>
 
   <build>
