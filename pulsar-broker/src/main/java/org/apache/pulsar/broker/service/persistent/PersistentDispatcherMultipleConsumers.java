@@ -22,6 +22,7 @@ import static java.util.stream.Collectors.toSet;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -34,16 +35,16 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
-import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentRedeliveryTracker;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -59,7 +60,7 @@ import com.google.common.collect.Lists;
 
 /**
  */
-public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMultipleConsumers implements Dispatcher, ReadEntriesCallback {
+public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers implements Dispatcher, ReadEntriesCallback {
 
     private static final int MaxReadBatchSize = 100;
     private static final int MaxRoundRobinBatchSize = 20;
@@ -88,11 +89,17 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     private final ServiceConfiguration serviceConfig;
     private DispatchRateLimiter dispatchRateLimiter;
 
+    private int maxRedeliveryCount = 0;
+    private String deadLetterTopic = null;
+    private RedeliveryTracker redeliveryTracker;
+    private org.apache.pulsar.client.api.Producer<byte[]> deadLetterTopicProducer;
+
     enum ReadType {
         Normal, Replay
     }
 
-    public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor) {
+    public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor, int maxRedeliveryCount,
+                                                 String deadLetterTopic) {
         this.cursor = cursor;
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
@@ -102,6 +109,11 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 .getMaxUnackedMessagesPerSubscription();
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.dispatchRateLimiter = null;
+        this.maxRedeliveryCount = maxRedeliveryCount;
+        this.deadLetterTopic = deadLetterTopic;
+        if (maxRedeliveryCount > 0) {
+            redeliveryTracker = new NonPersistentRedeliveryTracker();
+        }
     }
 
     @Override
@@ -130,6 +142,18 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         if (isConsumersExceededOnSubscription()) {
             log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
             throw new ConsumerBusyException("Subscription reached max consumers limit");
+        }
+
+        if (maxRedeliveryCount > 0 && deadLetterTopicProducer == null) {
+            try {
+                deadLetterTopicProducer = topic.getBrokerService().pulsar().getClient().newProducer()
+                        .topic(deadLetterTopic)
+                        .enableBatching(false)
+                        .blockIfQueueFull(false)
+                        .create();
+            } catch (PulsarClientException | PulsarServerException e) {
+                throw new BrokerServiceException(e);
+            }
         }
 
         consumerList.add(consumer);
@@ -530,7 +554,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             // abort read if no consumers are connected or if disconnect is initiated
             return false;
         }
-        for(Consumer consumer : consumerList) {
+        for (Consumer consumer : consumerList) {
             if (isConsumerAvailable(consumer)) {
                 return true;
             }
@@ -556,12 +580,54 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
-        positions.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
+        if (maxRedeliveryCount > 0 && redeliveryTracker != null) {
+            Set<PositionImpl> toDeadLetterTopic = new HashSet<>();
+            positions.forEach(position -> {
+                if (redeliveryTracker.incrementAndGetRedeliveryCount(position) < maxRedeliveryCount) {
+                    messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                } else {
+                    toDeadLetterTopic.add(position);
+                }
+            });
+            if (toDeadLetterTopic.size() > 0) {
+                try {
+                    cursor.replayEntries(toDeadLetterTopic).forEach(entry -> {
+                        PositionImpl position = (PositionImpl) entry.getPosition();
+                        try {
+                            deadLetterTopicProducer.send(entry.getData());
+                            cursor.asyncDelete(position, deleteCallback, position);
+                            redeliveryTracker.remove(position);
+                            addUnAckedMessages(-1);
+                        } catch (PulsarClientException e) {
+                            messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                        }
+                    });
+                } catch (InterruptedException | ManagedLedgerException e) {
+                    toDeadLetterTopic.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
+                }
+            }
+        } else {
+            positions.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
+        }
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);
         }
         readMoreEntries();
     }
+
+    private final AsyncCallbacks.DeleteCallback deleteCallback = new AsyncCallbacks.DeleteCallback() {
+        @Override
+        public void deleteComplete(Object position) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Deleted message at {}", position);
+            }
+        }
+
+        @Override
+        public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+            log.warn("[{}][{}] Failed to delete message at {}", ctx, exception);
+        }
+    };
 
     @Override
     public void addUnAckedMessages(int numberOfMessages) {
