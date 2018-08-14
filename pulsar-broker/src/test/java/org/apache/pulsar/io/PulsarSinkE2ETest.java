@@ -542,7 +542,7 @@ public class PulsarSinkE2ETest {
         assertEquals(subStats.consumers.size(), 1);
 
         // it should restart consumer : so, check if consumer came up again after restarting function
-        admin.functions().restartFunction(tenant, namespacePortion, functionName, 0);
+        admin.functions().restartFunction(tenant, namespacePortion, functionName);
 
         retryStrategically((test) -> {
             try {

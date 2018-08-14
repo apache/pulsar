@@ -396,7 +396,7 @@ public class FunctionsImpl {
         try {
             validateGetFunctionInstanceRequestParams(tenant, namespace, functionName, instanceId);
         } catch (IllegalArgumentException e) {
-            log.error("Invalid getFunctionStatus request @ /{}/{}/{}", tenant, namespace, functionName, e);
+            log.error("Invalid restart-function request @ /{}/{}/{}", tenant, namespace, functionName, e);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
         }
@@ -412,10 +412,41 @@ public class FunctionsImpl {
         try {
             return functionRuntimeManager.restartFunctionInstance(tenant, namespace, functionName,
                     Integer.parseInt(instanceId));
-        } catch(WebApplicationException we) {
+        } catch (WebApplicationException we) {
             throw we;
-        }catch (Exception e) {
+        } catch (Exception e) {
             log.error("Failed to restart function: {}/{}/{}/{}", tenant, namespace, functionName, instanceId, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
+        }
+    }
+
+    public Response restartFunctionInstances(final String tenant, final String namespace, final String functionName) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionRequestParams(tenant, namespace, functionName);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid restart-Function request @ /{}/{}/{}", tenant, namespace, functionName, e);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
+        try {
+            return functionRuntimeManager.restartFunctionInstances(tenant, namespace, functionName);
+        }catch (Exception e) {
+            log.error("Failed to restart function: {}/{}/{}", tenant, namespace, functionName, e);
             return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
         }
     }

@@ -222,14 +222,27 @@ public class CmdFunctionsTest {
         String namespace = "ns1";
         int instanceId = 0;
         cmd.run(new String[] { "restart", "--tenant", tenant, "--namespace", namespace, "--name", fnName,
-                "--instance-id", Integer.toString(instanceId), });
+                "--instance-id", Integer.toString(instanceId)});
 
         RestartFunction restarter = cmd.getRestarter();
         assertEquals(fnName, restarter.getFunctionName());
 
         verify(functions, times(1)).restartFunction(tenant, namespace, fnName, instanceId);
     }
-    
+
+    @Test
+    public void restartFunctionInstances() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String tenant = "sample";
+        String namespace = "ns1";
+        cmd.run(new String[] { "restart", "--tenant", tenant, "--namespace", namespace, "--name", fnName });
+
+        RestartFunction restarter = cmd.getRestarter();
+        assertEquals(fnName, restarter.getFunctionName());
+
+        verify(functions, times(1)).restartFunction(tenant, namespace, fnName);
+    }
+
     @Test
     public void testCreateFunctionWithHttpUrl() throws Exception {
         String fnName = TEST_NAME + "-function";

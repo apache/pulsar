@@ -166,7 +166,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart function instance", response = Message.class)
+    @ApiOperation(value = "Restart function instance", response = Void.class)
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error") })
@@ -176,6 +176,18 @@ public class FunctionApiV2Resource extends FunctionApiResource {
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
             final @PathParam("instanceId") String instanceId) {
         return functions.restartFunctionInstance(tenant, namespace, functionName, instanceId);
+    }
+
+    @POST
+    @ApiOperation(value = "Restart all function instances", response = Void.class)
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    @Path("/{tenant}/{namespace}/{functionName}/restart")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response restartFunction(final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
+        return functions.restartFunctionInstances(tenant, namespace, functionName);
     }
     
     @POST

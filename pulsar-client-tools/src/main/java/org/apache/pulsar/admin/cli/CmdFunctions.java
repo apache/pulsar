@@ -835,12 +835,20 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Restart function instance")
     class RestartFunction extends FunctionCommand {
         
-        @Parameter(names = "--instance-id", description = "The function instanceId", required = true)
-        protected int instanceId;
+        @Parameter(names = "--instance-id", description = "The function instanceId (restart all instances if instance-id is not provided")
+        protected String instanceId;
         
         @Override
         void runCmd() throws Exception {
-            admin.functions().restartFunction(tenant, namespace, functionName, instanceId);
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.functions().restartFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.functions().restartFunction(tenant, namespace, functionName);
+            }
             System.out.println("Restarted successfully");
         }
     }

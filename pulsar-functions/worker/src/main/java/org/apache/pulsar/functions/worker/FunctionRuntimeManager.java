@@ -28,6 +28,7 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -41,6 +42,7 @@ import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -324,28 +326,20 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return functionStatus;
     }
 
-    public Response restartFunctionInstance(String tenant, String namespace, String functionName, int instanceId) {
+    public Response restartFunctionInstance(String tenant, String namespace, String functionName, int instanceId) throws Exception {
         Assignment assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
-        final String assignedWorkerId = assignment.getWorkerId();
-        final String workerId = this.workerConfig.getWorkerId();
-
         final String fullFunctionName = String.format("%s/%s/%s/%s", tenant, namespace, functionName, instanceId);
         if (assignment == null) {
-            return Response.status(Status.BAD_REQUEST.getStatusCode(), fullFunctionName + " doesn't exist").build();
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(fullFunctionName + " doesn't exist")).build();
         }
 
+        final String assignedWorkerId = assignment.getWorkerId();
+        final String workerId = this.workerConfig.getWorkerId();
+        
         if (assignedWorkerId.equals(workerId)) {
-            String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
-            FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(fullyQualifiedInstanceId);
-            if (functionRuntimeInfo != null) {
-                this.functionActioner.stopFunction(functionRuntimeInfo);
-                try {
-                    this.functionActioner.startFunction(functionRuntimeInfo);
-                } catch (Exception ex) {
-                    log.info("{}/{}/{}/{} Error starting function", tenant, namespace, functionName, instanceId, ex);
-                    functionRuntimeInfo.setStartupException(ex);
-                }
-            }
+            restartFunction(Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
+            return Response.status(Status.OK).build();
         } else {
             // query other worker
             List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
@@ -356,9 +350,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 }
             }
             if (workerInfo == null) {
-                return Response
-                        .status(Status.BAD_REQUEST.getStatusCode(), fullFunctionName + " has not not assigned yet")
-                        .build();
+                return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
             }
 
             URI redirect = null;
@@ -369,13 +362,66 @@ public class FunctionRuntimeManager implements AutoCloseable{
             } catch (URISyntaxException e) {
                 log.error("Error in preparing redirect url for {}/{}/{}/{}: {}", tenant, namespace, functionName,
                         instanceId, e.getMessage(), e);
-                return Response
-                        .status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), redirectUrl + " invalid redirection url")
-                        .build();
+                return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData(fullFunctionName + " invalid redirection url")).build();
             }
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }
+    }
+
+    public Response restartFunctionInstances(String tenant, String namespace, String functionName) throws Exception {
+        final String fullFunctionName = String.format("%s/%s/%s", tenant, namespace, functionName);
+        Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);
+
+        if (assignments.isEmpty()) {
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
+        }
+        for (Assignment assignment : assignments) {
+            final String assignedWorkerId = assignment.getWorkerId();
+            final String workerId = this.workerConfig.getWorkerId();
+            String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+            if (assignedWorkerId.equals(workerId)) {
+                restartFunction(fullyQualifiedInstanceId);
+            } else {
+                List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
+                WorkerInfo workerInfo = null;
+                for (WorkerInfo entry : workerInfoList) {
+                    if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                        workerInfo = entry;
+                    }
+                }
+                if (workerInfo == null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] has not been assigned yet", fullyQualifiedInstanceId);
+                    }
+                    continue;
+                }
+                Client client = ClientBuilder.newClient();
+                // TODO: create and use pulsar-admin to support authorization and authentication and manage redirect
+                final String instanceRestartUrl = String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/restart",
+                        workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName,
+                        assignment.getInstance().getInstanceId());
+                client.target(instanceRestartUrl).request(MediaType.APPLICATION_JSON)
+                        .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            }
+        }
         return Response.status(Status.OK).build();
+    }
+
+    private void restartFunction(String fullyQualifiedInstanceId) throws Exception {
+        log.info("[{}] restarting..", fullyQualifiedInstanceId);
+        FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(fullyQualifiedInstanceId);
+        if (functionRuntimeInfo != null) {
+            this.functionActioner.stopFunction(functionRuntimeInfo);
+            try {
+                this.functionActioner.startFunction(functionRuntimeInfo);
+            } catch (Exception ex) {
+                log.info("{} Error starting function", fullyQualifiedInstanceId, ex);
+                functionRuntimeInfo.setStartupException(ex);
+                throw ex;
+            }
+        }
     }
 
     /**
