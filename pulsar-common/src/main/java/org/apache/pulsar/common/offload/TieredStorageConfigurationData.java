@@ -66,6 +66,7 @@ public class TieredStorageConfigurationData implements Serializable, Cloneable{
 
     // For Google Cloud Storage, path to json file containing service account credentials.
     // For more details, see the "Service Accounts" section of https://support.google.com/googleapi/answer/6158849
+    // Add @JsonIgnore so that this field will not be serialized and returned via any endpoints e.g. {@link org.apache.pulsar.broker.admin.impl.BrokerBase#getInternalConfigurationData}
     @JsonIgnore
     private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
 
