@@ -99,8 +99,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private final ServiceConfiguration serviceConfig;
     private DispatchRateLimiter dispatchRateLimiter;
 
-    protected volatile int maxRedeliveryCount = 0;
-    protected volatile String deadLetterTopic = null;
+    protected volatile int maxRedeliveryCount;
+    protected volatile String deadLetterTopic;
     protected RedeliveryTracker redeliveryTracker;
     private ProducerImpl<byte[]> deadLetterTopicProducer;
 
@@ -620,6 +620,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                                 continue;
                             }
                             headersAndPayload.retain();
+                            msg.setReplicatedFrom("DLQ");
                             deadLetterTopicProducer.send(msg);
                             cursor.asyncDelete(position, deleteCallback, position);
                             redeliveryTracker.remove(position);
