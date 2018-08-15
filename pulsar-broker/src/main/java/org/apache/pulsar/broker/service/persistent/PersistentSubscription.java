@@ -117,9 +117,6 @@ public class PersistentSubscription implements Subscription {
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                    if (maxRedeliveryCount > 0 && StringUtils.isBlank(deadLetterTopic)) {
-                        deadLetterTopic = String.format("%s-%s-DLQ", topicName, subName);
-                    }
                     dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, maxRedeliveryCount, deadLetterTopic);
                 }
                 break;

@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -151,6 +152,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         if (maxRedeliveryCount > 0 && deadLetterTopicProducer == null) {
             try {
+                if (maxRedeliveryCount > 0 && StringUtils.isBlank(deadLetterTopic)) {
+                    deadLetterTopic = String.format("%s-%s-DLQ", topic.getName(), Codec.decode(cursor.getName()));
+                }
                 deadLetterTopicProducer = topic.getBrokerService().pulsar().getClient().newProducer()
                         .topic(deadLetterTopic)
                         .enableBatching(false)
@@ -588,7 +592,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (maxRedeliveryCount > 0 && redeliveryTracker != null) {
             Set<PositionImpl> toDeadLetterTopic = new HashSet<>();
             positions.forEach(position -> {
-                if (redeliveryTracker.incrementAndGetRedeliveryCount(position) < maxRedeliveryCount) {
+                if (redeliveryTracker.incrementAndGetRedeliveryCount(position) <= maxRedeliveryCount) {
                     messagesToReplay.add(position.getLedgerId(), position.getEntryId());
                 } else {
                     toDeadLetterTopic.add(position);
