@@ -75,8 +75,8 @@ public class PersistentSubscription implements Subscription {
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    private int maxRedeliveryCount = 0;
-    private String deadLetterTopic = null;
+    protected int maxRedeliveryCount = 0;
+    protected String deadLetterTopic = null;
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
             int maxRedeliveryCount, String deadLetterTopic) {
@@ -161,7 +161,7 @@ public class PersistentSubscription implements Subscription {
                 close();
                 // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
-                topic.getBrokerService().pulsar().getExecutor().submit(() ->{
+                topic.getBrokerService().pulsar().getExecutor().submit(() -> {
                     topic.removeSubscription(subName);
                 });
             }
@@ -186,7 +186,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
+    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
         if (ackType == AckType.Cumulative) {
             if (positions.size() != 1) {
                 log.warn("[{}][{}] Invalid cumulative ack received with multiple message ids", topicName, subName);
@@ -203,6 +203,11 @@ public class PersistentSubscription implements Subscription {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
             cursor.asyncDelete(positions, deleteCallback, positions);
+            if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+                if (((PersistentDispatcherMultipleConsumers) dispatcher).redeliveryTracker != null) {
+                    ((PersistentDispatcherMultipleConsumers) dispatcher).redeliveryTracker.removeBatch(positions);
+                }
+            }
         }
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog() == 0) {
