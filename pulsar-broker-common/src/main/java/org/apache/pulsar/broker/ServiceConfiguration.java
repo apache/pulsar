@@ -78,7 +78,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Time to wait for broker graceful shutdown. After this time elapses, the
     // process will be killed
     @FieldContext(dynamic = true)
-    private long brokerShutdownTimeoutMs = 3000;
+    private long brokerShutdownTimeoutMs = 60000;
     // Enable backlog quota check. Enforces action on topic when the quota is
     // reached
     private boolean backlogQuotaCheckEnabled = true;
