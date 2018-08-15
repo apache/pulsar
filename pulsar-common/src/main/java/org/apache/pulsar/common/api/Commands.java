@@ -338,7 +338,9 @@ public class Commands {
         subscribeBuilder.setReadCompacted(readCompacted);
         subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
         subscribeBuilder.setMaxRedeliveryCount(maxRedeliveryCount);
-        subscribeBuilder.setDeadLetterTopic(deadLetterTopic);
+        if (deadLetterTopic != null) {
+            subscribeBuilder.setDeadLetterTopic(deadLetterTopic);
+        }
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }
