@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.common.conf;
 
-import com.google.common.base.MoreObjects;
+import lombok.Data;
 import org.apache.pulsar.common.offload.TieredStorageConfigurationData;
 
-import java.util.Objects;
-
+@Data
 public class InternalConfigurationData {
 
     private String zookeeperServers;
     private String configurationStoreServers;
     private String ledgersRootPath;
     private TieredStorageConfigurationData tieredStorageConfigurationData;
+    
     public InternalConfigurationData() {
     }
 
@@ -41,48 +41,4 @@ public class InternalConfigurationData {
         this.ledgersRootPath = ledgersRootPath;
         this.tieredStorageConfigurationData = tieredStorageConfigurationData;
     }
-
-    public String getZookeeperServers() {
-        return zookeeperServers;
-    }
-
-    public String getConfigurationStoreServers() {
-        return configurationStoreServers;
-    }
-
-    public String getLedgersRootPath() {
-        return ledgersRootPath;
-    }
-
-    public TieredStorageConfigurationData getTieredStorageConfigurationData() {
-        return tieredStorageConfigurationData;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (!(obj instanceof InternalConfigurationData)) {
-            return false;
-        }
-        InternalConfigurationData other = (InternalConfigurationData) obj;
-        return Objects.equals(zookeeperServers, other.zookeeperServers)
-            && Objects.equals(configurationStoreServers, other.configurationStoreServers)
-            && Objects.equals(ledgersRootPath, other.ledgersRootPath)
-            && Objects.equals(tieredStorageConfigurationData, other.tieredStorageConfigurationData);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(zookeeperServers, configurationStoreServers, ledgersRootPath);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("zookeeperServers", zookeeperServers)
-            .add("configurationStoreServers", configurationStoreServers)
-            .add("ledgersRootPath", ledgersRootPath)
-            .add("tieredStorageConfigurationData", tieredStorageConfigurationData)
-            .toString();
-    }
-
 }
