@@ -117,7 +117,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 56);
+        assertEquals(args.size(), 26);
         String expectedArgs = "java -cp " + javaInstanceJarFile
                 + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
                 + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
@@ -125,10 +125,10 @@ public class ProcessRuntimeTest {
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
-                + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionDetails().getTenant()
-                + " --function_details \"" + JsonFormat.printer().print(config.getFunctionDetails()) + "\""
+                + " --function_version " + config.getFunctionVersion()
+                + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
                 + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(35)
+                + " --max_buffered_tuples 1024 --port " + args.get(23)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl;
         assertEquals(expectedArgs, String.join(" ", args));
     }
@@ -139,15 +139,15 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 44);
+        assertEquals(args.size(), 22);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
-                + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionDetails().getTenant()
-                + " --function_details \"" + JsonFormat.printer().print(config.getFunctionDetails()) + "\""
+                + " --function_version " + config.getFunctionVersion()
+                + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
                 + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(33);
+                + " --max_buffered_tuples 1024 --port " + args.get(21);
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
