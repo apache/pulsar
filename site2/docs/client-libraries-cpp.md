@@ -36,7 +36,7 @@ $ rpm -ivh apache-pulsar-client*.rpm
 | [client]({{pulsar:deb:client}}) | [asc]({{pulsar:deb:client}}.asc), [sha1]({{pulsar:deb:client}}.sha1), [sha512]({{pulsar:deb:client}}.sha512) |
 | [client-devel]({{pulsar:deb:client-devel}}) | [asc]({{pulsar:deb:client-devel}}.asc), [sha1]({{pulsar:deb:client-devel}}.sha1), [sha512]({{pulsar:deb:client-devel}}.sha512) |
 
-To install a RPM package, download the DEB packages and install them using the following command:
+To install a DEB package, download the DEB packages and install them using the following command:
 
 ```bash
 $ apt-install apache-pulsar-client*.deb

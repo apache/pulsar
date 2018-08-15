@@ -386,6 +386,72 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(jsonResponse).build();
     }
 
+    public Response restartFunctionInstance(final String tenant, final String namespace, final String functionName,
+            final String instanceId) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionInstanceRequestParams(tenant, namespace, functionName, instanceId);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid restart-function request @ /{}/{}/{}", tenant, namespace, functionName, e);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
+        try {
+            return functionRuntimeManager.restartFunctionInstance(tenant, namespace, functionName,
+                    Integer.parseInt(instanceId));
+        } catch (WebApplicationException we) {
+            throw we;
+        } catch (Exception e) {
+            log.error("Failed to restart function: {}/{}/{}/{}", tenant, namespace, functionName, instanceId, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
+        }
+    }
+
+    public Response restartFunctionInstances(final String tenant, final String namespace, final String functionName) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionRequestParams(tenant, namespace, functionName);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid restart-Function request @ /{}/{}/{}", tenant, namespace, functionName, e);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
+        try {
+            return functionRuntimeManager.restartFunctionInstances(tenant, namespace, functionName);
+        }catch (Exception e) {
+            log.error("Failed to restart function: {}/{}/{}", tenant, namespace, functionName, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
+        }
+    }
+    
     public Response getFunctionStatus(final String tenant, final String namespace, final String functionName)
             throws IOException {
 
@@ -733,9 +799,8 @@ public class FunctionsImpl {
             throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
         }
         Utils.validateFileUrl(functionPkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
-        File jarWithFileUrl = functionPkgUrl.startsWith(FILE) ? (new File((new URL(functionPkgUrl)).toURI())) : null;
         FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                functionDetailsJson, jarWithFileUrl);
+                functionDetailsJson, functionPkgUrl);
         return functionDetails;
     }
 
@@ -789,7 +854,7 @@ public class FunctionsImpl {
     }
 
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
-            String functionDetailsJson, File jarWithFileUrl) throws IllegalArgumentException {
+            String functionDetailsJson, String functionPkgUrl) throws IllegalArgumentException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -806,7 +871,14 @@ public class FunctionsImpl {
         try {
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
             org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
-            validateFunctionClassTypes(jarWithFileUrl, functionDetailsBuilder);
+            if (isNotBlank(functionPkgUrl)) {
+                // validate function details by loading function-jar from local file-system
+                File jarWithFileUrl = functionPkgUrl.startsWith(FILE) ? (new File((new URL(functionPkgUrl)).toURI()))
+                        : null;
+                validateFunctionClassTypes(jarWithFileUrl, functionDetailsBuilder);
+                // set package-url if present
+                functionDetailsBuilder.setPackageUrl(functionPkgUrl);
+            }
             FunctionDetails functionDetails = functionDetailsBuilder.build();
 
             List<String> missingFields = new LinkedList<>();

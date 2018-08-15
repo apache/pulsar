@@ -160,9 +160,12 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
     config.setMessageListener(
         boost::bind(&MultiTopicsConsumerImpl::messageReceived, shared_from_this(), _1, _2));
-    config.setReceiverQueueSize(conf_.getReceiverQueueSize());
 
     int numPartitions = partitionMetadata->getPartitions() >= 1 ? partitionMetadata->getPartitions() : 1;
+    // Apply total limit of receiver queue size across partitions
+    config.setReceiverQueueSize(
+        std::min(conf_.getReceiverQueueSize(),
+                 (int)(conf_.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions)));
 
     Lock lock(mutex_);
     topicsPartitions_.insert(std::make_pair(topicName->toString(), numPartitions));

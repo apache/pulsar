@@ -18,7 +18,7 @@
 #
 
 - name: Disk setup
-  hosts: pulsar
+  hosts: bookie
   connection: ssh
   become: true
   tasks:
