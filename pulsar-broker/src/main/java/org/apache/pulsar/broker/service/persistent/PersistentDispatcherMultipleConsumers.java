@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.Entry;
@@ -51,7 +52,10 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentRedeliveryTracker;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -98,7 +102,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected volatile int maxRedeliveryCount = 0;
     protected volatile String deadLetterTopic = null;
     protected RedeliveryTracker redeliveryTracker;
-    private org.apache.pulsar.client.api.Producer<byte[]> deadLetterTopicProducer;
+    private ProducerImpl<byte[]> deadLetterTopicProducer;
 
     enum ReadType {
         Normal, Replay
@@ -155,7 +159,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 if (maxRedeliveryCount > 0 && StringUtils.isBlank(deadLetterTopic)) {
                     deadLetterTopic = String.format("%s-%s-DLQ", topic.getName(), Codec.decode(cursor.getName()));
                 }
-                deadLetterTopicProducer = topic.getBrokerService().pulsar().getClient().newProducer()
+                deadLetterTopicProducer = (ProducerImpl<byte[]>) topic.getBrokerService().pulsar().getClient().newProducer(Schema.BYTES)
                         .topic(deadLetterTopic)
                         .enableBatching(false)
                         .blockIfQueueFull(false)
@@ -600,17 +604,29 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             });
             if (toDeadLetterTopic.size() > 0) {
                 try {
-                    cursor.replayEntries(toDeadLetterTopic).forEach(entry -> {
+                    for (Entry entry : cursor.replayEntries(toDeadLetterTopic)) {
                         PositionImpl position = (PositionImpl) entry.getPosition();
                         try {
-                            deadLetterTopicProducer.send(entry.getData());
+                            ByteBuf headersAndPayload = entry.getDataBuffer();
+                            MessageImpl<byte[]> msg;
+                            try {
+                                msg = MessageImpl.deserialize(headersAndPayload);
+                            } catch (Throwable t) {
+                                log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", topic.getName(),
+                                        entry.getPosition(), entry.getLedgerId(), t.getMessage(), t);
+                                cursor.asyncDelete(position, deleteCallback, position);
+                                entry.release();
+                                messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                                continue;
+                            }
+                            headersAndPayload.retain();
+                            deadLetterTopicProducer.send(msg);
                             cursor.asyncDelete(position, deleteCallback, position);
                             redeliveryTracker.remove(position);
-                            addUnAckedMessages(-1);
                         } catch (PulsarClientException e) {
                             messagesToReplay.add(position.getLedgerId(), position.getEntryId());
                         }
-                    });
+                    }
                 } catch (InterruptedException | ManagedLedgerException e) {
                     toDeadLetterTopic.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
                 }
