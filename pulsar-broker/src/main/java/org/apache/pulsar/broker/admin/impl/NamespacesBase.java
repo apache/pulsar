@@ -50,6 +50,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -297,9 +298,13 @@ public abstract class NamespacesBase extends AdminResource {
         validateAdminAccessForTenant(namespaceName.getTenant());
 
         try {
-            pulsar().getBrokerService().getAuthorizationService()
-                    .grantPermissionAsync(namespaceName, actions, role, null/*additional auth-data json*/)
+            AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
+            if (null != authService) {
+                authService.grantPermissionAsync(namespaceName, actions, role, null/*additional auth-data json*/)
                     .get();
+            } else {
+                throw new RestException(Status.NOT_IMPLEMENTED, "Authorization is not enabled");
+            }
         } catch (InterruptedException e) {
             log.error("[{}] Failed to get permissions for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
