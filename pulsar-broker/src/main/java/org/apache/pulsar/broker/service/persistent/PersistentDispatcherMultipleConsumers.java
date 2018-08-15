@@ -94,9 +94,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private final ServiceConfiguration serviceConfig;
     private DispatchRateLimiter dispatchRateLimiter;
 
-    private int maxRedeliveryCount = 0;
-    private String deadLetterTopic = null;
-    private RedeliveryTracker redeliveryTracker;
+    protected volatile int maxRedeliveryCount = 0;
+    protected volatile String deadLetterTopic = null;
+    protected RedeliveryTracker redeliveryTracker;
     private org.apache.pulsar.client.api.Producer<byte[]> deadLetterTopicProducer;
 
     enum ReadType {
