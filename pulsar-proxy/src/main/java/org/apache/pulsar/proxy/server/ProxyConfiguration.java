@@ -82,7 +82,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int maxConcurrentInboundConnections = 10000;
 
     // Max concurrent outbound Connections
-    private int maxConcurrentLookupRequests = 10000;
+    private int maxConcurrentLookupRequests = 50000;
 
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
