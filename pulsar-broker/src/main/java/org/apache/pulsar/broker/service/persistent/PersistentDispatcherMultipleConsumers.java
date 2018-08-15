@@ -593,6 +593,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);
+        }
         if (maxRedeliveryCount > 0 && redeliveryTracker != null) {
             Set<PositionImpl> toDeadLetterTopic = new HashSet<>();
             positions.forEach(position -> {
@@ -602,7 +605,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     toDeadLetterTopic.add(position);
                 }
             });
+            // process messages to dead letter topic
             if (toDeadLetterTopic.size() > 0) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}-{}] Messages will send to dead letter topic {}, messages {}", name, consumer, deadLetterTopic, positions);
+                }
                 try {
                     for (Entry entry : cursor.replayEntries(toDeadLetterTopic)) {
                         PositionImpl position = (PositionImpl) entry.getPosition();
@@ -612,7 +619,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             try {
                                 msg = MessageImpl.deserialize(headersAndPayload);
                             } catch (Throwable t) {
-                                log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", topic.getName(),
+                                log.error("[{}-{}] Failed to deserialize message at {} (buffer size: {}): {}", name, consumer,
                                         entry.getPosition(), entry.getLedgerId(), t.getMessage(), t);
                                 cursor.asyncDelete(position, deleteCallback, position);
                                 entry.release();
@@ -624,19 +631,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             deadLetterTopicProducer.send(msg);
                             cursor.asyncDelete(position, deleteCallback, position);
                             redeliveryTracker.remove(position);
-                        } catch (PulsarClientException e) {
+                        } catch (Throwable e) {
+                            log.error("[{}-{}] Fail to send message to dead letter topic {}", name, consumer, deadLetterTopic);
                             messagesToReplay.add(position.getLedgerId(), position.getEntryId());
                         }
                     }
-                } catch (InterruptedException | ManagedLedgerException e) {
+                } catch (Throwable e) {
+                    log.error("[{}-{}] Replay entries Fail", name, consumer);
                     toDeadLetterTopic.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
                 }
             }
         } else {
             positions.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
-        }
-        if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);
         }
         readMoreEntries();
     }

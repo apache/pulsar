@@ -28,7 +28,7 @@ public class SubscriptionWithDeadLetter {
 
     private static final int maxRedeliveryCount = 5;
 
-    private static final int sendMessages = 100;
+    private static final int sendMessages = 1000;
 
     public static void main(String[] args) throws PulsarClientException {
 
@@ -38,22 +38,23 @@ public class SubscriptionWithDeadLetter {
                 .topic(topic)
                 .create();
 
+        for (int i = 0; i < sendMessages; i++) {
+            producer.send("Hello Pulsar!".getBytes());
+        }
+
         Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(3L, TimeUnit.SECONDS)
+                .ackTimeout(1L, TimeUnit.SECONDS)
                 .maxRedeliveryCount(maxRedeliveryCount)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
         Consumer<byte[]> deadLetterConsumer = client.newConsumer(Schema.BYTES)
                 .topic("persistent://public/default/my-topic-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
                 .subscribe();
-
-        for (int i = 0; i < sendMessages; i++) {
-            producer.send("Hello Pulsar!".getBytes());
-        }
 
         int totalReceived = 0;
         do {
