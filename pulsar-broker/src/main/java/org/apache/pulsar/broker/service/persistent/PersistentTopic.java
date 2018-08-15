@@ -55,6 +55,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -560,9 +561,20 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] Opened cursor", topic, subscriptionName);
                 }
-
-                subscriptionFuture.complete(subscriptions.computeIfAbsent(subscriptionName,
-                        name -> createPersistentSubscription(subscriptionName, cursor, maxRedeliveryCount, deadLetterTopic)));
+                subscriptions.computeIfAbsent(subscriptionName,
+                        name -> createPersistentSubscription(subscriptionName, cursor, maxRedeliveryCount, deadLetterTopic));
+                PersistentSubscription subscription = subscriptions.get(subscriptionName);
+                if (subscription.dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+                    if (((PersistentDispatcherMultipleConsumers) subscription.dispatcher).maxRedeliveryCount != maxRedeliveryCount) {
+                        subscription.maxRedeliveryCount = maxRedeliveryCount;
+                        ((PersistentDispatcherMultipleConsumers) subscription.dispatcher).maxRedeliveryCount = maxRedeliveryCount;
+                    }
+                    if (!StringUtils.equals(((PersistentDispatcherMultipleConsumers) subscription.dispatcher).deadLetterTopic, deadLetterTopic)) {
+                        subscription.deadLetterTopic = deadLetterTopic;
+                        ((PersistentDispatcherMultipleConsumers) subscription.dispatcher).deadLetterTopic = deadLetterTopic;
+                    }
+                }
+                subscriptionFuture.complete(subscription);
             }
 
             @Override

@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.bookkeeper.mledger.Position;
 
+import java.util.List;
+
 public interface RedeliveryTracker {
 
     int incrementAndGetRedeliveryCount(Position position);
@@ -27,5 +29,7 @@ public interface RedeliveryTracker {
     int getRedeliveryCount(Position position);
 
     void remove(Position position);
+
+    void removeBatch(List<Position> positions);
 
 }

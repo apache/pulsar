@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -42,5 +43,12 @@ public class NonPersistentRedeliveryTracker implements RedeliveryTracker {
     @Override
     public void remove(Position position) {
         trackerCache.remove(position);
+    }
+
+    @Override
+    public void removeBatch(List<Position> positions) {
+        if (positions != null) {
+            positions.forEach(this::remove);
+        }
     }
 }
