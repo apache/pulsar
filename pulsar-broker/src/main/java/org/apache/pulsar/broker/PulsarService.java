@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.NamespacesBase.getBundles;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -61,6 +62,7 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.offload.TieredStorageConfigurationData;
 import org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -654,14 +656,49 @@ public class PulsarService implements AutoCloseable {
         return offloader;
     }
 
+    // TODO: improve the user metadata in subsequent changes
+    static final String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
+    static final String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
+
+
     public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
             throws PulsarServerException {
         if (conf.getManagedLedgerOffloadDriver() != null
             && BlobStoreManagedLedgerOffloader.driverSupported(conf.getManagedLedgerOffloadDriver())) {
-                return BlobStoreManagedLedgerOffloader.create(conf, getOffloaderScheduler(conf));
+            try {
+                return BlobStoreManagedLedgerOffloader.create(
+                    getTieredStorageConf(conf),
+                    ImmutableMap.of(
+                        METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
+                        METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getGitSha()
+                    ),
+                    getOffloaderScheduler(conf));
+            } catch (IOException ioe) {
+                throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
+            }
         } else {
             return NullLedgerOffloader.INSTANCE;
         }
+    }
+
+    private static TieredStorageConfigurationData getTieredStorageConf(ServiceConfiguration serverConf) {
+        TieredStorageConfigurationData tsConf = new TieredStorageConfigurationData();
+        // generic settings
+        tsConf.setManagedLedgerOffloadDriver(serverConf.getManagedLedgerOffloadDriver());
+        tsConf.setManagedLedgerOffloadMaxThreads(serverConf.getManagedLedgerOffloadMaxThreads());
+        // s3 settings
+        tsConf.setS3ManagedLedgerOffloadRegion(serverConf.getS3ManagedLedgerOffloadRegion());
+        tsConf.setS3ManagedLedgerOffloadBucket(serverConf.getS3ManagedLedgerOffloadBucket());
+        tsConf.setS3ManagedLedgerOffloadServiceEndpoint(serverConf.getS3ManagedLedgerOffloadServiceEndpoint());
+        tsConf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(serverConf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
+        tsConf.setS3ManagedLedgerOffloadReadBufferSizeInBytes(serverConf.getS3ManagedLedgerOffloadReadBufferSizeInBytes());
+        // gcs settings
+        tsConf.setGcsManagedLedgerOffloadRegion(serverConf.getGcsManagedLedgerOffloadRegion());
+        tsConf.setGcsManagedLedgerOffloadBucket(serverConf.getGcsManagedLedgerOffloadBucket());
+        tsConf.setGcsManagedLedgerOffloadServiceAccountKeyFile(serverConf.getGcsManagedLedgerOffloadServiceAccountKeyFile());
+        tsConf.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(serverConf.getGcsManagedLedgerOffloadMaxBlockSizeInBytes());
+        tsConf.setGcsManagedLedgerOffloadReadBufferSizeInBytes(serverConf.getGcsManagedLedgerOffloadReadBufferSizeInBytes());
+        return tsConf;
     }
 
     public ZooKeeperCache getLocalZkCache() {
@@ -799,7 +836,7 @@ public class PulsarService implements AutoCloseable {
 
     public static String brokerUrlTls(ServiceConfiguration config) {
         if (config.isTlsEnabled()) {
-            return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePortTls();
+            return "pulsar+ssl://" + advertisedAddress(config) + ":" + config.getBrokerServicePortTls();
         } else {
             return "";
         }

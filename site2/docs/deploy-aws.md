@@ -41,6 +41,24 @@ $ cd incubator-pulsar/deployment/terraform-ansible/aws
 
 ## SSH setup
 
+> If you already have an SSH key and would like to use it, you skip generating the SSH keys and update `private_key_file` setting
+> in `ansible.cfg` file and `public_key_path` setting in `terraform.tfvars` file.
+>
+> For example, if you already had a private SSH key in `~/.ssh/pulsar_aws` and a public key in `~/.ssh/pulsar_aws.pub`,
+> you can do followings:
+>
+> 1. update `ansible.cfg` with following values:
+>
+> ```shell
+> private_key_file=~/.ssh/pulsar_aws
+> ```
+>
+> 2. update `terraform.tfvars` with following values:
+>
+> ```shell
+> public_key_path=~/.ssh/pulsar_aws.pub
+> ```
+
 In order to create the necessary AWS resources using Terraform, you'll need to create an SSH key. To create a private SSH key in `~/.ssh/id_rsa` and a public key in `~/.ssh/id_rsa.pub`:
 
 ```bash
@@ -92,17 +110,21 @@ Variable name | Description | Default
 `availability_zone` | The AWS availability zone in which the Pulsar cluster will run | `us-west-2a`
 `aws_ami` | The [Amazon Machine Image](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html) (AMI) that will be used by the cluster | `ami-9fa343e7`
 `num_zookeeper_nodes` | The number of [ZooKeeper](https://zookeeper.apache.org) nodes in the ZooKeeper cluster | 3
-`num_pulsar_brokers` | The number of Pulsar brokers and BookKeeper bookies that will run in the cluster | 3
+`num_bookie_nodes` | The number of bookies that will run in the cluster | 3
+`num_broker_nodes` | The number of Pulsar brokers that will run in the cluster | 2
+`num_proxy_nodes` | The number of Pulsar proxies that will run in the cluster | 1
 `base_cidr_block` | The root [CIDR](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing) that will be used by network assets for the cluster | `10.0.0.0/16`
-`instance_types` | The EC2 instance types to be used. This variable is a map with two keys: `zookeeper` for the ZooKeeper instances and `pulsar` for the Pulsar brokers and BookKeeper bookies | `t2.small` (ZooKeeper) and `i3.xlarge` (Pulsar/BookKeeper)
+`instance_types` | The EC2 instance types to be used. This variable is a map with two keys: `zookeeper` for the ZooKeeper instances, `bookie` for the BookKeeper bookies and `broker` and `proxy` for Pulsar brokers and bookies | `t2.small` (ZooKeeper), `i3.xlarge` (BookKeeper) and `c5.2xlarge` (Brokers/Proxies)
 
 ### What is installed
 
 When you run the Ansible playbook, the following AWS resources will be used:
 
-* 6 total [Elastic Compute Cloud](https://aws.amazon.com/ec2) (EC2) instances running the [ami-9fa343e7](https://access.redhat.com/articles/3135091) Amazon Machine Image (AMI), which runs [Red Hat Enterprise Linux (RHEL) 7.4](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html-single/7.4_release_notes/index). By default, that includes:
+* 9 total [Elastic Compute Cloud](https://aws.amazon.com/ec2) (EC2) instances running the [ami-9fa343e7](https://access.redhat.com/articles/3135091) Amazon Machine Image (AMI), which runs [Red Hat Enterprise Linux (RHEL) 7.4](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html-single/7.4_release_notes/index). By default, that includes:
   * 3 small VMs for ZooKeeper ([t2.small](https://www.ec2instances.info/?selected=t2.small) instances)
-  * 3 larger VMs for Pulsar [brokers](reference-terminology.md#broker) and BookKeeper [bookies](reference-terminology.md#bookie) ([i3.4xlarge](https://www.ec2instances.info/?selected=i3.4xlarge) instances)
+  * 3 larger VMs for BookKeeper [bookies](reference-terminology.md#bookie) ([i3.xlarge](https://www.ec2instances.info/?selected=i3.xlarge) instances)
+  * 2 larger VMs for Pulsar [brokers](reference-terminology.md#broker) ([c5.2xlarge](https://www.ec2instances.info/?selected=c5.2xlarge) instances)
+  * 1 larger VMs for Pulsar [proxy](reference-terminology.md#proxy) ([c5.2xlarge](https://www.ec2instances.info/?selected=c5.2xlarge) instances)
 * An EC2 [security group](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html)
 * A [virtual private cloud](https://aws.amazon.com/vpc/) (VPC) for security
 * An [API Gateway](https://aws.amazon.com/api-gateway/) for connections from the outside world
@@ -132,6 +154,25 @@ At any point, you can destroy all AWS resources associated with your cluster usi
 ```bash
 $ terraform destroy
 ```
+
+## Setup Disks
+
+Before you run the Pulsar playbook, you want to mount the disks to the correct directories on those bookie nodes.
+Since different type of machines would have different disk layout, if you change the `instance_types` in your terraform
+config, you need to update the task defined in `setup-disk.yaml` file.
+
+To setup disks on bookie nodes, use this command:
+
+```bash
+$ ansible-playbook \
+  --user='ec2-user' \
+  --inventory=`which terraform-inventory` \
+  setup-disk.yaml
+```
+
+After running this command, the disks will be mounted under `/mnt/journal` as journal disk, and `/mnt/storage` as ledger disk.
+It is important to run this command only once! If you attempt to run this command again after you have run Pulsar playbook,
+it might be potentially erase your disks again and cause the bookies to fail to start up.
 
 ## Running the Pulsar playbook
 

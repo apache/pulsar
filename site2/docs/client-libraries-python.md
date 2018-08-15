@@ -22,8 +22,8 @@ Installation via PyPi is available for the following Python versions:
 
 Platform | Supported Python versions
 :--------|:-------------------------
-MacOS 10.12 (Sierra) and 10.13 (High Sierra) | 2.7, 3.6
-Linux | 2.7, 3.3, 3.4, 3.5, 3.6
+MacOS <br /> 10.11 (El Capitan) &mdash; 10.12 (Sierra) &mdash; 10.13 (High Sierra) | 2.7, 3.7
+Linux | 2.7, 3.3, 3.4, 3.5, 3.6, 3.7
 
 ### Installing from source
 

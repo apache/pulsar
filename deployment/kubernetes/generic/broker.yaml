@@ -25,10 +25,17 @@ metadata:
 data:
     # Tune for available memory. Increase the heap up to 24G to have
     # better GC behavior at high throughput
-    PULSAR_MEM: "\" -Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g\""
-    zookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-    configurationStoreServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-    clusterName: us-central
+    PULSAR_MEM: "\" -Xms64m -Xmx128m -XX:MaxDirectMemorySize=128m\""
+    zookeeperServers: zookeeper
+    configurationStoreServers: zookeeper
+    clusterName: local
+    # change the managed ledger settings if you have more bookies
+    managedLedgerDefaultEnsembleSize: "1"
+    managedLedgerDefaultWriteQuorum: "1"
+    managedLedgerDefaultAckQuorum: "1"
+    # enable pulsar functions
+    functionsWorkerEnabled: "true"
+    PF_pulsarFunctionsCluster: local
 ---
 ##
 ## Broker deployment definition
@@ -50,12 +57,13 @@ spec:
         spec:
             containers:
               - name: broker
-                image: apachepulsar/pulsar:latest
+                image: apachepulsar/pulsar-all:latest
                 command: ["sh", "-c"]
                 args:
                   - >
                     bin/apply-config-from-env.py conf/broker.conf &&
                     bin/apply-config-from-env.py conf/pulsar_env.sh &&
+                    bin/gen-yml-from-env.py conf/functions_worker.yml &&
                     bin/pulsar broker
                 ports:
                   - containerPort: 8080
@@ -96,27 +104,3 @@ spec:
         component: broker
 
 ---
-
-###
-
-apiVersion: v1
-kind: Pod
-metadata:
-    name: pulsar-admin
-spec:
-    containers:
-      - name: pulsar-admin
-        image: apachepulsar/pulsar:latest
-        command: ["sh", "-c"]
-        args:
-          - >
-            bin/apply-config-from-env.py conf/client.conf &&
-            sleep 10000000000
-        envFrom:
-          - configMapRef:
-                name: broker-config
-        env:
-          - name: webServiceUrl
-            value: http://broker:8080/
-          - name: brokerServiceUrl
-            value: pulsar://broker:6650/

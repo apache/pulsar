@@ -23,7 +23,7 @@ import java.io.OutputStream;
 import java.util.Enumeration;
 
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.stats.metrics.JvmMetrics;
+import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 import io.netty.buffer.ByteBuf;
@@ -51,7 +51,7 @@ public class PrometheusMetricsGenerator {
         Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
             @Override
             public double get() {
-                return JvmMetrics.getJvmDirectMemoryUsed();
+                return getJvmDirectMemoryUsed();
             }
         }).register(CollectorRegistry.defaultRegistry);
 

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.offload.impl;
 
-import com.amazonaws.AmazonClientException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.io.DataInputStream;
@@ -186,7 +185,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                   BlobStore blobStore, String bucket, String key, String indexKey,
                                   VersionCheck versionCheck,
                                   long ledgerId, int readBufferSize)
-            throws AmazonClientException, IOException {
+            throws IOException {
         Blob blob = blobStore.getBlob(bucket, indexKey);
         versionCheck.check(indexKey, blob);
         OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();

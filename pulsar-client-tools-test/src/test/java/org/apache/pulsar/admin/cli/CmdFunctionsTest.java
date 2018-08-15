@@ -31,6 +31,7 @@ import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
+import org.apache.pulsar.admin.cli.CmdFunctions.RestartFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.admin.cli.CmdSinks.CreateSink;
 import org.apache.pulsar.admin.cli.CmdSources.CreateSource;
@@ -75,6 +76,7 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNull;
 
 /**
  * Unit test of {@link CmdFunctions}.
@@ -209,6 +211,34 @@ public class CmdFunctionsTest {
 
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
 
+    }
+
+    @Test
+    public void restartFunction() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String tenant = "sample";
+        String namespace = "ns1";
+        int instanceId = 0;
+        cmd.run(new String[] { "restart", "--tenant", tenant, "--namespace", namespace, "--name", fnName,
+                "--instance-id", Integer.toString(instanceId)});
+
+        RestartFunction restarter = cmd.getRestarter();
+        assertEquals(fnName, restarter.getFunctionName());
+
+        verify(functions, times(1)).restartFunction(tenant, namespace, fnName, instanceId);
+    }
+
+    @Test
+    public void restartFunctionInstances() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String tenant = "sample";
+        String namespace = "ns1";
+        cmd.run(new String[] { "restart", "--tenant", tenant, "--namespace", namespace, "--name", fnName });
+
+        RestartFunction restarter = cmd.getRestarter();
+        assertEquals(fnName, restarter.getFunctionName());
+
+        verify(functions, times(1)).restartFunction(tenant, namespace, fnName);
     }
 
     @Test
@@ -432,7 +462,31 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreateWithoutOutputTopicWithSkipFlag() throws Exception {
+        String inputTopicName = TEST_NAME + "-input-topic";
+        cmd.run(new String[] {
+                "create",
+                "--inputs", inputTopicName,
+                "--skip-output",
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertNull(creater.getFunctionConfig().getOutput());
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+
+    }
+
+    
+    @Test
     public void testCreateWithoutOutputTopic() throws Exception {
+
+        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
+        consoleOutputCapturer.start();
+
         String inputTopicName = TEST_NAME + "-input-topic";
         cmd.run(new String[] {
                 "create",
@@ -444,8 +498,10 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals(inputTopicName + "-" + "CmdFunctionsTest$DummyFunction" + "-output", creater.getFunctionConfig().getOutput());
-        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+        consoleOutputCapturer.stop();
+        String output = consoleOutputCapturer.getStderr();
+        assertNull(creater.getFunctionConfig().getOutput());
+        assertTrue(output.contains("output topic is not present"));
     }
 
     @Test

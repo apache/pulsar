@@ -18,18 +18,23 @@ original_id: deploy-bare-metal
 
 Deploying a Pulsar cluster involves doing the following (in order):
 
-* Deploying a [ZooKeeper](#deploying-a-zookeeper-cluster) cluster
+* Deploying a [ZooKeeper](#deploying-a-zookeeper-cluster) cluster (optional)
 * Initializing [cluster metadata](#initializing-cluster-metadata)
 * Deploying a [BookKeeper](#deploying-a-bookkeeper-cluster) cluster
 * Deploying one or more Pulsar [brokers](#deploying-pulsar-brokers)
 
+## Preparation
+
 ### Requirements
+
+> If you already have an existing zookeeper cluster and would like to reuse it, you don't need to prepare the machines
+> for running ZooKeeper.
 
 To run Pulsar on bare metal, you will need:
 
 * At least 6 Linux machines or VMs
   * 3 running [ZooKeeper](https://zookeeper.apache.org)
-  * 3 running a Pulsar broker and a [BookKeeper](https://bookkeeper.apache.org) bookie
+  * 3 running a Pulsar broker, and a [BookKeeper](https://bookkeeper.apache.org) bookie
 * A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
 
 Each machine in your cluster will need to have [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or higher installed.
@@ -44,7 +49,11 @@ In this diagram, connecting clients need to be able to communicate with the Puls
 
 When deploying a Pulsar cluster, we have some basic recommendations that you should keep in mind when capacity planning.
 
+#### ZooKeeper
+
 For machines running ZooKeeper, we recommend using lighter-weight machines or VMs. Pulsar uses ZooKeeper only for periodic coordination- and configuration-related tasks, *not* for basic operations. If you're running Pulsar on [Amazon Web Services](https://aws.amazon.com/) (AWS), for example, a [t2.small](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/t2-instances.html) instance would likely suffice.
+
+#### Bookies & Brokers
 
 For machines running a bookie and a Pulsar broker, we recommend using more powerful machines. For an AWS deployment, for example, [i3.4xlarge](https://aws.amazon.com/blogs/aws/now-available-i3-instances-for-demanding-io-intensive-applications/) instances may be appropriate. On those machines we also recommend:
 
@@ -84,7 +93,51 @@ Directory | Contains
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar.
 `logs` | Logs created by the installation.
 
+## Installing Builtin Connectors (optional)
+
+> Since release `2.1.0-incubating`, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
+> If you would like to enable those `builtin` connectors, you can follow the instructions as below; otherwise you can
+> skip this section for now.
+
+To get started using builtin connectors, you'll need to download the connectors tarball release on every broker node in
+one of the following ways:
+
+* by clicking the link below and downloading the release from an Apache mirror:
+
+  * <a href="pulsar:connector_release_url" download>Pulsar IO Connectors {{pulsar:version}} release</a>
+
+* from the Pulsar [downloads page](pulsar:download_page_url)
+* from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
+* using [wget](https://www.gnu.org/software/wget):
+
+  ```shell
+  $ wget pulsar:connector_release_url
+  ```
+
+Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as `connectors`
+in the pulsar directory:
+
+```bash
+$ tar xvfz apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
+
+// you will find a directory named `apache-pulsar-io-connectors-{{pulsar:version}}` in the pulsar directory
+// then copy the connectors
+
+$ mv apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
+
+$ ls connectors
+pulsar-io-aerospike-{{pulsar.version}}.nar
+pulsar-io-cassandra-{{pulsar.version}}.nar 
+pulsar-io-kafka-{{pulsar.version}}.nar     
+pulsar-io-kinesis-{{pulsar.version}}.nar   
+pulsar-io-rabbitmq-{{pulsar.version}}.nar  
+pulsar-io-twitter-{{pulsar.version}}.nar
+...
+```
+
 ## Deploying a ZooKeeper cluster
+
+> If you already have an exsiting zookeeper cluster and would like to use it, you can skip this section.
 
 [ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster you'll need to deploy ZooKeeper first (before all other components). We recommend deploying a 3-node ZooKeeper cluster. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
 
@@ -156,6 +209,15 @@ zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.
 
 Once you've appropriately modified the `zkServers` parameter, you can provide any other configuration modifications you need. You can find a full listing of the available BookKeeper configuration parameters [here](reference-configuration.md#bookkeeper), although we would recommend consulting the [BookKeeper documentation](http://bookkeeper.apache.org/docs/latest/reference/config/) for a more in-depth guide.
 
+> ##### NOTES
+>
+> Since Pulsar 2.1.0 release, Pulsar introduces [stateful function](functions-state.md) for Pulsar Functions. If you would like to enable that feature,
+> you need to enable table service on BookKeeper by setting following setting in `conf/bookkeeper.conf` file.
+>
+> ```conf
+> extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
+> ```
+
 Once you've applied the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
 
 To start the bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
@@ -170,7 +232,7 @@ To start the bookie in the foreground:
 $ bin/bookkeeper bookie
 ```
 
-You can verify that the bookie is working properly using the `bookiesanity` command for the [BookKeeper shell](http://localhost:4000/docs/latest/deployment/reference/CliTools#bookkeeper-shell):
+You can verify that a bookie is working properly by running the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#shell) on it:
 
 ```bash
 $ bin/bookkeeper shell bookiesanity
@@ -178,9 +240,21 @@ $ bin/bookkeeper shell bookiesanity
 
 This will create an ephemeral BookKeeper ledger on the local bookie, write a few entries, read them back, and finally delete the ledger.
 
+After you have started all the bookies, you can use `simpletest` command for [BookKeeper shell](reference-cli-tools.md#shell) on any bookie node, to
+verify all the bookies in the cluster are up running.
+
+```bash
+$ bin/bookkeeper shell simpletest --ensemble <num-bookies> --writeQuorum <num-bookies> --ackQuorum <num-bookies> --numEntries <num-entries>
+```
+
+This command will create a `num-bookies` sized ledger on the cluster, write a few entries, and finally delete the ledger.
+
+
 ## Deploying Pulsar brokers
 
 Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Brokers handle Pulsar messages and provide Pulsar's administrative interface. We recommend running **3 brokers**, one for each machine that's already running a BookKeeper bookie.
+
+### Configuring Brokers
 
 The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) and [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameters. In this case, since we only have 1 cluster and no configuration store setup, the `configurationStoreServers` will point to the same `zookeeperServers`.
 
@@ -194,6 +268,24 @@ You also need to specify the cluster name (matching the name that you provided w
 ```properties
 clusterName=pulsar-cluster-1
 ```
+
+### Enabling Pulsar Functions (optional)
+
+If you want to enable [Pulsar Functions](functions-overview.md), you can follow the instructions as below:
+
+1. Edit `conf/broker.conf` to enable function worker, by setting `functionsWorkerEnabled` to `true`.
+
+    ```conf
+    functionsWorkerEnabled=true
+    ```
+
+2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provided when [initializing the cluster's metadata](#initializing-cluster-metadata). 
+
+    ```conf
+    pulsarFunctionsCluster=pulsar-cluster-1
+    ```
+
+### Starting Brokers
 
 You can then provide any other configuration changes that you'd like in the [`conf/broker.conf`](reference-configuration.md#broker) file. Once you've decided on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, brokers can be started either in the foreground or in the background, using nohup.
 
@@ -234,3 +326,32 @@ $ bin/pulsar-client produce \
 > You may need to use a different cluster name in the topic if you specified a cluster name different from `pulsar-cluster-1`.
 
 This will publish a single message to the Pulsar topic.
+
+## Running Functions
+
+> If you have [enabled](#enabling-pulsar-functions-optional) Pulsar Functions, you can also tryout pulsar functions now.
+
+Create a ExclamationFunction `exclamation`.
+
+```bash
+bin/pulsar-admin functions create \
+  --jar examples/api-examples.jar \
+  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --inputs persistent://public/default/exclamation-input \
+  --output persistent://public/default/exclamation-output \
+  --tenant public \
+  --namespace default \
+  --name exclamation
+```
+
+Check if the function is running as expected by [triggering](functions-deploying.md#triggering-pulsar-functions) the function.
+
+```bash
+bin/pulsar-admin functions trigger --name exclamation --triggerValue "hello world"
+```
+
+You will see output as below:
+
+```shell
+hello world!
+```

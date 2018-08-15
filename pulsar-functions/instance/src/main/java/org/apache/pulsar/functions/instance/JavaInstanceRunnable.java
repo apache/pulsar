@@ -63,6 +63,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.Builder;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
+import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
@@ -184,8 +185,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
      */
     @Override
     public void run() {
+        String functionName = null;
         try {
             ContextImpl contextImpl = setupContext();
+            functionName = String.format("%s-%s", contextImpl.getTenant(), contextImpl.getFunctionName());
             javaInstance = setupJavaInstance(contextImpl);
             if (null != stateTable) {
                 StateContextImpl stateContext = new StateContextImpl(stateTable);
@@ -232,8 +235,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
             }
         } catch (Throwable t) {
-            log.error("Uncaught exception in Java Instance", t);
-            deathException = (Exception) t;
+            log.error("[{}] Uncaught exception in Java Instance", functionName, t);
+            deathException = t;
             return;
         } finally {
             log.info("Closing instance");
@@ -566,25 +569,24 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Object object;
         // If sink classname is not set, we default pulsar sink
         if (sinkSpec.getClassName().isEmpty()) {
-            PulsarSinkConfig pulsarSinkConfig = new PulsarSinkConfig();
-            pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
-                    this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
-            pulsarSinkConfig.setTopic(sinkSpec.getTopic());
+            if (StringUtils.isEmpty(sinkSpec.getTopic())) {
+                object = PulsarSinkDisable.INSTANCE;
+            } else {
+                PulsarSinkConfig pulsarSinkConfig = new PulsarSinkConfig();
+                pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
+                        this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
+                pulsarSinkConfig.setTopic(sinkSpec.getTopic());
 
-            if (!StringUtils.isEmpty(sinkSpec.getSchemaTypeOrClassName())) {
-                pulsarSinkConfig.setSchemaTypeOrClassName(sinkSpec.getSchemaTypeOrClassName());
-            } else if (!StringUtils.isEmpty(sinkSpec.getSerDeClassName())) {
-                pulsarSinkConfig.setSchemaTypeOrClassName(sinkSpec.getSerDeClassName());
+                if (!StringUtils.isEmpty(sinkSpec.getSchemaTypeOrClassName())) {
+                    pulsarSinkConfig.setSchemaTypeOrClassName(sinkSpec.getSchemaTypeOrClassName());
+                } else if (!StringUtils.isEmpty(sinkSpec.getSerDeClassName())) {
+                    pulsarSinkConfig.setSchemaTypeOrClassName(sinkSpec.getSerDeClassName());
+                }
+
+                pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
+
+                object = new PulsarSink(this.client, pulsarSinkConfig);
             }
-
-            pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
-
-            Object[] params = {this.client, pulsarSinkConfig};
-            Class<?>[] paramTypes = {PulsarClient.class, PulsarSinkConfig.class};
-
-            object = Reflections.createInstance(
-                    PulsarSink.class.getName(),
-                    PulsarSink.class.getClassLoader(), params, paramTypes);
         } else {
             object = Reflections.createInstance(
                     sinkSpec.getClassName(),

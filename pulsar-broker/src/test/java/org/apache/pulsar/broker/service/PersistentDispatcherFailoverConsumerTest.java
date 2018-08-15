@@ -579,7 +579,7 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     private Consumer createConsumer(int priority, int permit, boolean blocked, int id) throws Exception {
         Consumer consumer =
-                new Consumer(null, SubType.Shared, null, id, priority, ""+id, 5000,
+                new Consumer(null, SubType.Shared, "test-topic", id, priority, ""+id, 5000,
                         serverCnx, "appId", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest);
         try {
             consumer.flowPermits(permit);

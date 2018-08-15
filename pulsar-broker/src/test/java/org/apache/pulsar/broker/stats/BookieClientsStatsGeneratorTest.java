@@ -25,7 +25,7 @@ import java.util.Map;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.BookieClientStatsGenerator;
-import org.apache.pulsar.broker.stats.metrics.JvmMetrics;
+import org.apache.pulsar.common.stats.JvmMetrics;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;

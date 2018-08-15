@@ -18,30 +18,24 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import java.util.Map;
+import java.util.TreeMap;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.utils.validation.ConfigValidation;
+
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClass;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClasses;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isListEntryCustom;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isMapEntryCustom;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isPositiveNumber;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidFunctionConfig;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidResources;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidWindowConfig;
-import org.apache.pulsar.functions.utils.validation.ValidatorImpls;
-
-import java.util.Collection;
-import java.util.Map;
-import java.util.TreeMap;
 
 @Getter
 @Setter
@@ -49,6 +43,7 @@ import java.util.TreeMap;
 @EqualsAndHashCode
 @ToString
 @isValidFunctionConfig
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class FunctionConfig {
 
     public enum ProcessingGuarantees {
@@ -83,6 +78,7 @@ public class FunctionConfig {
      */
     private String outputSchemaOrClassName;
 
+    private boolean skipOutput;
     @isValidTopicName
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;

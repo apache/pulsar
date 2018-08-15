@@ -64,30 +64,43 @@ const std::string generateRandomName() {
 }
 typedef boost::unique_lock<boost::mutex> Lock;
 
+static const std::string https("https");
+static const std::string pulsarSsl("pulsar+ssl");
+
+static const ClientConfiguration detectTls(const std::string& serviceUrl,
+                                           const ClientConfiguration& clientConfiguration) {
+    ClientConfiguration conf(clientConfiguration);
+    if (serviceUrl.compare(0, https.size(), https) == 0 ||
+        serviceUrl.compare(0, pulsarSsl.size(), pulsarSsl) == 0) {
+        conf.setUseTls(true);
+    }
+    return conf;
+}
+
 ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
                        bool poolConnections)
     : mutex_(),
       state_(Open),
       serviceUrl_(serviceUrl),
-      clientConfiguration_(clientConfiguration),
-      ioExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(clientConfiguration.getIOThreads())),
+      clientConfiguration_(detectTls(serviceUrl, clientConfiguration)),
+      ioExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(clientConfiguration_.getIOThreads())),
       listenerExecutorProvider_(
-          boost::make_shared<ExecutorServiceProvider>(clientConfiguration.getMessageListenerThreads())),
+          boost::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
       partitionListenerExecutorProvider_(
-          boost::make_shared<ExecutorServiceProvider>(clientConfiguration.getMessageListenerThreads())),
-      pool_(clientConfiguration, ioExecutorProvider_, clientConfiguration.getAuthPtr(), poolConnections),
+          boost::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
+      pool_(clientConfiguration_, ioExecutorProvider_, clientConfiguration_.getAuthPtr(), poolConnections),
       producerIdGenerator_(0),
       consumerIdGenerator_(0),
       requestIdGenerator_(0) {
-    if (clientConfiguration.getLogger()) {
+    if (clientConfiguration_.getLogger()) {
         // A logger factory was explicitely configured. Let's just use that
-        LogUtils::setLoggerFactory(clientConfiguration.getLogger());
+        LogUtils::setLoggerFactory(clientConfiguration_.getLogger());
     } else {
 #ifdef USE_LOG4CXX
-        if (!clientConfiguration.getLogConfFilePath().empty()) {
+        if (!clientConfiguration_.getLogConfFilePath().empty()) {
             // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
             LogUtils::setLoggerFactory(
-                Log4CxxLoggerFactory::create(clientConfiguration.getLogConfFilePath()));
+                Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath()));
         } else {
             // Use default simple console logger
             LogUtils::setLoggerFactory(SimpleLoggerFactory::create());
@@ -102,7 +115,7 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
         LOG_DEBUG("Using HTTP Lookup");
         lookupServicePtr_ =
             boost::make_shared<HTTPLookupService>(boost::cref(serviceUrl_), boost::cref(clientConfiguration_),
-                                                  boost::cref(clientConfiguration.getAuthPtr()));
+                                                  boost::cref(clientConfiguration_.getAuthPtr()));
     } else {
         LOG_DEBUG("Using Binary Lookup");
         lookupServicePtr_ =
@@ -378,8 +391,9 @@ Future<Result, ClientConnectionWeakPtr> ClientImpl::getConnection(const std::str
 void ClientImpl::handleLookup(Result result, LookupDataResultPtr data,
                               Promise<Result, ClientConnectionWeakPtr> promise) {
     if (data) {
-        LOG_DEBUG("Getting connection to broker: " << data->getBrokerUrl());
-        const std::string& logicalAddress = data->getBrokerUrl();
+        const std::string& logicalAddress =
+            clientConfiguration_.isUseTls() ? data->getBrokerUrlTls() : data->getBrokerUrl();
+        LOG_DEBUG("Getting connection to broker: " << logicalAddress);
         const std::string& physicalAddress =
             data->shouldProxyThroughServiceUrl() ? serviceUrl_ : logicalAddress;
         Future<Result, ClientConnectionWeakPtr> future =

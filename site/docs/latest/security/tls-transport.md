@@ -168,7 +168,6 @@ You'll need to add the following parameters to that file to use TLS transport wi
 ```properties
 webServiceUrl=https://broker.example.com:8443/
 brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
-useTls=true
 tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/ca.cert.pem
 ```
@@ -180,7 +179,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar+ssl://broker.example.com:6651/")
-    .enableTls(true)
     .tlsTrustCertsFilePath("/path/to/ca.cert.pem")
     .build();
 ```
@@ -201,7 +199,6 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 #include <pulsar/Client.h>
 
 pulsar::ClientConfiguration config;
-config.setUseTls(true);
 config.setTlsTrustCertsFilePath("/path/to/ca.cert.pem");
 config.setTlsAllowInsecureConnection(false);
 

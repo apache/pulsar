@@ -118,7 +118,8 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 .message(message)
                 .topicName(topicName)
                 .ackFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    if (pulsarSourceConfig
+                            .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         consumer.acknowledgeCumulativeAsync(message);
                     } else {
                         consumer.acknowledgeAsync(message);

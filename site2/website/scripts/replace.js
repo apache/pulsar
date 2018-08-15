@@ -22,11 +22,11 @@ function downloadPageUrl() {
 }
 
 function binaryReleaseUrl(version) {
-  return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-bin.tar.gz`
+  return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-bin.tar.gz`
 }
 
 function connectorReleaseUrl(version) {
-  return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-io-connectors-${version}-bin.tar.gz`
+  return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-io-connectors-${version}-bin.tar.gz`
 }
 
 function rpmReleaseUrl(version, type) {
@@ -123,4 +123,3 @@ for (v of versions) {
   };
   doReplace(opts);
 }
-

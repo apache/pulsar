@@ -216,6 +216,27 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
+    public void restartFunction(String tenant, String namespace, String functionName, int instanceId)
+            throws PulsarAdminException {
+        try {
+            request(functions.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
+                    .path("restart")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void restartFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
+        try {
+            request(functions.path(tenant).path(namespace).path(functionName).path("restart"))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public void uploadFunction(String sourceFile, String path) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
@@ -281,7 +302,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             throw getApiException(e);
         }
     }
-    
+
     public static void mergeJson(String json, Builder builder) throws IOException {
         JsonFormat.parser().merge(json, builder);
     }
@@ -289,4 +310,5 @@ public class FunctionsImpl extends BaseResource implements Functions {
     public static String printJson(MessageOrBuilder msg) throws IOException {
         return JsonFormat.printer().print(msg);
     }
+
 }

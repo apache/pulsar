@@ -49,6 +49,9 @@ class HTTPLookupService : public LookupService, public boost::enable_shared_from
     std::string adminUrl_;
     AuthenticationPtr authenticationPtr_;
     int lookupTimeoutInSeconds_;
+    bool tlsAllowInsecure_;
+    bool isUseTls_;
+    std::string tlsTrustCertsFilePath_;
 
     static LookupDataResultPtr parsePartitionData(const std::string&);
     static LookupDataResultPtr parseLookupData(const std::string&);

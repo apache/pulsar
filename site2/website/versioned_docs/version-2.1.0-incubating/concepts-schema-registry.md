@@ -19,7 +19,7 @@ Both approaches are available in Pulsar, and you're free to adopt one or the oth
 
 ## Basic architecture
 
-In Pulsar, schemas are uploaded to, fetched from, and update via Pulsar's {@inject: rest:REST:/} API.
+Schemas are automatically uploaded when you create a typed Producer with a Schema. Additionally, Schemas can be manually uploaded to, fetched from, and updated via Pulsar's {@inject: rest:REST:tag/schemas} API.
 
 > #### Other schema registry backends
 > Out of the box, Pulsar uses the [Apache BookKeeper](concepts-architecture-overview#persistent-storage) log storage system for schema storage. You can, however, use different backends if you wish. Documentation for custom schema storage logic is coming soon.
@@ -76,3 +76,7 @@ For usage instructions, see the documentation for your preferred client library:
 * [Java](client-libraries-java.md#schemas)
 
 > Support for other schema formats will be added in future releases of Pulsar.
+
+## Managing Schemas
+
+You can use Pulsar's [admin tools](admin-api-schemas.md) for managing schemas for topics.
