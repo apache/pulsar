@@ -119,7 +119,7 @@ class PythonInstance(object):
     self.user_code = user_code
     self.queue = Queue.Queue(max_buffered_tuples)
     self.log_topic_handler = None
-    if function_details.logTopic is not None:
+    if function_details.logTopic is not None and function_details.logTopic != "":
       self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
     self.pulsar_client = pulsar_client
     self.input_serdes = {}
