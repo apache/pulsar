@@ -193,7 +193,7 @@ public class BrokersBase extends AdminResource {
         return new InternalConfigurationData(
             pulsar().getConfiguration().getZookeeperServers(),
             pulsar().getConfiguration().getConfigurationStoreServers(),
-            conf.getZkLedgersRootPath());
+            conf.getZkLedgersRootPath(), pulsar().getTieredStorageConf());
     }
 
 }

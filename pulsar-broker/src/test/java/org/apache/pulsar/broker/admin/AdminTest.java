@@ -66,6 +66,7 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.offload.TieredStorageConfigurationData;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -209,7 +210,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         InternalConfigurationData expectedData = new InternalConfigurationData(
             pulsar.getConfiguration().getZookeeperServers(),
             pulsar.getConfiguration().getConfigurationStoreServers(),
-            new ClientConfiguration().getZkLedgersRootPath());
+            new ClientConfiguration().getZkLedgersRootPath(), new TieredStorageConfigurationData());
 
         assertEquals(brokers.getInternalConfigurationData(), expectedData);
     }

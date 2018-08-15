@@ -19,6 +19,8 @@
 package org.apache.pulsar.common.conf;
 
 import com.google.common.base.MoreObjects;
+import org.apache.pulsar.common.offload.TieredStorageConfigurationData;
+
 import java.util.Objects;
 
 public class InternalConfigurationData {
@@ -26,16 +28,18 @@ public class InternalConfigurationData {
     private String zookeeperServers;
     private String configurationStoreServers;
     private String ledgersRootPath;
-
+    private TieredStorageConfigurationData tieredStorageConfigurationData;
     public InternalConfigurationData() {
     }
 
     public InternalConfigurationData(String zookeeperServers,
                                      String configurationStoreServers,
-                                     String ledgersRootPath) {
+                                     String ledgersRootPath,
+                                     TieredStorageConfigurationData tieredStorageConfigurationData) {
         this.zookeeperServers = zookeeperServers;
         this.configurationStoreServers = configurationStoreServers;
         this.ledgersRootPath = ledgersRootPath;
+        this.tieredStorageConfigurationData = tieredStorageConfigurationData;
     }
 
     public String getZookeeperServers() {
@@ -50,6 +54,10 @@ public class InternalConfigurationData {
         return ledgersRootPath;
     }
 
+    public TieredStorageConfigurationData getTieredStorageConfigurationData() {
+        return tieredStorageConfigurationData;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (!(obj instanceof InternalConfigurationData)) {
@@ -58,7 +66,8 @@ public class InternalConfigurationData {
         InternalConfigurationData other = (InternalConfigurationData) obj;
         return Objects.equals(zookeeperServers, other.zookeeperServers)
             && Objects.equals(configurationStoreServers, other.configurationStoreServers)
-            && Objects.equals(ledgersRootPath, other.ledgersRootPath);
+            && Objects.equals(ledgersRootPath, other.ledgersRootPath)
+            && Objects.equals(tieredStorageConfigurationData, other.tieredStorageConfigurationData);
     }
 
     @Override
@@ -72,6 +81,7 @@ public class InternalConfigurationData {
             .add("zookeeperServers", zookeeperServers)
             .add("configurationStoreServers", configurationStoreServers)
             .add("ledgersRootPath", ledgersRootPath)
+            .add("tieredStorageConfigurationData", tieredStorageConfigurationData)
             .toString();
     }
 
