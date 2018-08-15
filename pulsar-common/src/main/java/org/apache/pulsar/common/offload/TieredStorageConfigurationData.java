@@ -19,6 +19,8 @@
 package org.apache.pulsar.common.offload;
 
 import java.io.Serializable;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 /**
@@ -64,6 +66,7 @@ public class TieredStorageConfigurationData implements Serializable, Cloneable{
 
     // For Google Cloud Storage, path to json file containing service account credentials.
     // For more details, see the "Service Accounts" section of https://support.google.com/googleapi/answer/6158849
+    @JsonIgnore
     private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
 
 }
