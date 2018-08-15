@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.offload.impl;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader.dataBlockOffloadKey;
 import static org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader.indexBlockOffloadKey;
 import static org.mockito.AdditionalAnswers.delegatesTo;
@@ -26,17 +27,19 @@ import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -48,10 +51,12 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.offload.BlobStoreTestBase;
+import org.apache.pulsar.broker.offload.TieredStorageConfigurationData;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.MockZooKeeper;
+import org.apache.zookeeper.data.ACL;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.options.CopyOptions;
 import org.mockito.Mockito;
@@ -61,9 +66,20 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
-@Slf4j
 class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderTest.class);
+
+    private static MockZooKeeper createMockZooKeeper() throws Exception {
+        MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
+        List<ACL> dummyAclList = new ArrayList<ACL>(0);
+
+        ZkUtils.createFullPathOptimistic(zk, "/ledgers/available/192.168.1.1:" + 5000,
+                "".getBytes(UTF_8), dummyAclList, CreateMode.PERSISTENT);
+
+        zk.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(UTF_8), dummyAclList,
+                CreateMode.PERSISTENT);
+        return zk;
+    }
 
     private static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     private static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
@@ -72,7 +88,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     BlobStoreManagedLedgerOffloaderTest() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
-        bk = new MockBookKeeper(MockedPulsarServiceBaseTest.createMockZooKeeper());
+        bk = new MockBookKeeper(createMockZooKeeper());
     }
 
     private ReadHandle buildReadHandle() throws Exception {
@@ -139,35 +155,35 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testNoRegionConfigured() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
+        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
         conf.setManagedLedgerOffloadDriver("s3");
         conf.setS3ManagedLedgerOffloadBucket(BUCKET);
 
         try {
             BlobStoreManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
-        } catch (PulsarServerException pse) {
+        } catch (IOException pse) {
             // correct
         }
     }
 
     @Test
     public void testNoBucketConfigured() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
+        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
         conf.setManagedLedgerOffloadDriver("s3");
         conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
 
         try {
             BlobStoreManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
-        } catch (PulsarServerException pse) {
+        } catch (IOException pse) {
             // correct
         }
     }
 
     @Test
     public void testSmallBlockSizeConfigured() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
+        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
         conf.setManagedLedgerOffloadDriver("s3");
         conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
         conf.setS3ManagedLedgerOffloadBucket(BUCKET);
@@ -176,21 +192,21 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         try {
             BlobStoreManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
-        } catch (PulsarServerException pse) {
+        } catch (IOException pse) {
             // correct
         }
     }
 
     @Test
     public void testGcsNoKeyPath() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
+        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
         conf.setManagedLedgerOffloadDriver("google-cloud-storage");
         conf.setGcsManagedLedgerOffloadBucket(BUCKET);
 
         try {
             BlobStoreManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
-        } catch (PulsarServerException pse) {
+        } catch (IOException pse) {
             // correct
             log.error("Expected pse", pse);
         }
@@ -198,7 +214,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testGcsNoBucketConfigured() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
+        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
         conf.setManagedLedgerOffloadDriver("google-cloud-storage");
         File tmpKeyFile = File.createTempFile("gcsOffload", "json");
         conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
@@ -206,7 +222,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         try {
             BlobStoreManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
-        } catch (PulsarServerException pse) {
+        } catch (IOException pse) {
             // correct
             log.error("Expected pse", pse);
         }
@@ -214,7 +230,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testGcsSmallBlockSizeConfigured() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
+        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
         conf.setManagedLedgerOffloadDriver("google-cloud-storage");
         File tmpKeyFile = File.createTempFile("gcsOffload", "json");
         conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
@@ -224,7 +240,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         try {
             BlobStoreManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
-        } catch (PulsarServerException pse) {
+        } catch (IOException pse) {
             // correct
             log.error("Expected pse", pse);
         }

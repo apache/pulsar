@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,16 +18,12 @@
 # under the License.
 #
 
-[Unit]
-Description=Pulsar Broker
-After=network.target
+from pulsar import Function
 
-[Service]
-ExecStart=/opt/pulsar/bin/pulsar broker --run-bookie --run-bookie-autorecovery
-WorkingDirectory=/opt/pulsar
-RestartSec=1s
-Restart=on-failure
-Type=simple
+# Example function that throws an excpetion
+class UserException(Function):
+    def __init__(self):
+      pass
 
-[Install]
-WantedBy=multi-user.target
+    def process(self, input, context):
+      raise Exception('this will not work')  

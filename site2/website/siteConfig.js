@@ -95,6 +95,7 @@ const siteConfig = {
     {page: 'download', label: 'Download'},
     {doc: 'client-libraries', label: 'Clients'},
     {page: 'admin-rest-api', label: 'REST API'},
+    {blog: true, label: 'Blog'},
     {href: '#community', label: 'Community'},
     {href: '#apache', label: 'Apache'},
     // Determines search bar position among links
@@ -117,6 +118,7 @@ const siteConfig = {
       facetFilters: ['language:LANGUAGE', 'version:VERSION'],
     },
   },
+  gaTrackingId: 'UA-102219959-1',
 
   /* colors for website */
   colors: {
@@ -151,7 +153,9 @@ const siteConfig = {
 
   /* Open Graph and Twitter card images */
   //ogImage: 'img/docusaurus.png',
-  //twitterImage: 'img/docusaurus.png',
+  twitter: true,
+  twitterUsername: 'apache_pulsar',
+  twitterImage: 'img/pulsar.svg',
 
   disableHeaderTitle: true,
 

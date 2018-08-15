@@ -44,7 +44,7 @@ public class TopicName implements ServiceUnitId {
     public static final String PUBLIC_TENANT = "public";
     public static final String DEFAULT_NAMESPACE = "default";
 
-    private static final String PARTITIONED_TOPIC_SUFFIX = "-partition-";
+    public static final String PARTITIONED_TOPIC_SUFFIX = "-partition-";
 
     private final String completeTopicName;
 

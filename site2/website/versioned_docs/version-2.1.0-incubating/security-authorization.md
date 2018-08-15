@@ -66,7 +66,7 @@ $ bin/pulsar-admin tenants create my-tenant \
 
 This command will create a new tenant `my-tenant` that will be allowed to use the clusters `us-west` and `us-east`.
 
-A client that successfully identified itself as having the role `my-admin-role` would then be allowed to perform all administrative tasks on this property.
+A client that successfully identified itself as having the role `my-admin-role` would then be allowed to perform all administrative tasks on this tenant.
 
 The structure of topic names in Pulsar reflects the hierarchy between tenants, clusters, and namespaces:
 

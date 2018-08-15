@@ -19,7 +19,7 @@ Without geo-replication, consumers **C1** and **C2** wouldn't be able to consume
 
 ## Geo-replication and Pulsar properties
 
-Geo-replication must be enabled on a per-tenant basis in Pulsar. Geo-replication can be enabled between clusters only when a property has been created that allows access to both clusters.
+Geo-replication must be enabled on a per-tenant basis in Pulsar. Geo-replication can be enabled between clusters only when a tenant has been created that allows access to both clusters.
 
 Although geo-replication must be enabled between two clusters, it's actually managed at the namespace level. You must do the following to enable geo-replication for a namespace:
 
@@ -49,17 +49,17 @@ As stated [above](#geo-replication-and-pulsar-properties), geo-replication in Pu
 
 ### Granting permissions to properties
 
-To establish replication to a cluster, the tenant needs permission to use that cluster. This permission can be granted when the property is created or later on.
+To establish replication to a cluster, the tenant needs permission to use that cluster. This permission can be granted when the tenant is created or later on.
 
 At creation time, specify all the intended clusters:
 
 ```shell
-$ bin/pulsar-admin properties create my-property \
+$ bin/pulsar-admin properties create my-tenant \
   --admin-roles my-admin-role \
   --allowed-clusters us-west,us-east,us-cent
 ```
 
-To update permissions of an existing property, use `update` instead of `create`.
+To update permissions of an existing tenant, use `update` instead of `create`.
 
 ### Creating global namespaces
 

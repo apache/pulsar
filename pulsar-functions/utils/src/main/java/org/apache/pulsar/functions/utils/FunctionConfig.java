@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -29,7 +30,6 @@ import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClass;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClasses;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isListEntryCustom;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isMapEntryCustom;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isPositiveNumber;
@@ -48,6 +48,7 @@ import java.util.Map;
 @EqualsAndHashCode
 @ToString
 @isValidFunctionConfig
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class FunctionConfig {
 
     public enum ProcessingGuarantees {
@@ -80,6 +81,7 @@ public class FunctionConfig {
     private String topicsPattern;
     @isValidTopicName
     private String output;
+    private boolean skipOutput;
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String outputSerdeClassName;
     @isValidTopicName
