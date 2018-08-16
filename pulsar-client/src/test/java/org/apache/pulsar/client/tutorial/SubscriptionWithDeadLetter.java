@@ -26,9 +26,9 @@ public class SubscriptionWithDeadLetter {
 
     private static final String topic = "persistent://public/default/my-topic";
 
-    private static final int maxRedeliveryCount = 5;
+    private static final int maxRedeliveryCount = 2;
 
-    private static final int sendMessages = 1000;
+    private static final int sendMessages = 10000;
 
     public static void main(String[] args) throws PulsarClientException {
 
@@ -46,8 +46,9 @@ public class SubscriptionWithDeadLetter {
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1L, TimeUnit.SECONDS)
+                .ackTimeout(60, TimeUnit.SECONDS)
                 .maxRedeliveryCount(maxRedeliveryCount)
+                .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 

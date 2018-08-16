@@ -386,6 +386,36 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public Entry readEntry(PositionImpl position) throws InterruptedException, ManagedLedgerException {
+        final CountDownLatch counter = new CountDownLatch(1);
+        class Result {
+            ManagedLedgerException exception = null;
+            Entry entry = null;
+        }
+        final Result result = new Result();
+        ledger.asyncReadEntry(position, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                result.entry = entry;
+                counter.countDown();
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                result.exception = exception;
+                counter.countDown();
+            }
+        }, null);
+
+        counter.await();
+
+        if (result.exception != null) {
+            throw result.exception;
+        }
+        return result.entry;
+    }
+
+    @Override
     public List<Entry> readEntries(int numberOfEntriesToRead) throws InterruptedException, ManagedLedgerException {
         checkArgument(numberOfEntriesToRead > 0);
 

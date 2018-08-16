@@ -61,6 +61,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public Entry readEntry(PositionImpl position) throws InterruptedException, ManagedLedgerException {
+            return null;
+        }
+
+        @Override
         public boolean isDurable() {
             return true;
         }
