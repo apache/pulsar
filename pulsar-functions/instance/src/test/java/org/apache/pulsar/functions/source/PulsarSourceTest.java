@@ -89,6 +89,7 @@ public class PulsarSourceTest {
         Consumer consumer = mock(Consumer.class);
         doReturn(consumer).when(consumerBuilder).subscribe();
         doReturn(consumerBuilder).when(pulsarClient).newConsumer(any());
+        doReturn(CompletableFuture.completedFuture(consumer)).when(consumerBuilder).subscribeAsync();
         doReturn(CompletableFuture.completedFuture(Optional.empty())).when(pulsarClient).getSchema(anyString());
         return pulsarClient;
     }
