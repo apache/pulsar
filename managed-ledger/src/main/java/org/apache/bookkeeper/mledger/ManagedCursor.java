@@ -23,6 +23,8 @@ import com.google.common.base.Predicate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
@@ -76,7 +78,15 @@ public interface ManagedCursor {
      */
     Map<String, Long> getProperties();
 
-    Entry readEntry(PositionImpl position) throws InterruptedException, ManagedLedgerException;
+    /**
+     * Return entry at the position.
+     */
+    Entry readEntry(PositionImpl position) throws InterruptedException, ExecutionException;
+
+    /**
+     * Return entry at the position async.
+     */
+    void asyncReadEntry(PositionImpl position, ReadEntryCallback callback, Object ctx);
 
     /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.

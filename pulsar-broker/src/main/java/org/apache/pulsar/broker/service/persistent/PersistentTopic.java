@@ -563,15 +563,23 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 }
                 subscriptions.computeIfAbsent(subscriptionName,
                         name -> createPersistentSubscription(subscriptionName, cursor, maxRedeliveryCount, deadLetterTopic));
+
                 PersistentSubscription subscription = subscriptions.get(subscriptionName);
-                if (subscription.dispatcher instanceof PersistentDispatcherMultipleConsumers) {
-                    if (((PersistentDispatcherMultipleConsumers) subscription.dispatcher).maxRedeliveryCount != maxRedeliveryCount) {
-                        subscription.maxRedeliveryCount = maxRedeliveryCount;
+                if (subscription.maxRedeliveryCount != maxRedeliveryCount) {
+                    subscription.maxRedeliveryCount = maxRedeliveryCount;
+                    if (subscription.dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                         ((PersistentDispatcherMultipleConsumers) subscription.dispatcher).maxRedeliveryCount = maxRedeliveryCount;
                     }
-                    if (!StringUtils.equals(((PersistentDispatcherMultipleConsumers) subscription.dispatcher).deadLetterTopic, deadLetterTopic)) {
-                        subscription.deadLetterTopic = deadLetterTopic;
+                }
+                if (!StringUtils.equals(subscription.deadLetterTopic, deadLetterTopic)) {
+                    subscription.deadLetterTopic = deadLetterTopic;
+                    if (subscription.dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                         ((PersistentDispatcherMultipleConsumers) subscription.dispatcher).deadLetterTopic = deadLetterTopic;
+                        try {
+                            ((PersistentDispatcherMultipleConsumers) subscription.dispatcher).reloadDeadLetterProducer();
+                        } catch (Throwable e) {
+                            subscriptionFuture.completeExceptionally(e);
+                        }
                     }
                 }
                 subscriptionFuture.complete(subscription);

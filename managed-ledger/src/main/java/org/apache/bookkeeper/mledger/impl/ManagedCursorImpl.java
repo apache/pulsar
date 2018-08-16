@@ -44,7 +44,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -386,33 +388,24 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public Entry readEntry(PositionImpl position) throws InterruptedException, ManagedLedgerException {
-        final CountDownLatch counter = new CountDownLatch(1);
-        class Result {
-            ManagedLedgerException exception = null;
-            Entry entry = null;
-        }
-        final Result result = new Result();
+    public Entry readEntry(PositionImpl position) throws InterruptedException, ExecutionException {
+        final CompletableFuture<Entry> readFuture = new CompletableFuture<>();
         ledger.asyncReadEntry(position, new ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
-                result.entry = entry;
-                counter.countDown();
+                readFuture.complete(entry);
             }
-
             @Override
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                result.exception = exception;
-                counter.countDown();
+                readFuture.completeExceptionally(exception);
             }
         }, null);
+        return readFuture.get();
+    }
 
-        counter.await();
-
-        if (result.exception != null) {
-            throw result.exception;
-        }
-        return result.entry;
+    @Override
+    public void asyncReadEntry(PositionImpl position, ReadEntryCallback callback, Object ctx) {
+        ledger.asyncReadEntry(position, callback, ctx);
     }
 
     @Override

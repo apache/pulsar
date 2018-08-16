@@ -32,4 +32,6 @@ public interface RedeliveryTracker {
 
     void removeBatch(List<Position> positions);
 
+    void clear();
+
 }

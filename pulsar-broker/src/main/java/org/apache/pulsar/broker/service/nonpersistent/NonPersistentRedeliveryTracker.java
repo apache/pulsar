@@ -51,4 +51,9 @@ public class NonPersistentRedeliveryTracker implements RedeliveryTracker {
             positions.forEach(this::remove);
         }
     }
+
+    @Override
+    public void clear() {
+        trackerCache.clear();
+    }
 }

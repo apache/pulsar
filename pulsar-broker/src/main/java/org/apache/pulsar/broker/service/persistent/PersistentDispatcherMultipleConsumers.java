@@ -103,7 +103,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected volatile int maxRedeliveryCount;
     protected volatile String deadLetterTopic;
     protected RedeliveryTracker redeliveryTracker;
-    private ProducerImpl<byte[]> deadLetterTopicProducer;
+    private volatile ProducerImpl<byte[]> deadLetterTopicProducer;
 
     enum ReadType {
         Normal, Replay
@@ -155,24 +155,43 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             throw new ConsumerBusyException("Subscription reached max consumers limit");
         }
 
+        deadLetterTopicProducer = newDeadLetterProducer();
+
+        consumerList.add(consumer);
+        consumerList.sort((c1, c2) -> c1.getPriorityLevel() - c2.getPriorityLevel());
+        consumerSet.add(consumer);
+    }
+
+    private ProducerImpl<byte[]> newDeadLetterProducer() throws BrokerServiceException {
         if (maxRedeliveryCount > 0 && deadLetterTopicProducer == null) {
             try {
                 if (maxRedeliveryCount > 0 && StringUtils.isBlank(deadLetterTopic)) {
                     deadLetterTopic = String.format("%s-%s-DLQ", topic.getName(), Codec.decode(cursor.getName()));
                 }
-                deadLetterTopicProducer = (ProducerImpl<byte[]>) topic.getBrokerService().pulsar().getClient().newProducer(Schema.BYTES)
+                return (ProducerImpl<byte[]>) topic.getBrokerService().pulsar().getClient().newProducer(Schema.BYTES)
                         .topic(deadLetterTopic)
                         .enableBatching(false)
                         .blockIfQueueFull(false)
                         .create();
-            } catch (PulsarClientException | PulsarServerException e) {
+            } catch (Throwable e) {
                 throw new BrokerServiceException(e);
             }
         }
+        return null;
+    }
 
-        consumerList.add(consumer);
-        consumerList.sort((c1, c2) -> c1.getPriorityLevel() - c2.getPriorityLevel());
-        consumerSet.add(consumer);
+    void reloadDeadLetterProducer() throws BrokerServiceException {
+        try {
+            if (deadLetterTopicProducer != null) {
+                deadLetterTopicProducer.closeAsync();
+            }
+            deadLetterTopicProducer = newDeadLetterProducer();
+            if (deadLetterTopicProducer == null) {
+                redeliveryTracker.clear();
+            }
+        } catch (Throwable e) {
+            throw new BrokerServiceException(e);
+        }
     }
 
     private boolean isConsumersExceededOnTopic() {
