@@ -49,7 +49,7 @@ type ClientOptions struct {
 
 	// Set the operation timeout (default: 30 seconds)
 	// Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the
-	// operation will be maked as failed
+	// operation will be marked as failed
 	OperationTimeoutSeconds time.Duration
 
 	// Set the number of threads to be used for message listeners (default: 1 thread)

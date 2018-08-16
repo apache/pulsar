@@ -713,7 +713,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     semaphore.release(op.numMessagesInBatch);
                     try {
                         op.callback.sendComplete(
-                                new PulsarClientException.ChecksumException("Checksum failded on corrupt message"));
+                                new PulsarClientException.ChecksumException("Checksum failed on corrupt message"));
                     } catch (Throwable t) {
                         log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
                                 producerName, sequenceId, t);

@@ -658,7 +658,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                             .canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
                         continue;
                     }
-                    log.info("Load-manager splitting budnle {} and unloading {}", bundleName, unloadSplitBundles);
+                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
                             unloadSplitBundles);
                     // Make sure the same bundle is not selected again.

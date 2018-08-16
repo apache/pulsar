@@ -29,9 +29,9 @@ class RateLimiter {
  public:
     RateLimiter(double rate);
 
-    void aquire();
+    void acquire();
 
-    void aquire(int permits);
+    void acquire(int permits);
 
  private:
     RateLimiter(const RateLimiter&);
@@ -54,11 +54,11 @@ RateLimiter::RateLimiter(double rate)
     assert(rate < 1e6 && "Exceeded maximum rate");
 }
 
-void RateLimiter::aquire() {
-    aquire(1);
+void RateLimiter::acquire() {
+    acquire(1);
 }
 
-void RateLimiter::aquire(int permits) {
+void RateLimiter::acquire(int permits) {
     Clock::time_point now = Clock::now();
 
     Lock lock(mutex_);

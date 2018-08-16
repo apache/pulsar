@@ -307,7 +307,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         Message<T> message;
         try {
-            // is cnx is null or if the connection breaks the connectionOpened function will send the flow again
+            // if cnx is null or if the connection breaks the connectionOpened function will send the flow again
             waitingOnReceiveForZeroQueueSize = true;
             synchronized (this) {
                 if (isConnected()) {
