@@ -46,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A function container implemented using java thread.
@@ -201,11 +202,31 @@ class ProcessRuntime implements Runtime {
         }
         args.add("--source_subscription_type");
         args.add(instanceConfig.getFunctionDetails().getSource().getSubscriptionType().toString());
-        args.add("--source_topics_serde_classname");
-        args.add(new Gson().toJson(instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()));
-        if (isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {
-            args.add("--topics_pattern");
-            args.add(instanceConfig.getFunctionDetails().getSource().getTopicsPattern());
+
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            args.add("--source_topics_schema");
+            args.add(new Gson().toJson(instanceConfig.getFunctionDetails().getSource().getTopicsToSchemaMap()));
+        } else {
+            // Python instance is still using the previous serde map
+            args.add("--source_topics_serde_classname");
+
+            // Transform schema map into serde map
+            Map<String, String> serdeMap = new TreeMap<>();
+            AtomicReference<String> topicPattern = new AtomicReference<>();
+            instanceConfig.getFunctionDetails().getSource().getTopicsToSchemaMap().forEach((topic, conf) -> {
+                serdeMap.put(topic, conf.getSchemaTypeOrClassName());
+
+                if (conf.getIsRegexPattern()) {
+                    topicPattern.set(topic);
+                }
+             });
+            args.add(new Gson().toJson(serdeMap));
+
+            // Check if there was topic pattern defined in the schema map
+            if (topicPattern.get() != null) {
+                args.add("--topics_pattern");
+                args.add(topicPattern.get());
+            }
         }
 
         // sink related configs
@@ -229,6 +250,12 @@ class ProcessRuntime implements Runtime {
                 && !instanceConfig.getFunctionDetails().getSink().getTopic().isEmpty()) {
             args.add("--sink_topic");
             args.add(instanceConfig.getFunctionDetails().getSink().getTopic());
+
+            if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA
+                    && !StringUtils.isEmpty(instanceConfig.getFunctionDetails().getSink().getSchemaTypeOrClassName())) {
+                args.add("--sink_topic_schema_type");
+                args.add(instanceConfig.getFunctionDetails().getSink().getSchemaTypeOrClassName());
+            }
         }
         if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() != null
                 && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {
@@ -390,7 +417,7 @@ class ProcessRuntime implements Runtime {
         });
         return retval;
     }
-    
+
     public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
         CompletableFuture<InstanceCommunication.HealthCheckResult> retval = new CompletableFuture<>();
         if (stub == null) {

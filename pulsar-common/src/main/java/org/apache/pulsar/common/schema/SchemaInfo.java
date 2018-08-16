@@ -39,8 +39,20 @@ public class SchemaInfo {
     @EqualsAndHashCode.Exclude
     private String name;
 
+
+    /**
+     * The schema data in AVRO JSON format
+     */
     private byte[] schema;
+
+    /**
+     * The type of schema (AVRO, JSON, PROTOBUF, etc..)
+     */
     private SchemaType type;
+
+    /**
+     * Additional properties of the schema definition (implementation defined)
+     */
     private Map<String, String> properties = Collections.emptyMap();
 
     public SchemaInfo(String name, SchemaData data) {

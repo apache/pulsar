@@ -239,7 +239,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
             throw new RuntimeException(e);
         }
         if (output != null) {
-            context.publish(context.getOutputTopic(), output, context.getOutputSerdeClassName());
+            context.publish(context.getOutputTopic(), output, context.getOutputSchemaType());
         }
     }
 
@@ -288,7 +288,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
                 this.windowManager.add(input, ts, record);
             } else {
                 if (this.windowConfig.getLateDataTopic() != null) {
-                    context.publish(this.windowConfig.getLateDataTopic(), input, context.getOutputSerdeClassName());
+                    context.publish(this.windowConfig.getLateDataTopic(), input);
                 } else {
                     log.info(String.format(
                             "Received a late tuple %s with ts %d. This will not be " + "processed"

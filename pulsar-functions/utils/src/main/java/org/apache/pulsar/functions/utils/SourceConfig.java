@@ -53,8 +53,9 @@ public class SourceConfig {
     @NotNull
     @isValidTopicName
     private String topicName;
-    @isImplementationOfClass(implementsClass = SerDe.class)
-    private String serdeClassName;
+
+    private String schemaTypeOrClassName;
+
     private Map<String, Object> configs;
     @isPositiveNumber
     private int parallelism = 1;

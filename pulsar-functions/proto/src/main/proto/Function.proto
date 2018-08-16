@@ -61,6 +61,11 @@ message FunctionDetails {
     string packageUrl = 14; //present only if function submitted with package-url
 }
 
+message ConsumerSpec {
+	string schemaTypeOrClassName   = 1;
+	bool isRegexPattern = 2;
+}
+
 message SourceSpec {
     string className = 1;
     // map in json format
@@ -69,7 +74,15 @@ message SourceSpec {
 
     // configs used only when source feeds into functions
     SubscriptionType subscriptionType = 3;
-    map<string,string> topicsToSerDeClassName = 4;
+
+	// @deprecated -- use topicsToSchema
+    map<string,string> topicsToSerDeClassName = 4 [deprecated = true];
+
+	/**
+	 *
+	 */
+    map<string, ConsumerSpec> topicsToSchema = 10;
+
     uint64 timeoutMs = 6;
     string topicsPattern = 7;
 
@@ -87,11 +100,18 @@ message SinkSpec {
 
     // configs used only when functions output to sink
     string topic = 3;
+
+    // @deprecated -- use schemaType
     string serDeClassName = 4;
 
     /* If specified, this will refer to an archive that is
      * already present in the server */
     string builtin = 6;
+
+	/**
+	 * Builtin schema type or custom schema class name
+	 */
+    string schemaTypeOrClassName = 7;
 }
 
 message PackageLocationMetaData {

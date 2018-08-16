@@ -16,21 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.source;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
-/**
- * Example function that uses the built in publish function in the context
- * to publish to a desired topic based on config
- */
-public class PublishFunction implements Function<String, Void> {
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.functions.api.SerDe;
+
+@AllArgsConstructor
+@EqualsAndHashCode
+@ToString
+public class SerDeSchema<T> implements Schema<T> {
+
+    private final SerDe<T> serDe;
+
     @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output);
+    public byte[] encode(T value) {
+        return serDe.serialize(value);
+    }
+
+    @Override
+    public T decode(byte[] bytes) {
+        return serDe.deserialize(bytes);
+    }
+
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        // Do not persist schema information
         return null;
     }
+
 }

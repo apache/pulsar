@@ -19,32 +19,37 @@
 package org.apache.pulsar.functions.instance.producers;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 
 @Slf4j
-public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicProducers {
+public class MultiConsumersOneOuputTopicProducers<T> extends AbstractOneOuputTopicProducers<T> {
 
     @Getter(AccessLevel.PACKAGE)
     // PartitionId -> producer
-    private final Map<String, Producer<byte[]>> producers;
+    private final Map<String, Producer<T>> producers;
+
+    private final Schema<T> schema;
 
 
     public MultiConsumersOneOuputTopicProducers(PulsarClient client,
-                                                String outputTopic)
+                                                String outputTopic, Schema<T> schema)
             throws PulsarClientException {
         super(client, outputTopic);
         this.producers = new ConcurrentHashMap<>();
+        this.schema = schema;
     }
 
     @Override
@@ -57,10 +62,10 @@ public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicP
     }
 
     @Override
-    public synchronized Producer<byte[]> getProducer(String srcPartitionId) throws PulsarClientException {
-        Producer<byte[]> producer = producers.get(srcPartitionId);
+    public synchronized Producer<T> getProducer(String srcPartitionId) throws PulsarClientException {
+        Producer<T> producer = producers.get(srcPartitionId);
         if (null == producer) {
-            producer = createProducer(outputTopic, srcPartitionId);
+            producer = createProducer(outputTopic, srcPartitionId, schema);
             producers.put(srcPartitionId, producer);
         }
         return producer;
@@ -68,7 +73,7 @@ public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicP
 
     @Override
     public synchronized void closeProducer(String srcPartitionId) {
-        Producer<byte[]> producer = producers.get(srcPartitionId);
+        Producer<T> producer = producers.get(srcPartitionId);
         if (null != producer) {
             producer.closeAsync();
             producers.remove(srcPartitionId);
@@ -78,7 +83,7 @@ public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicP
     @Override
     public synchronized void close() {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>(producers.size());
-        for (Producer<byte[]> producer: producers.values()) {
+        for (Producer<T> producer: producers.values()) {
             closeFutures.add(producer.closeAsync());
         }
         try {

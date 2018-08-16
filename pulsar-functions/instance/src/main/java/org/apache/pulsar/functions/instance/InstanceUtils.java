@@ -18,29 +18,48 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import lombok.experimental.UtilityClass;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.utils.Reflections;
 
+import net.jodah.typetools.TypeResolver;
+
+@UtilityClass
 public class InstanceUtils {
-    public static SerDe initializeSerDe(String serdeClassName, ClassLoader clsLoader,
-                                        Class<?> type) {
-        if (null == serdeClassName || serdeClassName.isEmpty()) {
-            return null;
-        } else if (serdeClassName.equals(DefaultSerDe.class.getName())) {
-            return initializeDefaultSerDe(type);
-        } else {
-            return Reflections.createInstance(
-                    serdeClassName,
-                    SerDe.class,
-                    clsLoader);
-        }
+    public static SerDe<?> initializeSerDe(String serdeClassName, ClassLoader clsLoader, Class<?> typeArg) {
+        SerDe<?> serDe = createInstance(serdeClassName, clsLoader, SerDe.class);
+
+        Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+        checkArgument(typeArg.isAssignableFrom(inputSerdeTypeArgs[0]),
+                "Inconsistent types found between function input type and input serde type: "
+                        + " function type = " + typeArg + " should be assignable from "
+                        + inputSerdeTypeArgs[0]);
+
+        return serDe;
     }
 
-    public static SerDe initializeDefaultSerDe(Class<?> type) {
-        if (!DefaultSerDe.IsSupportedType(type)) {
-            throw new RuntimeException("Default Serializer does not support " + type);
+    public static Schema<?> initializeCustomSchema(String schemaClassName, ClassLoader clsLoader, Class<?> typeArg) {
+        Schema<?> schema = createInstance(schemaClassName, clsLoader, Schema.class);
+
+        Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(Schema.class, schema.getClass());
+        checkArgument(typeArg.isAssignableFrom(inputSerdeTypeArgs[0]),
+                "Inconsistent types found between function input type and input schema type: "
+                        + " function type = " + typeArg + " should be assignable from "
+                        + inputSerdeTypeArgs[0]);
+
+        return schema;
+    }
+
+    private static <T> T createInstance(String className, ClassLoader clsLoader, Class<T> baseClass) {
+        if (StringUtils.isEmpty(className)) {
+            return null;
+        } else {
+            return Reflections.createInstance(className, baseClass, clsLoader);
         }
-        return new DefaultSerDe(type);
     }
 }
