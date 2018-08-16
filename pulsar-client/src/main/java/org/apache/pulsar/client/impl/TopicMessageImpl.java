@@ -19,12 +19,8 @@
 
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkState;
-import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
-
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -38,17 +34,13 @@ public class TopicMessageImpl<T> implements Message<T> {
     private final TopicMessageIdImpl messageId;
 
     TopicMessageImpl(String topicPartitionName,
+                     String topicName,
                      Message<T> msg) {
         this.topicPartitionName = topicPartitionName;
-        int position = topicPartitionName.lastIndexOf(PARTITIONED_TOPIC_SUFFIX);
-        if (position != -1) {
-            this.topicName = topicPartitionName.substring(0, position);
-        } else {
-            this.topicName = topicPartitionName;
-        }
+        this.topicName = topicName;
 
         this.msg = msg;
-        this.messageId = new TopicMessageIdImpl(topicPartitionName, msg.getMessageId());
+        this.messageId = new TopicMessageIdImpl(topicPartitionName, topicName, msg.getMessageId());
     }
 
     /**

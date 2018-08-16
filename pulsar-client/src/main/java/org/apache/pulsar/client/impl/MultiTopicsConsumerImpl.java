@@ -231,7 +231,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkArgument(message instanceof MessageImpl);
         lock.writeLock().lock();
         try {
-            TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(), message);
+            TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(
+                consumer.getTopic(), consumer.getTopicNameWithoutPartition(), message);
             unAckedMessageTracker.add(topicMessage.getMessageId());
 
             if (log.isDebugEnabled()) {
@@ -370,7 +371,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         if (ackType == AckType.Cumulative) {
-            Consumer individualConsumer = consumers.get(topicMessageId.getTopicName());
+            Consumer individualConsumer = consumers.get(topicMessageId.getTopicPartitionName());
             if (individualConsumer != null) {
                 MessageId innerId = topicMessageId.getInnerMessageId();
                 return individualConsumer.acknowledgeCumulativeAsync(innerId);
@@ -378,7 +379,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
             }
         } else {
-            ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicName());
+            ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
 
             MessageId innerId = topicMessageId.getInnerMessageId();
             return consumer.doAcknowledge(innerId, ackType, properties)

@@ -31,16 +31,10 @@ public class TopicMessageIdImpl implements MessageId {
     private final String topicName;
     private final MessageId messageId;
 
-    TopicMessageIdImpl(String topicPartitionName, MessageId messageId) {
+    TopicMessageIdImpl(String topicPartitionName, String topicName, MessageId messageId) {
         this.messageId = messageId;
         this.topicPartitionName = topicPartitionName;
-
-        int position = topicPartitionName.lastIndexOf(PARTITIONED_TOPIC_SUFFIX);
-        if (position != -1) {
-            this.topicName = topicPartitionName.substring(0, position);
-        } else {
-            this.topicName = topicPartitionName;
-        }
+        this.topicName = topicName;
     }
 
     /**
