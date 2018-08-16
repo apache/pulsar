@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +56,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private final PulsarClient pulsarClient;
     private final PulsarSourceConfig pulsarSourceConfig;
     private List<String> inputTopics;
-    private final List<Consumer<T>> inputConsumers = new ArrayList<>();
+    private List<Consumer<T>> inputConsumers;
     private final TopicSchema topicSchema;
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
@@ -72,7 +71,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
         Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
 
-        configs.entrySet().stream().map(e -> {
+        inputConsumers = configs.entrySet().stream().map(e -> {
             String topic = e.getKey();
             ConsumerConfig<T> conf = e.getValue();
             log.info("Creating consumers for topic : {}",  topic);
@@ -94,7 +93,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             }
 
             return cb.subscribeAsync();
-        }).collect(Collectors.toList()).stream().map(CompletableFuture::join).map(inputConsumers::add);
+        }).collect(Collectors.toList()).stream().map(CompletableFuture::join).collect(Collectors.toList());
 
         inputTopics = inputConsumers.stream().flatMap(c -> {
             return (c instanceof MultiTopicsConsumerImpl) ? ((MultiTopicsConsumerImpl<?>) c).getTopics().stream()

@@ -76,7 +76,7 @@ message SourceSpec {
     SubscriptionType subscriptionType = 3;
 
 	// @deprecated -- use topicsToSchema
-    map<string,string> topicsToSerDeClassName = 4;
+    map<string,string> topicsToSerDeClassName = 4 [deprecated = true];
 
 	/**
 	 *
