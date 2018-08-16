@@ -31,7 +31,7 @@ import com.google.common.collect.Lists;
 
 /**
  * Concurrent hash map
- * 
+ *
  * Provides similar methods as a ConcurrentMap<K,V> but since it's an open hash map with linear probing, no node
  * allocations are required to store the values
  *
@@ -180,9 +180,9 @@ public class ConcurrentOpenHashMap<K, V> {
     @SuppressWarnings("serial")
     private static final class Section<K, V> extends StampedLock {
         // Keys and values are stored interleaved in the table array
-        private Object[] table;
+        private volatile Object[] table;
 
-        private int capacity;
+        private volatile int capacity;
         private volatile int size;
         private int usedBuckets;
         private int resizeThreshold;
