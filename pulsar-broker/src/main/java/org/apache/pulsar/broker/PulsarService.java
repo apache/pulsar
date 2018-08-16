@@ -62,7 +62,7 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.offload.TieredStorageConfigurationData;
+import org.apache.pulsar.common.offload.TieredStorageConfigurationData;
 import org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -660,14 +660,13 @@ public class PulsarService implements AutoCloseable {
     static final String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
     static final String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
 
-
     public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
             throws PulsarServerException {
         if (conf.getManagedLedgerOffloadDriver() != null
             && BlobStoreManagedLedgerOffloader.driverSupported(conf.getManagedLedgerOffloadDriver())) {
             try {
                 return BlobStoreManagedLedgerOffloader.create(
-                    getTieredStorageConf(conf),
+                    getTieredStorageConf(),
                     ImmutableMap.of(
                         METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
                         METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getGitSha()
@@ -681,23 +680,23 @@ public class PulsarService implements AutoCloseable {
         }
     }
 
-    private static TieredStorageConfigurationData getTieredStorageConf(ServiceConfiguration serverConf) {
+    public TieredStorageConfigurationData getTieredStorageConf() {
         TieredStorageConfigurationData tsConf = new TieredStorageConfigurationData();
         // generic settings
-        tsConf.setManagedLedgerOffloadDriver(serverConf.getManagedLedgerOffloadDriver());
-        tsConf.setManagedLedgerOffloadMaxThreads(serverConf.getManagedLedgerOffloadMaxThreads());
+        tsConf.setManagedLedgerOffloadDriver(config.getManagedLedgerOffloadDriver());
+        tsConf.setManagedLedgerOffloadMaxThreads(config.getManagedLedgerOffloadMaxThreads());
         // s3 settings
-        tsConf.setS3ManagedLedgerOffloadRegion(serverConf.getS3ManagedLedgerOffloadRegion());
-        tsConf.setS3ManagedLedgerOffloadBucket(serverConf.getS3ManagedLedgerOffloadBucket());
-        tsConf.setS3ManagedLedgerOffloadServiceEndpoint(serverConf.getS3ManagedLedgerOffloadServiceEndpoint());
-        tsConf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(serverConf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
-        tsConf.setS3ManagedLedgerOffloadReadBufferSizeInBytes(serverConf.getS3ManagedLedgerOffloadReadBufferSizeInBytes());
+        tsConf.setS3ManagedLedgerOffloadRegion(config.getS3ManagedLedgerOffloadRegion());
+        tsConf.setS3ManagedLedgerOffloadBucket(config.getS3ManagedLedgerOffloadBucket());
+        tsConf.setS3ManagedLedgerOffloadServiceEndpoint(config.getS3ManagedLedgerOffloadServiceEndpoint());
+        tsConf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(config.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
+        tsConf.setS3ManagedLedgerOffloadReadBufferSizeInBytes(config.getS3ManagedLedgerOffloadReadBufferSizeInBytes());
         // gcs settings
-        tsConf.setGcsManagedLedgerOffloadRegion(serverConf.getGcsManagedLedgerOffloadRegion());
-        tsConf.setGcsManagedLedgerOffloadBucket(serverConf.getGcsManagedLedgerOffloadBucket());
-        tsConf.setGcsManagedLedgerOffloadServiceAccountKeyFile(serverConf.getGcsManagedLedgerOffloadServiceAccountKeyFile());
-        tsConf.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(serverConf.getGcsManagedLedgerOffloadMaxBlockSizeInBytes());
-        tsConf.setGcsManagedLedgerOffloadReadBufferSizeInBytes(serverConf.getGcsManagedLedgerOffloadReadBufferSizeInBytes());
+        tsConf.setGcsManagedLedgerOffloadRegion(config.getGcsManagedLedgerOffloadRegion());
+        tsConf.setGcsManagedLedgerOffloadBucket(config.getGcsManagedLedgerOffloadBucket());
+        tsConf.setGcsManagedLedgerOffloadServiceAccountKeyFile(config.getGcsManagedLedgerOffloadServiceAccountKeyFile());
+        tsConf.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(config.getGcsManagedLedgerOffloadMaxBlockSizeInBytes());
+        tsConf.setGcsManagedLedgerOffloadReadBufferSizeInBytes(config.getGcsManagedLedgerOffloadReadBufferSizeInBytes());
         return tsConf;
     }
 
@@ -971,7 +970,8 @@ public class PulsarService implements AutoCloseable {
             InternalConfigurationData internalConf = new InternalConfigurationData(
                     this.getConfiguration().getZookeeperServers(),
                     this.getConfiguration().getConfigurationStoreServers(),
-                    new ClientConfiguration().getZkLedgersRootPath());
+                    new ClientConfiguration().getZkLedgersRootPath(),
+                    getTieredStorageConf());
 
             URI dlogURI;
             try {

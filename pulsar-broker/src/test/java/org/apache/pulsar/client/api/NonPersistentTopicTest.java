@@ -770,7 +770,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(invocationCount=100, skipFailedInvocations=true)
     public void testMsgDropStat() throws Exception {
 
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();

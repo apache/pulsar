@@ -42,7 +42,7 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.broker.offload.BlockAwareSegmentInputStream;
 import org.apache.pulsar.broker.offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.offload.OffloadIndexBlockBuilder;
-import org.apache.pulsar.broker.offload.TieredStorageConfigurationData;
+import org.apache.pulsar.common.offload.TieredStorageConfigurationData;
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;

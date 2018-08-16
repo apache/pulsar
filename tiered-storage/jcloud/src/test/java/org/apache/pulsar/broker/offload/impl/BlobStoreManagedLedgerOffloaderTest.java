@@ -53,7 +53,7 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.offload.BlobStoreTestBase;
-import org.apache.pulsar.broker.offload.TieredStorageConfigurationData;
+import org.apache.pulsar.common.offload.TieredStorageConfigurationData;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;

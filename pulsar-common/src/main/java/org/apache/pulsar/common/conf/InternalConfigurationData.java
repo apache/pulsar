@@ -18,61 +18,27 @@
  */
 package org.apache.pulsar.common.conf;
 
-import com.google.common.base.MoreObjects;
-import java.util.Objects;
+import lombok.Data;
+import org.apache.pulsar.common.offload.TieredStorageConfigurationData;
 
+@Data
 public class InternalConfigurationData {
 
     private String zookeeperServers;
     private String configurationStoreServers;
     private String ledgersRootPath;
-
+    private TieredStorageConfigurationData tieredStorageConfigurationData;
+    
     public InternalConfigurationData() {
     }
 
     public InternalConfigurationData(String zookeeperServers,
                                      String configurationStoreServers,
-                                     String ledgersRootPath) {
+                                     String ledgersRootPath,
+                                     TieredStorageConfigurationData tieredStorageConfigurationData) {
         this.zookeeperServers = zookeeperServers;
         this.configurationStoreServers = configurationStoreServers;
         this.ledgersRootPath = ledgersRootPath;
+        this.tieredStorageConfigurationData = tieredStorageConfigurationData;
     }
-
-    public String getZookeeperServers() {
-        return zookeeperServers;
-    }
-
-    public String getConfigurationStoreServers() {
-        return configurationStoreServers;
-    }
-
-    public String getLedgersRootPath() {
-        return ledgersRootPath;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (!(obj instanceof InternalConfigurationData)) {
-            return false;
-        }
-        InternalConfigurationData other = (InternalConfigurationData) obj;
-        return Objects.equals(zookeeperServers, other.zookeeperServers)
-            && Objects.equals(configurationStoreServers, other.configurationStoreServers)
-            && Objects.equals(ledgersRootPath, other.ledgersRootPath);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(zookeeperServers, configurationStoreServers, ledgersRootPath);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("zookeeperServers", zookeeperServers)
-            .add("configurationStoreServers", configurationStoreServers)
-            .add("ledgersRootPath", ledgersRootPath)
-            .toString();
-    }
-
 }
