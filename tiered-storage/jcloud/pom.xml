@@ -42,7 +42,7 @@
       <groupId>org.apache.pulsar</groupId>
       <artifactId>jclouds-shaded</artifactId>
       <version>${project.version}</version>
-        <!--
+      <!--
       <exclusions>
         <exclusion>
           <groupId>com.google.code.gson</groupId>
