@@ -79,7 +79,7 @@ spec:
                             topologyKey: "kubernetes.io/hostname"
             containers:
               - name: zookeeper
-                image: apachepulsar/pulsar:latest
+                image: apachepulsar/pulsar-all:latest
                 command: ["sh", "-c"]
                 args:
                   - >

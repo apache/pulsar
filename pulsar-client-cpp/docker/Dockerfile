@@ -54,12 +54,12 @@ RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_0_2l.tar.gz 
     rm -rf /OpenSSL_1_0_2l.tar.gz /openssl-OpenSSL_1_0_2l
 
 # Download and compile boost
-RUN curl -O -L https://dl.bintray.com/boostorg/release/1.64.0/source/boost_1_64_0.tar.gz && \
-    tar xvfz boost_1_64_0.tar.gz && \
-    cd /boost_1_64_0 && \
+RUN curl -O -L https://dl.bintray.com/boostorg/release/1.68.0/source/boost_1_68_0.tar.gz && \
+    tar xvfz boost_1_68_0.tar.gz && \
+    cd /boost_1_68_0 && \
     ./bootstrap.sh --with-libraries=program_options,filesystem,regex,thread,system,python && \
     ./b2 address-model=64 cxxflags=-fPIC link=static threading=multi variant=release install && \
-    rm -rf /boost_1_64_0.tar.gz /boost_1_64_0
+    rm -rf /boost_1_68_0.tar.gz /boost_1_68_0
 
 # Download and copile protoubf
 RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.tar.gz && \
@@ -110,12 +110,12 @@ RUN curl -O -L  https://github.com/libexpat/libexpat/archive/R_2_2_0.tar.gz && \
     make && make installlib && \
     rm -rf /R_2_2_0.tar.gz /libexpat-R_2_2_0
 
-RUN curl -O -L https://github.com/Kitware/CMake/archive/v3.8.2.tar.gz && \
-    tar xvfz v3.8.2.tar.gz && \
-    cd CMake-3.8.2 && \
+RUN curl -O -L https://github.com/Kitware/CMake/archive/v3.12.1.tar.gz && \
+    tar xvfz v3.12.1.tar.gz && \
+    cd CMake-3.12.1 && \
     ./configure && \
     make && make install && \
-    rm -rf /v3.8.2.tar.gz /CMake-3.8.2
+    rm -rf /v3.12.1.tar.gz /CMake-3.12.1
 
 # Compile JSON CPP
 RUN curl -O -L  https://github.com/open-source-parsers/jsoncpp/archive/1.8.0.tar.gz && \
