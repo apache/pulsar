@@ -22,10 +22,9 @@ package org.apache.pulsar.functions.runtime;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.StringConverter;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.Empty;
+import com.google.protobuf.util.JsonFormat;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -33,21 +32,16 @@ import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
-import org.apache.pulsar.functions.utils.ConsumerConfig;
-import org.inferred.freebuilder.shaded.org.apache.commons.lang3.StringUtils;
 
-import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
@@ -60,24 +54,13 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 public class JavaInstanceMain implements AutoCloseable {
-    @Parameter(names = "--function_classname", description = "Function Class Name\n", required = true)
-    protected String className;
+    @Parameter(names = "--function_details", description = "Function details json\n", required = true)
+    protected String functionDetailsJsonString;
     @Parameter(
             names = "--jar",
             description = "Path to Jar\n",
             listConverter = StringConverter.class)
     protected String jarFile;
-    @Parameter(names = "--name", description = "Function Name\n", required = true)
-    protected String functionName;
-    @Parameter(names = "--tenant", description = "Tenant Name\n", required = true)
-    protected String tenant;
-    @Parameter(names = "--namespace", description = "Namespace Name\n", required = true)
-    protected String namespace;
-    @Parameter(names = "--log_topic", description = "Log Topic")
-    protected String logTopic;
-
-    @Parameter(names = "--processing_guarantees", description = "Processing Guarantees\n", required = true)
-    protected ProcessingGuarantees processingGuarantees;
 
     @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
     protected String instanceId;
@@ -118,48 +101,6 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
     protected int maxBufferedTuples;
 
-    @Parameter(names = "--user_config", description = "UserConfig\n")
-    protected String userConfig;
-
-    @Parameter(names = "--auto_ack", description = "Enable Auto Acking?\n")
-    protected String autoAck = Boolean.TRUE.toString();
-
-    @Parameter(names = "--source_classname", description = "The source classname")
-    protected String sourceClassname;
-
-    @Parameter(names = "--source_configs", description = "The source configs")
-    protected String sourceConfigs;
-
-    @Parameter(names = "--source_type_classname", description = "The return type of the source", required = true)
-    protected String sourceTypeClassName;
-
-    @Parameter(names = "--source_subscription_type", description = "The source subscription type", required = true)
-    protected String sourceSubscriptionType;
-
-    @Parameter(names = "--source_topics_schema", description = "A map of topics to Schema for the source")
-    protected String sourceTopicsSchemaString;
-
-    @Parameter(names = "--source_timeout_ms", description = "Source message timeout in milliseconds")
-    protected Long sourceTimeoutMs;
-
-    @Parameter(names = "--sink_type_classname", description = "The injest type of the sink", required = true)
-    protected String sinkTypeClassName;
-
-    @Parameter(names = "--sink_configs", description = "The sink configs\n")
-    protected String sinkConfigs;
-
-    @Parameter(names = "--sink_classname", description = "The sink classname\n")
-    protected String sinkClassname;
-
-    @Parameter(names = "--sink_topic", description = "The sink Topic Name\n")
-    protected String sinkTopic;
-
-    @Parameter(names = "--sink_topic_schema_type", description = "The sink Topic schema\n")
-    protected String sinkSchemaTypeOrClassName;
-
-    @Parameter(names = "--sink_serde_classname", description = "Sink SerDe\n")
-    protected String sinkSerdeClassName;
-
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -176,63 +117,7 @@ public class JavaInstanceMain implements AutoCloseable {
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        functionDetailsBuilder.setTenant(tenant);
-        functionDetailsBuilder.setNamespace(namespace);
-        functionDetailsBuilder.setName(functionName);
-        functionDetailsBuilder.setClassName(className);
-
-        if (logTopic != null) {
-            functionDetailsBuilder.setLogTopic(logTopic);
-        }
-        functionDetailsBuilder.setProcessingGuarantees(processingGuarantees);
-        functionDetailsBuilder.setAutoAck(isTrue(autoAck));
-        if (userConfig != null && !userConfig.isEmpty()) {
-            functionDetailsBuilder.setUserConfig(userConfig);
-        }
-
-        // Setup source
-        SourceSpec.Builder sourceDetailsBuilder = SourceSpec.newBuilder();
-        if (sourceClassname != null) {
-            sourceDetailsBuilder.setClassName(sourceClassname);
-        }
-        if (sourceConfigs != null && !sourceConfigs.isEmpty()) {;
-            sourceDetailsBuilder.setConfigs(sourceConfigs);
-        }
-        sourceDetailsBuilder.setSubscriptionType(Function.SubscriptionType.valueOf(sourceSubscriptionType));
-
-        Type type = new TypeToken<Map<String, ConsumerSpec>>(){}.getType();
-
-        Map<String, ConsumerSpec> topicsSchema = new Gson().fromJson(sourceTopicsSchemaString, type);
-
-        sourceDetailsBuilder.putAllTopicsToSchema(topicsSchema);
-        sourceDetailsBuilder.setTypeClassName(sourceTypeClassName);
-        if (sourceTimeoutMs != null) {
-            sourceDetailsBuilder.setTimeoutMs(sourceTimeoutMs);
-        }
-        functionDetailsBuilder.setSource(sourceDetailsBuilder);
-
-        // Setup sink
-        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-        if (sinkClassname != null) {
-            sinkSpecBuilder.setClassName(sinkClassname);
-        }
-        if (sinkConfigs != null) {
-            sinkSpecBuilder.setConfigs(sinkConfigs);
-        }
-        if (sinkSerdeClassName != null) {
-            sinkSpecBuilder.setSerDeClassName(sinkSerdeClassName);
-        }
-        sinkSpecBuilder.setTypeClassName(sinkTypeClassName);
-        if (sinkTopic != null && !sinkTopic.isEmpty()) {
-            sinkSpecBuilder.setTopic(sinkTopic);
-        }
-
-        if (!StringUtils.isEmpty(sinkSchemaTypeOrClassName)) {
-            sinkSpecBuilder.setSchemaTypeOrClassName(sinkSchemaTypeOrClassName);
-        }
-
-        functionDetailsBuilder.setSink(sinkSpecBuilder);
-
+        JsonFormat.parser().merge(functionDetailsJsonString, functionDetailsBuilder);
         FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
