@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -597,48 +598,40 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);
         }
         if (maxRedeliveryCount > 0 && redeliveryTracker != null) {
-            Set<PositionImpl> toDeadLetterTopic = new HashSet<>();
-            positions.forEach(position -> {
+            for (PositionImpl position : positions) {
                 if (redeliveryTracker.incrementAndGetRedeliveryCount(position) <= maxRedeliveryCount) {
                     messagesToReplay.add(position.getLedgerId(), position.getEntryId());
                 } else {
-                    toDeadLetterTopic.add(position);
-                }
-            });
-            // process messages to dead letter topic
-            if (toDeadLetterTopic.size() > 0) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Messages will send to dead letter topic {}, messages {}", name, consumer, deadLetterTopic, positions);
-                }
-                try {
-                    for (Entry entry : cursor.replayEntries(toDeadLetterTopic)) {
-                        PositionImpl position = (PositionImpl) entry.getPosition();
-                        try {
-                            ByteBuf headersAndPayload = entry.getDataBuffer();
-                            MessageImpl<byte[]> msg;
+                    try {
+                        Entry entry = cursor.readEntry(position);
+                        if (entry != null) {
                             try {
-                                msg = MessageImpl.deserialize(headersAndPayload);
-                            } catch (Throwable t) {
-                                log.error("[{}-{}] Failed to deserialize message at {} (buffer size: {}): {}", name, consumer,
-                                        entry.getPosition(), entry.getLedgerId(), t.getMessage(), t);
+                                ByteBuf headersAndPayload = entry.getDataBuffer();
+                                MessageImpl<byte[]> msg;
+                                try {
+                                    msg = MessageImpl.deserialize(headersAndPayload);
+                                } catch (Throwable t) {
+                                    log.error("[{}-{}] Failed to deserialize message at {} (buffer size: {}): {}", name, consumer,
+                                            entry.getPosition(), entry.getLedgerId(), t.getMessage(), t);
+                                    cursor.asyncDelete(position, deleteCallback, position);
+                                    redeliveryTracker.remove(position);
+                                    entry.release();
+                                    continue;
+                                }
+                                headersAndPayload.retain();
+                                msg.setReplicatedFrom("DLQ");
+                                deadLetterTopicProducer.send(msg);
                                 cursor.asyncDelete(position, deleteCallback, position);
-                                entry.release();
+                                redeliveryTracker.remove(position);
+                            } catch (Throwable e) {
+                                log.error("[{}-{}] Fail to send message to dead letter topic {}", name, consumer, deadLetterTopic);
                                 messagesToReplay.add(position.getLedgerId(), position.getEntryId());
-                                continue;
                             }
-                            headersAndPayload.retain();
-                            msg.setReplicatedFrom("DLQ");
-                            deadLetterTopicProducer.send(msg);
-                            cursor.asyncDelete(position, deleteCallback, position);
-                            redeliveryTracker.remove(position);
-                        } catch (Throwable e) {
-                            log.error("[{}-{}] Fail to send message to dead letter topic {}", name, consumer, deadLetterTopic);
-                            messagesToReplay.add(position.getLedgerId(), position.getEntryId());
                         }
+                    } catch (Throwable e) {
+                        log.error("[{}-{}] Read entries Fail", name, consumer);
+                        messagesToReplay.add(position.getLedgerId(), position.getEntryId());
                     }
-                } catch (Throwable e) {
-                    log.error("[{}-{}] Replay entries Fail", name, consumer);
-                    toDeadLetterTopic.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
                 }
             }
         } else {
