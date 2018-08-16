@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.offload.impl;
+package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import org.apache.pulsar.broker.offload.OffloadIndexEntry;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 
 /**
  *

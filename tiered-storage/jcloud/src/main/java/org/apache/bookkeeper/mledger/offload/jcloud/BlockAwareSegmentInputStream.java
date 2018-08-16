@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.offload;
+package org.apache.bookkeeper.mledger.offload.jcloud;
 
 import java.io.InputStream;
 import org.apache.bookkeeper.client.api.ReadHandle;
