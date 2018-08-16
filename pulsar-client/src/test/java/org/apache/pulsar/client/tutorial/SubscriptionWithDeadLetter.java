@@ -28,7 +28,7 @@ public class SubscriptionWithDeadLetter {
 
     private static final int maxRedeliveryCount = 2;
 
-    private static final int sendMessages = 10000;
+    private static final int sendMessages = 500;
 
     public static void main(String[] args) throws PulsarClientException {
 
@@ -46,7 +46,7 @@ public class SubscriptionWithDeadLetter {
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(60, TimeUnit.SECONDS)
+                .ackTimeout(10, TimeUnit.SECONDS)
                 .maxRedeliveryCount(maxRedeliveryCount)
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -73,6 +73,44 @@ public class SubscriptionWithDeadLetter {
 
         deadLetterConsumer.close();
         consumer.close();
+
+        // test subscribe changed
+        for (int i = 0; i < sendMessages; i++) {
+            producer.send("Hello Pulsar!".getBytes());
+        }
+
+        Consumer<byte[]> consumer2 = client.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .maxRedeliveryCount(maxRedeliveryCount)
+                .receiverQueueSize(100)
+                .deadLetterTopic("persistent://public/default/my-topic-my-subscription-custom-DLQ")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Consumer<byte[]> deadLetterConsumer2 = client.newConsumer(Schema.BYTES)
+                .topic("persistent://public/default/my-topic-my-subscription-custom-DLQ")
+                .subscriptionName("my-subscription")
+                .subscribe();
+
+        int totalReceived2 = 0;
+        do {
+            Message<byte[]> msg = consumer2.receive();
+            totalReceived2++;
+            System.out.println(new String(msg.getData()));
+        } while (totalReceived2 < sendMessages * (maxRedeliveryCount + 1));
+
+        int totalInDeadLetter2 = 0;
+        do {
+            Message<byte[]> msg = deadLetterConsumer2.receive();
+            totalInDeadLetter2++;
+            System.out.println(new String(msg.getData()));
+        } while (totalInDeadLetter2 < sendMessages);
+
+        deadLetterConsumer2.close();
+        consumer2.close();
         producer.close();
         client.close();
     }

@@ -27,6 +27,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -61,8 +63,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public Entry readEntry(PositionImpl position) throws InterruptedException, ManagedLedgerException {
+        public Entry readEntry(PositionImpl position) throws InterruptedException, ExecutionException {
             return null;
+        }
+
+
+        @Override
+        public void asyncReadEntry(PositionImpl position, ReadEntryCallback callback, Object ctx) {
+
         }
 
         @Override
