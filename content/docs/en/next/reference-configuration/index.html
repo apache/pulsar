@@ -157,7 +157,7 @@
 <tr><td>brokerDeduplicationEntriesInterval</td><td>The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).</td><td>1000</td></tr>
 <tr><td>brokerDeduplicationProducerInactivityTimeoutMinutes</td><td>The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer.</td><td>360</td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td>Zookeeper session timeout in milliseconds</td><td>30000</td></tr>
-<tr><td>brokerShutdownTimeoutMs</td><td>Time to wait for broker graceful shutdown. After this time elapses, the process will be killed</td><td>3000</td></tr>
+<tr><td>brokerShutdownTimeoutMs</td><td>Time to wait for broker graceful shutdown. After this time elapses, the process will be killed</td><td>60000</td></tr>
 <tr><td>backlogQuotaCheckEnabled</td><td>Enable backlog quota check. Enforces action on topic when the quota is reached</td><td>true</td></tr>
 <tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the quota</td><td>60</td></tr>
 <tr><td>backlogQuotaDefaultLimitGB</td><td>Default per-topic backlog quota limit</td><td>10</td></tr>
@@ -343,7 +343,7 @@
 <tr><td>advertisedAddress</td><td>The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.</td><td></td></tr>
 <tr><td>clusterName</td><td>The name of the cluster that this broker belongs to.</td><td>standalone</td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td>The ZooKeeper session timeout, in milliseconds.</td><td>30000</td></tr>
-<tr><td>brokerShutdownTimeoutMs</td><td>The time to wait for graceful broker shutdown. After this time elapses, the process will be killed.</td><td>3000</td></tr>
+<tr><td>brokerShutdownTimeoutMs</td><td>The time to wait for graceful broker shutdown. After this time elapses, the process will be killed.</td><td>60000</td></tr>
 <tr><td>backlogQuotaCheckEnabled</td><td>Enable the backlog quota check, which enforces a specified action when the quota is reached.</td><td>true</td></tr>
 <tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the backlog quota.</td><td>60</td></tr>
 <tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit.</td><td>10</td></tr>
