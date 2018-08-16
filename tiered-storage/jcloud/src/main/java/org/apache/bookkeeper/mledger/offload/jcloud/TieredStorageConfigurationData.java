@@ -18,14 +18,19 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
+import static org.apache.pulsar.common.util.FieldParser.value;
+
 import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Properties;
 import lombok.Data;
 
 /**
  * Configuration for tiered storage.
  */
 @Data
-public class TieredStorageConfigurationData implements Serializable, Cloneable{
+public class TieredStorageConfigurationData implements Serializable, Cloneable {
 
     /**** --- Ledger Offloading --- ****/
     // Driver to use to offload old data to long term storage
@@ -65,5 +70,28 @@ public class TieredStorageConfigurationData implements Serializable, Cloneable{
     // For Google Cloud Storage, path to json file containing service account credentials.
     // For more details, see the "Service Accounts" section of https://support.google.com/googleapi/answer/6158849
     private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
+
+    /**
+     * Create a tiered storage configuration from the provided <tt>properties</tt>.
+     *
+     * @param properties the configuration properties
+     * @return tiered storage configuration
+     */
+    public static TieredStorageConfigurationData create(Properties properties) {
+        TieredStorageConfigurationData data = new TieredStorageConfigurationData();
+        Field[] fields = TieredStorageConfigurationData.class.getDeclaredFields();
+        Arrays.stream(fields).forEach(f -> {
+            if (properties.containsKey(f.getName())) {
+                try {
+                    f.setAccessible(true);
+                    f.set(data, value((String) properties.get(f.getName()), f));
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(String.format("failed to initialize %s field while setting value %s",
+                            f.getName(), properties.get(f.getName())), e);
+                }
+            }
+        });
+        return data;
+    }
 
 }
