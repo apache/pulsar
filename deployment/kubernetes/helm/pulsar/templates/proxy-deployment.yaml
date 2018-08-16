@@ -83,7 +83,7 @@ spec:
         command: ["sh", "-c"]
         args:
           - >-
-            until nslookup {{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}-{{ add (.Values.zookeeper.replicaCount | int) -1 }}.{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}.{{ .Values.namespace }}; do
+            until bin/pulsar zookeeper-shell -server {{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }} ls /admin/clusters/{{ template "pulsar.fullname" . }}; do
               sleep 3;
             done;
       containers:
