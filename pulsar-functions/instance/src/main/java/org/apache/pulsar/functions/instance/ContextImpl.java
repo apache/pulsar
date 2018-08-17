@@ -149,8 +149,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     @Override
     public String getOutputSchemaType() {
         SinkSpec sink = config.getFunctionDetails().getSink();
-        if (!StringUtils.isEmpty(sink.getSchemaTypeOrClassName())) {
-            return sink.getSchemaTypeOrClassName();
+        if (!StringUtils.isEmpty(sink.getSchemaType())) {
+            return sink.getSchemaType();
         } else {
             return sink.getSerDeClassName();
         }

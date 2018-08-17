@@ -57,7 +57,7 @@ public class PulsarSourceTest {
     private static Map<String, ConsumerConfig> consumerConfigs = new HashMap<>();
     static {
         consumerConfigs.put("persistent://sample/standalone/ns1/test_result", ConsumerConfig.builder()
-                .schemaTypeOrClassName(TopicSchema.DEFAULT_SERDE).isRegexPattern(false).build());
+                .serdeClassName(TopicSchema.DEFAULT_SERDE).isRegexPattern(false).build());
     }
 
     public static class TestSerDe implements SerDe<String> {
@@ -151,7 +151,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTypeClassName(Integer.class.getName());
         Map<String, ConsumerConfig> topicSerdeClassNameMap = new HashMap<>();
         topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result",
-                ConsumerConfig.builder().schemaTypeOrClassName(TestSerDe.class.getName()).build());
+                ConsumerConfig.builder().serdeClassName(TestSerDe.class.getName()).build());
         pulsarConfig.setTopicSchema(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
         try {
@@ -176,7 +176,7 @@ public class PulsarSourceTest {
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
         consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
-                ConsumerConfig.builder().schemaTypeOrClassName(TopicSchema.DEFAULT_SERDE).build());
+                ConsumerConfig.builder().serdeClassName(TopicSchema.DEFAULT_SERDE).build());
         pulsarConfig.setTopicSchema(consumerConfigs);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
@@ -192,7 +192,7 @@ public class PulsarSourceTest {
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
         consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
-                ConsumerConfig.builder().schemaTypeOrClassName(TopicSchema.DEFAULT_SERDE).build());
+                ConsumerConfig.builder().serdeClassName(TopicSchema.DEFAULT_SERDE).build());
         pulsarConfig.setTopicSchema(consumerConfigs);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
@@ -205,7 +205,7 @@ public class PulsarSourceTest {
         // set type to void
         pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
         consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
-                ConsumerConfig.builder().schemaTypeOrClassName(ComplexSerDe.class.getName()).build());
+                ConsumerConfig.builder().serdeClassName(ComplexSerDe.class.getName()).build());
         pulsarConfig.setTopicSchema(consumerConfigs);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 

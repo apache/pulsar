@@ -85,7 +85,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = new PulsarSinkConfig();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         pulsarConfig.setTopic(TOPIC);
-        pulsarConfig.setSchemaTypeOrClassName(TopicSchema.DEFAULT_SERDE);
+        pulsarConfig.setSerdeClassName(TopicSchema.DEFAULT_SERDE);
         pulsarConfig.setTypeClassName(String.class.getName());
         return pulsarConfig;
     }
@@ -133,7 +133,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to be inconsistent to that of SerDe
         pulsarConfig.setTypeClassName(Integer.class.getName());
-        pulsarConfig.setSchemaTypeOrClassName(TestSerDe.class.getName());
+        pulsarConfig.setSerdeClassName(TestSerDe.class.getName());
         PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
         try {
             pulsarSink.initializeSchema();
@@ -174,7 +174,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
-        pulsarConfig.setSchemaTypeOrClassName(TopicSchema.DEFAULT_SERDE);
+        pulsarConfig.setSerdeClassName(TopicSchema.DEFAULT_SERDE);
         PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
 
         try {
@@ -190,7 +190,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
-        pulsarConfig.setSchemaTypeOrClassName(ComplexSerDe.class.getName());
+        pulsarConfig.setSerdeClassName(ComplexSerDe.class.getName());
         PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
 
         try {

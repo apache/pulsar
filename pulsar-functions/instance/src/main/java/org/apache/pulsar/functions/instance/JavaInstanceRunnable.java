@@ -510,18 +510,20 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // If source classname is not set, we default pulsar source
         if (sourceSpec.getClassName().isEmpty()) {
             PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
-            sourceSpec.getTopicsToSchemaMap().forEach((topic, conf) -> {
-                pulsarSourceConfig.getTopicSchema().put(topic,
-                        ConsumerConfig.builder()
-                            .schemaTypeOrClassName(conf.getSchemaTypeOrClassName())
-                            .isRegexPattern(conf.getIsRegexPattern())
-                            .build());
+            sourceSpec.getInputSpecs().forEach((topic, conf) -> {
+                ConsumerConfig consumerConfig = ConsumerConfig.builder().isRegexPattern(conf.getIsRegexPattern()).build();
+                if (conf.getSchemaType() != null && !conf.getSchemaType().isEmpty()) {
+                    consumerConfig.setSchemaType(conf.getSchemaType());
+                } else if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
+                    consumerConfig.setSerdeClassName(conf.getSerdeClassName());
+                }
+                pulsarSourceConfig.getTopicSchema().put(topic, consumerConfig);
             });
 
             sourceSpec.getTopicsToSerDeClassNameMap().forEach((topic, serde) -> {
                 pulsarSourceConfig.getTopicSchema().put(topic,
                         ConsumerConfig.builder()
-                                .schemaTypeOrClassName(serde)
+                                .serdeClassName(serde)
                                 .isRegexPattern(false)
                                 .build());
             });
@@ -589,10 +591,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
                 pulsarSinkConfig.setTopic(sinkSpec.getTopic());
 
-                if (!StringUtils.isEmpty(sinkSpec.getSchemaTypeOrClassName())) {
-                    pulsarSinkConfig.setSchemaTypeOrClassName(sinkSpec.getSchemaTypeOrClassName());
+                if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
+                    pulsarSinkConfig.setSchemaType(sinkSpec.getSchemaType());
                 } else if (!StringUtils.isEmpty(sinkSpec.getSerDeClassName())) {
-                    pulsarSinkConfig.setSchemaTypeOrClassName(sinkSpec.getSerDeClassName());
+                    pulsarSinkConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
                 }
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());

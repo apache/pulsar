@@ -264,10 +264,14 @@ public class PulsarSink<T> implements Sink<T> {
         if (Void.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check
             return (Schema<T>) Schema.BYTES;
-         }
+        }
 
-
-        return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                pulsarSinkConfig.getSchemaTypeOrClassName());
+        if (!StringUtils.isEmpty(pulsarSinkConfig.getSchemaType())) {
+            return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
+                    pulsarSinkConfig.getSchemaType());
+        } else {
+            return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
+                    pulsarSinkConfig.getSerdeClassName());
+        }
     }
 }
