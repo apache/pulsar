@@ -710,7 +710,7 @@ public class ClientCnx extends PulsarHandler {
      */
     private void checkServerError(ServerError error, String errMsg) {
         if (ServerError.ServiceNotReady.equals(error)) {
-            log.error("{} Close connection becaues received internal-server error {}", ctx.channel(), errMsg);
+            log.error("{} Close connection because received internal-server error {}", ctx.channel(), errMsg);
             ctx.close();
         } else if (ServerError.TooManyRequests.equals(error)) {
             long rejectedRequests = NUMBER_OF_REJECTED_REQUESTS_UPDATER.getAndIncrement(this);
@@ -719,7 +719,7 @@ public class ClientCnx extends PulsarHandler {
                 eventLoopGroup.schedule(() -> NUMBER_OF_REJECTED_REQUESTS_UPDATER.set(ClientCnx.this, 0),
                         rejectedRequestResetTimeSec, TimeUnit.SECONDS);
             } else if (rejectedRequests >= maxNumberOfRejectedRequestPerConnection) {
-                log.error("{} Close connection becaues received {} rejected request in {} seconds ", ctx.channel(),
+                log.error("{} Close connection because received {} rejected request in {} seconds ", ctx.channel(),
                         NUMBER_OF_REJECTED_REQUESTS_UPDATER.get(ClientCnx.this), rejectedRequestResetTimeSec);
                 ctx.close();
             }
