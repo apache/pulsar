@@ -314,7 +314,8 @@ public class NonPersistentTopic implements Topic {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition, int maxRedeliveryCount, String deadLetterTopic) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition, int maxRedeliveryCount,
+            String deadLetterTopic, int maxUnackedMessagesPerConsumer) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 

@@ -344,4 +344,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @param deadLetterTopic name of dead letter topic
      */
     ConsumerBuilder<T> deadLetterTopic(String deadLetterTopic);
+
+    /**
+     * Set max un-acked messages per consumer.
+     * This config should less than broker config, if not, config will not enable. 0 is not limit, default is 0
+     */
+    ConsumerBuilder<T> maxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer);
 }

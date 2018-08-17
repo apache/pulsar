@@ -254,6 +254,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ConsumerBuilder<T> maxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer) {
+        conf.setMaxUnackedMessagesPerConsumer(maxUnackedMessagesPerConsumer);
+        return this;
+    }
+
     public ConsumerConfigurationData<T> getConf() {
 	    return conf;
 	}

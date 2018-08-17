@@ -86,6 +86,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private String deadLetterTopic;
 
+    private int maxUnackedMessagesPerConsumer = 0;
+
     @JsonIgnore
     public String getSingleTopic() {
         checkArgument(topicNames.size() == 1);

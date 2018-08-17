@@ -133,6 +133,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final int maxRedeliveryCount;
     private final String deadLetterTopic;
+    private final int maxUnackedMessagesPerConsumer;
 
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
@@ -164,6 +165,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
         this.maxRedeliveryCount = conf.getMaxRedeliveryCount();
         this.deadLetterTopic = conf.getDeadLetterTopic();
+        this.maxUnackedMessagesPerConsumer = conf.getMaxUnackedMessagesPerConsumer();
 
         TopicName topicName = TopicName.get(topic);
         if (topicName.isPersistent()) {
@@ -493,7 +495,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
                 consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                 InitialPosition.valueOf(subscriptionInitialPosition.getValue()), schema.getSchemaInfo(),
-                maxRedeliveryCount, deadLetterTopic);
+                maxRedeliveryCount, deadLetterTopic, maxUnackedMessagesPerConsumer);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }

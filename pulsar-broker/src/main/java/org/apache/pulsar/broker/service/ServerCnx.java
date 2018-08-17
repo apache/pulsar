@@ -525,6 +525,7 @@ public class ServerCnx extends PulsarHandler {
         final InitialPosition initialPosition = subscribe.getInitialPosition();
         final int maxRedeliveryCount = subscribe.getMaxRedeliveryCount();
         final String deadLetterTopic = subscribe.getDeadLetterTopic();
+        final int maxUnackedMessagesPerConsumer = subscribe.getMaxUnackedMessagePerConsumer();
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
@@ -594,7 +595,7 @@ public class ServerCnx extends PulsarHandler {
                                                 return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                     subType, priorityLevel, consumerName, isDurable,
                                                     startMessageId, metadata, readCompacted, initialPosition,
-                                                    0, null);
+                                                    0, null, maxUnackedMessagesPerConsumer);
                                             } else {
                                                 return FutureUtil.failedFuture(new BrokerServiceException(
                                                     "Trying to subscribe with incompatible schema"
@@ -605,7 +606,7 @@ public class ServerCnx extends PulsarHandler {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
                                             startMessageId, metadata, readCompacted, initialPosition,
-                                            maxRedeliveryCount, deadLetterTopic);
+                                            maxRedeliveryCount, deadLetterTopic, maxUnackedMessagesPerConsumer);
                                     }
                                 })
                                 .thenAccept(consumer -> {

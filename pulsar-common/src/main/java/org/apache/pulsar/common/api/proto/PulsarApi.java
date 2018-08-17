@@ -6730,6 +6730,10 @@ public final class PulsarApi {
     // optional string deadLetterTopic = 15;
     boolean hasDeadLetterTopic();
     String getDeadLetterTopic();
+    
+    // optional int32 maxUnackedMessagePerConsumer = 16;
+    boolean hasMaxUnackedMessagePerConsumer();
+    int getMaxUnackedMessagePerConsumer();
   }
   public static final class CommandSubscribe extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -7100,6 +7104,16 @@ public final class PulsarApi {
       }
     }
     
+    // optional int32 maxUnackedMessagePerConsumer = 16;
+    public static final int MAXUNACKEDMESSAGEPERCONSUMER_FIELD_NUMBER = 16;
+    private int maxUnackedMessagePerConsumer_;
+    public boolean hasMaxUnackedMessagePerConsumer() {
+      return ((bitField0_ & 0x00004000) == 0x00004000);
+    }
+    public int getMaxUnackedMessagePerConsumer() {
+      return maxUnackedMessagePerConsumer_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -7116,6 +7130,7 @@ public final class PulsarApi {
       initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
       maxRedeliveryCount_ = 0;
       deadLetterTopic_ = "";
+      maxUnackedMessagePerConsumer_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -7217,6 +7232,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00002000) == 0x00002000)) {
         output.writeBytes(15, getDeadLetterTopicBytes());
       }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        output.writeInt32(16, maxUnackedMessagePerConsumer_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -7284,6 +7302,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00002000) == 0x00002000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(15, getDeadLetterTopicBytes());
+      }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeInt32Size(16, maxUnackedMessagePerConsumer_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -7428,6 +7450,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00002000);
         deadLetterTopic_ = "";
         bitField0_ = (bitField0_ & ~0x00004000);
+        maxUnackedMessagePerConsumer_ = 0;
+        bitField0_ = (bitField0_ & ~0x00008000);
         return this;
       }
       
@@ -7522,6 +7546,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00002000;
         }
         result.deadLetterTopic_ = deadLetterTopic_;
+        if (((from_bitField0_ & 0x00008000) == 0x00008000)) {
+          to_bitField0_ |= 0x00004000;
+        }
+        result.maxUnackedMessagePerConsumer_ = maxUnackedMessagePerConsumer_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -7579,6 +7607,9 @@ public final class PulsarApi {
         }
         if (other.hasDeadLetterTopic()) {
           setDeadLetterTopic(other.getDeadLetterTopic());
+        }
+        if (other.hasMaxUnackedMessagePerConsumer()) {
+          setMaxUnackedMessagePerConsumer(other.getMaxUnackedMessagePerConsumer());
         }
         return this;
       }
@@ -7739,6 +7770,11 @@ public final class PulsarApi {
             case 122: {
               bitField0_ |= 0x00004000;
               deadLetterTopic_ = input.readBytes();
+              break;
+            }
+            case 128: {
+              bitField0_ |= 0x00008000;
+              maxUnackedMessagePerConsumer_ = input.readInt32();
               break;
             }
           }
@@ -8238,6 +8274,27 @@ public final class PulsarApi {
         bitField0_ |= 0x00004000;
         deadLetterTopic_ = value;
         
+      }
+      
+      // optional int32 maxUnackedMessagePerConsumer = 16;
+      private int maxUnackedMessagePerConsumer_ ;
+      public boolean hasMaxUnackedMessagePerConsumer() {
+        return ((bitField0_ & 0x00008000) == 0x00008000);
+      }
+      public int getMaxUnackedMessagePerConsumer() {
+        return maxUnackedMessagePerConsumer_;
+      }
+      public Builder setMaxUnackedMessagePerConsumer(int value) {
+        bitField0_ |= 0x00008000;
+        maxUnackedMessagePerConsumer_ = value;
+        
+        return this;
+      }
+      public Builder clearMaxUnackedMessagePerConsumer() {
+        bitField0_ = (bitField0_ & ~0x00008000);
+        maxUnackedMessagePerConsumer_ = 0;
+        
+        return this;
       }
       
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandSubscribe)

@@ -49,6 +49,7 @@ public class SubscriptionWithDeadLetter {
                 .ackTimeout(10, TimeUnit.SECONDS)
                 .maxRedeliveryCount(maxRedeliveryCount)
                 .receiverQueueSize(100)
+                .maxUnackedMessagesPerConsumer(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
@@ -86,6 +87,7 @@ public class SubscriptionWithDeadLetter {
                 .ackTimeout(10, TimeUnit.SECONDS)
                 .maxRedeliveryCount(maxRedeliveryCount)
                 .receiverQueueSize(100)
+                .maxUnackedMessagesPerConsumer(100)
                 .deadLetterTopic("persistent://public/default/my-topic-my-subscription-custom-DLQ")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
