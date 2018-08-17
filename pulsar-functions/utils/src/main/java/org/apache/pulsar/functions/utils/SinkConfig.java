@@ -29,9 +29,12 @@ import lombok.ToString;
 
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isMapEntryCustom;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isPositiveNumber;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidResources;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidSinkConfig;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
+import org.apache.pulsar.functions.utils.validation.ValidatorImpls;
 
 @Getter
 @Setter
@@ -51,7 +54,18 @@ public class SinkConfig {
     private String className;
     private String sourceSubscriptionName;
 
-    private final Map<String, ConsumerConfig> topicsToSchema = new TreeMap<>();
+    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
+            valueValidatorClasses = { ValidatorImpls.SerdeValidator.class })
+    private Map<String, String> topicToSerdeClassName;
+
+    @isValidTopicName
+    private String topicsPattern;
+
+    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
+            valueValidatorClasses = { ValidatorImpls.SchemaValidator.class })
+    private Map<String, String> topicToSchemaType;
+
+    private final Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
 
     private Map<String, Object> configs;
     @isPositiveNumber

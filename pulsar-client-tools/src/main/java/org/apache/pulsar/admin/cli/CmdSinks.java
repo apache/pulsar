@@ -211,17 +211,17 @@ public class CmdSinks extends CmdBase {
                 "--inputs" }, description = "The sink's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
 
-        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)", hidden = true)
+        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
         protected String topicsPattern;
 
         @Parameter(names = { "-st",
-                "--schema-type" }, description = "The builtin schema type (eg: 'avro', 'json', etc..) or the class name for a Schema or Serde implementation")
-        protected String schemaTypeOrClassName = "";
+                "--schema-type" }, description = "The builtin schema type (eg: 'avro', 'json', etc..) or the class name for a Schema implementation")
+        protected String schemaType = "";
 
         @Parameter(names = "--subsName", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
 
-        @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
+        @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
 
         @Parameter(names = "--customSchemaInputs", description = "The map of input topics to Schema types or class names (as a JSON string)")
@@ -284,20 +284,20 @@ public class CmdSinks extends CmdBase {
 
             sinkConfig.setRetainOrdering(retainOrdering);
 
-            Map<String, ConsumerConfig> topicsToSchema = new HashMap<>();
+            Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
             if (null != inputs) {
-                parseInputs(inputs, topicsToSchema);
+                parseInputs(inputs, inputSpecs);
             }
             if (null != customSerdeInputString) {
-                parseCustomSerdeInput(customSerdeInputString, topicsToSchema);
+                parseCustomSerdeInput(customSerdeInputString, inputSpecs);
             }
 
             if (null != customSchemaInputString) {
-                parseCustomSerdeInput(customSchemaInputString, topicsToSchema);
+                parseCustomSchemaType(customSchemaInputString, inputSpecs);
             }
 
-            if (!topicsToSchema.isEmpty()) {
-                sinkConfig.getTopicsToSchema().putAll(topicsToSchema);
+            if (!inputSpecs.isEmpty()) {
+                sinkConfig.getInputSpecs().putAll(inputSpecs);
             }
 
             if (isNotBlank(subsName)) {
@@ -305,9 +305,8 @@ public class CmdSinks extends CmdBase {
             }
 
             if (null != topicsPattern) {
-                sinkConfig.getTopicsToSchema().put(topicsPattern,
+                sinkConfig.getInputSpecs().put(topicsPattern,
                         ConsumerConfig.builder()
-                                .schemaTypeOrClassName(schemaTypeOrClassName)
                                 .isRegexPattern(true)
                                 .build());
             }
@@ -357,22 +356,32 @@ public class CmdSinks extends CmdBase {
             return new Gson().fromJson(str, type);
         }
 
-        protected void parseCustomSerdeInput(String str, Map<String, ConsumerConfig> topicsSchema) {
+        protected void parseCustomSerdeInput(String str, Map<String, ConsumerConfig> inputSpecs) {
             Type type = new TypeToken<Map<String, String>>(){}.getType();
             Map<String, String> customSerdeInputMap = new Gson().fromJson(str, type);
             customSerdeInputMap.forEach((topic, serde) -> {
-                topicsSchema.put(topic, ConsumerConfig.builder()
-                        .schemaTypeOrClassName(serde)
+                inputSpecs.put(topic, ConsumerConfig.builder()
+                        .serdeClassName(serde)
                         .isRegexPattern(false)
                         .build());
             });
         }
 
-        protected void parseInputs(String str, Map<String, ConsumerConfig> topicsSchema) {
+        protected void parseCustomSchemaType(String str, Map<String, ConsumerConfig> inputSpecs) {
+            Type type = new TypeToken<Map<String, String>>(){}.getType();
+            Map<String, String> customSerdeInputMap = new Gson().fromJson(str, type);
+            customSerdeInputMap.forEach((topic, schemaType) -> {
+                inputSpecs.put(topic, ConsumerConfig.builder()
+                        .schemaType(schemaType)
+                        .isRegexPattern(false)
+                        .build());
+            });
+        }
+
+        protected void parseInputs(String str, Map<String, ConsumerConfig> inputSpecs) {
             List<String> inputTopics = Arrays.asList(str.split(","));
-            inputTopics.forEach(s -> topicsSchema.put(s,
+            inputTopics.forEach(s -> inputSpecs.put(s,
                     ConsumerConfig.builder()
-                            .schemaTypeOrClassName(schemaTypeOrClassName)
                             .isRegexPattern(false)
                             .build()));
         }
@@ -380,7 +389,6 @@ public class CmdSinks extends CmdBase {
         protected void addTopicPattern(String topicPattern, Map<String, ConsumerConfig> topicsSchema) {
             topicsSchema.put(topicPattern,
                     ConsumerConfig.builder()
-                            .schemaTypeOrClassName(schemaTypeOrClassName)
                             .isRegexPattern(true)
                             .build());
         }
@@ -509,11 +517,12 @@ public class CmdSinks extends CmdBase {
             // source spec classname should be empty so that the default pulsar source will be used
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
-            if (sinkConfig.getTopicsToSchema() != null) {
-                sinkConfig.getTopicsToSchema().forEach((topic, spec) -> {
-                    sourceSpecBuilder.putTopicsToSchema(topic,
+            if (sinkConfig.getInputSpecs() != null) {
+                sinkConfig.getInputSpecs().forEach((topic, spec) -> {
+                    sourceSpecBuilder.putInputSpecs(topic,
                             ConsumerSpec.newBuilder()
-                                    .setSchemaTypeOrClassName(spec.getSchemaTypeOrClassName())
+                                    .setSerdeClassName(spec.getSerdeClassName())
+                                    .setSchemaType(spec.getSchemaType())
                                     .setIsRegexPattern(spec.isRegexPattern())
                                     .build());
                 });

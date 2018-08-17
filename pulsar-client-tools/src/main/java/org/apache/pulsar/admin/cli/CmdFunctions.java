@@ -249,14 +249,18 @@ public class CmdFunctions extends CmdBase {
         protected String logTopic;
 
         @Parameter(names = {"-st", "--schema-type"}, description = "The builtin schema type or custom schema class name to be used for messages output by the function")
-        protected String schemaTypeOrClassName = "";
+        protected String schemaType = "";
 
         // for backwards compatibility purposes
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
         protected String DEPRECATED_customSerdeInputString;
+        @Parameter(names = "--custom-serde-inputs", description = "The map of input topics to SerDe class names (as a JSON string)")
+        protected String customSerdeInputString;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String DEPRECATED_outputSerdeClassName;
+        @Parameter(names = "--output-serde-classname", description = "The SerDe class to be used for messages output by the function")
+        protected String outputSerdeClassName;
         // for backwards compatibility purposes
         @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file specifying the function's configuration", hidden = true)
         protected String DEPRECATED_fnConfigFile;
@@ -320,6 +324,8 @@ public class CmdFunctions extends CmdBase {
             if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
             if (!StringUtils.isBlank(DEPRECATED_topicsPattern)) topicsPattern = DEPRECATED_topicsPattern;
             if (!StringUtils.isBlank(DEPRECATED_logTopic)) logTopic = DEPRECATED_logTopic;
+            if (!StringUtils.isBlank(DEPRECATED_outputSerdeClassName)) outputSerdeClassName = DEPRECATED_outputSerdeClassName;
+            if (!StringUtils.isBlank(DEPRECATED_customSerdeInputString)) customSerdeInputString = DEPRECATED_customSerdeInputString;
 
             if (!StringUtils.isBlank(DEPRECATED_fnConfigFile)) fnConfigFile = DEPRECATED_fnConfigFile;
             if (DEPRECATED_processingGuarantees != FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) processingGuarantees = DEPRECATED_processingGuarantees;
@@ -360,31 +366,16 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (null != inputs) {
-                Arrays.asList(inputs.split(",")).forEach(topic -> {
-                    functionConfig.getInputSpecs().put(topic, ConsumerConfig.builder()
-                            .schemaTypeOrClassName(schemaTypeOrClassName)
-                            .isRegexPattern(false)
-                            .build());
-                });
+                List<String> inputTopics = Arrays.asList(inputs.split(","));
+                functionConfig.setInputs(inputTopics);
             }
-            if (null != DEPRECATED_customSerdeInputString) {
+            if (null != customSerdeInputString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
-                Map<String, String> customSerdeInputMap = new Gson().fromJson(DEPRECATED_customSerdeInputString, type);
-
-                customSerdeInputMap.forEach((topic, serde) -> {
-                    functionConfig.getInputSpecs().put(topic, ConsumerConfig.builder()
-                            .schemaTypeOrClassName(serde)
-                            .isRegexPattern(false)
-                            .build());
-                });
+                Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
+                functionConfig.setCustomSerdeInputs(customSerdeInputMap);
             }
             if (null != topicsPattern) {
-                ConsumerConfig conf = functionConfig.getInputSpecs().get(topicsPattern);
-                String schema = (conf != null) ? conf.getSchemaTypeOrClassName() : "";
-                functionConfig.getInputSpecs().put(topicsPattern, ConsumerConfig.builder()
-                        .schemaTypeOrClassName(schema)
-                        .isRegexPattern(true)
-                        .build());
+                functionConfig.setTopicsPattern(topicsPattern);
             }
             if (null != output) {
                 functionConfig.setOutput(output);
@@ -396,12 +387,12 @@ public class CmdFunctions extends CmdBase {
             if (null != className) {
                 functionConfig.setClassName(className);
             }
-            if (null != DEPRECATED_outputSerdeClassName) {
-                functionConfig.setOutputSchemaOrClassName(DEPRECATED_outputSerdeClassName);
+            if (null != outputSerdeClassName) {
+                functionConfig.setOutputSerdeClassName(outputSerdeClassName);
             }
 
-            if (null != schemaTypeOrClassName) {
-                functionConfig.setOutputSchemaOrClassName(schemaTypeOrClassName);
+            if (null != schemaType) {
+                functionConfig.setOutputSchemaType(schemaType);
             }
             if (null != processingGuarantees) {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
@@ -604,14 +595,6 @@ public class CmdFunctions extends CmdBase {
             functionConfig.setNamespace(DEFAULT_NAMESPACE);
         }
 
-        private String getUniqueInput(FunctionConfig functionConfig) {
-            if (functionConfig.getInputSpecs().size() != 1) {
-                throw new IllegalArgumentException();
-            }
-
-            return functionConfig.getInputSpecs().keySet().iterator().next();
-        }
-
         protected FunctionDetails convert(FunctionConfig functionConfig)
                 throws IOException {
 
@@ -634,13 +617,50 @@ public class CmdFunctions extends CmdBase {
 
             // Setup source
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            functionConfig.getInputSpecs().forEach((topic, conf) -> {
-                sourceSpecBuilder.putTopicsToSchema(topic,
+            if (functionConfig.getInputs() != null) {
+                functionConfig.getInputs().forEach((topicName -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setIsRegexPattern(false)
+                                    .build());
+                }));
+            }
+            if (functionConfig.getTopicsPattern() != null && !functionConfig.getTopicsPattern().isEmpty()) {
+                sourceSpecBuilder.putInputSpecs(functionConfig.getTopicsPattern(),
                         ConsumerSpec.newBuilder()
-                                .setSchemaTypeOrClassName(conf.getSchemaTypeOrClassName())
-                                .setIsRegexPattern(conf.isRegexPattern())
+                                .setIsRegexPattern(true)
                                 .build());
-            });
+            }
+            if (functionConfig.getCustomSerdeInputs() != null) {
+                functionConfig.getCustomSerdeInputs().forEach((topicName, serdeClassName) -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setSerdeClassName(serdeClassName)
+                                    .setIsRegexPattern(false)
+                                    .build());
+                });
+            }
+            if (functionConfig.getCustomSchemaInputs() != null) {
+                functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setSchemaType(schemaType)
+                                    .setIsRegexPattern(false)
+                                    .build());
+                });
+            }
+            if (functionConfig.getInputSpecs() != null) {
+                functionConfig.getInputSpecs().forEach((topicName, consumerConf) -> {
+                    ConsumerSpec.Builder bldr = ConsumerSpec.newBuilder()
+                            .setIsRegexPattern(consumerConf.isRegexPattern());
+                    if (consumerConf.getSchemaType() != null && !consumerConf.getSchemaType().isEmpty()) {
+                        bldr.setSchemaType(consumerConf.getSchemaType());
+                    } else if (consumerConf.getSerdeClassName() != null && !consumerConf.getSerdeClassName().isEmpty()) {
+                        bldr.setSerdeClassName(consumerConf.getSerdeClassName());
+                    }
+                    sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
+                });
+            }
 
             // Set subscription type based on ordering and EFFECTIVELY_ONCE semantics
             SubscriptionType subType = (functionConfig.isRetainOrdering()
@@ -662,9 +682,13 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getOutput() != null) {
                 sinkSpecBuilder.setTopic(functionConfig.getOutput());
             }
-            if (functionConfig.getOutputSchemaOrClassName() != null) {
-                sinkSpecBuilder.setSchemaTypeOrClassName(functionConfig.getOutputSchemaOrClassName());
+            if (functionConfig.getOutputSerdeClassName() != null && !functionConfig.getOutputSerdeClassName().isEmpty()) {
+                sinkSpecBuilder.setSerDeClassName(functionConfig.getOutputSerdeClassName());
             }
+            if (functionConfig.getOutputSchemaType() != null && !functionConfig.getOutputSchemaType().isEmpty()) {
+                sinkSpecBuilder.setSchemaType(functionConfig.getOutputSchemaType());
+            }
+
             if (typeArgs != null) {
                 sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
             }

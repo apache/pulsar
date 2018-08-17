@@ -62,8 +62,9 @@ message FunctionDetails {
 }
 
 message ConsumerSpec {
-	string schemaTypeOrClassName   = 1;
-	bool isRegexPattern = 2;
+	string schemaType   = 1;
+    string serdeClassName = 2;
+	bool isRegexPattern = 3;
 }
 
 message SourceSpec {
@@ -81,7 +82,7 @@ message SourceSpec {
 	/**
 	 *
 	 */
-    map<string, ConsumerSpec> topicsToSchema = 10;
+    map<string, ConsumerSpec> inputSpecs = 10;
 
     uint64 timeoutMs = 6;
     string topicsPattern = 7;
@@ -101,7 +102,6 @@ message SinkSpec {
     // configs used only when functions output to sink
     string topic = 3;
 
-    // @deprecated -- use schemaType
     string serDeClassName = 4;
 
     /* If specified, this will refer to an archive that is
@@ -111,7 +111,7 @@ message SinkSpec {
 	/**
 	 * Builtin schema type or custom schema class name
 	 */
-    string schemaTypeOrClassName = 7;
+    string schemaType = 7;
 }
 
 message PackageLocationMetaData {

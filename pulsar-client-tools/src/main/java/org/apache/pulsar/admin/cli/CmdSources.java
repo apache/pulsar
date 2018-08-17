@@ -205,13 +205,13 @@ public class CmdSources extends CmdBase {
         @Parameter(names = { "-o", "--destinationTopicName" }, description = "The Pulsar topic to which data is sent")
         protected String destinationTopicName;
 
-        @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source", hidden = true)
+        @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source")
         protected String deserializationClassName;
 
         @Parameter(names = { "-st",
                 "--schema-type" }, description = "The schema type (either a builtin schema like 'avro', 'json', etc.."
                         + " or custom Schema class name to be used to encode messages emitted from the source")
-        protected String schemaTypeOrClassName;
+        protected String schemaType;
 
         @Parameter(names = "--parallelism", description = "The source's parallelism factor (i.e. the number of source instances to run)")
         protected Integer parallelism;
@@ -259,10 +259,10 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setTopicName(destinationTopicName);
             }
             if (null != deserializationClassName) {
-                sourceConfig.setSchemaTypeOrClassName(deserializationClassName);
+                sourceConfig.setSerdeClassName(deserializationClassName);
             }
-            if (null != schemaTypeOrClassName) {
-                sourceConfig.setSchemaTypeOrClassName(schemaTypeOrClassName);
+            if (null != schemaType) {
+                sourceConfig.setSchemaType(schemaType);
             }
 
             if (null != processingGuarantees) {
@@ -458,8 +458,11 @@ public class CmdSources extends CmdBase {
             // set up sink spec.
             // Sink spec classname should be empty so that the default pulsar sink will be used
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-            if (!StringUtils.isEmpty(sourceConfig.getSchemaTypeOrClassName())) {
-                sinkSpecBuilder.setSchemaTypeOrClassName(sourceConfig.getSchemaTypeOrClassName());
+            if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
+                sinkSpecBuilder.setSchemaType(sourceConfig.getSchemaType());
+            }
+            if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
+                sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
             }
 
             sinkSpecBuilder.setTopic(sourceConfig.getTopicName());

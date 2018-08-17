@@ -28,6 +28,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ConsumerConfig {
-    private String schemaTypeOrClassName;
+    private String schemaType;
+    private String serdeClassName;
     private boolean isRegexPattern;
 }
