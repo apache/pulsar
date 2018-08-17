@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -206,6 +207,29 @@ public class CLITest extends PulsarTestSuite {
         assertTrue(
             result.getStdout().contains("\"retentionSizeInMB\" : -1"),
             result.getStdout());
+    }
+
+    // authorization related tests
+
+    @Test
+    public void testGrantPermissionsAuthorizationDisabled() throws Exception {
+        ContainerExecResult result;
+
+        String namespace = "grant-permissions-" + randomName(8);
+        result = pulsarCluster.createNamespace(namespace);
+        assertEquals(0, result.getExitCode());
+
+        String[] grantCommand = {
+            "namespaces", "grant-permission", "public/" + namespace,
+            "--actions", "produce",
+            "--role", "test-role"
+        };
+        try {
+            pulsarCluster.runAdminCommandOnAnyBroker(grantCommand);
+        } catch (ContainerExecException cee) {
+            result = cee.getResult();
+            assertTrue(result.getStderr().contains("HTTP 501 Not Implemented"), result.getStderr());
+        }
     }
 
 }

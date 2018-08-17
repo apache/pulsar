@@ -159,7 +159,7 @@ public abstract class BaseResource {
             // Handle 5xx exceptions
             if (e instanceof ServerErrorException) {
                 ServerErrorException see = (ServerErrorException) e;
-                return new ServerSideErrorException(see);
+                return new ServerSideErrorException(see, e.getMessage());
             } else if (e instanceof ClientErrorException) {
                 // Handle 4xx exceptions
                 ClientErrorException cee = (ClientErrorException) e;
@@ -176,12 +176,11 @@ public abstract class BaseResource {
                         return new ConflictException(cee);
                     case 412:
                         return new PreconditionFailedException(cee);
-
                     default:
                         return new PulsarAdminException(cee);
                 }
             } else {
-                return new PulsarAdminException(e);
+                return new PulsarAdminException((WebApplicationException) e);
             }
         } else {
             return new PulsarAdminException(e);
