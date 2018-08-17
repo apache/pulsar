@@ -62,8 +62,8 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.offload.TieredStorageConfigurationData;
-import org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader;
+import org.apache.bookkeeper.mledger.offload.jcloud.TieredStorageConfigurationData;
+import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -663,21 +663,25 @@ public class PulsarService implements AutoCloseable {
 
     public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
             throws PulsarServerException {
-        if (conf.getManagedLedgerOffloadDriver() != null
-            && BlobStoreManagedLedgerOffloader.driverSupported(conf.getManagedLedgerOffloadDriver())) {
-            try {
-                return BlobStoreManagedLedgerOffloader.create(
-                    getTieredStorageConf(conf),
-                    ImmutableMap.of(
-                        METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
-                        METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getGitSha()
-                    ),
-                    getOffloaderScheduler(conf));
-            } catch (IOException ioe) {
-                throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
+        try {
+            if (conf.getManagedLedgerOffloadDriver() != null
+                && BlobStoreManagedLedgerOffloader.driverSupported(conf.getManagedLedgerOffloadDriver())) {
+                try {
+                    return BlobStoreManagedLedgerOffloader.create(
+                        getTieredStorageConf(conf),
+                        ImmutableMap.of(
+                            METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
+                            METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getGitSha()
+                        ),
+                        getOffloaderScheduler(conf));
+                } catch (IOException ioe) {
+                    throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
+                }
+            } else {
+                return NullLedgerOffloader.INSTANCE;
             }
-        } else {
-            return NullLedgerOffloader.INSTANCE;
+        } catch (Throwable t) {
+            throw new PulsarServerException(t);
         }
     }
 

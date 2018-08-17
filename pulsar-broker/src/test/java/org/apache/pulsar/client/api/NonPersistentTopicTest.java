@@ -814,8 +814,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertTrue(npStats.msgDropRate > 0);
             assertTrue(sub1Stats.msgDropRate > 0);
             assertTrue(sub2Stats.msgDropRate > 0);
-            // make sure producer connection not disconnected due to unordered ack
-            assertEquals(firstTimeConnected, producer.getConnectedSince());
 
             producer.close();
             consumer.close();

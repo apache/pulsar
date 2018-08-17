@@ -24,6 +24,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.gson.Gson;
 import com.google.protobuf.Empty;
+import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.Getter;
@@ -72,7 +73,7 @@ class ProcessRuntime implements Runtime {
                    String codeFile,
                    String pulsarServiceUrl,
                    String stateStorageServiceUrl,
-                   AuthenticationConfig authConfig) {
+                   AuthenticationConfig authConfig) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
         this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
@@ -85,7 +86,7 @@ class ProcessRuntime implements Runtime {
                                      String codeFile,
                                      String pulsarServiceUrl,
                                      String stateStorageServiceUrl,
-                                     AuthenticationConfig authConfig) {
+                                     AuthenticationConfig authConfig) throws Exception {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
@@ -124,28 +125,9 @@ class ProcessRuntime implements Runtime {
         args.add(instanceConfig.getFunctionId());
         args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
-        args.add("--tenant");
-        args.add(instanceConfig.getFunctionDetails().getTenant());
-        args.add("--namespace");
-        args.add(instanceConfig.getFunctionDetails().getNamespace());
-        args.add("--name");
-        args.add(instanceConfig.getFunctionDetails().getName());
-        args.add("--function_classname");
-        args.add(instanceConfig.getFunctionDetails().getClassName());
-        if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
-                !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
-            args.add("--log_topic");
-            args.add(instanceConfig.getFunctionDetails().getLogTopic());
-        }
-        args.add("--auto_ack");
-        if (instanceConfig.getFunctionDetails().getAutoAck()) {
-            args.add("true");
-        } else {
-            args.add("false");
-        }
+        args.add("--function_details");
+        args.add(JsonFormat.printer().print(instanceConfig.getFunctionDetails()));
 
-        args.add("--processing_guarantees");
-        args.add(String.valueOf(instanceConfig.getFunctionDetails().getProcessingGuarantees()));
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
         if (authConfig != null) {
@@ -169,72 +151,9 @@ class ProcessRuntime implements Runtime {
         }
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-        String userConfig = instanceConfig.getFunctionDetails().getUserConfig();
-        if (userConfig != null && !userConfig.isEmpty()) {
-            args.add("--user_config");
-            args.add(userConfig);
-        }
+
         args.add("--port");
         args.add(String.valueOf(instanceConfig.getPort()));
-
-        // source related configs
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            if (!instanceConfig.getFunctionDetails().getSource().getClassName().isEmpty()) {
-                args.add("--source_classname");
-                args.add(instanceConfig.getFunctionDetails().getSource().getClassName());
-            }
-            String sourceConfigs = instanceConfig.getFunctionDetails().getSource().getConfigs();
-            if (sourceConfigs != null && !sourceConfigs.isEmpty()) {
-                args.add("--source_configs");
-                args.add(sourceConfigs);
-            }
-            if (instanceConfig.getFunctionDetails().getSource().getTypeClassName() != null
-                && !instanceConfig.getFunctionDetails().getSource().getTypeClassName().isEmpty()) {
-                args.add("--source_type_classname");
-                args.add("\"" + instanceConfig.getFunctionDetails().getSource().getTypeClassName() + "\"");
-            }
-        }
-
-        if (instanceConfig.getFunctionDetails().getSource().getTimeoutMs() > 0) {
-            args.add("--source_timeout_ms");
-            args.add(String.valueOf(instanceConfig.getFunctionDetails().getSource().getTimeoutMs()));
-        }
-        args.add("--source_subscription_type");
-        args.add(instanceConfig.getFunctionDetails().getSource().getSubscriptionType().toString());
-        args.add("--source_topics_serde_classname");
-        args.add(new Gson().toJson(instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()));
-        if (isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {
-            args.add("--topics_pattern");
-            args.add(instanceConfig.getFunctionDetails().getSource().getTopicsPattern());
-        }
-
-        // sink related configs
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            if (!instanceConfig.getFunctionDetails().getSink().getClassName().isEmpty()) {
-                args.add("--sink_classname");
-                args.add(instanceConfig.getFunctionDetails().getSink().getClassName());
-            }
-            String sinkConfigs = instanceConfig.getFunctionDetails().getSink().getConfigs();
-            if (sinkConfigs != null && !sinkConfigs.isEmpty()) {
-                args.add("--sink_configs");
-                args.add(sinkConfigs);
-            }
-            if (instanceConfig.getFunctionDetails().getSink().getTypeClassName() != null
-                    && !instanceConfig.getFunctionDetails().getSink().getTypeClassName().isEmpty()) {
-                args.add("--sink_type_classname");
-                args.add("\"" + instanceConfig.getFunctionDetails().getSink().getTypeClassName() + "\"");
-            }
-        }
-        if (instanceConfig.getFunctionDetails().getSink().getTopic() != null
-                && !instanceConfig.getFunctionDetails().getSink().getTopic().isEmpty()) {
-            args.add("--sink_topic");
-            args.add(instanceConfig.getFunctionDetails().getSink().getTopic());
-        }
-        if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() != null
-                && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {
-            args.add("--sink_serde_classname");
-            args.add(instanceConfig.getFunctionDetails().getSink().getSerDeClassName());
-        }
 
         // state storage configs
         if (null != stateStorageServiceUrl
