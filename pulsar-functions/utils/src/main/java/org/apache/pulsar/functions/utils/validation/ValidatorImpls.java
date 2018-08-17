@@ -379,33 +379,39 @@ public class ValidatorImpls {
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
-            functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
-                validateSerde(inputSerializer, typeArgs[0], name, clsLoader);
-            });
+            if (functionConfig.getCustomSerdeInputs() != null) {
+                functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
+                    validateSerde(inputSerializer, typeArgs[0], name, clsLoader);
+                });
+            }
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
-            functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
-                validateSchema(schemaType, typeArgs[0], name, clsLoader);
-            });
+            if (functionConfig.getCustomSchemaInputs() != null) {
+                functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
+                    validateSchema(schemaType, typeArgs[0], name, clsLoader);
+                });
+            }
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements Schema or SerDe classes
 
-            functionConfig.getInputSpecs().forEach((topicName, conf) -> {
-                // Need to make sure that one and only one of schema/serde is set
-                if ((conf.getSchemaType() != null && !conf.getSchemaType().isEmpty())
-                        && (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty())) {
-                    throw new IllegalArgumentException(
-                            String.format("Only one of schemaType or serdeClassName should be set in inputSpec"));
-                }
-                if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
-                    validateSerde(conf.getSerdeClassName(), typeArgs[0], name, clsLoader);
-                }
-                if (conf.getSchemaType() != null && !conf.getSchemaType().isEmpty()) {
-                    validateSchema(conf.getSchemaType(), typeArgs[0], name, clsLoader);
-                }
-            });
+            if (functionConfig.getInputSpecs() != null) {
+                functionConfig.getInputSpecs().forEach((topicName, conf) -> {
+                    // Need to make sure that one and only one of schema/serde is set
+                    if ((conf.getSchemaType() != null && !conf.getSchemaType().isEmpty())
+                            && (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty())) {
+                        throw new IllegalArgumentException(
+                                String.format("Only one of schemaType or serdeClassName should be set in inputSpec"));
+                    }
+                    if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
+                        validateSerde(conf.getSerdeClassName(), typeArgs[0], name, clsLoader);
+                    }
+                    if (conf.getSchemaType() != null && !conf.getSchemaType().isEmpty()) {
+                        validateSchema(conf.getSchemaType(), typeArgs[0], name, clsLoader);
+                    }
+                });
+            }
 
             if (Void.class.equals(typeArgs[1])) {
                 return;
@@ -417,12 +423,15 @@ public class ValidatorImpls {
                 throw new IllegalArgumentException(
                         String.format("Only one of outputSchemaType or outputSerdeClassName should be set"));
             }
+
             if (functionConfig.getOutputSchemaType() != null && !functionConfig.getOutputSchemaType().isEmpty()) {
                 validateSchema(functionConfig.getOutputSchemaType(), typeArgs[1], name, clsLoader);
             }
+
             if (functionConfig.getOutputSerdeClassName() != null && !functionConfig.getOutputSerdeClassName().isEmpty()) {
                 validateSerde(functionConfig.getOutputSerdeClassName(), typeArgs[1], name, clsLoader);
             }
+
         }
 
         private static void validateSchema(String schemaType, Class<?> typeArg, String name, ClassLoader clsLoader) {
