@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyMap;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.spy;
@@ -30,6 +31,7 @@ import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -51,7 +53,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 
@@ -98,23 +99,31 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         for (Entry e : cursor.readEntries(10)) {
             Assert.assertEquals(new String(e.getData()), "entry-" + i++);
         }
-        verify(offloader, times(1)).readOffloaded(anyLong(), anyObject());
-        verify(offloader).readOffloaded(anyLong(), eq(firstLedgerUUID));
+        verify(offloader, times(1))
+            .readOffloaded(anyLong(), anyObject(), anyMap());
+        verify(offloader).readOffloaded(anyLong(), eq(firstLedgerUUID), anyMap());
 
         for (Entry e : cursor.readEntries(10)) {
             Assert.assertEquals(new String(e.getData()), "entry-" + i++);
         }
-        verify(offloader, times(2)).readOffloaded(anyLong(), anyObject());
-        verify(offloader).readOffloaded(anyLong(), eq(secondLedgerUUID));
+        verify(offloader, times(2))
+            .readOffloaded(anyLong(), anyObject(), anyMap());
+        verify(offloader).readOffloaded(anyLong(), eq(secondLedgerUUID), anyMap());
 
         for (Entry e : cursor.readEntries(5)) {
             Assert.assertEquals(new String(e.getData()), "entry-" + i++);
         }
-        verify(offloader, times(2)).readOffloaded(anyLong(), anyObject());
+        verify(offloader, times(2))
+            .readOffloaded(anyLong(), anyObject(), anyMap());
     }
 
     static class MockLedgerOffloader implements LedgerOffloader {
         ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
+
+        @Override
+        public String getOffloadDriverName() {
+            return "mock";
+        }
 
         @Override
         public CompletableFuture<Void> offload(ReadHandle ledger,
@@ -131,12 +140,14 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid) {
+        public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid,
+                                                           Map<String, String> offloadDriverMetadata) {
             return CompletableFuture.completedFuture(offloads.get(uuid));
         }
 
         @Override
-        public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid) {
+        public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid,
+                                                       Map<String, String> offloadDriverMetadata) {
             offloads.remove(uuid);
             return CompletableFuture.completedFuture(null);
         };

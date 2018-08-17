@@ -36,6 +36,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import lombok.Data;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
@@ -43,6 +46,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.TieredStorageConfigurationData;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
+import org.apache.commons.lang3.tuple.Pair;
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
@@ -65,6 +69,10 @@ import org.slf4j.LoggerFactory;
 
 public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloader.class);
+
+    private static final String METADATA_FIELD_BUCKET = "bucket";
+    private static final String METADATA_FIELD_REGION = "region";
+    private static final String METADATA_FIELD_ENDPOINT = "endpoint";
 
     public static final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
 
@@ -91,6 +99,42 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         blobBuilder.userMetadata(metadataBuilder.build());
     }
 
+    @Data(staticConstructor = "of")
+    private static class BlobStoreLocation {
+        private final String region;
+        private final String endpoint;
+    }
+
+    private static Pair<BlobStoreLocation, BlobStore> createBlobStore(String driver,
+                                                                      String region,
+                                                                      String endpoint,
+                                                                      Credentials credentials,
+                                                                      int maxBlockSize) {
+        Properties overrides = new Properties();
+        // This property controls the number of parts being uploaded in parallel.
+        overrides.setProperty("jclouds.mpu.parallel.degree", "1");
+        overrides.setProperty("jclouds.mpu.parts.size", Integer.toString(maxBlockSize));
+        overrides.setProperty(Constants.PROPERTY_SO_TIMEOUT, "25000");
+        overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
+
+        ContextBuilder contextBuilder = ContextBuilder.newBuilder(driver);
+        contextBuilder.credentials(credentials.identity, credentials.credential);
+
+        if (isS3Driver(driver) && !Strings.isNullOrEmpty(endpoint)) {
+            contextBuilder.endpoint(endpoint);
+            overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
+        }
+        contextBuilder.overrides(overrides);
+        BlobStoreContext context = contextBuilder.buildView(BlobStoreContext.class);
+        BlobStore blobStore = context.getBlobStore();
+
+        log.info("Connect to blobstore : driver: {}, region: {}, endpoint: {}",
+            driver, region, endpoint);
+        return Pair.of(
+            BlobStoreLocation.of(region, endpoint),
+            blobStore);
+    }
+
     private final VersionCheck VERSION_CHECK = (key, blob) -> {
         // NOTE all metadata in jclouds comes out as lowercase, in an effort to normalize the providers
         String version = blob.getMetadata().getUserMetadata().get(METADATA_FORMAT_VERSION_KEY.toLowerCase());
@@ -102,16 +146,28 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     private final OrderedScheduler scheduler;
 
-    // container in jclouds
-    private final String bucket;
+    // container in jclouds to write offloaded ledgers
+    private final String writeBucket;
+    // the region to write offloaded ledgers
+    private final String writeRegion;
+    // the endpoint
+    private final String writeEndpoint;
+    // credentials
+    private final Credentials credentials;
+
     // max block size for each data block.
     private int maxBlockSize;
     private final int readBufferSize;
 
-    private BlobStoreContext context;
-    private BlobStore blobStore;
-    Location location = null;
+    private final BlobStore writeBlobStore;
+    private final Location writeLocation;
+
+    private final ConcurrentMap<BlobStoreLocation, BlobStore> readBlobStores = new ConcurrentHashMap<>();
+
+    // metadata to be stored as part of the offloaded ledger metadata
     private final Map<String, String> userMetadata;
+    // offload driver metadata to be stored as part of the original ledger metadata
+    private final String offloadDriverName;
 
     @VisibleForTesting
     static BlobStoreManagedLedgerOffloader create(TieredStorageConfigurationData conf,
@@ -124,6 +180,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                          OrderedScheduler scheduler)
             throws IOException {
         String driver = conf.getManagedLedgerOffloadDriver();
+        if ("s3".equals(driver.toLowerCase())) {
+            driver = "aws-s3";
+        }
         if (!driverSupported(driver)) {
             throw new IOException(
                 "Not support this kind of driver as offload backend: " + driver);
@@ -217,35 +276,34 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                     int maxBlockSize, int readBufferSize,
                                     String endpoint, String region, Credentials credentials,
                                     Map<String, String> userMetadata) {
+        this.offloadDriverName = driver;
         this.scheduler = scheduler;
         this.readBufferSize = readBufferSize;
-        this.bucket = container;
+        this.writeBucket = container;
+        this.writeRegion = region;
+        this.writeEndpoint = endpoint;
         this.maxBlockSize = maxBlockSize;
         this.userMetadata = userMetadata;
+        this.credentials = credentials;
 
-        Properties overrides = new Properties();
-        // This property controls the number of parts being uploaded in parallel.
-        overrides.setProperty("jclouds.mpu.parallel.degree", "1");
-        overrides.setProperty("jclouds.mpu.parts.size", Integer.toString(maxBlockSize));
-        overrides.setProperty(Constants.PROPERTY_SO_TIMEOUT, "25000");
-        overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
-
-        ContextBuilder contextBuilder = ContextBuilder.newBuilder(driver);
-        contextBuilder.credentials(credentials.identity, credentials.credential);
-
-        if (isS3Driver(driver) && !Strings.isNullOrEmpty(endpoint)) {
-            contextBuilder.endpoint(endpoint);
-            overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
-        }
         if (!Strings.isNullOrEmpty(region)) {
-            this.location = new LocationBuilder().scope(LocationScope.REGION).id(region).description(region).build();
+            this.writeLocation = new LocationBuilder()
+                .scope(LocationScope.REGION)
+                .id(region)
+                .description(region)
+                .build();
+        } else {
+            this.writeLocation = null;
         }
 
-        log.info("Constructor driver: {}, host: {}, container: {}, region: {} ",  driver, endpoint, bucket, region);
+        log.info("Constructor offload driver: {}, host: {}, container: {}, region: {} ",
+            driver, endpoint, container, region);
 
-        contextBuilder.overrides(overrides);
-        this.context = contextBuilder.buildView(BlobStoreContext.class);
-        this.blobStore = context.getBlobStore();
+        Pair<BlobStoreLocation, BlobStore> blobStore = createBlobStore(
+            driver, region, endpoint, credentials, maxBlockSize
+        );
+        this.writeBlobStore = blobStore.getRight();
+        this.readBlobStores.put(blobStore.getLeft(), blobStore.getRight());
     }
 
     // build context for jclouds BlobStoreContext, mostly used in test
@@ -258,12 +316,22 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     BlobStoreManagedLedgerOffloader(BlobStore blobStore, String container, OrderedScheduler scheduler,
                                     int maxBlockSize, int readBufferSize,
                                     Map<String, String> userMetadata) {
+        this.offloadDriverName = "aws-s3";
         this.scheduler = scheduler;
         this.readBufferSize = readBufferSize;
-        this.bucket = container;
+        this.writeBucket = container;
+        this.writeRegion = null;
+        this.writeEndpoint = null;
         this.maxBlockSize = maxBlockSize;
-        this.blobStore = blobStore;
+        this.writeBlobStore = blobStore;
+        this.writeLocation = null;
         this.userMetadata = userMetadata;
+        this.credentials = null;
+
+        readBlobStores.put(
+            BlobStoreLocation.of(writeRegion, writeEndpoint),
+            blobStore
+        );
     }
 
     static String dataBlockOffloadKey(long ledgerId, UUID uuid) {
@@ -274,12 +342,26 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return String.format("%s-ledger-%d-index", uuid.toString(), ledgerId);
     }
 
-    public boolean createBucket() {
-        return blobStore.createContainerInLocation(location, bucket);
+    public boolean createBucket(String bucket) {
+        return writeBlobStore.createContainerInLocation(writeLocation, bucket);
     }
 
-    public void deleteBucket() {
-        blobStore.deleteContainer(bucket);
+    public void deleteBucket(String bucket) {
+        writeBlobStore.deleteContainer(bucket);
+    }
+
+    @Override
+    public String getOffloadDriverName() {
+        return offloadDriverName;
+    }
+
+    @Override
+    public Map<String, String> getOffloadDriverMetadata() {
+        return ImmutableMap.of(
+            METADATA_FIELD_BUCKET, writeBucket,
+            METADATA_FIELD_REGION, writeRegion,
+            METADATA_FIELD_ENDPOINT, writeEndpoint
+        );
     }
 
     // upload DataBlock to s3 using MultiPartUpload, and indexBlock in a new Block,
@@ -305,10 +387,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
             // init multi part upload for data block.
             try {
-                BlobBuilder blobBuilder = blobStore.blobBuilder(dataBlockKey);
+                BlobBuilder blobBuilder = writeBlobStore.blobBuilder(dataBlockKey);
                 addVersionInfo(blobBuilder, userMetadata);
                 Blob blob = blobBuilder.build();
-                mpu = blobStore.initiateMultipartUpload(bucket, blob.getMetadata(), new PutOptions());
+                mpu = writeBlobStore.initiateMultipartUpload(writeBucket, blob.getMetadata(), new PutOptions());
             } catch (Throwable t) {
                 promise.completeExceptionally(t);
                 return;
@@ -330,9 +412,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         Payload partPayload = Payloads.newInputStreamPayload(blockStream);
                         partPayload.getContentMetadata().setContentLength((long)blockSize);
                         partPayload.getContentMetadata().setContentType("application/octet-stream");
-                        parts.add(blobStore.uploadMultipartPart(mpu, partId, partPayload));
+                        parts.add(writeBlobStore.uploadMultipartPart(mpu, partId, partPayload));
                         log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
-                            bucket, dataBlockKey, partId, mpu.id());
+                            writeBucket, dataBlockKey, partId, mpu.id());
 
                         indexBuilder.addBlock(startEntry, partId, blockSize);
 
@@ -349,16 +431,16 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                     dataObjectLength += blockSize;
                 }
 
-                blobStore.completeMultipartUpload(mpu, parts);
+                writeBlobStore.completeMultipartUpload(mpu, parts);
                 mpu = null;
             } catch (Throwable t) {
                 try {
                     if (mpu != null) {
-                        blobStore.abortMultipartUpload(mpu);
+                        writeBlobStore.abortMultipartUpload(mpu);
                     }
                 } catch (Throwable throwable) {
                     log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
-                        bucket, dataBlockKey, mpu.id(), throwable);
+                        writeBucket, dataBlockKey, mpu.id(), throwable);
                 }
                 promise.completeExceptionally(t);
                 return;
@@ -368,7 +450,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             try (OffloadIndexBlock index = indexBuilder.withDataObjectLength(dataObjectLength).build();
                  OffloadIndexBlock.IndexInputStream indexStream = index.toStream()) {
                 // write the index block
-                BlobBuilder blobBuilder = blobStore.blobBuilder(indexBlockKey);
+                BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
                 addVersionInfo(blobBuilder, userMetadata);
                 Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
                 indexPayload.getContentMetadata().setContentLength((long)indexStream.getStreamSize());
@@ -379,14 +461,14 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                     .contentLength((long)indexStream.getStreamSize())
                     .build();
 
-                blobStore.putBlob(bucket, blob);
+                writeBlobStore.putBlob(writeBucket, blob);
                 promise.complete(null);
             } catch (Throwable t) {
                 try {
-                    blobStore.removeBlob(bucket, dataBlockKey);
+                    writeBlobStore.removeBlob(writeBucket, dataBlockKey);
                 } catch (Throwable throwable) {
                     log.error("Failed deleteObject in bucket - {} with key - {}.",
-                        bucket, dataBlockKey, throwable);
+                        writeBucket, dataBlockKey, throwable);
                 }
                 promise.completeExceptionally(t);
                 return;
@@ -395,16 +477,57 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return promise;
     }
 
+    String getReadRegion(Map<String, String> offloadDriverMetadata) {
+        return offloadDriverMetadata.getOrDefault(METADATA_FIELD_REGION, writeRegion);
+    }
+
+    String getReadBucket(Map<String, String> offloadDriverMetadata) {
+        return offloadDriverMetadata.getOrDefault(METADATA_FIELD_BUCKET, writeBucket);
+    }
+
+    String getReadEndpoint(Map<String, String> offloadDriverMetadata) {
+        return offloadDriverMetadata.getOrDefault(METADATA_FIELD_ENDPOINT, writeEndpoint);
+    }
+
+    BlobStore getReadBlobStore(Map<String, String> offloadDriverMetadata) {
+        BlobStoreLocation location = BlobStoreLocation.of(
+            getReadRegion(offloadDriverMetadata),
+            getReadEndpoint(offloadDriverMetadata)
+        );
+        BlobStore blobStore = readBlobStores.get(location);
+        if (null == blobStore) {
+            blobStore = createBlobStore(
+                offloadDriverName,
+                location.getRegion(),
+                location.getEndpoint(),
+                credentials,
+                maxBlockSize
+            ).getRight();
+            BlobStore existingBlobStore = readBlobStores.putIfAbsent(location, blobStore);
+            if (null == existingBlobStore) {
+                return blobStore;
+            } else {
+                return existingBlobStore;
+            }
+        } else {
+            return blobStore;
+        }
+    }
+
     @Override
-    public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid) {
+    public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid,
+                                                       Map<String, String> offloadDriverMetadata) {
+        String readBucket = getReadBucket(offloadDriverMetadata);
+        BlobStore readBlobstore = getReadBlobStore(offloadDriverMetadata);
+
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         String key = dataBlockOffloadKey(ledgerId, uid);
         String indexKey = indexBlockOffloadKey(ledgerId, uid);
         scheduler.chooseThread(ledgerId).submit(() -> {
                 try {
                     promise.complete(BlobStoreBackedReadHandleImpl.open(scheduler.chooseThread(ledgerId),
-                                                                 blobStore,
-                                                                 bucket, key, indexKey,
+                                                                 readBlobstore,
+                                                                 readBucket, key, indexKey,
                                                                  VERSION_CHECK,
                                                                  ledgerId, readBufferSize));
                 } catch (Throwable t) {
@@ -418,11 +541,15 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
 
     @Override
-    public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid) {
+    public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid,
+                                                   Map<String, String> offloadDriverMetadata) {
+        String readBucket = getReadBucket(offloadDriverMetadata);
+        BlobStore readBlobstore = getReadBlobStore(offloadDriverMetadata);
+
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(ledgerId).submit(() -> {
             try {
-                blobStore.removeBlobs(bucket,
+                readBlobstore.removeBlobs(readBucket,
                     ImmutableList.of(dataBlockOffloadKey(ledgerId, uid), indexBlockOffloadKey(ledgerId, uid)));
                 promise.complete(null);
             } catch (Throwable t) {
