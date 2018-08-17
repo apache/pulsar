@@ -48,7 +48,7 @@ public class ProcessRuntimeTest {
     static {
         topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
         topicsToSchema.put("persistent://sample/standalone/ns1/test_src",
-                ConsumerSpec.newBuilder().setSchemaTypeOrClassName("").setIsRegexPattern(false).build());
+                ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
     }
 
     private final ProcessRuntimeFactory factory;
@@ -91,7 +91,7 @@ public class ProcessRuntimeTest {
         functionDetailsBuilder.setLogTopic(TEST_NAME + "-log");
         functionDetailsBuilder.setSource(Function.SourceSpec.newBuilder()
                 .setSubscriptionType(Function.SubscriptionType.FAILOVER)
-                .putAllTopicsToSchema(topicsToSchema)
+                .putAllInputSpecs(topicsToSchema)
                 .setClassName("org.pulsar.pulsar.TestSource")
                 .setTypeClassName(String.class.getName()));
         return functionDetailsBuilder.build();

@@ -123,9 +123,9 @@ public class TestCmdSinks {
         sinkConfig.setNamespace(NAMESPACE);
         sinkConfig.setName(NAME);
 
-        createSink.parseInputs(INPUTS, sinkConfig.getTopicsToSchema());
-        createSink.parseCustomSerdeInput(CUSTOM_SERDE_INPUT_STRING, sinkConfig.getTopicsToSchema());
-        createSink.addTopicPattern(TOPIC_PATTERN, sinkConfig.getTopicsToSchema());
+        createSink.parseInputs(INPUTS, sinkConfig.getInputSpecs());
+        createSink.parseCustomSerdeInput(CUSTOM_SERDE_INPUT_STRING, sinkConfig.getInputSpecs());
+        createSink.addTopicPattern(TOPIC_PATTERN, sinkConfig.getInputSpecs());
         sinkConfig.setProcessingGuarantees(PROCESSING_GUARANTEES);
         sinkConfig.setParallelism(PARALLELISM);
         sinkConfig.setArchive(JAR_FILE_PATH);
@@ -224,8 +224,8 @@ public class TestCmdSinks {
     @Test
     public void testMissingInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.getTopicsToSchema().clear();
-        createSink.parseCustomSerdeInput(CUSTOM_SERDE_INPUT_STRING, sinkConfig.getTopicsToSchema());
+        sinkConfig.getInputSpecs().clear();
+        createSink.parseCustomSerdeInput(CUSTOM_SERDE_INPUT_STRING, sinkConfig.getInputSpecs());
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -247,8 +247,8 @@ public class TestCmdSinks {
     @Test
     public void testMissingCustomSerdeInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.getTopicsToSchema().clear();
-        createSink.parseInputs(INPUTS, sinkConfig.getTopicsToSchema());
+        sinkConfig.getInputSpecs().clear();
+        createSink.parseInputs(INPUTS, sinkConfig.getInputSpecs());
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -270,8 +270,8 @@ public class TestCmdSinks {
     @Test
     public void testMissingTopicPattern() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.getTopicsToSchema().clear();
-        createSink.addTopicPattern(null, sinkConfig.getTopicsToSchema());
+        sinkConfig.getInputSpecs().clear();
+        createSink.addTopicPattern(null, sinkConfig.getInputSpecs());
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -689,7 +689,7 @@ public class TestCmdSinks {
     @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Must specify at least one topic of input via inputs, customSerdeInputs, or topicPattern")
     public void testCmdSinkConfigFileMissingAllInput() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.getTopicsToSchema().clear();
+        testSinkConfig.getInputSpecs().clear();
 
         SinkConfig expectedSinkConfig = getSinkConfig();
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
@@ -815,9 +815,9 @@ public class TestCmdSinks {
         testSinkConfig.setNamespace(NAMESPACE + "-prime");
         testSinkConfig.setName(NAME + "-prime");
 
-        createSink.parseInputs(INPUTS + ",test-src-prime", testSinkConfig.getTopicsToSchema());
-        createSink.parseCustomSerdeInput("{\"test_src3-prime\": \"\"}", testSinkConfig.getTopicsToSchema());
-        createSink.addTopicPattern(TOPIC_PATTERN + "-prime", testSinkConfig.getTopicsToSchema());
+        createSink.parseInputs(INPUTS + ",test-src-prime", testSinkConfig.getInputSpecs());
+        createSink.parseCustomSerdeInput("{\"test_src3-prime\": \"\"}", testSinkConfig.getInputSpecs());
+        createSink.addTopicPattern(TOPIC_PATTERN + "-prime", testSinkConfig.getInputSpecs());
 
         testSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
         testSinkConfig.setParallelism(PARALLELISM + 1);

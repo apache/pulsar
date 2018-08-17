@@ -114,7 +114,7 @@ public class TestCmdSources {
         sourceConfig.setName(NAME);
 
         sourceConfig.setTopicName(TOPIC_NAME);
-        sourceConfig.setSchemaTypeOrClassName(SERDE_CLASS_NAME);
+        sourceConfig.setSerdeClassName(SERDE_CLASS_NAME);
         sourceConfig.setProcessingGuarantees(PROCESSING_GUARANTEES);
         sourceConfig.setParallelism(PARALLELISM);
         sourceConfig.setArchive(JAR_FILE_PATH);
@@ -222,7 +222,7 @@ public class TestCmdSources {
     @Test
     public void testMissingSerdeClassName() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setSchemaTypeOrClassName(null);
+        sourceConfig.setSerdeClassName(null);
         testCmdSourceCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -573,10 +573,10 @@ public class TestCmdSources {
     @Test
     public void testCmdSourceConfigFileMissingSerdeClassname() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setSchemaTypeOrClassName(null);
+        testSourceConfig.setSerdeClassName(null);
 
         SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setSchemaTypeOrClassName(null);
+        expectedSourceConfig.setSerdeClassName(null);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
@@ -700,7 +700,7 @@ public class TestCmdSources {
         testSourceConfig.setNamespace(NAMESPACE + "-prime");
         testSourceConfig.setName(NAME + "-prime");
         testSourceConfig.setTopicName(TOPIC_NAME + "-prime");
-        testSourceConfig.setSchemaTypeOrClassName(SERDE_CLASS_NAME + "-prime");
+        testSourceConfig.setSerdeClassName(SERDE_CLASS_NAME + "-prime");
         testSourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
         testSourceConfig.setParallelism(PARALLELISM + 1);
         testSourceConfig.setArchive(JAR_FILE_PATH + "-prime");
