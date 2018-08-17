@@ -91,7 +91,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile) {
+    public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile) throws Exception {
         String instanceFile;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
