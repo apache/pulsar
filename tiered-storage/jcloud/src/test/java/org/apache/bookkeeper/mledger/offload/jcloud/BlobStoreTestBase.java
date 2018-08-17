@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.offload;
+package org.apache.bookkeeper.mledger.offload.jcloud;
 
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;

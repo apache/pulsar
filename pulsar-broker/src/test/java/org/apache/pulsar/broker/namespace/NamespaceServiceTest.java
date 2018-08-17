@@ -115,7 +115,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             result.get();
         } catch (Exception e) {
             // make sure: no failure
-            fail("split bundle faild", e);
+            fail("split bundle failed", e);
         }
         NamespaceBundleFactory bundleFactory = this.pulsar.getNamespaceService().getNamespaceBundleFactory();
         NamespaceBundles updatedNsBundles = bundleFactory.getBundles(nsname);
@@ -194,7 +194,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             result.get();
         } catch (Exception e) {
             // make sure: no failure
-            fail("split bundle faild", e);
+            fail("split bundle failed", e);
         }
 
         // old bundle should be removed from status-map
@@ -385,7 +385,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             result.get();
         } catch (Exception e) {
             // make sure: no failure
-            fail("split bundle faild", e);
+            fail("split bundle failed", e);
         }
         NamespaceBundleFactory bundleFactory = this.pulsar.getNamespaceService().getNamespaceBundleFactory();
         NamespaceBundles updatedNsBundles = bundleFactory.getBundles(nsname);
@@ -448,7 +448,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         try {
             result1.get();
         } catch (Exception e) {
-            fail("split bundle faild", e);
+            fail("split bundle failed", e);
         }
 
         NamespaceBundles updatedNsBundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
@@ -459,7 +459,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             try {
                 ownershipCache.removeOwnership(bundle).get();
             } catch (Exception e) {
-                fail("faild to remove ownership", e);
+                fail("failed to remove ownership", e);
             }
         });
 
@@ -468,7 +468,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             result2.get();
         } catch (Exception e) {
             // make sure: NPE does not occur
-            fail("split bundle faild", e);
+            fail("split bundle failed", e);
         }
     }
 

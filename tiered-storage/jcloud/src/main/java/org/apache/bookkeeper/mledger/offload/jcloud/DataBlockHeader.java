@@ -16,40 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.offload;
+package org.apache.bookkeeper.mledger.offload.jcloud;
 
-import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
+import java.io.InputStream;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 
 /**
+ * The data block header in code storage for each data block
  *
- * The Index Entry in OffloadIndexBlock.
- * It consists of the message entry id, the code storage block part id for this message entry,
- * and the offset in code storage block for this message id.
+ * Currently, It is in format:
+ * [ magic_word -- int ][ block_len -- int ][ first_entry_id  -- long][padding]
  *
+ * with the size: 4 + 4 + 8 + padding = 128 Bytes
  */
 @Unstable
-@LimitedPrivate
-public interface OffloadIndexEntry {
+public interface DataBlockHeader {
 
     /**
-     * Get the entryId that this entry contains.
+     * Get the length of the block in bytes, including the header.
      */
-    long getEntryId();
+    long getBlockLength();
 
     /**
-     * Get the block part id of code storage.
+     * Get the message entry Id for the first message that stored in this data block.
      */
-    int getPartId();
+    long getFirstEntryId();
 
     /**
-     * Get the offset of this block within the object.
+     * Get the size of this DataBlockHeader.
      */
-    long getOffset();
+    long getHeaderLength();
 
     /**
-     * Get the offset of the block's data within the object.
+     * Get the content of the data block header as InputStream.
+     * Read out in current format.
      */
-    long getDataOffset();
+    InputStream toStream();
 }
 

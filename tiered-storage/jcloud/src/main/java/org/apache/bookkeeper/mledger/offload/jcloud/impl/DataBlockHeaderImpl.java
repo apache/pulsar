@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.offload.impl;
+package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.io.CountingInputStream;
 
@@ -27,7 +27,7 @@ import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import org.apache.pulsar.broker.offload.DataBlockHeader;
+import org.apache.bookkeeper.mledger.offload.jcloud.DataBlockHeader;
 
 /**
  *

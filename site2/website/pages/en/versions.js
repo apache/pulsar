@@ -91,7 +91,7 @@ function Versions(props) {
                         </a>
                       </td>
                       <td>
-                        <a href={`${siteConfig.baseUrl}/release-notes#${version}`}>
+                        <a href={`${siteConfig.baseUrl}release-notes#${version}`}>
                           <translate>Release Notes</translate>
                         </a>
                       </td>
@@ -105,12 +105,12 @@ function Versions(props) {
                       <th>{version}</th>
                       <td>
                         <a
-                          href={`${siteConfig.url}/docs/v${version}/getting-started/LocalCluster/`}>
+                          href={`${siteConfig.baseUrl}docs/v${version}/getting-started/LocalCluster/`}>
                           <translate>Documentation</translate>
                         </a>
                       </td>
                       <td>
-                        <a href={`${siteConfig.baseUrl}/release-notes#${version}`}>
+                        <a href={`${siteConfig.baseUrl}release-notes#${version}`}>
                           <translate>Release Notes</translate>
                         </a>
                       </td>

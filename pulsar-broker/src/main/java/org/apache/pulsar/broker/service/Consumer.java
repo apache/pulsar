@@ -449,7 +449,7 @@ public class Consumer {
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] Added more flow control message permits {} (old was: {}), blocked = ", topicName,
+            log.debug("[{}-{}] Added more flow control message permits {} (old was: {}), blocked = {} ", topicName,
                     subscription, additionalNumberOfMessages, oldPermits, blockedConsumerOnUnackedMsgs);
         }
 

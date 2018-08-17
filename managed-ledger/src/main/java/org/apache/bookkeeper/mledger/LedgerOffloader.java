@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.ReadHandle;
 
 /**
- * Interface for offloading ledgers to longterm storage
+ * Interface for offloading ledgers to long-term storage
  */
 @Beta
 public interface LedgerOffloader {

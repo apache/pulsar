@@ -16,12 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.offload;
+package org.apache.pulsar.functions.api.examples;
 
-import java.io.InputStream;
-import java.io.IOException;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
 
-public abstract class BackedInputStream extends InputStream {
-    public abstract void seek(long position);
-    public abstract void seekForward(long position) throws IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
+/**
+ * Function that appends the host name to the payload message
+ */
+public class HostAppenderFunction implements Function<String, String> {
+
+    @Override
+    public String process(String input, Context context) {
+        try {
+            return input + InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            return null;
+        }
+    }
 }
+
