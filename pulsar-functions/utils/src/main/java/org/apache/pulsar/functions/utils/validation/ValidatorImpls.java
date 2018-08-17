@@ -780,29 +780,35 @@ public class ValidatorImpls {
                 String sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
                 Class<?> typeArg = getSinkType(sinkClassName, clsLoader);
 
-                sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
-                    FunctionConfigValidator.validateSerde(serdeClassName, typeArg, name, clsLoader);
-                });
+                if (sinkConfig.getTopicToSerdeClassName() != null) {
+                    sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
+                        FunctionConfigValidator.validateSerde(serdeClassName, typeArg, name, clsLoader);
+                    });
+                }
 
-                sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
-                    FunctionConfigValidator.validateSchema(schemaType, typeArg, name, clsLoader);
-                });
+                if (sinkConfig.getTopicToSchemaType() != null) {
+                    sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
+                        FunctionConfigValidator.validateSchema(schemaType, typeArg, name, clsLoader);
+                    });
+                }
 
                 // topicsPattern does not need checks
 
-                sinkConfig.getInputSpecs().forEach((topicName, consumerSpec) -> {
-                    // Only one is set
-                    if (consumerSpec.getSerdeClassName() != null && !consumerSpec.getSerdeClassName().isEmpty()
-                        && consumerSpec.getSchemaType() != null && !consumerSpec.getSchemaType().isEmpty()) {
-                        throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
-                    }
-                    if (consumerSpec.getSerdeClassName() != null && !consumerSpec.getSerdeClassName().isEmpty()) {
-                        FunctionConfigValidator.validateSerde(consumerSpec.getSerdeClassName(), typeArg, name, clsLoader);
-                    }
-                    if (consumerSpec.getSchemaType() != null && !consumerSpec.getSchemaType().isEmpty()) {
-                        FunctionConfigValidator.validateSchema(consumerSpec.getSchemaType(), typeArg, name, clsLoader);
-                    }
-                });
+                if (sinkConfig.getInputSpecs() != null) {
+                    sinkConfig.getInputSpecs().forEach((topicName, consumerSpec) -> {
+                        // Only one is set
+                        if (consumerSpec.getSerdeClassName() != null && !consumerSpec.getSerdeClassName().isEmpty()
+                                && consumerSpec.getSchemaType() != null && !consumerSpec.getSchemaType().isEmpty()) {
+                            throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
+                        }
+                        if (consumerSpec.getSerdeClassName() != null && !consumerSpec.getSerdeClassName().isEmpty()) {
+                            FunctionConfigValidator.validateSerde(consumerSpec.getSerdeClassName(), typeArg, name, clsLoader);
+                        }
+                        if (consumerSpec.getSchemaType() != null && !consumerSpec.getSchemaType().isEmpty()) {
+                            FunctionConfigValidator.validateSchema(consumerSpec.getSchemaType(), typeArg, name, clsLoader);
+                        }
+                    });
+                }
             } catch (IOException e) {
                 throw new IllegalArgumentException(e);
             }
