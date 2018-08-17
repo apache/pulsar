@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -51,6 +52,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentRedeliveryTracker;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
@@ -62,6 +64,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,6 +84,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     private CompletableFuture<Void> closeFuture = null;
     private ConcurrentLongPairSet messagesToReplay;
+    private HashSet<PositionImpl> messagesToDeadLetter;
 
     private boolean havePendingRead = false;
     private boolean havePendingReplayRead = false;
@@ -115,6 +119,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
         this.messagesToReplay = new ConcurrentLongPairSet(512, 2);
+        this.messagesToDeadLetter = new HashSet<>(8);
         this.readBatchSize = MaxReadBatchSize;
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
@@ -621,36 +626,60 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 if (redeliveryTracker.incrementAndGetRedeliveryCount(position) <= maxRedeliveryCount) {
                     messagesToReplay.add(position.getLedgerId(), position.getEntryId());
                 } else {
-                    try {
-                        Entry entry = cursor.readEntry(position);
-                        if (entry != null) {
-                            try {
-                                ByteBuf headersAndPayload = entry.getDataBuffer();
-                                MessageImpl<byte[]> msg;
+                    messagesToDeadLetter.add(position);
+                }
+            }
+            if (messagesToDeadLetter.size() > 0) {
+                CountDownLatch latch = new CountDownLatch(messagesToDeadLetter.size());
+                for (PositionImpl position : messagesToDeadLetter) {
+                    cursor.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                        @Override
+                        public void readEntryComplete(Entry entry, Object ctx) {
+                            if (entry == null) {
+                                log.error("[{}-{}] Read an null entry from cursor {}", name, consumer, position);
+                                latch.countDown();
+                            } else {
                                 try {
-                                    msg = MessageImpl.deserialize(headersAndPayload);
+                                    ByteBuf headersAndPayload = entry.getDataBuffer();
+                                    MessageImpl<byte[]> msg = MessageImpl.deserialize(headersAndPayload);
+                                    headersAndPayload.retain();
+                                    msg.setReplicatedFrom("DLQ");
+                                    CompletableFuture<MessageId> future = deadLetterTopicProducer.sendAsync(msg);
+                                    future.whenCompleteAsync((messageId, error) -> {
+                                        if (error != null) {
+                                            log.error("[{}-{}] Fail to send message to dead letter topic {} {} {}",
+                                                    name, consumer, deadLetterTopic, error.getMessage(), error);
+                                            messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                                            latch.countDown();
+                                        } else {
+                                            cursor.asyncDelete(position, deleteCallback, position);
+                                            redeliveryTracker.remove(position);
+                                            latch.countDown();
+                                        }
+                                    });
                                 } catch (Throwable t) {
-                                    log.error("[{}-{}] Failed to deserialize message at {} (buffer size: {}): {}", name, consumer,
+                                    log.error("[{}-{}] Failed to deserialize message at {} {} {} {}", name, consumer,
                                             entry.getPosition(), entry.getLedgerId(), t.getMessage(), t);
                                     cursor.asyncDelete(position, deleteCallback, position);
                                     redeliveryTracker.remove(position);
                                     entry.release();
-                                    continue;
+                                    latch.countDown();
                                 }
-                                headersAndPayload.retain();
-                                msg.setReplicatedFrom("DLQ");
-                                deadLetterTopicProducer.send(msg);
-                                cursor.asyncDelete(position, deleteCallback, position);
-                                redeliveryTracker.remove(position);
-                            } catch (Throwable e) {
-                                log.error("[{}-{}] Fail to send message to dead letter topic {}", name, consumer, deadLetterTopic);
-                                messagesToReplay.add(position.getLedgerId(), position.getEntryId());
                             }
                         }
-                    } catch (Throwable e) {
-                        log.error("[{}-{}] Read entries Fail", name, consumer);
-                        messagesToReplay.add(position.getLedgerId(), position.getEntryId());
-                    }
+                        @Override
+                        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error("[{}-{}] Read entries failed {} {}", name, consumer, exception.getMessage(), exception);
+                            messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                            latch.countDown();
+                        }
+                    }, null);
+                }
+                try {
+                    latch.await();
+                    messagesToDeadLetter.clear();
+                } catch (InterruptedException e) {
+                    log.error("[{}-{}] latch Interrupted {} {}", name, consumer, e.getMessage(), e);
                 }
             }
         } else {
