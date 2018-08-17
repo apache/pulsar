@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.offload.impl;
+package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
@@ -39,10 +39,10 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.pulsar.broker.offload.BlockAwareSegmentInputStream;
-import org.apache.pulsar.broker.offload.OffloadIndexBlock;
-import org.apache.pulsar.broker.offload.OffloadIndexBlockBuilder;
-import org.apache.pulsar.broker.offload.TieredStorageConfigurationData;
+import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
+import org.apache.bookkeeper.mledger.offload.jcloud.TieredStorageConfigurationData;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
