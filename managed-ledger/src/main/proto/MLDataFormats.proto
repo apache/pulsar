@@ -21,12 +21,34 @@ syntax = "proto2";
 option java_package = "org.apache.bookkeeper.mledger.proto";
 option optimize_for = SPEED;
 
+enum OffloadDriverType {
+    NONE     = 0;
+    AWS_S3   = 1;
+    GCS      = 2;
+}
+
+message S3DriverContext {
+    required string bucket  = 1;
+    optional string region  = 2;
+    optional string serviceEndpoint = 3;
+}
+
+message GCSDriverContext {
+    required string bucket  = 1;
+    optional string region  = 2;
+}
+
 message OffloadContext {
     optional int64 uidMsb = 1;
     optional int64 uidLsb = 2;
     optional bool complete = 3;
     optional bool bookkeeperDeleted = 4;
     optional int64 timestamp = 5;
+    required OffloadDriverType driverType = 6;
+
+    // driver context
+    optional S3DriverContext s3DriverContext    = 20;
+    optional GCSDriverContext gcsDriverContext  = 21;
 }
 
 message ManagedLedgerInfo {
