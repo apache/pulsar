@@ -48,6 +48,7 @@ import java.util.Set;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -262,6 +263,7 @@ public class CmdSinks extends CmdBase {
             } else {
                 this.sinkConfig = new SinkConfig();
             }
+            log.info("The sinkConfig read from file is {}", sinkConfig);
 
             if (null != tenant) {
                 sinkConfig.setTenant(tenant);
@@ -284,20 +286,19 @@ public class CmdSinks extends CmdBase {
 
             sinkConfig.setRetainOrdering(retainOrdering);
 
-            Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
             if (null != inputs) {
-                parseInputs(inputs, inputSpecs);
+                sinkConfig.setInputs(Arrays.asList(inputs.split(",")));
             }
             if (null != customSerdeInputString) {
-                parseCustomSerdeInput(customSerdeInputString, inputSpecs);
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
+                sinkConfig.setTopicToSerdeClassName(customSerdeInputMap);
             }
 
             if (null != customSchemaInputString) {
-                parseCustomSchemaType(customSchemaInputString, inputSpecs);
-            }
-
-            if (!inputSpecs.isEmpty()) {
-                sinkConfig.getInputSpecs().putAll(inputSpecs);
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> customSchemaInputMap = new Gson().fromJson(customSchemaInputString, type);
+                sinkConfig.setTopicToSchemaType(customSchemaInputMap);
             }
 
             if (isNotBlank(subsName)) {
@@ -305,10 +306,7 @@ public class CmdSinks extends CmdBase {
             }
 
             if (null != topicsPattern) {
-                sinkConfig.getInputSpecs().put(topicsPattern,
-                        ConsumerConfig.builder()
-                                .isRegexPattern(true)
-                                .build());
+                sinkConfig.setTopicsPattern(topicsPattern);
             }
 
             if (parallelism != null) {
@@ -354,43 +352,6 @@ public class CmdSinks extends CmdBase {
         protected Map<String, Object> parseConfigs(String str) {
             Type type = new TypeToken<Map<String, String>>(){}.getType();
             return new Gson().fromJson(str, type);
-        }
-
-        protected void parseCustomSerdeInput(String str, Map<String, ConsumerConfig> inputSpecs) {
-            Type type = new TypeToken<Map<String, String>>(){}.getType();
-            Map<String, String> customSerdeInputMap = new Gson().fromJson(str, type);
-            customSerdeInputMap.forEach((topic, serde) -> {
-                inputSpecs.put(topic, ConsumerConfig.builder()
-                        .serdeClassName(serde)
-                        .isRegexPattern(false)
-                        .build());
-            });
-        }
-
-        protected void parseCustomSchemaType(String str, Map<String, ConsumerConfig> inputSpecs) {
-            Type type = new TypeToken<Map<String, String>>(){}.getType();
-            Map<String, String> customSerdeInputMap = new Gson().fromJson(str, type);
-            customSerdeInputMap.forEach((topic, schemaType) -> {
-                inputSpecs.put(topic, ConsumerConfig.builder()
-                        .schemaType(schemaType)
-                        .isRegexPattern(false)
-                        .build());
-            });
-        }
-
-        protected void parseInputs(String str, Map<String, ConsumerConfig> inputSpecs) {
-            List<String> inputTopics = Arrays.asList(str.split(","));
-            inputTopics.forEach(s -> inputSpecs.put(s,
-                    ConsumerConfig.builder()
-                            .isRegexPattern(false)
-                            .build()));
-        }
-
-        protected void addTopicPattern(String topicPattern, Map<String, ConsumerConfig> topicsSchema) {
-            topicsSchema.put(topicPattern,
-                    ConsumerConfig.builder()
-                            .isRegexPattern(true)
-                            .build());
         }
 
         protected void inferMissingArguments(SinkConfig sinkConfig) {
@@ -517,6 +478,37 @@ public class CmdSinks extends CmdBase {
             // source spec classname should be empty so that the default pulsar source will be used
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
+            if (sinkConfig.getInputs() !=  null) {
+                sinkConfig.getInputs().forEach(topicName ->
+                        sourceSpecBuilder.putInputSpecs(topicName,
+                        ConsumerSpec.newBuilder()
+                                .setIsRegexPattern(false)
+                                .build()));
+            }
+            if (!StringUtils.isEmpty(sinkConfig.getTopicsPattern())) {
+                sourceSpecBuilder.putInputSpecs(sinkConfig.getTopicsPattern(),
+                        ConsumerSpec.newBuilder()
+                                .setIsRegexPattern(true)
+                                .build());
+            }
+            if (sinkConfig.getTopicToSerdeClassName() != null) {
+                sinkConfig.getTopicToSerdeClassName().forEach((topicName, serde) -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setSerdeClassName(serde == null ? "" : serde)
+                                    .setIsRegexPattern(false)
+                                    .build());
+                    });
+            }
+            if (sinkConfig.getTopicToSchemaType() != null) {
+                sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setSchemaType(schemaType == null ? "" : schemaType)
+                                    .setIsRegexPattern(false)
+                                    .build());
+                });
+            }
             if (sinkConfig.getInputSpecs() != null) {
                 sinkConfig.getInputSpecs().forEach((topic, spec) -> {
                     sourceSpecBuilder.putInputSpecs(topic,

@@ -435,7 +435,7 @@ public class ValidatorImpls {
         }
 
         private static void validateSchema(String schemaType, Class<?> typeArg, String name, ClassLoader clsLoader) {
-            if (schemaType.isEmpty() || getBuiltinSchemaType(schemaType) != null) {
+            if (StringUtils.isEmpty(schemaType) || getBuiltinSchemaType(schemaType) != null) {
                 // If it's empty, we use the default schema and no need to validate
                 // If it's built-in, no need to validate
             } else {
@@ -452,6 +452,7 @@ public class ValidatorImpls {
         }
 
         private static void validateSerde(String inputSerializer, Class<?> typeArg, String name, ClassLoader clsLoader) {
+            if (StringUtils.isEmpty(inputSerializer)) return;
             Class<?> serdeClass;
             try {
                 serdeClass = loadClass(inputSerializer);

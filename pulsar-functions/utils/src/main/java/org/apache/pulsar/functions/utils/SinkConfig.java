@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -27,6 +28,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isMapEntryCustom;
@@ -54,6 +56,9 @@ public class SinkConfig {
     private String className;
     private String sourceSubscriptionName;
 
+    @ConfigValidationAnnotations.isListEntryCustom(entryValidatorClasses = {ValidatorImpls.TopicNameValidator.class})
+    private Collection<String> inputs;
+
     @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
             valueValidatorClasses = { ValidatorImpls.SerdeValidator.class })
     private Map<String, String> topicToSerdeClassName;
@@ -65,7 +70,7 @@ public class SinkConfig {
             valueValidatorClasses = { ValidatorImpls.SchemaValidator.class })
     private Map<String, String> topicToSchemaType;
 
-    private final Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
+    private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
 
     private Map<String, Object> configs;
     @isPositiveNumber
