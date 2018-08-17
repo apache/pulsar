@@ -521,8 +521,8 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.getInputSpecs().forEach((topic, spec) -> {
                     sourceSpecBuilder.putInputSpecs(topic,
                             ConsumerSpec.newBuilder()
-                                    .setSerdeClassName(spec.getSerdeClassName())
-                                    .setSchemaType(spec.getSchemaType())
+                                    .setSerdeClassName(spec.getSerdeClassName() != null ? spec.getSerdeClassName() : "")
+                                    .setSchemaType(spec.getSchemaType() != null ? spec.getSchemaType() : "")
                                     .setIsRegexPattern(spec.isRegexPattern())
                                     .build());
                 });
