@@ -319,7 +319,6 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.core-jackson-databind-2.8.4.jar
      - com.fasterxml.jackson.dataformat-jackson-dataformat-cbor-2.6.7.jar
      - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.8.4.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-joda-2.8.4.jar
      - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.8.4.jar
      - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.8.4.jar
      - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.8.4.jar
@@ -329,11 +328,10 @@ The Apache Software License, Version 2.0
  * Gson -- com.google.code.gson-gson-2.8.2.jar
  * Guava -- com.google.guava-guava-21.0.jar
  * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.0.jar
- * Swagger Annotations -- com.wordnik-swagger-annotations-1.5.3-M1.jar
  * Swagger
-    - io.swagger-swagger-annotations-1.5.3.jar
-    - io.swagger-swagger-core-1.5.3.jar
-    - io.swagger-swagger-models-1.5.3.jar
+    - io.swagger-swagger-annotations-1.5.20.jar
+    - io.swagger-swagger-core-1.5.20.jar
+    - io.swagger-swagger-models-1.5.20.jar
  * DataSketches
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
@@ -417,7 +415,7 @@ The Apache Software License, Version 2.0
  * HttpClient
     - org.apache.httpcomponents-httpclient-4.5.5.jar
     - org.apache.httpcomponents-httpcore-4.4.9.jar
- * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.1.0.jar
+ * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.1.2.jar
  * OkHttp - com.squareup.okhttp-okhttp-2.5.0.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
  * Javassist -- org.javassist-javassist-3.21.0-GA.jar
