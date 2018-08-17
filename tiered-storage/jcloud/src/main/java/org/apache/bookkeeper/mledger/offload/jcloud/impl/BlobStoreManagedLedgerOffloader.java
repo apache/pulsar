@@ -49,6 +49,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
+import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
@@ -61,8 +62,10 @@ import org.jclouds.domain.Location;
 import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
 import org.jclouds.googlecloud.GoogleCredentialsFromJson;
+import org.jclouds.googlecloudstorage.GoogleCloudStorageProviderMetadata;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
+import org.jclouds.osgi.ProviderRegistry;
 import org.jclouds.s3.reference.S3Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -180,6 +183,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                          OrderedScheduler scheduler)
             throws IOException {
         String driver = conf.getManagedLedgerOffloadDriver();
+        // for bc consideration
         if ("s3".equals(driver.toLowerCase())) {
             driver = "aws-s3";
         }
@@ -286,6 +290,23 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.userMetadata = userMetadata;
         this.credentials = credentials;
 
+        Properties overrides = new Properties();
+        // This property controls the number of parts being uploaded in parallel.
+        overrides.setProperty("jclouds.mpu.parallel.degree", "1");
+        overrides.setProperty("jclouds.mpu.parts.size", Integer.toString(maxBlockSize));
+        overrides.setProperty(Constants.PROPERTY_SO_TIMEOUT, "25000");
+        overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
+
+        ProviderRegistry.registerProvider(new AWSS3ProviderMetadata());
+        ProviderRegistry.registerProvider(new GoogleCloudStorageProviderMetadata());
+
+        ContextBuilder contextBuilder = ContextBuilder.newBuilder(driver);
+        contextBuilder.credentials(credentials.identity, credentials.credential);
+
+        if (isS3Driver(driver) && !Strings.isNullOrEmpty(endpoint)) {
+            contextBuilder.endpoint(endpoint);
+            overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
+        }
         if (!Strings.isNullOrEmpty(region)) {
             this.writeLocation = new LocationBuilder()
                 .scope(LocationScope.REGION)

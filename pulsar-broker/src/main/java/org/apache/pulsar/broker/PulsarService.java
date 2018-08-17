@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.NamespacesBase.getBundles;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
@@ -50,7 +51,8 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-import org.apache.bookkeeper.mledger.offload.jcloud.JCloudLedgerOffloaderFactory;
+import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
+import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -140,6 +142,7 @@ public class PulsarService implements AutoCloseable {
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
+    private Offloaders offloaderManager = new Offloaders();
     private LedgerOffloader offloader;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
@@ -285,6 +288,8 @@ public class PulsarService implements AutoCloseable {
             if (schemaRegistryService != null) {
                 schemaRegistryService.close();
             }
+
+            offloaderManager.close();
 
             state = State.Closed;
 
@@ -664,11 +669,13 @@ public class PulsarService implements AutoCloseable {
     public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
             throws PulsarServerException {
         try {
-            // TODO: will make this configurable when switching to use NAR loader to load offloaders
-            LedgerOffloaderFactory offloaderFactory = JCloudLedgerOffloaderFactory.of();
-
-            if (conf.getManagedLedgerOffloadDriver() != null
-                && offloaderFactory.isDriverSupported(conf.getManagedLedgerOffloadDriver())) {
+            if (conf.getManagedLedgerOffloadDriver() != null) {
+                checkNotNull(conf.getOffloadersDirectory(),
+                    "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
+                    conf.getManagedLedgerOffloadDriver());
+                this.offloaderManager = OffloaderUtils.searchForOffloaders(conf.getOffloadersDirectory());
+                LedgerOffloaderFactory offloaderFactory = this.offloaderManager.getOffloaderFactory(
+                    conf.getManagedLedgerOffloadDriver());
                 try {
                     return offloaderFactory.create(
                         conf.getProperties(),

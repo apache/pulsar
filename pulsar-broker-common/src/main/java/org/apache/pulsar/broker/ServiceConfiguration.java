@@ -484,6 +484,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
      * NOTES: all implementation related settings should be put in implementation package.
      *        only common settings like driver name, io threads can be added here.
      ****/
+    // The directory to locate offloaders
+    private String offloadersDirectory = "./offloaders";
+
     // Driver to use to offload old data to long term storage
     private String managedLedgerOffloadDriver = null;
 
@@ -1687,6 +1690,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getManagedLedgerOffloadMaxThreads() {
         return this.managedLedgerOffloadMaxThreads;
+    }
+
+    public String getOffloadersDirectory() {
+        return offloadersDirectory;
+    }
+
+    public void setOffloadersDirectory(String dir) {
+        this.offloadersDirectory = dir;
     }
 
     public void setBrokerServiceCompactionMonitorIntervalInSeconds(int interval) {
