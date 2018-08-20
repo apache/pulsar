@@ -90,6 +90,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private MembershipManager membershipManager;
     private final ConnectorsManager connectorsManager;
+    
+    public static final String FUNCTION_ACTION_RESTART = "restart";
+    public static final String FUNCTION_ACTION_STOP = "stop";
 
     public FunctionRuntimeManager(WorkerConfig workerConfig,
                                   PulsarClient pulsarClient,
@@ -326,7 +329,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return functionStatus;
     }
 
-    public Response restartFunctionInstance(String tenant, String namespace, String functionName, int instanceId) throws Exception {
+    public Response stopFunctionInstance(String tenant, String namespace, String functionName, int instanceId,
+            boolean restart) throws Exception {
         Assignment assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
         final String fullFunctionName = String.format("%s/%s/%s/%s", tenant, namespace, functionName, instanceId);
         if (assignment == null) {
@@ -336,9 +340,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         final String assignedWorkerId = assignment.getWorkerId();
         final String workerId = this.workerConfig.getWorkerId();
-        
+
         if (assignedWorkerId.equals(workerId)) {
-            restartFunction(Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
+            stopFunction(Utils.getFullyQualifiedInstanceId(assignment.getInstance()), restart);
             return Response.status(Status.OK).build();
         } else {
             // query other worker
@@ -355,8 +359,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
             }
 
             URI redirect = null;
-            final String redirectUrl = String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/restart",
-                    workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName, instanceId);
+            String action = restart ? FUNCTION_ACTION_RESTART : FUNCTION_ACTION_STOP;
+            final String redirectUrl = String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/%s",
+                    workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName, instanceId,
+                    action);
             try {
                 redirect = new URI(redirectUrl);
             } catch (URISyntaxException e) {
@@ -369,7 +375,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    public Response restartFunctionInstances(String tenant, String namespace, String functionName) throws Exception {
+    public Response stopFunctionInstances(String tenant, String namespace, String functionName, boolean restart)
+            throws Exception {
         final String fullFunctionName = String.format("%s/%s/%s", tenant, namespace, functionName);
         Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);
 
@@ -382,7 +389,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             final String workerId = this.workerConfig.getWorkerId();
             String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
             if (assignedWorkerId.equals(workerId)) {
-                restartFunction(fullyQualifiedInstanceId);
+                stopFunction(fullyQualifiedInstanceId, restart);
             } else {
                 List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
                 WorkerInfo workerInfo = null;
@@ -398,10 +405,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     continue;
                 }
                 Client client = ClientBuilder.newClient();
+                String action = restart ? FUNCTION_ACTION_RESTART : FUNCTION_ACTION_STOP;
                 // TODO: create and use pulsar-admin to support authorization and authentication and manage redirect
-                final String instanceRestartUrl = String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/restart",
+                final String instanceRestartUrl = String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/%s",
                         workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName,
-                        assignment.getInstance().getInstanceId());
+                        assignment.getInstance().getInstanceId(), action);
                 client.target(instanceRestartUrl).request(MediaType.APPLICATION_JSON)
                         .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
             }
@@ -409,15 +417,17 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return Response.status(Status.OK).build();
     }
 
-    private void restartFunction(String fullyQualifiedInstanceId) throws Exception {
-        log.info("[{}] restarting..", fullyQualifiedInstanceId);
+    private void stopFunction(String fullyQualifiedInstanceId, boolean restart) throws Exception {
+        log.info("[{}] {}..", restart ? "restarting" : "stopping", fullyQualifiedInstanceId);
         FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(fullyQualifiedInstanceId);
         if (functionRuntimeInfo != null) {
             this.functionActioner.stopFunction(functionRuntimeInfo);
             try {
-                this.functionActioner.startFunction(functionRuntimeInfo);
+                if(restart) {
+                    this.functionActioner.startFunction(functionRuntimeInfo);    
+                }
             } catch (Exception ex) {
-                log.info("{} Error starting function", fullyQualifiedInstanceId, ex);
+                log.info("{} Error re-starting function", fullyQualifiedInstanceId, ex);
                 functionRuntimeInfo.setStartupException(ex);
                 throw ex;
             }

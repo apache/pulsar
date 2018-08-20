@@ -104,6 +104,7 @@ public class CmdFunctions extends CmdBase {
     private final GetFunction getter;
     private final GetFunctionStatus functionStatus;
     private final RestartFunction restart;
+    private final StopFunction stop;
     private final ListFunctions lister;
     private final StateGetter stateGetter;
     private final TriggerFunction triggerer;
@@ -853,7 +854,28 @@ public class CmdFunctions extends CmdBase {
             System.out.println("Restarted successfully");
         }
     }
-    
+
+    @Parameters(commandDescription = "Temporary stops function instance. (If worker restarts then it reassigns and starts functiona again")
+    class StopFunction extends FunctionCommand {
+        
+        @Parameter(names = "--instance-id", description = "The function instanceId (stop all instances if instance-id is not provided")
+        protected String instanceId;
+        
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.functions().stopFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.functions().stopFunction(tenant, namespace, functionName);
+            }
+            System.out.println("Restarted successfully");
+        }
+    }
+
     @Parameters(commandDescription = "Delete a Pulsar Function that's running on a Pulsar cluster")
     class DeleteFunction extends FunctionCommand {
         @Override
@@ -1066,12 +1088,14 @@ public class CmdFunctions extends CmdBase {
         downloader = new DownloadFunction();
         cluster = new GetCluster();
         restart = new RestartFunction();
+        stop = new StopFunction();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
         jcommander.addCommand("update", getUpdater());
         jcommander.addCommand("get", getGetter());
         jcommander.addCommand("restart", getRestarter());
+        jcommander.addCommand("stop", getStopper());
         jcommander.addCommand("getstatus", getStatuser());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
@@ -1137,6 +1161,11 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     RestartFunction getRestarter() {
         return restart;
+    }
+
+    @VisibleForTesting
+    StopFunction getStopper() {
+        return stop;
     }
 
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
