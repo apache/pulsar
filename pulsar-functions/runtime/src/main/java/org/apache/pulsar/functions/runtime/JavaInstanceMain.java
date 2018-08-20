@@ -63,7 +63,7 @@ public class JavaInstanceMain implements AutoCloseable {
     protected String jarFile;
 
     @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
-    protected String instanceId;
+    protected int instanceId;
 
     @Parameter(names = "--function_id", description = "Function Id\n", required = true)
     protected String functionId;

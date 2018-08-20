@@ -142,7 +142,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // initialize the thread context
         ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
-        ThreadContext.put("instance", instanceConfig.getInstanceId());
+        ThreadContext.put("instance", instanceConfig.getInstanceName());
 
         log.info("Starting Java Instance {}", instanceConfig.getFunctionDetails().getName());
 
@@ -248,14 +248,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         if (jarFile.endsWith(".nar")) {
             // The functions code is contained in a NAR archive
-            fnCache.registerFunctionInstanceWithArchive(instanceConfig.getFunctionId(), instanceConfig.getInstanceId(),
-                    jarFile);
+            fnCache.registerFunctionInstanceWithArchive(
+                instanceConfig.getFunctionId(),
+                instanceConfig.getInstanceName(),
+                jarFile);
         } else {
             log.info("Loading JAR files for function {} from archive {}", instanceConfig, jarFile);
             // create the function class loader
             fnCache.registerFunctionInstance(
                     instanceConfig.getFunctionId(),
-                    instanceConfig.getInstanceId(),
+                    instanceConfig.getInstanceName(),
                     Arrays.asList(jarFile),
                     Collections.emptyList());
         }
@@ -399,7 +401,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // once the thread quits, clean up the instance
         fnCache.unregisterFunctionInstance(
                 instanceConfig.getFunctionId(),
-                instanceConfig.getInstanceId());
+                instanceConfig.getInstanceName());
         log.info("Unloading JAR files for function {}", instanceConfig);
     }
 

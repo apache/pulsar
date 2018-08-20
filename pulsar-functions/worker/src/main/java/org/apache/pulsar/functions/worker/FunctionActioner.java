@@ -165,7 +165,7 @@ public class FunctionActioner implements AutoCloseable {
         // TODO: set correct function id and version when features implemented
         instanceConfig.setFunctionId(UUID.randomUUID().toString());
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-        instanceConfig.setInstanceId(String.valueOf(instanceId));
+        instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
 
