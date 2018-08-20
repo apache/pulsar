@@ -67,7 +67,8 @@ $ gcloud container clusters get-credentials pulsar-gke-cluster \
 $ kubectl proxy
 ```
 
-By default, the proxy will be opened on port 8001. Now you can navigate to [localhost:8001/ui](http://localhost:8001/ui) in your browser to access the dashboard. At first your GKE cluster will be empty, but that will change as you begin deploying Pulsar [components](#deploying-pulsar-components).
+By default, the proxy will be opened on port 8001. Now you can navigate to [localhost:8001/ui](http://localhost:8001/ui) in your browser to access the dashboard. At first your GKE cluster will be empty, but that will change as you begin deploying Pulsar components using `kubectl` [component by component](#deploying-pulsar-components),
+or using [`helm`](#deploying-pulsar-components-helm).
 
 ## Pulsar on Amazon Web Services
 
@@ -81,7 +82,8 @@ When you create a cluster using those instructions, your `kubectl` config in `~/
 $ kubectl get nodes
 ```
 
-If `kubectl` is working with your cluster, you can proceed to [deploy Pulsar components](#deploying-pulsar-components).
+If `kubectl` is working with your cluster, you can proceed to deploy Pulsar components using `kubectl` [component by component](#deploying-pulsar-components),
+or using [`helm`](#deploying-pulsar-components-helm).
 
 ## Pulsar on a custom Kubernetes cluster
 
@@ -114,7 +116,8 @@ $ minikube dashboard
 ```
 
 The command will automatically trigger open a webpage in your browser. At first your local cluster will be empty,
-but that will change as you begin deploying Pulsar [components](#deploying-pulsar-components).
+but that will change as you begin deploying Pulsar components using `kubectl` [component by component](#deploying-pulsar-components),
+or using [`helm`](#deploying-pulsar-components-helm).
 
 ### Multiple VMs
 
@@ -159,7 +162,9 @@ In order to use the [Kubernetes Dashboard](https://kubernetes.io/docs/tasks/acce
 $ kubectl proxy
 ```
 
-Now you can access the web interface at [localhost:8001/ui](http://localhost:8001/ui). At first your local cluster will be empty, but that will change as you begin deploying Pulsar [components](#deploying-pulsar-components).
+Now you can access the web interface at [localhost:8001/ui](http://localhost:8001/ui). At first your local cluster will be empty,
+but that will change as you begin deploying Pulsar components using `kubectl` [component by component](#deploying-pulsar-components),
+or using [`helm`](#deploying-pulsar-components-helm).
 
 ## Deploying Pulsar components
 
@@ -368,3 +373,25 @@ You can find client documentation for:
 * [C++](client-libraries-cpp.md)
 
 
+## Deploying Pulsar components (helm)
+
+Pulsar also provides a [Helm](https://docs.helm.sh/) chart for deploying a Pulsar cluster to Kubernetes. Before you start,
+make sure you follow [Helm documentation](https://docs.helm.sh/using_helm) to install helm.
+
+> Assum you have cloned pulsar repo under a `PULSAR_HOME` directory.
+
+### Minikube
+
+1. Go to Pulsar helm chart directory
+    ```shell
+    cd ${PULSAR_HOME}/deployment/kubernetes/helm
+    ```
+1. Install helm chart to a K8S cluster on Minikube.
+    ```shell
+    helm install --values pulsar/values-mini.yaml ./pulsar
+    ```
+
+Once the helm chart is completed on installation, you can access the cluster via:
+
+- Web service url: `http://$(minikube ip):30001/`
+- Pulsar service url: `pulsar://$(minikube ip):30002/`

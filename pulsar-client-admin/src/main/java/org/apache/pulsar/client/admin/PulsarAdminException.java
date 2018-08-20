@@ -47,25 +47,25 @@ public class PulsarAdminException extends Exception {
 
     public PulsarAdminException(ClientErrorException e) {
         super(getReasonFromServer(e), e);
-        this.httpError = e.getMessage();
+        this.httpError = getReasonFromServer(e);
         this.statusCode = e.getResponse().getStatus();
     }
 
     public PulsarAdminException(ClientErrorException e, String message) {
         super(message, e);
-        this.httpError = e.getMessage();
+        this.httpError = getReasonFromServer(e);
         this.statusCode = e.getResponse().getStatus();
     }
 
     public PulsarAdminException(ServerErrorException e) {
         super(getReasonFromServer(e), e);
-        this.httpError = e.getMessage();
+        this.httpError = getReasonFromServer(e);
         this.statusCode = e.getResponse().getStatus();
     }
 
     public PulsarAdminException(ServerErrorException e, String message) {
         super(message, e);
-        this.httpError = e.getMessage();
+        this.httpError = getReasonFromServer(e);
         this.statusCode = e.getResponse().getStatus();
     }
 
@@ -73,6 +73,12 @@ public class PulsarAdminException extends Exception {
         super(t);
         httpError = null;
         statusCode = DEFAULT_STATUS_CODE;
+    }
+
+    public PulsarAdminException(WebApplicationException e) {
+        super(getReasonFromServer(e), e);
+        this.httpError = getReasonFromServer(e);
+        this.statusCode = e.getResponse().getStatus();
     }
 
     public PulsarAdminException(String message, Throwable t) {
@@ -124,6 +130,10 @@ public class PulsarAdminException extends Exception {
     }
 
     public static class ServerSideErrorException extends PulsarAdminException {
+        public ServerSideErrorException(ServerErrorException e, String msg) {
+            super(e, msg);
+        }
+
         public ServerSideErrorException(ServerErrorException e) {
             super(e, "Some error occourred on the server");
         }

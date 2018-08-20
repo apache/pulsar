@@ -47,8 +47,10 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
+import org.apache.bookkeeper.mledger.offload.jcloud.JCloudLedgerOffloaderFactory;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -62,8 +64,6 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.offload.TieredStorageConfigurationData;
-import org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -663,42 +663,29 @@ public class PulsarService implements AutoCloseable {
 
     public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
             throws PulsarServerException {
-        if (conf.getManagedLedgerOffloadDriver() != null
-            && BlobStoreManagedLedgerOffloader.driverSupported(conf.getManagedLedgerOffloadDriver())) {
-            try {
-                return BlobStoreManagedLedgerOffloader.create(
-                    getTieredStorageConf(conf),
-                    ImmutableMap.of(
-                        METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
-                        METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getGitSha()
-                    ),
-                    getOffloaderScheduler(conf));
-            } catch (IOException ioe) {
-                throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
-            }
-        } else {
-            return NullLedgerOffloader.INSTANCE;
-        }
-    }
+        try {
+            // TODO: will make this configurable when switching to use NAR loader to load offloaders
+            LedgerOffloaderFactory offloaderFactory = JCloudLedgerOffloaderFactory.of();
 
-    private static TieredStorageConfigurationData getTieredStorageConf(ServiceConfiguration serverConf) {
-        TieredStorageConfigurationData tsConf = new TieredStorageConfigurationData();
-        // generic settings
-        tsConf.setManagedLedgerOffloadDriver(serverConf.getManagedLedgerOffloadDriver());
-        tsConf.setManagedLedgerOffloadMaxThreads(serverConf.getManagedLedgerOffloadMaxThreads());
-        // s3 settings
-        tsConf.setS3ManagedLedgerOffloadRegion(serverConf.getS3ManagedLedgerOffloadRegion());
-        tsConf.setS3ManagedLedgerOffloadBucket(serverConf.getS3ManagedLedgerOffloadBucket());
-        tsConf.setS3ManagedLedgerOffloadServiceEndpoint(serverConf.getS3ManagedLedgerOffloadServiceEndpoint());
-        tsConf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(serverConf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
-        tsConf.setS3ManagedLedgerOffloadReadBufferSizeInBytes(serverConf.getS3ManagedLedgerOffloadReadBufferSizeInBytes());
-        // gcs settings
-        tsConf.setGcsManagedLedgerOffloadRegion(serverConf.getGcsManagedLedgerOffloadRegion());
-        tsConf.setGcsManagedLedgerOffloadBucket(serverConf.getGcsManagedLedgerOffloadBucket());
-        tsConf.setGcsManagedLedgerOffloadServiceAccountKeyFile(serverConf.getGcsManagedLedgerOffloadServiceAccountKeyFile());
-        tsConf.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(serverConf.getGcsManagedLedgerOffloadMaxBlockSizeInBytes());
-        tsConf.setGcsManagedLedgerOffloadReadBufferSizeInBytes(serverConf.getGcsManagedLedgerOffloadReadBufferSizeInBytes());
-        return tsConf;
+            if (conf.getManagedLedgerOffloadDriver() != null
+                && offloaderFactory.isDriverSupported(conf.getManagedLedgerOffloadDriver())) {
+                try {
+                    return offloaderFactory.create(
+                        conf.getProperties(),
+                        ImmutableMap.of(
+                            METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getNormalizedVersionString(),
+                            METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarBrokerVersionStringUtils.getGitSha()
+                        ),
+                        getOffloaderScheduler(conf));
+                } catch (IOException ioe) {
+                    throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
+                }
+            } else {
+                return NullLedgerOffloader.INSTANCE;
+            }
+        } catch (Throwable t) {
+            throw new PulsarServerException(t);
+        }
     }
 
     public ZooKeeperCache getLocalZkCache() {

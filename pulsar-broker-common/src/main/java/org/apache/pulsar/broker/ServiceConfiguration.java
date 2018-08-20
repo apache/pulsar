@@ -78,7 +78,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Time to wait for broker graceful shutdown. After this time elapses, the
     // process will be killed
     @FieldContext(dynamic = true)
-    private long brokerShutdownTimeoutMs = 3000;
+    private long brokerShutdownTimeoutMs = 60000;
     // Enable backlog quota check. Enforces action on topic when the quota is
     // reached
     private boolean backlogQuotaCheckEnabled = true;
@@ -480,47 +480,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposePublisherStats = true;
 
     /**** --- Ledger Offloading --- ****/
+    /****
+     * NOTES: all implementation related settings should be put in implementation package.
+     *        only common settings like driver name, io threads can be added here.
+     ****/
     // Driver to use to offload old data to long term storage
     private String managedLedgerOffloadDriver = null;
 
     // Maximum number of thread pool threads for ledger offloading
     private int managedLedgerOffloadMaxThreads = 2;
-
-    // For Amazon S3 ledger offload, AWS region
-    private String s3ManagedLedgerOffloadRegion = null;
-
-    // For Amazon S3 ledger offload, Bucket to place offloaded ledger into
-    private String s3ManagedLedgerOffloadBucket = null;
-
-    // For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing)
-    private String s3ManagedLedgerOffloadServiceEndpoint = null;
-
-    // For Amazon S3 ledger offload, Max block size in bytes.
-    @FieldContext(minValue = 5242880) // 5MB
-    private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024; // 64MB
-
-    // For Amazon S3 ledger offload, Read buffer size in bytes.
-    @FieldContext(minValue = 1024)
-    private int s3ManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
-
-    // For Google Cloud Storage ledger offload, region where offload bucket is located.
-    // reference this page for more details: https://cloud.google.com/storage/docs/bucket-locations
-    private String gcsManagedLedgerOffloadRegion = null;
-
-    // For Google Cloud Storage ledger offload, Bucket to place offloaded ledger into
-    private String gcsManagedLedgerOffloadBucket = null;
-
-    // For Google Cloud Storage ledger offload, Max block size in bytes.
-    @FieldContext(minValue = 5242880) // 5MB
-    private int gcsManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024; // 64MB
-
-    // For Google Cloud Storage ledger offload, Read buffer size in bytes.
-    @FieldContext(minValue = 1024)
-    private int gcsManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
-
-    // For Google Cloud Storage, path to json file containing service account credentials.
-    // For more details, see the "Service Accounts" section of https://support.google.com/googleapi/answer/6158849
-    private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -1719,86 +1687,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getManagedLedgerOffloadMaxThreads() {
         return this.managedLedgerOffloadMaxThreads;
-    }
-
-    public void setS3ManagedLedgerOffloadRegion(String region) {
-        this.s3ManagedLedgerOffloadRegion = region;
-    }
-
-    public String getS3ManagedLedgerOffloadRegion() {
-        return this.s3ManagedLedgerOffloadRegion;
-    }
-
-    public void setS3ManagedLedgerOffloadBucket(String bucket) {
-        this.s3ManagedLedgerOffloadBucket = bucket;
-    }
-
-    public String getS3ManagedLedgerOffloadBucket() {
-        return this.s3ManagedLedgerOffloadBucket;
-    }
-
-    public void setS3ManagedLedgerOffloadServiceEndpoint(String endpoint) {
-        this.s3ManagedLedgerOffloadServiceEndpoint = endpoint;
-    }
-
-    public String getS3ManagedLedgerOffloadServiceEndpoint() {
-        return this.s3ManagedLedgerOffloadServiceEndpoint;
-    }
-
-    public void setS3ManagedLedgerOffloadMaxBlockSizeInBytes(int blockSizeInBytes) {
-        this.s3ManagedLedgerOffloadMaxBlockSizeInBytes = blockSizeInBytes;
-    }
-
-    public int getS3ManagedLedgerOffloadMaxBlockSizeInBytes() {
-        return this.s3ManagedLedgerOffloadMaxBlockSizeInBytes;
-    }
-
-    public void setS3ManagedLedgerOffloadReadBufferSizeInBytes(int readBufferSizeInBytes) {
-        this.s3ManagedLedgerOffloadReadBufferSizeInBytes = readBufferSizeInBytes;
-    }
-
-    public int getS3ManagedLedgerOffloadReadBufferSizeInBytes() {
-        return this.s3ManagedLedgerOffloadReadBufferSizeInBytes;
-    }
-
-    public void setGcsManagedLedgerOffloadRegion(String region) {
-        this.gcsManagedLedgerOffloadRegion = region;
-    }
-
-    public String getGcsManagedLedgerOffloadRegion() {
-        return this.gcsManagedLedgerOffloadRegion;
-    }
-
-    public void setGcsManagedLedgerOffloadBucket(String bucket) {
-        this.gcsManagedLedgerOffloadBucket = bucket;
-    }
-
-    public String getGcsManagedLedgerOffloadBucket() {
-        return this.gcsManagedLedgerOffloadBucket;
-    }
-
-    public void setGcsManagedLedgerOffloadMaxBlockSizeInBytes(int blockSizeInBytes) {
-        this.gcsManagedLedgerOffloadMaxBlockSizeInBytes = blockSizeInBytes;
-    }
-
-    public int getGcsManagedLedgerOffloadMaxBlockSizeInBytes() {
-        return this.gcsManagedLedgerOffloadMaxBlockSizeInBytes;
-    }
-
-    public void setGcsManagedLedgerOffloadReadBufferSizeInBytes(int readBufferSizeInBytes) {
-        this.gcsManagedLedgerOffloadReadBufferSizeInBytes = readBufferSizeInBytes;
-    }
-
-    public int getGcsManagedLedgerOffloadReadBufferSizeInBytes() {
-        return this.gcsManagedLedgerOffloadReadBufferSizeInBytes;
-    }
-
-    public void setGcsManagedLedgerOffloadServiceAccountKeyFile(String keyPath) {
-        this.gcsManagedLedgerOffloadServiceAccountKeyFile = keyPath;
-    }
-
-    public String getGcsManagedLedgerOffloadServiceAccountKeyFile() {
-        return this.gcsManagedLedgerOffloadServiceAccountKeyFile;
     }
 
     public void setBrokerServiceCompactionMonitorIntervalInSeconds(int interval) {

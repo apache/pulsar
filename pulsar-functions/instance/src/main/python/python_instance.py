@@ -114,13 +114,13 @@ class Stats(object):
     
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, user_code, log_topic, pulsar_client):
+  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, user_code, pulsar_client):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     self.queue = Queue.Queue(max_buffered_tuples)
     self.log_topic_handler = None
-    if log_topic is not None:
-      self.log_topic_handler = log.LogTopicHandler(str(log_topic), pulsar_client)
+    if function_details.logTopic is not None and function_details.logTopic != "":
+      self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
     self.pulsar_client = pulsar_client
     self.input_serdes = {}
     self.consumers = {}

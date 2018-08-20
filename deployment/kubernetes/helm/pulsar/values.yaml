@@ -23,8 +23,13 @@ namespaceCreate: yes
 
 ## If persistence is enabled, components that has state will
 ## be deployed with PersistentVolumeClaims, otherwise, for test
-## purposes, they will be deployed with emptDir
+## purposes, they will be deployed with emptyDir
 persistence: no
+
+## If prometheus_persistence is enabled, prometheus will be deployed
+## with PersistentVolumeClaims, otherwise, for test purposes, they
+## will be deployed with emptyDir
+prometheus_persistence: yes
 
 ## which extra components to deploy
 extra:
@@ -41,7 +46,7 @@ extra:
 
 ## Which pulsar image to use
 image:
-  repository: apachepulsar/pulsar
+  repository: apachepulsar/pulsar-all
   tag: latest
   pullPolicy: IfNotPresent
 
