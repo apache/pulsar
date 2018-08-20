@@ -260,10 +260,10 @@ public class CmdSinks extends CmdBase {
 
             if (null != sinkConfigFile) {
                 this.sinkConfig = CmdUtils.loadConfig(sinkConfigFile, SinkConfig.class);
+                log.info("The sinkConfig read from file is {}", sinkConfig);
             } else {
                 this.sinkConfig = new SinkConfig();
             }
-            log.info("The sinkConfig read from file is {}", sinkConfig);
 
             if (null != tenant) {
                 sinkConfig.setTenant(tenant);

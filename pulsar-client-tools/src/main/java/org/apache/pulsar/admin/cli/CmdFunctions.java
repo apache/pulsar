@@ -653,9 +653,9 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.getInputSpecs().forEach((topicName, consumerConf) -> {
                     ConsumerSpec.Builder bldr = ConsumerSpec.newBuilder()
                             .setIsRegexPattern(consumerConf.isRegexPattern());
-                    if (consumerConf.getSchemaType() != null && !consumerConf.getSchemaType().isEmpty()) {
+                    if (!StringUtils.isBlank(consumerConf.getSchemaType())) {
                         bldr.setSchemaType(consumerConf.getSchemaType());
-                    } else if (consumerConf.getSerdeClassName() != null && !consumerConf.getSerdeClassName().isEmpty()) {
+                    } else if (!StringUtils.isBlank(consumerConf.getSerdeClassName())) {
                         bldr.setSerdeClassName(consumerConf.getSerdeClassName());
                     }
                     sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
@@ -682,10 +682,10 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getOutput() != null) {
                 sinkSpecBuilder.setTopic(functionConfig.getOutput());
             }
-            if (functionConfig.getOutputSerdeClassName() != null && !functionConfig.getOutputSerdeClassName().isEmpty()) {
+            if (!StringUtils.isBlank(functionConfig.getOutputSerdeClassName())) {
                 sinkSpecBuilder.setSerDeClassName(functionConfig.getOutputSerdeClassName());
             }
-            if (functionConfig.getOutputSchemaType() != null && !functionConfig.getOutputSchemaType().isEmpty()) {
+            if (!StringUtils.isBlank(functionConfig.getOutputSchemaType())) {
                 sinkSpecBuilder.setSchemaType(functionConfig.getOutputSchemaType());
             }
 
