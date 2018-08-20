@@ -2662,4 +2662,91 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(latch.getCount(), 1);
         consumer.close();
     }
+
+    @Test
+    public void testDeadLetterTopic() throws Exception {
+
+        final String topic = "persistent://my-property/my-ns/dead-letter-topic";
+
+        final int maxRedeliveryCount = 2;
+
+        final int sendMessages = 500;
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < sendMessages; i++) {
+            producer.send("Hello Pulsar!".getBytes());
+        }
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .maxRedeliveryCount(maxRedeliveryCount)
+                .receiverQueueSize(100)
+                .maxUnackedMessagesPerConsumer(100)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic("persistent://my-property/my-ns/dead-letter-topic-my-subscription-DLQ")
+                .subscriptionName("my-subscription")
+                .subscribe();
+
+        int totalReceived = 0;
+        do {
+            consumer.receive();
+            totalReceived++;
+        } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
+
+        int totalInDeadLetter = 0;
+        do {
+            deadLetterConsumer.receive();
+            totalInDeadLetter++;
+        } while (totalInDeadLetter < sendMessages);
+
+        deadLetterConsumer.close();
+        consumer.close();
+
+        // test subscribe changed
+        for (int i = 0; i < sendMessages; i++) {
+            producer.send("Hello Pulsar!".getBytes());
+        }
+
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(10, TimeUnit.SECONDS)
+                .maxRedeliveryCount(maxRedeliveryCount)
+                .receiverQueueSize(100)
+                .maxUnackedMessagesPerConsumer(100)
+                .deadLetterTopic("persistent://my-property/my-ns/dead-letter-topic-my-subscription-custom-DLQ")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Consumer<byte[]> deadLetterConsumer2 = pulsarClient.newConsumer(Schema.BYTES)
+                .topic("persistent://my-property/my-ns/dead-letter-topic-my-subscription-custom-DLQ")
+                .subscriptionName("my-subscription")
+                .subscribe();
+
+        int totalReceived2 = 0;
+        do {
+            consumer2.receive();
+            totalReceived2++;
+        } while (totalReceived2 < sendMessages * (maxRedeliveryCount + 1));
+
+        int totalInDeadLetter2 = 0;
+        do {
+            deadLetterConsumer2.receive();
+            totalInDeadLetter2++;
+        } while (totalInDeadLetter2 < sendMessages);
+
+        deadLetterConsumer2.close();
+        consumer2.close();
+        producer.close();
+    }
 }
