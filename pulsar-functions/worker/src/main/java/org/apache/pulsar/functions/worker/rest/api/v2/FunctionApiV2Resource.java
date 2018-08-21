@@ -22,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,9 +40,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.functions.worker.WorkerInfo;
-import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-import org.glassfish.jersey.media.multipart.FormDataParam;
 
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -189,7 +185,32 @@ public class FunctionApiV2Resource extends FunctionApiResource {
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
         return functions.restartFunctionInstances(tenant, namespace, functionName);
     }
-    
+
+    @POST
+    @ApiOperation(value = "Stop function instance", response = Void.class)
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stop")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response stopFunction(final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
+            final @PathParam("instanceId") String instanceId) {
+        return functions.stopFunctionInstance(tenant, namespace, functionName, instanceId);
+    }
+
+    @POST
+    @ApiOperation(value = "Stop all function instances", response = Void.class)
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    @Path("/{tenant}/{namespace}/{functionName}/stop")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response stopFunction(final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
+        return functions.stopFunctionInstances(tenant, namespace, functionName);
+    }
+
     @POST
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
