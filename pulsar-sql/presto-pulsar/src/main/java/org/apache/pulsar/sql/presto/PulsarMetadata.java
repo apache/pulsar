@@ -122,33 +122,6 @@ public class PulsarMetadata implements ConnectorMetadata {
                                                             Constraint<ColumnHandle> constraint,
                                                             Optional<Set<ColumnHandle>> desiredColumns) {
 
-        log.info("table: %s", table);
-
-        log.info("constraints: %s", constraint.getSummary().getDomains().get().entrySet());
-        log.info("getColumnDomains: %s", constraint.getSummary().getColumnDomains());
-        constraint.getSummary().getDomains().get().entrySet().forEach(new Consumer<Map.Entry<ColumnHandle, Domain>>() {
-            @Override
-            public void accept(Map.Entry<ColumnHandle, Domain> columnHandleDomainEntry) {
-                log.info("ColumnHandle: %s ranges: %s", columnHandleDomainEntry.getKey(),
-                        columnHandleDomainEntry.getValue().getValues().getRanges().getOrderedRanges().stream().map(new Function<Range, String>() {
-                    @Override
-                    public String apply(Range range) {
-                        return "high: " + range.getHigh().toString(session) + " low: " + range.getLow().toString(session);
-                    }
-                }).collect(Collectors.toList()));
-
-                columnHandleDomainEntry.getValue().getValues().getRanges().getOrderedRanges().forEach(new Consumer<Range>() {
-                    @Override
-                    public void accept(Range range) {
-                        log.info("high: %s low: %s ", range.getHigh().getValueBlock().isPresent() ? range.getHigh().getValueBlock().get().getLong(0, 0): null, range.getLow().getValueBlock().isPresent() ? range.getLow().getValueBlock().get().getLong(0,0) : null);
-                        log.info("high tz: %s low tz: %s ", range.getHigh().getValueBlock().isPresent() ? new SqlTimestampWithTimeZone(range.getHigh().getValueBlock().get().getLong(0, 0)).getTimeZoneKey(): null, range.getLow().getValueBlock().isPresent() ? new SqlTimestampWithTimeZone(range.getLow().getValueBlock().get().getLong(0,0)).getTimeZoneKey() : null);
-
-                    }
-                });
-
-            }
-        });
-
         PulsarTableHandle handle = convertTableHandle(table);
         ConnectorTableLayout layout = new ConnectorTableLayout(new PulsarTableLayoutHandle(handle, constraint.getSummary()));
         return ImmutableList.of(new ConnectorTableLayoutResult(layout, constraint.getSummary()));

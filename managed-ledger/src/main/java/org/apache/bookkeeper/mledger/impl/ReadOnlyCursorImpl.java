@@ -47,9 +47,7 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
             messagesConsumedCounter = -getNumberOfEntries(Range.closed(readPosition, ledger.getLastPosition()));
         }
 
-        this.
-
-                state = State.NoLedger;
+        this.state = State.NoLedger;
     }
 
     @Override

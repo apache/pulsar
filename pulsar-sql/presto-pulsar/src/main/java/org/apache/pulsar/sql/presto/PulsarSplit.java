@@ -131,8 +131,7 @@ public class PulsarSplit implements ConnectorSplit {
     }
 
     @JsonProperty
-    public TupleDomain<ColumnHandle> getTupleDomain()
-    {
+    public TupleDomain<ColumnHandle> getTupleDomain() {
         return tupleDomain;
     }
 
