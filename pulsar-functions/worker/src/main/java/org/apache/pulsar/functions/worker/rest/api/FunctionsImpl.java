@@ -79,7 +79,6 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics.Builder;
 import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics.InstanceMetrics;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
@@ -386,8 +385,18 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(jsonResponse).build();
     }
 
+    public Response stopFunctionInstance(final String tenant, final String namespace, final String functionName,
+            final String instanceId) {
+        return stopFunctionInstance(tenant, namespace, functionName, instanceId, false);
+    }
+
     public Response restartFunctionInstance(final String tenant, final String namespace, final String functionName,
             final String instanceId) {
+        return stopFunctionInstance(tenant, namespace, functionName, instanceId, true);
+    }
+
+    public Response stopFunctionInstance(final String tenant, final String namespace, final String functionName,
+            final String instanceId, boolean restart) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -411,8 +420,8 @@ public class FunctionsImpl {
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         try {
-            return functionRuntimeManager.restartFunctionInstance(tenant, namespace, functionName,
-                    Integer.parseInt(instanceId));
+            return functionRuntimeManager.stopFunctionInstance(tenant, namespace, functionName,
+                    Integer.parseInt(instanceId), restart);
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {
@@ -421,7 +430,16 @@ public class FunctionsImpl {
         }
     }
 
+    public Response stopFunctionInstances(final String tenant, final String namespace, final String functionName) {
+        return stopFunctionInstances(tenant, namespace, functionName, false);
+    }
+
     public Response restartFunctionInstances(final String tenant, final String namespace, final String functionName) {
+        return stopFunctionInstances(tenant, namespace, functionName, true);
+    }
+
+    public Response stopFunctionInstances(final String tenant, final String namespace, final String functionName,
+            boolean restart) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -445,8 +463,8 @@ public class FunctionsImpl {
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         try {
-            return functionRuntimeManager.restartFunctionInstances(tenant, namespace, functionName);
-        }catch (Exception e) {
+            return functionRuntimeManager.stopFunctionInstances(tenant, namespace, functionName, restart);
+        } catch (Exception e) {
             log.error("Failed to restart function: {}/{}/{}", tenant, namespace, functionName, e);
             return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
         }
