@@ -75,6 +75,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Resources;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
@@ -82,6 +83,7 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.ConsumerConfig;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
@@ -166,7 +168,7 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--name", description = "The function's name")
         protected String functionName;
-        
+
         @Override
         void processArguments() throws Exception {
             super.processArguments();
@@ -228,14 +230,16 @@ public class CmdFunctions extends CmdBase {
                 description = "Path to the main Python file for the function (if the function is written in Python)",
                 listConverter = StringConverter.class)
         protected String pyFile;
-        @Parameter(names = "--inputs", description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
+        @Parameter(names = { "-i",
+                "--inputs" }, description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
         // for backwards compatibility purposes
         @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)", hidden = true)
         protected String DEPRECATED_topicsPattern;
         @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)")
         protected String topicsPattern;
-        @Parameter(names = "--output", description = "The function's output topic (use skipOutput flag to skip output topic)")
+
+        @Parameter(names = {"-o", "--output"}, description = "The function's output topic (use skipOutput flag to skip output topic)")
         protected String output;
         @Parameter(names = "--skip-output", description = "Skip publishing function output to output topic")
         protected boolean skipOutput;
@@ -244,6 +248,10 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_logTopic;
         @Parameter(names = "--log-topic", description = "The topic to which the function's logs are produced")
         protected String logTopic;
+
+        @Parameter(names = {"-st", "--schema-type"}, description = "The builtin schema type or custom schema class name to be used for messages output by the function")
+        protected String schemaType = "";
+
         // for backwards compatibility purposes
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
         protected String DEPRECATED_customSerdeInputString;
@@ -319,6 +327,7 @@ public class CmdFunctions extends CmdBase {
             if (!StringUtils.isBlank(DEPRECATED_logTopic)) logTopic = DEPRECATED_logTopic;
             if (!StringUtils.isBlank(DEPRECATED_outputSerdeClassName)) outputSerdeClassName = DEPRECATED_outputSerdeClassName;
             if (!StringUtils.isBlank(DEPRECATED_customSerdeInputString)) customSerdeInputString = DEPRECATED_customSerdeInputString;
+
             if (!StringUtils.isBlank(DEPRECATED_fnConfigFile)) fnConfigFile = DEPRECATED_fnConfigFile;
             if (DEPRECATED_processingGuarantees != FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) processingGuarantees = DEPRECATED_processingGuarantees;
             if (!StringUtils.isBlank(DEPRECATED_userConfigString)) userConfigString = DEPRECATED_userConfigString;
@@ -382,22 +391,20 @@ public class CmdFunctions extends CmdBase {
             if (null != outputSerdeClassName) {
                 functionConfig.setOutputSerdeClassName(outputSerdeClassName);
             }
+
+            if (null != schemaType) {
+                functionConfig.setOutputSchemaType(schemaType);
+            }
             if (null != processingGuarantees) {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
             }
-            
+
             functionConfig.setRetainOrdering(retainOrdering);
-            
+
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
-            }
-            if (functionConfig.getInputs() == null) {
-                functionConfig.setInputs(new LinkedList<>());
-            }
-            if (functionConfig.getCustomSerdeInputs() == null) {
-                functionConfig.setCustomSerdeInputs(new HashMap<>());
             }
             if (functionConfig.getUserConfig() == null) {
                 functionConfig.setUserConfig(new HashMap<>());
@@ -467,7 +474,7 @@ public class CmdFunctions extends CmdBase {
         }
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
-            
+
             if (isBlank(functionConfig.getOutput()) && !functionConfig.isSkipOutput()) {
                 throw new ParameterException(
                         "output topic is not present (pass skipOutput flag to skip publish output on topic)");
@@ -589,17 +596,6 @@ public class CmdFunctions extends CmdBase {
             functionConfig.setNamespace(DEFAULT_NAMESPACE);
         }
 
-        private String getUniqueInput(FunctionConfig functionConfig) {
-            if (functionConfig.getInputs().size() + functionConfig.getCustomSerdeInputs().size() != 1) {
-                throw new IllegalArgumentException();
-            }
-            if (functionConfig.getInputs().size() == 1) {
-                return functionConfig.getInputs().iterator().next();
-            } else {
-                return functionConfig.getCustomSerdeInputs().keySet().iterator().next();
-            }
-        }
-
         protected FunctionDetails convert(FunctionConfig functionConfig)
                 throws IOException {
 
@@ -622,12 +618,49 @@ public class CmdFunctions extends CmdBase {
 
             // Setup source
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            Map<String, String> topicToSerDeClassNameMap = new HashMap<>();
-            topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
-            functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
-            sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
-            if (StringUtils.isNotBlank(functionConfig.getTopicsPattern())) {
-                sourceSpecBuilder.setTopicsPattern(functionConfig.getTopicsPattern());
+            if (functionConfig.getInputs() != null) {
+                functionConfig.getInputs().forEach((topicName -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setIsRegexPattern(false)
+                                    .build());
+                }));
+            }
+            if (functionConfig.getTopicsPattern() != null && !functionConfig.getTopicsPattern().isEmpty()) {
+                sourceSpecBuilder.putInputSpecs(functionConfig.getTopicsPattern(),
+                        ConsumerSpec.newBuilder()
+                                .setIsRegexPattern(true)
+                                .build());
+            }
+            if (functionConfig.getCustomSerdeInputs() != null) {
+                functionConfig.getCustomSerdeInputs().forEach((topicName, serdeClassName) -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setSerdeClassName(serdeClassName)
+                                    .setIsRegexPattern(false)
+                                    .build());
+                });
+            }
+            if (functionConfig.getCustomSchemaInputs() != null) {
+                functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setSchemaType(schemaType)
+                                    .setIsRegexPattern(false)
+                                    .build());
+                });
+            }
+            if (functionConfig.getInputSpecs() != null) {
+                functionConfig.getInputSpecs().forEach((topicName, consumerConf) -> {
+                    ConsumerSpec.Builder bldr = ConsumerSpec.newBuilder()
+                            .setIsRegexPattern(consumerConf.isRegexPattern());
+                    if (!StringUtils.isBlank(consumerConf.getSchemaType())) {
+                        bldr.setSchemaType(consumerConf.getSchemaType());
+                    } else if (!StringUtils.isBlank(consumerConf.getSerdeClassName())) {
+                        bldr.setSerdeClassName(consumerConf.getSerdeClassName());
+                    }
+                    sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
+                });
             }
 
             // Set subscription type based on ordering and EFFECTIVELY_ONCE semantics
@@ -636,7 +669,7 @@ public class CmdFunctions extends CmdBase {
                             ? SubscriptionType.FAILOVER
                             : SubscriptionType.SHARED;
             sourceSpecBuilder.setSubscriptionType(subType);
-            
+
             if (typeArgs != null) {
                 sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
             }
@@ -650,9 +683,13 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getOutput() != null) {
                 sinkSpecBuilder.setTopic(functionConfig.getOutput());
             }
-            if (functionConfig.getOutputSerdeClassName() != null) {
+            if (!StringUtils.isBlank(functionConfig.getOutputSerdeClassName())) {
                 sinkSpecBuilder.setSerDeClassName(functionConfig.getOutputSerdeClassName());
             }
+            if (!StringUtils.isBlank(functionConfig.getOutputSchemaType())) {
+                sinkSpecBuilder.setSchemaType(functionConfig.getOutputSchemaType());
+            }
+
             if (typeArgs != null) {
                 sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
             }
@@ -836,10 +873,10 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Restart function instance")
     class RestartFunction extends FunctionCommand {
-        
+
         @Parameter(names = "--instance-id", description = "The function instanceId (restart all instances if instance-id is not provided")
         protected String instanceId;
-        
+
         @Override
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
@@ -1191,6 +1228,7 @@ public class CmdFunctions extends CmdBase {
         if (serviceUrl == null) {
             serviceUrl = DEFAULT_SERVICE_URL;
         }
+
         try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, stateStorageServiceUrl, authConfig, null, null,
                 null)) {
             List<RuntimeSpawner> spawners = new LinkedList<>();

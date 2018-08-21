@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -36,6 +43,7 @@ import java.util.Set;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
@@ -56,20 +64,6 @@ import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.Collections;
-import java.util.Map;
-
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
-import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO Sources (ingress data into Pulsar)")
@@ -207,10 +201,18 @@ public class CmdSources extends CmdBase {
 
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Source")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--destinationTopicName", description = "The Pulsar topic to which data is sent")
+
+        @Parameter(names = { "-o", "--destinationTopicName" }, description = "The Pulsar topic to which data is sent")
         protected String destinationTopicName;
+
         @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source")
         protected String deserializationClassName;
+
+        @Parameter(names = { "-st",
+                "--schema-type" }, description = "The schema type (either a builtin schema like 'avro', 'json', etc.."
+                        + " or custom Schema class name to be used to encode messages emitted from the source")
+        protected String schemaType;
+
         @Parameter(names = "--parallelism", description = "The source's parallelism factor (i.e. the number of source instances to run)")
         protected Integer parallelism;
         @Parameter(names = { "-a", "--archive" },
@@ -259,6 +261,10 @@ public class CmdSources extends CmdBase {
             if (null != deserializationClassName) {
                 sourceConfig.setSerdeClassName(deserializationClassName);
             }
+            if (null != schemaType) {
+                sourceConfig.setSchemaType(schemaType);
+            }
+
             if (null != processingGuarantees) {
                 sourceConfig.setProcessingGuarantees(processingGuarantees);
             }
@@ -452,9 +458,13 @@ public class CmdSources extends CmdBase {
             // set up sink spec.
             // Sink spec classname should be empty so that the default pulsar sink will be used
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-            if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()) {
+            if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
+                sinkSpecBuilder.setSchemaType(sourceConfig.getSchemaType());
+            }
+            if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
                 sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
             }
+
             sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
 
             if (typeArg != null) {

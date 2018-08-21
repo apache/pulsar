@@ -57,7 +57,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.proto.Function;
@@ -69,6 +68,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.DataDigest;
 import org.apache.pulsar.functions.sink.PulsarSink;
+import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -246,7 +246,7 @@ public class PulsarSinkE2ETest {
 
     /**
      * Validates pulsar sink e2e functionality on functions.
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 20000)
@@ -409,7 +409,7 @@ public class PulsarSinkE2ETest {
         sourceSpecBuilder.setTypeClassName(typeArg.getName());
         sourceSpecBuilder.setTopicsPattern(sourceTopicPattern);
         sourceSpecBuilder.setSubscriptionName(subscriptionName);
-        sourceSpecBuilder.putTopicsToSerDeClassName(sourceTopicPattern, DefaultSerDe.class.getName());
+        sourceSpecBuilder.putTopicsToSerDeClassName(sourceTopicPattern, "");
         functionDetailsBuilder.setAutoAck(true);
         functionDetailsBuilder.setSource(sourceSpecBuilder);
 
@@ -487,7 +487,7 @@ public class PulsarSinkE2ETest {
         // source spec classname should be empty so that the default pulsar source will be used
         SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
         sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.FAILOVER);
-        sourceSpecBuilder.putTopicsToSerDeClassName(sinkTopic, DefaultSerDe.class.getName());
+        sourceSpecBuilder.putTopicsToSerDeClassName(sinkTopic, TopicSchema.DEFAULT_SERDE);
         functionDetailsBuilder.setAutoAck(true);
         functionDetailsBuilder.setSource(sourceSpecBuilder);
 
@@ -507,7 +507,7 @@ public class PulsarSinkE2ETest {
         assertEquals(functionMetadata.getSink().getTypeClassName(), typeArgs[1].getName());
 
     }
-    
+
     @Test(timeOut = 20000)
     public void testFunctionStopAndRestartApi() throws Exception {
 

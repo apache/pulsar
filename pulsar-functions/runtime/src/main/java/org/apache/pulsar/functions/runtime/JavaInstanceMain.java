@@ -73,25 +73,25 @@ public class JavaInstanceMain implements AutoCloseable {
 
     @Parameter(names = "--pulsar_serviceurl", description = "Pulsar Service Url\n", required = true)
     protected String pulsarServiceUrl;
-    
+
     @Parameter(names = "--client_auth_plugin", description = "Client auth plugin name\n")
     protected String clientAuthenticationPlugin;
-    
+
     @Parameter(names = "--client_auth_params", description = "Client auth param\n")
     protected String clientAuthenticationParameters;
-    
+
     @Parameter(names = "--use_tls", description = "Use tls connection\n")
     protected String useTls = Boolean.FALSE.toString();
-    
+
     @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
     protected String tlsAllowInsecureConnection = Boolean.TRUE.toString();
-    
+
     @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
     protected String tlsHostNameVerificationEnabled = Boolean.FALSE.toString();
-    
+
     @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
     protected String tlsTrustCertFilePath;
-    
+
     @Parameter(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required= false)
     protected String stateStorageServiceUrl;
 
@@ -277,7 +277,7 @@ public class JavaInstanceMain implements AutoCloseable {
                 }
             }
         }
-        
+
         @Override
         public void healthCheck(com.google.protobuf.Empty request,
                                 io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult> responseObserver) {
