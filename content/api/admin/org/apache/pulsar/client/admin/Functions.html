@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -214,6 +214,23 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i13" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#stopFunction-java.lang.String-java.lang.String-java.lang.String-">stopFunction</a></span>(String&nbsp;tenant,
+            String&nbsp;namespace,
+            String&nbsp;function)</code>
+<div class="block">Stop all function instances</div>
+</td>
+</tr>
+<tr id="i14" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#stopFunction-java.lang.String-java.lang.String-java.lang.String-int-">stopFunction</a></span>(String&nbsp;tenant,
+            String&nbsp;namespace,
+            String&nbsp;function,
+            int&nbsp;instanceId)</code>
+<div class="block">Stop function instance</div>
+</td>
+</tr>
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#triggerFunction-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">triggerFunction</a></span>(String&nbsp;tenant,
                String&nbsp;namespace,
@@ -224,21 +241,21 @@ var activeTableTab = "activeTableTab";
 <div class="block">Triggers the function by writing to the input topic.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionDetails-java.lang.String-">updateFunction</a></span>(FunctionDetails&nbsp;functionDetails,
               String&nbsp;fileName)</code>
 <div class="block">Update the configuration for a function.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunctionWithUrl-FunctionDetails-java.lang.String-">updateFunctionWithUrl</a></span>(FunctionDetails&nbsp;functionDetails,
                      String&nbsp;pkgUrl)</code>
 <div class="block">Update the configuration for a function.</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#uploadFunction-java.lang.String-java.lang.String-">uploadFunction</a></span>(String&nbsp;sourceFile,
               String&nbsp;path)</code>
@@ -487,6 +504,50 @@ var activeTableTab = "activeTableTab";
                      String&nbsp;function)
               throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Restart all function instances</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>tenant</code> - Tenant name</dd>
+<dd><code>namespace</code> - Namespace name</dd>
+<dd><code>function</code> - Function name</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="stopFunction-java.lang.String-java.lang.String-java.lang.String-int-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>stopFunction</h4>
+<pre>void&nbsp;stopFunction(String&nbsp;tenant,
+                  String&nbsp;namespace,
+                  String&nbsp;function,
+                  int&nbsp;instanceId)
+           throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Stop function instance</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>tenant</code> - Tenant name</dd>
+<dd><code>namespace</code> - Namespace name</dd>
+<dd><code>function</code> - Function name</dd>
+<dd><code>instanceId</code> - Function instanceId</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="stopFunction-java.lang.String-java.lang.String-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>stopFunction</h4>
+<pre>void&nbsp;stopFunction(String&nbsp;tenant,
+                  String&nbsp;namespace,
+                  String&nbsp;function)
+           throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Stop all function instances</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>tenant</code> - Tenant name</dd>
