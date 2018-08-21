@@ -41,7 +41,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
@@ -175,7 +174,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
                 return (ProducerImpl<byte[]>) topic.getBrokerService().pulsar().getClient().newProducer(Schema.BYTES)
                         .topic(deadLetterTopic)
-                        .enableBatching(false)
                         .blockIfQueueFull(false)
                         .create();
             } catch (Throwable e) {
@@ -652,18 +650,43 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                                             messagesToReplay.add(position.getLedgerId(), position.getEntryId());
                                             latch.countDown();
                                         } else {
-                                            cursor.asyncDelete(position, deleteCallback, position);
-                                            redeliveryTracker.remove(position);
-                                            latch.countDown();
+                                            cursor.asyncDelete(position, new AsyncCallbacks.DeleteCallback() {
+                                                @Override
+                                                public void deleteComplete(Object ctx) {
+                                                    entry.release();
+                                                    redeliveryTracker.remove(position);
+                                                    latch.countDown();
+                                                }
+
+                                                @Override
+                                                public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                                                    entry.release();
+                                                    messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                                                    latch.countDown();
+                                                }
+                                            }, position);
+
                                         }
                                     });
                                 } catch (Throwable t) {
                                     log.error("[{}-{}] Failed to deserialize message at {} {} {} {}", name, consumer,
                                             entry.getPosition(), entry.getLedgerId(), t.getMessage(), t);
-                                    cursor.asyncDelete(position, deleteCallback, position);
-                                    redeliveryTracker.remove(position);
-                                    entry.release();
-                                    latch.countDown();
+                                    cursor.asyncDelete(position, new AsyncCallbacks.DeleteCallback() {
+                                        @Override
+                                        public void deleteComplete(Object ctx) {
+                                            entry.release();
+                                            redeliveryTracker.remove(position);
+                                            latch.countDown();
+                                        }
+
+                                        @Override
+                                        public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                                            entry.release();
+                                            messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                                            latch.countDown();
+                                        }
+                                    }, position);
+
                                 }
                             }
                         }
@@ -687,20 +710,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
         readMoreEntries();
     }
-
-    private final AsyncCallbacks.DeleteCallback deleteCallback = new AsyncCallbacks.DeleteCallback() {
-        @Override
-        public void deleteComplete(Object position) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Deleted message at {}", position);
-            }
-        }
-
-        @Override
-        public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-            log.warn("[{}][{}] Failed to delete message at {}", ctx, exception);
-        }
-    };
 
     @Override
     public void addUnAckedMessages(int numberOfMessages) {

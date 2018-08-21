@@ -37,7 +37,8 @@ public class NonPersistentRedeliveryTracker implements RedeliveryTracker {
 
     @Override
     public int getRedeliveryCount(Position position) {
-        return trackerCache.getOrDefault(position, new AtomicInteger(0)).get();
+        trackerCache.putIfAbsent(position, new AtomicInteger(0));
+        return trackerCache.get(position).get();
     }
 
     @Override
