@@ -269,9 +269,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
         if (producer == null) {
             try {
-                Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone()).schema(schema).create();
+                Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone())
+                        .schema(schema).topic(topicName).create();
 
                 Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
+
                 if (existingProducer != null) {
                     // The value in the map was not updated after the concurrent put
                     newProducer.close();
@@ -281,6 +283,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                 }
 
             } catch (PulsarClientException e) {
+                logger.error("Failed to create Producer while doing user publish", e);
                 return FutureUtil.failedFuture(e);
             }
         }
