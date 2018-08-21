@@ -16,21 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.utils;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/**
- * Example function that uses the built in publish function in the context
- * to publish to a desired topic based on config
- */
-public class PublishFunction implements Function<String, Void> {
-    @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output);
-        return null;
-    }
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ConsumerConfig {
+    private String schemaType;
+    private String serdeClassName;
+    private boolean isRegexPattern;
 }

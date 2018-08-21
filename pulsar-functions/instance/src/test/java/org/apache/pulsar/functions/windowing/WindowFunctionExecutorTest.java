@@ -22,7 +22,7 @@ import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+
 import org.apache.pulsar.functions.utils.WindowConfig;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -116,7 +116,6 @@ public class WindowFunctionExecutorTest {
         windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
         Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
-        Mockito.doReturn(DefaultSerDe.class.getName()).when(context).getOutputSerdeClassName();
         Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
         Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
     }
@@ -174,7 +173,6 @@ public class WindowFunctionExecutorTest {
         Mockito.doReturn("test-function").when(context).getFunctionName();
         Mockito.doReturn("test-namespace").when(context).getNamespace();
         Mockito.doReturn("test-tenant").when(context).getTenant();
-        Mockito.doReturn(DefaultSerDe.class.getName()).when(context).getOutputSerdeClassName();
         Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
         Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
         WindowConfig windowConfig = new WindowConfig();
@@ -215,7 +213,6 @@ public class WindowFunctionExecutorTest {
         }
         System.out.println(testWindowedPulsarFunction.windows);
         long event = events.get(events.size() - 1);
-        Mockito.verify(context).publish("$late", event, DefaultSerDe.class.getName());
     }
 
     @Test
@@ -259,7 +256,6 @@ public class WindowFunctionExecutorTest {
                 Mockito.doReturn("test-function").when(context).getFunctionName();
                 Mockito.doReturn("test-namespace").when(context).getNamespace();
                 Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(DefaultSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
                 Record<?> record = Mockito.mock(Record.class);
@@ -352,7 +348,6 @@ public class WindowFunctionExecutorTest {
                 Mockito.doReturn("test-function").when(context).getFunctionName();
                 Mockito.doReturn("test-namespace").when(context).getNamespace();
                 Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(DefaultSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
                 Record<?> record = Mockito.mock(Record.class);
@@ -420,7 +415,6 @@ public class WindowFunctionExecutorTest {
                 Mockito.doReturn("test-function").when(context).getFunctionName();
                 Mockito.doReturn("test-namespace").when(context).getNamespace();
                 Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(DefaultSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
                 Record<?> record = Mockito.mock(Record.class);
@@ -474,7 +468,6 @@ public class WindowFunctionExecutorTest {
                 Mockito.doReturn("test-function").when(context).getFunctionName();
                 Mockito.doReturn("test-namespace").when(context).getNamespace();
                 Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(DefaultSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
                 Record<?> record = Mockito.mock(Record.class);
@@ -528,7 +521,6 @@ public class WindowFunctionExecutorTest {
                 Mockito.doReturn("test-function").when(context).getFunctionName();
                 Mockito.doReturn("test-namespace").when(context).getNamespace();
                 Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(DefaultSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
                 Record<?> record = Mockito.mock(Record.class);
@@ -580,7 +572,6 @@ public class WindowFunctionExecutorTest {
                 Mockito.doReturn("test-function").when(context).getFunctionName();
                 Mockito.doReturn("test-namespace").when(context).getNamespace();
                 Mockito.doReturn("test-tenant").when(context).getTenant();
-                Mockito.doReturn(DefaultSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
                 Record<?> record = Mockito.mock(Record.class);

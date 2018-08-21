@@ -176,6 +176,20 @@ class PythonInstance(object):
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
       )
 
+    for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
+      if not consumer_conf.serdeClassName:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
+      else:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
+      self.input_serdes[topic] = serde_kclass()
+      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      self.consumers[topic] = self.pulsar_client.subscribe(
+        str(topic), subscription_name,
+        consumer_type=mode,
+        message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
+        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+      )
+
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
     if function_kclass is None:
       Log.critical("Could not import User Function Module %s" % self.instance_config.function_details.className)

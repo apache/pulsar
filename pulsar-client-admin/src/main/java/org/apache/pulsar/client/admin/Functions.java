@@ -320,11 +320,11 @@ public interface Functions {
      *
      */
     Set<String> getSinks() throws PulsarAdminException;
-    
+
     /**
      * Get list of workers present under a cluster
      * @return
-     * @throws PulsarAdminException 
+     * @throws PulsarAdminException
      */
     List<WorkerInfo> getCluster() throws PulsarAdminException;
 }

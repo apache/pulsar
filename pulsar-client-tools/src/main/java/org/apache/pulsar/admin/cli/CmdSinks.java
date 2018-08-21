@@ -18,6 +18,14 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -39,8 +47,8 @@ import java.util.Set;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -51,6 +59,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Resources;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
@@ -59,16 +68,11 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.utils.SinkConfig;
+import org.apache.pulsar.functions.utils.ConsumerConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
-
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO sinks (egress data from Pulsar)")
@@ -204,14 +208,27 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = { "-t", "--sink-type" }, description = "The sinks's connector provider")
         protected String sinkType;
 
-        @Parameter(names = "--inputs", description = "The sink's input topic or topics (multiple topics can be specified as a comma-separated list)")
+        @Parameter(names = { "-i",
+                "--inputs" }, description = "The sink's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
+
         @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
         protected String topicsPattern;
+
+        @Parameter(names = { "-st",
+                "--schema-type" }, description = "The builtin schema type (eg: 'avro', 'json', etc..) or the class name for a Schema implementation")
+        protected String schemaType = "";
+
         @Parameter(names = "--subsName", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
+
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
+
+        @Parameter(names = "--customSchemaInputs", description = "The map of input topics to Schema types or class names (as a JSON string)")
+        protected String customSchemaInputString;
+
+
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the sink")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         @Parameter(names = "--retainOrdering", description = "Sink consumes and sinks messages in order")
@@ -243,6 +260,7 @@ public class CmdSinks extends CmdBase {
 
             if (null != sinkConfigFile) {
                 this.sinkConfig = CmdUtils.loadConfig(sinkConfigFile, SinkConfig.class);
+                log.info("The sinkConfig read from file is {}", sinkConfig);
             } else {
                 this.sinkConfig = new SinkConfig();
             }
@@ -258,32 +276,35 @@ public class CmdSinks extends CmdBase {
             if (null != className) {
                 sinkConfig.setClassName(className);
             }
-            
+
             if (null != name) {
                 sinkConfig.setName(name);
             }
             if (null != processingGuarantees) {
                 sinkConfig.setProcessingGuarantees(processingGuarantees);
             }
-            
+
             sinkConfig.setRetainOrdering(retainOrdering);
 
-            Map<String, String> topicsToSerDeClassName = new HashMap<>();
             if (null != inputs) {
-                parseInputs(inputs, topicsToSerDeClassName);
+                sinkConfig.setInputs(Arrays.asList(inputs.split(",")));
             }
             if (null != customSerdeInputString) {
-                parseCustomSerdeInput(customSerdeInputString, topicsToSerDeClassName);
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
+                sinkConfig.setTopicToSerdeClassName(customSerdeInputMap);
             }
 
-            if (!topicsToSerDeClassName.isEmpty()) {
-                sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+            if (null != customSchemaInputString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> customSchemaInputMap = new Gson().fromJson(customSchemaInputString, type);
+                sinkConfig.setTopicToSchemaType(customSchemaInputMap);
             }
-            
+
             if (isNotBlank(subsName)) {
                 sinkConfig.setSourceSubscriptionName(subsName);
             }
-            
+
             if (null != topicsPattern) {
                 sinkConfig.setTopicsPattern(topicsPattern);
             }
@@ -331,19 +352,6 @@ public class CmdSinks extends CmdBase {
         protected Map<String, Object> parseConfigs(String str) {
             Type type = new TypeToken<Map<String, String>>(){}.getType();
             return new Gson().fromJson(str, type);
-        }
-
-        protected void parseCustomSerdeInput(String str, Map<String, String> topicsToSerDeClassName) {
-            Type type = new TypeToken<Map<String, String>>(){}.getType();
-            Map<String, String> customSerdeInputMap = new Gson().fromJson(str, type);
-            customSerdeInputMap.forEach((topic, serde) -> {
-                topicsToSerDeClassName.put(topic, serde);
-            });
-        }
-
-        protected void parseInputs(String str, Map<String, String> topicsToSerDeClassName) {
-            List<String> inputTopics = Arrays.asList(str.split(","));
-            inputTopics.forEach(s -> topicsToSerDeClassName.put(s, ""));
         }
 
         protected void inferMissingArguments(SinkConfig sinkConfig) {
@@ -469,20 +477,56 @@ public class CmdSinks extends CmdBase {
             // set source spec
             // source spec classname should be empty so that the default pulsar source will be used
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
+            sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
+            if (sinkConfig.getInputs() !=  null) {
+                sinkConfig.getInputs().forEach(topicName ->
+                        sourceSpecBuilder.putInputSpecs(topicName,
+                        ConsumerSpec.newBuilder()
+                                .setIsRegexPattern(false)
+                                .build()));
+            }
+            if (!StringUtils.isEmpty(sinkConfig.getTopicsPattern())) {
+                sourceSpecBuilder.putInputSpecs(sinkConfig.getTopicsPattern(),
+                        ConsumerSpec.newBuilder()
+                                .setIsRegexPattern(true)
+                                .build());
+            }
             if (sinkConfig.getTopicToSerdeClassName() != null) {
-                sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
+                sinkConfig.getTopicToSerdeClassName().forEach((topicName, serde) -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setSerdeClassName(serde == null ? "" : serde)
+                                    .setIsRegexPattern(false)
+                                    .build());
+                    });
+            }
+            if (sinkConfig.getTopicToSchemaType() != null) {
+                sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setSchemaType(schemaType == null ? "" : schemaType)
+                                    .setIsRegexPattern(false)
+                                    .build());
+                });
+            }
+            if (sinkConfig.getInputSpecs() != null) {
+                sinkConfig.getInputSpecs().forEach((topic, spec) -> {
+                    sourceSpecBuilder.putInputSpecs(topic,
+                            ConsumerSpec.newBuilder()
+                                    .setSerdeClassName(spec.getSerdeClassName() != null ? spec.getSerdeClassName() : "")
+                                    .setSchemaType(spec.getSchemaType() != null ? spec.getSchemaType() : "")
+                                    .setIsRegexPattern(spec.isRegexPattern())
+                                    .build());
+                });
             }
 
-            if (sinkConfig.getTopicsPattern() != null) {
-                sourceSpecBuilder.setTopicsPattern(sinkConfig.getTopicsPattern());
-            }
             if (typeArg != null) {
                 sourceSpecBuilder.setTypeClassName(typeArg);
             }
             if (isNotBlank(sinkConfig.getSourceSubscriptionName())) {
                 sourceSpecBuilder.setSubscriptionName(sinkConfig.getSourceSubscriptionName());
             }
-            
+
             SubscriptionType subType = (sinkConfig.isRetainOrdering()
                     || ProcessingGuarantees.EFFECTIVELY_ONCE.equals(sinkConfig.getProcessingGuarantees()))
                             ? SubscriptionType.FAILOVER
