@@ -25,6 +25,7 @@ import java.net.URISyntaxException;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
@@ -45,6 +46,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.Response.Status;
 
 import java.util.Collection;
@@ -91,15 +93,15 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private MembershipManager membershipManager;
     private final ConnectorsManager connectorsManager;
     
-    public FunctionRuntimeManager(WorkerConfig workerConfig,
-                                  PulsarClient pulsarClient,
-                                  Namespace dlogNamespace,
-                                  MembershipManager membershipManager,
-                                  ConnectorsManager connectorsManager) throws Exception {
+    private final PulsarAdmin functionAdmin;
+
+    public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
+            MembershipManager membershipManager, ConnectorsManager connectorsManager) throws Exception {
         this.workerConfig = workerConfig;
         this.connectorsManager = connectorsManager;
+        this.functionAdmin = workerService.getFunctionAdmin();
 
-        Reader<byte[]> reader = pulsarClient.newReader()
+        Reader<byte[]> reader = workerService.getClient().newReader()
                 .topic(this.workerConfig.getFunctionAssignmentTopic())
                 .startMessageId(MessageId.earliest)
                 .create();
@@ -327,7 +329,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     public Response stopFunctionInstance(String tenant, String namespace, String functionName, int instanceId,
-            boolean restart) throws Exception {
+            boolean restart, URI uri) throws Exception {
         Assignment assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
         final String fullFunctionName = String.format("%s/%s/%s/%s", tenant, namespace, functionName, instanceId);
         if (assignment == null) {
@@ -355,19 +357,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
             }
 
-            URI redirect = null;
-            String action = restart ? "restart" : "stop";
-            final String redirectUrl = String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/%s",
-                    workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName, instanceId,
-                    action);
-            try {
-                redirect = new URI(redirectUrl);
-            } catch (URISyntaxException e) {
-                log.error("Error in preparing redirect url for {}/{}/{}/{}: {}", tenant, namespace, functionName,
-                        instanceId, e.getMessage(), e);
-                return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
-                        .entity(new ErrorData(fullFunctionName + " invalid redirection url")).build();
-            }
+            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }
     }
@@ -401,14 +391,13 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     }
                     continue;
                 }
-                Client client = ClientBuilder.newClient();
-                String action = restart ? "restart" : "stop";
-                // TODO: create and use pulsar-admin to support authorization and authentication and manage redirect
-                final String instanceRestartUrl = String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/%s",
-                        workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName,
-                        assignment.getInstance().getInstanceId(), action);
-                client.target(instanceRestartUrl).request(MediaType.APPLICATION_JSON)
-                        .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+                if (restart) {
+                    this.functionAdmin.functions().restartFunction(tenant, namespace, functionName,
+                            assignment.getInstance().getInstanceId());
+                } else {
+                    this.functionAdmin.functions().stopFunction(tenant, namespace, functionName,
+                            assignment.getInstance().getInstanceId());
+                }
             }
         }
         return Response.status(Status.OK).build();
