@@ -259,8 +259,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName) {
-        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, serDeClassName));
+    public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName) {
+        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName));
     }
 
     @SuppressWarnings("unchecked")
