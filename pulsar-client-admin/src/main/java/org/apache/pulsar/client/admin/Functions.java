@@ -215,6 +215,40 @@ public interface Functions {
      */
     void restartFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
+    
+    /**
+     * Stop function instance
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @param instanceId
+     *            Function instanceId
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void stopFunction(String tenant, String namespace, String function, int instanceId) throws PulsarAdminException;
+    
+    /**
+     * Stop all function instances
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void stopFunction(String tenant, String namespace, String function) throws PulsarAdminException;
+    
     /**
      * Triggers the function by writing to the input topic.
      *

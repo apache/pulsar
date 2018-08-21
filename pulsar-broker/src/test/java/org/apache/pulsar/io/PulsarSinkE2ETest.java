@@ -509,7 +509,7 @@ public class PulsarSinkE2ETest {
     }
 
     @Test(timeOut = 20000)
-    public void testFunctionRestartApi() throws Exception {
+    public void testFunctionStopAndRestartApi() throws Exception {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -542,6 +542,21 @@ public class PulsarSinkE2ETest {
 
         SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
         assertEquals(subStats.consumers.size(), 1);
+
+        // it should stop consumer : so, check none of the consumer connected on subscription
+        admin.functions().stopFunction(tenant, namespacePortion, functionName);
+
+        retryStrategically((test) -> {
+            try {
+                SubscriptionStats subStat = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
+                return subStat != null && subStat.consumers.size() == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 150);
+
+        subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
+        assertEquals(subStats.consumers.size(), 0);
 
         // it should restart consumer : so, check if consumer came up again after restarting function
         admin.functions().restartFunction(tenant, namespacePortion, functionName);
