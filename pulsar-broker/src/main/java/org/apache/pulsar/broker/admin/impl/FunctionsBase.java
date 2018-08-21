@@ -50,8 +50,6 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import static org.apache.pulsar.functions.worker.FunctionRuntimeManager.FUNCTION_ACTION_RESTART;
-import static org.apache.pulsar.functions.worker.FunctionRuntimeManager.FUNCTION_ACTION_STOP;
 
 public class FunctionsBase extends AdminResource implements Supplier<WorkerService> {
 
@@ -274,7 +272,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error") })
-    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/" + FUNCTION_ACTION_RESTART)
+    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response restartFunction(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
@@ -287,7 +285,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error") })
-    @Path("/{tenant}/{namespace}/{functionName}/" + FUNCTION_ACTION_RESTART)
+    @Path("/{tenant}/{namespace}/{functionName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response restartFunction(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
@@ -299,7 +297,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error") })
-    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/" + FUNCTION_ACTION_STOP)
+    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response stopFunction(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
@@ -312,7 +310,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error") })
-    @Path("/{tenant}/{namespace}/{functionName}/" + FUNCTION_ACTION_STOP)
+    @Path("/{tenant}/{namespace}/{functionName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response stopFunction(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {

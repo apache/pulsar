@@ -91,9 +91,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private MembershipManager membershipManager;
     private final ConnectorsManager connectorsManager;
     
-    public static final String FUNCTION_ACTION_RESTART = "restart";
-    public static final String FUNCTION_ACTION_STOP = "stop";
-
     public FunctionRuntimeManager(WorkerConfig workerConfig,
                                   PulsarClient pulsarClient,
                                   Namespace dlogNamespace,
@@ -359,7 +356,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             }
 
             URI redirect = null;
-            String action = restart ? FUNCTION_ACTION_RESTART : FUNCTION_ACTION_STOP;
+            String action = restart ? "restart" : "stop";
             final String redirectUrl = String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/%s",
                     workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName, instanceId,
                     action);
@@ -405,7 +402,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     continue;
                 }
                 Client client = ClientBuilder.newClient();
-                String action = restart ? FUNCTION_ACTION_RESTART : FUNCTION_ACTION_STOP;
+                String action = restart ? "restart" : "stop";
                 // TODO: create and use pulsar-admin to support authorization and authentication and manage redirect
                 final String instanceRestartUrl = String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/%s",
                         workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName,
