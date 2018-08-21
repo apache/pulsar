@@ -122,6 +122,7 @@ void export_config() {
             .def("batching_max_allowed_size_in_bytes", &ProducerConfiguration::setBatchingMaxAllowedSizeInBytes, return_self<>())
             .def("batching_max_publish_delay_ms", &ProducerConfiguration::getBatchingMaxPublishDelayMs, return_value_policy<copy_const_reference>())
             .def("batching_max_publish_delay_ms", &ProducerConfiguration::setBatchingMaxPublishDelayMs, return_self<>())
+            .def("property", &ProducerConfiguration::setProperty, return_self<>())
             ;
 
     class_<ConsumerConfiguration>("ConsumerConfiguration")

@@ -126,6 +126,8 @@ TEST(BasicEndToEndTest, testBatchMessages) {
     conf.setBatchingMaxMessages(batchSize);
     conf.setBatchingEnabled(true);
     conf.setBlockIfQueueFull(true);
+    conf.setProperty("producer-name", "test-producer-name");
+    conf.setProperty("producer-id", "test-producer-id");
 
     Promise<Result, Producer> producerPromise;
     client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
