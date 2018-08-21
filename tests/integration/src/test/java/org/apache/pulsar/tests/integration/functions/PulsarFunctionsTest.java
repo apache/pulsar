@@ -542,6 +542,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             commands);
         assertTrue(result.getStdout().contains("\"Created successfully\""));
+
+
+        // ensure the function subscription exists before we start producing messages
+        try (PulsarClient client = PulsarClient.builder()
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build()) {
+            try (Consumer<String> ignored = client.newConsumer(Schema.STRING)
+                .topic(inputTopicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(String.format("public/default/%s", functionName))
+                .subscribe()) {
+            }
+        }
     }
 
     private static void getFunctionInfoSuccess(String functionName) throws Exception {
