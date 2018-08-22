@@ -224,6 +224,16 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>isEncryptionEnabled</
 <tr class="memitem:ae696a84743d6b95795bf17d68981ec51"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae696a84743d6b95795bf17d68981ec51"></a>
 <a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>addEncryptionKey</b> (std::string key)</td></tr>
 <tr class="separator:ae696a84743d6b95795bf17d68981ec51"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aca61b460fccdb26585790c46395837d1"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#aca61b460fccdb26585790c46395837d1">hasProperty</a> (const std::string &amp;name) const </td></tr>
+<tr class="separator:aca61b460fccdb26585790c46395837d1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a42b639517771ac1c9e28e41b7e6c2eef"><td class="memItemLeft" align="right" valign="top">const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a42b639517771ac1c9e28e41b7e6c2eef">getProperty</a> (const std::string &amp;name) const </td></tr>
+<tr class="separator:a42b639517771ac1c9e28e41b7e6c2eef"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aeb2c124ebca7f3f3a15c54426548dc49"><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, std::string &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#aeb2c124ebca7f3f3a15c54426548dc49">getProperties</a> () const </td></tr>
+<tr class="separator:aeb2c124ebca7f3f3a15c54426548dc49"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a41bda460479f628ebfe753fef81ea5fe"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a41bda460479f628ebfe753fef81ea5fe">setProperty</a> (const std::string &amp;name, const std::string &amp;value)</td></tr>
+<tr class="separator:a41bda460479f628ebfe753fef81ea5fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3047640889e4ce12f129c30159fbcab2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a3047640889e4ce12f129c30159fbcab2">setProperties</a> (const std::map&lt; std::string, std::string &gt; &amp;properties)</td></tr>
+<tr class="separator:a3047640889e4ce12f129c30159fbcab2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -250,6 +260,72 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 
 </div>
 </div>
+<a class="anchor" id="aeb2c124ebca7f3f3a15c54426548dc49"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::map&lt;std::string, std::string&gt;&amp; pulsar::ProducerConfiguration::getProperties </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get all the properties attached to this producer. </p>
+
+</div>
+</div>
+<a class="anchor" id="a42b639517771ac1c9e28e41b7e6c2eef"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const std::string&amp; pulsar::ProducerConfiguration::getProperty </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>name</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get the value of a specific property</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>the name of the property </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>the value of the property or null if the property was not defined </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="aca61b460fccdb26585790c46395837d1"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool pulsar::ProducerConfiguration::hasProperty </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>name</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Check whether the message has a specific property attached.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>the name of the property to check </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>true if the message has the specified property </dd>
+<dd>
+false if the property is not defined </dd></dl>
+
+</div>
+</div>
 <a class="anchor" id="a158f3061d38b91b3c9ccf81545278a61"></a>
 <div class="memitem">
 <div class="memproto">
@@ -268,6 +344,56 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">maxPendingMessagesAcrossPartitions</td><td></td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="a3047640889e4ce12f129c30159fbcab2"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a>&amp; pulsar::ProducerConfiguration::setProperties </td>
+          <td>(</td>
+          <td class="paramtype">const std::map&lt; std::string, std::string &gt; &amp;&#160;</td>
+          <td class="paramname"><em>properties</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Add all the properties in the provided map </p>
+
+</div>
+</div>
+<a class="anchor" id="a41bda460479f628ebfe753fef81ea5fe"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a>&amp; pulsar::ProducerConfiguration::setProperty </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>name</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Sets a new property on a message. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>the name of the property </td></tr>
+    <tr><td class="paramname">value</td><td>the associated value </td></tr>
   </table>
   </dd>
 </dl>
