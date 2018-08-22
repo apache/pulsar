@@ -166,11 +166,11 @@ public interface Context {
      *            The name of the topic for publishing
      * @param object
      *            The object that needs to be published
-     * @param topicsPattern
+     * @param schemaOrSerdeClassName
      *            Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name of the custom schema class
      * @return A future that completes when the framework is done publishing the message
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaType);
+    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
 
     /**
      * Publish an object to the topic using default schemas
