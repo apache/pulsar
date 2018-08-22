@@ -24,7 +24,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 /**
  * An interface for managing publishers within a java instance.
  */
-public interface Producers extends AutoCloseable {
+public interface Producers<T> extends AutoCloseable {
 
     /**
      * Initialize all the producers.
@@ -40,7 +40,7 @@ public interface Producers extends AutoCloseable {
      *          src partition Id
      * @return the producer instance to produce messages
      */
-    Producer<byte[]> getProducer(String srcPartitionId) throws PulsarClientException;
+    Producer<T> getProducer(String srcPartitionId) throws PulsarClientException;
 
     /**
      * Close a producer specified by <tt>srcPartitionId</tt>.

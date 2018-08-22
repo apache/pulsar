@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -43,9 +45,10 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     private final PulsarClientImpl client;
     private ProducerConfigurationData conf;
-    private final Schema<T> schema;
+    private Schema<T> schema;
 
-    ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+    @VisibleForTesting
+    public ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ProducerConfigurationData(), schema);
     }
 
@@ -53,6 +56,16 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         this.client = client;
         this.conf = conf;
         this.schema = schema;
+    }
+
+
+    /**
+     * Allow to override schema in builder implementation
+     * @return
+     */
+    public ProducerBuilder<T> schema(Schema<T> schema) {
+        this.schema = schema;
+        return this;
     }
 
     @Override

@@ -52,10 +52,10 @@ public interface Context {
     String getOutputTopic();
 
     /**
-     * Get output Serde class
-     * @return output serde class
+     * Get output schema builtin type or custom class name
+     * @return output schema builtin type or custom class name
      */
-    String getOutputSerdeClassName();
+    String getOutputSchemaType();
 
     /**
      * The tenant this function belongs to
@@ -161,15 +161,19 @@ public interface Context {
 
     /**
      * Publish an object using serDe for serializing to the topic
-     * @param topicName The name of the topic for publishing
-     * @param object The object that needs to be published
-     * @param serDeClassName The class name of the class that needs to be used to serialize the object before publishing
+     *
+     * @param topicName
+     *            The name of the topic for publishing
+     * @param object
+     *            The object that needs to be published
+     * @param topicsPattern
+     *            Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name of the custom schema class
      * @return A future that completes when the framework is done publishing the message
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName);
+    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaType);
 
     /**
-     * Publish an object using DefaultSerDe for serializing to the topic
+     * Publish an object to the topic using default schemas
      * @param topicName The name of the topic for publishing
      * @param object The object that needs to be published
      * @return A future that completes when the framework is done publishing the message

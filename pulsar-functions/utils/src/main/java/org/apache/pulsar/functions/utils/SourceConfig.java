@@ -23,6 +23,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
@@ -53,8 +54,13 @@ public class SourceConfig {
     @NotNull
     @isValidTopicName
     private String topicName;
+
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String serdeClassName;
+
+    @isImplementationOfClass(implementsClass = Schema.class)
+    private String schemaType;
+
     private Map<String, Object> configs;
     @isPositiveNumber
     private int parallelism = 1;

@@ -19,6 +19,11 @@
 package org.apache.pulsar.functions.utils;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.TreeMap;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -27,6 +32,7 @@ import lombok.ToString;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
+
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClass;
@@ -38,9 +44,6 @@ import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidWindowConfig;
 import org.apache.pulsar.functions.utils.validation.ValidatorImpls;
-
-import java.util.Collection;
-import java.util.Map;
 
 @Getter
 @Setter
@@ -56,7 +59,7 @@ public class FunctionConfig {
         ATMOST_ONCE,
         EFFECTIVELY_ONCE
     }
-    
+
     public enum Runtime {
         JAVA,
         PYTHON
@@ -79,8 +82,25 @@ public class FunctionConfig {
     private Map<String, String> customSerdeInputs;
     @isValidTopicName
     private String topicsPattern;
+    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
+            valueValidatorClasses = { ValidatorImpls.SchemaValidator.class }, targetRuntime = ConfigValidation.Runtime.JAVA)
+    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class }, targetRuntime = ConfigValidation.Runtime.PYTHON)
+    private Map<String, String> customSchemaInputs;
+
+    /**
+     * A generalized way of specifying inputs
+     */
+    private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
+
     @isValidTopicName
     private String output;
+
+    /**
+     * Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema
+     * implementation
+     */
+    private String outputSchemaType;
+
     private boolean skipOutput;
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String outputSerdeClassName;
