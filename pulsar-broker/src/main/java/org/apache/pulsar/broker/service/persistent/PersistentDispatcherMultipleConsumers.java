@@ -52,19 +52,17 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentRedeliveryTracker;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
+import org.apache.pulsar.utils.Quorum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -628,14 +626,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             }
             if (messagesToDeadLetter.size() > 0) {
-                CountDownLatch latch = new CountDownLatch(messagesToDeadLetter.size());
+
+                Quorum quorum = new Quorum(messagesToDeadLetter.size(), result -> {
+                    readMoreEntries();
+                });
+
                 for (PositionImpl position : messagesToDeadLetter) {
                     cursor.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
                             if (entry == null) {
                                 log.error("[{}-{}] Read an null entry from cursor {}", name, consumer, position);
-                                latch.countDown();
+                                quorum.succeed();
                             } else {
                                 try {
                                     ByteBuf headersAndPayload = entry.getDataBuffer();
@@ -648,21 +650,21 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                                             log.error("[{}-{}] Fail to send message to dead letter topic {} {} {}",
                                                     name, consumer, deadLetterTopic, error.getMessage(), error);
                                             messagesToReplay.add(position.getLedgerId(), position.getEntryId());
-                                            latch.countDown();
+                                            quorum.succeed();
                                         } else {
                                             cursor.asyncDelete(position, new AsyncCallbacks.DeleteCallback() {
                                                 @Override
                                                 public void deleteComplete(Object ctx) {
                                                     entry.release();
                                                     redeliveryTracker.remove(position);
-                                                    latch.countDown();
+                                                    quorum.succeed();
                                                 }
 
                                                 @Override
                                                 public void deleteFailed(ManagedLedgerException exception, Object ctx) {
                                                     entry.release();
                                                     messagesToReplay.add(position.getLedgerId(), position.getEntryId());
-                                                    latch.countDown();
+                                                    quorum.succeed();
                                                 }
                                             }, position);
 
@@ -676,14 +678,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                                         public void deleteComplete(Object ctx) {
                                             entry.release();
                                             redeliveryTracker.remove(position);
-                                            latch.countDown();
+                                            quorum.succeed();
                                         }
 
                                         @Override
                                         public void deleteFailed(ManagedLedgerException exception, Object ctx) {
                                             entry.release();
                                             messagesToReplay.add(position.getLedgerId(), position.getEntryId());
-                                            latch.countDown();
+                                            quorum.succeed();
                                         }
                                     }, position);
 
@@ -694,21 +696,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                             log.error("[{}-{}] Read entries failed {} {}", name, consumer, exception.getMessage(), exception);
                             messagesToReplay.add(position.getLedgerId(), position.getEntryId());
-                            latch.countDown();
+                            quorum.succeed();
                         }
                     }, null);
                 }
-                try {
-                    latch.await();
-                    messagesToDeadLetter.clear();
-                } catch (InterruptedException e) {
-                    log.error("[{}-{}] latch Interrupted {} {}", name, consumer, e.getMessage(), e);
-                }
+                messagesToDeadLetter.clear();
             }
         } else {
             positions.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
+            readMoreEntries();
         }
-        readMoreEntries();
     }
 
     @Override
