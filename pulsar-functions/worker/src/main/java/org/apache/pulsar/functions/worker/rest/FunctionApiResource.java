@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.UriInfo;
 
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -38,6 +39,8 @@ public class FunctionApiResource implements Supplier<WorkerService> {
     protected ServletContext servletContext;
     @Context
     protected HttpServletRequest httpRequest;
+    @Context
+    protected UriInfo uri;
 
     public FunctionApiResource() {
         this.functions = new FunctionsImpl(this);
