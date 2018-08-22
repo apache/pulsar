@@ -20,6 +20,7 @@
 #include "MessageImpl.h"
 #include "Version.h"
 #include "pulsar/MessageBuilder.h"
+#include "PulsarApi.pb.h"
 #include "LogUtils.h"
 #include "Utils.h"
 #include "Url.h"
@@ -27,6 +28,7 @@
 #include <algorithm>
 #include <boost/thread/mutex.hpp>
 
+using namespace pulsar;
 namespace pulsar {
 
 using namespace pulsar::proto;
@@ -185,7 +187,8 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
 SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string& subscription,
                                     uint64_t consumerId, uint64_t requestId, CommandSubscribe_SubType subType,
                                     const std::string& consumerName, SubscriptionMode subscriptionMode,
-                                    Optional<MessageId> startMessageId, bool readCompacted) {
+                                    Optional<MessageId> startMessageId, bool readCompacted,
+                                    const std::map<std::string, std::string>& metadata) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -205,6 +208,13 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
         if (startMessageId.value().batchIndex() != -1) {
             messageIdData.set_batch_index(startMessageId.value().batchIndex());
         }
+    }
+    for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
+         it++) {
+        proto::KeyValue* keyValue = proto::KeyValue().New();
+        keyValue->set_key(it->first);
+        keyValue->set_value(it->second);
+        subscribe->mutable_metadata()->AddAllocated(keyValue);
     }
 
     return writeMessageWithSize(cmd);

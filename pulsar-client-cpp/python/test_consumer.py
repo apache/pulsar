@@ -22,7 +22,11 @@
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
-consumer = client.subscribe('my-topic', "my-subscription")
+consumer = client.subscribe('my-topic', "my-subscription",
+                            properties={
+                                "consumer-name": "test-consumer-name",
+                                "consumer-id": "test-consumer-id"
+                            })
 
 while True:
     msg = consumer.receive()

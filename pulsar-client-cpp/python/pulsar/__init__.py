@@ -402,7 +402,8 @@ class Client:
                   consumer_name=None,
                   unacked_messages_timeout_ms=None,
                   broker_consumer_stats_cache_time_ms=30000,
-                  is_read_compacted=False
+                  is_read_compacted=False,
+                  properties=None
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -455,6 +456,9 @@ class Client:
         * `broker_consumer_stats_cache_time_ms`:
           Sets the time duration for which the broker-side consumer stats will
           be cached in the client.
+        * `properties`:
+          Sets the properties for the consumer. The properties associated with a consumer
+          can be used for identify a consumer at broker side.
         """
         _check_type(str, topic, 'topic')
         _check_type(str, subscription_name, 'subscription_name')
@@ -466,6 +470,7 @@ class Client:
         _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
         _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
         _check_type(bool, is_read_compacted, 'is_read_compacted')
+        _check_type_or_none(dict, properties, 'properties')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
@@ -479,6 +484,10 @@ class Client:
         if unacked_messages_timeout_ms:
             conf.unacked_messages_timeout_ms(unacked_messages_timeout_ms)
         conf.broker_consumer_stats_cache_time_ms(broker_consumer_stats_cache_time_ms)
+        if properties:
+            for k, v in properties.items():
+                conf.property(k, v)
+
         c = Consumer()
         c._consumer = self._client.subscribe(topic, subscription_name, conf)
         c._client = self
