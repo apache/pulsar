@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -669,7 +670,7 @@ public class PulsarService implements AutoCloseable {
     public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
             throws PulsarServerException {
         try {
-            if (conf.getManagedLedgerOffloadDriver() != null) {
+            if (StringUtils.isNotBlank(conf.getManagedLedgerOffloadDriver())) {
                 checkNotNull(conf.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                     conf.getManagedLedgerOffloadDriver());
