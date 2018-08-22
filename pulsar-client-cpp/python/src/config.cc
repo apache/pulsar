@@ -140,6 +140,7 @@ void export_config() {
             .def("broker_consumer_stats_cache_time_ms", &ConsumerConfiguration::setBrokerConsumerStatsCacheTimeInMs)
             .def("read_compacted", &ConsumerConfiguration::isReadCompacted)
             .def("read_compacted", &ConsumerConfiguration::setReadCompacted)
+            .def("property", &ConsumerConfiguration::setProperty, return_self<>())
             ;
 
     class_<ReaderConfiguration>("ReaderConfiguration")
