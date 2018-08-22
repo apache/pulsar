@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.utils;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+/**
+ * Quorum helper. Completes and invokes a callback when the number of {@link #succeed()} or
+ * {@link #fail()} calls equal the expected quorum count.
+ */
 public class Quorum {
 
     private final int quorum;
@@ -43,6 +46,9 @@ public class Quorum {
         }
     }
 
+    /**
+     * Indicates that a call in the quorum succeeded.
+     */
     public Quorum succeed() {
         if (succeeded.incrementAndGet() >= quorum) {
             complete(true);
@@ -50,6 +56,9 @@ public class Quorum {
         return this;
     }
 
+    /**
+     * Indicates that a call in the quorum failed.
+     */
     public Quorum fail() {
         if (failed.incrementAndGet() >= quorum) {
             complete(false);
