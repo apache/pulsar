@@ -94,15 +94,7 @@
 </a>
 <h2 class="title">D</h2>
 <dl>
-<dt><a href="org/apache/pulsar/functions/api/utils/DefaultSerDe.html" title="class in org.apache.pulsar.functions.api.utils"><span class="typeNameLink">DefaultSerDe</span></a> - Class in <a href="org/apache/pulsar/functions/api/utils/package-summary.html">org.apache.pulsar.functions.api.utils</a></dt>
-<dd>
-<div class="block">Simplest form of SerDe.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/utils/DefaultSerDe.html#DefaultSerDe-java.lang.Class-">DefaultSerDe(Class)</a></span> - Constructor for class org.apache.pulsar.functions.api.utils.<a href="org/apache/pulsar/functions/api/utils/DefaultSerDe.html" title="class in org.apache.pulsar.functions.api.utils">DefaultSerDe</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/SerDe.html#deserialize-byte:A-">deserialize(byte[])</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/SerDe.html" title="interface in org.apache.pulsar.functions.api">SerDe</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/utils/DefaultSerDe.html#deserialize-byte:A-">deserialize(byte[])</a></span> - Method in class org.apache.pulsar.functions.api.utils.<a href="org/apache/pulsar/functions/api/utils/DefaultSerDe.html" title="class in org.apache.pulsar.functions.api.utils">DefaultSerDe</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/utils/JavaSerDe.html#deserialize-byte:A-">deserialize(byte[])</a></span> - Method in class org.apache.pulsar.functions.api.utils.<a href="org/apache/pulsar/functions/api/utils/JavaSerDe.html" title="class in org.apache.pulsar.functions.api.utils">JavaSerDe</a></dt>
 <dd>&nbsp;</dd>
@@ -166,9 +158,9 @@
 <dd>
 <div class="block">The namespace this function belongs to</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Context.html#getOutputSerdeClassName--">getOutputSerdeClassName()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Context.html" title="interface in org.apache.pulsar.functions.api">Context</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Context.html#getOutputSchemaType--">getOutputSchemaType()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Context.html" title="interface in org.apache.pulsar.functions.api">Context</a></dt>
 <dd>
-<div class="block">Get output Serde class</div>
+<div class="block">Get output schema builtin type or custom class name</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Context.html#getOutputTopic--">getOutputTopic()</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Context.html" title="interface in org.apache.pulsar.functions.api">Context</a></dt>
 <dd>
@@ -228,8 +220,6 @@
 <dd>
 <div class="block">Increment the builtin distributed counter refered by key</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/utils/DefaultSerDe.html#IsSupportedType-java.lang.Class-">IsSupportedType(Class)</a></span> - Static method in class org.apache.pulsar.functions.api.utils.<a href="org/apache/pulsar/functions/api/utils/DefaultSerDe.html" title="class in org.apache.pulsar.functions.api.utils">DefaultSerDe</a></dt>
-<dd>&nbsp;</dd>
 </dl>
 <a name="I:J">
 <!--   -->
@@ -272,7 +262,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Context.html#publish-java.lang.String-O-">publish(String, O)</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Context.html" title="interface in org.apache.pulsar.functions.api">Context</a></dt>
 <dd>
-<div class="block">Publish an object using DefaultSerDe for serializing to the topic</div>
+<div class="block">Publish an object to the topic using default schemas</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/Context.html#putState-java.lang.String-java.nio.ByteBuffer-">putState(String, ByteBuffer)</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/Context.html" title="interface in org.apache.pulsar.functions.api">Context</a></dt>
 <dd>
@@ -303,8 +293,6 @@
 <div class="block">An interface for serializer/deserializer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/SerDe.html#serialize-T-">serialize(T)</a></span> - Method in interface org.apache.pulsar.functions.api.<a href="org/apache/pulsar/functions/api/SerDe.html" title="interface in org.apache.pulsar.functions.api">SerDe</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/utils/DefaultSerDe.html#serialize-java.lang.Object-">serialize(Object)</a></span> - Method in class org.apache.pulsar.functions.api.utils.<a href="org/apache/pulsar/functions/api/utils/DefaultSerDe.html" title="class in org.apache.pulsar.functions.api.utils">DefaultSerDe</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/functions/api/utils/JavaSerDe.html#serialize-java.lang.Object-">serialize(Object)</a></span> - Method in class org.apache.pulsar.functions.api.utils.<a href="org/apache/pulsar/functions/api/utils/JavaSerDe.html" title="class in org.apache.pulsar.functions.api.utils">JavaSerDe</a></dt>
 <dd>&nbsp;</dd>

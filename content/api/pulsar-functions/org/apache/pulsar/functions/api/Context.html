@@ -178,8 +178,8 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i9" class="rowColor">
 <td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getOutputSerdeClassName--">getOutputSerdeClassName</a></span>()</code>
-<div class="block">Get output Serde class</div>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#getOutputSchemaType--">getOutputSchemaType</a></span>()</code>
+<div class="block">Get output schema builtin type or custom class name</div>
 </td>
 </tr>
 <tr id="i10" class="altColor">
@@ -230,14 +230,14 @@ var activeTableTab = "activeTableTab";
 <td class="colFirst"><code>&lt;O&gt;&nbsp;CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#publish-java.lang.String-O-">publish</a></span>(String&nbsp;topicName,
        O&nbsp;object)</code>
-<div class="block">Publish an object using DefaultSerDe for serializing to the topic</div>
+<div class="block">Publish an object to the topic using default schemas</div>
 </td>
 </tr>
 <tr id="i18" class="altColor">
 <td class="colFirst"><code>&lt;O&gt;&nbsp;CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Context.html#publish-java.lang.String-O-java.lang.String-">publish</a></span>(String&nbsp;topicName,
        O&nbsp;object,
-       String&nbsp;serDeClassName)</code>
+       String&nbsp;schemaOrSerdeClassName)</code>
 <div class="block">Publish an object using serDe for serializing to the topic</div>
 </td>
 </tr>
@@ -311,17 +311,17 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="getOutputSerdeClassName--">
+<a name="getOutputSchemaType--">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>getOutputSerdeClassName</h4>
-<pre>String&nbsp;getOutputSerdeClassName()</pre>
-<div class="block">Get output Serde class</div>
+<h4>getOutputSchemaType</h4>
+<pre>String&nbsp;getOutputSchemaType()</pre>
+<div class="block">Get output schema builtin type or custom class name</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>output serde class</dd>
+<dd>output schema builtin type or custom class name</dd>
 </dl>
 </li>
 </ul>
@@ -561,13 +561,13 @@ var activeTableTab = "activeTableTab";
 <h4>publish</h4>
 <pre>&lt;O&gt;&nbsp;CompletableFuture&lt;Void&gt;&nbsp;publish(String&nbsp;topicName,
                                     O&nbsp;object,
-                                    String&nbsp;serDeClassName)</pre>
+                                    String&nbsp;schemaOrSerdeClassName)</pre>
 <div class="block">Publish an object using serDe for serializing to the topic</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>topicName</code> - The name of the topic for publishing</dd>
 <dd><code>object</code> - The object that needs to be published</dd>
-<dd><code>serDeClassName</code> - The class name of the class that needs to be used to serialize the object before publishing</dd>
+<dd><code>schemaOrSerdeClassName</code> - Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name of the custom schema class</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>A future that completes when the framework is done publishing the message</dd>
 </dl>
@@ -583,7 +583,7 @@ var activeTableTab = "activeTableTab";
 <h4>publish</h4>
 <pre>&lt;O&gt;&nbsp;CompletableFuture&lt;Void&gt;&nbsp;publish(String&nbsp;topicName,
                                     O&nbsp;object)</pre>
-<div class="block">Publish an object using DefaultSerDe for serializing to the topic</div>
+<div class="block">Publish an object to the topic using default schemas</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>topicName</code> - The name of the topic for publishing</dd>
