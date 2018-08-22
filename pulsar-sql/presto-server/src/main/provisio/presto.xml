@@ -1,0 +1,37 @@
+<runtime>
+    <!-- Target -->
+    <archive name="${project.artifactId}.tar.gz" />
+
+    <!-- Notices -->
+    <fileSet to="/">
+        <directory path="${basedir}">
+            <include>NOTICE</include>
+            <include>README.txt</include>
+        </directory>
+    </fileSet>
+
+    <!-- Launcher -->
+    <artifactSet to="bin">
+        <artifact id="io.airlift:launcher:tar.gz:bin:${dep.packaging.version}">
+            <unpack />
+        </artifact>
+        <artifact id="io.airlift:launcher:tar.gz:properties:${dep.packaging.version}">
+            <unpack filter="true" />
+        </artifact>
+    </artifactSet>
+
+    <!-- Server -->
+    <artifactSet to="lib">
+        <artifact id="${project.groupId}:presto-main:${project.version}" />
+    </artifactSet>
+
+    <!-- CLI -->
+    <artifactSet to="lib">
+        <artifact id="${project.groupId}:presto-cli:${project.version}" />
+    </artifactSet>
+
+    <!-- Pulsar Connector -->
+    <artifactSet to="plugin/pulsar">
+        <artifact id="org.apache.pulsar:pulsar-presto-connector:${pulsar.version}" />
+    </artifactSet>
+</runtime>

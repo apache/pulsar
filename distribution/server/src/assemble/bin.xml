@@ -51,6 +51,14 @@
       <directory>${basedir}/../../pulsar-functions/python-examples</directory>
       <outputDirectory>examples/python-examples</outputDirectory>
     </fileSet>
+    <fileSet>
+      <directory>${basedir}/../../pulsar-sql/presto-server/target/presto-server-${presto.version}</directory>
+      <outputDirectory>lib/presto</outputDirectory>
+    </fileSet>
+    <fileSet>
+      <directory>${basedir}/../../pulsar-sql/presto-server/src/resources/etc</directory>
+      <outputDirectory>lib/presto/etc</outputDirectory>
+    </fileSet>
   </fileSets>
   <files>
     <file>

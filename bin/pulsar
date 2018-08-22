@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -x
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -38,6 +39,10 @@ DEFAULT_JAVA_INSTANCE_JAR=$PULSAR_HOME/instances/java-instance.jar
 JAVA_INSTANCE_JAR=${PULSAR_JAVA_INSTANCE_JAR:-"${DEFAULT_JAVA_INSTANCE_JAR}"}
 DEFAULT_PY_INSTANCE_FILE=$PULSAR_HOME/instances/python-instance/python_instance_main.py
 PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
+SQL_HOME=$PULSAR_HOME/pulsar-sql
+PRESTO_HOME=${PULSAR_HOME}/lib/presto
+PRESTO_CONFIG=${PRESTO_HOME}/etc
+
 
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
@@ -97,6 +102,17 @@ if [ ! -f "${PY_INSTANCE_FILE}" ]; then
         exit 1;
     fi
     PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
+fi
+
+# find presto location
+if [ ! -d "${PRESTO_HOME}" ]; then
+  BUILT_PRESTO_HOME="${SQL_HOME}/presto-server/target/presto-server-0.206"
+  if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
+        echo "\nCouldn't find presto distribution.";
+        echo "Make sure you've run 'mvn package'\n";
+        exit 1;
+    fi
+    PRESTO_HOME=${BUILT_PRESTO_HOME}
 fi
 
 pulsar_help() {
@@ -295,6 +311,10 @@ elif [ $COMMAND == "zookeeper-shell" ]; then
     exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperMain $@
 elif [ $COMMAND == "compact-topic" ]; then
     exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
+elif [ $COMMAND == "pulsar-sql-cli" ]; then
+    exec $JAVA -cp "${PRESTO_HOME}/lib/*" com.facebook.presto.cli.Presto $@
+elif [ $COMMAND == "pulsar-sql-worker" ]; then
+    exec ${PRESTO_HOME}/bin/launcher $@
 elif [ $COMMAND == "help" ]; then
     pulsar_help;
 else
