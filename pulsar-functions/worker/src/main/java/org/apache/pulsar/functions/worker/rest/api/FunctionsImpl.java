@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -386,17 +387,17 @@ public class FunctionsImpl {
     }
 
     public Response stopFunctionInstance(final String tenant, final String namespace, final String functionName,
-            final String instanceId) {
-        return stopFunctionInstance(tenant, namespace, functionName, instanceId, false);
+            final String instanceId, URI uri) {
+        return stopFunctionInstance(tenant, namespace, functionName, instanceId, false, uri);
     }
 
     public Response restartFunctionInstance(final String tenant, final String namespace, final String functionName,
-            final String instanceId) {
-        return stopFunctionInstance(tenant, namespace, functionName, instanceId, true);
+            final String instanceId, URI uri) {
+        return stopFunctionInstance(tenant, namespace, functionName, instanceId, true, uri);
     }
 
     public Response stopFunctionInstance(final String tenant, final String namespace, final String functionName,
-            final String instanceId, boolean restart) {
+            final String instanceId, boolean restart, URI uri) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -413,7 +414,7 @@ public class FunctionsImpl {
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            log.error("Function does not exist @ /{}/{}/{}", tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
@@ -421,7 +422,7 @@ public class FunctionsImpl {
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         try {
             return functionRuntimeManager.stopFunctionInstance(tenant, namespace, functionName,
-                    Integer.parseInt(instanceId), restart);
+                    Integer.parseInt(instanceId), restart, uri);
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {
@@ -1057,7 +1058,7 @@ public class FunctionsImpl {
             if (isSuperUser(clientRole)) {
                 return true;
             }
-            TenantInfo tenantInfo = worker().getAdmin().tenants().getTenantInfo(tenant);
+            TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
             return clientRole != null && (tenantInfo.getAdminRoles() == null || tenantInfo.getAdminRoles().isEmpty()
                     || tenantInfo.getAdminRoles().contains(clientRole));
         }
