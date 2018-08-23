@@ -57,6 +57,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         this.client = client;
         this.conf = conf;
         this.schema = schema;
+        this.interceptorList = new ArrayList<>();
     }
 
 
@@ -232,9 +233,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> intercept(ProducerInterceptor<T>... interceptors) {
-        if (interceptorList == null) {
-            interceptorList = new ArrayList<>();
-        }
         interceptorList.addAll(Arrays.asList(interceptors));
         return this;
     }
