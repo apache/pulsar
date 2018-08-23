@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/cookbooks-non-persistent">English</a></li><li><a href="/docs/ja/cookbooks-non-persistent">日本語</a></li><li><a href="/docs/fr/cookbooks-non-persistent">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/cookbooks-non-persistent">English</a></li><li><a href="/docs/ja/cookbooks-non-persistent">日本語</a></li><li><a href="/docs/fr/cookbooks-non-persistent">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -51,7 +55,7 @@
 <p>By default, Pulsar persistently stores <em>all</em> unacknowledged messages on multiple <a href="#persistent-storage">BookKeeper</a> bookies (storage nodes). Data for messages on persistent topics can thus survive broker restarts and subscriber failover.</p>
 <p>Pulsar also, however, supports <strong>non-persistent topics</strong>, which are topics on which messages are <em>never</em> persisted to disk and live only in memory. When using non-persistent delivery, killing a Pulsar <a href="/docs/zh-CN/reference-terminology#broker">broker</a> or disconnecting a subscriber to a topic means that all in-transit messages are lost on that (non-persistent) topic, meaning that clients may see message loss.</p>
 <p>Non-persistent topics have names of this form (note the <code>non-persistent</code> in the name):</p>
-<pre><code class="hljs css languages- http">non-persistent://tenant/namespace/topic
+<pre><code class="hljs css language-http">non-persistent://tenant/namespace/topic
 </code></pre>
 <blockquote>
 <p>For more high-level information about non-persistent topics, see the <a href="/docs/zh-CN/concepts-messaging#non-persistent-topics">Concepts and Architecture</a> documentation.</p>
@@ -61,7 +65,7 @@
 <p>In order to use non-persistent topics, they must be <a href="#enabling">enabled</a> in your Pulsar broker configuration.</p>
 </blockquote>
 <p>In order to use non-persistent topics, you only need to differentiate them by name when interacting with them. This <a href="/docs/zh-CN/reference-cli-tools#pulsar-client-produce"><code>pulsar-client produce</code></a> command, for example, would produce one message on a non-persistent topic in a standalone cluster:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-client produce non-persistent://public/default/example-np-topic \
+<pre><code class="hljs css language-bash">$ bin/pulsar-client produce non-persistent://public/default/example-np-topic \
   --num-produce 1 \
   --messages <span class="hljs-string">"This message will be stored only in memory"</span>
 </code></pre>

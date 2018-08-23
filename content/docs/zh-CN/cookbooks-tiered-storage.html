@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/cookbooks-tiered-storage">English</a></li><li><a href="/docs/ja/cookbooks-tiered-storage">日本語</a></li><li><a href="/docs/fr/cookbooks-tiered-storage">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/cookbooks-tiered-storage">English</a></li><li><a href="/docs/ja/cookbooks-tiered-storage">日本語</a></li><li><a href="/docs/fr/cookbooks-tiered-storage">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -55,7 +59,7 @@
 <h3><a class="anchor" aria-hidden="true" id="configuring-the-broker"></a><a href="#configuring-the-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring the broker</h3>
 <p>Offloading is configured in <code>broker.conf</code>.</p>
 <p>At a minimum, the user must configure the driver, the region and the bucket.</p>
-<pre><code class="hljs css languages- conf"><span class="hljs-attr">managedLedgerOffloadDriver</span>=S3
+<pre><code class="hljs css language-conf"><span class="hljs-attr">managedLedgerOffloadDriver</span>=S3
 <span class="hljs-attr">s3ManagedLedgerOffloadRegion</span>=eu-west-<span class="hljs-number">3</span>
 <span class="hljs-attr">s3ManagedLedgerOffloadBucket</span>=pulsar-topic-<span class="hljs-literal">off</span>load
 </code></pre>
@@ -79,7 +83,7 @@
 <ol>
 <li>Set the environment variables <strong>AWS_ACCESS_KEY_ID</strong> and <strong>AWS_SECRET_ACCESS_KEY</strong> in <code>conf/pulsar_env.sh</code>.</li>
 </ol>
-<pre><code class="hljs css languages- bash"><span class="hljs-built_in">export</span> AWS_ACCESS_KEY_ID=ABC123456789
+<pre><code class="hljs css language-bash"><span class="hljs-built_in">export</span> AWS_ACCESS_KEY_ID=ABC123456789
 <span class="hljs-built_in">export</span> AWS_SECRET_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 </code></pre>
 <blockquote>
@@ -88,12 +92,12 @@
 <ol>
 <li>Add the Java system properties <em>aws.accessKeyId</em> and <em>aws.secretKey</em> to <strong>PULSAR_EXTRA_OPTS</strong> in <code>conf/pulsar_env.sh</code>.</li>
 </ol>
-<pre><code class="hljs css languages- bash">PULSAR_EXTRA_OPTS=<span class="hljs-string">"<span class="hljs-variable">${PULSAR_EXTRA_OPTS}</span> <span class="hljs-variable">${PULSAR_MEM}</span> <span class="hljs-variable">${PULSAR_GC}</span> -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"</span>
+<pre><code class="hljs css language-bash">PULSAR_EXTRA_OPTS=<span class="hljs-string">"<span class="hljs-variable">${PULSAR_EXTRA_OPTS}</span> <span class="hljs-variable">${PULSAR_MEM}</span> <span class="hljs-variable">${PULSAR_GC}</span> -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"</span>
 </code></pre>
 <ol>
 <li>Set the access credentials in <code>~/.aws/credentials</code>.</li>
 </ol>
-<pre><code class="hljs css languages- conf"><span class="hljs-section">[default]</span>
+<pre><code class="hljs css language-conf"><span class="hljs-section">[default]</span>
 <span class="hljs-attr">aws_access_key_id</span>=ABC123456789
 <span class="hljs-attr">aws_secret_access_key</span>=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 </code></pre>
@@ -103,7 +107,7 @@
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="configuring-offload-to-run-automatically"></a><a href="#configuring-offload-to-run-automatically" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring offload to run automatically</h2>
 <p>Namespace policies can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that the topic has stored on the pulsar cluster. Once the topic reaches the threshold, an offload operation will be triggered. Setting a negative value to the threshold will disable automatic offloading. Setting the threshold to 0 will cause the broker to offload data as soon as it possiby can.</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-offload-threshold --size 10M my-tenant/my-namespace
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-offload-threshold --size 10M my-tenant/my-namespace
 </code></pre>
 <blockquote>
 <p>Automatic offload runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offload will not until the current segment is full.</p>
@@ -111,19 +115,19 @@
 <h2><a class="anchor" aria-hidden="true" id="triggering-offload-manually"></a><a href="#triggering-offload-manually" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Triggering offload manually</h2>
 <p>Offloading can manually triggered through a REST endpoint on the Pulsar broker. We provide a CLI which will call this rest endpoint for you.</p>
 <p>When triggering offload, you must specify the maximum size, in bytes, of backlog which will be retained locally on the bookkeeper. The offload mechanism will offload segments from the start of the topic backlog until this condition is met.</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
 Offload triggered <span class="hljs-keyword">for</span> persistent://my-tenant/my-namespace/topic1 <span class="hljs-keyword">for</span> messages before 2:0:-1
 </code></pre>
 <p>The command to triggers an offload will not wait until the offload operation has completed. To check the status of the offload, use offload-status.</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin topics offload-status my-tenant/my-namespace/topic1
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin topics offload-status my-tenant/my-namespace/topic1
 Offload is currently running
 </code></pre>
 <p>To wait for offload to complete, add the -w flag.</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin topics offload-status -w my-tenant/my-namespace/topic1
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin topics offload-status -w my-tenant/my-namespace/topic1
 Offload was a success
 </code></pre>
 <p>If there is an error offloading, the error will be propagated to the offload-status command.</p>
-<pre><code class="hljs css languages- bash $ bin/pulsar-admin topics offload-status persistent://public/default/topic1">Error <span class="hljs-keyword">in</span> offload null
+<pre><code class="hljs css language-bash $ bin/pulsar-admin topics offload-status persistent://public/default/topic1">Error <span class="hljs-keyword">in</span> offload null
 
 Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads. Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g= ````</code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/adaptors-storm">← Pulsar adaptor for Apache Storm</a><a class="docs-next button" href="/docs/zh-CN/cookbooks-compaction">Topic compaction →</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#when-should-i-use-tiered-storage">When should I use Tiered Storage?</a></li><li><a href="#the-offloading-mechanism">The offloading mechanism</a></li><li><a href="#amazon-s3">Amazon S3</a><ul class="toc-headings"><li><a href="#configuring-the-broker">Configuring the broker</a></li><li><a href="#authenticating-with-s3">Authenticating with S3</a></li></ul></li><li><a href="#configuring-offload-to-run-automatically">Configuring offload to run automatically</a></li><li><a href="#triggering-offload-manually">Triggering offload manually</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

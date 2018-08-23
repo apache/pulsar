@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/next/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/next/client-libraries-cpp">日本語</a></li><li><a href="/docs/fr/next/client-libraries-cpp">Français</a></li><li><a href="/docs/zh-CN/next/client-libraries-cpp">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/next/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/next/client-libraries-cpp">日本語</a></li><li><a href="/docs/fr/next/client-libraries-cpp">Français</a></li><li><a href="/docs/zh-CN/next/client-libraries-cpp">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -33,6 +33,10 @@
               function createToggler(togglerSelector, targetSelector, className) {
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
 
                 toggler.onclick = function(event) {
                   event.preventDefault();
@@ -61,7 +65,7 @@ and install those packages instead of building them yourself.</p>
 </tbody>
 </table>
 <p>To install a RPM package, download the RPM packages and install them using the following command:</p>
-<pre><code class="hljs css languages- bash">$ rpm -ivh apache-pulsar-client*.rpm
+<pre><code class="hljs css language-bash">$ rpm -ivh apache-pulsar-client*.rpm
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="deb"></a><a href="#deb" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>DEB</h4>
 <table>
@@ -74,7 +78,7 @@ and install those packages instead of building them yourself.</p>
 </tbody>
 </table>
 <p>To install a DEB package, download the DEB packages and install them using the following command:</p>
-<pre><code class="hljs css languages- bash">$ apt-install apache-pulsar-client*.deb
+<pre><code class="hljs css language-bash">$ apt-install apache-pulsar-client*.deb
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="build"></a><a href="#build" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Build</h3>
 <blockquote>
@@ -86,10 +90,10 @@ repo.</p>
 statically linked <code>libpulsar.so</code> / <code>libpulsar.a</code> with all the required
 dependencies.</p>
 <p>To build the C++ library packages, first build the Java packages:</p>
-<pre><code class="hljs css languages- shell">mvn install -DskipTests
+<pre><code class="hljs css language-shell">mvn install -DskipTests
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rpm-1"></a><a href="#rpm-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>RPM</h4>
-<pre><code class="hljs css languages- shell">pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
+<pre><code class="hljs css language-shell">pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
 </code></pre>
 <p>This will build the RPM inside a Docker container and it will leave the RPMs
 in <code>pulsar-client-cpp/pkg/rpm/RPMS/x86_64/</code>.</p>
@@ -105,7 +109,7 @@ in <code>pulsar-client-cpp/pkg/rpm/RPMS/x86_64/</code>.</p>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="deb-1"></a><a href="#deb-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deb</h4>
 <p>To build Debian packages:</p>
-<pre><code class="hljs css languages- shell">pulsar-client-cpp/pkg/deb/docker-build-deb.sh
+<pre><code class="hljs css language-shell">pulsar-client-cpp/pkg/deb/docker-build-deb.sh
 </code></pre>
 <p>Debian packages will be created at <code>pulsar-client-cpp/pkg/deb/BUILD/DEB/</code></p>
 <table>
@@ -120,23 +124,23 @@ in <code>pulsar-client-cpp/pkg/rpm/RPMS/x86_64/</code>.</p>
 <h2><a class="anchor" aria-hidden="true" id="macos"></a><a href="#macos" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>MacOS</h2>
 <p>Use the <a href="https://brew.sh/">Homebrew</a> supplied recipe to build the Pulsar
 client lib on MacOS.</p>
-<pre><code class="hljs css languages- shell">brew install https://raw.githubusercontent.com/apache/incubator-pulsar/master/pulsar-client-cpp/homebrew/libpulsar.rb
+<pre><code class="hljs css language-shell">brew install https://raw.githubusercontent.com/apache/incubator-pulsar/master/pulsar-client-cpp/homebrew/libpulsar.rb
 </code></pre>
 <p>If using Python 3 on MacOS, add the flag <code>--with-python3</code> to the above command.</p>
 <p>This will install the package with the library and headers.</p>
 <h2><a class="anchor" aria-hidden="true" id="connection-urls"></a><a href="#connection-urls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection URLs</h2>
 <p>To connect to Pulsar using client libraries, you need to specify a Pulsar protocol URL.</p>
 <p>Pulsar protocol URLs are assigned to specific clusters, use the pulsar URI scheme and have a default port of 6650. Here’s an example for localhost:</p>
-<pre><code class="hljs css languages- http">pulsar://localhost:6650
+<pre><code class="hljs css language-http">pulsar://localhost:6650
 </code></pre>
 <p>A URL for a production Pulsar cluster may look something like this:</p>
-<pre><code class="hljs css languages- http">pulsar://pulsar.us-west.example.com:6650
+<pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
 </code></pre>
 <p>If you’re using TLS authentication, the URL will look like something like this:</p>
-<pre><code class="hljs css languages- http">pulsar+ssl://pulsar.us-west.example.com:6651
+<pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="consumer"></a><a href="#consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer</h2>
-<pre><code class="hljs css languages- c++"><span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
+<pre><code class="hljs css language-c++"><span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
 
 Consumer consumer;
 Result result = client.subscribe(<span class="hljs-string">"my-topic"</span>, <span class="hljs-string">"my-subscribtion-name"</span>, consumer);
@@ -158,7 +162,7 @@ Message msg;
 client.close();
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="producer"></a><a href="#producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer</h2>
-<pre><code class="hljs css languages- c++"><span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
+<pre><code class="hljs css language-c++"><span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
 
 Producer producer;
 Result result = client.createProducer(<span class="hljs-string">"my-topic"</span>, producer);
@@ -176,7 +180,7 @@ Result result = client.createProducer(<span class="hljs-string">"my-topic"</span
 client.close();
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="authentication"></a><a href="#authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Authentication</h2>
-<pre><code class="hljs css languages- cpp">ClientConfiguration config = ClientConfiguration();
+<pre><code class="hljs css language-cpp">ClientConfiguration config = ClientConfiguration();
 config.setUseTls(<span class="hljs-literal">true</span>);
 config.setTlsTrustCertsFilePath(<span class="hljs-string">"/path/to/cacert.pem"</span>);
 config.setTlsAllowInsecureConnection(<span class="hljs-literal">false</span>);

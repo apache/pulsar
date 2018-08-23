@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/next/standalone" target="_self">Documentation</a></li><li class=""><a href="/fr/download" target="_self">Télécharger</a></li><li class="siteNavGroupActive"><a href="/docs/fr/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/fr/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/io-quickstart">English</a></li><li><a href="/docs/ja/next/io-quickstart">日本語</a></li><li><a href="/docs/zh-CN/next/io-quickstart">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/next/standalone" target="_self">Documentation</a></li><li class=""><a href="/fr/download" target="_self">Télécharger</a></li><li class="siteNavGroupActive"><a href="/docs/fr/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/fr/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/io-quickstart">English</a></li><li><a href="/docs/ja/next/io-quickstart">日本語</a></li><li><a href="/docs/zh-CN/next/io-quickstart">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -33,6 +33,10 @@
               function createToggler(togglerSelector, targetSelector, className) {
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
 
                 toggler.onclick = function(event) {
                   event.preventDefault();
@@ -62,11 +66,11 @@
 <li><p>from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>from the Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">releases page</a></p></li>
 <li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-2.1.0-incubating-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-2.1.0-incubating-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>Once the tarball is downloaded, untar it and <code>cd</code> into the resulting directory:</p>
-<pre><code class="hljs css languages- bash">$ tar xvfz apache-pulsar-2.1.0-incubating-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.1.0-incubating-bin.tar.gz
 $ <span class="hljs-built_in">cd</span> apache-pulsar-2.1.0-incubating
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="installing-builtin-connectors"></a><a href="#installing-builtin-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installing Builtin Connectors</h2>
@@ -79,11 +83,11 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.1.0-incubating
 <li><p>from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>from the Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">releases page</a></p></li>
 <li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as <code>connectors</code> in the pulsar directory:</p>
-<pre><code class="hljs css languages- bash">$ tar xvfz /path/to/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz /path/to/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz
 
 // you will find a directory named `apache-pulsar-io-connectors-2.1.0-incubating` <span class="hljs-keyword">in</span> the pulsar directory
 // <span class="hljs-keyword">then</span> copy the connectors
@@ -100,37 +104,37 @@ pulsar-io-twitter-{{pulsar.version}}.nar
 ...
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="start-pulsar-service"></a><a href="#start-pulsar-service" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start Pulsar Service</h2>
-<pre><code class="hljs css languages- bash">bin/pulsar standalone
+<pre><code class="hljs css language-bash">bin/pulsar standalone
 </code></pre>
 <p>All the components of a Pulsar service will start in order. You can curl those pulsar service endpoints to make sure Pulsar service is up running correctly.</p>
 <ol>
 <li>Check pulsar binary protocol port.</li>
 </ol>
-<pre><code class="hljs css languages- bash">telnet localhost 6650
+<pre><code class="hljs css language-bash">telnet localhost 6650
 </code></pre>
 <ol>
 <li>Check pulsar function cluster</li>
 </ol>
-<pre><code class="hljs css languages- bash">curl -s http://localhost:8080/admin/v2/<span class="hljs-built_in">functions</span>/cluster
+<pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/<span class="hljs-built_in">functions</span>/cluster
 </code></pre>
 <p>Example output:</p>
-<pre><code class="hljs css languages- shell">[{"workerId":"c-standalone-fw-localhost-6750","workerHostname":"localhost","port":6750}]
+<pre><code class="hljs css language-shell">[{"workerId":"c-standalone-fw-localhost-6750","workerHostname":"localhost","port":6750}]
 </code></pre>
 <ol>
 <li>Make sure public tenant and default namespace exist</li>
 </ol>
-<pre><code class="hljs css languages- bash">curl -s http://localhost:8080/admin/v2/namespaces/public
+<pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/namespaces/public
 </code></pre>
 <p>Example outoupt:</p>
-<pre><code class="hljs css languages- shell">["public/default","public/functions"]
+<pre><code class="hljs css language-shell">["public/default","public/functions"]
 </code></pre>
 <ol>
 <li>All builtin connectors should be listed as available.</li>
 </ol>
-<pre><code class="hljs css languages- bash">curl -s http://localhost:8080/admin/v2/<span class="hljs-built_in">functions</span>/connectors
+<pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/<span class="hljs-built_in">functions</span>/connectors
 </code></pre>
 <p>Example output:</p>
-<pre><code class="hljs css languages- json">[{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"aerospike"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Aerospike database sink"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.aerospike.AerospikeStringSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"cassandra"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Writes data into Cassandra"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.cassandra.CassandraStringSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"kafka"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Kafka source and sink connector"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kafka.KafkaStringSource"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kafka.KafkaStringSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"kinesis"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Kinesis sink connector"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kinesis.KinesisSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"rabbitmq"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"RabbitMQ source connector"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.rabbitmq.RabbitMQSource"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"twitter"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Ingest data from Twitter firehose"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.twitter.TwitterFireHose"</span>}]
+<pre><code class="hljs css language-json">[{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"aerospike"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Aerospike database sink"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.aerospike.AerospikeStringSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"cassandra"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Writes data into Cassandra"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.cassandra.CassandraStringSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"kafka"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Kafka source and sink connector"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kafka.KafkaStringSource"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kafka.KafkaStringSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"kinesis"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Kinesis sink connector"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kinesis.KinesisSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"rabbitmq"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"RabbitMQ source connector"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.rabbitmq.RabbitMQSource"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"twitter"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Ingest data from Twitter firehose"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.twitter.TwitterFireHose"</span>}]
 </code></pre>
 <p>If an error occurred while starting Pulsar service, you may be able to seen exception at the terminal you are running <code>pulsar/standalone</code>, or you can navigate the <code>logs</code> directory under the Pulsar directory to view the logs.</p>
 <h2><a class="anchor" aria-hidden="true" id="connect-pulsar-to-apache-cassandra"></a><a href="#connect-pulsar-to-apache-cassandra" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connect Pulsar to Apache Cassandra</h2>
@@ -140,23 +144,23 @@ pulsar-io-twitter-{{pulsar.version}}.nar
 <p>We are using <code>cassandra</code> docker image to start a single-node cassandra cluster in Docker.</p>
 <h3><a class="anchor" aria-hidden="true" id="setup-the-cassandra-cluster"></a><a href="#setup-the-cassandra-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setup the Cassandra Cluster</h3>
 <h4><a class="anchor" aria-hidden="true" id="start-a-cassandra-cluster"></a><a href="#start-a-cassandra-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start a Cassandra Cluster</h4>
-<pre><code class="hljs css languages- bash">docker run -d --rm --name=cassandra -p 9042:9042 cassandra
+<pre><code class="hljs css language-bash">docker run -d --rm --name=cassandra -p 9042:9042 cassandra
 </code></pre>
 <p>Before moving to next steps, make sure the cassandra cluster is up running.</p>
 <ol>
 <li>Make sure the docker process is running.</li>
 </ol>
-<pre><code class="hljs css languages- bash">docker ps
+<pre><code class="hljs css language-bash">docker ps
 </code></pre>
 <ol>
 <li>Check the cassandra logs to make sure cassandra process is running as expected.</li>
 </ol>
-<pre><code class="hljs css languages- bash">docker logs cassandra
+<pre><code class="hljs css language-bash">docker logs cassandra
 </code></pre>
 <ol>
 <li>Check the cluster status</li>
 </ol>
-<pre><code class="hljs css languages- bash">docker <span class="hljs-built_in">exec</span> cassandra nodetool status
+<pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> cassandra nodetool status
 </code></pre>
 <p>Example output:</p>
 <pre><code class="hljs">Datacenter: datacenter1
@@ -168,7 +172,7 @@ UN  172.17.0.2  103.67 KiB  256          100.0%            af0e4b2f-84e0-4f0b-bb
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="create-keyspace-and-table"></a><a href="#create-keyspace-and-table" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create keyspace and table</h4>
 <p>We are using <code>cqlsh</code> to connect to the cassandra cluster to create keyspace and table.</p>
-<pre><code class="hljs css languages- bash">$ docker <span class="hljs-built_in">exec</span> -ti cassandra cqlsh localhost
+<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -ti cassandra cqlsh localhost
 Connected to Test Cluster at localhost:9042.
 [cqlsh 5.0.1 | Cassandra 3.11.2 | CQL spec 3.4.4 | Native protocol v4]
 Use HELP <span class="hljs-keyword">for</span> <span class="hljs-built_in">help</span>.
@@ -176,10 +180,10 @@ cqlsh&gt;
 </code></pre>
 <p>All the following commands are executed in <code>cqlsh</code>.</p>
 <h5><a class="anchor" aria-hidden="true" id="create-keyspace-pulsar-test-keyspace"></a><a href="#create-keyspace-pulsar-test-keyspace" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create keyspace <code>pulsar_test_keyspace</code></h5>
-<pre><code class="hljs css languages- bash">cqlsh&gt; CREATE KEYSPACE pulsar_test_keyspace WITH replication = {<span class="hljs-string">'class'</span>:<span class="hljs-string">'SimpleStrategy'</span>, <span class="hljs-string">'replication_factor'</span>:1};
+<pre><code class="hljs css language-bash">cqlsh&gt; CREATE KEYSPACE pulsar_test_keyspace WITH replication = {<span class="hljs-string">'class'</span>:<span class="hljs-string">'SimpleStrategy'</span>, <span class="hljs-string">'replication_factor'</span>:1};
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="create-table-pulsar-test-table"></a><a href="#create-table-pulsar-test-table" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create table <code>pulsar_test_table</code></h4>
-<pre><code class="hljs css languages- bash">cqlsh&gt; USE pulsar_test_keyspace;
+<pre><code class="hljs css language-bash">cqlsh&gt; USE pulsar_test_keyspace;
 cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY KEY, col text);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="configure-a-cassandra-sink"></a><a href="#configure-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure a Cassandra Sink</h3>
@@ -197,7 +201,7 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 <h3><a class="anchor" aria-hidden="true" id="submit-a-cassandra-sink"></a><a href="#submit-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Submit a Cassandra Sink</h3>
 <p>Pulsar provides the <a href="/docs/fr/next/reference-cli-tools">CLI</a> for running and managing Pulsar I/O connectors.</p>
 <p>We can run following command to sink a sink connector with type <code>cassandra</code> and config file <code>examples/cassandra-sink.yml</code>.</p>
-<pre><code class="hljs css languages- shell">bin/pulsar-admin sink create \
+<pre><code class="hljs css language-shell">bin/pulsar-admin sink create \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink \
@@ -209,13 +213,13 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 <h3><a class="anchor" aria-hidden="true" id="inspect-the-cassandra-sink"></a><a href="#inspect-the-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Inspect the Cassandra Sink</h3>
 <p>Since an IO connector is running as <a href="/docs/fr/next/functions-overview">Pulsar Functions</a>, you can use <a href="/docs/fr/next/pulsar-admin#functions">functions CLI</a> for inspecting and managing the IO connectors.</p>
 <h4><a class="anchor" aria-hidden="true" id="retrieve-sink-info"></a><a href="#retrieve-sink-info" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Retrieve Sink Info</h4>
-<pre><code class="hljs css languages- bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> get \
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> get \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
 </code></pre>
 <p>Example output:</p>
-<pre><code class="hljs css languages- shell">{
+<pre><code class="hljs css language-shell">{
   "tenant": "public",
   "namespace": "default",
   "name": "cassandra-test-sink",
@@ -235,13 +239,13 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 }
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="check-sink-running-status"></a><a href="#check-sink-running-status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Check Sink Running Status</h4>
-<pre><code class="hljs css languages- bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> getstatus \
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> getstatus \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
 </code></pre>
 <p>Example output:</p>
-<pre><code class="hljs css languages- shell">{
+<pre><code class="hljs css language-shell">{
   "functionStatusList": [
     {
       "running": true,
@@ -263,16 +267,16 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="verify-the-cassandra-sink"></a><a href="#verify-the-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Verify the Cassandra Sink</h3>
 <p>Now lets produce some messages to the input topic of the Cassandra sink <code>test_cassandra</code>.</p>
-<pre><code class="hljs css languages- bash"><span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> {0..9}; <span class="hljs-keyword">do</span> bin/pulsar-client produce -m <span class="hljs-string">"key-<span class="hljs-variable">$i</span>"</span> -n 1 test_cassandra; <span class="hljs-keyword">done</span>
+<pre><code class="hljs css language-bash"><span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> {0..9}; <span class="hljs-keyword">do</span> bin/pulsar-client produce -m <span class="hljs-string">"key-<span class="hljs-variable">$i</span>"</span> -n 1 test_cassandra; <span class="hljs-keyword">done</span>
 </code></pre>
 <p>Inspect the sink running status again. You should be able to see 10 messages are processed by the Cassandra sink.</p>
-<pre><code class="hljs css languages- bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> getstatus \
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> getstatus \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
 </code></pre>
 <p>Example output:</p>
-<pre><code class="hljs css languages- shell">{
+<pre><code class="hljs css language-shell">{
   "functionStatusList": [
     {
       "running": true,
@@ -304,10 +308,10 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 }
 </code></pre>
 <p>Finally, lets inspect the results in Cassandra using <code>cqlsh</code></p>
-<pre><code class="hljs css languages- bash">docker <span class="hljs-built_in">exec</span> -ti cassandra cqlsh localhost
+<pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -ti cassandra cqlsh localhost
 </code></pre>
 <p>Select the rows from the Cassandra table <code>pulsar_test_table</code>:</p>
-<pre><code class="hljs css languages- bash">cqlsh&gt; use pulsar_test_keyspace;
+<pre><code class="hljs css language-bash">cqlsh&gt; use pulsar_test_keyspace;
 cqlsh:pulsar_test_keyspace&gt; select * from pulsar_test_table;
 
  key    | col
@@ -324,7 +328,7 @@ cqlsh:pulsar_test_keyspace&gt; select * from pulsar_test_table;
   key-8 |  key-8
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="delete-the-cassandra-sink"></a><a href="#delete-the-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete the Cassandra Sink</h3>
-<pre><code class="hljs css languages- shell">bin/pulsar-admin sink delete \
+<pre><code class="hljs css language-shell">bin/pulsar-admin sink delete \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink

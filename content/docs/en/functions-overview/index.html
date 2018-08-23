@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/functions-overview">日本語</a></li><li><a href="/docs/fr/functions-overview">Français</a></li><li><a href="/docs/zh-CN/functions-overview">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/functions-overview">日本語</a></li><li><a href="/docs/fr/functions-overview">Français</a></li><li><a href="/docs/zh-CN/functions-overview">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -48,7 +52,7 @@
 <li>publish the results of the computation to another topic</li>
 </ul>
 <p>Here's an example Pulsar Function for Java (using the <a href="/docs/en/functions-api#java-native-functions">native interface</a>):</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">import</span> java.util.Function;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.Function;
 
 <span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
@@ -56,7 +60,7 @@
 }
 </code></pre>
 <p>Here's an equivalent function in Python (also using the <a href="/docs/en/functions-api#python-native-functions">native interface</a>):</p>
-<pre><code class="hljs css languages- python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
+<pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> <span class="hljs-string">"{0}!"</span>.format(input)
 </code></pre>
 <p>Functions are executed each time a message is published to the input topic. If a function is listening on the topic <code>tweet-stream</code>, for example, then the function would be run each time a message is published to that topic.</p>
@@ -97,7 +101,7 @@
 <p>If you were to implement the classic word count example using Pulsar Functions, it might look something like this:</p>
 <p><img src="/docs/assets/pulsar-functions-word-count.png" alt="Pulsar Functions word count example"></p>
 <p>If you were writing the function in <a href="/docs/en/functions-api#functions-for-java">Java</a> using the <a href="/docs/en/functions-api#java-sdk-functions">Pulsar Functions SDK for Java</a>, you could write the function like this...</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">package</span> org.example.functions;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">package</span> org.example.functions;
 
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
@@ -117,7 +121,7 @@
 }
 </code></pre>
 <p>...and then <a href="#cluster-run-mode">deploy it</a> in your Pulsar cluster using the <a href="#command-line-interface">command line</a> like this:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar target/my-jar-with-dependencies.jar \
   --className org.example.functions.WordCountFunction \
   --tenant public \
@@ -131,7 +135,7 @@
 <p>Imagine a function that takes items (strings) as input and publishes them to either a fruits or vegetables topic, depending on the item. Or, if an item is neither a fruit nor a vegetable, a warning is logged to a <a href="#logging">log topic</a>. Here's a visual representation:</p>
 <p><img src="/docs/assets/pulsar-functions-routing-example.png" alt="Pulsar Functions routing example"></p>
 <p>If you were implementing this routing functionality in Python, it might look something like this:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RoutingFunction</span><span class="hljs-params">(Function)</span>:</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">__init__</span><span class="hljs-params">(self)</span>:</span>
@@ -155,7 +159,7 @@
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="command-line-interface"></a><a href="#command-line-interface" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command-line interface</h2>
 <p>Pulsar Functions are managed using the <a href="/docs/en/pulsar-admin"><code>pulsar-admin</code></a> CLI tool (in particular the <a href="/docs/en/pulsar-admin#functions"><code>functions</code></a> command). Here's an example command that would run a function in <a href="#local-run-mode">local run mode</a>:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-functions localrun \
+<pre><code class="hljs css language-bash">$ bin/pulsar-functions localrun \
   --inputs persistent://public/default/test_src \
   --output persistent://public/default/test_result \
   --jar examples/api-examples.jar \
@@ -163,7 +167,7 @@
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="fully-qualified-function-name-fqfn"></a><a href="#fully-qualified-function-name-fqfn" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fully Qualified Function Name (FQFN)</h2>
 <p>Each Pulsar Function has a <strong>Fully Qualified Function Name</strong> (FQFN) that consists of three elements: the function's tenant, namespace, and function name. FQFN's look like this:</p>
-<pre><code class="hljs css languages- http">tenant/namespace/name
+<pre><code class="hljs css language-http">tenant/namespace/name
 </code></pre>
 <p>FQFNs enable you to, for example, create multiple functions with the same name provided that they're in different namespaces.</p>
 <h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
@@ -173,11 +177,11 @@
 <li>Via <a href="http://yaml.org/">YAML</a> configuration files</li>
 </ul>
 <p>If you're supplying a YAML configuration, you must specify a path to the file on the command line. Here's an example:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --functionConfigFile ./my-function.yaml
 </code></pre>
 <p>And here's an example <code>my-function.yaml</code> file:</p>
-<pre><code class="hljs css languages- yaml"><span class="hljs-attr">name:</span> <span class="hljs-string">my-function</span>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">name:</span> <span class="hljs-string">my-function</span>
 <span class="hljs-attr">tenant:</span> <span class="hljs-string">public</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">default</span>
 <span class="hljs-attr">jar:</span> <span class="hljs-string">./target/my-functions.jar</span>
@@ -219,7 +223,7 @@
 <p>If you'd like a Pulsar Function to have access to a <a href="#function-context">context object</a>, you can use the <strong>Pulsar Functions SDK</strong>, available for both <a href="/docs/en/functions-api#functions-for-java">Java</a> and <a href="/docs/en/functions-api#functions-for-python">Pythnon</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h3>
 <p>Here's an example Java function that uses information about its context:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
 <span class="hljs-keyword">import</span> org.slf4j.Logger;
 
@@ -237,7 +241,7 @@
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="python"></a><a href="#python" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python</h3>
 <p>Here's an example Python function that uses information about its context:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ContextAwareFunction</span><span class="hljs-params">(Function)</span>:</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, input, context)</span>:</span>
@@ -260,20 +264,20 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="local-run-mode"></a><a href="#local-run-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Local run mode</h3>
 <p>If you run a Pulsar Function in <strong>local run</strong> mode, it will run on the machine from which the command is run (this could be your laptop, an <a href="https://aws.amazon.com/ec2/">AWS EC2</a> instance, etc.). Here's an example <a href="/docs/en/pulsar-admin#localrun"><code>localrun</code></a> command:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --py myfunc.py \
   --className myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 </code></pre>
 <p>By default, the function will connect to a Pulsar cluster running on the same machine, via a local broker service URL of <code>pulsar://localhost:6650</code>. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the <code>--brokerServiceUrl</code> flag. Here's an example:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --brokerServiceUrl pulsar://my-cluster-host:6650 \
   <span class="hljs-comment"># Other function parameters</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="cluster-run-mode"></a><a href="#cluster-run-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cluster run mode</h3>
 <p>When you run a Pulsar Function in <strong>cluster mode</strong>, the function code will be uploaded to a Pulsar broker and run <em>alongside the broker</em> rather than in your <a href="#local-run-mode">local environment</a>. You can run a function in cluster mode using the <a href="/docs/en/pulsar-admin#create-1"><code>create</code></a> command. Here's an example:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py myfunc.py \
   --className myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
@@ -283,7 +287,7 @@
 <h3><a class="anchor" aria-hidden="true" id="parallelism"></a><a href="#parallelism" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Parallelism</h3>
 <p>By default, only one <strong>instance</strong> of a Pulsar Function runs when you create and run it in <a href="#cluster-run-mode">cluster run mode</a>. You can also, however, run multiple instances in parallel. You can specify the number of instances when you create the function, or update an existing single-instance function with a new parallelism factor.</p>
 <p>This command, for example, would create and run a function with a parallelism of 5 (i.e. 5 instances):</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --name parallel-fun \
   --tenant public \
   --namespace default \
@@ -304,7 +308,7 @@
 </tbody>
 </table>
 <p>Here's an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar target/my-functions.jar \
   --className org.example.functions.MyFunction \
   --cpu 8 \
@@ -314,13 +318,13 @@
 <p>For more information on resources, see the <a href="/docs/en/functions-deploying#resources">Deploying and Managing Pulsar Functions</a> documentation.</p>
 <h3><a class="anchor" aria-hidden="true" id="logging"></a><a href="#logging" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Logging</h3>
 <p>Pulsar Functions created using the <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a> can send logs to a log topic that you specify as part of the function's configuration. The function created using the command below, for example, would produce all logs on the <code>persistent://public/default/my-func-1-log</code> topic:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --name my-func-1 \
   --logTopic persistent://public/default/my-func-1-log \
   <span class="hljs-comment"># Other configs</span>
 </code></pre>
 <p>Here's an example <a href="/docs/en/functions-api#java-logging">Java function</a> that logs at different log levels based on the function's input:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">LoggerFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">LoggerFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{
         Logger LOG = context.getLogger();
@@ -335,12 +339,12 @@
 <h3><a class="anchor" aria-hidden="true" id="user-configuration"></a><a href="#user-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>User configuration</h3>
 <p>Pulsar Functions can be passed arbitrary key-values via the command line (both keys and values must be strings). This set of key-values is called the functions <strong>user configuration</strong>. User configurations must consist of JSON strings.</p>
 <p>Here's an example of passing a user configuration to a function:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --userConfig <span class="hljs-string">'{"key-1":"value-1","key-2","value-2"}'</span> \
   <span class="hljs-comment"># Other configs</span>
 </code></pre>
 <p>Here's an example of a function that accesses that config map:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ConfigMapFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ConfigMapFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{
         String val1 = context.getUserConfigValue(<span class="hljs-string">"key1"</span>).get();
@@ -356,11 +360,11 @@
 <p>Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. The <a href="/docs/en/pulsar-admin#trigger"><code>pulsar-admin functions trigger</code></a> command is essentially a convenient mechanism for sending messages to functions without needing to use the <a href="/docs/en/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> tool or a language-specific client library.</p>
 </blockquote>
 <p>Let's take an example Pulsar Function written in Python (using the <a href="/docs/en/functions-api#python-native-functions">native interface</a>) that simply reverses string inputs:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
+<pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> input[::<span class="hljs-number">-1</span>]
 </code></pre>
 <p>If that function were running in a Pulsar cluster, it could be triggered like this:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
   --tenant public \
   --namespace default \
   --name reverse-func \
@@ -383,7 +387,7 @@
 </tbody>
 </table>
 <p>This command, for example, would run a function in <a href="#cluster-run-mode">cluster mode</a> with effectively-once guarantees applied:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --name my-effectively-once-function \
   --processingGuarantees EFFECTIVELY_ONCE \
   <span class="hljs-comment"># Other function configs</span>

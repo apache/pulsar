@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/standalone" target="_self">Documentation</a></li><li class=""><a href="/fr/download" target="_self">Télécharger</a></li><li class="siteNavGroupActive"><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="/fr/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/security-authorization">English</a></li><li><a href="/docs/ja/security-authorization">日本語</a></li><li><a href="/docs/zh-CN/security-authorization">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/standalone" target="_self">Documentation</a></li><li class=""><a href="/fr/download" target="_self">Télécharger</a></li><li class="siteNavGroupActive"><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="/fr/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/security-authorization">English</a></li><li><a href="/docs/ja/security-authorization">日本語</a></li><li><a href="/docs/zh-CN/security-authorization">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -47,7 +51,7 @@
 <h2><a class="anchor" aria-hidden="true" id="broker-and-proxy-setup"></a><a href="#broker-and-proxy-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker and Proxy Setup</h2>
 <h3><a class="anchor" aria-hidden="true" id="enabling-authorization-and-assigning-superusers"></a><a href="#enabling-authorization-and-assigning-superusers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enabling Authorization and Assigning Superusers</h3>
 <p>Authorization is enabled and superusers are assigned in the broker (<a href="/docs/fr/reference-configuration#broker"><code>conf/broker.conf</code></a>) and proxy (<a href="/docs/fr/reference-configuration#proxy"><code>conf/proxy.conf</code></a>) configuration files.</p>
-<pre><code class="hljs css languages- properties"><span class="hljs-attr">authorizationEnabled</span>=<span class="hljs-literal">true</span>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">authorizationEnabled</span>=<span class="hljs-literal">true</span>
 <span class="hljs-attr">superUserRoles</span>=my-super-user-<span class="hljs-number">1</span>,my-super-user-<span class="hljs-number">2</span>
 </code></pre>
 <blockquote>
@@ -61,7 +65,7 @@
 <p>The more secure approach is to grant access to the proxy roles each time you grant access to a resource. For example, if you have a proxy role <code>proxy1</code>, when a tenant is created by the superuser, <code>proxy1</code> should be specified as one of the admin roles. When a role is granted permissions to produce or consume from a namespace, if that client wants to produce or consume through a proxy, <code>proxy1</code> should also be granted the same permissions.</p>
 <p>Another approach is to make the proxy role a superuser. This will allow the proxy to access all resources. The client will still need to authenticate with the proxy, and all requests made through the proxy will have their role downgraded to the <em>original principal</em> of the authenticated client. However, if the proxy is compromised, a bad actor could get full access to your cluster.</p>
 <p>Roles can be specified as proxy roles in <a href="/docs/fr/reference-configuration#broker"><code>conf/broker.conf</code></a>.</p>
-<pre><code class="hljs css languages- properties">proxyRoles=<span class="hljs-keyword">my</span>-proxy-role
+<pre><code class="hljs css language-properties">proxyRoles=<span class="hljs-keyword">my</span>-proxy-role
 
 <span class="hljs-comment"># if you want to allow superusers to use the proxy (see above)</span>
 superUserRoles=<span class="hljs-keyword">my</span>-super-user<span class="hljs-number">-1</span>,<span class="hljs-keyword">my</span>-super-user<span class="hljs-number">-2</span>,<span class="hljs-keyword">my</span>-proxy-role
@@ -70,19 +74,19 @@ superUserRoles=<span class="hljs-keyword">my</span>-super-user<span class="hljs-
 <h3><a class="anchor" aria-hidden="true" id="creating-a-new-tenant"></a><a href="#creating-a-new-tenant" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Creating a new tenant</h3>
 <p>A Pulsar <a href="/docs/fr/reference-terminology#tenant">tenant</a> is typically provisioned by Pulsar <a href="/docs/fr/reference-terminology#instance">instance</a> administrators or by some kind of self-service portal.</p>
 <p>Tenants are managed using the <a href="/docs/fr/pulsar-admin"><code>pulsar-admin</code></a> tool. Here's an example tenant creation command:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin tenants create my-tenant \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin tenants create my-tenant \</span>
   --admin-roles my-admin-role \
   --allowed-clusters us-west,us-east
 </code></pre>
 <p>This command will create a new tenant <code>my-tenant</code> that will be allowed to use the clusters <code>us-west</code> and <code>us-east</code>.</p>
 <p>A client that successfully identified itself as having the role <code>my-admin-role</code> would then be allowed to perform all administrative tasks on this tenant.</p>
 <p>The structure of topic names in Pulsar reflects the hierarchy between tenants, clusters, and namespaces:</p>
-<pre><code class="hljs css languages- shell">persistent://tenant/namespace/topic
+<pre><code class="hljs css language-shell">persistent://tenant/namespace/topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="managing-permissions"></a><a href="#managing-permissions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Managing permissions</h3>
 <p>You can use <a href="/docs/fr/admin-api-permissions">Pulsar Admin Tools</a> for managing permission in Pulsar.</p>
 <h3><a class="anchor" aria-hidden="true" id="pulsar-admin-authentication"></a><a href="#pulsar-admin-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar admin authentication</h3>
-<pre><code class="hljs css languages- java">String authPluginClassName = <span class="hljs-string">"com.org.MyAuthPluginClass"</span>;
+<pre><code class="hljs css language-java">String authPluginClassName = <span class="hljs-string">"com.org.MyAuthPluginClass"</span>;
 String authParams = <span class="hljs-string">"param1:value1"</span>;
 <span class="hljs-keyword">boolean</span> useTls = <span class="hljs-keyword">false</span>;
 <span class="hljs-keyword">boolean</span> tlsAllowInsecureConnection = <span class="hljs-keyword">false</span>;
@@ -97,7 +101,7 @@ config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
 PulsarAdmin admin = <span class="hljs-keyword">new</span> PulsarAdmin(url, config);
 </code></pre>
 <p>To use TLS:</p>
-<pre><code class="hljs css languages- java">String authPluginClassName = <span class="hljs-string">"com.org.MyAuthPluginClass"</span>;
+<pre><code class="hljs css language-java">String authPluginClassName = <span class="hljs-string">"com.org.MyAuthPluginClass"</span>;
 String authParams = <span class="hljs-string">"param1:value1"</span>;
 <span class="hljs-keyword">boolean</span> useTls = <span class="hljs-keyword">false</span>;
 <span class="hljs-keyword">boolean</span> tlsAllowInsecureConnection = <span class="hljs-keyword">false</span>;

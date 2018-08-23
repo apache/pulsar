@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/standalone" target="_self">Documentation</a></li><li class=""><a href="/fr/download" target="_self">Télécharger</a></li><li class="siteNavGroupActive"><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="/fr/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/develop-binary-protocol">English</a></li><li><a href="/docs/ja/develop-binary-protocol">日本語</a></li><li><a href="/docs/zh-CN/develop-binary-protocol">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/standalone" target="_self">Documentation</a></li><li class=""><a href="/fr/download" target="_self">Télécharger</a></li><li class="siteNavGroupActive"><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="/fr/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/develop-binary-protocol">English</a></li><li><a href="/docs/ja/develop-binary-protocol">日本語</a></li><li><a href="/docs/zh-CN/develop-binary-protocol">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -33,6 +33,10 @@
               function createToggler(togglerSelector, targetSelector, className) {
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
 
                 toggler.onclick = function(event) {
                   event.preventDefault();
@@ -136,7 +140,7 @@
 <p><img src="/docs/assets/binary-protocol-connect.png" alt="Connect interaction"></p>
 <p>After receiving a <code>Connected</code> response from the broker, the client can consider the connection ready to use. Alternatively, if the broker doesn't validate the client authentication, it will reply with an <code>Error</code> command and close the TCP connection.</p>
 <p>Example:</p>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandConnect</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandConnect</span> </span>{
   <span class="hljs-string">"client_version"</span> : <span class="hljs-string">"Pulsar-Client-Java-v1.15.2"</span>,
   <span class="hljs-string">"auth_method_name"</span> : <span class="hljs-string">"my-authentication-plugin"</span>,
   <span class="hljs-string">"auth_data"</span> : <span class="hljs-string">"my-auth-data"</span>,
@@ -144,7 +148,7 @@
 }
 </code></pre>
 <p>Fields: * <code>client_version</code> → String based identifier. Format is not enforced * <code>auth_method_name</code> → <em>(optional)</em> Name of the authentication plugin if auth enabled * <code>auth_data</code> → <em>(optional)</em> Plugin specific authentication data * <code>protocol_version</code> → Indicates the protocol version supported by the client. Broker will not send commands introduced in newer revisions of the protocol. Broker might be enforcing a minimum version</p>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandConnected</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandConnected</span> </span>{
   <span class="hljs-string">"server_version"</span> : <span class="hljs-string">"Pulsar-Broker-v1.15.2"</span>,
   <span class="hljs-string">"protocol_version"</span> : <span class="hljs-number">6</span>
 }
@@ -159,7 +163,7 @@
 <p>Once the client gets confirmation of the producer creation, it can publish messages to the broker, referring to the producer id negotiated before.</p>
 <p><img src="/docs/assets/binary-protocol-producer.png" alt="Producer interaction"></p>
 <h5><a class="anchor" aria-hidden="true" id="command-producer"></a><a href="#command-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command Producer</h5>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandProducer</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandProducer</span> </span>{
   <span class="hljs-string">"topic"</span> : <span class="hljs-string">"persistent://my-property/my-cluster/my-namespace/my-topic"</span>,
   <span class="hljs-string">"producer_id"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>
@@ -168,7 +172,7 @@
 <p>Parameters: * <code>topic</code> → Complete topic name to where you want to create the producer on * <code>producer_id</code> → Client generated producer identifier. Needs to be unique within the same connection * <code>request_id</code> → Identifier for this request. Used to match the response with the originating request. Needs to be unique within the same connection * <code>producer_name</code> → <em>(optional)</em> If a producer name is specified, the name will be used, otherwise the broker will generate a unique name. Generated producer name is guaranteed to be globally unique. Implementations are expected to let the broker generate a new producer name when the producer is initially created, then reuse it when recreating the producer after reconnections.</p>
 <p>The broker will reply with either <code>ProducerSuccess</code> or <code>Error</code> commands.</p>
 <h5><a class="anchor" aria-hidden="true" id="command-producersuccess"></a><a href="#command-producersuccess" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command ProducerSuccess</h5>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandProducerSuccess</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandProducerSuccess</span> </span>{
   <span class="hljs-string">"request_id"</span> :  <span class="hljs-number">1</span>,
   <span class="hljs-string">"producer_name"</span> : <span class="hljs-string">"generated-unique-producer-name"</span>
 }
@@ -176,7 +180,7 @@
 <p>Parameters: * <code>request_id</code> → Original id of the <code>CreateProducer</code> request * <code>producer_name</code> → Generated globally unique producer name or the name specified by the client, if any.</p>
 <h5><a class="anchor" aria-hidden="true" id="command-send"></a><a href="#command-send" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command Send</h5>
 <p>Command <code>Send</code> is used to publish a new message within the context of an already existing producer. This command is used in a frame that includes command as well as message payload, for which the complete format is specified in the <a href="#payload-commands">payload commands</a> section.</p>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandSend</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandSend</span> </span>{
   <span class="hljs-string">"producer_id"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-string">"sequence_id"</span> : <span class="hljs-number">0</span>,
   <span class="hljs-string">"num_messages"</span> : <span class="hljs-number">1</span>
@@ -185,7 +189,7 @@
 <p>Parameters: * <code>producer_id</code> → id of an existing producer * <code>sequence_id</code> → each message has an associated sequence id which is expected to be implemented with a counter starting at 0. The <code>SendReceipt</code> that acknowledges the effective publishing of a messages will refer to it by its sequence id. * <code>num_messages</code> → <em>(optional)</em> Used when publishing a batch of messages at once.</p>
 <h5><a class="anchor" aria-hidden="true" id="command-sendreceipt"></a><a href="#command-sendreceipt" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command SendReceipt</h5>
 <p>After a message has been persisted on the configured number of replicas, the broker will send the acknowledgment receipt to the producer.</p>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandSendReceipt</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandSendReceipt</span> </span>{
   <span class="hljs-string">"producer_id"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-string">"sequence_id"</span> : <span class="hljs-number">0</span>,
   <span class="hljs-string">"message_id"</span> : {
@@ -208,7 +212,7 @@
 <p>A <code>Flow</code> command gives additional <em>permits</em> to send messages to the consumer. A typical consumer implementation will use a queue to accumulate these messages before the application is ready to consume them.</p>
 <p>After the application has dequeued a number of message, the consumer will send additional number of permits to allow the broker to push more messages.</p>
 <h5><a class="anchor" aria-hidden="true" id="command-subscribe"></a><a href="#command-subscribe" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command Subscribe</h5>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandSubscribe</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandSubscribe</span> </span>{
   <span class="hljs-string">"topic"</span> : <span class="hljs-string">"persistent://my-property/my-cluster/my-namespace/my-topic"</span>,
   <span class="hljs-string">"subscription"</span> : <span class="hljs-string">"my-subscription-name"</span>,
   <span class="hljs-string">"subType"</span> : <span class="hljs-string">"Exclusive"</span>,
@@ -218,7 +222,7 @@
 </code></pre>
 <p>Parameters: * <code>topic</code> → Complete topic name to where you want to create the consumer on * <code>subscription</code> → Subscription name * <code>subType</code> → Subscription type: Exclusive, Shared, Failover * <code>consumer_id</code> → Client generated consumer identifier. Needs to be unique within the same connection * <code>request_id</code> → Identifier for this request. Used to match the response with the originating request. Needs to be unique within the same connection * <code>consumer_name</code> → <em>(optional)</em> Clients can specify a consumer name. This name can be used to track a particular consumer in the stats. Also, in Failover subscription type, the name is used to decide which consumer is elected as <em>master</em> (the one receiving messages): consumers are sorted by their consumer name and the first one is elected master.</p>
 <h5><a class="anchor" aria-hidden="true" id="command-flow"></a><a href="#command-flow" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command Flow</h5>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandFlow</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandFlow</span> </span>{
   <span class="hljs-string">"consumer_id"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-string">"messagePermits"</span> : <span class="hljs-number">1000</span>
 }
@@ -227,7 +231,7 @@
 <h5><a class="anchor" aria-hidden="true" id="command-message"></a><a href="#command-message" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command Message</h5>
 <p>Command <code>Message</code> is used by the broker to push messages to an existing consumer, within the limits of the given permits.</p>
 <p>This command is used in a frame that includes the message payload as well, for which the complete format is specified in the <a href="#payload-commands">payload commands</a> section.</p>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandMessage</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandMessage</span> </span>{
   <span class="hljs-string">"consumer_id"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-string">"message_id"</span> : {
     <span class="hljs-string">"ledgerId"</span> : <span class="hljs-number">123</span>,
@@ -238,7 +242,7 @@
 <h5><a class="anchor" aria-hidden="true" id="command-ack"></a><a href="#command-ack" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command Ack</h5>
 <p>An <code>Ack</code> is used to signal to the broker that a given message has been successfully processed by the application and can be discarded by the broker.</p>
 <p>In addition, the broker will also maintain the consumer position based on the acknowledged messages.</p>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandAck</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandAck</span> </span>{
   <span class="hljs-string">"consumer_id"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-string">"ack_type"</span> : <span class="hljs-string">"Individual"</span>,
   <span class="hljs-string">"message_id"</span> : {
@@ -274,7 +278,7 @@
 <p>A client can use a connection to the discovery service host to issue a <code>LookupTopic</code> command. The response can either be a broker hostname to connect to, or a broker hostname to which retry the lookup.</p>
 <p>The <code>LookupTopic</code> command has to be used in a connection that has already gone through the <code>Connect</code> / <code>Connected</code> initial handshake.</p>
 <p><img src="/docs/assets/binary-protocol-topic-lookup.png" alt="Topic lookup"></p>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandLookupTopic</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandLookupTopic</span> </span>{
   <span class="hljs-string">"topic"</span> : <span class="hljs-string">"persistent://my-property/my-cluster/my-namespace/my-topic"</span>,
   <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-string">"authoritative"</span> : <span class="hljs-literal">false</span>
@@ -283,7 +287,7 @@
 <p>Fields: * <code>topic</code> → Topic name to lookup * <code>request_id</code> → Id of the request that will be passed with its response * <code>authoritative</code> → Initial lookup request should use false. When following a redirect response, client should pass the same value contained in the response</p>
 <h5><a class="anchor" aria-hidden="true" id="lookuptopicresponse"></a><a href="#lookuptopicresponse" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>LookupTopicResponse</h5>
 <p>Example of response with successful lookup:</p>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandLookupTopicResponse</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandLookupTopicResponse</span> </span>{
   <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-string">"response"</span> : <span class="hljs-string">"Connect"</span>,
   <span class="hljs-string">"brokerServiceUrl"</span> : <span class="hljs-string">"pulsar://broker-1.example.com:6650"</span>,
@@ -292,7 +296,7 @@
 }
 </code></pre>
 <p>Example of lookup response with redirection:</p>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandLookupTopicResponse</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandLookupTopicResponse</span> </span>{
   <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-string">"response"</span> : <span class="hljs-string">"Redirect"</span>,
   <span class="hljs-string">"brokerServiceUrl"</span> : <span class="hljs-string">"pulsar://broker-2.example.com:6650"</span>,
@@ -307,7 +311,7 @@
 <p>This information only needs to be retrieved the first time a producer or consumer is created. There is no need to do this after reconnections.</p>
 <p>The discovery of partitioned topics metadata works very similar to the topic lookup. The client send a request to the service discovery address and the response will contain actual metadata.</p>
 <h5><a class="anchor" aria-hidden="true" id="command-partitionedtopicmetadata"></a><a href="#command-partitionedtopicmetadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command PartitionedTopicMetadata</h5>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandPartitionedTopicMetadata</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandPartitionedTopicMetadata</span> </span>{
   <span class="hljs-string">"topic"</span> : <span class="hljs-string">"persistent://my-property/my-cluster/my-namespace/my-topic"</span>,
   <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>
 }
@@ -315,7 +319,7 @@
 <p>Fields: * <code>topic</code> → the topic for which to check the partitions metadata * <code>request_id</code> → Id of the request that will be passed with its response</p>
 <h5><a class="anchor" aria-hidden="true" id="command-partitionedtopicmetadataresponse"></a><a href="#command-partitionedtopicmetadataresponse" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command PartitionedTopicMetadataResponse</h5>
 <p>Example of response with metadata:</p>
-<pre><code class="hljs css languages- protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandPartitionedTopicMetadataResponse</span> </span>{
+<pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandPartitionedTopicMetadataResponse</span> </span>{
   <span class="hljs-string">"request_id"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-string">"response"</span> : <span class="hljs-string">"Success"</span>,
   <span class="hljs-string">"partitions"</span> : <span class="hljs-number">32</span>

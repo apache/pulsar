@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/administration-load-distribution">English</a></li><li><a href="/docs/ja/next/administration-load-distribution">日本語</a></li><li><a href="/docs/fr/next/administration-load-distribution">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/administration-load-distribution">English</a></li><li><a href="/docs/ja/next/administration-load-distribution">日本語</a></li><li><a href="/docs/fr/next/administration-load-distribution">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -60,12 +64,12 @@
 <p>Each bundle is independent of the others and thus is independently assigned to different brokers.</p>
 <h3><a class="anchor" aria-hidden="true" id="creating-namespaces-and-bundles"></a><a href="#creating-namespaces-and-bundles" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Creating namespaces and bundles</h3>
 <p>When creating a new namespace, it will set to use the default number of bundles. This is set in <code>conf/broker.conf</code>:</p>
-<pre><code class="hljs css languages- properties"><span class="hljs-comment"># When a namespace is created without specifying the number of bundle, this</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># When a namespace is created without specifying the number of bundle, this</span>
 <span class="hljs-comment"># value will be used as the default</span>
 <span class="hljs-attr">defaultNumberOfNamespaceBundles</span>=<span class="hljs-number">4</span>
 </code></pre>
 <p>One can either change the system default, or override it when creating a new namespace:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin namespaces create my-tenant/my-namespace --clusters us-west --bundles 16</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin namespaces create my-tenant/my-namespace --clusters us-west --bundles 16</span>
 </code></pre>
 <p>With this command, we're creating a namespace with 16 initial bundles. Therefore the topics for this namespaces can immediately be spread across up to 16 brokers.</p>
 <p>In general, if the expected traffic and number of topics is known in advance, it's a good idea to start with a reasonable number of bundles instead of waiting for the system to auto-correct the distribution.</p>
@@ -75,15 +79,15 @@
 <p>When unload happens, the client will experience a small latency blip, typically in the order of tens of milliseconds, while the topic is reassigned.</p>
 <p>Unloading is the mechanism used by the load-manager to perform the load shedding, but it can also be triggered manually, for example to correct the assignments and redistribute traffic even before having any broker overloaded.</p>
 <p>Unloading a topic has no effect on the assignment, but it will just close and reopen the particular topic:</p>
-<pre><code class="hljs css languages- shell">pulsar-admin topics unload persistent://tenant/namespace/topic
+<pre><code class="hljs css language-shell">pulsar-admin topics unload persistent://tenant/namespace/topic
 </code></pre>
 <p>To unload all topics for a namespace and trigger reassignments:</p>
-<pre><code class="hljs css languages- shell">pulsar-admin namespaces unload tenant/namespace
+<pre><code class="hljs css language-shell">pulsar-admin namespaces unload tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="namespace-bundles-splitting"></a><a href="#namespace-bundles-splitting" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Namespace bundles splitting</h3>
 <p>Since the load for the topics in a bundle might change over time, or could just be hard to predict upfront, bundles can be split in 2 by brokers. The new smaller bundles can then be reassigned to different brokers.</p>
 <p>The splitting happens based on some tunable thresholds. Any existing bundle that exceeds any of the threshold is a candidate to be split. By default the newly split bundles are also immediately offloaded to other brokers, to facilitate the traffic distribution.</p>
-<pre><code class="hljs css languages- properties"><span class="hljs-comment"># enable/disable namespace bundle auto split</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># enable/disable namespace bundle auto split</span>
 <span class="hljs-attr">loadBalancerAutoBundleSplitEnabled</span>=<span class="hljs-literal">true</span>
 
 <span class="hljs-comment"># enable/disable automatic unloading of split bundles</span>
@@ -110,11 +114,11 @@
 <p>For example, the default threshold is 85% and if a broker is over quota at 95% CPU usage, then it will unload the percent difference plus a 5% margin: <code>(95% - 85%) + 5% = 15%</code>.</p>
 <p>Given the selection of bundles to offload is based on traffic (as a proxy measure for cpu, network and memory), broker will unload bundles for at least 15% of traffic.</p>
 <p>The automatic load shedding is enabled by default and can be disabled with this setting:</p>
-<pre><code class="hljs css languages- properties"><span class="hljs-comment"># Enable/disable automatic bundle unloading for load-shedding</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Enable/disable automatic bundle unloading for load-shedding</span>
 <span class="hljs-attr">loadBalancerSheddingEnabled</span>=<span class="hljs-literal">true</span>
 </code></pre>
 <p>There are additional settings that apply to shedding:</p>
-<pre><code class="hljs css languages- properties"><span class="hljs-comment"># Load shedding interval. Broker periodically checks whether some traffic should be offload from</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Load shedding interval. Broker periodically checks whether some traffic should be offload from</span>
 <span class="hljs-comment"># some over-loaded broker to other under-loaded brokers</span>
 <span class="hljs-attr">loadBalancerSheddingIntervalMinutes</span>=<span class="hljs-number">1</span>
 
@@ -124,14 +128,14 @@
 <h4><a class="anchor" aria-hidden="true" id="broker-overload-thresholds"></a><a href="#broker-overload-thresholds" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker overload thresholds</h4>
 <p>The determinations of when a broker is overloaded is based on threshold of CPU, network and memory usage. Whenever either of those metrics reaches the threshold, it will trigger the shedding (if enabled).</p>
 <p>By default, overload threshold is set at 85%:</p>
-<pre><code class="hljs css languages- properties"><span class="hljs-comment"># Usage threshold to determine a broker as over-loaded</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Usage threshold to determine a broker as over-loaded</span>
 <span class="hljs-attr">loadBalancerBrokerOverloadedThresholdPercentage</span>=<span class="hljs-number">85</span>
 </code></pre>
 <p>The usage stats are gathered by Pulsar from the system metrics.</p>
 <p>In case of network utilization, in some cases the network interface speed reported by Linux is not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps NIC speed for which the OS report 10Gbps speed.</p>
 <p>Because of the incorrect max speed, the Pulsar load manager might think the broker has not reached the NIC capacity, while in fact it's already using all the bandwidth and the traffic is being slowed down.</p>
 <p>There is a setting to correct the max NIC speed:</p>
-<pre><code class="hljs css languages- properties"># <span class="hljs-keyword">Override</span> the auto-detection <span class="hljs-keyword">of</span> the network interfaces max speed.
+<pre><code class="hljs css language-properties"># <span class="hljs-keyword">Override</span> the auto-detection <span class="hljs-keyword">of</span> the network interfaces max speed.
 # This option <span class="hljs-keyword">is</span> useful <span class="hljs-keyword">in</span> some environments (eg: EC2 VMs) <span class="hljs-keyword">where</span> the max speed
 # reported <span class="hljs-keyword">by</span> Linux <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> reflecting the real bandwidth available <span class="hljs-keyword">to</span> the broker.
 # Since the network usage <span class="hljs-keyword">is</span> employed <span class="hljs-keyword">by</span> the load manager <span class="hljs-keyword">to</span> decide when a broker

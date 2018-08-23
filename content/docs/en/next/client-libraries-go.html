@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/next/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/next/client-libraries-go">日本語</a></li><li><a href="/docs/fr/next/client-libraries-go">Français</a></li><li><a href="/docs/zh-CN/next/client-libraries-go">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/next/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/next/client-libraries-go">日本語</a></li><li><a href="/docs/fr/next/client-libraries-go">Français</a></li><li><a href="/docs/zh-CN/next/client-libraries-go">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -58,28 +62,28 @@ through <a href="/docs/en/next/client-libraries-cpp#rpm">RPM</a>, <a href="/docs
 <p><code>go get</code> doesn't support fetching a specific tag. so it will always pull in pulsar go client
 from latest master. You need to make sure you have installed the right pulsar cpp client library.</p>
 </blockquote>
-<pre><code class="hljs css languages- bash">$ go get -u github.com/apache/incubator-pulsar/pulsar-client-go/pulsar
+<pre><code class="hljs css language-bash">$ go get -u github.com/apache/incubator-pulsar/pulsar-client-go/pulsar
 </code></pre>
 <p>Or you can use <a href="https://github.com/golang/dep">dep</a> for managing the dependencies.</p>
-<pre><code class="hljs css languages- bash">$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v{{pulsar.version}}
+<pre><code class="hljs css language-bash">$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v{{pulsar.version}}
 </code></pre>
 <p>Once installed locally, you can import it into your project:</p>
-<pre><code class="hljs css languages- go"><span class="hljs-keyword">import</span> <span class="hljs-string">"github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"</span>
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> <span class="hljs-string">"github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="connection-urls"></a><a href="#connection-urls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection URLs</h2>
 <p>To connect to Pulsar using client libraries, you need to specify a <a href="/docs/en/next/develop-binary-protocol">Pulsar protocol</a> URL.</p>
 <p>Pulsar protocol URLs are assigned to specific clusters, use the <code>pulsar</code> scheme and have a default port of 6650. Here's an example for <code>localhost</code>:</p>
-<pre><code class="hljs css languages- http">pulsar://localhost:6650
+<pre><code class="hljs css language-http">pulsar://localhost:6650
 </code></pre>
 <p>A URL for a production Pulsar cluster may look something like this:</p>
-<pre><code class="hljs css languages- http">pulsar://pulsar.us-west.example.com:6650
+<pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
 </code></pre>
 <p>If you're using <a href="/docs/en/next/security-tls-authentication">TLS</a> authentication, the URL will look like something like this:</p>
-<pre><code class="hljs css languages- http">pulsar+ssl://pulsar.us-west.example.com:6651
+<pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="creating-a-client"></a><a href="#creating-a-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Creating a client</h2>
 <p>In order to interact with Pulsar, you'll first need a <code>Client</code> object. You can create a client object using the <code>NewClient</code> function, passing in a <code>ClientOptions</code> object (more on configuration <a href="#client-configuration">below</a>). Here's an example:</p>
-<pre><code class="hljs css languages- go"><span class="hljs-keyword">import</span> (
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
     <span class="hljs-string">"log"</span>
     <span class="hljs-string">"runtime"</span>
 
@@ -118,7 +122,7 @@ from latest master. You need to make sure you have installed the right pulsar cp
 </table>
 <h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
 <p>Pulsar producers publish messages to Pulsar topics. You can <a href="#producer-configuration">configure</a> Go producers using a <code>ProducerOptions</code> object. Here's an example:</p>
-<pre><code class="hljs css languages- go">producer, err := client.CreateProducer(pulsar.ProducerOptions{
+<pre><code class="hljs css language-go">producer, err := client.CreateProducer(pulsar.ProducerOptions{
     Topic: <span class="hljs-string">"my-topic"</span>,
 })
 
@@ -155,7 +159,7 @@ msg := pulsar.ProducerMessage{
 </tbody>
 </table>
 <p>Here's a more involved example usage of a producer:</p>
-<pre><code class="hljs css languages- go"><span class="hljs-keyword">import</span> (
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
     <span class="hljs-string">"context"</span>
     <span class="hljs-string">"fmt"</span>
 
@@ -225,7 +229,7 @@ msg := pulsar.ProducerMessage{
 </table>
 <h2><a class="anchor" aria-hidden="true" id="consumers"></a><a href="#consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumers</h2>
 <p>Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming messages produced on that topic/those topics. You can <a href="#consumer-configuration">configure</a> Go consumers using a <code>ConsumerOptions</code> object. Here's a basic example that uses channels:</p>
-<pre><code class="hljs css languages- go">msgChannel := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> pulsar.ConsumerMessage)
+<pre><code class="hljs css language-go">msgChannel := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> pulsar.ConsumerMessage)
 
 consumerOpts := pulsar.ConsumerOptions{
     Topic:            <span class="hljs-string">"my-topic"</span>,
@@ -275,7 +279,7 @@ consumer, err := client.Subscribe(consumerOpts)
 </table>
 <h4><a class="anchor" aria-hidden="true" id="receive-example"></a><a href="#receive-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Receive example</h4>
 <p>Here's an example usage of a Go consumer that uses the <code>Receive()</code> method to process incoming messages:</p>
-<pre><code class="hljs css languages- go"><span class="hljs-keyword">import</span> (
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
     <span class="hljs-string">"context"</span>
     <span class="hljs-string">"log"</span>
 
@@ -332,7 +336,7 @@ consumer, err := client.Subscribe(consumerOpts)
 </table>
 <h2><a class="anchor" aria-hidden="true" id="readers"></a><a href="#readers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Readers</h2>
 <p>Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can <a href="#reader-configuration">configure</a> Go readers using a <code>ReaderOptions</code> object. Here's an example:</p>
-<pre><code class="hljs css languages- go">reader, err := client.CreateReader(pulsar.ReaderOptions{
+<pre><code class="hljs css language-go">reader, err := client.CreateReader(pulsar.ReaderOptions{
     Topic: <span class="hljs-string">"my-golang-topic"</span>,
     StartMessageId: pulsar.LatestMessage,
 })
@@ -355,7 +359,7 @@ consumer, err := client.Subscribe(consumerOpts)
 </table>
 <h4><a class="anchor" aria-hidden="true" id="next-example"></a><a href="#next-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>&quot;Next&quot; example</h4>
 <p>Here's an example usage of a Go reader that uses the <code>Next()</code> method to process incoming messages:</p>
-<pre><code class="hljs css languages- go"><span class="hljs-keyword">import</span> (
+<pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
     <span class="hljs-string">"context"</span>
     <span class="hljs-string">"log"</span>
 
@@ -392,7 +396,7 @@ consumer, err := client.Subscribe(consumerOpts)
 }
 </code></pre>
 <p>In the example above, the reader begins reading from the earliest available message (specified by <code>pulsar.EarliestMessage</code>). The reader can also begin reading from the latest message (<code>pulsar.LatestMessage</code>) or some other message ID specified by bytes using the <code>DeserializeMessageID</code> function, which takes a byte array and returns a <code>MessageID</code> object. Here's an example:</p>
-<pre><code class="hljs css languages- go">lastSavedId := <span class="hljs-comment">// Read last saved message id from external store as byte[]</span>
+<pre><code class="hljs css language-go">lastSavedId := <span class="hljs-comment">// Read last saved message id from external store as byte[]</span>
 
 reader, err := client.CreateReader(pulsar.ReaderOptions{
     Topic:          <span class="hljs-string">"my-golang-topic"</span>,
@@ -415,7 +419,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 </table>
 <h2><a class="anchor" aria-hidden="true" id="messages"></a><a href="#messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Messages</h2>
 <p>The Pulsar Go client provides a <code>ProducerMessage</code> interface that you can use to construct messages to producer on Pulsar topics. Here's an example message:</p>
-<pre><code class="hljs css languages- go">msg := pulsar.ProducerMessage{
+<pre><code class="hljs css language-go">msg := pulsar.ProducerMessage{
     Payload: []<span class="hljs-keyword">byte</span>(<span class="hljs-string">"Here is some message data"</span>),
     Key: <span class="hljs-string">"message-key"</span>,
     Properties: <span class="hljs-keyword">map</span>[<span class="hljs-keyword">string</span>]<span class="hljs-keyword">string</span>{
@@ -450,7 +454,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <li>Configure <code>Authentication</code> option</li>
 </ul>
 <p>Here's an example:</p>
-<pre><code class="hljs css languages- go">opts := pulsar.ClientOptions{
+<pre><code class="hljs css language-go">opts := pulsar.ClientOptions{
     URL: <span class="hljs-string">"pulsar+ssl://my-cluster.com:6651"</span>,
     TLSTrustCertsFilePath: <span class="hljs-string">"/path/to/certs/my-cert.csr"</span>,
     Authentication: NewAuthenticationTLS(<span class="hljs-string">"my-cert.pem"</span>, <span class="hljs-string">"my-key.pem"</span>),

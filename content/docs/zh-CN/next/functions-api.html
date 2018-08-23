@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/functions-api">English</a></li><li><a href="/docs/ja/next/functions-api">日本語</a></li><li><a href="/docs/fr/next/functions-api">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/functions-api">English</a></li><li><a href="/docs/ja/next/functions-api">日本語</a></li><li><a href="/docs/fr/next/functions-api">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -33,6 +33,10 @@
               function createToggler(togglerSelector, targetSelector, className) {
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
 
                 toggler.onclick = function(event) {
                   event.preventDefault();
@@ -63,7 +67,7 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="example-function"></a><a href="#example-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example function</h3>
 <p>Here's an example &quot;input sanitizer&quot; function written in Python and stored in a <code>sanitizer.py</code> file:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">clean_string</span><span class="hljs-params">(s)</span>:</span>
+<pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">clean_string</span><span class="hljs-params">(s)</span>:</span>
     <span class="hljs-keyword">return</span> s.strip().lower()
 
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
@@ -76,7 +80,7 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="example-deployment"></a><a href="#example-deployment" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example deployment</h3>
 <p>Deploying Pulsar Functions is handled by the <a href="/docs/zh-CN/next/pulsar-admin"><code>pulsar-admin</code></a> CLI tool, in particular the <a href="/docs/zh-CN/next/pulsar-admin#functions"><code>functions</code></a> command. Here's an example command that would run our <a href="#example-function">sanitizer</a> function from above in <a href="/docs/zh-CN/next/functions-deploying#local-run-mode">local run</a> mode:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --py sanitizer.py \          <span class="hljs-comment"># The Python file with the function's code</span>
   --className sanitizer \      <span class="hljs-comment"># The class or function holding the processing logic</span>
   --tenant public \            <span class="hljs-comment"># The function's tenant (derived from the topic name by default)</span>
@@ -99,11 +103,11 @@
 </tbody>
 </table>
 <p>In Python, for example, this language-native function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, would have no external dependencies:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
+<pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> <span class="hljs-string">"{}!"</span>.format(input)
 </code></pre>
 <p>This function, however, would use the Pulsar Functions <a href="#python-sdk-functions">SDK for Python</a>:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">DisplayFunctionName</span><span class="hljs-params">(Function)</span>:</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, input, context)</span>:</span>
@@ -135,13 +139,13 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="user-config"></a><a href="#user-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>User config</h3>
 <p>When you run or update Pulsar Functions created using the <a href="#available-apis">SDK</a>, you can pass arbitrary key/values to them via the command line with the <code>--userConfig</code> flag. Key/values must be specified as JSON. Here's an example of a function creation command that passes a user config key/value to a function:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --name word-filter \
   <span class="hljs-comment"># Other function configs</span>
   --userConfig <span class="hljs-string">'{"forbidden-word":"rosebud"}'</span>
 </code></pre>
 <p>If the function were a Python function, that config value could be accessed like this:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">WordFilter</span><span class="hljs-params">(Function)</span>:</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, context, input)</span>:</span>
@@ -171,14 +175,14 @@
 <li><p>If you're writing a <a href="#java-native-functions">Java native function</a>, you won't need any external dependencies.</p></li>
 <li><p>If you're writing a <a href="#java-sdk-functions">Java SDK function</a>, you'll need to import the <code>pulsar-functions-api</code> library.</p>
 <p>Here's an example for a Maven <code>pom.xml</code> configuration file:</p>
-<pre><code class="hljs css languages- xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-functions-api<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>2.0.0-incubating-SNAPSHOT<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
 <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 </code></pre>
 <p>Here's an example for a Gradle <code>build.gradle</code> configuration file:</p>
-<pre><code class="hljs css languages- groovy">dependencies {
+<pre><code class="hljs css language-groovy">dependencies {
   compile <span class="hljs-string">group:</span> <span class="hljs-string">'org.apache.pulsar'</span>, <span class="hljs-string">name:</span> <span class="hljs-string">'pulsar-functions-api'</span>, <span class="hljs-string">version:</span> <span class="hljs-string">'2.0.0-incubating-SNAPSHOT'</span>
 }
 </code></pre></li>
@@ -191,12 +195,12 @@
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="java-native-functions"></a><a href="#java-native-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java native functions</h3>
 <p>If your function doesn't require access to its <a href="#context">context</a>, you can create a Pulsar Function by implementing the <a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html"><code>java.util.Function</code></a> interface, which has this very simple, single-method signature:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">I</span>, <span class="hljs-title">O</span>&gt; </span>{
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">I</span>, <span class="hljs-title">O</span>&gt; </span>{
     <span class="hljs-function">O <span class="hljs-title">apply</span><span class="hljs-params">(I input)</span></span>;
 }
 </code></pre>
 <p>Here's an example function that takes a string as its input, adds an exclamation point to the end of the string, and then publishes the resulting string:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">import</span> java.util.Function;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.Function;
 
 <span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
@@ -239,7 +243,7 @@
 <h3><a class="anchor" aria-hidden="true" id="java-context-object"></a><a href="#java-context-object" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java context object</h3>
 <p>The <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/functions/api/Context">Context</a>
  interface provides a number of methods that you can use to access the function's <a href="#context">context</a>. The various method signatures for the <code>Context</code> interface are listed below:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">Context</span> </span>{
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">Context</span> </span>{
     <span class="hljs-keyword">byte</span>[] getMessageId();
     <span class="hljs-function">String <span class="hljs-title">getTopicName</span><span class="hljs-params">()</span></span>;
     <span class="hljs-function">Collection&lt;String&gt; <span class="hljs-title">getSourceTopics</span><span class="hljs-params">()</span></span>;
@@ -262,7 +266,7 @@
 }
 </code></pre>
 <p>Here's an example function that uses several methods available via the <code>Context</code> object:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
 <span class="hljs-keyword">import</span> org.slf4j.Logger;
 
@@ -289,7 +293,7 @@
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="void-functions"></a><a href="#void-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Void functions</h3>
 <p>Pulsar Functions can publish results to an output topic, but this isn't required. You can also have functions that simply produce a log, write results to a database, etc. Here's a function that writes a simple log every time a message is received:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">import</span> org.slf4j.Logger;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.slf4j.Logger;
 
 <span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">LogFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">PulsarFunction</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">apply</span><span class="hljs-params">(String input, Context context)</span> </span>{
@@ -314,14 +318,14 @@
 <li><code>Byte</code></li>
 </ul>
 <p>Built-in vs. custom. For custom, you need to implement this interface:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">SerDe</span>&lt;<span class="hljs-title">T</span>&gt; </span>{
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">SerDe</span>&lt;<span class="hljs-title">T</span>&gt; </span>{
     <span class="hljs-function">T <span class="hljs-title">deserialize</span><span class="hljs-params">(<span class="hljs-keyword">byte</span>[] input)</span></span>;
     <span class="hljs-keyword">byte</span>[] serialize(T input);
 }
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="java-serde-example"></a><a href="#java-serde-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java SerDe example</h4>
 <p>Imagine that you're writing Pulsar Functions in Java that are processing tweet objects. Here's a simple example <code>Tweet</code> class:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Tweet</span> </span>{
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Tweet</span> </span>{
     <span class="hljs-keyword">private</span> String username;
     <span class="hljs-keyword">private</span> String tweetContent;
 
@@ -334,7 +338,7 @@
 }
 </code></pre>
 <p>In order to be able to pass <code>Tweet</code> objects directly between Pulsar Functions, you'll need to provide a custom SerDe class. In the example below, <code>Tweet</code> objects are basically strings in which the username and tweet content are separated by a <code>|</code>.</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">package</span> com.example.serde;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">package</span> com.example.serde;
 
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.SerDe;
 
@@ -358,7 +362,7 @@
 <li>Specify a path to the JAR and SerDe class name when deploying the function</li>
 </ul>
 <p>Here's an example <a href="/docs/zh-CN/next/pulsar-admin#create-1"><code>create</code></a> operation:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar /path/to/your.jar \
   --outputSerdeClassName com.example.serde.TweetSerde \
   <span class="hljs-comment"># Other function attributes</span>
@@ -369,7 +373,7 @@
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="java-logging"></a><a href="#java-logging" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java logging</h3>
 <p>Pulsar Functions that use the <a href="#java-sdk-functions">Java SDK</a> have access to an <a href="https://www.slf4j.org/">SLF4j</a> <a href="https://www.slf4j.org/api/org/apache/log4j/Logger.html"><code>Logger</code></a> object that can be used to produce logs at the chosen log level. Here's a simple example function that logs either a <code>WARNING</code>- or <code>INFO</code>-level log based on whether the incoming string contains the word <code>danger</code>:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
 <span class="hljs-keyword">import</span> org.slf4j.Logger;
 
@@ -390,7 +394,7 @@
 }
 </code></pre>
 <p>If you want your function to produce logs, you need to specify a log topic when creating or running the function. Here's an example:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar my-functions.jar \
   --className my.package.LoggingFunction \
   --logTopic persistent://public/default/logging-function-logs \
@@ -399,12 +403,12 @@
 <p>Now, all logs produced by the <code>LoggingFunction</code> above can be accessed via the <code>persistent://public/default/logging-function-logs</code> topic.</p>
 <h3><a class="anchor" aria-hidden="true" id="java-user-config"></a><a href="#java-user-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java user config</h3>
 <p>The Java SDK's <a href="#context"><code>Context</code></a> object enables you to access key/value pairs provided to the Pulsar Function via the command line (as JSON). Here's an example function creation command that passes a key/value pair:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   <span class="hljs-comment"># Other function configs</span>
   --userConfig <span class="hljs-string">'{"word-of-the-day":"verdure"}'</span>
 </code></pre>
 <p>To access that value in a Java function:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
 <span class="hljs-keyword">import</span> org.slf4j.Logger;
 
@@ -426,7 +430,7 @@
 </code></pre>
 <p>The <code>UserConfigFunction</code> function will log the string <code>&quot;The word of the day is verdure&quot;</code> every time the function is invoked (i.e. every time a message arrives). The <code>word-of-the-day</code> user config will be changed only when the function is updated with a new config value via the command line.</p>
 <p>You can also access the entire user config map or set a default value in case no value is present:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-comment">// Get the whole config map</span>
+<pre><code class="hljs css language-java"><span class="hljs-comment">// Get the whole config map</span>
 Map&lt;String, String&gt; allConfigs = context.getUserConfigMap();
 
 <span class="hljs-comment">// Get value or resort to default</span>
@@ -437,7 +441,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="java-metrics"></a><a href="#java-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java metrics</h3>
 <p>You can record metrics using the <a href="#context"><code>Context</code></a> object on a per-key basis. You can, for example, set a metric for the key <code>process-count</code> and a different metric for the key <code>elevens-count</code> every time the function processes a message. Here's an example:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
 
 <span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MetricRecorderFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">Integer</span>, <span class="hljs-title">Void</span>&gt; </span>{
@@ -474,13 +478,13 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <li>grpcio-tools</li>
 </ul>
 <p>That could be your local machine for <a href="/docs/zh-CN/next/functions-deploying#local-run-mode">local run mode</a> or a machine running a Pulsar <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a> for <a href="/docs/zh-CN/next/functions-deploying#cluster-mode">cluster mode</a>. To install those libraries using pip:</p>
-<pre><code class="hljs css languages- bash">$ pip install pulsar-client protobuf futures grpcio grpcio-tools
+<pre><code class="hljs css language-bash">$ pip install pulsar-client protobuf futures grpcio grpcio-tools
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="packaging-1"></a><a href="#packaging-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Packaging</h3>
 <p>At the moment, the code for Pulsar Functions written in Python must be contained within a single Python file. In the future, Pulsar Functions may support other packaging formats, such as <a href="https://github.com/pantsbuild/pex"><strong>P</strong>ython <strong>EX</strong>ecutables</a> (PEXes).</p>
 <h3><a class="anchor" aria-hidden="true" id="python-native-functions"></a><a href="#python-native-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python native functions</h3>
 <p>If your function doesn't require access to its <a href="#context">context</a>, you can create a Pulsar Function by implementing a <code>process</code> function, which provides a single input object that you can process however you wish. Here's an example function that takes a string as its input, adds an exclamation point at the end of the string, and then publishes the resulting string:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
+<pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> <span class="hljs-string">"{0}!"</span>.format(input)
 </code></pre>
 <p>In general, you should use native functions when you don't need access to the function's <a href="#context">context</a>. If you <em>do</em> need access to the function's context, then we recommend using the <a href="#python-sdk-functions">Pulsar Functions Python SDK</a>.</p>
@@ -530,7 +534,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 </table>
 <h3><a class="anchor" aria-hidden="true" id="python-serde"></a><a href="#python-serde" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python SerDe</h3>
 <p>Pulsar Functions use <a href="#serialization-and-deserialization-serde">SerDe</a> when publishing data to and consuming data from Pulsar topics (this is true of both <a href="#python-native-functions">native</a> functions and <a href="#python-sdk-functions">SDK</a> functions). You can specify the SerDe when <a href="/docs/zh-CN/next/functions-deploying#cluster-mode">creating</a> or <a href="/docs/zh-CN/next/functions-deploying#local-run-mode">running</a> functions. Here's an example:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --tenant public \
   --namespace default \
   --name my_function \
@@ -560,7 +564,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 </table>
 <h4><a class="anchor" aria-hidden="true" id="python-serde-example"></a><a href="#python-serde-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python SerDe example</h4>
 <p>Imagine that you're writing Pulsar Functions in Python that are processing tweet objects. Here's a simple <code>Tweet</code> class:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Tweet</span><span class="hljs-params">(object)</span>:</span>
+<pre><code class="hljs css language-python"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Tweet</span><span class="hljs-params">(object)</span>:</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">__init__</span><span class="hljs-params">(self, username, tweet_content)</span>:</span>
         self.username = username
         self.tweet_content = tweet_content
@@ -570,7 +574,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <li>You could specify <code>PickleSerDe</code>, which would apply the <a href="https://docs.python.org/3/library/pickle.html"><code>pickle</code></a> library's SerDe</li>
 <li>You could create your own SerDe class. Here's a simple example:</li>
 </ol>
-<pre><code class="hljs css languages- python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> SerDe
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> SerDe
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">TweetSerDe</span><span class="hljs-params">(SerDe)</span>:</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">__init__</span><span class="hljs-params">(self, tweet)</span>:</span>
@@ -585,7 +589,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="python-logging"></a><a href="#python-logging" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python logging</h3>
 <p>Pulsar Functions that use the <a href="#python-sdk-functions">Python SDK</a> have access to a logging object that can be used to produce logs at the chosen log level. Here's a simple example function that logs either a <code>WARNING</code>- or <code>INFO</code>-level log based on whether the incoming string contains the word <code>danger</code>:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">LoggingFunction</span><span class="hljs-params">(Function)</span>:</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, input, context)</span>:</span>
@@ -597,7 +601,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
             logger.info(<span class="hljs-string">"Message {0} received\nContent: {1}"</span>.format(msg_id, input))
 </code></pre>
 <p>If you want your function to produce logs on a Pulsar topic, you need to specify a <strong>log topic</strong> when creating or running the function. Here's an example:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py logging_function.py \
   --className logging_function.LoggingFunction \
   --logTopic logging-function-logs \
@@ -606,12 +610,12 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <p>Now, all logs produced by the <code>LoggingFunction</code> above can be accessed via the <code>logging-function-logs</code> topic.</p>
 <h3><a class="anchor" aria-hidden="true" id="python-user-config"></a><a href="#python-user-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python user config</h3>
 <p>The Python SDK's <a href="#context"><code>Context</code></a> object enables you to access key/value pairs provided to the Pulsar Function via the command line (as JSON). Here's an example function creation command that passes a key/value pair:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   <span class="hljs-comment"># Other function configs \</span>
   --userConfig <span class="hljs-string">'{"word-of-the-day":"verdure"}'</span>
 </code></pre>
 <p>To access that value in a Python function:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">UserConfigFunction</span><span class="hljs-params">(Function)</span>:</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, input, context)</span>:</span>
@@ -624,7 +628,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="python-metrics"></a><a href="#python-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python metrics</h3>
 <p>You can record metrics using the <a href="#context"><code>Context</code></a> object on a per-key basis. You can, for example, set a metric for the key <code>process-count</code> and a different metric for the key <code>elevens-count</code> every time the function processes a message. Here's an example:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MetricRecorderFunction</span><span class="hljs-params">(Function)</span>:</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(self, input, context)</span>:</span>

@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/next/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/next/admin-api-non-persistent-topics">日本語</a></li><li><a href="/docs/fr/next/admin-api-non-persistent-topics">Français</a></li><li><a href="/docs/zh-CN/next/admin-api-non-persistent-topics">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/next/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/next/admin-api-non-persistent-topics">日本語</a></li><li><a href="/docs/fr/next/admin-api-non-persistent-topics">Français</a></li><li><a href="/docs/zh-CN/next/admin-api-non-persistent-topics">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -45,7 +49,7 @@
 do not need persistent guarantee that can also reduce message-publish latency by removing overhead of
 persisting messages.</p>
 <p>In all of the instructions and commands below, the topic name structure is:</p>
-<pre><code class="hljs css languages- shell">persistent://tenant/namespace/topic
+<pre><code class="hljs css language-shell">persistent://tenant/namespace/topic
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="non-persistent-topics-resources"></a><a href="#non-persistent-topics-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Non-persistent topics resources</h2>
 <h3><a class="anchor" aria-hidden="true" id="get-stats"></a><a href="#get-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get stats</h3>
@@ -74,7 +78,7 @@ persisting messages.</p>
 <li><p><strong>inboundConnectedSince</strong>: The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute.</p></li>
 <li><p><strong>msgDropRate</strong>: for publisher: publish: broker only allows configured number of in flight per connection, and drops all other published messages above the threshold. Broker also drops messages for subscriptions in case of unavailable limit and connection is not writable.</p></li>
 </ul>
-<pre><code class="hljs css languages- json">{
+<pre><code class="hljs css language-json">{
   <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">4641.528542257553</span>,
   <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">44663039.74947473</span>,
   <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
@@ -122,21 +126,21 @@ persisting messages.</p>
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>Topic stats can be fetched using <a href="/docs/en/next/pulsar-admin#stats"><code>stats</code></a> command.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent stats \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent stats \</span>
   non-persistent://test-tenant/ns1/tp1 \
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api"></a><a href="#rest-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getStats"><b>GET</b> <i>/admin/v2/non-persistent/:tenant/:namespace/:topic/stats</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.nonPersistentTopics().getStats(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-internal-stats"></a><a href="#get-internal-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get internal stats</h3>
 <p>It shows detailed statistics of a topic.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>Topic internal-stats can be fetched using <a href="/docs/en/next/pulsar-admin#stats-internal"><code>stats-internal</code></a> command.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent stats-internal \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent stats-internal \</span>
   non-persistent://test-tenant/ns1/tp1 \
 
 {
@@ -159,13 +163,13 @@ admin.nonPersistentTopics().getStats(topic);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getInternalStats"><b>GET</b> <i>/admin/v2/non-persistent/:tenant/:namespace/:topic/internalStats</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-1"></a><a href="#java-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.nonPersistentTopics().getInternalStats(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="create-partitioned-topic"></a><a href="#create-partitioned-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create partitioned topic</h3>
 <p>Partitioned topics in Pulsar must be explicitly created. When creating a new partitioned topic you need to provide a name for the topic as well as the desired number of partitions.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-2"></a><a href="#pulsar-admin-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin non-persistent create-partitioned-topic \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin non-persistent create-partitioned-topic \</span>
   non-persistent://my-tenant/my-namespace/my-topic \
   --partitions 4
 </code></pre>
@@ -173,7 +177,7 @@ admin.nonPersistentTopics().getInternalStats(topic);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/createPartitionedTopic"><b>PUT</b> <i>/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-2"></a><a href="#java-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topicName = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
 <span class="hljs-keyword">int</span> numPartitions = <span class="hljs-number">4</span>;
 admin.nonPersistentTopics().createPartitionedTopic(topicName, numPartitions);
 </code></pre>
@@ -188,7 +192,7 @@ admin.nonPersistentTopics().createPartitionedTopic(topicName, numPartitions);
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-3"></a><a href="#pulsar-admin-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent get-partitioned-topic-metadata \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent get-partitioned-topic-metadata \</span>
   non-persistent://my-tenant/my-namespace/my-topic
 {
   "partitions": 4
@@ -198,21 +202,21 @@ admin.nonPersistentTopics().createPartitionedTopic(topicName, numPartitions);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getPartitionedMetadata"><b>GET</b> <i>/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-3"></a><a href="#java-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topicName = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.nonPersistentTopics().getPartitionedTopicMetadata(topicName);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="unload-topic"></a><a href="#unload-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Unload topic</h3>
 <p>It unloads a topic.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-4"></a><a href="#pulsar-admin-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>Topic can be unloaded using <a href="/docs/en/next/pulsar-admin#unload"><code>unload</code></a> command.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent unload \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent unload \</span>
   non-persistent://test-tenant/ns1/tp1 \
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-4"></a><a href="#rest-api-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/unloadTopic"><b>PUT</b> <i>/admin/v2/non-persistent/:tenant/:namespace/:topic/unload</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-4"></a><a href="#java-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"non-persistent://my-tenantmy-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"non-persistent://my-tenantmy-namespace/my-topic"</span>;
 admin.nonPersistentTopics().unload(topic);
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/admin-api-persistent-topics">← Managing persistent topics</a><a class="docs-next button" href="/docs/en/next/admin-api-partitioned-topics">Managing partitioned topics →</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#non-persistent-topics-resources">Non-persistent topics resources</a><ul class="toc-headings"><li><a href="#get-stats">Get stats</a></li><li><a href="#get-internal-stats">Get internal stats</a></li><li><a href="#create-partitioned-topic">Create partitioned topic</a></li><li><a href="#get-metadata">Get metadata</a></li><li><a href="#unload-topic">Unload topic</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

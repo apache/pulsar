@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/standalone" target="_self">Documentation</a></li><li class=""><a href="/fr/download" target="_self">Télécharger</a></li><li class="siteNavGroupActive"><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="/fr/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/adaptors-storm">English</a></li><li><a href="/docs/ja/adaptors-storm">日本語</a></li><li><a href="/docs/zh-CN/adaptors-storm">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/standalone" target="_self">Documentation</a></li><li class=""><a href="/fr/download" target="_self">Télécharger</a></li><li class="siteNavGroupActive"><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="/fr/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/adaptors-storm">English</a></li><li><a href="/docs/ja/adaptors-storm">日本語</a></li><li><a href="/docs/zh-CN/adaptors-storm">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -45,7 +49,7 @@
 <p>An application can inject data into a Storm topology via a generic Pulsar spout, as well as consume data from a Storm topology via a generic Pulsar bolt.</p>
 <h2><a class="anchor" aria-hidden="true" id="using-the-pulsar-storm-adaptor"></a><a href="#using-the-pulsar-storm-adaptor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Using the Pulsar Storm Adaptor</h2>
 <p>Include dependency for Pulsar Storm Adaptor:</p>
-<pre><code class="hljs css languages- xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
   <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
   <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-storm<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
   <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${pulsar.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
@@ -54,7 +58,7 @@
 <h2><a class="anchor" aria-hidden="true" id="pulsar-spout"></a><a href="#pulsar-spout" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Spout</h2>
 <p>The Pulsar Spout allows for the data published on a topic to be consumed by a Storm topology. It emits a Storm tuple based on the message received and the <code>MessageToValuesMapper</code> provided by the client.</p>
 <p>The tuples that fail to be processed by the downstream bolts will be re-injected by the spout with an exponential backoff, within a configurable timeout (the default is 60 seconds) or a configurable number of retries, whichever comes first, after which it is acknowledged by the consumer. Here's an example construction of a spout:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-comment">// Configure a Pulsar Client</span>
+<pre><code class="hljs css language-java"><span class="hljs-comment">// Configure a Pulsar Client</span>
 ClientConfiguration clientConf = <span class="hljs-keyword">new</span> ClientConfiguration();
 
 <span class="hljs-comment">// Configure a Pulsar Consumer</span>
@@ -88,7 +92,7 @@ PulsarSpout spout = <span class="hljs-keyword">new</span> PulsarSpout(spoutConf,
 <h2><a class="anchor" aria-hidden="true" id="pulsar-bolt"></a><a href="#pulsar-bolt" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Bolt</h2>
 <p>The Pulsar bolt allows data in a Storm topology to be published on a topic. It publishes messages based on the Storm tuple received and the <code>TupleToMessageMapper</code> provided by the client.</p>
 <p>A partitioned topic can also be used to publish messages on different topics. In the implementation of the <code>TupleToMessageMapper</code>, a &quot;key&quot; will need to be provided in the message which will send the messages with the same key to the same topic. Here's an example bolt:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-comment">// Configure a Pulsar Client</span>
+<pre><code class="hljs css language-java"><span class="hljs-comment">// Configure a Pulsar Client</span>
 ClientConfiguration clientConf = <span class="hljs-keyword">new</span> ClientConfiguration();
 
 <span class="hljs-comment">// Configure a Pulsar Producer  </span>

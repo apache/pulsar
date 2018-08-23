@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/deploy-bare-metal-multi-cluster">English</a></li><li><a href="/docs/ja/next/deploy-bare-metal-multi-cluster">日本語</a></li><li><a href="/docs/fr/next/deploy-bare-metal-multi-cluster">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/deploy-bare-metal-multi-cluster">English</a></li><li><a href="/docs/ja/next/deploy-bare-metal-multi-cluster">日本語</a></li><li><a href="/docs/fr/next/deploy-bare-metal-multi-cluster">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -33,6 +33,10 @@
               function createToggler(togglerSelector, targetSelector, className) {
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
 
                 toggler.onclick = function(event) {
                   event.preventDefault();
@@ -72,11 +76,11 @@
 <li><p>从Pulsar <a href="/download">下载页</a></p></li>
 <li><p>从 Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">github releases 页面</a></p></li>
 <li><p>使用<a href="https://www.gnu.org/software/wget">wget</a>：</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> wget <span class="hljs-string">'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&amp;filename=incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-2.1.0-incubating-bin.tar.gz'</span> -O apache-pulsar-2.1.0-incubating-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget <span class="hljs-string">'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&amp;filename=incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-2.1.0-incubating-bin.tar.gz'</span> -O apache-pulsar-2.1.0-incubating-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>下载包后, 解压它和 <code>cd</code> 到生成的目录中:</p>
-<pre><code class="hljs css languages- bash">$ tar xvfz apache-pulsar-2.1.0-incubating-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.1.0-incubating-bin.tar.gz
 $ <span class="hljs-built_in">cd</span> apache-pulsar-2.1.0-incubating
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="软件包包含的内容"></a><a href="#软件包包含的内容" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>软件包包含的内容:</h2>
@@ -114,7 +118,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.1.0-incubating
 <p>ZooKeeper manages a variety of essential coordination- and configuration-related tasks for Pulsar.</p>
 <p>Deploying a Pulsar instance requires you to stand up one local ZooKeeper cluster <em>per Pulsar cluster</em>.</p>
 <p>To begin, add all ZooKeeper servers to the quorum configuration specified in the <a href="/docs/zh-CN/next/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a> file. Add a <code>server.N</code> line for each node in the cluster to the configuration, where <code>N</code> is the number of the ZooKeeper node. Here's an example for a three-node cluster:</p>
-<pre><code class="hljs css languages- properties">server.<span class="hljs-number">1</span>=zk1<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2888</span>:<span class="hljs-number">3888</span>
+<pre><code class="hljs css language-properties">server.<span class="hljs-number">1</span>=zk1<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2888</span>:<span class="hljs-number">3888</span>
 server.<span class="hljs-number">2</span>=zk2<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2888</span>:<span class="hljs-number">3888</span>
 server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2888</span>:<span class="hljs-number">3888</span>
 </code></pre>
@@ -123,12 +127,12 @@ server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.
 <p>See the <a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">Multi-server setup guide</a> in the ZooKeeper documentation for detailed info on <code>myid</code> and more.</p>
 </blockquote>
 <p>On a ZooKeeper server at <code>zk1.us-west.example.com</code>, for example, you could set the <code>myid</code> value like this:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> mkdir -p data/zookeeper</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> mkdir -p data/zookeeper</span>
 <span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid</span>
 </code></pre>
 <p>On <code>zk2.us-west.example.com</code> the command would be <code>echo 2 &gt; data/zookeeper/myid</code> and so on.</p>
 <p>Once each server has been added to the <code>zookeeper.conf</code> configuration and has the appropriate <code>myid</code> entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start zookeeper</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start zookeeper</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="deploying-the-configuration-store"></a><a href="#deploying-the-configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploying the configuration store</h3>
 <p>The ZooKeeper cluster configured and started up in the section above is a <em>local</em> ZooKeeper cluster used to manage a single Pulsar cluster. In addition to a local cluster, however, a full Pulsar instance also requires a configuration store for handling some instance-level configuration and coordination tasks.</p>
@@ -136,7 +140,7 @@ server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.
 <h4><a class="anchor" aria-hidden="true" id="single-cluster-pulsar-instance"></a><a href="#single-cluster-pulsar-instance" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Single-cluster Pulsar instance</h4>
 <p>If your Pulsar instance will consist of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but running on different TCP ports.</p>
 <p>To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in <a href="/docs/zh-CN/next/reference-configuration#configuration-store"><code>conf/global_zookeeper.conf</code></a> using the same method for <a href="#local-zookeeper">local ZooKeeper</a>, but make sure to use a different port (2181 is the default for ZooKeeper). Here's an example that uses port 2184 for a three-node ZooKeeper cluster:</p>
-<pre><code class="hljs css languages- properties">clientPort=<span class="hljs-number">2184</span>
+<pre><code class="hljs css language-properties">clientPort=<span class="hljs-number">2184</span>
 server.<span class="hljs-number">1</span>=zk1<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
 server.<span class="hljs-number">2</span>=zk2<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
 server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
@@ -152,7 +156,7 @@ server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.
 <p>In this scenario we want to pick the quorum participants from few clusters and let all the others be ZK observers. For example, to form a 7 servers quorum, we can pick 3 servers from <code>us-west</code>, 2 from <code>us-central</code> and 2 from <code>us-east</code>.</p>
 <p>This will guarantee that writes to global ZooKeeper will be possible even if one of these regions is unreachable.</p>
 <p>The ZK configuration in all the servers will look like:</p>
-<pre><code class="hljs css languages- properties">clientPort=<span class="hljs-number">2184</span>
+<pre><code class="hljs css language-properties">clientPort=<span class="hljs-number">2184</span>
 server.<span class="hljs-number">1</span>=zk1<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
 server.<span class="hljs-number">2</span>=zk2<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
 server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
@@ -170,16 +174,16 @@ server.<span class="hljs-number">14</span>=zk2<span class="hljs-selector-class">
 server.<span class="hljs-number">15</span>=zk3<span class="hljs-selector-class">.ap-south</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>:observer
 </code></pre>
 <p>Additionally, ZK observers will need to have:</p>
-<pre><code class="hljs css languages- properties"><span class="hljs-attr">peerType</span>=observer
+<pre><code class="hljs css language-properties"><span class="hljs-attr">peerType</span>=observer
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="starting-the-service"></a><a href="#starting-the-service" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Starting the service</h5>
 <p>Once your global ZooKeeper configuration is in place, you can start up the service using <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a></p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start global-zookeeper</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start global-zookeeper</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="cluster-metadata-initialization"></a><a href="#cluster-metadata-initialization" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cluster metadata initialization</h2>
 <p>Once you've set up the cluster-specific ZooKeeper and configuration store quorums for your instance, there is some metadata that needs to be written to ZooKeeper for each cluster in your instance. <strong>It only needs to be written once</strong>.</p>
 <p>You can initialize this metadata using the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a> command of the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar"><code>pulsar</code></a> CLI tool. Here's an example:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar initialize-cluster-metadata \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar initialize-cluster-metadata \</span>
   --cluster us-west \
   --zookeeper zk1.us-west.example.com:2181 \
   --configuration-store zk1.us-west.example.com:2184 \
@@ -206,10 +210,10 @@ server.<span class="hljs-number">15</span>=zk3<span class="hljs-selector-class">
 <h3><a class="anchor" aria-hidden="true" id="starting-up-bookies"></a><a href="#starting-up-bookies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Starting up bookies</h3>
 <p>You can start up a bookie in two ways: in the foreground or as a background daemon.</p>
 <p>To start up a bookie in the foreground, use the <a href="/docs/zh-CN/next/reference-cli-tools#bookkeeper"><code>bookeeper</code></a></p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start bookie</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start bookie</span>
 </code></pre>
 <p>You can verify that the bookie is working properly using the <code>bookiesanity</code> command for the <a href="/docs/zh-CN/next/reference-cli-tools#bookkeeper-shell">BookKeeper shell</a>:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/bookkeeper shell bookiesanity</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/bookkeeper shell bookiesanity</span>
 </code></pre>
 <p>This will create a new ledger on the local bookie, write a few entries, read them back and finally delete the ledger.</p>
 <h3><a class="anchor" aria-hidden="true" id="hardware-considerations"></a><a href="#hardware-considerations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hardware considerations</h3>
@@ -230,7 +234,7 @@ server.<span class="hljs-number">15</span>=zk3<span class="hljs-selector-class">
 <p>The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the <a href="/docs/zh-CN/next/reference-configuration#broker-zookeeperServers"><code>zookeeperServers</code></a> parameter to reflect the local quorum and the <a href="/docs/zh-CN/next/reference-configuration#broker-configurationStoreServers"><code>configurationStoreServers</code></a> parameter to reflect the configuration store quorum (although you'll need to specify only those ZooKeeper servers located in the same cluster).</p>
 <p>You also need to specify the name of the <a href="/docs/zh-CN/next/reference-terminology#cluster">cluster</a> to which the broker belongs using the <a href="/docs/zh-CN/next/reference-configuration#broker-clusterName"><code>clusterName</code></a> parameter.</p>
 <p>Here's an example configuration:</p>
-<pre><code class="hljs css languages- properties"><span class="hljs-comment"># Local ZooKeeper servers</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Local ZooKeeper servers</span>
 <span class="hljs-attr">zookeeperServers</span>=zk1.us-west.example.com:<span class="hljs-number">2181</span>,zk2.us-west.example.com:<span class="hljs-number">2181</span>,zk3.us-west.example.com:<span class="hljs-number">2181</span>
 
 <span class="hljs-comment"># Configuration store quorum connection string.</span>
@@ -242,10 +246,10 @@ server.<span class="hljs-number">15</span>=zk3<span class="hljs-selector-class">
 <p>Pulsar brokers do not require any special hardware since they don't use the local disk. Fast CPUs and 10Gbps <a href="https://en.wikipedia.org/wiki/Network_interface_controller">NIC</a> are recommended since the software can take full advantage of that.</p>
 <h3><a class="anchor" aria-hidden="true" id="starting-the-broker-service"></a><a href="#starting-the-broker-service" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Starting the broker service</h3>
 <p>You can start a broker in the background using <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a> with the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start broker</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start broker</span>
 </code></pre>
 <p>You can also start brokers in the foreground using <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-broker"><code>pulsar broker</code></a>:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar broker</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar broker</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="service-discovery"></a><a href="#service-discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery</h2>
 <p><a href="/docs/zh-CN/next/client-libraries">Clients</a> connecting to Pulsar brokers need to be able to communicate with an entire Pulsar instance using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions <a href="#service-discovery-setup">immediately below</a>.</p>
@@ -257,46 +261,46 @@ server.<span class="hljs-number">15</span>=zk3<span class="hljs-selector-class">
 <h3><a class="anchor" aria-hidden="true" id="service-discovery-setup"></a><a href="#service-discovery-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery setup</h3>
 <p>The service discovery mechanism included with Pulsar maintains a list of active brokers, stored in ZooKeeper, and supports lookup using HTTP and also Pulsar's <a href="/docs/zh-CN/next/develop-binary-protocol">binary protocol</a>.</p>
 <p>To get started setting up Pulsar's built-in service discovery, you need to change a few parameters in the <a href="/docs/zh-CN/next/reference-configuration#service-discovery"><code>conf/discovery.conf</code></a> configuration file. Set the <a href="/docs/zh-CN/next/reference-configuration#service-discovery-zookeeperServers"><code>zookeeperServers</code></a> parameter to the cluster's ZooKeeper quorum connection string and the <a href="/docs/zh-CN/next/reference-configuration#service-discovery-configurationStoreServers"><code>configurationStoreServers</code></a> setting to the <a href="/docs/zh-CN/next/reference-terminology#configuration-store">configuration store</a> quorum connection string.</p>
-<pre><code class="hljs css languages- properties"># Zookeeper quorum connection <span class="hljs-built_in">string</span>
+<pre><code class="hljs css language-properties"># Zookeeper quorum connection <span class="hljs-built_in">string</span>
 zookeeperServers=zk1.<span class="hljs-keyword">us</span>-west.example.com:2181,zk2.<span class="hljs-keyword">us</span>-west.example.com:2181,zk3.<span class="hljs-keyword">us</span>-west.example.com:2181
 
 # <span class="hljs-keyword">Global</span> configuration store connection <span class="hljs-built_in">string</span>
 configurationStoreServers=zk1.<span class="hljs-keyword">us</span>-west.example.com:2184,zk2.<span class="hljs-keyword">us</span>-west.example.com:2184,zk3.<span class="hljs-keyword">us</span>-west.example.com:2184
 </code></pre>
 <p>To start the discovery service:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start discovery</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start discovery</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="admin-client-and-verification"></a><a href="#admin-client-and-verification" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin client and verification</h2>
 <p>At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as <a href="/docs/zh-CN/next/admin-api-overview">administrative clients</a> for each cluster. You can use the <a href="/docs/zh-CN/next/reference-configuration#client"><code>conf/client.conf</code></a> configuration file to configure admin clients.</p>
 <p>The most important thing is that you point the <a href="/docs/zh-CN/next/reference-configuration#client-serviceUrl"><code>serviceUrl</code></a> parameter to the correct service URL for the cluster:</p>
-<pre><code class="hljs css languages- properties">serviceUrl=<span class="hljs-string">http:</span><span class="hljs-comment">//pulsar.us-west.example.com:8080/</span>
+<pre><code class="hljs css language-properties">serviceUrl=<span class="hljs-string">http:</span><span class="hljs-comment">//pulsar.us-west.example.com:8080/</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="provisioning-new-tenants"></a><a href="#provisioning-new-tenants" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Provisioning new tenants</h2>
 <p>Pulsar was built as a fundamentally multi-tenant system.</p>
 <p>To allow a new tenant to use the system, we need to create a new one. You can create a new tenant using the <a href="/docs/zh-CN/next/pulsar-admin#tenants-create"><code>pulsar-admin</code></a> CLI tool:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin tenants create <span class="hljs-built_in">test</span>-tentant \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin tenants create <span class="hljs-built_in">test</span>-tentant \</span>
   --allowed-clusters us-west \
   --admin-roles test-admin-role
 </code></pre>
 <p>This will allow users who identify with role <code>test-admin-role</code> to administer the configuration for the tenant <code>test</code> which will only be allowed to use the cluster <code>us-west</code>. From now on, this tenant will be able to self-manage its resources.</p>
 <p>Once a tenant has been created, you will need to create <a href="/docs/zh-CN/next/reference-terminology#namespace">namespaces</a> for topics within that tenant.</p>
 <p>The first step is to create a namespace. A namespace is an administrative unit that can contain many topics. A common practice is to create a namespace for each different use case from a single tenant.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin namespaces create <span class="hljs-built_in">test</span>-tenant/ns1</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin namespaces create <span class="hljs-built_in">test</span>-tenant/ns1</span>
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="testing-producer-and-consumer"></a><a href="#testing-producer-and-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Testing producer and consumer</h5>
 <p>Everything is now ready to send and receive messages. The quickest way to test the system is through the <code>pulsar-perf</code> client tool.</p>
 <p>Let's use a topic in the namespace we just created. Topics are automatically created the first time a producer or a consumer tries to use them.</p>
 <p>The topic name in this case could be:</p>
-<pre><code class="hljs css languages- http">persistent://test-tenant/ns1/my-topic
+<pre><code class="hljs css language-http">persistent://test-tenant/ns1/my-topic
 </code></pre>
 <p>Start a consumer that will create a subscription on the topic and will wait for messages:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-perf consume persistent://<span class="hljs-built_in">test</span>-tenant/us-west/ns1/my-topic</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-perf consume persistent://<span class="hljs-built_in">test</span>-tenant/us-west/ns1/my-topic</span>
 </code></pre>
 <p>Start a producer that publishes messages at a fixed rate and report stats every 10 seconds:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-perf produce persistent://<span class="hljs-built_in">test</span>-tenant/us-west/ns1/my-topic</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-perf produce persistent://<span class="hljs-built_in">test</span>-tenant/us-west/ns1/my-topic</span>
 </code></pre>
 <p>To report the topic stats:</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin persistent stats persistent://<span class="hljs-built_in">test</span>-tenant/us-west/ns1/my-topic</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin persistent stats persistent://<span class="hljs-built_in">test</span>-tenant/us-west/ns1/my-topic</span>
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/deploy-bare-metal">← Deploying a cluster on bare metal</a><a class="docs-next button" href="/docs/zh-CN/next/deploy-dcos">Deploying Pulsar on DC/OS →</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#system-requirement">System requirement</a></li><li><a href="#安装-pulsar">安装 Pulsar</a></li><li><a href="#软件包包含的内容">软件包包含的内容:</a></li><li><a href="#deploying-zookeeper">Deploying ZooKeeper</a><ul class="toc-headings"><li><a href="#deploying-local-zookeeper">Deploying local ZooKeeper</a></li><li><a href="#deploying-the-configuration-store">Deploying the configuration store</a></li></ul></li><li><a href="#cluster-metadata-initialization">Cluster metadata initialization</a></li><li><a href="#deploying-bookkeeper">Deploying BookKeeper</a><ul class="toc-headings"><li><a href="#configuring-bookies">Configuring bookies</a></li><li><a href="#starting-up-bookies">Starting up bookies</a></li><li><a href="#hardware-considerations">Hardware considerations</a></li></ul></li><li><a href="#deploying-brokers">Deploying brokers</a><ul class="toc-headings"><li><a href="#broker-configuration">Broker configuration</a></li><li><a href="#broker-hardware">Broker hardware</a></li><li><a href="#starting-the-broker-service">Starting the broker service</a></li></ul></li><li><a href="#service-discovery">Service discovery</a><ul class="toc-headings"><li><a href="#service-discovery-setup">Service discovery setup</a></li></ul></li><li><a href="#admin-client-and-verification">Admin client and verification</a></li><li><a href="#provisioning-new-tenants">Provisioning new tenants</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;

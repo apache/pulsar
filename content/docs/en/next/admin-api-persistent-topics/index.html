@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/next/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/next/admin-api-persistent-topics">日本語</a></li><li><a href="/docs/fr/next/admin-api-persistent-topics">Français</a></li><li><a href="/docs/zh-CN/next/admin-api-persistent-topics">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/next/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/next/admin-api-persistent-topics">日本語</a></li><li><a href="/docs/fr/next/admin-api-persistent-topics">Français</a></li><li><a href="/docs/zh-CN/next/admin-api-persistent-topics">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -43,28 +47,28 @@
             });
         </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/incubator-pulsar/edit/master/site2/docs/admin-api-persistent-topics.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 class="postHeaderTitle">Managing persistent topics</h1></header><article><div><span><p>Persistent helps to access topic which is a logical endpoint for publishing and consuming messages. Producers publish messages to the topic and consumers subscribe to the topic, to consume messages published to the topic.</p>
 <p>In all of the instructions and commands below, the topic name structure is:</p>
-<pre><code class="hljs css languages- shell">persistent://tenant/namespace/topic
+<pre><code class="hljs css language-shell">persistent://tenant/namespace/topic
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="persistent-topics-resources"></a><a href="#persistent-topics-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Persistent topics resources</h2>
 <h3><a class="anchor" aria-hidden="true" id="list-of-topics"></a><a href="#list-of-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>List of topics</h3>
 <p>It provides a list of persistent topics exist under a given namespace.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>List of topics can be fetched using <a href="../../reference/CliTools#list"><code>list</code></a> command.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent list \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent list \</span>
   my-tenant/my-namespace
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api"></a><a href="#rest-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getList"><b>GET</b> <i>/admin/v2/persistent/:tenant/:namespace</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String namespace = <span class="hljs-string">"my-tenant/my-namespace"</span>;
+<pre><code class="hljs css language-java">String namespace = <span class="hljs-string">"my-tenant/my-namespace"</span>;
 admin.persistentTopics().getList(namespace);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="grant-permission"></a><a href="#grant-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Grant permission</h3>
 <p>It grants permissions on a client role to perform specific actions on a given topic.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>Permission can be granted using <a href="../../reference/CliTools#grant-permission"><code>grant-permission</code></a> command.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent grant-permission \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent grant-permission \</span>
   --actions produce,consume --role application1 \
   persistent://test-tenant/ns1/tp1 \
 
@@ -73,7 +77,7 @@ admin.persistentTopics().getList(namespace);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/grantPermissionsOnTopic"><b>POST</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/permissions/:role</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-1"></a><a href="#java-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 String role = <span class="hljs-string">"test-role"</span>;
 Set&lt;AuthAction&gt; actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);
 admin.persistentTopics().grantPermission(topic, role, actions);
@@ -81,7 +85,7 @@ admin.persistentTopics().grantPermission(topic, role, actions);
 <h3><a class="anchor" aria-hidden="true" id="get-permission"></a><a href="#get-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get permission</h3>
 <p>Permission can be fetched using <a href="../../reference/CliTools#permissions"><code>permissions</code></a> command.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-2"></a><a href="#pulsar-admin-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent permissions \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent permissions \</span>
   persistent://test-tenant/ns1/tp1 \
 
 {
@@ -95,14 +99,14 @@ admin.persistentTopics().grantPermission(topic, role, actions);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getPermissionsOnTopic"><b>GET</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/permissions</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-2"></a><a href="#java-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().getPermissions(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="revoke-permission"></a><a href="#revoke-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Revoke permission</h3>
 <p>It revokes a permission which was granted on a client role.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-3"></a><a href="#pulsar-admin-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>Permission can be revoked using <a href="../../reference/CliTools#revoke-permission"><code>revoke-permission</code></a> command.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent revoke-permission \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent revoke-permission \</span>
   --role application1 \
   persistent://test-tenant/ns1/tp1 \
 
@@ -117,7 +121,7 @@ admin.persistentTopics().getPermissions(topic);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/revokePermissionsOnTopic"><b>DELETE</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/permissions/:role</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-3"></a><a href="#java-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 String role = <span class="hljs-string">"test-role"</span>;
 admin.persistentTopics().revokePermissions(topic, role);
 </code></pre>
@@ -125,28 +129,28 @@ admin.persistentTopics().revokePermissions(topic, role);
 <p>It deletes a topic. The topic cannot be deleted if there's any active subscription or producers connected to it.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-4"></a><a href="#pulsar-admin-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>Topic can be deleted using <a href="../../reference/CliTools#delete"><code>delete</code></a> command.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent delete \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent delete \</span>
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-4"></a><a href="#rest-api-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/deleteTopic"><b>DELETE</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-4"></a><a href="#java-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().delete(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="unload-topic"></a><a href="#unload-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Unload topic</h3>
 <p>It unloads a topic.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-5"></a><a href="#pulsar-admin-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>Topic can be unloaded using <a href="../../reference/CliTools#unload"><code>unload</code></a> command.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent unload \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent unload \</span>
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-5"></a><a href="#rest-api-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/unloadTopic"><b>PUT</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/unload</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-5"></a><a href="#java-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().unload(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-stats"></a><a href="#get-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get stats</h3>
@@ -179,7 +183,7 @@ admin.persistentTopics().unload(topic);
 <li><p><strong>inboundConnection</strong>: The IP and port of the broker in the remote cluster's publisher connection to this broker</p></li>
 <li><p><strong>inboundConnectedSince</strong>: The TCP connection being used to publish messages to the remote cluster. If there are no local publishers connected, this connection is automatically closed after a minute.</p></li>
 </ul>
-<pre><code class="hljs css languages- json">{
+<pre><code class="hljs css language-json">{
   <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">4641.528542257553</span>,
   <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">44663039.74947473</span>,
   <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
@@ -212,14 +216,14 @@ admin.persistentTopics().unload(topic);
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-6"></a><a href="#pulsar-admin-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>Topic stats can be fetched using <a href="../../reference/CliTools#stats"><code>stats</code></a> command.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent stats \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent stats \</span>
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-6"></a><a href="#rest-api-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getStats"><b>GET</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/stats</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-6"></a><a href="#java-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().getStats(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-internal-stats"></a><a href="#get-internal-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get internal stats</h3>
@@ -249,7 +253,7 @@ admin.persistentTopics().getStats(topic);
 <li><p><strong>lastLedgerSwitchTimestamp</strong>: The last time the cursor ledger was rolled over</p></li>
 <li><p><strong>state</strong>: The state of the cursor ledger: Open means we have a cursor ledger for saving updates of the markDeletePosition.</p></li>
 </ul>
-<pre><code class="hljs css languages- json">{
+<pre><code class="hljs css language-json">{
     <span class="hljs-attr">"entriesAddedCounter"</span>: <span class="hljs-number">20449518</span>,
     <span class="hljs-attr">"numberOfEntries"</span>: <span class="hljs-number">3233</span>,
     <span class="hljs-attr">"totalSize"</span>: <span class="hljs-number">331482</span>,
@@ -286,20 +290,20 @@ admin.persistentTopics().getStats(topic);
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-7"></a><a href="#pulsar-admin-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>Topic internal-stats can be fetched using <a href="../../reference/CliTools#stats-internal"><code>stats-internal</code></a> command.</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent stats-internal \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent stats-internal \</span>
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-7"></a><a href="#rest-api-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getInternalStats"><b>GET</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/internalStats</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-7"></a><a href="#java-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().getInternalStats(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="peek-messages"></a><a href="#peek-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Peek messages</h3>
 <p>It peeks N messages for a specific subscription of a given topic.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-8"></a><a href="#pulsar-admin-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent peek-messages \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent peek-messages \</span>
   --count 10 --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 
@@ -311,7 +315,7 @@ msg-payload
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/peekNthMessage"><b>GET</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-8"></a><a href="#java-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 String subName = <span class="hljs-string">"my-subscription"</span>;
 <span class="hljs-keyword">int</span> numMessages = <span class="hljs-number">1</span>;
 admin.persistentTopics().peekMessages(topic, subName, numMessages);
@@ -319,7 +323,7 @@ admin.persistentTopics().peekMessages(topic, subName, numMessages);
 <h3><a class="anchor" aria-hidden="true" id="skip-messages"></a><a href="#skip-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Skip messages</h3>
 <p>It skips N messages for a specific subscription of a given topic.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-9"></a><a href="#pulsar-admin-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent skip \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent skip \</span>
   --count 10 --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -327,7 +331,7 @@ admin.persistentTopics().peekMessages(topic, subName, numMessages);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/skipMessages"><b>POST</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-9"></a><a href="#java-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 String subName = <span class="hljs-string">"my-subscription"</span>;
 <span class="hljs-keyword">int</span> numMessages = <span class="hljs-number">1</span>;
 admin.persistentTopics().skipMessages(topic, subName, numMessages);
@@ -335,7 +339,7 @@ admin.persistentTopics().skipMessages(topic, subName, numMessages);
 <h3><a class="anchor" aria-hidden="true" id="skip-all-messages"></a><a href="#skip-all-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Skip all messages</h3>
 <p>It skips all old messages for a specific subscription of a given topic.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-10"></a><a href="#pulsar-admin-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent skip-all \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent skip-all \</span>
   --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -344,14 +348,14 @@ admin.persistentTopics().skipMessages(topic, subName, numMessages);
 </p>
 <p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all">More info</a></p>
 <h4><a class="anchor" aria-hidden="true" id="java-10"></a><a href="#java-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 String subName = <span class="hljs-string">"my-subscription"</span>;
 admin.persistentTopics().skipAllMessages(topic, subName);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="reset-cursor"></a><a href="#reset-cursor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reset cursor</h3>
 <p>It resets a subscription’s cursor position back to the position which was recorded X minutes before. It essentially calculates time and position of cursor at X minutes before and resets it at that position.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-11"></a><a href="#pulsar-admin-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent reset-cursor \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent reset-cursor \</span>
   --subscription my-subscription --time 10 \
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -359,7 +363,7 @@ admin.persistentTopics().skipAllMessages(topic, subName);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/resetCursor"><b>POST</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-11"></a><a href="#java-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 String subName = <span class="hljs-string">"my-subscription"</span>;
 <span class="hljs-keyword">long</span> timestamp = <span class="hljs-number">2342343L</span>;
 admin.persistentTopics().skipAllMessages(topic, subName, timestamp);
@@ -367,7 +371,7 @@ admin.persistentTopics().skipAllMessages(topic, subName, timestamp);
 <h3><a class="anchor" aria-hidden="true" id="lookup-of-topic"></a><a href="#lookup-of-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Lookup of topic</h3>
 <p>It locates broker url which is serving the given topic.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-12"></a><a href="#pulsar-admin-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent lookup \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent lookup \</span>
   persistent://test-tenant/ns1/tp1 \
 
  "pulsar://broker1.org.com:4480"
@@ -376,13 +380,13 @@ admin.persistentTopics().skipAllMessages(topic, subName, timestamp);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/"><b>GET</b> <i>/lookup/v2/topic/persistent/:tenant:namespace/:topic</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-12"></a><a href="#java-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.lookup().lookupDestination(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-bundle"></a><a href="#get-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get bundle</h3>
 <p>It gives range of the bundle which contains given topic</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-13"></a><a href="#pulsar-admin-13" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent bundle-range \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent bundle-range \</span>
   persistent://test-tenant/ns1/tp1 \
 
  "0x00000000_0xffffffff"
@@ -391,13 +395,13 @@ admin.lookup().lookupDestination(topic);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/"><b>GET</b> <i>/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-13"></a><a href="#java-13" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.lookup().getBundleRange(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-subscriptions"></a><a href="#get-subscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get subscriptions</h3>
 <p>It shows all subscription names for a given topic.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-14"></a><a href="#pulsar-admin-14" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent subscriptions \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent subscriptions \</span>
   persistent://test-tenant/ns1/tp1 \
 
  my-subscription
@@ -406,13 +410,13 @@ admin.lookup().getBundleRange(topic);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSubscriptions"><b>GET</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/subscriptions</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-14"></a><a href="#java-14" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().getSubscriptions(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="unsubscribe"></a><a href="#unsubscribe" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Unsubscribe</h3>
 <p>It can also help to unsubscribe a subscription which is no more processing further messages.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-15"></a><a href="#pulsar-admin-15" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent unsubscribe \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent unsubscribe \</span>
   --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -420,7 +424,7 @@ admin.persistentTopics().getSubscriptions(topic);
 <p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/deleteSubscription"><b>DELETE</b> <i>/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-15"></a><a href="#java-15" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-<pre><code class="hljs css languages- java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 String subscriptionName = <span class="hljs-string">"my-subscription"</span>;
 admin.persistentTopics().deleteSubscription(topic, subscriptionName);
 </code></pre>

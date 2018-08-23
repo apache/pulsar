@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/deploy-monitoring">English</a></li><li><a href="/docs/ja/next/deploy-monitoring">日本語</a></li><li><a href="/docs/fr/next/deploy-monitoring">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/deploy-monitoring">English</a></li><li><a href="/docs/ja/next/deploy-monitoring">日本語</a></li><li><a href="/docs/fr/next/deploy-monitoring">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -47,26 +51,26 @@
 <p>Pulsar broker metrics can be collected from brokers and exported in JSON format. There are two main types of metrics:</p>
 <ul>
 <li><p><em>Destination dumps</em>, which containing stats for each individual topic. They can be fetched using</p>
-<pre><code class="hljs css languages- shell">bin/pulsar-admin broker-stats destinations
+<pre><code class="hljs css language-shell">bin/pulsar-admin broker-stats destinations
 </code></pre></li>
 <li><p>Broker metrics, containing broker info and topics stats aggregated at namespace level:</p>
-<pre><code class="hljs css languages- shell">bin/pulsar-admin broker-stats monitoring-metrics
+<pre><code class="hljs css language-shell">bin/pulsar-admin broker-stats monitoring-metrics
 </code></pre></li>
 </ul>
 <p>All the message rates are updated every 1min.</p>
 <p>The aggregated broker metrics are also exposed in the <a href="https://prometheus.io">Prometheus</a> format at:</p>
-<pre><code class="hljs css languages- shell">http://$BROKER_ADDRESS:8080/metrics
+<pre><code class="hljs css language-shell">http://$BROKER_ADDRESS:8080/metrics
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zookeeper-stats"></a><a href="#zookeeper-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper stats</h3>
 <p>The local/global ZooKeeper server and clients that are shipped with Pulsar have been instrumented to expose detailed stats through Prometheus as well.</p>
-<pre><code class="hljs css languages- shell">http://$LOCAL_ZK_SERVER:8000/metrics
+<pre><code class="hljs css language-shell">http://$LOCAL_ZK_SERVER:8000/metrics
 http://$GLOBAL_ZK_SERVER:8001/metrics
 </code></pre>
 <p>The default port of local ZooKeeper is <code>8000</code> and that of global ZooKeeper is <code>8001</code>. These can be changed by specifying system property <code>stats_server_port</code>.</p>
 <h3><a class="anchor" aria-hidden="true" id="bookkeeper-stats"></a><a href="#bookkeeper-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper stats</h3>
 <p>For BookKeeper you can configure the stats frameworks by changing the <code>statsProviderClass</code> in <code>conf/bookkeeper.conf</code>.</p>
 <p>By default, the default BookKeeper configuration included with Pulsar distribution will enable the Prometheus exporter.</p>
-<pre><code class="hljs css languages- shell">http://$BOOKIE_ADDRESS:8000/metrics
+<pre><code class="hljs css language-shell">http://$BOOKIE_ADDRESS:8000/metrics
 </code></pre>
 <p>For bookies, the default port is <code>8000</code> (instead of <code>8080</code>) and that can be configured by changing the <code>prometheusStatsHttpPort</code> in <code>conf/bookkeeper.conf</code>.</p>
 <h2><a class="anchor" aria-hidden="true" id="configuring-prometheus"></a><a href="#configuring-prometheus" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring Prometheus</h2>
@@ -81,7 +85,7 @@ http://$GLOBAL_ZK_SERVER:8001/metrics
 <p>You can use grafana to easily create dashboard driven by the data stored in Prometheus.</p>
 <p>There is a <code>pulsar-grafana</code> Docker image that is ready to use with the principal dashboards already in place. This is enabled by default when deploying Pulsar on Kubernetes.</p>
 <p>To use the dashboard manually:</p>
-<pre><code class="hljs css languages- shell">docker run -p3000:3000 \
+<pre><code class="hljs css language-shell">docker run -p3000:3000 \
         -e PROMETHEUS_URL=http://$PROMETHEUS_HOST:9090/ \
         apachepulsar/pulsar-grafana:latest
 </code></pre>

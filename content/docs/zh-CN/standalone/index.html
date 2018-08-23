@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive siteNavItemActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/standalone">English</a></li><li><a href="/docs/ja/standalone">日本語</a></li><li><a href="/docs/fr/standalone">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive siteNavItemActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/standalone">English</a></li><li><a href="/docs/ja/standalone">日本語</a></li><li><a href="/docs/fr/standalone">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -58,11 +62,11 @@
 <li><p>从Pulsar <a href="/download">下载页</a></p></li>
 <li><p>从 Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">github releases 页面</a></p></li>
 <li><p>使用<a href="https://www.gnu.org/software/wget">wget</a>：</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-2.1.0-incubating-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-2.1.0-incubating-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>下载包后, 解压它和 <code>cd</code> 到生成的目录中:</p>
-<pre><code class="hljs css languages- bash">$ tar xvfz apache-pulsar-2.1.0-incubating-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.1.0-incubating-bin.tar.gz
 $ <span class="hljs-built_in">cd</span> apache-pulsar-2.1.0-incubating
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="软件包包含的内容"></a><a href="#软件包包含的内容" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>软件包包含的内容:</h2>
@@ -100,11 +104,11 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.1.0-incubating
 <li><p>从Pulsar <a href="/download">下载页</a></p></li>
 <li><p>从 Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">github releases 页面</a></p></li>
 <li><p>使用<a href="https://www.gnu.org/software/wget">wget</a>：</p>
-<pre><code class="hljs css languages- shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as <code>connectors</code> in the pulsar directory:</p>
-<pre><code class="hljs css languages- bash">$ tar xvfz /path/to/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz /path/to/apache-pulsar-io-connectors-2.1.0-incubating-bin.tar.gz
 
 // you will find a directory named `apache-pulsar-io-connectors-2.1.0-incubating` <span class="hljs-keyword">in</span> the pulsar directory
 // <span class="hljs-keyword">then</span> copy the connectors
@@ -127,10 +131,10 @@ pulsar-io-twitter-{{pulsar.version}}.nar
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="启动集群"></a><a href="#启动集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动集群</h2>
 <p>一旦你在本地下载了最新的发行版，就可以使用 bin目录下的 <a href="/docs/zh-CN/reference-cli-tools#pulsar"><code>pulsar</code></a> 命令启动一个本地集群了，并且指定你需要运行在独立模式下:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar standalone
+<pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
 <p>If Pulsar has been successfully started, you should see <code>INFO</code>-level log messages like this:</p>
-<pre><code class="hljs css languages- bash">2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Global Zookeeper cache started
+<pre><code class="hljs css language-bash">2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Global Zookeeper cache started
 2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
 2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
 </code></pre>
@@ -140,7 +144,7 @@ pulsar-io-twitter-{{pulsar.version}}.nar
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="测试集群"></a><a href="#测试集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>测试集群</h2>
 <p>Pulsar提供了一个名为<a href="/docs/zh-CN/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> 的CLI工具,它使你可以执行类似给正在运行的Pulsar集群的某个topic发消息等操作. 这条命令将发送一条简单的消息<code>hello-pulsar</code>给<code>my-topic</code> topic:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-client produce my-topic --messages <span class="hljs-string">"hello-pulsar"</span>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client produce my-topic --messages <span class="hljs-string">"hello-pulsar"</span>
 </code></pre>
 <p>如果消息成功发送给了topic，你应该会在<code>pulsar-client</code>日志中找到一个确认， 类似：</p>
 <pre><code class="hljs">13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
@@ -156,19 +160,19 @@ pulsar-io-twitter-{{pulsar.version}}.nar
 <li><code>pulsar://localhost:6650</code></li>
 </ul>
 <p>以下是使用<a href="/docs/zh-CN/client-libraries-java">Java</a>客户端创建producer的例子:</p>
-<pre><code class="hljs css languages- java">String localClusterUrl = <span class="hljs-string">"pulsar://localhost:6650"</span>;
+<pre><code class="hljs css language-java">String localClusterUrl = <span class="hljs-string">"pulsar://localhost:6650"</span>;
 
 PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
 Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer().topic(<span class="hljs-string">"my-topic"</span>).create();
 </code></pre>
 <p>以下是<a href="/docs/zh-CN/client-libraries-python">Python</a> producer的例子:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-keyword">import</span> pulsar
+<pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> pulsar
 
 client = pulsar.Client(<span class="hljs-string">'pulsar://localhost:6650'</span>)
 producer = client.create_producer(<span class="hljs-string">'my-topic'</span>)
 </code></pre>
 <p>最后是 <a href="/docs/zh-CN/client-libraries-cpp">C++</a> producer的例子:</p>
-<pre><code class="hljs css languages- cpp"><span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
+<pre><code class="hljs css language-cpp"><span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
 Producer producer;
 Result result = client.createProducer(<span class="hljs-string">"my-topic"</span>, producer);
 <span class="hljs-keyword">if</span> (result != ResultOk) {

@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/deploy-kubernetes">English</a></li><li><a href="/docs/ja/deploy-kubernetes">日本語</a></li><li><a href="/docs/fr/deploy-kubernetes">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/deploy-kubernetes">English</a></li><li><a href="/docs/ja/deploy-kubernetes">日本語</a></li><li><a href="/docs/fr/deploy-kubernetes">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -33,6 +33,10 @@
               function createToggler(togglerSelector, targetSelector, className) {
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
 
                 toggler.onclick = function(event) {
                   event.preventDefault();
@@ -73,7 +77,7 @@
 <h3><a class="anchor" aria-hidden="true" id="create-a-new-kubernetes-cluster"></a><a href="#create-a-new-kubernetes-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a new Kubernetes cluster</h3>
 <p>You can create a new GKE cluster using the <a href="https://cloud.google.com/sdk/gcloud/reference/container/clusters/create"><code>container clusters create</code></a> command for <code>gcloud</code>. This command enables you to specify the number of nodes in the cluster, the machine types of those nodes, and more.</p>
 <p>As an example, we'll create a new GKE cluster for Kubernetes version <a href="https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v164">1.6.4</a> in the <a href="https://cloud.google.com/compute/docs/regions-zones/regions-zones#available">us-central1-a</a> zone. The cluster will be named <code>pulsar-gke-cluster</code> and will consist of three VMs, each using two locally attached SSDs and running on <a href="https://cloud.google.com/compute/docs/machine-types">n1-standard-8</a> machines. These SSDs will be used by <a href="/docs/zh-CN/reference-terminology#bookie">bookie</a> instances, one for the BookKeeper <a href="/docs/zh-CN/concepts-architecture-overview#journal-storage">journal</a> and the other for storing the actual message data.</p>
-<pre><code class="hljs css languages- bash">$ gcloud container clusters create pulsar-gke-cluster \
+<pre><code class="hljs css language-bash">$ gcloud container clusters create pulsar-gke-cluster \
   --zone=us-central1<span class="hljs-_">-a</span> \
   --machine-type=n1-standard-8 \
   --num-nodes=3 \
@@ -82,7 +86,7 @@
 <p>By default, bookies will run on all the machines that have locally attached SSD disks. In this example, all of those machines will have two SSDs, but you can add different types of machines to the cluster later. You can control which machines host bookie servers using <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels">labels</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="dashboard"></a><a href="#dashboard" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dashboard</h3>
 <p>You can observe your cluster in the <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a> by downloading the credentials for your Kubernetes cluster and opening up a proxy to the cluster:</p>
-<pre><code class="hljs css languages- bash">$ gcloud container clusters get-credentials pulsar-gke-cluster \
+<pre><code class="hljs css language-bash">$ gcloud container clusters get-credentials pulsar-gke-cluster \
   --zone=us-central1<span class="hljs-_">-a</span> \
   --project=your-project-name
 $ kubectl proxy
@@ -92,7 +96,7 @@ $ kubectl proxy
 <p>You can run Kubernetes on <a href="https://aws.amazon.com/">Amazon Web Services</a> (AWS) in a variety of ways. A very simple way that was <a href="https://aws.amazon.com/blogs/compute/kubernetes-clusters-aws-kops/">recently introduced</a> involves using the <a href="https://github.com/kubernetes/kops">Kubernetes Operations</a> (kops) tool.</p>
 <p>You can find detailed instructions for setting up a Kubernetes cluster on AWS <a href="https://github.com/kubernetes/kops/blob/master/docs/aws.md">here</a>.</p>
 <p>When you create a cluster using those instructions, your <code>kubectl</code> config in <code>~/.kube/config</code> (on MacOS and Linux) will be updated for you, so you probably won't need to change your configuration. Nonetheless, you can ensure that <code>kubectl</code> can interact with your cluster by listing the nodes in the cluster:</p>
-<pre><code class="hljs css languages- bash">$ kubectl get nodes
+<pre><code class="hljs css language-bash">$ kubectl get nodes
 </code></pre>
 <p>If <code>kubectl</code> is working with your cluster, you can proceed to deploy Pulsar components using <code>kubectl</code> <a href="#deploying-pulsar-components">component by component</a>, or using <a href="#deploying-pulsar-components-helm"><code>helm</code></a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-on-a-custom-kubernetes-cluster"></a><a href="#pulsar-on-a-custom-kubernetes-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar on a custom Kubernetes cluster</h2>
@@ -114,27 +118,27 @@ shell
 kubectl config use-context minikube</p></li>
 </ol>
 <p>In order to use the <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a> with local Kubernetes cluster on Minikube, run:</p>
-<pre><code class="hljs css languages- bash">$ minikube dashboard
+<pre><code class="hljs css language-bash">$ minikube dashboard
 </code></pre>
 <p>The command will automatically trigger open a webpage in your browser. At first your local cluster will be empty, but that will change as you begin deploying Pulsar components using <code>kubectl</code> <a href="#deploying-pulsar-components">component by component</a>, or using <a href="#deploying-pulsar-components-helm"><code>helm</code></a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="multiple-vms"></a><a href="#multiple-vms" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Multiple VMs</h3>
 <p>For the second option, follow the <a href="https://github.com/pires/kubernetes-vagrant-coreos-cluster">instructions</a> for running Kubernetes using <a href="https://coreos.com/">CoreOS</a> on <a href="https://www.vagrantup.com/">Vagrant</a>. We'll provide an abridged version of those instructions here.</p>
 <p>First, make sure you have <a href="https://www.vagrantup.com/downloads.html">Vagrant</a> and <a href="https://www.virtualbox.org/wiki/Downloads">VirtualBox</a> installed. Then clone the repo and start up the cluster:</p>
-<pre><code class="hljs css languages- bash">$ git <span class="hljs-built_in">clone</span> https://github.com/pires/kubernetes-vagrant-coreos-cluster
+<pre><code class="hljs css language-bash">$ git <span class="hljs-built_in">clone</span> https://github.com/pires/kubernetes-vagrant-coreos-cluster
 $ <span class="hljs-built_in">cd</span> kubernetes-vagrant-coreos-cluster
 
 <span class="hljs-comment"># Start a three-VM cluster</span>
 $ NODES=3 USE_KUBE_UI=<span class="hljs-literal">true</span> vagrant up
 </code></pre>
 <p>Create SSD disk mount points on the VMs using this script:</p>
-<pre><code class="hljs css languages- bash">$ <span class="hljs-keyword">for</span> vm <span class="hljs-keyword">in</span> node-01 node-02 node-03; <span class="hljs-keyword">do</span>
+<pre><code class="hljs css language-bash">$ <span class="hljs-keyword">for</span> vm <span class="hljs-keyword">in</span> node-01 node-02 node-03; <span class="hljs-keyword">do</span>
     NODES=3 vagrant ssh <span class="hljs-variable">$vm</span> -c <span class="hljs-string">"sudo mkdir -p /mnt/disks/ssd0"</span>
     NODES=3 vagrant ssh <span class="hljs-variable">$vm</span> -c <span class="hljs-string">"sudo mkdir -p /mnt/disks/ssd1"</span>
   <span class="hljs-keyword">done</span>
 </code></pre>
 <p>Bookies expect two logical devices to mount for <a href="/docs/zh-CN/concepts-architecture-overview#journal-storage">journal</a> and persistent message storage to be available. In this VM exercise, we created two directories on each VM.</p>
 <p>Once the cluster is up, you can verify that <code>kubectl</code> can access it:</p>
-<pre><code class="hljs css languages- bash">$ kubectl get nodes
+<pre><code class="hljs css language-bash">$ kubectl get nodes
 NAME           STATUS                     AGE       VERSION
 172.17.8.101   Ready,SchedulingDisabled   10m       v1.6.4
 172.17.8.102   Ready                      8m        v1.6.4
@@ -142,7 +146,7 @@ NAME           STATUS                     AGE       VERSION
 172.17.8.104   Ready                      4m        v1.6.4
 </code></pre>
 <p>In order to use the <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a> with your local Kubernetes cluster, first use <code>kubectl</code> to create a proxy to the cluster:</p>
-<pre><code class="hljs css languages- bash">$ kubectl proxy
+<pre><code class="hljs css language-bash">$ kubectl proxy
 </code></pre>
 <p>Now you can access the web interface at <a href="http://localhost:8001/ui">localhost:8001/ui</a>. At first your local cluster will be empty, but that will change as you begin deploying Pulsar components using <code>kubectl</code> <a href="#deploying-pulsar-components">component by component</a>, or using <a href="#deploying-pulsar-components-helm"><code>helm</code></a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="deploying-pulsar-components"></a><a href="#deploying-pulsar-components" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploying Pulsar components</h2>
@@ -156,10 +160,10 @@ NAME           STATUS                     AGE       VERSION
 <p>To begin, <code>cd</code> into the appropriate folder.</p>
 <h3><a class="anchor" aria-hidden="true" id="deploy-zookeeper"></a><a href="#deploy-zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy ZooKeeper</h3>
 <p>You <em>must</em> deploy ZooKeeper as the first Pulsar component, as it is a dependency for the others.</p>
-<pre><code class="hljs css languages- bash">$ kubectl apply -f zookeeper.yaml
+<pre><code class="hljs css language-bash">$ kubectl apply -f zookeeper.yaml
 </code></pre>
 <p>Wait until all three ZooKeeper server pods are up and have the status <code>Running</code>. You can check on the status of the ZooKeeper pods at any time:</p>
-<pre><code class="hljs css languages- bash">$ kubectl get pods -l component=zookeeper
+<pre><code class="hljs css language-bash">$ kubectl get pods -l component=zookeeper
 NAME      READY     STATUS             RESTARTS   AGE
 zk-0      1/1       Running            0          18m
 zk-1      1/1       Running            0          17m
@@ -168,10 +172,10 @@ zk-2      0/1       Running            6          15m
 <p>This step may take several minutes, as Kubernetes needs to download the Docker image on the VMs.</p>
 <h3><a class="anchor" aria-hidden="true" id="initialize-cluster-metadata"></a><a href="#initialize-cluster-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Initialize cluster metadata</h3>
 <p>Once ZooKeeper is running, you need to <a href="#cluster-metadata-initialization">initialize the metadata</a> for the Pulsar cluster in ZooKeeper. This includes system metadata for <a href="/docs/zh-CN/reference-terminology#bookkeeper">BookKeeper</a> and Pulsar more broadly. There is a Kubernetes <a href="https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/">job</a> in the <code>cluster-metadata.yaml</code> file that you only need to run once:</p>
-<pre><code class="hljs css languages- bash">$ kubectl apply -f cluster-metadata.yaml
+<pre><code class="hljs css language-bash">$ kubectl apply -f cluster-metadata.yaml
 </code></pre>
 <p>For the sake of reference, that job runs the following command on an ephemeral pod:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar initialize-cluster-metadata \
+<pre><code class="hljs css language-bash">$ bin/pulsar initialize-cluster-metadata \
   --cluster <span class="hljs-built_in">local</span> \
   --zookeeper zookeeper \
   --global-zookeeper zookeeper \
@@ -180,14 +184,14 @@ zk-2      0/1       Running            6          15m
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="deploy-the-rest-of-the-components"></a><a href="#deploy-the-rest-of-the-components" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy the rest of the components</h3>
 <p>Once cluster metadata has been successfully initialized, you can then deploy the bookies, brokers, monitoring stack (<a href="https://prometheus.io">Prometheus</a>, <a href="https://grafana.com">Grafana</a>, and the <a href="/docs/zh-CN/administration-dashboard">Pulsar dashboard</a>), and Pulsar cluster proxy:</p>
-<pre><code class="hljs css languages- bash">$ kubectl apply -f bookie.yaml
+<pre><code class="hljs css language-bash">$ kubectl apply -f bookie.yaml
 $ kubectl apply -f broker.yaml
 $ kubectl apply -f proxy.yaml
 $ kubectl apply -f monitoring.yaml
 $ kubectl apply -f admin.yaml
 </code></pre>
 <p>You can check on the status of the pods for these components either in the Kubernetes Dashboard or using <code>kubectl</code>:</p>
-<pre><code class="hljs css languages- bash">$ kubectl get pods -w -l app=pulsar
+<pre><code class="hljs css language-bash">$ kubectl get pods -w -l app=pulsar
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-up-properties-and-namespaces"></a><a href="#set-up-properties-and-namespaces" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Set up properties and namespaces</h3>
 <p>Once all of the components are up and running, you'll need to create at least one Pulsar tenant and at least one namespace.</p>
@@ -195,18 +199,18 @@ $ kubectl apply -f admin.yaml
 <p>This step is not strictly required if Pulsar <a href="/docs/zh-CN/security-overview">authentication and authorization</a> is turned on, though it allows you to change <a href="/docs/zh-CN/admin-api-namespaces">policies</a> for each of the namespaces later.</p>
 </blockquote>
 <p>You can create properties and namespaces (and perform any other administrative tasks) using the <code>pulsar-admin</code> pod that is already configured to act as an admin client for your newly created Pulsar cluster. One easy way to perform administrative tasks is to create an alias for the <a href="/docs/zh-CN/pulsar-admin"><code>pulsar-admin</code></a> tool installed on the admin pod.</p>
-<pre><code class="hljs css languages- bash">$ <span class="hljs-built_in">alias</span> pulsar-admin=<span class="hljs-string">'kubectl exec pulsar-admin -it -- bin/pulsar-admin'</span>
+<pre><code class="hljs css language-bash">$ <span class="hljs-built_in">alias</span> pulsar-admin=<span class="hljs-string">'kubectl exec pulsar-admin -it -- bin/pulsar-admin'</span>
 </code></pre>
 <p>Now, any time you run <code>pulsar-admin</code>, you will be running commands from that pod. This command will create a tenant called <code>ten</code>:</p>
-<pre><code class="hljs css languages- bash">$ pulsar-admin tenants create ten \
+<pre><code class="hljs css language-bash">$ pulsar-admin tenants create ten \
   --admin-roles admin \
   --allowed-clusters <span class="hljs-built_in">local</span>
 </code></pre>
 <p>This command will create a <code>ns</code> namespace under the <code>ten</code> tenant:</p>
-<pre><code class="hljs css languages- bash">$ pulsar-admin namespaces create ten/ns
+<pre><code class="hljs css language-bash">$ pulsar-admin namespaces create ten/ns
 </code></pre>
 <p>To verify that everything has gone as planned:</p>
-<pre><code class="hljs css languages- bash">$ pulsar-admin tenants list
+<pre><code class="hljs css language-bash">$ pulsar-admin tenants list
 public
 ten
 
@@ -217,18 +221,18 @@ ten/ns
 <h3><a class="anchor" aria-hidden="true" id="experimenting-with-your-cluster"></a><a href="#experimenting-with-your-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Experimenting with your cluster</h3>
 <p>Now that a tenant and namespace have been created, you can begin experimenting with your running Pulsar cluster. Using the same <code>pulsar-admin</code> pod via an alias, as in the section above, you can use <a href="/docs/zh-CN/reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a> to create a test <a href="/docs/zh-CN/reference-terminology#producer">producer</a> to publish 10,000 messages a second on a topic in the <a href="/docs/zh-CN/reference-terminology#tenant">tenant</a> and <a href="/docs/zh-CN/reference-terminology#namespace">namespace</a> you created.</p>
 <p>First, create an alias to use the <code>pulsar-perf</code> tool via the admin pod:</p>
-<pre><code class="hljs css languages- bash">$ <span class="hljs-built_in">alias</span> pulsar-perf=<span class="hljs-string">'kubectl exec pulsar-admin -it -- bin/pulsar-perf'</span>
+<pre><code class="hljs css language-bash">$ <span class="hljs-built_in">alias</span> pulsar-perf=<span class="hljs-string">'kubectl exec pulsar-admin -it -- bin/pulsar-perf'</span>
 </code></pre>
 <p>Now, produce messages:</p>
-<pre><code class="hljs css languages- bash">$ pulsar-perf produce persistent://public/default/my-topic \
+<pre><code class="hljs css language-bash">$ pulsar-perf produce persistent://public/default/my-topic \
   --rate 10000
 </code></pre>
 <p>Similarly, you can start a <a href="/docs/zh-CN/reference-terminology#consumer">consumer</a> to subscribe to and receive all the messages on that topic:</p>
-<pre><code class="hljs css languages- bash">$ pulsar-perf consume persistent://public/default/my-topic \
+<pre><code class="hljs css language-bash">$ pulsar-perf consume persistent://public/default/my-topic \
   --subscriber-name my-subscription-name
 </code></pre>
 <p>You can also view <a href="/docs/zh-CN/administration-stats">stats</a> for the topic using the <a href="/docs/zh-CN/pulsar-admin#persistent-stats"><code>pulsar-admin</code></a> tool:</p>
-<pre><code class="hljs css languages- bash">$ pulsar-admin persistent stats persistent://public/default/my-topic
+<pre><code class="hljs css language-bash">$ pulsar-admin persistent stats persistent://public/default/my-topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="monitoring"></a><a href="#monitoring" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitoring</h3>
 <p>The default monitoring stack for Pulsar on Kubernetes has consists of <a href="#prometheus">Prometheus</a>, <a href="#grafana">Grafana</a>, and the <a href="/docs/zh-CN/administration-dashboard">Pulsar dashbaord</a>.</p>
@@ -245,7 +249,7 @@ ten/ns
 <p>All Pulsar metrics in Kubernetes are collected by a <a href="https://prometheus.io">Prometheus</a> instance running inside the cluster. Typically, there is no need to access Prometheus directly. Instead, you can use the <a href="#grafana">Grafana interface</a> that displays the data stored in Prometheus.</p>
 <h4><a class="anchor" aria-hidden="true" id="grafana"></a><a href="#grafana" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Grafana</h4>
 <p>In your Kubernetes cluster, you can use <a href="https://grafana.com">Grafana</a> to view dashbaords for Pulsar <a href="/docs/zh-CN/reference-terminology#namespace">namespaces</a> (message rates, latency, and storage), JVM stats, <a href="https://zookeeper.apache.org">ZooKeeper</a>, and <a href="/docs/zh-CN/reference-terminology#bookkeeper">BookKeeper</a>. You can get access to the pod serving Grafana using <code>kubectl</code>'s <a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster"><code>port-forward</code></a> command:</p>
-<pre><code class="hljs css languages- bash">$ kubectl port-forward \
+<pre><code class="hljs css language-bash">$ kubectl port-forward \
   $(kubectl get pods -l component=grafana -o jsonpath=<span class="hljs-string">'{.items[*].metadata.name}'</span>) 3000
 </code></pre>
 <p>You can then access the dashboard in your web browser at <a href="http://localhost:3000">localhost:3000</a>.</p>
@@ -253,7 +257,7 @@ ten/ns
 <p>While Grafana and Prometheus are used to provide graphs with historical data, <a href="/docs/zh-CN/administration-dashboard">Pulsar dashboard</a> reports more detailed current data for individual <a href="/docs/zh-CN/reference-terminology#topic">topics</a>.</p>
 <p>For example, you can have sortable tables showing all namespaces, topics, and broker stats, with details on the IP address for consumers, how long they've been connected, and much more.</p>
 <p>You can access to the pod serving the Pulsar dashboard using <code>kubectl</code>'s <a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster"><code>port-forward</code></a> command:</p>
-<pre><code class="hljs css languages- bash">$ kubectl port-forward \
+<pre><code class="hljs css language-bash">$ kubectl port-forward \
   $(kubectl get pods -l component=dashboard -o jsonpath=<span class="hljs-string">'{.items[*].metadata.name}'</span>) 8080:80
 </code></pre>
 <p>You can then access the dashboard in your web browser at <a href="http://localhost:8080">localhost:8080</a>.</p>
@@ -267,7 +271,7 @@ ten/ns
 <p>You can use <code>minikube ip</code> to find the ip address of the minikube VM, and then use their mapped ports to access corresponding services. For example, pulsar webservice url will be at <code>http://$(minikube ip):30001</code>.</p>
 </blockquote>
 <p>Once your Pulsar cluster is running on Kubernetes, you can connect to it using a Pulsar client. You can fetch the IP address for the Pulsar proxy running in your Kubernetes cluster using kubectl:</p>
-<pre><code class="hljs css languages- bash">$ kubectl get service broker-proxy \
+<pre><code class="hljs css language-bash">$ kubectl get service broker-proxy \
   --output=jsonpath=<span class="hljs-string">'{.status.loadBalancer.ingress[*].ip}'</span>
 </code></pre>
 <p>If the IP address for the proxy were, for example, 35.12.13.198, you could connect to Pulsar using <code>pulsar://35.12.13.198:6650</code>.</p>

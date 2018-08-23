@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/client-libraries" target="_self">Clients</a></li><li class=""><a href="/ja/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/client-libraries-java">English</a></li><li><a href="/docs/fr/client-libraries-java">Français</a></li><li><a href="/docs/zh-CN/client-libraries-java">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/client-libraries" target="_self">Clients</a></li><li class=""><a href="/ja/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/client-libraries-java">English</a></li><li><a href="/docs/fr/client-libraries-java">Français</a></li><li><a href="/docs/zh-CN/client-libraries-java">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -57,7 +61,7 @@
 <p>最新バージョンの Pulsar の Java クライアントは <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.1.0-incubating%7Cjar">Maven Central</a> にあります。 これを使用する場合は <code>pulsar-client</code> ライブラリをあなたのビルドコンフィグレーションに追加してください。</p>
 <h3><a class="anchor" aria-hidden="true" id="maven"></a><a href="#maven" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Maven</h3>
 <p>If you're using Maven, add this to your <code>pom.xml</code>:</p>
-<pre><code class="hljs css languages- xml"><span class="hljs-comment">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
+<pre><code class="hljs css language-xml"><span class="hljs-comment">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">pulsar.version</span>&gt;</span>2.1.0-incubating<span class="hljs-tag">&lt;/<span class="hljs-name">pulsar.version</span>&gt;</span>
 
 <span class="hljs-comment">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
@@ -69,7 +73,7 @@
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="gradle"></a><a href="#gradle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Gradle</h3>
 <p>If you're using Gradle, add this to your <code>build.gradle</code> file:</p>
-<pre><code class="hljs css languages- groovy"><span class="hljs-keyword">def</span> pulsarVersion = <span class="hljs-string">'2.1.0-incubating'</span>
+<pre><code class="hljs css language-groovy"><span class="hljs-keyword">def</span> pulsarVersion = <span class="hljs-string">'2.1.0-incubating'</span>
 
 dependencies {
     compile <span class="hljs-string">group:</span> <span class="hljs-string">'org.apache.pulsar'</span>, <span class="hljs-string">name:</span> <span class="hljs-string">'pulsar-client'</span>, <span class="hljs-string">version:</span> pulsarVersion
@@ -78,18 +82,18 @@ dependencies {
 <h2><a class="anchor" aria-hidden="true" id="connection-urls"></a><a href="#connection-urls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection URLs</h2>
 <p>To connect to Pulsar using client libraries, you need to specify a <a href="/docs/ja/develop-binary-protocol">Pulsar protocol</a> URL.</p>
 <p>Pulsar protocol URLs are assigned to specific clusters, use the <code>pulsar</code> scheme and have a default port of 6650. Here's an example for <code>localhost</code>:</p>
-<pre><code class="hljs css languages- http">pulsar://localhost:6650
+<pre><code class="hljs css language-http">pulsar://localhost:6650
 </code></pre>
 <p>A URL for a production Pulsar cluster may look something like this:</p>
-<pre><code class="hljs css languages- http">pulsar://pulsar.us-west.example.com:6650
+<pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
 </code></pre>
 <p>If you're using <a href="/docs/ja/security-tls-authentication">TLS</a> authentication, the URL will look like something like this:</p>
-<pre><code class="hljs css languages- http">pulsar+ssl://pulsar.us-west.example.com:6651
+<pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="client-configuration"></a><a href="#client-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client configuration</h2>
 <p>You can instantiate a <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  object using just a URL for the target Pulsar <a href="/docs/ja/reference-terminology#cluster">cluster</a>, like this:</p>
-<pre><code class="hljs css languages- java">PulsarClient client = PulsarClient.builder()
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
         .build();
 </code></pre>
@@ -106,7 +110,7 @@ dependencies {
 <p>In Pulsar, producers write messages to topics. Once you've instantiated a <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  object (as in the section <a href="#client-configuration">above</a>), you can create a <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/Producer">Producer</a>
  for a specific Pulsar <a href="/docs/ja/reference-terminology#topic">topic</a>.</p>
-<pre><code class="hljs css languages- java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
         .topic(<span class="hljs-string">"my-topic"</span>)
         .create();
 
@@ -114,14 +118,14 @@ dependencies {
 producer.send(<span class="hljs-string">"My message"</span>.getBytes());
 </code></pre>
 <p>By default, producers produce messages that consist of byte arrays. You can produce different types, however, by specifying a message <a href="#schemas">schema</a>.</p>
-<pre><code class="hljs css languages- java">Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
+<pre><code class="hljs css language-java">Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
         .topic(<span class="hljs-string">"my-topic"</span>)
         .create();
 stringProducer.send(<span class="hljs-string">"My message"</span>);
 </code></pre>
 <blockquote>
 <p>You should always make sure to close your producers, consumers, and clients when they are no longer needed:</p>
-<pre><code class="hljs css languages- java"></code></pre>
+<pre><code class="hljs css language-java"></code></pre>
 </blockquote>
 <p>producer.close();
 consumer.close();
@@ -140,7 +144,7 @@ client.close();</p>
 <p>' %}</p>
 <h3><a class="anchor" aria-hidden="true" id="configuring-producers"></a><a href="#configuring-producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring producers</h3>
 <p>If you instantiate a <code>Producer</code> object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {@inject javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} class. Here's an example:</p>
-<pre><code class="hljs css languages- java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
     .topic(<span class="hljs-string">"my-topic"</span>)
     .batchingMaxPublishDelay(<span class="hljs-number">10</span>, TimeUnit.MILLISECONDS)
     .sendTimeout(<span class="hljs-number">10</span>, TimeUnit.SECONDS)
@@ -152,14 +156,14 @@ client.close();</p>
 <h3><a class="anchor" aria-hidden="true" id="async-send"></a><a href="#async-send" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Async send</h3>
 <p>You can also publish messages <a href="/docs/ja/concepts-messaging#send-modes">asynchronously</a> using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the broker in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.</p>
 <p>Here's an example async send operation:</p>
-<pre><code class="hljs css languages- java">producer.sendAsync(<span class="hljs-string">"my-async-message"</span>.getBytes()).thenAccept(msgId -&gt; {
+<pre><code class="hljs css language-java">producer.sendAsync(<span class="hljs-string">"my-async-message"</span>.getBytes()).thenAccept(msgId -&gt; {
     System.out.printf(<span class="hljs-string">"Message with ID %s successfully sent"</span>, msgId);
 });
 </code></pre>
 <p>As you can see from the example above, async send operations return a {@inject javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId} wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="configuring-messages"></a><a href="#configuring-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring messages</h3>
 <p>In addition to a value, it's possible to set additional items on a given message:</p>
-<pre><code class="hljs css languages- java">producer.newMessage()
+<pre><code class="hljs css language-java">producer.newMessage()
     .key(<span class="hljs-string">"my-message-key"</span>)
     .value(<span class="hljs-string">"my-async-message"</span>.getBytes())
     .property(<span class="hljs-string">"my-key"</span>, <span class="hljs-string">"my-value"</span>)
@@ -173,13 +177,13 @@ client.close();</p>
 <p>Once you've instantiated a <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  object, you can create a <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/Consumer">Consumer</a>
  by specifying a <a href="/docs/ja/reference-terminology#topic">topic</a> and a <a href="/docs/ja/concepts-messaging#subscription-modes">subscription</a>.</p>
-<pre><code class="hljs css languages- java">Consumer consumer = client.newConsumer()
+<pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
         .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
         .subscribe();
 </code></pre>
 <p>The <code>subscribe</code> method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a <code>while</code> loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then <a href="/docs/ja/reference-terminology#acknowledgment-ack">acknowledges</a> that the message has been processed:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">do</span> {
+<pre><code class="hljs css language-java"><span class="hljs-keyword">do</span> {
   <span class="hljs-comment">// Wait for a message</span>
   Message msg = consumer.receive();
 
@@ -193,7 +197,7 @@ client.close();</p>
 <p>If you instantiate a <code>Consumer</code> object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
  class. Here's an example:</p>
 <p>Here's an example configuration:</p>
-<pre><code class="hljs css languages- java">Consumer consumer = client.newConsumer()
+<pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
         .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
         .ackTimeout(<span class="hljs-number">10</span>, TimeUnit.SECONDS)
@@ -203,13 +207,13 @@ client.close();</p>
 <h3><a class="anchor" aria-hidden="true" id="async-receive"></a><a href="#async-receive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Async receive</h3>
 <p>The <code>receive</code> method will receive messages synchronously (the consumer process will be blocked until a message is available). You can also use <a href="/docs/ja/concepts-messaging#receive-modes">async receive</a>, which will return immediately with a <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a> object that completes once a new message is available.</p>
 <p>Here's an example:</p>
-<pre><code class="hljs css languages- java">CompletableFuture&lt;Message&gt; asyncMessage = consumer.receiveAsync();
+<pre><code class="hljs css language-java">CompletableFuture&lt;Message&gt; asyncMessage = consumer.receiveAsync();
 </code></pre>
 <p>Async receive operations return a {@inject javadoc:Message:/client/org/apache/pulsar/client/api/Message} wrapped inside of a <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="multi-topic-subscriptions"></a><a href="#multi-topic-subscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Multi-topic subscriptions</h3>
 <p>In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using <a href="/docs/ja/concepts-messaging#multi-topic-subscriptions">multi-topic subscriptions</a>. To use multi-topic subscriptions you can supply either a regular expression (regex) or a <code>List</code> of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.</p>
 <p>Here are some examples:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Consumer;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Consumer;
 <span class="hljs-keyword">import</span> org.apache.pulsar.client.api.PulsarClient;
 
 <span class="hljs-keyword">import</span> java.util.Arrays;
@@ -232,7 +236,7 @@ Consumer allTopicsConsumer = consumerBuilder
         .subscribe();
 </code></pre>
 <p>You can also subscribe to an explicit list of topics (across namespaces if you wish):</p>
-<pre><code class="hljs css languages- java">List&lt;String&gt; topics = Arrays.asList(
+<pre><code class="hljs css language-java">List&lt;String&gt; topics = Arrays.asList(
         <span class="hljs-string">"topic-1"</span>,
         <span class="hljs-string">"topic-2"</span>,
         <span class="hljs-string">"topic-3"</span>
@@ -252,7 +256,7 @@ Consumer multiTopicConsumer = consumerBuilder
         .subscribe();
 </code></pre>
 <p>You can also subscribe to multiple topics asynchronously using the <code>subscribeAsync</code> method rather than the synchronous <code>subscribe</code> method. Here's an example:</p>
-<pre><code class="hljs css languages- java">Pattern allTopicsInNamespace = Pattern.compile(<span class="hljs-string">"persistent://public/default.*"</span>);
+<pre><code class="hljs css language-java">Pattern allTopicsInNamespace = Pattern.compile(<span class="hljs-string">"persistent://public/default.*"</span>);
 consumerBuilder
         .topics(topics)
         .subscribeAsync()
@@ -272,7 +276,7 @@ consumerBuilder
  objects by specifying a topic, a <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/MessageId">MessageId</a>
 , and {@inject javadoc:ReaderConfiguration:/client/org/apache/pulsar/client/api/ReaderConfiguration}.</p>
 <p>Here's an example:</p>
-<pre><code class="hljs css languages- java">ReaderConfiguration conf = <span class="hljs-keyword">new</span> ReaderConfiguration();
+<pre><code class="hljs css language-java">ReaderConfiguration conf = <span class="hljs-keyword">new</span> ReaderConfiguration();
 <span class="hljs-keyword">byte</span>[] msgIdBytes = <span class="hljs-comment">// Some message ID byte array</span>
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader reader = pulsarClient.newReader()
@@ -289,14 +293,14 @@ Reader reader = pulsarClient.newReader()
 <p>The code sample above shows pointing the <code>Reader</code> object to a specific message (by ID), but you can also use <code>MessageId.earliest</code> to point to the earliest available message on the topic of <code>MessageId.latest</code> to point to the most recent available message.</p>
 <h2><a class="anchor" aria-hidden="true" id="schemas"></a><a href="#schemas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schemas</h2>
 <p>In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; <a href="/docs/ja/concepts-schema-registry">Message schemas</a> enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a <a href="#producers">producer</a> without specifying a schema, then the producer can only produce messages of type <code>byte[]</code>. Here's an example:</p>
-<pre><code class="hljs css languages- java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
         .topic(topic)
         .create();
 </code></pre>
 <p>The producer above is equivalent to a <code>Producer&lt;byte[]&gt;</code> (in fact, you should <em>always</em> explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a <strong>schema</strong> that informs Pulsar which data type will be transmitted over the <a href="/docs/ja/reference-terminology#topic">topic</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="schema-example"></a><a href="#schema-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema example</h3>
 <p>Let's say that you have a <code>SensorReading</code> class that you'd like to transmit over a Pulsar topic:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">SensorReading</span> </span>{
+<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">SensorReading</span> </span>{
     <span class="hljs-keyword">public</span> <span class="hljs-keyword">float</span> temperature;
 
     <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-title">SensorReading</span><span class="hljs-params">(<span class="hljs-keyword">float</span> temperature)</span> </span>{
@@ -317,29 +321,29 @@ Reader reader = pulsarClient.newReader()
 }
 </code></pre>
 <p>You could then create a <code>Producer&lt;SensorReading&gt;</code> (or <code>Consumer&lt;SensorReading&gt;</code>) like so:</p>
-<pre><code class="hljs css languages- java">Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(SensorReading.class))
+<pre><code class="hljs css language-java">Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(SensorReading.class))
         .topic(<span class="hljs-string">"sensor-readings"</span>)
         .create();
 </code></pre>
 <p>The following schema formats are currently available for Java:</p>
 <ul>
 <li><p>No schema or the byte array schema (which can be applied using <code>Schema.BYTES</code>):</p>
-<pre><code class="hljs css languages- java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; bytesProducer = client.newProducer(Schema.BYTES)
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; bytesProducer = client.newProducer(Schema.BYTES)
     .topic(<span class="hljs-string">"some-raw-bytes-topic"</span>)
     .create();
 </code></pre>
 <p>Or, equivalently:</p>
-<pre><code class="hljs css languages- java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; bytesProducer = client.newProducer()
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; bytesProducer = client.newProducer()
     .topic(<span class="hljs-string">"some-raw-bytes-topic"</span>)
     .create();
 </code></pre></li>
 <li><p><code>String</code> for normal UTF-8-encoded string data. This schema can be applied using <code>Schema.STRING</code>:</p>
-<pre><code class="hljs css languages- java">Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
+<pre><code class="hljs css language-java">Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
     .topic(<span class="hljs-string">"some-string-topic"</span>)
     .create();
 </code></pre></li>
 <li><p>JSON schemas can be created for POJOs using the <code>JSONSchema</code> class. Here's an example:</p>
-<pre><code class="hljs css languages- java">Schema&lt;MyPojo&gt; pojoSchema = JSONSchema.of(MyPojo.class);
+<pre><code class="hljs css language-java">Schema&lt;MyPojo&gt; pojoSchema = JSONSchema.of(MyPojo.class);
 Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(pojoSchema)
     .topic(<span class="hljs-string">"some-pojo-topic"</span>)
     .create();
@@ -350,7 +354,7 @@ Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(pojoSchema)
 <h3><a class="anchor" aria-hidden="true" id="tls-認証"></a><a href="#tls-認証" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS 認証</h3>
 <p>To use <a href="/docs/ja/security-tls-authentication">TLS</a>, you need to set TLS to <code>true</code> using the <code>setUseTls</code> method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.</p>
 <p>Here's an example configuration:</p>
-<pre><code class="hljs css languages- java">Map&lt;String, String&gt; authParams = <span class="hljs-keyword">new</span> HashMap&lt;&gt;();
+<pre><code class="hljs css language-java">Map&lt;String, String&gt; authParams = <span class="hljs-keyword">new</span> HashMap&lt;&gt;();
 authParams.put(<span class="hljs-string">"tlsCertFile"</span>, <span class="hljs-string">"/path/to/client-cert.pem"</span>);
 authParams.put(<span class="hljs-string">"tlsKeyFile"</span>, <span class="hljs-string">"/path/to/client-key.pem"</span>);
 
@@ -373,7 +377,7 @@ PulsarClient client = PulsarClient.builder()
 <li><code>privateKey</code></li>
 </ul>
 <p>You can also set an optional <code>keyId</code>. Here's an example configuration:</p>
-<pre><code class="hljs css languages- java">Map&lt;String, String&gt; authParams = <span class="hljs-keyword">new</span> HashMap&lt;&gt;();
+<pre><code class="hljs css language-java">Map&lt;String, String&gt; authParams = <span class="hljs-keyword">new</span> HashMap&lt;&gt;();
 authParams.put(<span class="hljs-string">"tenantDomain"</span>, <span class="hljs-string">"shopping"</span>); <span class="hljs-comment">// Tenant domain name</span>
 authParams.put(<span class="hljs-string">"tenantService"</span>, <span class="hljs-string">"some_app"</span>); <span class="hljs-comment">// Tenant service name</span>
 authParams.put(<span class="hljs-string">"providerDomain"</span>, <span class="hljs-string">"pulsar"</span>); <span class="hljs-comment">// Provider domain name</span>

@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/client-libraries" target="_self">Clients</a></li><li class=""><a href="/ja/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/io-managing">English</a></li><li><a href="/docs/fr/io-managing">Français</a></li><li><a href="/docs/zh-CN/io-managing">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/client-libraries" target="_self">Clients</a></li><li class=""><a href="/ja/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/io-managing">English</a></li><li><a href="/docs/fr/io-managing">Français</a></li><li><a href="/docs/zh-CN/io-managing">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -53,7 +57,7 @@
 <h2><a class="anchor" aria-hidden="true" id="configuring-connectors"></a><a href="#configuring-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring Connectors</h2>
 <p>Configuring Pulsar IO connectors is straightforward. What you need to do is to provide a yaml configuration file when your <a href="#running-connectors">run connectors</a>. The yaml configuration file basically tells Pulsar where to locate the sources and sinks and how to connect those sources and sinks with Pulsar topics.</p>
 <p>Below is an example yaml configuration file for Cassandra Sink:</p>
-<pre><code class="hljs css languages- shell">tenant: public
+<pre><code class="hljs css language-shell">tenant: public
 namespace: default
 name: cassandra-test-sink
 ...
@@ -71,16 +75,16 @@ configs:
 <p>Pulsar connectors can be managed using the <a href="/docs/ja/pulsar-admin#source"><code>source</code></a> and <a href="/docs/ja/pulsar-admin#sink"><code>sink</code></a> commands of the <a href="/docs/ja/pulsar-admin"><code>pulsar-admin</code></a> CLI tool.</p>
 <h3><a class="anchor" aria-hidden="true" id="running-sources"></a><a href="#running-sources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Running sources</h3>
 <p>You can submit a source to be run in an existing Pulsar cluster using a command of this form:</p>
-<pre><code class="hljs css languages- bash">$ ./bin/pulsar-admin <span class="hljs-built_in">source</span> create --className  &lt;classname&gt; --jar &lt;jar-location&gt; --tenant &lt;tenant&gt; --namespace &lt;namespace&gt; --name &lt;<span class="hljs-built_in">source</span>-name&gt; --destinationTopicName &lt;output-topic&gt;
+<pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">source</span> create --className  &lt;classname&gt; --jar &lt;jar-location&gt; --tenant &lt;tenant&gt; --namespace &lt;namespace&gt; --name &lt;<span class="hljs-built_in">source</span>-name&gt; --destinationTopicName &lt;output-topic&gt;
 </code></pre>
 <p>Here’s an example command:</p>
-<pre><code class="hljs css languages- bash">bin/pulsar-admin <span class="hljs-built_in">source</span> create --className org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name twitter-source --destinationTopicName twitter_data
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">source</span> create --className org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name twitter-source --destinationTopicName twitter_data
 </code></pre>
 <p>Instead of submitting a source to run on an existing Pulsar cluster, you alternatively can run a source as a process on your local machine:</p>
-<pre><code class="hljs css languages- bash">bin/pulsar-admin <span class="hljs-built_in">source</span> localrun --className  org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name twitter-source --destinationTopicName twitter_data
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">source</span> localrun --className  org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name twitter-source --destinationTopicName twitter_data
 </code></pre>
 <p>If you are submitting a built-in source, you don't need to specify <code>--className</code> and <code>--jar</code>. You can simply specify the source type <code>--source-type</code>. The command to submit a built-in source is in following form:</p>
-<pre><code class="hljs css languages- bash">./bin/pulsar-admin <span class="hljs-built_in">source</span> create \
+<pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">source</span> create \
     --tenant &lt;tenant&gt; \
     --namespace &lt;namespace&gt; \
     --name &lt;<span class="hljs-built_in">source</span>-name&gt; \
@@ -88,7 +92,7 @@ configs:
     --<span class="hljs-built_in">source</span>-type &lt;<span class="hljs-built_in">source</span>-type&gt;
 </code></pre>
 <p>Here's an example to submit a Kafka source:</p>
-<pre><code class="hljs css languages- bash">./bin/pulsar-admin <span class="hljs-built_in">source</span> create \
+<pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">source</span> create \
     --tenant <span class="hljs-built_in">test</span>-tenant \
     --namespace <span class="hljs-built_in">test</span>-namespace \
     --name <span class="hljs-built_in">test</span>-kafka-source \
@@ -97,16 +101,16 @@ configs:
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="running-sinks"></a><a href="#running-sinks" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Running Sinks</h3>
 <p>You can submit a sink to be run in an existing Pulsar cluster using a command of this form:</p>
-<pre><code class="hljs css languages- bash">./bin/pulsar-admin sink create --className  &lt;classname&gt; --jar &lt;jar-location&gt; --tenant <span class="hljs-built_in">test</span> --namespace &lt;namespace&gt; --name &lt;sink-name&gt; --inputs &lt;input-topics&gt;
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sink create --className  &lt;classname&gt; --jar &lt;jar-location&gt; --tenant <span class="hljs-built_in">test</span> --namespace &lt;namespace&gt; --name &lt;sink-name&gt; --inputs &lt;input-topics&gt;
 </code></pre>
 <p>Here’s an example command:</p>
-<pre><code class="hljs css languages- bash">./bin/pulsar-admin sink create --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name cassandra-sink --inputs test_topic
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sink create --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name cassandra-sink --inputs test_topic
 </code></pre>
 <p>Instead of submitting a sink to run on an existing Pulsar cluster, you alternatively can run a sink as a process on your local machine:</p>
-<pre><code class="hljs css languages- bash">./bin/pulsar-admin sink localrun --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name cassandra-sink --inputs test_topic
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sink localrun --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name cassandra-sink --inputs test_topic
 </code></pre>
 <p>If you are submitting a built-in sink, you don't need to specify <code>--className</code> and <code>--jar</code>. You can simply specify the sink type <code>--sink-type</code>. The command to submit a built-in sink is in following form:</p>
-<pre><code class="hljs css languages- bash">./bin/pulsar-admin sink create \
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sink create \
     --tenant &lt;tenant&gt; \
     --namespace &lt;namespace&gt; \
     --name &lt;sink-name&gt; \
@@ -114,7 +118,7 @@ configs:
     --sink-type &lt;sink-type&gt;
 </code></pre>
 <p>Here's an example to submit a Cassandra sink:</p>
-<pre><code class="hljs css languages- bash">./bin/pulsar-admin sink create \
+<pre><code class="hljs css language-bash">./bin/pulsar-admin sink create \
     --tenant <span class="hljs-built_in">test</span>-tenant \
     --namespace <span class="hljs-built_in">test</span>-namespace \
     --name <span class="hljs-built_in">test</span>-cassandra-sink \

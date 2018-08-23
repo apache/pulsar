@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/next/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/ja/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/functions-quickstart">English</a></li><li><a href="/docs/fr/next/functions-quickstart">Français</a></li><li><a href="/docs/zh-CN/next/functions-quickstart">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/next/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="/ja/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/functions-quickstart">English</a></li><li><a href="/docs/fr/next/functions-quickstart">Français</a></li><li><a href="/docs/zh-CN/next/functions-quickstart">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -34,6 +34,10 @@
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
 
+                if (!toggler) {
+                  return;
+                }
+
                 toggler.onclick = function(event) {
                   event.preventDefault();
 
@@ -49,7 +53,7 @@
 <p>In order to follow along with this tutorial, you'll need to have <a href="https://maven.apache.org/download.cgi">Maven</a> installed on your machine.</p>
 <h2><a class="anchor" aria-hidden="true" id="run-a-standalone-pulsar-cluster"></a><a href="#run-a-standalone-pulsar-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run a standalone Pulsar cluster</h2>
 <p>In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in <a href="/docs/ja/next/reference-terminology#standalone">standalone</a> mode. Follow these steps to start up a standalone cluster:</p>
-<pre><code class="hljs css languages- bash">$ wget https://archive.apache.org/dist/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-2.1.0-incubating-bin.tar.gz
+<pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/incubator/pulsar/pulsar-2.1.0-incubating/apache-pulsar-2.1.0-incubating-bin.tar.gz
 $ tar xvfz apache-pulsar-2.1.0-incubating-bin.tar.gz
 $ <span class="hljs-built_in">cd</span> apache-pulsar-2.1.0-incubating
 $ bin/pulsar standalone \
@@ -58,7 +62,7 @@ $ bin/pulsar standalone \
 <p>When running Pulsar in standalone mode, the <code>public</code> tenant and <code>default</code> namespace will be created automatically for you. That tenant and namespace will be used throughout this tutorial.</p>
 <h2><a class="anchor" aria-hidden="true" id="run-a-pulsar-function-in-local-run-mode"></a><a href="#run-a-pulsar-function-in-local-run-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run a Pulsar Function in local run mode</h2>
 <p>Let's start with a simple function that takes a string as input from a Pulsar topic, adds an exclamation point to the end of the string, and then publishes that new string to another Pulsar topic. Here's the code for the function:</p>
-<pre><code class="hljs css languages- java"><span class="hljs-keyword">package</span> org.apache.pulsar.functions.api.examples;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">package</span> org.apache.pulsar.functions.api.examples;
 
 <span class="hljs-keyword">import</span> java.util.function.Function;
 
@@ -70,7 +74,7 @@ $ bin/pulsar standalone \
 }
 </code></pre>
 <p>A JAR file containing this and several other functions (written in Java) is included with the binary distribution you downloaded above (in the <code>examples</code> folder). To run the function in local mode, i.e. on our laptop but outside our Pulsar cluster:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --jar examples/api-examples.jar \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
@@ -80,7 +84,7 @@ $ bin/pulsar standalone \
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="multiple-input-topics-allowed"></a><a href="#multiple-input-topics-allowed" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Multiple input topics allowed</h4>
 <p>In the example above, a single topic was specified using the <code>--inputs</code> flag. You can also specify multiple input topics as a comma-separated list using the same flag. Here's an example:</p>
-<pre><code class="hljs css languages- bash"></code></pre>
+<pre><code class="hljs css language-bash"></code></pre>
 </blockquote>
 <p>--inputs topic1,topic2</p>
 <pre><code class="hljs">
@@ -95,7 +99,7 @@ $ bin/pulsar-client consume persistent://public/default/exclamation-output \
 <p>Setting the <code>--num-messages</code> flag to 0 means that the consumer will listen on the topic indefinitely (rather than only accepting a certain number of messages).</p>
 </blockquote>
 <p>With a listener up and running, we can open up another shell and produce a message on the input topic that we specified:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-client produce persistent://public/default/exclamation-input \
+<pre><code class="hljs css language-bash">$ bin/pulsar-client produce persistent://public/default/exclamation-input \
   --num-produce 1 \
   --messages <span class="hljs-string">"Hello world"</span>
 </code></pre>
@@ -113,7 +117,7 @@ Hello world!
 <h2><a class="anchor" aria-hidden="true" id="run-a-pulsar-function-in-cluster-mode"></a><a href="#run-a-pulsar-function-in-cluster-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run a Pulsar Function in cluster mode</h2>
 <p><a href="#run-a-pulsar-function-in-local-run-mode">Local run mode</a> is useful for development and experimentation, but if you want to use Pulsar Functions in a real Pulsar deployment, you'll want to run them in <strong>cluster mode</strong>. In this mode, Pulsar Functions run <em>inside</em> your Pulsar cluster and are managed using the same <a href="/docs/ja/next/pulsar-admin#functions"><code>pulsar-admin functions</code></a> interface that we've been using thus far.</p>
 <p>This command, for example, would deploy the same exclamation function we ran locally above <em>in our Pulsar cluster</em> (rather than outside it):</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar examples/api-examples.jar \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
@@ -121,18 +125,18 @@ Hello world!
   --name exclamation
 </code></pre>
 <p>You should see <code>Created successfully</code> in the output. Now, let's see a list of functions running in our cluster:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> list \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> list \
   --tenant public \
   --namespace default
 </code></pre>
 <p>We should see just the <code>exclamation</code> function listed there. We can also check the status of our deployed function using the <code>getstatus</code> command:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> getstatus \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> getstatus \
   --tenant public \
   --namespace default \
   --name exclamation
 </code></pre>
 <p>You should see this JSON output:</p>
-<pre><code class="hljs css languages- json">{
+<pre><code class="hljs css language-json">{
   <span class="hljs-attr">"functionStatusList"</span>: [
     {
       <span class="hljs-attr">"running"</span>: <span class="hljs-literal">true</span>,
@@ -142,13 +146,13 @@ Hello world!
 }
 </code></pre>
 <p>As we can see, (a) the instance is currently running and (b) there is one instance, with an ID of 0, running. We can get other information about the function (topics, tenant, namespace, etc.) using the <code>get</code> command instead of <code>getstatus</code>:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> get \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> get \
   --tenant public \
   --namespace default \
   --name exclamation
 </code></pre>
 <p>You should see this JSON output:</p>
-<pre><code class="hljs css languages- json">{
+<pre><code class="hljs css language-json">{
   <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
   <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
   <span class="hljs-attr">"name"</span>: <span class="hljs-string">"exclamation"</span>,
@@ -162,7 +166,7 @@ Hello world!
 }
 </code></pre>
 <p>As we can see, the parallelism of the function is 1, meaning that only one instance of the function is running in our cluster. Let's update our function to a parallelism of 3 using the <code>update</code> command:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> update \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> update \
   --jar examples/api-examples.jar \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
@@ -173,7 +177,7 @@ Hello world!
   --parallelism 3
 </code></pre>
 <p>You should see <code>Updated successfully</code> in the output. If you run the <code>get</code> command from above for the function, you can see that the parallelism has increased to 3, meaning that there are now three instances of the function running in our cluster:</p>
-<pre><code class="hljs css languages- json">{
+<pre><code class="hljs css language-json">{
   <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
   <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
   <span class="hljs-attr">"name"</span>: <span class="hljs-string">"exclamation"</span>,
@@ -187,7 +191,7 @@ Hello world!
 }
 </code></pre>
 <p>Finally, we can shut down our running function using the <code>delete</code> command:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> delete \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> delete \
   --tenant public \
   --namespace default \
   --name exclamation
@@ -196,7 +200,7 @@ Hello world!
 <h2><a class="anchor" aria-hidden="true" id="writing-and-running-a-new-function"></a><a href="#writing-and-running-a-new-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Writing and running a new function</h2>
 <blockquote>
 <p>In order to write and run the <a href="/docs/ja/next/functions-api#functions-for-python">Python</a> function below, you'll need to install a few dependencies:</p>
-<pre><code class="hljs css languages- bash"></code></pre>
+<pre><code class="hljs css language-bash"></code></pre>
 </blockquote>
 <p>$ pip install pulsar-client</p>
 <pre><code class="hljs">
@@ -208,11 +212,11 @@ First, create a new Python <span class="hljs-built_in">file</span>:
 $ touch <span class="hljs-built_in">reverse</span>.py
 </code></pre>
 <p>In that file, add the following:</p>
-<pre><code class="hljs css languages- python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
+<pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> input[::<span class="hljs-number">-1</span>]
 </code></pre>
 <p>Here, the <code>process</code> method defines the processing logic of the Pulsar Function. It simply uses some Python slice magic to reverse each incoming string. Now, we can deploy the function using <code>create</code>:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py reverse.py \
   --className reverse \
   --inputs persistent://public/default/backwards \
@@ -222,7 +226,7 @@ $ touch <span class="hljs-built_in">reverse</span>.py
   --name reverse
 </code></pre>
 <p>If you see <code>Created successfully</code>, the function is ready to accept incoming messages. Because the function is running in cluster mode, we can <strong>trigger</strong> the function using the <a href="/docs/ja/next/pulsar-admin#trigger"><code>trigger</code></a> command. This command will send a message that we specify to the function and also give us the function's output. Here's an example:</p>
-<pre><code class="hljs css languages- bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
   --name reverse \
   --tenant public \
   --namespace default \

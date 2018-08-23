@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/io-develop">日本語</a></li><li><a href="/docs/fr/io-develop">Français</a></li><li><a href="/docs/zh-CN/io-develop">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/io-develop">日本語</a></li><li><a href="/docs/fr/io-develop">Français</a></li><li><a href="/docs/zh-CN/io-develop">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -33,6 +33,10 @@
               function createToggler(togglerSelector, targetSelector, className) {
                 var toggler = document.querySelector(togglerSelector);
                 var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
 
                 toggler.onclick = function(event) {
                   event.preventDefault();
@@ -65,7 +69,7 @@ connector can create the Kafka client in this <code>open</code> method.</p>
 <p>Beside the passed-in <code>config</code> object, the Pulsar runtime also provides a <code>SourceContext</code> for the
 connector to access runtime resources for tasks like collecting metrics. The implementation can
 save the <code>SourceContext</code> for futher usage.</p>
-<pre><code class="hljs css languages- java">    <span class="hljs-comment">/**
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
      * Open connector with configuration
      *
      * <span class="hljs-doctag">@param</span> config initialization config
@@ -77,7 +81,7 @@ save the <code>SourceContext</code> for futher usage.</p>
 <p>The main task for a Source implementor is to implement <a href="https://github.com/apache/incubator-pulsar/tree/master//master/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L41"><code>read</code></a>
 
 method.</p>
-<pre><code class="hljs css languages- java">    <span class="hljs-comment">/**
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
      * Reads the next message from source.
      * If source does not have any new messages, this call should block.
      * <span class="hljs-doctag">@return</span> next message from source.  The return result should never be null
@@ -115,7 +119,7 @@ implement <a href="https://github.com/apache/incubator-pulsar/tree/master//maste
  method to initialize all the necessary resources
 before implementing the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L44"><code>write</code></a>
  method.</p>
-<pre><code class="hljs css languages- java">    <span class="hljs-comment">/**
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
      * Open connector with configuration
      *
      * <span class="hljs-doctag">@param</span> config initialization config
@@ -126,7 +130,7 @@ before implementing the <a href="https://github.com/apache/incubator-pulsar/tree
 </code></pre>
 <p>The main task for a Sink implementor is to implement <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L44"><code>write</code></a>
  method.</p>
-<pre><code class="hljs css languages- java">    <span class="hljs-comment">/**
+<pre><code class="hljs css language-java">    <span class="hljs-comment">/**
      * Write a message to Sink
      * <span class="hljs-doctag">@param</span> inputRecordContext Context of input record from the source
      * <span class="hljs-doctag">@param</span> record record to write to sink
@@ -167,7 +171,7 @@ a bit of Java ClassLoader isolation. For more details, you can read this
 <a href="https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd">blog post</a> to understand
 how NAR works. Pulsar uses the same mechanism for packaging all the <a href="io-connectors">builtin connectors</a>.</p>
 <p>All what you need is to include this <a href="https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin">nifi-nar-maven-plugin</a> in your maven project for your connector. For example:</p>
-<pre><code class="hljs css languages- xml"><span class="hljs-tag">&lt;<span class="hljs-name">plugins</span>&gt;</span>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">plugins</span>&gt;</span>
   <span class="hljs-tag">&lt;<span class="hljs-name">plugin</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.nifi<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>nifi-nar-maven-plugin<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
@@ -181,7 +185,7 @@ how NAR works. Pulsar uses the same mechanism for packaging all the <a href="io-
 <p>An alternative approach is to create an <em>uber JAR</em> that contains all of the connector's JAR files
 and other resource files. No directory internal structure is necessary.</p>
 <p>You can use <a href="https://maven.apache.org/plugins/maven-shade-plugin/examples/includes-excludes.html">maven-shade-plugin</a> to create a Uber JAR. For example:</p>
-<pre><code class="hljs css languages- xml"><span class="hljs-tag">&lt;<span class="hljs-name">plugin</span>&gt;</span>
+<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">plugin</span>&gt;</span>
   <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.maven.plugins<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
   <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>maven-shade-plugin<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
   <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>3.1.1<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
