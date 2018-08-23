@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.util.Collection;
 import java.util.function.Supplier;
 
@@ -31,7 +29,6 @@ import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.worker.WorkerInfo;
 import org.apache.pulsar.functions.worker.WorkerService;
 
 import io.swagger.annotations.ApiOperation;
@@ -66,16 +63,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/cluster")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getCluster() {
-        try {
-            // log.info("SANJEEV CAME1");
-            BufferedWriter writer = new BufferedWriter(new FileWriter("/tmp/Bakwas"));
-            writer.write("SANJEEV CAME1");
-
-            writer.close();
-            return worker.getCluster();
-        } catch (Exception e) {
-            throw new RuntimeException("BAKWAS HAPPENED");
-        }
+        return worker.getCluster();
     }
 
     @GET
