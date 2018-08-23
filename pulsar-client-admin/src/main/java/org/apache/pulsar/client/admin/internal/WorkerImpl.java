@@ -53,7 +53,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public Metrics getFunctionsStats() throws PulsarAdminException {
         try {
-            Response response = request(workerStats.path("functions")).get();
+            Response response = request(workerStats.path("functionsmetrics")).get();
            if (!response.getStatusInfo().equals(Response.Status.OK)) {
                throw new ClientErrorException(response);
            }

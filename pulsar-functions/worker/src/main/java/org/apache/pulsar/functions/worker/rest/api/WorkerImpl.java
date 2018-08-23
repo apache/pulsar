@@ -20,53 +20,25 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
-import org.apache.commons.io.IOUtils;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.*;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics.InstanceMetrics;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders;
 import org.apache.pulsar.functions.worker.*;
-import org.apache.pulsar.functions.worker.request.RequestResult;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.Source;
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
 import java.io.*;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.commons.lang3.StringUtils.*;
-import static org.apache.pulsar.functions.utils.Reflections.createInstance;
-import static org.apache.pulsar.functions.utils.Utils.*;
-import static org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders.create;
 
 @Slf4j
 public class WorkerImpl {
@@ -165,5 +137,63 @@ public class WorkerImpl {
                             .entity(new ErrorData("Function worker service is not avaialable")).build());
         }
         return worker().getMetricsGenerator().generate();
+    }
+
+    public Response getFunctionsMetrics(String clientRole) throws IOException {
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
+            log.error("Client [{}] is not admin and authorized to get function-stats", clientRole);
+            return Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("client is not authorize to perform operation")).build();
+        }
+        return getFunctionsMetrics();
+    }
+
+    private Response getFunctionsMetrics() throws IOException {
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        WorkerService workerService = worker();
+        Map<String, FunctionRuntimeInfo> functionRuntimes = workerService.getFunctionRuntimeManager()
+                .getFunctionRuntimeInfos();
+
+        Metrics.Builder metricsBuilder = Metrics.newBuilder();
+        for (Map.Entry<String, FunctionRuntimeInfo> entry : functionRuntimes.entrySet()) {
+            String fullyQualifiedInstanceName = entry.getKey();
+            FunctionRuntimeInfo functionRuntimeInfo = entry.getValue();
+            RuntimeSpawner functionRuntimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
+
+            if (functionRuntimeSpawner != null) {
+                Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
+                if (functionRuntime != null) {
+                    try {
+                        InstanceCommunication.MetricsData metricsData = workerService.getWorkerConfig()
+                                .getMetricsSamplingPeriodSec() > 0 ? functionRuntime.getMetrics().get()
+                                : functionRuntime.getAndResetMetrics().get();
+
+                        String tenant = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
+                                .getFunctionDetails().getTenant();
+                        String namespace = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
+                                .getFunctionDetails().getNamespace();
+                        String name = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
+                                .getFunctionDetails().getName();
+                        int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
+                        String qualifiedFunctionName = String.format("%s/%s/%s", tenant, namespace, name);
+
+                        InstanceMetrics.Builder instanceBuilder = InstanceMetrics.newBuilder();
+                        instanceBuilder.setName(qualifiedFunctionName);
+                        instanceBuilder.setInstanceId(instanceId);
+                        if (metricsData != null) {
+                            instanceBuilder.setMetricsData(metricsData);
+                        }
+                        metricsBuilder.addMetrics(instanceBuilder.build());
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.warn("Failed to collect metrics for function instance {}", fullyQualifiedInstanceName, e);
+                    }
+                }
+            }
+        }
+        String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(metricsBuilder);
+        return Response.status(Status.OK).entity(jsonResponse).build();
     }
 }
