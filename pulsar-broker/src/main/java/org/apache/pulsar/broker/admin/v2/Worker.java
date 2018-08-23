@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.function.Supplier;
 
@@ -29,6 +30,7 @@ import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 import org.apache.pulsar.functions.worker.WorkerService;
 
 import io.swagger.annotations.ApiOperation;
@@ -99,5 +101,14 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @ApiResponses(value = { @ApiResponse(code = 401, message = "Don't have admin permission") })
     public Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws Exception {
         return worker.getWorkerMetrcis(clientAppId());
+    }
+
+    @GET
+    @Path("/functionsmetrics")
+    @ApiOperation(value = "Get metrics for all functions owned by worker", notes = "Requested should be executed by Monitoring agent on each worker to fetch the metrics", response = Metrics.class)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 503, message = "Worker service is not running") })
+    public Response getStats() throws IOException {
+        return worker.getFunctionsMetrics(clientAppId());
     }
 }
