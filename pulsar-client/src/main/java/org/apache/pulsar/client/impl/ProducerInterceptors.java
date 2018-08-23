@@ -60,7 +60,7 @@ public class ProducerInterceptors<T> implements Closeable {
         Message<T> interceptorMessage = message;
         for (ProducerInterceptor<T> interceptor : this.interceptors) {
             try {
-                interceptorMessage = interceptor.beforeSend(interceptorMessage);
+                interceptorMessage = interceptor.beforeSend(message);
             } catch (Exception e) {
                 if (message != null) {
                     log.warn("Error executing interceptor beforeSend callback for messageId: {}", message.getMessageId(), e);
@@ -80,7 +80,7 @@ public class ProducerInterceptors<T> implements Closeable {
      *
      * This method does not throw exceptions. Exceptions thrown by any of interceptor methods are caught and ignored.
      *
-     * @param message The message returned from the last interceptor is returned from {@link ProducerInterceptor#beforeSend(Message)}
+     * @param message The message for producer that was send.
      * @param msgId The message id that broker returned. Null if has error occurred.
      * @param cause The exception thrown during processing of this message. Null if no error occurred.
      */
