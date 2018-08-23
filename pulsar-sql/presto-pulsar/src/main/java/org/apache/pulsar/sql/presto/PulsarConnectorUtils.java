@@ -19,6 +19,7 @@
 package org.apache.pulsar.sql.presto;
 
 import org.apache.avro.Schema;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -34,7 +35,8 @@ public class PulsarConnectorUtils {
         try {
             return pulsarAdmin.topics().getPartitionedTopicMetadata(topicName.toString()).partitions > 0;
         } catch (PulsarAdminException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to determine if topic " + topicName + " is partitioned: "
+                    + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
     }
 }
