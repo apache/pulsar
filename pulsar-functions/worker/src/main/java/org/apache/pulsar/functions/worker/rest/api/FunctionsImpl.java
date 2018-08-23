@@ -27,18 +27,13 @@ import static org.apache.pulsar.functions.utils.functioncache.FunctionClassLoade
 
 import com.google.gson.Gson;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Base64;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -86,9 +81,7 @@ import org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.Utils;
-import org.apache.pulsar.functions.worker.WorkerInfo;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.io.core.Sink;
@@ -582,48 +575,6 @@ public class FunctionsImpl {
         return this.worker().getConnectorsManager().getConnectors();
     }
 
-    public List<WorkerInfo> getCluster() {
-        if (!isWorkerServiceAvailable()) {
-            throw new WebApplicationException(
-                    Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
-                            .entity(new ErrorData("Function worker service is not avaialable")).build());
-        }
-        return worker().getMembershipManager().getCurrentMembership();
-    }
-
-    public WorkerInfo getClusterLeader() {
-        if (!isWorkerServiceAvailable()) {
-            throw new WebApplicationException(
-                    Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
-                            .entity(new ErrorData("Function worker service is not avaialable")).build());
-        }
-
-        MembershipManager membershipManager = worker().getMembershipManager();
-        WorkerInfo leader = membershipManager.getLeader();
-
-        if (leader == null) {
-            throw new WebApplicationException(Response.status(Status.INTERNAL_SERVER_ERROR)
-                    .type(MediaType.APPLICATION_JSON).entity(new ErrorData("Leader cannot be determined")).build());
-        }
-
-        return leader;
-    }
-
-    public Response getAssignments() {
-
-        if (!isWorkerServiceAvailable()) {
-            return getUnavailableResponse();
-        }
-
-        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
-        Map<String, Map<String, Function.Assignment>> assignments = functionRuntimeManager.getCurrentAssignments();
-        Map<String, Collection<String>> ret = new HashMap<>();
-        for (Map.Entry<String, Map<String, Function.Assignment>> entry : assignments.entrySet()) {
-            ret.put(entry.getKey(), entry.getValue().keySet());
-        }
-        return Response.status(Status.OK).entity(new Gson().toJson(ret)).build();
-    }
-
     public Response triggerFunction(final String tenant, final String namespace, final String functionName,
             final String input, final InputStream uploadedInputStream, final String topic) {
 
@@ -1066,24 +1017,6 @@ public class FunctionsImpl {
 
     public boolean isSuperUser(String clientRole) {
         return clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
-    }
-
-    public List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrcis(String clientRole) throws IOException {
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            log.error("Client [{}] is not admin and authorized to get function-stats", clientRole);
-            throw new WebApplicationException(Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(clientRole + " is not authorize to get metrics")).build());
-        }
-        return getWorkerMetrcis();
-    }
-
-    private List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrcis() {
-        if (!isWorkerServiceAvailable()) {
-            throw new WebApplicationException(
-                    Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
-                            .entity(new ErrorData("Function worker service is not avaialable")).build());
-        }
-        return worker().getMetricsGenerator().generate();
     }
 
     public Response getFunctionsMetrcis(String clientRole) throws IOException {
