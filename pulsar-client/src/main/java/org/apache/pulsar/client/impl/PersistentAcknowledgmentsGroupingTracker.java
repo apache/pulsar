@@ -164,6 +164,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             ByteBuf cmd = Commands.newAck(consumer.consumerId, lastCumulativeAck.ledgerId, lastCumulativeAck.entryId,
                     AckType.Cumulative, null, Collections.emptyMap());
             cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+            lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
+            return;
         }
 
         // Flush all individual acks
