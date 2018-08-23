@@ -30,6 +30,7 @@ DEFAULT_PROXY_CONF=$PULSAR_HOME/conf/proxy.conf
 DEFAULT_STANDALONE_CONF=$PULSAR_HOME/conf/standalone.conf
 DEFAULT_WEBSOCKET_CONF=$PULSAR_HOME/conf/websocket.conf
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
+DEFAULT_PULSAR_PRESTO_CONF=${PULSAR_HOME}/conf/presto
 
 # functions related variables
 FUNCTIONS_HOME=$PULSAR_HOME/pulsar-functions
@@ -40,7 +41,6 @@ DEFAULT_PY_INSTANCE_FILE=$PULSAR_HOME/instances/python-instance/python_instance_
 PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
 SQL_HOME=$PULSAR_HOME/pulsar-sql
 PRESTO_HOME=${PULSAR_HOME}/lib/presto
-PRESTO_CONFIG=${PRESTO_HOME}/etc
 
 
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
@@ -115,11 +115,6 @@ if [ ! -d "${PRESTO_HOME}" ]; then
     PRESTO_HOME=${BUILT_PRESTO_HOME}
 fi
 
-# set pulsar sql presto distribution config location
-if [ ! -d "${PRESTO_CONFIG}" ]; then
-    PRESTO_CONFIG="${SQL_HOME}/presto-server/src/resources/etc"
-fi
-
 pulsar_help() {
     cat <<EOF
 Usage: pulsar <command>
@@ -156,6 +151,7 @@ Environment variables:
    PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
    PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
    PULSAR_STANDALONE_CONF        Configuration file for standalone (default: $DEFAULT_STANDALONE_CONF)
+   PULSAR_PRESTO_CONF            Configuration directory for Pulsar Presto (default: $DEFAULT_PULSAR_PRESTO_CONF)
    PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
    PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
    PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
@@ -243,6 +239,10 @@ if [ -z "$PULSAR_LOG_CONF" ]; then
     PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
 fi
 
+if [ -z "$PULSAR_PRESTO_CONF" ]; then
+    PULSAR_PRESTO_CONF=$DEFAULT_PULSAR_PRESTO_CONF
+fi
+
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
@@ -321,7 +321,7 @@ elif [ $COMMAND == "compact-topic" ]; then
 elif [ $COMMAND == "sql-cli" ]; then
     exec $JAVA -cp "${PRESTO_HOME}/lib/*" com.facebook.presto.cli.Presto --server localhost:8081 $@
 elif [ $COMMAND == "sql-worker" ]; then
-    exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PRESTO_CONFIG} run $@
+    exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} run $@
 elif [ $COMMAND == "help" ]; then
     pulsar_help;
 else
