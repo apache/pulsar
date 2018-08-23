@@ -18,34 +18,9 @@
  */
 package org.apache.pulsar.io.hdfs;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.security.UserGroupInformation;
-
 /**
- * A wrapper class for HDFS resources.
+ * An enumeration of compression codecs available for HDFS.
  */
-public class HdfsResources {
-
-    private final Configuration configuration;
-    private final FileSystem fileSystem;
-    private final UserGroupInformation userGroupInformation;
-
-    public HdfsResources(Configuration config, FileSystem fs, UserGroupInformation ugi) {
-        this.configuration = config;
-        this.fileSystem = fs;
-        this.userGroupInformation = ugi;
-    }
-
-    public Configuration getConfiguration() {
-        return configuration;
-    }
-
-    public FileSystem getFileSystem() {
-        return fileSystem;
-    }
-
-    public UserGroupInformation getUserGroupInformation() {
-        return userGroupInformation;
-    }
+public enum Compression {
+    BZIP2, DEFLATE, GZIP, LZ4, SNAPPY
 }

@@ -18,16 +18,13 @@
  */
 package org.apache.pulsar.io.hdfs.sink;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
-
-import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.io.hdfs.AbstractHdfsConfig;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -36,109 +33,76 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.io.hdfs.AbstractHdfsConfig;
+
+/**
+ * Configuration object for all HDFS Sink components.
+ */
 @Data
 @Setter
 @Getter
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = false)
 @ToString
 @Accessors(chain = true)
 public class HdfsSinkConfig extends AbstractHdfsConfig implements Serializable {
 
-	private static final long serialVersionUID = 1L;
-	
-	/**
-	 * The prefix of the files to create inside the HDFS directory, i.e. a value of "topicA"
-	 * will result in files named topicA-, topicA-, etc being produced
-	 */
-	protected String filenamePrefix;
-	
-	/**
-	 * The extension to add to the files written to HDFS, e.g. '.txt', '.seq', etc.
-	 */
-	protected String fileExtension;
-	
-	/**
-	 * The character to use to separate records in a text file, if no value is provided
-	 * then the content from all of the records will be concatenated together in one continuous
-	 * byte array.
-	 */
-	protected char separator;
-	
-	/**
-	 * The interval (in milliseconds) between calls to flush data to HDFS disk
-	 */
-	protected long syncInterval;
-	
-	/**
-	 * The maximum number of records that we hold in memory before acking. Default is Integer.MAX_VALUE.
-	 * Setting this value to one, results in every record being sent to disk before the record is acked,
-	 * while setting it to a higher values allows us to buffer records before flushing them all to disk.
-	 */
-	protected int maxPendingRecords = Integer.MAX_VALUE;
-	
-	public static HdfsSinkConfig load(String yamlFile) throws IOException {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), HdfsSinkConfig.class);
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * The prefix of the files to create inside the HDFS directory, i.e. a value of "topicA"
+     * will result in files named topicA-, topicA-, etc being produced
+     */
+    private String filenamePrefix;
+
+    /**
+     * The extension to add to the files written to HDFS, e.g. '.txt', '.seq', etc.
+     */
+    private String fileExtension;
+
+    /**
+     * The character to use to separate records in a text file. If no value is provided
+     * then the content from all of the records will be concatenated together in one continuous
+     * byte array.
+     */
+    private char separator;
+
+    /**
+     * The interval (in milliseconds) between calls to flush data to HDFS disk.
+     */
+    private long syncInterval;
+
+    /**
+     * The maximum number of records that we hold in memory before acking. Default is Integer.MAX_VALUE.
+     * Setting this value to one, results in every record being sent to disk before the record is acked,
+     * while setting it to a higher values allows us to buffer records before flushing them all to disk.
+     */
+    private int maxPendingRecords = Integer.MAX_VALUE;
+
+    public static HdfsSinkConfig load(String yamlFile) throws IOException {
+       ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+       return mapper.readValue(new File(yamlFile), HdfsSinkConfig.class);
     }
 
-	public static HdfsSinkConfig load(Map<String, Object> map) throws IOException {
-		ObjectMapper mapper = new ObjectMapper();
-		return mapper.readValue(new ObjectMapper().writeValueAsString(map), HdfsSinkConfig.class);
-	}
-	
-	@Override
-	public void validate() {
-		super.validate();
-		if (StringUtils.isEmpty(filenamePrefix) || StringUtils.isEmpty(fileExtension)) {
-			throw new IllegalArgumentException("Required property not set.");
-		}
-		
-		if (syncInterval < 0) {
-			throw new IllegalArgumentException("Sync Interval cannot be negative");
-		}
-		
-		if (maxPendingRecords < 1) {
-			throw new IllegalArgumentException("Max Pending Records must be a positive integer");
-		}
-	}
-	
-	public String getFilenamePrefix() {
-		return filenamePrefix;
-	}
+    public static HdfsSinkConfig load(Map<String, Object> map) throws IOException {
+       ObjectMapper mapper = new ObjectMapper();
+       return mapper.readValue(new ObjectMapper().writeValueAsString(map), HdfsSinkConfig.class);
+    }
 
-	public void setFilenamePrefix(String filenamePrefix) {
-		this.filenamePrefix = filenamePrefix;
-	}
+    @Override
+    public void validate() {
+        super.validate();
+        if ((StringUtils.isEmpty(fileExtension) && getCompression() == null)
+            || StringUtils.isEmpty(filenamePrefix)) {
+           throw new IllegalArgumentException("Required property not set.");
+        }
 
-	public char getSeparator() {
-		return separator;
-	}
+        if (syncInterval < 0) {
+          throw new IllegalArgumentException("Sync Interval cannot be negative");
+        }
 
-	public void setSeparator(char separator) {
-		this.separator = separator;
-	}
-
-	public String getFileExtension() {
-		return fileExtension;
-	}
-
-	public void setFileExtension(String fileExtension) {
-		this.fileExtension = fileExtension;
-	}
-
-	public long getSyncInterval() {
-		return syncInterval;
-	}
-
-	public void setSyncInterval(long syncInterval) {
-		this.syncInterval = syncInterval;
-	}
-
-	public int getMaxPendingRecords() {
-		return maxPendingRecords;
-	}
-
-	public void setMaxPendingRecords(int maxPendingRecords) {
-		this.maxPendingRecords = maxPendingRecords;
-	}
+        if (maxPendingRecords < 1) {
+          throw new IllegalArgumentException("Max Pending Records must be a positive integer");
+        }
+    }
 }

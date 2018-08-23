@@ -16,19 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.hdfs.sink.text;
-
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
-import org.apache.pulsar.io.core.Sink;
-
-/**
- * A Simple Sink class for Hdfs Text File.
- */
-public class HdfsStringSink extends HdfsAbstractTextFileSink<String, String> implements Sink<String> {
-    @Override
-    public KeyValue<String, String> extractKeyValue(Record<String> record) {
-       String key = record.getKey().orElseGet(() -> new String(record.getValue()));
-       return new KeyValue<>(key, new String(record.getValue()));
-    }
-}
+package org.apache.pulsar.io.hdfs;

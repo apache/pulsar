@@ -1,127 +1,103 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.io.hdfs.sink.text;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import org.apache.pulsar.io.hdfs.sink.AbstractHdfsSinkTest;
+import org.testng.annotations.Test;
 
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.SinkContext;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-public class HdfsStringSinkTests {
-
-	@Mock
-	private SinkContext mockSinkContext;
+public class HdfsStringSinkTests extends AbstractHdfsSinkTest<String, String> {
 	
-	@Mock
-	private Record<String> mockRecord;
-	
-	private Map<String, Object> map;
-	private HdfsAbstractTextFileSink<String, String> sink;
-	
-	@SuppressWarnings("unchecked")
-	@Before
-	public final void setUp() throws Exception {
-		map = new HashMap<String, Object> ();
-		map.put("hdfsConfigResources", "../pulsar-io/hdfs/src/test/resources/hadoop/core-site.xml,"
-				+ "../pulsar-io/hdfs/src/test/resources/hadoop/hdfs-site.xml");
-		map.put("directory", "/tmp/testing");
-		map.put("filenamePrefix", "prefix");
+    @Override
+    protected void createSink() {
+        sink = new HdfsStringSink();
+    }
+    
+    @Test(enabled = false)
+	public final void write5000Test() throws Exception {
+		map.put("filenamePrefix", "write5000Test");
 		map.put("fileExtension", ".txt");
 		map.put("separator", '\n');
-		
-		sink = new HdfsStringSink();
-		mockSinkContext = mock(SinkContext.class);
-		
-		mockRecord = mock(Record.class);
-		when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
-          public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
-             return Optional.of("");
-          }});
-		
-		when(mockRecord.getValue()).thenAnswer(new Answer<String>() {
-	          public String answer(InvocationOnMock invocation) throws Throwable {
-	             return new String(UUID.randomUUID().toString());
-	          }});
-		
-	}
-	
-	@After
-	public final void tearDown() throws Exception {
-		sink.close();
-	}
-	
-	@Test
-	@Ignore
-	public final void write5000Test() throws Exception {
 		sink.open(map, mockSinkContext);
 		send(5000);
+		sink.close();
 		verify(mockRecord, times(5000)).ack();
 	}
 	
-	@Test
-	@Ignore
-	public final void FiveByTwoThousandTest() throws Exception {
+    @Test(enabled = false)
+	public final void fiveByTwoThousandTest() throws Exception {
+		map.put("filenamePrefix", "fiveByTwoThousandTest");
+		map.put("fileExtension", ".txt");
+		map.put("separator", '\n');
 		sink.open(map, mockSinkContext);
 		
 		for (int idx = 1; idx < 6; idx++) {
 			send(2000);
-			verify(mockRecord, times(2000 * idx)).ack();
 		}
+		sink.close();
+		verify(mockRecord, times(2000 * 5)).ack();
 	}
 	
-	@Test
-	@Ignore
-	public final void TenSecondTest() throws Exception {
+    @Test(enabled = false)
+	public final void tenSecondTest() throws Exception {
+		map.put("filenamePrefix", "tenSecondTest");
+		map.put("fileExtension", ".txt");
+		map.put("separator", '\n');
 		sink.open(map, mockSinkContext);
 		runFor(10);	
+		sink.close();
 	}
 	
-	@Test
-	@Ignore
+    @Test(enabled = false)
 	public final void maxPendingRecordsTest() throws Exception {
+		map.put("filenamePrefix", "maxPendingRecordsTest");
+		map.put("fileExtension", ".txt");
+		map.put("separator", '\n');
 		map.put("maxPendingRecords", 500);
 		sink.open(map, mockSinkContext);
 		runFor(10);	
+		sink.close();
 	}
 	
-	private final void send(int numRecords) {
-		for (int idx = 0; idx < numRecords; idx++) {
-			sink.write(mockRecord);
-		}
+    @Test(enabled = false)
+	public final void bzip2CompressionTest() throws Exception {
+		map.put("filenamePrefix", "bzip2CompressionTest");
+		map.put("compression", "BZIP2");
+		map.remove("fileExtension");
+		map.put("separator", '\n');
+		sink.open(map, mockSinkContext);
+		send(5000);
+		sink.close();
+		verify(mockRecord, times(5000)).ack();
 	}
 	
-	private final void runFor(int numSeconds) throws InterruptedException {
-		Producer producer = new Producer();
-		producer.start();
-		Thread.sleep(numSeconds * 1000); // Run for N seconds
-		producer.halt();
-		producer.join(2000);
-	}
-	
-	private final class Producer extends Thread {
-		public boolean keepRunning = true;
-        @Override
-        public void run() {
-        	while (keepRunning)
-               sink.write(mockRecord);
-        }
-        
-        public void halt() { 
-        	keepRunning = false; 
-        }
-        
+    @Test(enabled = false)
+	public final void deflateCompressionTest() throws Exception {
+		map.put("filenamePrefix", "deflateCompressionTest");
+		map.put("compression", "DEFLATE");
+		map.put("fileExtension", ".deflate");
+		map.put("separator", '\n');
+		sink.open(map, mockSinkContext);
+		send(50000);
+		sink.close();
+		verify(mockRecord, times(50000)).ack();
 	}
 }

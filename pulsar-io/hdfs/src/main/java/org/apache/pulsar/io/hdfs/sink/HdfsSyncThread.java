@@ -25,55 +25,56 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.fs.Syncable;
 import org.apache.pulsar.functions.api.Record;
 
+/**
+ * A thread that runs in the background and acknowledges Records
+ * after they have been written to disk.
+ *
+ * @param <V>
+ */
 public class HdfsSyncThread<V> extends Thread {
-	
-	long ackCount;
-	private final Syncable stream;
-	private final BlockingQueue<Record<V>> unackedRecords;
-	private final long syncInterval;
-	private boolean keepRunning = true;
-	
-	public HdfsSyncThread(Syncable stream, BlockingQueue<Record<V>> unackedRecords, long syncInterval) {
-		this.stream = stream;
-		this.unackedRecords = unackedRecords;
-		this.syncInterval = syncInterval;
-	}
 
-	@Override
-	public void run() {		
-		while (keepRunning) {
-			try {		
-				Thread.sleep(syncInterval);
-				ackRecords();		
-			} catch (InterruptedException e) {
-				return;
-			} catch (IOException e) {
-				e.printStackTrace();
-			} 		
-		}
-		
-	}
-	
-	public void halt() throws IOException, InterruptedException {
-		keepRunning = false;
-		ackRecords();
-		System.out.println("Acked " + ackCount + " records");
-	}
-	
-	private void ackRecords() throws IOException, InterruptedException {
-		
-		if (CollectionUtils.isEmpty(unackedRecords)) {
-			return;
-		}
-		
-		synchronized (stream) {
-			stream.hsync();
-		}
-		
-		while (!unackedRecords.isEmpty()) {
-			unackedRecords.take().ack();
-			ackCount++;
-		}
-	}
+    private final Syncable stream;
+    private final BlockingQueue<Record<V>> unackedRecords;
+    private final long syncInterval;
+    private boolean keepRunning = true;
 
+    public HdfsSyncThread(Syncable stream, BlockingQueue<Record<V>> unackedRecords, long syncInterval) {
+      this.stream = stream;
+      this.unackedRecords = unackedRecords;
+      this.syncInterval = syncInterval;
+    }
+
+    @Override
+    public void run() {
+       while (keepRunning) {
+         try {
+            Thread.sleep(syncInterval);
+            ackRecords();
+         } catch (InterruptedException e) {
+            return;
+         } catch (IOException e) {
+            e.printStackTrace();
+         }
+       }
+    }
+
+    public final void halt() throws IOException, InterruptedException {
+       keepRunning = false;
+       ackRecords();
+    }
+
+    private void ackRecords() throws IOException, InterruptedException {
+
+        if (CollectionUtils.isEmpty(unackedRecords)) {
+           return;
+        }
+
+        synchronized (stream) {
+          stream.hsync();
+        }
+
+        while (!unackedRecords.isEmpty()) {
+          unackedRecords.take().ack();
+        }
+    }
 }

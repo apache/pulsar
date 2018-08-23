@@ -19,54 +19,53 @@
 package org.apache.pulsar.io.hdfs.sink.seq;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.SequenceFile.Writer;
+import org.apache.hadoop.io.SequenceFile.Writer.Option;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 
 /**
  * This Sink should be used when the records are originating from a sequential source,
- * and we want to retain the record sequence. 
- * 
- * This class uses the record's sequence id, as the sequence id in the HDFS Sequence File if
- * it is available, if not a sequence id is auto-generated for each new record.
- * 
+ * and we want to retain the record sequence.This class uses the record's sequence id as
+ * the sequence id in the HDFS Sequence File if it is available, if not a sequence id is
+ * auto-generated for each new record.
  */
 public class HdfsSequentialTextSink extends HdfsAbstractSequenceFileSink<Long, String, LongWritable, Text> {
-	
-	private AtomicLong counter;
 
-	@Override
-	public Writer getWriter() throws IOException {
-		// Reset the counter
-		counter = new AtomicLong(0);
-	
-		CompressionCodec codec = hdfsSinkConfig.getCompressionCodec() != null ? 
-				hdfsSinkConfig.getCompressionCodec() : new DefaultCodec();
-		
-		return SequenceFile.createWriter(getConfiguration(), 
-				                         Writer.appendIfExists(true),
-				                         Writer.keyClass(LongWritable.class),
-				                         Writer.valueClass(Text.class),
-				                         Writer.compression(SequenceFile.CompressionType.BLOCK, codec),
-				                         Writer.file(getPath()));
-	}
-	
-	@Override
-	public KeyValue<Long, String> extractKeyValue(Record<String> record) {
-		Long sequence = record.getRecordSequence().orElseGet(() -> new Long(counter.incrementAndGet()));
-        return new KeyValue<>(sequence, new String(record.getValue()));
-	}
-	
-	@Override
-	public KeyValue<LongWritable, Text> convert(KeyValue<Long, String> kv) {
-		return new KeyValue<>(new LongWritable(kv.getKey()), new Text(kv.getValue()));
-	}
+    private AtomicLong counter;
 
+    @Override
+    public Writer getWriter() throws IOException {
+       counter = new AtomicLong(0);
+
+       return SequenceFile
+                .createWriter(
+                   getConfiguration(),
+                   getOptions().toArray(new Option[getOptions().size()]));
+    }
+
+    @Override
+    protected List<Option> getOptions() throws IllegalArgumentException, IOException {
+        List<Option> opts = super.getOptions();
+        opts.add(Writer.keyClass(LongWritable.class));
+        opts.add(Writer.valueClass(Text.class));
+        return opts;
+    }
+
+    @Override
+    public KeyValue<Long, String> extractKeyValue(Record<String> record) {
+       Long sequence = record.getRecordSequence().orElseGet(() -> new Long(counter.incrementAndGet()));
+       return new KeyValue<>(sequence, new String(record.getValue()));
+    }
+
+    @Override
+    public KeyValue<LongWritable, Text> convert(KeyValue<Long, String> kv) {
+       return new KeyValue<>(new LongWritable(kv.getKey()), new Text(kv.getValue()));
+    }
 }

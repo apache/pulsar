@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.io.hdfs;
 
+import java.io.IOException;
+
 import org.apache.commons.lang3.Validate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
-
-import java.io.IOException;
 
 /**
  * Provides synchronized access to UserGroupInformation to avoid multiple processors/services from
@@ -33,9 +33,9 @@ public class SecurityUtil {
     public static final String KERBEROS = "kerberos";
 
     /**
-     * Initializes UserGroupInformation with the given Configuration and performs the login for the given principal
-     * and keytab. All logins should happen through this class to ensure other threads are not concurrently modifying
-     * UserGroupInformation.
+     *  Initializes UserGroupInformation with the given Configuration and performs the login for the
+     *  given principal and keytab. All logins should happen through this class to ensure other threads
+     *  are not concurrently modifying UserGroupInformation.
      * <p/>
      * @param config the configuration instance
      * @param principal the principal to authenticate as
@@ -45,8 +45,8 @@ public class SecurityUtil {
      *
      * @throws IOException if login failed
      */
-    public static synchronized UserGroupInformation loginKerberos(final Configuration config, final String principal, final String keyTab)
-            throws IOException {
+    public static synchronized UserGroupInformation loginKerberos(final Configuration config,
+            final String principal, final String keyTab) throws IOException {
         Validate.notNull(config);
         Validate.notNull(principal);
         Validate.notNull(keyTab);
@@ -57,9 +57,10 @@ public class SecurityUtil {
     }
 
     /**
-     * Initializes UserGroupInformation with the given Configuration and returns UserGroupInformation.getLoginUser().
-     * All logins should happen through this class to ensure other threads are not concurrently modifying
-     * UserGroupInformation.
+     * Initializes UserGroupInformation with the given Configuration and
+     * returns UserGroupInformation.getLoginUser(). All logins should happen
+     * through this class to ensure other threads are not concurrently
+     * modifying UserGroupInformation.
      *
      * @param config the configuration instance
      *
@@ -74,8 +75,8 @@ public class SecurityUtil {
     }
 
     /**
-     * Initializes UserGroupInformation with the given Configuration and returns UserGroupInformation.isSecurityEnabled().
-     *
+     * Initializes UserGroupInformation with the given Configuration and returns
+     * UserGroupInformation.isSecurityEnabled().
      * All checks for isSecurityEnabled() should happen through this method.
      *
      * @param config the given configuration

@@ -18,23 +18,22 @@
  */
 package org.apache.pulsar.io.hdfs.sink;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertEquals;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.apache.pulsar.io.hdfs.Compression;
+import org.testng.annotations.Test;
+
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+
 
 public class HdfsSinkConfigTests {
 	
-	@Rule
-    public ExpectedException thrown = ExpectedException.none();
-
 	@Test
 	public final void loadFromYamlFileTest() throws IOException {
 		File yamlFile = getFile("sinkConfig.yaml");
@@ -43,7 +42,7 @@ public class HdfsSinkConfigTests {
 		assertEquals("core-site.xml", config.getHdfsConfigResources());
 		assertEquals("/foo/bar", config.getDirectory());
 		assertEquals("prefix", config.getFilenamePrefix());
-		assertEquals("snappy", config.getCompression());
+		assertEquals(Compression.SNAPPY, config.getCompression());
 	}
 	
 	@Test
@@ -52,14 +51,14 @@ public class HdfsSinkConfigTests {
 		map.put("hdfsConfigResources", "core-site.xml");
 		map.put("directory", "/foo/bar");
 		map.put("filenamePrefix", "prefix");
-		map.put("compression", "snappy");
+		map.put("compression", "SNAPPY");
 		
 		HdfsSinkConfig config = HdfsSinkConfig.load(map);
 		assertNotNull(config);
 		assertEquals("core-site.xml", config.getHdfsConfigResources());
 		assertEquals("/foo/bar", config.getDirectory());
 		assertEquals("prefix", config.getFilenamePrefix());
-		assertEquals("snappy", config.getCompression());
+		assertEquals(Compression.SNAPPY, config.getCompression());
 	}
 	
 	@Test
@@ -74,12 +73,9 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test
+	@Test(expectedExceptions = IllegalArgumentException.class, 
+			expectedExceptionsMessageRegExp = "Required property not set.")
 	public final void missingDirectoryValidateTest() throws IOException {
-		
-		thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("Required property not set.");
-		
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
 		
@@ -87,12 +83,9 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test
+	@Test(expectedExceptions = IllegalArgumentException.class, 
+		  expectedExceptionsMessageRegExp = "Required property not set.")
 	public final void missingHdfsConfigsValidateTest() throws IOException {
-		
-		thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("Required property not set.");
-		
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("directory", "/foo/bar");
 		
@@ -100,13 +93,8 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	
-	@Test
+	@Test(expectedExceptions = InvalidFormatException.class)
 	public final void invalidCodecValidateTest() throws IOException {
-		
-		thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("Invalid Compression code specified.");
-		
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
 		map.put("directory", "/foo/bar");
@@ -118,12 +106,9 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test
+	@Test(expectedExceptions = IllegalArgumentException.class, 
+		  expectedExceptionsMessageRegExp = "Sync Interval cannot be negative")
 	public final void invalidSyncIntervalTest() throws IOException {
-		
-		thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("Sync Interval cannot be negative");
-        
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
 		map.put("directory", "/foo/bar");
@@ -135,12 +120,9 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test
+	@Test(expectedExceptions = IllegalArgumentException.class, 
+		  expectedExceptionsMessageRegExp = "Max Pending Records must be a positive integer")
 	public final void invalidMaxPendingRecordsTest() throws IOException {
-		
-		thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("Max Pending Records must be a positive integer");
-        
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
 		map.put("directory", "/foo/bar");
@@ -152,12 +134,9 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test
+	@Test(expectedExceptions = IllegalArgumentException.class, 
+		  expectedExceptionsMessageRegExp = "Values for both kerberosUserPrincipal & keytab are required.")
 	public final void kerberosValidateTest() throws IOException {
-		
-		thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("Values for both kerberosUserPrincipal & keytab are required.");
-		
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
 		map.put("directory", "/foo/bar");

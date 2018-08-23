@@ -18,72 +18,23 @@
  */
 package org.apache.pulsar.io.hdfs.sink.seq;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertNotNull;
 
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.hdfs.sink.seq.HdfsAbstractSequenceFileSink;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.apache.pulsar.io.hdfs.sink.AbstractHdfsSinkTest;
+import org.testng.annotations.Test;
 
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.*;
-
-public class HdfsSequentialSinkTests {
-
-	@Mock
-	private SinkContext mockSinkContext;
+public class HdfsSequentialSinkTests extends AbstractHdfsSinkTest<Long, String> {
 	
-	@Mock
-	private Record<String> mockRecord;
-	
-	private Map<String, Object> map;
-	private HdfsAbstractSequenceFileSink<Long, String, LongWritable, Text> sink;
-	
-	@SuppressWarnings("unchecked")
-	@Before
-	public final void setUp() throws Exception {
-		map = new HashMap<String, Object> ();
-		map.put("hdfsConfigResources", "../pulsar-io/hdfs/src/test/resources/hadoop/core-site.xml,"
-				+ "../pulsar-io/hdfs/src/test/resources/hadoop/hdfs-site.xml");
-		map.put("directory", "/tmp/testing");
-		map.put("filenamePrefix", "prefix");
-		
-		mockSinkContext = mock(SinkContext.class);
-		
-		mockRecord = mock(Record.class);
-		when(mockRecord.getRecordSequence()).thenAnswer(new Answer<Optional<Long>>() {
-		  long sequenceCounter = 0;
-          public Optional<Long> answer(InvocationOnMock invocation) throws Throwable {
-             return Optional.of(sequenceCounter++);
-          }});
-		
-		when(mockRecord.getValue()).thenAnswer(new Answer<String>() {
-	          public String answer(InvocationOnMock invocation) throws Throwable {
-	             return new String(UUID.randomUUID().toString());
-	          }});
-		
-		sink = new HdfsSequentialTextSink();
-	}
-	
-	@After
-	public final void tearDown() throws Exception {
-		sink.close();
-	}
-	
-	@Test
+    @Override
+    protected void createSink() {
+        sink = new HdfsSequentialTextSink();
+    }
+    
+    @Test(enabled = false)
 	public final void write100Test() throws Exception {
-		
+		map.put("filenamePrefix", "write100Test-seq");
 		map.put("fileExtension", ".seq");
 		map.put("syncInterval", 1000);
 		sink.open(map, mockSinkContext);
@@ -93,12 +44,12 @@ public class HdfsSequentialSinkTests {
 		
 		Thread.sleep(2000);
 		verify(mockRecord, times(100)).ack();
+		sink.close();
 	}
 	
-	@Test
-	@Ignore
+	@Test(enabled = false)
 	public final void write5000Test() throws Exception {
-		
+		map.put("filenamePrefix", "write5000Test-seq");
 		map.put("fileExtension", ".seq");
 		map.put("syncInterval", 1000);
 		sink.open(map, mockSinkContext);
@@ -108,42 +59,36 @@ public class HdfsSequentialSinkTests {
 		
 		Thread.sleep(2000);
 		verify(mockRecord, times(5000)).ack();
+		sink.close();
 	}
 	
-	@Test
-	@Ignore
-	public final void TenSecondTest() throws Exception {
+	@Test(enabled = false)
+	public final void tenSecondTest() throws Exception {
+		map.put("filenamePrefix", "tenSecondTest-seq");
 		map.put("fileExtension", ".seq");
 		map.put("syncInterval", 1000);
 		sink.open(map, mockSinkContext);
 		runFor(10);	
+		sink.close();
 	}
 	
-	private final void send(int numRecords) {
-		for (int idx = 0; idx < numRecords; idx++) {
-			sink.write(mockRecord);
-		}
+	@Test(enabled = false)
+	public final void bzip2CompressionTest() throws Exception {
+		map.put("filenamePrefix", "bzip2CompressionTest-seq");
+		map.put("compression", "BZIP2");
+		map.remove("fileExtension");
+		sink.open(map, mockSinkContext);
+		send(5000);
+		verify(mockRecord, times(5000)).ack();
 	}
 	
-	private final void runFor(int numSeconds) throws InterruptedException {
-		Producer producer = new Producer();
-		producer.start();
-		Thread.sleep(numSeconds * 1000); // Run for N seconds
-		producer.halt();
-		producer.join(2000);
-	}
-	
-	private final class Producer extends Thread {
-		public boolean keepRunning = true;
-        @Override
-        public void run() {
-        	while (keepRunning)
-               sink.write(mockRecord);
-        }
-        
-        public void halt() { 
-        	keepRunning = false; 
-        }
-        
+	@Test(enabled = false)
+	public final void deflateCompressionTest() throws Exception {
+		map.put("filenamePrefix", "deflateCompressionTest-seq");
+		map.put("compression", "DEFLATE");
+		map.remove("fileExtension");
+		sink.open(map, mockSinkContext);
+		send(5000);
+		verify(mockRecord, times(5000)).ack();
 	}
 }

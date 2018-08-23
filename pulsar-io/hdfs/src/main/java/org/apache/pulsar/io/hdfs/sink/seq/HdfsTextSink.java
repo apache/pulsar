@@ -19,43 +19,36 @@
 package org.apache.pulsar.io.hdfs.sink.seq;
 
 import java.io.IOException;
+import java.util.List;
 
-import org.apache.hadoop.io.SequenceFile;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.SequenceFile.Writer;
-import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.DefaultCodec;
+import org.apache.hadoop.io.SequenceFile.Writer.Option;
+import org.apache.hadoop.io.Text;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 
-public class HdfsTextSink extends HdfsAbstractSequenceFileSink<String, String, Text, Text> {
+/**
+ * A Simple Sink class for Hdfs Sequence File.
+ */
+public class HdfsTextSink extends
+     HdfsAbstractSequenceFileSink<String, String, Text, Text> {
 
-	@Override
-	public Writer getWriter() throws IOException {
-		
-		CompressionCodec codec = hdfsSinkConfig.getCompressionCodec() != null ? 
-				hdfsSinkConfig.getCompressionCodec() : new DefaultCodec();
-		
-		return SequenceFile.createWriter(getConfiguration(), 
-				                         SequenceFile.Writer.appendIfExists(true),
-				                         SequenceFile.Writer.file(getPath()),
-				                         SequenceFile.Writer.keyClass(Text.class),
-				                         SequenceFile.Writer.valueClass(Text.class),
-				                         SequenceFile.Writer.blockSize(getFileSystem().getDefaultBlockSize(getPath())),
-				                         SequenceFile.Writer.bufferSize(getConfiguration().getInt("io.file.buffer.size",4096)),
-				                         SequenceFile.Writer.replication(getFileSystem().getDefaultReplication(getPath())),
-				                         SequenceFile.Writer.compression(SequenceFile.CompressionType.BLOCK, codec));
-	}
+    @Override
+    protected List<Option> getOptions() throws IllegalArgumentException, IOException {
+        List<Option> opts = super.getOptions();
+        opts.add(Writer.keyClass(Text.class));
+        opts.add(Writer.valueClass(Text.class));
+        return opts;
+    }
 
-	
-	@Override
-	public KeyValue<String, String> extractKeyValue(Record<String> record) {
-		String key = record.getKey().orElseGet(() -> new String(record.getValue()));
-        return new KeyValue<>(key, new String(record.getValue()));
-	}
+    @Override
+    public KeyValue<String, String> extractKeyValue(Record<String> record) {
+       String key = record.getKey().orElseGet(() -> new String(record.getValue()));
+       return new KeyValue<>(key, new String(record.getValue()));
+    }
 
-	@Override
-	public KeyValue<Text, Text> convert(KeyValue<String, String> kv) {
-		return new KeyValue<>(new Text(kv.getKey()), new Text(kv.getValue()));
-	}
+    @Override
+    public KeyValue<Text, Text> convert(KeyValue<String, String> kv) {
+       return new KeyValue<>(new Text(kv.getKey()), new Text(kv.getValue()));
+    }
 }
