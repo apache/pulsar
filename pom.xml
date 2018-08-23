@@ -92,6 +92,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-proxy</module>
     <module>pulsar-discovery-service</module>
     <module>pulsar-storm</module>
+    <module>pulsar-flink</module>
     <module>pulsar-spark</module>
     <module>pulsar-zookeeper-utils</module>
     <module>pulsar-testclient</module>
