@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.scheduler;
 
 import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Instance;
 
 import java.util.HashMap;
@@ -29,6 +30,9 @@ import java.util.stream.Collectors;
 
 public class RoundRobinScheduler implements IScheduler {
 
+    public static final String HEARTBEAT_TENANT = "pulsar-function";
+    public static final String HEARTBEAT_NAMESPACE = "heartbeat";
+    
     @Override
     public List<Assignment> schedule(List<Instance> unassignedFunctionInstances, List<Assignment>
             currentAssignments, List<String> workers) {
@@ -44,7 +48,8 @@ public class RoundRobinScheduler implements IScheduler {
         }
 
         for (Instance unassignedFunctionInstance : unassignedFunctionInstances) {
-            String workerId = findNextWorker(workerIdToAssignment);
+            String heartBeatWorkerId = checkHeartBeatFunction(unassignedFunctionInstance);
+            String workerId = heartBeatWorkerId != null ? heartBeatWorkerId : findNextWorker(workerIdToAssignment);
             Assignment newAssignment = Assignment.newBuilder().setInstance(unassignedFunctionInstance)
                     .setWorkerId(workerId).build();
             workerIdToAssignment.get(workerId).add(newAssignment);
@@ -55,6 +60,16 @@ public class RoundRobinScheduler implements IScheduler {
                 .flatMap(entry -> entry.getValue().stream()).collect(Collectors.toList());
 
         return assignments;
+    }
+
+    private static String checkHeartBeatFunction(Instance funInstance) {
+        if (funInstance.getFunctionMetaData() != null
+                && funInstance.getFunctionMetaData().getFunctionDetails() != null) {
+            FunctionDetails funDetails = funInstance.getFunctionMetaData().getFunctionDetails();
+            return HEARTBEAT_TENANT.equals(funDetails.getTenant())
+                    && HEARTBEAT_NAMESPACE.equals(funDetails.getNamespace()) ? funDetails.getName() : null;
+        }
+        return null;
     }
 
     private String findNextWorker(Map<String, List<Assignment>> workerIdToAssignment) {
