@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.functions.instance.producers;
 
+import static org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers.makeProducerName;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
@@ -30,19 +32,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.HashingScheme;
-import org.apache.pulsar.client.api.MessageRouter;
-import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.*;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -55,7 +46,7 @@ public class MultiConsumersOneOutputTopicProducersTest {
 
     private PulsarClient mockClient;
     private final Map<String, Producer<byte[]>> mockProducers = new HashMap<>();
-    private MultiConsumersOneOuputTopicProducers<byte[]> producers;
+    private MultiConsumersOneOuputTopicProducers producers;
 
     private class MockProducerBuilder implements ProducerBuilder<byte[]> {
 
@@ -190,16 +181,21 @@ public class MultiConsumersOneOutputTopicProducersTest {
         public ProducerBuilder<byte[]> properties(Map<String, String> properties) {
             return this;
         }
+
+        @Override
+        public ProducerBuilder<byte[]> intercept(ProducerInterceptor<byte[]>... interceptors) {
+            return this;
+        }
     }
 
     @BeforeMethod
     public void setup() throws Exception {
         this.mockClient = mock(PulsarClient.class);
 
-        when(mockClient.newProducer(any(Schema.class)))
+        when(mockClient.newProducer())
             .thenReturn(new MockProducerBuilder());
 
-        producers = new MultiConsumersOneOuputTopicProducers<byte[]>(mockClient, TEST_OUTPUT_TOPIC, Schema.BYTES);
+        producers = new MultiConsumersOneOuputTopicProducers(mockClient, TEST_OUTPUT_TOPIC);
         producers.initialize();
     }
 
@@ -224,13 +220,13 @@ public class MultiConsumersOneOutputTopicProducersTest {
 
         assertSame(mockProducers.get(producerName), producer);
         verify(mockClient, times(1))
-            .newProducer(Schema.BYTES);
+            .newProducer();
         assertTrue(producers.getProducers().containsKey(producerName));
 
         // second get will not create a new producer
         assertSame(mockProducers.get(producerName), producer);
         verify(mockClient, times(1))
-            .newProducer(Schema.BYTES);
+            .newProducer();
         assertTrue(producers.getProducers().containsKey(producerName));
 
         // close

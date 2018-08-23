@@ -318,4 +318,12 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return
      */
     ProducerBuilder<T> properties(Map<String, String> properties);
+
+    /**
+     * Intercept {@link Producer}.
+     *
+     * @param interceptors the list of interceptors to intercept the producer created by this builder.
+     * @return producer builder.
+     */
+    ProducerBuilder<T> intercept(ProducerInterceptor<T> ... interceptors);
 }
