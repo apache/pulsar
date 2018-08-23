@@ -817,6 +817,9 @@ public class ValidatorImpls {
 
         private static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {
             List<String> retval = new LinkedList<>();
+            if (sinkConfig.getInputs() != null) {
+                retval.addAll(sinkConfig.getInputs());
+            }
             if (sinkConfig.getTopicToSerdeClassName() != null) {
                 retval.addAll(sinkConfig.getTopicToSerdeClassName().keySet());
             }
