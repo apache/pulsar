@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 
 import com.google.common.base.Predicates;
@@ -53,11 +52,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.PositionInfo;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
@@ -68,10 +67,9 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,10 +79,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final boolean isBookkeeperManaged;
     private final ZooKeeper zookeeper;
     private final ManagedLedgerFactoryConfig config;
-    protected final OrderedScheduler scheduledExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(16)
-            .name("bookkeeper-ml-scheduler").build();
-    private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(16)
-            .name("bookkeeper-ml-workers").build();
+    protected final OrderedScheduler scheduledExecutor;
+    private final OrderedExecutor orderedExecutor;
 
     protected final ManagedLedgerFactoryMBeanImpl mbean;
 
@@ -99,34 +95,20 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this(bkClientConfiguration, new ManagedLedgerFactoryConfig());
     }
 
+    @SuppressWarnings("deprecation")
     public ManagedLedgerFactoryImpl(ClientConfiguration bkClientConfiguration, ManagedLedgerFactoryConfig config)
             throws Exception {
-        final CountDownLatch counter = new CountDownLatch(1);
-        final String zookeeperQuorum = checkNotNull(bkClientConfiguration.getZkServers());
+        this(ZooKeeperClient.newBuilder()
+                .connectString(bkClientConfiguration.getZkServers())
+                .sessionTimeoutMs(bkClientConfiguration.getZkTimeout())
+                .build(), bkClientConfiguration, config);
+    }
 
-        zookeeper = new ZooKeeper(zookeeperQuorum, bkClientConfiguration.getZkTimeout(), event -> {
-            if (event.getState().equals(Watcher.Event.KeeperState.SyncConnected)) {
-                log.info("Connected to zookeeper");
-                counter.countDown();
-            } else {
-                log.error("Error connecting to zookeeper {}", event);
-            }
-        });
-
-        if (!counter.await(bkClientConfiguration.getZkTimeout(), TimeUnit.MILLISECONDS)
-                || zookeeper.getState() != States.CONNECTED) {
-            throw new ManagedLedgerException("Error connecting to ZooKeeper at '" + zookeeperQuorum + "'");
-        }
-
-        this.bookKeeper = new BookKeeper(bkClientConfiguration, zookeeper);
-        this.isBookkeeperManaged = true;
-
-        this.store = new MetaStoreImplZookeeper(zookeeper, orderedExecutor);
-
-        this.config = config;
-        this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
-        this.entryCacheManager = new EntryCacheManager(this);
-        this.statsTask = scheduledExecutor.scheduleAtFixedRate(() -> refreshStats(), 0, StatsPeriodSeconds, TimeUnit.SECONDS);
+    private ManagedLedgerFactoryImpl(ZooKeeper zkc, ClientConfiguration bkClientConfiguration,
+            ManagedLedgerFactoryConfig config)
+            throws Exception {
+        this(new BookKeeper(bkClientConfiguration, zkc), true /* isBookkeeperManaged */, zkc,
+                config);
     }
 
     public ManagedLedgerFactoryImpl(BookKeeper bookKeeper, ZooKeeper zooKeeper) throws Exception {
@@ -135,9 +117,23 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     public ManagedLedgerFactoryImpl(BookKeeper bookKeeper, ZooKeeper zooKeeper, ManagedLedgerFactoryConfig config)
             throws Exception {
+        this(bookKeeper, false /* isBookkeeperManaged */, zooKeeper, config);
+    }
+
+    private ManagedLedgerFactoryImpl(BookKeeper bookKeeper, boolean isBookkeeperManaged, ZooKeeper zooKeeper,
+            ManagedLedgerFactoryConfig config) throws Exception {
+        scheduledExecutor = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(config.getNumManagedLedgerSchedulerThreads())
+                .name("bookkeeper-ml-scheduler")
+                .build();
+        orderedExecutor = OrderedExecutor.newBuilder()
+                .numThreads(config.getNumManagedLedgerWorkerThreads())
+                .name("bookkeeper-ml-workers")
+                .build();
+
         this.bookKeeper = bookKeeper;
-        this.isBookkeeperManaged = false;
-        this.zookeeper = null;
+        this.isBookkeeperManaged = isBookkeeperManaged;
+        this.zookeeper = isBookkeeperManaged ? zooKeeper : null;
         this.store = new MetaStoreImplZookeeper(zooKeeper, orderedExecutor);
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);

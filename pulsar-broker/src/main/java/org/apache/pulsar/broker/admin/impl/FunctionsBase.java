@@ -233,7 +233,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     public Response restartFunction(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
             final @PathParam("instanceId") String instanceId) {
-        return functions.restartFunctionInstance(tenant, namespace, functionName, instanceId);
+        return functions.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri());
     }
 
     @POST
@@ -258,7 +258,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     public Response stopFunction(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
             final @PathParam("instanceId") String instanceId) {
-        return functions.stopFunctionInstance(tenant, namespace, functionName, instanceId);
+        return functions.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri());
     }
 
     @POST

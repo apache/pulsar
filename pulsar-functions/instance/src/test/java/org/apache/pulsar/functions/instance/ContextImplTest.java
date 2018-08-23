@@ -19,8 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.same;
+import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -28,15 +27,20 @@ import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Matchers;
 import org.slf4j.Logger;
 
 /**
@@ -48,6 +52,7 @@ public class ContextImplTest {
     private Logger logger;
     private PulsarClientImpl client;
     private ContextImpl context;
+    private Producer producer = mock(Producer.class);
 
     @Before
     public void setup() {
@@ -59,6 +64,10 @@ public class ContextImplTest {
         logger = mock(Logger.class);
         client = mock(PulsarClientImpl.class);
         when(client.newProducer()).thenReturn(new ProducerBuilderImpl(client, Schema.BYTES));
+        when(client.createProducerAsync(Matchers.any(ProducerConfigurationData.class), Matchers.any(Schema.class)))
+                .thenReturn(CompletableFuture.completedFuture(producer));
+        when(client.getSchema(anyString())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(producer.sendAsync(anyString())).thenReturn(CompletableFuture.completedFuture(null));
 
         context = new ContextImpl(
             config,
@@ -121,4 +130,8 @@ public class ContextImplTest {
         verify(stateContext, times(1)).getValue(eq("test-key"));
     }
 
-}
+    @Test
+    public void testPublishUsingDefaultSchema() throws Exception {
+        context.publish("sometopic", "Somevalue");
+    }
+ }
