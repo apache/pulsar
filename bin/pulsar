@@ -106,7 +106,6 @@ fi
 # find pulsar sql presto distribution location
 if [ ! -d "${PRESTO_HOME}" ]; then
 
-#  BUILT_PRESTO_HOME="${SQL_HOME}/presto-server/target/presto-server-0.206"
   BUILT_PRESTO_HOME=$(find ${SQL_HOME}/presto-server/target/ -type d -name presto-server-*)
   if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
         echo "\nCouldn't find presto distribution.";

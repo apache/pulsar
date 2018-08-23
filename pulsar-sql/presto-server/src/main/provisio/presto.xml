@@ -32,6 +32,8 @@
 
     <!-- Pulsar Connector -->
     <artifactSet to="plugin/pulsar">
-        <artifact id="org.apache.pulsar:pulsar-presto-connector:${pulsar.version}" />
+        <artifact id="org.apache.pulsar:pulsar-presto-connector:tar.gz:${pulsar.version}">
+            <unpack />
+        </artifact>
     </artifactSet>
 </runtime>
