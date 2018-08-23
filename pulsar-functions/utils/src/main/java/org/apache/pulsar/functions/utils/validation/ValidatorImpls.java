@@ -547,7 +547,7 @@ public class ValidatorImpls {
             if (functionConfig.getTimeoutMs() != null
                     && functionConfig.getProcessingGuarantees() != null
                     && functionConfig.getProcessingGuarantees() != FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                throw new IllegalArgumentException("Message timeout can only be specifed with processing guarantee is "
+                throw new IllegalArgumentException("Message timeout can only be specified with processing guarantee is "
                         + FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE.name());
             }
         }
