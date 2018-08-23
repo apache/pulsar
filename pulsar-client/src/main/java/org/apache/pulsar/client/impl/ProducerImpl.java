@@ -121,8 +121,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
-                        CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema) {
-        super(client, topic, conf, producerCreatedFuture, schema);
+                        CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
+                        ProducerInterceptors<T> interceptors) {
+        super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
         this.partitionIndex = partitionIndex;

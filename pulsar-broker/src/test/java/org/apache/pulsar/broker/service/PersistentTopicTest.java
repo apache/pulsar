@@ -1213,7 +1213,7 @@ public class PersistentTopicTest {
         PulsarClient client = spy(PulsarClient.builder().serviceUrl(brokerUrl.toString()).build());
         PulsarClientImpl clientImpl = (PulsarClientImpl) client;
         doReturn(new CompletableFuture<Producer>()).when(clientImpl)
-            .createProducerAsync(any(ProducerConfigurationData.class), any(Schema.class));
+            .createProducerAsync(any(ProducerConfigurationData.class), any(Schema.class), null);
 
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();
@@ -1224,7 +1224,7 @@ public class PersistentTopicTest {
         verify(clientImpl)
             .createProducerAsync(
                 any(ProducerConfigurationData.class),
-                any(Schema.class)
+                any(Schema.class), null
             );
 
         replicator.disconnect(false);
@@ -1235,7 +1235,7 @@ public class PersistentTopicTest {
         verify(clientImpl, Mockito.times(2))
             .createProducerAsync(
                 any(ProducerConfigurationData.class),
-                any(Schema.class)
+                any(Schema.class), null
             );
     }
 
