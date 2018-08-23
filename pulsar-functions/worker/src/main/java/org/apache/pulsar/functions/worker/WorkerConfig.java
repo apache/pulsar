@@ -143,7 +143,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public String getWorkerId() {
         if (StringUtils.isBlank(this.workerId)) {
-            this.workerId = getWorkerHostname();
+            this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort());
         }
         return this.workerId;
     }
