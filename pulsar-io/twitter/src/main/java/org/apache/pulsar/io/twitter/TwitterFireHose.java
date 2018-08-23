@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.io.twitter;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twitter.hbc.ClientBuilder;
 import com.twitter.hbc.common.DelimitedStreamReader;
 import com.twitter.hbc.core.Constants;
@@ -44,7 +46,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Simple Push based Twitter FireHose Source
  */
-public class TwitterFireHose extends PushSource<String> {
+public class TwitterFireHose extends PushSource<TweetData> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TwitterFireHose.class);
 
@@ -52,6 +54,8 @@ public class TwitterFireHose extends PushSource<String> {
 
     // ----- Runtime fields
     private Object waitObject;
+
+    private final ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws IOException {
@@ -116,14 +120,15 @@ public class TwitterFireHose extends PushSource<String> {
 
                     @Override
                     public boolean process() throws IOException, InterruptedException {
-                        String line = reader.readLine();
+                        String tweetStr = reader.readLine();
                         try {
+                            TweetData tweet = mapper.readValue(tweetStr, TweetData.class);
                             // We don't really care if the record succeeds or not.
                             // However might be in the future to count failures
                             // TODO:- Figure out the metrics story for connectors
-                            consume(new TwitterRecord(line));
+                            consume(new TwitterRecord(tweet));
                         } catch (Exception e) {
-                            LOG.error("Exception thrown");
+                            LOG.error("Exception thrown: {}", e);
                         }
                         return true;
                     }
@@ -159,10 +164,10 @@ public class TwitterFireHose extends PushSource<String> {
         }
     }
 
-    static private class TwitterRecord implements Record<String> {
-        private String tweet;
+    static private class TwitterRecord implements Record<TweetData> {
+        private final TweetData tweet;
 
-        public TwitterRecord(String tweet) {
+        public TwitterRecord(TweetData tweet) {
             this.tweet = tweet;
         }
 
@@ -173,7 +178,7 @@ public class TwitterFireHose extends PushSource<String> {
         }
 
         @Override
-        public String getValue() {
+        public TweetData getValue() {
             return tweet;
         }
     }
