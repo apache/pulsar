@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -x
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -104,15 +103,22 @@ if [ ! -f "${PY_INSTANCE_FILE}" ]; then
     PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
 fi
 
-# find presto location
+# find pulsar sql presto distribution location
 if [ ! -d "${PRESTO_HOME}" ]; then
-  BUILT_PRESTO_HOME="${SQL_HOME}/presto-server/target/presto-server-0.206"
+
+#  BUILT_PRESTO_HOME="${SQL_HOME}/presto-server/target/presto-server-0.206"
+  BUILT_PRESTO_HOME=$(find ${SQL_HOME}/presto-server/target/ -type d -name presto-server-*)
   if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
         echo "\nCouldn't find presto distribution.";
         echo "Make sure you've run 'mvn package'\n";
         exit 1;
     fi
     PRESTO_HOME=${BUILT_PRESTO_HOME}
+fi
+
+# set pulsar sql presto distribution config location
+if [ ! -d "${PRESTO_CONFIG}" ]; then
+    PRESTO_CONFIG="${SQL_HOME}/presto-server/src/resources/etc"
 fi
 
 pulsar_help() {
@@ -128,6 +134,8 @@ where command is one of:
     proxy               Run a pulsar proxy
     websocket           Run a web socket proxy server
     functions-worker    Run a functions worker server
+    sql-worker          Run a sql worker server
+    sql-cli             Run sql CLI
     standalone          Run a broker server with local bookies and local zookeeper
 
     initialize-cluster-metadata     One-time metadata initialization
@@ -311,10 +319,10 @@ elif [ $COMMAND == "zookeeper-shell" ]; then
     exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperMain $@
 elif [ $COMMAND == "compact-topic" ]; then
     exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
-elif [ $COMMAND == "pulsar-sql-cli" ]; then
-    exec $JAVA -cp "${PRESTO_HOME}/lib/*" com.facebook.presto.cli.Presto $@
-elif [ $COMMAND == "pulsar-sql-worker" ]; then
-    exec ${PRESTO_HOME}/bin/launcher $@
+elif [ $COMMAND == "sql-cli" ]; then
+    exec $JAVA -cp "${PRESTO_HOME}/lib/*" com.facebook.presto.cli.Presto --server localhost:8081 $@
+elif [ $COMMAND == "sql-worker" ]; then
+    exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PRESTO_CONFIG} run $@
 elif [ $COMMAND == "help" ]; then
     pulsar_help;
 else

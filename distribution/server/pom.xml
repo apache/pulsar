@@ -127,20 +127,32 @@
     </dependency>
 
     <!-- pulsar sql -->
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-presto-distribution</artifactId>
-      <version>${project.version}</version>
-      <!-- make sure the presto distribution is packaged before assembly -->
-      <scope>runtime</scope>
-    </dependency>
+    <!--<dependency>-->
+      <!--<groupId>org.apache.pulsar</groupId>-->
+      <!--<artifactId>pulsar-presto-distribution</artifactId>-->
+      <!--<version>${project.version}</version>-->
+      <!--&lt;!&ndash; make sure the presto distribution is packaged before assembly &ndash;&gt;-->
+      <!--<scope>provided</scope>-->
+      <!--<exclusions>-->
+        <!--<exclusion>-->
+          <!--<artifactId>*</artifactId>-->
+          <!--<groupId>*</groupId>-->
+        <!--</exclusion>-->
+      <!--</exclusions>-->
+    <!--</dependency>-->
 
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-presto-connector</artifactId>
-      <version>${project.version}</version>
-      <scope>runtime</scope>
-    </dependency>
+    <!--<dependency>-->
+      <!--<groupId>org.apache.pulsar</groupId>-->
+      <!--<artifactId>pulsar-presto-connector</artifactId>-->
+      <!--<version>${project.version}</version>-->
+      <!--<scope>provided</scope>-->
+      <!--<exclusions>-->
+        <!--<exclusion>-->
+          <!--<artifactId>*</artifactId>-->
+          <!--<groupId>*</groupId>-->
+        <!--</exclusion>-->
+      <!--</exclusions>-->
+    <!--</dependency>-->
 
     <!-- runtime-all -->
     <dependency>
