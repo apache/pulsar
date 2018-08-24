@@ -323,10 +323,26 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.8.4.jar
      - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.8.4.jar
      - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.8.4.jar
+     - jackson-annotations-2.8.1.jar
+     - jackson-databind-2.8.1.jar
+     - jackson-dataformat-smile-2.8.1.jar
+     - jackson-datatype-guava-2.8.1.jar
+     - jackson-datatype-guava-2.8.1.jar
+     - jackson-datatype-jdk8-2.8.1.jar
+     - jackson-datatype-jdk8-2.8.1.jar
+     - jackson-datatype-joda-2.8.1.jar
+     - jackson-datatype-joda-2.8.4.jar
+     - jackson-datatype-jsr310-2.8.1.jar
+     - jackson-datatype-jsr310-2.8.1.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.3.3.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.0.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
- * Guava -- com.google.guava-guava-21.0.jar
+ * Guava
+    - com.google.guava-guava-21.0.jar
+    - guava-24.1-jre.jar
+ * Google Guice Core Library
+    - guice-4.2.0.jar
+    - guice-multibindings-4.2.0.jar
  * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.0.jar
  * Swagger
     - io.swagger-swagger-annotations-1.5.20.jar
@@ -349,6 +365,8 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-collections4-4.1.jar
     - org.apache.commons-commons-compress-1.15.jar
     - org.apache.commons-commons-lang3-3.4.jar
+    - commons-math3-3.6.1.jar
+    - commons-beanutils-core-1.8.3.jar
  * Netty
     - io.netty-netty-3.10.1.Final.jar
     - io.netty-netty-all-4.1.22.Final.jar
@@ -359,7 +377,9 @@ The Apache Software License, Version 2.0
     - io.prometheus-simpleclient_hotspot-0.0.23.jar
     - io.prometheus-simpleclient_servlet-0.0.23.jar
  * Bean Validation API -- javax.validation-validation-api-1.1.0.Final.jar
- * Joda Time -- joda-time-joda-time-2.8.1.jar
+ * Joda Time
+    - joda-time-joda-time-2.8.1.jar
+    - joda-time-2.9.9.jar
  * Log4J
     - log4j-log4j-1.2.17.jar
     - org.apache.logging.log4j-log4j-api-2.10.0.jar
@@ -410,6 +430,20 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty.websocket-websocket-common-9.3.11.v20160721.jar
     - org.eclipse.jetty.websocket-websocket-server-9.3.11.v20160721.jar
     - org.eclipse.jetty.websocket-websocket-servlet-9.3.11.v20160721.jar
+    - http2-client-9.4.11.v20180605.jar
+    - http2-common-9.4.11.v20180605.jar
+    - http2-hpack-9.4.11.v20180605.jar
+    - http2-http-client-transport-9.4.11.v20180605.jar
+    - http2-server-9.4.11.v20180605.jar
+    - jetty-alpn-client-9.4.11.v20180605.jar
+    - jetty-client-9.4.11.v20180605.jar
+    - jetty-http-9.4.11.v20180605.jar
+    - jetty-io-9.4.11.v20180605.jar
+    - jetty-jmx-9.4.11.v20180605.jar
+    - jetty-security-9.4.11.v20180605.jar
+    - jetty-server-9.4.11.v20180605.jar
+    - jetty-servlet-9.4.11.v20180605.jar
+    - jetty-util-9.4.11.v20180605.jar
  * SnakeYaml -- org.yaml-snakeyaml-1.15.jar
  * RocksDB - org.rocksdb-rocksdbjni-5.13.3.jar
  * HttpClient
@@ -418,7 +452,9 @@ The Apache Software License, Version 2.0
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.1.2.jar
  * OkHttp - com.squareup.okhttp-okhttp-2.5.0.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
- * Javassist -- org.javassist-javassist-3.21.0-GA.jar
+ * Javassist
+    - org.javassist-javassist-3.21.0-GA.jar
+    - javassist-3.22.0-CR2.jar
  * Amazon AWS SDK
     - com.amazonaws-aws-java-sdk-core-1.11.297.jar
     - software.amazon.ion-ion-java-1.0.2.jar
@@ -459,7 +495,43 @@ The Apache Software License, Version 2.0
     - javax.inject-javax.inject-1.jar
   * java-xmlbuilder
     - com.jamesmurty.utils-java-xmlbuilder-1.1.jar
-
+  * Asynchronous Http Client
+    - async-http-client-1.6.5.jar
+  * Apache BVal
+    - bval-core-1.1.1.jar
+    - bval-jsr-1.1.1.jar
+  * Bytecode
+    - bytecode-1.0.jar
+  * CGLIB Nodep
+    - cglib-nodep-3.2.5.jar
+  * Airlift
+    - aircompressor-0.11.jar
+    - airline-0.8.jar
+    - bootstrap-0.170.jar
+    - bootstrap-0.171.jar
+    - concurrent-0.171.jar
+    - configuration-0.171.jar
+    - configuration-0.170.jar
+    - discovery-0.171.jar
+    - discovery-server-1.29.jar
+    - event-0.171.jar
+    - http-client-0.171.jar
+    - http-server-0.171.jar
+    - jmx-0.171.jar
+    - jmx-http-0.171.jar
+    - jmx-http-rpc-0.159.jar
+  * Error Prone Annotations
+    - error_prone_annotations-2.1.3.jar
+  * Esri Geometry API For Java
+    - esri-geometry-api-2.1.0.jar
+  * Fastutil
+    - fastutil-6.5.9.jar
+  * J2ObjC Annotations
+    - j2objc-annotations-1.1.jar
+  * JSON Web Token Support For The JVM
+    - jjwt-0.9.0.jar
+  * Jmxutils
+    - jmxutils-1.19.jar
 
 BSD 3-clause "New" or "Revised" License
  * EA Agent Loader
@@ -474,6 +546,14 @@ BSD 2-Clause License
 
 BSD License
  * Hamcrest -- org.hamcrest-hamcrest-core-1.1.jar -- licenses/LICENSE-Hamcrest.txt
+ * ANTLR 4 Runtime -- antlr4-runtime-4.6.jar
+ * ASM, a very small and fast Java bytecode manipulation framework
+    - asm-6.1.1.jar
+    - asm-analysis-6.0.jar
+    - asm-tree-6.0.jar
+    - asm-util-6.0.jar
+  * JLine
+    - jline-2.14.6.jar
 
 MIT License
  * Java SemVer -- com.github.zafarkhaja-java-semver-0.9.0.jar -- licenses/LICENSE-SemVer.txt
@@ -482,6 +562,8 @@ MIT License
     - org.slf4j-slf4j-api-1.7.25.jar
     - org.slf4j-jcl-over-slf4j-1.7.25.jar
  * Lombok -- org.projectlombok-lombok-1.18.0.jar  -- licenses/LICENSE-Lombok.txt
+ * Animal Sniffer Annotations -- animal-sniffer-annotations-1.14.jar
+ * Checker Qua -- checker-compat-qual-2.0.0.jar
 
 Protocol Buffers License
  * Protocol Buffers
@@ -493,13 +575,17 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
     - javax.annotation-javax.annotation-api-1.2.jar
     - javax.annotation-jsr250-api-1.0.jar
+    - javax.annotation-api-1.3.1.jar
  * Java Servlet API -- javax.servlet-javax.servlet-api-3.1.0.jar
  * WebSocket Server API -- javax.websocket-javax.websocket-api-1.0.jar
  * Java Web Service REST API -- javax.ws.rs-javax.ws.rs-api-2.1.jar
  * HK2 - Dependency Injection Kernel
     - org.glassfish.hk2-hk2-api-2.5.0-b30.jar
+    - hk2-api-2.5.0-b42.jar
     - org.glassfish.hk2-hk2-locator-2.5.0-b30.jar
+    - hk2-locator-2.5.0-b42.jar
     - org.glassfish.hk2-hk2-utils-2.5.0-b30.jar
+    - hk2-utils-2.5.0-b42.jar
     - org.glassfish.hk2-osgi-resource-locator-1.0.1.jar
     - org.glassfish.hk2.external-aopalliance-repackaged-2.5.0-b30.jar
     - org.glassfish.hk2.external-javax.inject-2.5.0-b30.jar
@@ -514,13 +600,29 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - org.glassfish.jersey.media-jersey-media-jaxb-2.25.jar
     - org.glassfish.jersey.media-jersey-media-json-jackson-2.25.jar
     - org.glassfish.jersey.media-jersey-media-multipart-2.25.jar
+    - jaxrs-0.171.jar
+    - jersey-client-2.26.jar
+    - jersey-container-servlet-2.26.jar
+    - jersey-container-servlet-core-2.26.jar
+    - jersey-hk2-2.26.jar
+    - jersey-media-jaxb-2.26.jar
+    - jersey-server-2.26.jar
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.6.jar
-
+ * JavaBeans(TM) Activation Framework -- activation-1.1.1.jar
+ * JAXB
+    - jaxb-api-2.2.6.jar
+    - jaxb-impl-2.2.6.jar
 Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
  * AspectJ
     - org.aspectj-aspectjrt-1.9.1.jar
     - org.aspectj-aspectjweaver-1.9.1.jar
-
+ * Aether
+    - aether-api-1.13.1.jar
+    - aether-connector-asynchttpclient-1.13.1.jar
+    - aether-connector-file-1.13.1.jar
+    - aether-impl-1.13.1.jar
+    - aether-spi-1.13.1.jar
+    - aether-util-1.13.1.jar
 Public Domain
  * XZ for Java -- licenses/LICENSE-xz.txt
     - org.tukaani-xz-1.5.jar
@@ -536,6 +638,9 @@ Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
     - org.bouncycastle-bcpkix-jdk15on-1.55.jar
     - org.bouncycastle-bcprov-jdk15on-1.55.jar
+JGraphT Core
+ * JGraphT Core
+    - jgrapht-core-0.9.0.jar
 
 ------------------------
 
