@@ -22,11 +22,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.*;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -2677,7 +2673,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .create();
 
         for (int i = 0; i < sendMessages; i++) {
-            producer.send("Hello Pulsar!".getBytes());
+            producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
         }
 
         producer.close();
@@ -2700,24 +2696,41 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         int totalReceived = 0;
         do {
-            consumer.receive();
+            Message<byte[]> message = consumer.receive();
+            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            consumer.acknowledge(message);
+            log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
         consumer.close();
+
+        Consumer<byte[]> checkConsumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
+        if (checkMessage != null) {
+            log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
+        }
+        assertNull(checkMessage);
+
+        checkConsumer.close();
     }
 
     @Test
     public void testDeadLetterTopicByCustomTopicName() throws Exception {
-        final String topic = "persistent://my-property/my-ns/dead-letter-custom-topic";
+        final String topic = "persistent://my-property/my-ns/dead-letter-topic";
 
         final int maxRedeliveryCount = 2;
 
@@ -2728,7 +2741,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .create();
 
         for (int i = 0; i < sendMessages; i++) {
-            producer.send("Hello Pulsar!".getBytes());
+            producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
         }
 
         producer.close();
@@ -2752,18 +2765,35 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         int totalReceived = 0;
         do {
-            consumer.receive();
+            Message<byte[]> message = consumer.receive();
+            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            consumer.acknowledge(message);
+            log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
         consumer.close();
+
+        Consumer<byte[]> checkConsumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
+        if (checkMessage != null) {
+            log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
+        }
+        assertNull(checkMessage);
+
+        checkConsumer.close();
     }
 }
