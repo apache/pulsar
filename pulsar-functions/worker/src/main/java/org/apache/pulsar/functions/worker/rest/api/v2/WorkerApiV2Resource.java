@@ -51,6 +51,8 @@ import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 @Api(value = "/worker", description = "Workers admin api", tags = "workers")
 public class WorkerApiV2Resource implements Supplier<WorkerService> {
 
+    public static final String ATTRIBUTE_WORKER_SERVICE = "worker";
+
     protected final WorkerImpl worker;
     private WorkerService workerService;
     @Context
@@ -65,7 +67,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Override
     public synchronized WorkerService get() {
         if (this.workerService == null) {
-            this.workerService = (WorkerService) servletContext.getAttribute("worker");
+            this.workerService = (WorkerService) servletContext.getAttribute(ATTRIBUTE_WORKER_SERVICE);
         }
         return this.workerService;
     }

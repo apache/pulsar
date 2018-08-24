@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -141,6 +142,7 @@ public class WorkerServer {
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
         contextHandler.setAttribute(FunctionApiResource.ATTRIBUTE_FUNCTION_WORKER, workerService);
+        contextHandler.setAttribute(WorkerApiV2Resource.ATTRIBUTE_WORKER_SERVICE, workerService);
         contextHandler.setContextPath(contextPath);
 
         final ServletHolder apiServlet =
