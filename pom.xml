@@ -168,6 +168,8 @@ flexible messaging model and an intuitive client API.</description>
     <avro.version>1.8.2</avro.version>
     <jclouds.version>2.1.1</jclouds.version>
     <presto.version>0.206</presto.version>
+    <flink.version>1.6.0</flink.version>
+    <scala.binary.version>2.11</scala.binary.version>
 
     <!-- test dependencies -->
     <arquillian-cube.version>1.15.1</arquillian-cube.version>

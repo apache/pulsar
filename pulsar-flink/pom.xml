@@ -32,10 +32,6 @@
 
   <artifactId>pulsar-flink</artifactId>
   <name>Pulsar Flink Connectors</name>
-  <properties>
-    <flink.version>1.6.0</flink.version>
-    <scala.binary.version>2.11</scala.binary.version>
-  </properties>
 
   <dependencies>
 
@@ -129,7 +125,7 @@
               <relocations>
                 <relocation>
                   <pattern>com.google</pattern>
-                  <shadedPattern>pulsar-storm-shade.com.google</shadedPattern>
+                  <shadedPattern>pulsar-flink-shade.com.google</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
