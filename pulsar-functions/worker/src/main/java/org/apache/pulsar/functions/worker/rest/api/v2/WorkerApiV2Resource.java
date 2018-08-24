@@ -85,7 +85,6 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
             @ApiResponse(code = 503, message = "WorkerApiV2Resource service is not running") })
     @Produces(MediaType.APPLICATION_JSON)
     public Response getCluster() {
-        log.info("SANJEEV CAME2");
         return worker.getCluster();
     }
 
