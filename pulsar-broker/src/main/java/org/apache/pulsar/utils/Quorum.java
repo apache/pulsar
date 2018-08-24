@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.utils;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
@@ -27,15 +27,15 @@ import java.util.function.Consumer;
  */
 public class Quorum {
 
-    private final int quorum;
+    private final long quorum;
 
     private final Consumer<Boolean> callback;
 
-    private AtomicInteger succeeded = new AtomicInteger(0);
+    private AtomicLong succeeded = new AtomicLong(0);
 
-    private AtomicInteger failed = new AtomicInteger(0);
+    private AtomicLong failed = new AtomicLong(0);
 
-    public Quorum(int quorum, Consumer<Boolean> callback) {
+    public Quorum(long quorum, Consumer<Boolean> callback) {
         this.quorum = quorum;
         this.callback = callback;
     }

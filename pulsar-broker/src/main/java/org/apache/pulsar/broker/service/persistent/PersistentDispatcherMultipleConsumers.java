@@ -80,7 +80,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     private CompletableFuture<Void> closeFuture = null;
     private ConcurrentLongPairSet messagesToReplay;
-    private HashSet<PositionImpl> messagesToDeadLetter;
+    private ConcurrentLongPairSet messagesToDeadLetter;
 
     private boolean havePendingRead = false;
     private boolean havePendingReplayRead = false;
@@ -115,7 +115,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
         this.messagesToReplay = new ConcurrentLongPairSet(512, 2);
-        this.messagesToDeadLetter = new HashSet<>(8);
+        this.messagesToDeadLetter = new ConcurrentLongPairSet(512, 2);
         this.readBatchSize = MaxReadBatchSize;
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
@@ -621,7 +621,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 if (redeliveryTracker.incrementAndGetRedeliveryCount(position) <= maxRedeliveryCount) {
                     messagesToReplay.add(position.getLedgerId(), position.getEntryId());
                 } else {
-                    messagesToDeadLetter.add(position);
+                    messagesToDeadLetter.add(position.getLedgerId(), position.getEntryId());
                 }
             }
             if (messagesToDeadLetter.size() > 0) {
@@ -630,7 +630,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     readMoreEntries();
                 });
 
-                for (PositionImpl position : messagesToDeadLetter) {
+                messagesToDeadLetter.forEach((ledgerId, entryId) -> {
+                    PositionImpl position = PositionImpl.get(ledgerId, entryId);
                     cursor.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
@@ -698,7 +699,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             quorum.succeed();
                         }
                     }, null);
-                }
+                });
                 messagesToDeadLetter.clear();
             }
         } else {
