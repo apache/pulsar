@@ -99,7 +99,7 @@ public class JdbcUtils {
                 String gotTableName = rs.getString(3);
                 checkState(tableName.equals(gotTableName),
                     "TableName not match: " + tableName + " Got: " + gotTableName);
-                log.info("Get Table: {}, {}, {}", catalogName, schemaName, tableName);
+                log.debug("Get Table: {}, {}, {}", catalogName, schemaName, tableName);
                 return TableId.of(catalogName, schemaName, tableName);
             } else {
                 throw new Exception("Not able to find table: " + tableName);
@@ -127,13 +127,12 @@ public class JdbcUtils {
                 final int position = rs.getInt(17);
 
                 table.columns.add(ColumnId.of(tableId, columnName, sqlDataType, typeName, position));
-                log.info("Get column. name: {}, data type: {}, position: {}", columnName, typeName, position);
+                log.debug("Get column. name: {}, data type: {}, position: {}", columnName, typeName, position);
             }
             return table;
         }
     }
 
-    // TODO: support more types besides insert: update, upsert.
     public static String buildInsertSql(TableDefinition table) {
         StringBuilder builder = new StringBuilder();
         builder.append("INSERT INTO ");
@@ -153,8 +152,5 @@ public class JdbcUtils {
     public static PreparedStatement buildInsertStatement(Connection connection, String insertSQL) throws SQLException {
         return connection.prepareStatement(insertSQL);
     }
-
-
-
 
 }

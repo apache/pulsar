@@ -33,7 +33,6 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -45,9 +44,6 @@ import org.testng.annotations.Test;
 @Slf4j
 public class JdbcSinkTest {
     private final SqliteUtils sqliteUtils = new SqliteUtils(getClass().getSimpleName());
-    private JdbcAvroSchemaSink jdbcSink;
-    Map<String, Object> conf;
-    String tableName = "TestJdbcFooSink";
 
     /**
      * A Simple class to test jdbc class
@@ -56,17 +52,26 @@ public class JdbcSinkTest {
     @ToString
     @EqualsAndHashCode
     public static class Foo {
-        @NotNull
         private final String field1;
-        @NotNull
         private final String field2;
-        @NotNull
         private final int field3;
     }
 
     @BeforeMethod
     public void setUp() throws Exception {
         sqliteUtils.setUp();
+    }
+
+    @AfterMethod
+    public void tearDown() throws Exception {
+        sqliteUtils.tearDown();
+    }
+
+    @Test
+    public void TestOpenAndWriteSink() throws Exception {
+        JdbcAvroSchemaSink jdbcSink;
+        Map<String, Object> conf;
+        String tableName = "TestOpenAndWriteSink";
 
         String jdbcUrl = sqliteUtils.sqliteUri();
         conf = Maps.newHashMap();
@@ -82,16 +87,7 @@ public class JdbcSinkTest {
                 "    field3 INTEGER," +
                 "PRIMARY KEY (field1));"
         );
-    }
 
-    @AfterMethod
-    public void tearDown() throws Exception {
-        jdbcSink.close();
-        sqliteUtils.tearDown();
-    }
-
-    @Test
-    public void TestOpenAndWriteSink() throws Exception {
         // prepare a foo Record
         Foo obj = new Foo("ValueOfField1", "ValueOfField1", 3);
         AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
@@ -127,5 +123,8 @@ public class JdbcSinkTest {
             Assert.assertEquals(obj.getField2(), resultSet.getString(2));
             Assert.assertEquals(obj.getField3(), resultSet.getInt(3));
         });
+
+        jdbcSink.close();
     }
+
 }

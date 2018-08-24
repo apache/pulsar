@@ -32,6 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -46,6 +47,7 @@ import org.apache.pulsar.io.jdbc.JdbcUtils.TableDefinition;
 public abstract class JdbcAbstractSink<T> implements Sink<T> {
     // ----- Runtime fields
     private JdbcSinkConfig jdbcSinkConfig;
+    @Getter
     private Connection connection;
     private String tableName;
     private String schema;
@@ -66,7 +68,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         // TODO: currently assume schema is same as created table schema;
         // turn to getSchema from SinkContext.getTopicSchema.getSchema(inputTopic)?
-        // then verify topic schema is match with table schema
 
         jdbcSinkConfig = JdbcSinkConfig.load(config);
 
@@ -92,7 +93,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         tableName = jdbcSinkConfig.getTableName();
         tableId = JdbcUtils.getTableId(connection, tableName);
         tableDefinition = JdbcUtils.getTableDefinition(connection, tableId);
-        // TODO: insert mode -- insert, update, upsert
         insertStatement = JdbcUtils.buildInsertStatement(connection, JdbcUtils.buildInsertSql(tableDefinition));
 
         timeoutMs = jdbcSinkConfig.getTimeoutMs();
@@ -107,9 +107,11 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     @Override
     public void close() throws Exception {
+        if (!connection.getAutoCommit()) {
+            connection.commit();
+        }
         flushExecutor.shutdown();
         if (connection != null) {
-            //connection.commit();
             connection.close();
         }
         log.info("Connection Closed");
@@ -117,7 +119,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     @Override
     public void write(Record<T> record) throws Exception{
-
         synchronized (incomingList) {
             incomingList.add(record);
         }
@@ -136,9 +137,9 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
 
     private void flush() {
-        // if no in flushing state, do flush, else return;
+        // if not in flushing state, do flush, else return;
         if (isFlushing.compareAndSet(false, true)) {
-            log.info("Starting flush, queue size: {}", incomingList.size());
+            log.debug("Starting flush, queue size: {}", incomingList.size());
             checkState(swapList.isEmpty(),
                 "swapList should be empty since last flush. swapList.size: " + swapList.size());
 
@@ -163,9 +164,11 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                     }
                     updateCount += updateCount;
                 }
+                if (!connection.getAutoCommit()) {
+                    connection.commit();
+                }
             } catch (Exception e) {
                 log.error("Got exception ", e);
-                return;
             }
 
             if (swapList.size() != updateCount) {
@@ -173,11 +176,11 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             }
 
             // finish flush
-            log.info("Finish flush, queue size: {}", swapList.size());
+            log.debug("Finish flush, queue size: {}", swapList.size());
             swapList.clear();
             isFlushing.set(false);
         } else {
-            log.info("Already in flushing state, will not flush, queue size: {}", incomingList.size());
+            log.debug("Already in flushing state, will not flush, queue size: {}", incomingList.size());
         }
     }
 

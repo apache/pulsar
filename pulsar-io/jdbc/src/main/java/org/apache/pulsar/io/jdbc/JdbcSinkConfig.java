@@ -39,12 +39,6 @@ public class JdbcSinkConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    public enum InsertMode {
-        INSERT,
-        UPSERT,
-        UPDATE;
-    }
-
     private String userName;
     private String password;
     private String jdbcUrl;
@@ -54,7 +48,6 @@ public class JdbcSinkConfig implements Serializable {
     private String schema;
 
     // Optional
-    private InsertMode insertMode = InsertMode.INSERT;
     private int timeoutMs = 500;
     private int batchSize = 200;
 

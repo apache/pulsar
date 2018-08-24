@@ -36,12 +36,15 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.io.CassandraSinkTester;
+import org.apache.pulsar.tests.integration.io.JdbcSinkTester;
+import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
 import org.apache.pulsar.tests.integration.io.KafkaSinkTester;
 import org.apache.pulsar.tests.integration.io.KafkaSourceTester;
 import org.apache.pulsar.tests.integration.io.SinkTester;
@@ -70,6 +73,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testSink(new CassandraSinkTester());
     }
 
+    @Test
+    public void testJdbcSink() throws Exception {
+        testSink(new JdbcSinkTester());
+    }
+
     private void testSink(SinkTester tester) throws Exception {
         tester.findSinkServiceContainer(pulsarCluster.getExternalServices());
 
@@ -94,7 +102,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSinkStatus(tenant, namespace, sinkName);
 
         // produce messages
-        Map<String, String> kvs = produceMessagesToInputTopic(inputTopicName, numMessages);
+        Map<String, String> kvs;
+        if (tester instanceof JdbcSinkTester) {
+            kvs = produceSchemaMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(Foo.class));
+        } else {
+            kvs = produceMessagesToInputTopic(inputTopicName, numMessages);
+        }
 
         // wait for sink to process messages
         waitForProcessingMessages(tenant, namespace, sinkName, numMessages);
@@ -193,6 +206,35 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
             String value = "value-" + i;
+            kvs.put(key, value);
+            producer.newMessage()
+                .key(key)
+                .value(value)
+                .send();
+        }
+        return kvs;
+    }
+
+    // This for JdbcSinkTester
+    protected Map<String, String> produceSchemaMessagesToInputTopic(String inputTopicName,
+                                                              int numMessages,  Schema schema) throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
+        @Cleanup
+        Producer<String> producer = client.newProducer(schema)
+            .topic(inputTopicName)
+            .create();
+        LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
+        for (int i = 0; i < numMessages; i++) {
+            String key = "key-" + i;
+
+            Foo obj = new Foo("field1_" + i, "field2_" + i, i);
+            String value = new String(schema.encode(obj));
+
+            log.info("produce message {}: {}", i, value);
+
             kvs.put(key, value);
             producer.newMessage()
                 .key(key)
