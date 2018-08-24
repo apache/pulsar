@@ -150,7 +150,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         return producerCreatedFuture;
     }
 
-    protected Message<T> beforeSend(Message<T> message) {
+    protected Message<T> callInterceptorsForBeforeSend(Message<T> message) {
         if (interceptors != null) {
             return interceptors.beforeSend(message);
         } else {
@@ -158,7 +158,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
-    protected void onSendAcknowledgement(Message<T> message, MessageId msgId, Throwable cause) {
+    protected void callInterceptorsForOnSendAcknowledgement(Message<T> message, MessageId msgId, Throwable cause) {
         if (interceptors != null) {
             interceptors.onSendAcknowledgement(message, msgId, cause);
         }
