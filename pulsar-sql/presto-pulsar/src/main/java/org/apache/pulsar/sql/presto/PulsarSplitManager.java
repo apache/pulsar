@@ -39,6 +39,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -100,8 +101,9 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             schemaInfo = this.pulsarAdmin.schemas().getSchemaInfo(
                     String.format("%s/%s", tableHandle.getSchemaName(), tableHandle.getTableName()));
         } catch (PulsarAdminException e) {
-            log.error(e);
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to get schema for topic "
+                    + String.format("%s/%s", tableHandle.getSchemaName(), tableHandle.getTableName())
+                    + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
 
         Collection<PulsarSplit> splits;
@@ -136,8 +138,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         try {
             numPartitions = (this.pulsarAdmin.topics().getPartitionedTopicMetadata(topicName.toString())).partitions;
         } catch (PulsarAdminException e) {
-            log.error(e);
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to get metadata for partitioned topic "
+                    + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(),e);
         }
 
         int actualNumSplits = Math.max(numPartitions, numSplits);
