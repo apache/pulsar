@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -239,6 +240,14 @@ public class PulsarSink<T> implements Sink<T> {
             msg.property("__pfn_input_topic__", pulsarRecord.getTopicName().get())
                .property("__pfn_input_msg_id__",
                          new String(Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
+        } else {
+            // It is coming from some source
+            Optional<Long> eventTime = sinkRecord.getSourceRecord().getEventTime();
+            log.info("SANJEEV HAVE eventTime of {}", eventTime.isPresent());
+            if (eventTime.isPresent()) {
+                log.info("SANJEEV GOT eventTime of {}", eventTime.get());
+                msg.eventTime(eventTime.get());
+            }
         }
 
         pulsarSinkProcessor.sendOutputMessage(msg, record);

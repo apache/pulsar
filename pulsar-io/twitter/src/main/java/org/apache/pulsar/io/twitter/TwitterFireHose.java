@@ -34,9 +34,12 @@ import com.twitter.hbc.httpclient.auth.OAuth1;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
@@ -46,6 +49,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Simple Push based Twitter FireHose Source
  */
+@Slf4j
 public class TwitterFireHose extends PushSource<TweetData> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TwitterFireHose.class);
@@ -123,6 +127,7 @@ public class TwitterFireHose extends PushSource<TweetData> {
                         String tweetStr = reader.readLine();
                         try {
                             TweetData tweet = mapper.readValue(tweetStr, TweetData.class);
+                            log.info("Ingested tweet is {}", tweet);
                             // We don't really care if the record succeeds or not.
                             // However might be in the future to count failures
                             // TODO:- Figure out the metrics story for connectors
@@ -175,6 +180,21 @@ public class TwitterFireHose extends PushSource<TweetData> {
         public Optional<String> getKey() {
             // TODO: Could use user or tweet ID as key here
             return Optional.empty();
+        }
+
+        @Override
+        public Optional<Long> getEventTime() {
+            try {
+                if (tweet.getCreatedAt() != null) {
+                    SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM d HH:mm:ss Z yyyy");
+                    Date d = sdf.parse(tweet.getCreatedAt());
+                    return Optional.of(d.toInstant().toEpochMilli());
+                } else {
+                    return Optional.empty();
+                }
+            } catch (Exception e) {
+                return Optional.empty();
+            }
         }
 
         @Override
