@@ -52,6 +52,7 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -103,7 +104,8 @@ public class PulsarMetadata implements ConnectorMetadata {
                 prestoSchemas.addAll(pulsarAdmin.namespaces().getNamespaces(tenant));
             }
         } catch (PulsarAdminException e) {
-            throw new RuntimeException("Failed to get schemas from pulsar", e);
+            throw new RuntimeException("Failed to get schemas from pulsar: "
+                    + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
         return prestoSchemas;
     }
@@ -150,7 +152,8 @@ public class PulsarMetadata implements ConnectorMetadata {
                     log.warn("Schema " + schemaNameOrNull + " does not exsit");
                     return builder.build();
                 }
-                throw new RuntimeException("Failed to get tables/topics in " + schemaNameOrNull, e);
+                throw new RuntimeException("Failed to get tables/topics in " + schemaNameOrNull + ": "
+                        + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
             }
             if (pulsarTopicList != null) {
                 pulsarTopicList.forEach(topic -> builder.add(
@@ -247,7 +250,8 @@ public class PulsarMetadata implements ConnectorMetadata {
             if (e.getStatusCode() == 404) {
                 throw new PrestoException(NOT_FOUND, "Schema " + schemaTableName.getSchemaName() + " does not exist");
             }
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to get topics in schema " + schemaTableName.getSchemaName()
+                    + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
 
         if (!topics.contains(topicName.toString())) {
@@ -265,7 +269,9 @@ public class PulsarMetadata implements ConnectorMetadata {
             if (e.getStatusCode() == 404) {
                 throw new PrestoException(NOT_SUPPORTED, "Topic " + topicName.toString() + " does not have a schema");
             }
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to get schema information for topic "
+                    + String.format("%s/%s", schemaTableName.getSchemaName(), schemaTableName.getTableName())
+                    + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
 
         String schemaJson = new String(schemaInfo.getSchema());
