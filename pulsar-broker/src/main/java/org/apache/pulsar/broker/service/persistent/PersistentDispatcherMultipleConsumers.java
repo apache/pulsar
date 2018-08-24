@@ -22,7 +22,6 @@ import static java.util.stream.Collectors.toSet;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -629,7 +628,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 Quorum quorum = new Quorum(messagesToDeadLetter.size(), result -> {
                     readMoreEntries();
                 });
-
                 messagesToDeadLetter.forEach((ledgerId, entryId) -> {
                     PositionImpl position = PositionImpl.get(ledgerId, entryId);
                     cursor.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
