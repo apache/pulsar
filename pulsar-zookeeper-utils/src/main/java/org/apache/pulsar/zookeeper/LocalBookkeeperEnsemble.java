@@ -229,7 +229,6 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i].setJournalDirName(bkDataDir.getPath());
             bsConfs[i].setLedgerDirNames(new String[] { bkDataDir.getPath() });
             bsConfs[i].setAllowLoopback(true);
-            bsConfs[i].setAdvertisedAddress("localhost");
             bsConfs[i].setGcWaitTime(60000);
 
             try {

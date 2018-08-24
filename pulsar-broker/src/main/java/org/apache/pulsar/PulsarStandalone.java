@@ -253,7 +253,8 @@ public class PulsarStandalone implements AutoCloseable {
         if (!this.isOnlyBroker()) {
             // Start LocalBookKeeper
             bkEnsemble = new LocalBookkeeperEnsemble(
-                this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(), this.getBkDir(), this.isWipeData(), config.getAdvertisedAddress());
+                    this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
+                    this.getBkDir(), this.isWipeData(), "127.0.0.1");
             bkEnsemble.startStandalone(!this.isNoStreamStorage());
         }
 
@@ -352,7 +353,7 @@ public class PulsarStandalone implements AutoCloseable {
             log.info(e.getMessage());
         }
     }
-    
+
     /** this methods gets a buidler to use to build and an embedded pulsar instance `
      * i.e.
      * <pre>
