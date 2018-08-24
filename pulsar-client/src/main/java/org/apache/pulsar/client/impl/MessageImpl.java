@@ -155,6 +155,7 @@ public class MessageImpl<T> implements Message<T> {
         this.cnx = null;
         this.payload = payload;
         this.properties = Collections.unmodifiableMap(properties);
+        this.schema = schema;
     }
 
     public static MessageImpl<byte[]> deserialize(ByteBuf headersAndPayload) throws IOException {
