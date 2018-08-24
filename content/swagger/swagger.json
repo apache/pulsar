@@ -6367,10 +6367,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -6690,16 +6690,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "cpu" : {
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "memory" : {
@@ -6708,21 +6702,27 @@
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "msgThroughputOut" : {
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
         }
@@ -6887,10 +6887,10 @@
         "producerName" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -7591,10 +7591,10 @@
         "producerName" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -7653,15 +7653,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
+        },
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
         }
       }
     },
@@ -7696,11 +7696,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
