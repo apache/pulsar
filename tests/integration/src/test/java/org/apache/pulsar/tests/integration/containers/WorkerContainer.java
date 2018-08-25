@@ -33,6 +33,6 @@ public class WorkerContainer extends PulsarContainer<WorkerContainer> {
             "bin/run-functions-worker.sh",
             -1,
             BROKER_HTTP_PORT,
-            "/admin/v2/functions/cluster");
+            "/admin/v2/worker/cluster");
     }
 }

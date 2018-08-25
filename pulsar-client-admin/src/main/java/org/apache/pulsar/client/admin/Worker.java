@@ -19,13 +19,16 @@
 package org.apache.pulsar.client.admin;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
+import org.apache.pulsar.functions.worker.WorkerInfo;
 
 /**
  * Admin interface for worker stats management.
  */
-public interface WorkerStats {
+public interface Worker {
     
     
     /**
@@ -41,4 +44,25 @@ public interface WorkerStats {
      * @throws PulsarAdminException
      */
     Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws PulsarAdminException;
+
+    /**
+     * Get List of all workers belonging to this cluster
+     * @return
+     * @throws PulsarAdminException
+     */
+    List<WorkerInfo> getCluster() throws PulsarAdminException;
+
+    /**
+     * Get the worker who is the leader of the cluster
+     * @return
+     * @throws PulsarAdminException
+     */
+    WorkerInfo getClusterLeader() throws PulsarAdminException;
+
+    /**
+     * Get the function assignment among the cluster
+     * @return
+     * @throws PulsarAdminException
+     */
+    Map<String, Collection<String>> getAssignments() throws PulsarAdminException;
 }
