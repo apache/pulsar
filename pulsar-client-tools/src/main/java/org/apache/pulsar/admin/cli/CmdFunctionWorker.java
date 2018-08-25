@@ -30,10 +30,15 @@ import com.google.gson.JsonParser;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.worker.WorkerInfo;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Parameters(commandDescription = "Operations to collect function-worker statistics")
-public class CmdFunctionWorkerStats extends CmdBase {
+public class CmdFunctionWorker extends CmdBase {
 
     /**
      * Base command
@@ -60,7 +65,7 @@ public class CmdFunctionWorkerStats extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(admin.workerStats().getFunctionsStats());
+            String json = Utils.printJson(admin.worker().getFunctionsStats());
             GsonBuilder gsonBuilder = new GsonBuilder();
             if (indent) {
                 gsonBuilder.setPrettyPrinting();
@@ -77,7 +82,7 @@ public class CmdFunctionWorkerStats extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = new Gson().toJson(admin.workerStats().getMetrics());
+            String json = new Gson().toJson(admin.worker().getMetrics());
             GsonBuilder gsonBuilder = new GsonBuilder();
             if (indent) {
                 gsonBuilder.setPrettyPrinting();
@@ -86,10 +91,64 @@ public class CmdFunctionWorkerStats extends CmdBase {
         }
     }
 
-    public CmdFunctionWorkerStats(PulsarAdmin admin) throws PulsarClientException {
-        super("functions", admin);
-        jcommander.addCommand("functions", new FunctionsStats());
+    @Parameters(commandDescription = "Get all workers belonging to this cluster")
+    class GetCluster extends BaseCommand {
+
+        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        boolean indent = false;
+
+        @Override
+        void runCmd() throws Exception {
+            List<WorkerInfo> workers = admin.worker().getCluster();
+            GsonBuilder gsonBuilder = new GsonBuilder();
+            if (indent) {
+                gsonBuilder.setPrettyPrinting();
+            }
+            System.out.println(gsonBuilder.create().toJson(workers));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the leader of the worker cluster")
+    class GetClusterLeader extends BaseCommand {
+
+        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        boolean indent = false;
+
+        @Override
+        void runCmd() throws Exception {
+            WorkerInfo leader = admin.worker().getClusterLeader();
+            GsonBuilder gsonBuilder = new GsonBuilder();
+            if (indent) {
+                gsonBuilder.setPrettyPrinting();
+            }
+            System.out.println(gsonBuilder.create().toJson(leader));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the assignments of the functions accross the worker cluster")
+    class GetFunctionAssignments extends BaseCommand {
+
+        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        boolean indent = false;
+
+        @Override
+        void runCmd() throws Exception {
+            Map<String, Collection<String>> assignments = admin.worker().getAssignments();
+            GsonBuilder gsonBuilder = new GsonBuilder();
+            if (indent) {
+                gsonBuilder.setPrettyPrinting();
+            }
+            System.out.println(gsonBuilder.create().toJson(assignments));
+        }
+    }
+
+    public CmdFunctionWorker(PulsarAdmin admin) throws PulsarClientException {
+        super("functions-worker", admin);
+        jcommander.addCommand("function-stats", new FunctionsStats());
         jcommander.addCommand("monitoring-metrics", new CmdMonitoringMetrics());
+        jcommander.addCommand("get-cluster", new GetCluster());
+        jcommander.addCommand("get-cluster-leader", new GetClusterLeader());
+        jcommander.addCommand("get-function-assignments", new GetFunctionAssignments());
     }
 
 }

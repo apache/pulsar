@@ -112,7 +112,6 @@ public class CmdFunctions extends CmdBase {
     private final TriggerFunction triggerer;
     private final UploadFunction uploader;
     private final DownloadFunction downloader;
-    private final GetCluster cluster;
 
     /**
      * Base command
@@ -1107,16 +1106,6 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get list of workers registered in cluster")
-    class GetCluster extends BaseCommand {
-        @Override
-        void runCmd() throws Exception {
-            String json = (new Gson()).toJson(admin.functions().getCluster());
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
-        }
-    }
-
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
@@ -1130,7 +1119,6 @@ public class CmdFunctions extends CmdBase {
         triggerer = new TriggerFunction();
         uploader = new UploadFunction();
         downloader = new DownloadFunction();
-        cluster = new GetCluster();
         restart = new RestartFunction();
         stop = new StopFunction();
         jcommander.addCommand("localrun", getLocalRunner());
@@ -1146,7 +1134,6 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("trigger", getTriggerer());
         jcommander.addCommand("upload", getUploader());
         jcommander.addCommand("download", getDownloader());
-        jcommander.addCommand("cluster", cluster);
     }
 
     @VisibleForTesting
