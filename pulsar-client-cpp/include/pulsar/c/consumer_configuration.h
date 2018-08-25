@@ -152,6 +152,9 @@ int pulsar_consumer_is_read_compacted(pulsar_consumer_configuration_t *consumer_
 void pulsar_consumer_set_read_compacted(pulsar_consumer_configuration_t *consumer_configuration,
                                         int compacted);
 
+void pulsar_consumer_configuration_set_property(pulsar_consumer_configuration_t *conf, const char *name,
+                                                const char *value);
+
 // const CryptoKeyReaderPtr getCryptoKeyReader()
 //
 // const;
