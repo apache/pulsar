@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.HostAddress;
+import com.facebook.presto.spi.predicate.TupleDomain;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
@@ -43,7 +45,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final long endPositionEntryId;
     private final long startPositionLedgerId;
     private final long endPositionLedgerId;
-
+    private final TupleDomain<ColumnHandle> tupleDomain;
 
     @JsonCreator
     public PulsarSplit(
@@ -57,7 +59,8 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("startPositionEntryId") long startPositionEntryId,
             @JsonProperty("endPositionEntryId") long endPositionEntryId,
             @JsonProperty("startPositionLedgerId") long startPositionLedgerId,
-            @JsonProperty("endPositionLedgerId") long endPositionLedgerId) {
+            @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
+            @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain) {
         this.splitId = splitId;
         this.schemaName = requireNonNull(schemaName, "schema name is null");
         this.connectorId = requireNonNull(connectorId, "connector id is null");
@@ -69,6 +72,7 @@ public class PulsarSplit implements ConnectorSplit {
         this.endPositionEntryId = endPositionEntryId;
         this.startPositionLedgerId = startPositionLedgerId;
         this.endPositionLedgerId = endPositionLedgerId;
+        this.tupleDomain = requireNonNull(tupleDomain, "tupleDomain is null");
     }
 
     @JsonProperty
@@ -124,6 +128,11 @@ public class PulsarSplit implements ConnectorSplit {
     @JsonProperty
     public long getEndPositionLedgerId() {
         return endPositionLedgerId;
+    }
+
+    @JsonProperty
+    public TupleDomain<ColumnHandle> getTupleDomain() {
+        return tupleDomain;
     }
 
     public PositionImpl getStartPosition() {
