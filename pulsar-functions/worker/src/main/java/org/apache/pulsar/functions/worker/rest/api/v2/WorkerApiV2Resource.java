@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
-import java.io.IOException;
-import java.util.Collection;
 import java.util.function.Supplier;
 
 import javax.servlet.ServletContext;
@@ -34,7 +32,6 @@ import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 import org.apache.pulsar.functions.worker.WorkerService;
 
 import io.swagger.annotations.Api;
@@ -107,22 +104,5 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
             @ApiResponse(code = 503, message = "WorkerApiV2Resource service is not running") })
     public Response getAssignments() {
         return worker.getAssignments();
-    }
-    
-    @GET
-    @Path("/metrics")
-    @ApiOperation(value = "Gets the metrics for Monitoring", notes = "Request should be executed by Monitoring agent on each worker to fetch the worker-metrics", response = org.apache.pulsar.common.stats.Metrics.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 401, message = "Don't have admin permission") })
-    public Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws Exception {
-        return worker.getWorkerMetrcis(clientAppId());
-    }
-
-    @GET
-    @Path("/functionsmetrics")
-    @ApiOperation(value = "Get metrics for all functions owned by worker", notes = "Requested should be executed by Monitoring agent on each worker to fetch the metrics", response = Metrics.class)
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "Worker service is not running") })
-    public Response getFunctionsMetrics() throws IOException {
-        return worker.getFunctionsMetrics(clientAppId());
     }
 }

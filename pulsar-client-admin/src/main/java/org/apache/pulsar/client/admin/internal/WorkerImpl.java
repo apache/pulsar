@@ -44,10 +44,12 @@ import org.apache.pulsar.functions.worker.WorkerInfo;
 public class WorkerImpl extends BaseResource implements Worker {
 
     private final WebTarget workerStats;
+    private final WebTarget worker;
 
     public WorkerImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.workerStats = web.path("/admin/v2/worker");
+        this.worker = web.path("/admin/v2/worker");
+        this.workerStats = web.path("/admin/v2/worker-stats");
     }
 
     @Override
@@ -80,7 +82,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public List<WorkerInfo> getCluster() throws PulsarAdminException {
         try {
-            return request(workerStats.path("cluster"))
+            return request(worker.path("cluster"))
                     .get(new GenericType<List<WorkerInfo>>() {
                     });
         } catch (Exception e) {
@@ -91,7 +93,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public WorkerInfo getClusterLeader() throws PulsarAdminException {
         try {
-            return request(workerStats.path("cluster").path("leader"))
+            return request(worker.path("cluster").path("leader"))
                     .get(new GenericType<WorkerInfo>(){});
         } catch (Exception e) {
             throw getApiException(e);
@@ -101,7 +103,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public Map<String, Collection<String>> getAssignments() throws PulsarAdminException {
         try {
-            Response response = request(workerStats.path("assignments")).get();
+            Response response = request(worker.path("assignments")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
