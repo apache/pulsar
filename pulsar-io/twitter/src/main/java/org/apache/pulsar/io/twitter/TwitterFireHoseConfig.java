@@ -44,6 +44,9 @@ public class TwitterFireHoseConfig implements Serializable {
     private String consumerSecret;
     private String token;
     private String tokenSecret;
+    // Most firehose events have null createdAt time. If this parameter is set to true
+    // then we estimate the createdTime of each firehose event to be current time.
+    private Boolean guestimateTweetTime = false;
 
     // ------ Optional property keys
 

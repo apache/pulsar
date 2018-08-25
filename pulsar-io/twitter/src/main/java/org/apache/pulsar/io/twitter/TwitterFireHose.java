@@ -127,11 +127,10 @@ public class TwitterFireHose extends PushSource<TweetData> {
                         String tweetStr = reader.readLine();
                         try {
                             TweetData tweet = mapper.readValue(tweetStr, TweetData.class);
-                            log.info("Ingested tweet is {}", tweet);
                             // We don't really care if the record succeeds or not.
                             // However might be in the future to count failures
                             // TODO:- Figure out the metrics story for connectors
-                            consume(new TwitterRecord(tweet));
+                            consume(new TwitterRecord(tweet, config.getGuestimateTweetTime()));
                         } catch (Exception e) {
                             LOG.error("Exception thrown: {}", e);
                         }
@@ -171,9 +170,11 @@ public class TwitterFireHose extends PushSource<TweetData> {
 
     static private class TwitterRecord implements Record<TweetData> {
         private final TweetData tweet;
+        private final boolean guestimateTweetTime;
 
-        public TwitterRecord(TweetData tweet) {
+        public TwitterRecord(TweetData tweet, boolean guestimateTweetTime) {
             this.tweet = tweet;
+            this.guestimateTweetTime = guestimateTweetTime;
         }
 
         @Override
@@ -189,6 +190,8 @@ public class TwitterFireHose extends PushSource<TweetData> {
                     SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM d HH:mm:ss Z yyyy");
                     Date d = sdf.parse(tweet.getCreatedAt());
                     return Optional.of(d.toInstant().toEpochMilli());
+                } else if (guestimateTweetTime) {
+                    return Optional.of(System.currentTimeMillis());
                 } else {
                     return Optional.empty();
                 }
