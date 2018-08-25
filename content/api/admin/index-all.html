@@ -707,6 +707,10 @@
 <dd>
 <div class="block">Get all namespaces that grouped with given anti-affinity group</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Worker.html#getAssignments--">getAssignments()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Worker.html" title="interface in org.apache.pulsar.client.admin">Worker</a></dt>
+<dd>
+<div class="block">Get the function assignment among the cluster</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html#getAvailablePrimaryBrokers-java.util.SortedSet-">getAvailablePrimaryBrokers(SortedSet&lt;BrokerStatus&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html" title="class in org.apache.pulsar.common.policies.impl">NamespaceIsolationPolicyImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/NamespaceIsolationPolicy.html#getAvailablePrimaryBrokers-java.util.SortedSet-">getAvailablePrimaryBrokers(SortedSet&lt;BrokerStatus&gt;)</a></span> - Method in interface org.apache.pulsar.common.policies.<a href="org/apache/pulsar/common/policies/NamespaceIsolationPolicy.html" title="interface in org.apache.pulsar.common.policies">NamespaceIsolationPolicy</a></dt>
@@ -773,9 +777,13 @@
 <dd>
 <div class="block">Get the configuration data for the specified cluster.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#getCluster--">getCluster()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Worker.html#getCluster--">getCluster()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Worker.html" title="interface in org.apache.pulsar.client.admin">Worker</a></dt>
 <dd>
-<div class="block">Get list of workers present under a cluster</div>
+<div class="block">Get List of all workers belonging to this cluster</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Worker.html#getClusterLeader--">getClusterLeader()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Worker.html" title="interface in org.apache.pulsar.client.admin">Worker</a></dt>
+<dd>
+<div class="block">Get the worker who is the leader of the cluster</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#getClusters--">getClusters()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
 <dd>
@@ -825,7 +833,7 @@
 <dd>
 <div class="block">Get the list of functions.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/WorkerStats.html#getFunctionsStats--">getFunctionsStats()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/WorkerStats.html" title="interface in org.apache.pulsar.client.admin">WorkerStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Worker.html#getFunctionsStats--">getFunctionsStats()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Worker.html" title="interface in org.apache.pulsar.client.admin">Worker</a></dt>
 <dd>
 <div class="block">Get all functions stats on a worker</div>
 </dd>
@@ -931,7 +939,7 @@
 <dd>
 <div class="block">Returns Monitoring metrics</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/WorkerStats.html#getMetrics--">getMetrics()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/WorkerStats.html" title="interface in org.apache.pulsar.client.admin">WorkerStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Worker.html#getMetrics--">getMetrics()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Worker.html" title="interface in org.apache.pulsar.client.admin">Worker</a></dt>
 <dd>
 <div class="block">Get worker metrics.</div>
 </dd>
@@ -2394,9 +2402,9 @@ the order they are declared.</div>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#waitingReadOp">waitingReadOp</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.CursorStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#workerStats--">workerStats()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#worker--">worker()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/client/admin/WorkerStats.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">WorkerStats</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
+<dt><a href="org/apache/pulsar/client/admin/Worker.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Worker</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
 <dd>
 <div class="block">Admin interface for worker stats management.</div>
 </dd>
