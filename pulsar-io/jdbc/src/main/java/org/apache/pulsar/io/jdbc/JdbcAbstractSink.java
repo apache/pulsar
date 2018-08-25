@@ -37,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.jdbc.JdbcUtils.TableDefinition;
 
 /**
  * A Simple abstract class for Jdbc sink
@@ -50,11 +49,13 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     @Getter
     private Connection connection;
     private String tableName;
-    private String schema;
 
     private JdbcUtils.TableId tableId;
-    private JdbcUtils.TableDefinition tableDefinition;
     private PreparedStatement insertStatement;
+
+    // TODO: turn to getSchema from SinkContext.getTopicSchema.getSchema(inputTopic)
+    protected String schema;
+    protected JdbcUtils.TableDefinition tableDefinition;
 
     // for flush
     private List<Record<T>> incomingList;
@@ -66,9 +67,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        // TODO: currently assume schema is same as created table schema;
-        // turn to getSchema from SinkContext.getTopicSchema.getSchema(inputTopic)?
-
         jdbcSinkConfig = JdbcSinkConfig.load(config);
 
         String jdbcUrl = jdbcSinkConfig.getJdbcUrl();
@@ -119,11 +117,13 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     @Override
     public void write(Record<T> record) throws Exception{
+        int number;
         synchronized (incomingList) {
             incomingList.add(record);
+            number = incomingList.size();
         }
 
-        if (incomingList.size() >= batchSize) {
+        if (number == batchSize) {
             flushExecutor.schedule(() -> flush(), 0, TimeUnit.MILLISECONDS);
         }
     }
@@ -131,8 +131,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     // bind value with a PreparedStetement
     public abstract void bindValue(
         PreparedStatement statement,
-        TableDefinition tableDefinition,
-        String schema,
         Record<T> message) throws Exception;
 
 
@@ -144,8 +142,12 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 "swapList should be empty since last flush. swapList.size: " + swapList.size());
 
             synchronized (incomingList) {
-                swapList.addAll(incomingList);
-                incomingList.clear();
+                List<Record<T>> tmpList;
+                swapList.clear();
+
+                tmpList = swapList;
+                swapList = incomingList;
+                incomingList = tmpList;
             }
 
             int updateCount = 0;
@@ -153,7 +155,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             try {
                 // bind each record value
                 for (Record<T> record : swapList) {
-                    bindValue(insertStatement, tableDefinition, schema, record);
+                    bindValue(insertStatement, record);
                     insertStatement.addBatch();
                 }
 
@@ -177,7 +179,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
             // finish flush
             log.debug("Finish flush, queue size: {}", swapList.size());
-            swapList.clear();
             isFlushing.set(false);
         } else {
             log.debug("Already in flushing state, will not flush, queue size: {}", incomingList.size());

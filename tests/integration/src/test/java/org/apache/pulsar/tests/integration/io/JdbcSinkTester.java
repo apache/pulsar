@@ -80,7 +80,7 @@ public class JdbcSinkTester extends SinkTester {
     public void findSinkServiceContainer(Map<String, GenericContainer<?>> containers) {
         GenericContainer<?> container = containers.get(NAME);
         checkState(container instanceof MySQLContainer,
-            "No kafka service found in the cluster");
+            "No MySQL service found in the cluster");
 
         this.mySQLContainer = (MySQLContainer) container;
         log.info("find sink service container: {}", mySQLContainer.getContainerName());
@@ -125,7 +125,6 @@ public class JdbcSinkTester extends SinkTester {
                 assertEquals(obj.field3, field3);
             }
         } catch (Exception e) {
-            e.printStackTrace();
             log.error("Got exception: ", e);
             fail("Got exception when op sql.");
             return;

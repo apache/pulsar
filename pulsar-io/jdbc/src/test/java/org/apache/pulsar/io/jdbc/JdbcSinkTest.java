@@ -115,6 +115,8 @@ public class JdbcSinkTest {
         // write should success.
         jdbcSink.write(record);
         log.info("executed write");
+        // sleep to wait backend flush complete
+        Thread.sleep(500);
 
         // value has been written to db, read it out and verify.
         String querySql = "SELECT * FROM " + tableName;

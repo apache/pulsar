@@ -20,6 +20,7 @@
 package org.apache.pulsar.io.jdbc;
 
 import java.sql.PreparedStatement;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
@@ -28,8 +29,8 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.util.Utf8;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.jdbc.JdbcUtils.ColumnId;
-import org.apache.pulsar.io.jdbc.JdbcUtils.TableDefinition;
 
 /**
  * A Simple Jdbc sink, which assume input Record as AvroSchema format
@@ -40,21 +41,23 @@ public class JdbcAvroSchemaSink extends JdbcAbstractSink<byte[]> {
     private Schema avroSchema = null;
     private DatumReader<GenericRecord> reader = null;
 
-    public void bindValue(PreparedStatement statement,
-                          TableDefinition tableDefinition,
-                          String schema,
-                          Record<byte[]> message) throws Exception {
 
-        log.info("schema: {}", schema);
-
-        byte[] value = message.getValue();
-
+    @Override
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
+        super.open(config, sinkContext);
         // get reader, and read value out as GenericRecord
         if (avroSchema == null || reader == null) {
             avroSchema = Schema.parse(schema);
             reader = new GenericDatumReader<>(avroSchema);
         }
+        log.info("open JdbcAvroSchemaSink with schema: {}, and tableDefinition: {}", schema, tableDefinition.toString());
+    }
 
+
+    public void bindValue(PreparedStatement statement,
+                          Record<byte[]> message) throws Exception {
+
+        byte[] value = message.getValue();
         GenericRecord record = reader.read(null, DecoderFactory.get().binaryDecoder(value, null));
 
         int index = 1;
