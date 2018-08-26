@@ -43,6 +43,39 @@ Consumer Client_subscribe(Client& client, const std::string& topic, const std::s
     return consumer;
 }
 
+Consumer Client_subscribe_topics(Client& client, boost::python::list& topics,
+                                 const std::string& subscriptionName, const ConsumerConfiguration& conf) {
+    Consumer consumer;
+    Result res;
+
+    std::vector<std::string> topics_vector;
+
+    for (int i = 0; i < len(topics); i ++) {
+        std::string content = boost::python::extract<std::string>(topics[i]);
+        topics_vector.push_back(content);
+    }
+
+    Py_BEGIN_ALLOW_THREADS
+        res = client.subscribe(topics_vector, subscriptionName, conf, consumer);
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
+    return consumer;
+}
+
+Consumer Client_subscribe_pattern(Client& client, const std::string& topic_pattern, const std::string& subscriptionName,
+                                 const ConsumerConfiguration& conf) {
+    Consumer consumer;
+    Result res;
+
+    Py_BEGIN_ALLOW_THREADS
+        res = client.subscribeWithRegex(topic_pattern, subscriptionName, conf, consumer);
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
+    return consumer;
+}
+
 Reader Client_createReader(Client& client, const std::string& topic,
                            const MessageId& startMessageId,
                            const ReaderConfiguration& conf) {
@@ -73,6 +106,8 @@ void export_client() {
     class_<Client>("Client", init<const std::string&, const ClientConfiguration& >())
             .def("create_producer", &Client_createProducer)
             .def("subscribe", &Client_subscribe)
+            .def("subscribe_topics", &Client_subscribe_topics)
+            .def("subscribe_pattern", &Client_subscribe_pattern)
             .def("create_reader", &Client_createReader)
             .def("close", &Client_close)
             .def("shutdown", &Client::shutdown)
