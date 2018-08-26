@@ -44,6 +44,7 @@ public class TweetData {
     private String timestampMs;
     private Delete delete;
 
+
     @Data
     public static class User {
         private Long id;
