@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":18,"i1":18,"i2":6,"i3":18,"i4":18,"i5":18,"i6":18,"i7":6};
+var methods = {"i0":18,"i1":18,"i2":18,"i3":6,"i4":18,"i5":18,"i6":18,"i7":18,"i8":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -132,36 +132,42 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code>default Optional&lt;Long&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Record.html#getEventTime--">getEventTime</a></span>()</code>
+<div class="block">Retrieves the event time of the record from the source.</div>
+</td>
+</tr>
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>Optional&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Record.html#getKey--">getKey</a></span>()</code>
 <div class="block">Return a key if the key has one associated</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>default Optional&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Record.html#getPartitionId--">getPartitionId</a></span>()</code>
 <div class="block">Retrieves the partition information if any of the record.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>default Map&lt;String,String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Record.html#getProperties--">getProperties</a></span>()</code>
 <div class="block">Retrieves user-defined properties attached to record.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>default Optional&lt;Long&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Record.html#getRecordSequence--">getRecordSequence</a></span>()</code>
 <div class="block">Retrieves the sequence of the record from a source partition.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>default Optional&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Record.html#getTopicName--">getTopicName</a></span>()</code>
 <div class="block">If the record originated from a topic, report the topic name</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/functions/api/Record.html" title="type parameter in Record">T</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/Record.html#getValue--">getValue</a></span>()</code>
 <div class="block">Retrieves the actual data of the record</div>
@@ -213,6 +219,20 @@ var activeTableTab = "activeTableTab";
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>The record data</dd>
+</dl>
+</li>
+</ul>
+<a name="getEventTime--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getEventTime</h4>
+<pre>default&nbsp;Optional&lt;Long&gt;&nbsp;getEventTime()</pre>
+<div class="block">Retrieves the event time of the record from the source.</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>millis since epoch</dd>
 </dl>
 </li>
 </ul>
