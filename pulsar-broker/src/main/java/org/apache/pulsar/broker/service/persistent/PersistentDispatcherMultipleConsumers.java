@@ -28,29 +28,39 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
-import org.apache.bookkeeper.mledger.Entry;
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.RedeliveryTracker;
+import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
-import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentRedeliveryTracker;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
+import org.apache.pulsar.utils.Quorum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +69,7 @@ import com.google.common.collect.Lists;
 
 /**
  */
-public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMultipleConsumers implements Dispatcher, ReadEntriesCallback {
+public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers implements Dispatcher, ReadEntriesCallback {
 
     private static final int MaxReadBatchSize = 100;
     private static final int MaxRoundRobinBatchSize = 20;
@@ -69,6 +79,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
     private CompletableFuture<Void> closeFuture = null;
     private ConcurrentLongPairSet messagesToReplay;
+    private ConcurrentLongPairSet messagesToDeadLetter;
 
     private boolean havePendingRead = false;
     private boolean havePendingReplayRead = false;
@@ -88,20 +99,32 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     private final ServiceConfiguration serviceConfig;
     private DispatchRateLimiter dispatchRateLimiter;
 
+    protected volatile int maxRedeliveryCount;
+    protected volatile String deadLetterTopic;
+    protected RedeliveryTracker redeliveryTracker;
+    private volatile ProducerImpl<byte[]> deadLetterTopicProducer;
+
     enum ReadType {
         Normal, Replay
     }
 
-    public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor) {
+    public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor, int maxRedeliveryCount,
+                                                 String deadLetterTopic) {
         this.cursor = cursor;
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
         this.messagesToReplay = new ConcurrentLongPairSet(512, 2);
+        this.messagesToDeadLetter = new ConcurrentLongPairSet(512, 2);
         this.readBatchSize = MaxReadBatchSize;
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.dispatchRateLimiter = null;
+        this.maxRedeliveryCount = maxRedeliveryCount;
+        this.deadLetterTopic = deadLetterTopic;
+        if (maxRedeliveryCount > 0) {
+            redeliveryTracker = new NonPersistentRedeliveryTracker();
+        }
     }
 
     @Override
@@ -132,9 +155,42 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             throw new ConsumerBusyException("Subscription reached max consumers limit");
         }
 
+        deadLetterTopicProducer = newDeadLetterProducer();
+
         consumerList.add(consumer);
         consumerList.sort((c1, c2) -> c1.getPriorityLevel() - c2.getPriorityLevel());
         consumerSet.add(consumer);
+    }
+
+    private ProducerImpl<byte[]> newDeadLetterProducer() throws BrokerServiceException {
+        if (maxRedeliveryCount > 0 && deadLetterTopicProducer == null) {
+            try {
+                if (maxRedeliveryCount > 0 && StringUtils.isBlank(deadLetterTopic)) {
+                    deadLetterTopic = String.format("%s-%s-DLQ", topic.getName(), Codec.decode(cursor.getName()));
+                }
+                return (ProducerImpl<byte[]>) topic.getBrokerService().pulsar().getClient().newProducer(Schema.BYTES)
+                        .topic(deadLetterTopic)
+                        .blockIfQueueFull(false)
+                        .create();
+            } catch (Throwable e) {
+                throw new BrokerServiceException(e);
+            }
+        }
+        return null;
+    }
+
+    void reloadDeadLetterProducer() throws BrokerServiceException {
+        try {
+            if (deadLetterTopicProducer != null) {
+                deadLetterTopicProducer.closeAsync();
+            }
+            deadLetterTopicProducer = newDeadLetterProducer();
+            if (deadLetterTopicProducer == null) {
+                redeliveryTracker.clear();
+            }
+        } catch (Throwable e) {
+            throw new BrokerServiceException(e);
+        }
     }
 
     private boolean isConsumersExceededOnTopic() {
@@ -530,7 +586,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             // abort read if no consumers are connected or if disconnect is initiated
             return false;
         }
-        for(Consumer consumer : consumerList) {
+        for (Consumer consumer : consumerList) {
             if (isConsumerAvailable(consumer)) {
                 return true;
             }
@@ -556,11 +612,98 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
-        positions.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);
         }
-        readMoreEntries();
+        if (maxRedeliveryCount > 0 && redeliveryTracker != null) {
+            for (PositionImpl position : positions) {
+                if (redeliveryTracker.incrementAndGetRedeliveryCount(position) <= maxRedeliveryCount) {
+                    messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                } else {
+                    messagesToDeadLetter.add(position.getLedgerId(), position.getEntryId());
+                }
+            }
+            if (messagesToDeadLetter.size() > 0) {
+
+                Quorum quorum = new Quorum(messagesToDeadLetter.size(), result -> {
+                    readMoreEntries();
+                });
+                messagesToDeadLetter.forEach((ledgerId, entryId) -> {
+                    PositionImpl position = PositionImpl.get(ledgerId, entryId);
+                    cursor.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                        @Override
+                        public void readEntryComplete(Entry entry, Object ctx) {
+                            if (entry == null) {
+                                log.error("[{}-{}] Read an null entry from cursor {}", name, consumer, position);
+                                quorum.succeed();
+                            } else {
+                                try {
+                                    ByteBuf headersAndPayload = entry.getDataBuffer();
+                                    MessageImpl<byte[]> msg = MessageImpl.deserialize(headersAndPayload);
+                                    headersAndPayload.retain();
+                                    msg.setReplicatedFrom("DLQ");
+                                    CompletableFuture<MessageId> future = deadLetterTopicProducer.sendAsync(msg);
+                                    future.whenCompleteAsync((messageId, error) -> {
+                                        if (error != null) {
+                                            log.error("[{}-{}] Fail to send message to dead letter topic {} {} {}",
+                                                    name, consumer, deadLetterTopic, error.getMessage(), error);
+                                            messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                                            quorum.succeed();
+                                        } else {
+                                            cursor.asyncDelete(position, new AsyncCallbacks.DeleteCallback() {
+                                                @Override
+                                                public void deleteComplete(Object ctx) {
+                                                    entry.release();
+                                                    redeliveryTracker.remove(position);
+                                                    quorum.succeed();
+                                                }
+
+                                                @Override
+                                                public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                                                    entry.release();
+                                                    messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                                                    quorum.succeed();
+                                                }
+                                            }, position);
+
+                                        }
+                                    });
+                                } catch (Throwable t) {
+                                    log.error("[{}-{}] Failed to deserialize message at {} {} {} {}", name, consumer,
+                                            entry.getPosition(), entry.getLedgerId(), t.getMessage(), t);
+                                    cursor.asyncDelete(position, new AsyncCallbacks.DeleteCallback() {
+                                        @Override
+                                        public void deleteComplete(Object ctx) {
+                                            entry.release();
+                                            redeliveryTracker.remove(position);
+                                            quorum.succeed();
+                                        }
+
+                                        @Override
+                                        public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                                            entry.release();
+                                            messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                                            quorum.succeed();
+                                        }
+                                    }, position);
+
+                                }
+                            }
+                        }
+                        @Override
+                        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error("[{}-{}] Read entries failed {} {}", name, consumer, exception.getMessage(), exception);
+                            messagesToReplay.add(position.getLedgerId(), position.getEntryId());
+                            quorum.succeed();
+                        }
+                    }, null);
+                });
+                messagesToDeadLetter.clear();
+            }
+        } else {
+            positions.forEach(position -> messagesToReplay.add(position.getLedgerId(), position.getEntryId()));
+            readMoreEntries();
+        }
     }
 
     @Override

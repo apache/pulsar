@@ -867,9 +867,8 @@ public class PersistentTopicsBase extends AdminResource {
                 if (topic.getSubscriptions().containsKey(subscriptionName)) {
                     throw new RestException(Status.CONFLICT, "Subscription already exists for topic");
                 }
-
                 PersistentSubscription subscription = (PersistentSubscription) topic
-                        .createSubscription(subscriptionName, InitialPosition.Latest).get();
+                        .createSubscription(subscriptionName, InitialPosition.Latest, 0, null).get();
                 subscription.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
                 log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(), topicName,
                         subscriptionName, messageId);

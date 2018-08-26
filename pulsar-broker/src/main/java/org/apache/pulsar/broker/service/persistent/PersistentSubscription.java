@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
@@ -39,8 +38,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursor
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
@@ -76,12 +75,18 @@ public class PersistentSubscription implements Subscription {
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor) {
+    protected int maxRedeliveryCount = 0;
+    protected String deadLetterTopic = null;
+
+    public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
+            int maxRedeliveryCount, String deadLetterTopic) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
+        this.maxRedeliveryCount = maxRedeliveryCount;
+        this.deadLetterTopic = deadLetterTopic;
         IS_FENCED_UPDATER.set(this, FALSE);
     }
 
@@ -112,7 +117,7 @@ public class PersistentSubscription implements Subscription {
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor);
+                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, maxRedeliveryCount, deadLetterTopic);
                 }
                 break;
             case Failover:
@@ -153,7 +158,7 @@ public class PersistentSubscription implements Subscription {
                 close();
                 // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
-                topic.getBrokerService().pulsar().getExecutor().submit(() ->{
+                topic.getBrokerService().pulsar().getExecutor().submit(() -> {
                     topic.removeSubscription(subName);
                 });
             }
@@ -178,7 +183,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
+    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
         if (ackType == AckType.Cumulative) {
             if (positions.size() != 1) {
                 log.warn("[{}][{}] Invalid cumulative ack received with multiple message ids", topicName, subName);
@@ -195,6 +200,11 @@ public class PersistentSubscription implements Subscription {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
             cursor.asyncDelete(positions, deleteCallback, positions);
+            if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+                if (((PersistentDispatcherMultipleConsumers) dispatcher).redeliveryTracker != null) {
+                    ((PersistentDispatcherMultipleConsumers) dispatcher).redeliveryTracker.removeBatch(positions);
+                }
+            }
         }
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog() == 0) {

@@ -523,6 +523,9 @@ public class ServerCnx extends PulsarHandler {
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
+        final int maxRedeliveryCount = subscribe.getMaxRedeliveryCount();
+        final String deadLetterTopic = subscribe.getDeadLetterTopic();
+        final int maxUnackedMessagesPerConsumer = subscribe.getMaxUnackedMessagePerConsumer();
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
@@ -591,7 +594,8 @@ public class ServerCnx extends PulsarHandler {
                                             if (isCompatible) {
                                                 return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                     subType, priorityLevel, consumerName, isDurable,
-                                                    startMessageId, metadata, readCompacted, initialPosition);
+                                                    startMessageId, metadata, readCompacted, initialPosition,
+                                                    0, null, maxUnackedMessagesPerConsumer);
                                             } else {
                                                 return FutureUtil.failedFuture(new BrokerServiceException(
                                                     "Trying to subscribe with incompatible schema"
@@ -601,7 +605,8 @@ public class ServerCnx extends PulsarHandler {
                                     } else {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
-                                            startMessageId, metadata, readCompacted, initialPosition);
+                                            startMessageId, metadata, readCompacted, initialPosition,
+                                            maxRedeliveryCount, deadLetterTopic, maxUnackedMessagesPerConsumer);
                                     }
                                 })
                                 .thenAccept(consumer -> {

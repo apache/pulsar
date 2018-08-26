@@ -229,6 +229,16 @@ message CommandSubscribe {
 	// Signal wthether the subscription will initialize on latest
 	// or not -- earliest
 	optional InitialPosition initialPosition = 13 [default = Latest];
+	// Maximum number of redeliveries.
+	// Message exceeding the maximum number of redeliveries should send to Dead Letter Topic and acknowledged automatic.
+	// Enable this feature by set maxRedeliveryCount > 0
+	optional int32 maxRedeliveryCount = 14;
+	// Name of Dead Letter Topic.
+	// If not set, pulsar broker will generate with topic name and subscription name and suffix with -DLQ
+	optional string deadLetterTopic = 15;
+	//Maximum number of un-acked messages count per consumer.
+	//This config should less than broker config, if not, config will not enable.
+	optional int32 maxUnackedMessagePerConsumer = 16;
 }
 
 message CommandPartitionedTopicMetadata {

@@ -6722,6 +6722,18 @@ public final class PulsarApi {
     // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 13 [default = Latest];
     boolean hasInitialPosition();
     org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition();
+    
+    // optional int32 maxRedeliveryCount = 14;
+    boolean hasMaxRedeliveryCount();
+    int getMaxRedeliveryCount();
+    
+    // optional string deadLetterTopic = 15;
+    boolean hasDeadLetterTopic();
+    String getDeadLetterTopic();
+    
+    // optional int32 maxUnackedMessagePerConsumer = 16;
+    boolean hasMaxUnackedMessagePerConsumer();
+    int getMaxUnackedMessagePerConsumer();
   }
   public static final class CommandSubscribe extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -7050,6 +7062,58 @@ public final class PulsarApi {
       return initialPosition_;
     }
     
+    // optional int32 maxRedeliveryCount = 14;
+    public static final int MAXREDELIVERYCOUNT_FIELD_NUMBER = 14;
+    private int maxRedeliveryCount_;
+    public boolean hasMaxRedeliveryCount() {
+      return ((bitField0_ & 0x00001000) == 0x00001000);
+    }
+    public int getMaxRedeliveryCount() {
+      return maxRedeliveryCount_;
+    }
+    
+    // optional string deadLetterTopic = 15;
+    public static final int DEADLETTERTOPIC_FIELD_NUMBER = 15;
+    private java.lang.Object deadLetterTopic_;
+    public boolean hasDeadLetterTopic() {
+      return ((bitField0_ & 0x00002000) == 0x00002000);
+    }
+    public String getDeadLetterTopic() {
+      java.lang.Object ref = deadLetterTopic_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          deadLetterTopic_ = s;
+        }
+        return s;
+      }
+    }
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getDeadLetterTopicBytes() {
+      java.lang.Object ref = deadLetterTopic_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        deadLetterTopic_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
+    }
+    
+    // optional int32 maxUnackedMessagePerConsumer = 16;
+    public static final int MAXUNACKEDMESSAGEPERCONSUMER_FIELD_NUMBER = 16;
+    private int maxUnackedMessagePerConsumer_;
+    public boolean hasMaxUnackedMessagePerConsumer() {
+      return ((bitField0_ & 0x00004000) == 0x00004000);
+    }
+    public int getMaxUnackedMessagePerConsumer() {
+      return maxUnackedMessagePerConsumer_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -7064,6 +7128,9 @@ public final class PulsarApi {
       readCompacted_ = false;
       schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
       initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+      maxRedeliveryCount_ = 0;
+      deadLetterTopic_ = "";
+      maxUnackedMessagePerConsumer_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -7159,6 +7226,15 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         output.writeEnum(13, initialPosition_.getNumber());
       }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        output.writeInt32(14, maxRedeliveryCount_);
+      }
+      if (((bitField0_ & 0x00002000) == 0x00002000)) {
+        output.writeBytes(15, getDeadLetterTopicBytes());
+      }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        output.writeInt32(16, maxUnackedMessagePerConsumer_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -7218,6 +7294,18 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(13, initialPosition_.getNumber());
+      }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeInt32Size(14, maxRedeliveryCount_);
+      }
+      if (((bitField0_ & 0x00002000) == 0x00002000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(15, getDeadLetterTopicBytes());
+      }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeInt32Size(16, maxUnackedMessagePerConsumer_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -7358,6 +7446,12 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000800);
         initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
         bitField0_ = (bitField0_ & ~0x00001000);
+        maxRedeliveryCount_ = 0;
+        bitField0_ = (bitField0_ & ~0x00002000);
+        deadLetterTopic_ = "";
+        bitField0_ = (bitField0_ & ~0x00004000);
+        maxUnackedMessagePerConsumer_ = 0;
+        bitField0_ = (bitField0_ & ~0x00008000);
         return this;
       }
       
@@ -7444,6 +7538,18 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000800;
         }
         result.initialPosition_ = initialPosition_;
+        if (((from_bitField0_ & 0x00002000) == 0x00002000)) {
+          to_bitField0_ |= 0x00001000;
+        }
+        result.maxRedeliveryCount_ = maxRedeliveryCount_;
+        if (((from_bitField0_ & 0x00004000) == 0x00004000)) {
+          to_bitField0_ |= 0x00002000;
+        }
+        result.deadLetterTopic_ = deadLetterTopic_;
+        if (((from_bitField0_ & 0x00008000) == 0x00008000)) {
+          to_bitField0_ |= 0x00004000;
+        }
+        result.maxUnackedMessagePerConsumer_ = maxUnackedMessagePerConsumer_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -7495,6 +7601,15 @@ public final class PulsarApi {
         }
         if (other.hasInitialPosition()) {
           setInitialPosition(other.getInitialPosition());
+        }
+        if (other.hasMaxRedeliveryCount()) {
+          setMaxRedeliveryCount(other.getMaxRedeliveryCount());
+        }
+        if (other.hasDeadLetterTopic()) {
+          setDeadLetterTopic(other.getDeadLetterTopic());
+        }
+        if (other.hasMaxUnackedMessagePerConsumer()) {
+          setMaxUnackedMessagePerConsumer(other.getMaxUnackedMessagePerConsumer());
         }
         return this;
       }
@@ -7645,6 +7760,21 @@ public final class PulsarApi {
                 bitField0_ |= 0x00001000;
                 initialPosition_ = value;
               }
+              break;
+            }
+            case 112: {
+              bitField0_ |= 0x00002000;
+              maxRedeliveryCount_ = input.readInt32();
+              break;
+            }
+            case 122: {
+              bitField0_ |= 0x00004000;
+              deadLetterTopic_ = input.readBytes();
+              break;
+            }
+            case 128: {
+              bitField0_ |= 0x00008000;
+              maxUnackedMessagePerConsumer_ = input.readInt32();
               break;
             }
           }
@@ -8085,6 +8215,84 @@ public final class PulsarApi {
       public Builder clearInitialPosition() {
         bitField0_ = (bitField0_ & ~0x00001000);
         initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+        
+        return this;
+      }
+      
+      // optional int32 maxRedeliveryCount = 14;
+      private int maxRedeliveryCount_ ;
+      public boolean hasMaxRedeliveryCount() {
+        return ((bitField0_ & 0x00002000) == 0x00002000);
+      }
+      public int getMaxRedeliveryCount() {
+        return maxRedeliveryCount_;
+      }
+      public Builder setMaxRedeliveryCount(int value) {
+        bitField0_ |= 0x00002000;
+        maxRedeliveryCount_ = value;
+        
+        return this;
+      }
+      public Builder clearMaxRedeliveryCount() {
+        bitField0_ = (bitField0_ & ~0x00002000);
+        maxRedeliveryCount_ = 0;
+        
+        return this;
+      }
+      
+      // optional string deadLetterTopic = 15;
+      private java.lang.Object deadLetterTopic_ = "";
+      public boolean hasDeadLetterTopic() {
+        return ((bitField0_ & 0x00004000) == 0x00004000);
+      }
+      public String getDeadLetterTopic() {
+        java.lang.Object ref = deadLetterTopic_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          deadLetterTopic_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setDeadLetterTopic(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00004000;
+        deadLetterTopic_ = value;
+        
+        return this;
+      }
+      public Builder clearDeadLetterTopic() {
+        bitField0_ = (bitField0_ & ~0x00004000);
+        deadLetterTopic_ = getDefaultInstance().getDeadLetterTopic();
+        
+        return this;
+      }
+      void setDeadLetterTopic(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00004000;
+        deadLetterTopic_ = value;
+        
+      }
+      
+      // optional int32 maxUnackedMessagePerConsumer = 16;
+      private int maxUnackedMessagePerConsumer_ ;
+      public boolean hasMaxUnackedMessagePerConsumer() {
+        return ((bitField0_ & 0x00008000) == 0x00008000);
+      }
+      public int getMaxUnackedMessagePerConsumer() {
+        return maxUnackedMessagePerConsumer_;
+      }
+      public Builder setMaxUnackedMessagePerConsumer(int value) {
+        bitField0_ |= 0x00008000;
+        maxUnackedMessagePerConsumer_ = value;
+        
+        return this;
+      }
+      public Builder clearMaxUnackedMessagePerConsumer() {
+        bitField0_ = (bitField0_ & ~0x00008000);
+        maxUnackedMessagePerConsumer_ = 0;
         
         return this;
       }

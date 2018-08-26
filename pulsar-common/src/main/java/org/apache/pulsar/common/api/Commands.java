@@ -318,12 +318,14 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest, null);
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest,
+                null, 0, null, 0);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
+            SchemaInfo schemaInfo, int maxRedeliveryCount, String deadLetterTopic, int maxUnackedMessagesPerConsumer) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -335,6 +337,11 @@ public class Commands {
         subscribeBuilder.setDurable(isDurable);
         subscribeBuilder.setReadCompacted(readCompacted);
         subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
+        subscribeBuilder.setMaxRedeliveryCount(maxRedeliveryCount);
+        subscribeBuilder.setMaxUnackedMessagePerConsumer(maxUnackedMessagesPerConsumer);
+        if (deadLetterTopic != null) {
+            subscribeBuilder.setDeadLetterTopic(deadLetterTopic);
+        }
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }

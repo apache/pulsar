@@ -131,6 +131,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final SubscriptionInitialPosition subscriptionInitialPosition;
     private final ConnectionHandler connectionHandler;
 
+    private final int maxRedeliveryCount;
+    private final String deadLetterTopic;
+    private final int maxUnackedMessagesPerConsumer;
+
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -159,6 +163,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.priorityLevel = conf.getPriorityLevel();
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
+        this.maxRedeliveryCount = conf.getMaxRedeliveryCount();
+        this.deadLetterTopic = conf.getDeadLetterTopic();
+        this.maxUnackedMessagesPerConsumer = conf.getMaxUnackedMessagesPerConsumer();
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -486,7 +493,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
-                consumerName, isDurable, startMessageIdData, metadata, readCompacted, InitialPosition.valueOf(subscriptionInitialPosition.getValue()), schema.getSchemaInfo());
+                consumerName, isDurable, startMessageIdData, metadata, readCompacted,
+                InitialPosition.valueOf(subscriptionInitialPosition.getValue()), schema.getSchemaInfo(),
+                maxRedeliveryCount, deadLetterTopic, maxUnackedMessagesPerConsumer);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }

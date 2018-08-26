@@ -242,7 +242,25 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 		return this;
 	}
 
-	public ConsumerConfigurationData<T> getConf() {
+    @Override
+    public ConsumerBuilder<T> maxRedeliveryCount(int maxRedeliveryCount) {
+        conf.setMaxRedeliveryCount(maxRedeliveryCount);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> deadLetterTopic(String deadLetterTopic) {
+        conf.setDeadLetterTopic(deadLetterTopic);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> maxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer) {
+        conf.setMaxUnackedMessagesPerConsumer(maxUnackedMessagesPerConsumer);
+        return this;
+    }
+
+    public ConsumerConfigurationData<T> getConf() {
 	    return conf;
 	}
 }

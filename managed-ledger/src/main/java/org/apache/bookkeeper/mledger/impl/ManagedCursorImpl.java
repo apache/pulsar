@@ -44,7 +44,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -383,6 +385,27 @@ public class ManagedCursorImpl implements ManagedCursor {
                 callback.operationFailed(exception);
             }
         });
+    }
+
+    @Override
+    public Entry readEntry(PositionImpl position) throws InterruptedException, ExecutionException {
+        final CompletableFuture<Entry> readFuture = new CompletableFuture<>();
+        ledger.asyncReadEntry(position, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                readFuture.complete(entry);
+            }
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                readFuture.completeExceptionally(exception);
+            }
+        }, null);
+        return readFuture.get();
+    }
+
+    @Override
+    public void asyncReadEntry(PositionImpl position, ReadEntryCallback callback, Object ctx) {
+        ledger.asyncReadEntry(position, callback, ctx);
     }
 
     @Override

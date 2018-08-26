@@ -55,6 +55,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -240,7 +241,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 // to take care of it
             } else {
                 final String subscriptionName = Codec.decode(cursor.getName());
-                subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor));
+                //TODO Persist maxRedeliveryCount and deadLetterTopic to ManagedLedger
+                subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor, 0, null));
                 // subscription-cursor gets activated by default: deactivate as there is no active subscription right
                 // now
                 subscriptions.get(subscriptionName).deactivateCursor();
@@ -261,12 +263,13 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
     }
 
-    private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor) {
+    private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
+            int maxRedeliveryCount, String deadLetterTopic) {
         checkNotNull(compactedTopic);
         if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor);
+            return new PersistentSubscription(this, subscriptionName, cursor, maxRedeliveryCount, deadLetterTopic);
         }
     }
 
@@ -457,7 +460,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+            int maxRedeliveryCount, String deadLetterTopic, int maxUnackedMessagesPerConsumer) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -505,10 +509,13 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
 
         CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
-                getDurableSubscription(subscriptionName, initialPosition) //
+                getDurableSubscription(subscriptionName, initialPosition, maxRedeliveryCount, deadLetterTopic) //
                 : getNonDurableSubscription(subscriptionName, startMessageId);
 
-        int maxUnackedMessages  = isDurable ? brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer() :0;
+        final int maxUackedMessaegesPerConsumerInBroker = brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
+        int maxUnackedMessages = isDurable ? (
+            maxUnackedMessagesPerConsumer > 0 && maxUnackedMessagesPerConsumer < maxUackedMessaegesPerConsumerInBroker
+            ? maxUnackedMessagesPerConsumer : maxUackedMessaegesPerConsumerInBroker) : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
             try {
@@ -548,7 +555,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return future;
     }
 
-    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName, InitialPosition initialPosition) {
+    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName, InitialPosition initialPosition,
+           int maxRedeliveryCount, String deadLetterTopic) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, new OpenCursorCallback() {
             @Override
@@ -556,9 +564,28 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] Opened cursor", topic, subscriptionName);
                 }
+                subscriptions.computeIfAbsent(subscriptionName,
+                        name -> createPersistentSubscription(subscriptionName, cursor, maxRedeliveryCount, deadLetterTopic));
 
-                subscriptionFuture.complete(subscriptions.computeIfAbsent(subscriptionName,
-                        name -> createPersistentSubscription(subscriptionName, cursor)));
+                PersistentSubscription subscription = subscriptions.get(subscriptionName);
+                if (subscription.maxRedeliveryCount != maxRedeliveryCount) {
+                    subscription.maxRedeliveryCount = maxRedeliveryCount;
+                    if (subscription.dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+                        ((PersistentDispatcherMultipleConsumers) subscription.dispatcher).maxRedeliveryCount = maxRedeliveryCount;
+                    }
+                }
+                if (!StringUtils.equals(subscription.deadLetterTopic, deadLetterTopic)) {
+                    subscription.deadLetterTopic = deadLetterTopic;
+                    if (subscription.dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+                        ((PersistentDispatcherMultipleConsumers) subscription.dispatcher).deadLetterTopic = deadLetterTopic;
+                        try {
+                            ((PersistentDispatcherMultipleConsumers) subscription.dispatcher).reloadDeadLetterProducer();
+                        } catch (Throwable e) {
+                            subscriptionFuture.completeExceptionally(e);
+                        }
+                    }
+                }
+                subscriptionFuture.complete(subscription);
             }
 
             @Override
@@ -602,7 +629,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 subscriptionFuture.completeExceptionally(e);
             }
 
-            return new PersistentSubscription(this, subscriptionName, cursor);
+            return new PersistentSubscription(this, subscriptionName, cursor, 0, null);
         });
 
         if (!subscriptionFuture.isDone()) {
@@ -617,8 +644,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @SuppressWarnings("unchecked")
     @Override
-    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition) {
-        return getDurableSubscription(subscriptionName, initialPosition);
+    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
+          int maxRedeliveryCount, String deadLetterTopic) {
+        return getDurableSubscription(subscriptionName, initialPosition, maxRedeliveryCount, deadLetterTopic);
     }
 
     /**
