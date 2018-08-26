@@ -170,6 +170,7 @@ public class TwitterFireHose extends PushSource<TweetData> {
 
     static private class TwitterRecord implements Record<TweetData> {
         private final TweetData tweet;
+        private static SimpleDateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss Z yyyy");
         private final boolean guestimateTweetTime;
 
         public TwitterRecord(TweetData tweet, boolean guestimateTweetTime) {
@@ -187,8 +188,7 @@ public class TwitterFireHose extends PushSource<TweetData> {
         public Optional<Long> getEventTime() {
             try {
                 if (tweet.getCreatedAt() != null) {
-                    SimpleDateFormat sdf = new SimpleDateFormat("EEE MMM d HH:mm:ss Z yyyy");
-                    Date d = sdf.parse(tweet.getCreatedAt());
+                    Date d = dateFormat.parse(tweet.getCreatedAt());
                     return Optional.of(d.toInstant().toEpochMilli());
                 } else if (guestimateTweetTime) {
                     return Optional.of(System.currentTimeMillis());
