@@ -468,11 +468,13 @@ public class PulsarClientImpl implements PulsarClient {
     // get topics that match 'topicsPattern' from original topics list
     // return result should contain only topic names, without partition part
     public static List<String> topicsPatternFilter(List<String> original, Pattern topicsPattern) {
+        final Pattern shortenedTopicsPattern = topicsPattern.toString().contains("://")
+            ? Pattern.compile(topicsPattern.toString().split("\\:\\/\\/")[1]) : topicsPattern;
+
         return original.stream()
-            .filter(topic -> {
-                TopicName destinationName = TopicName.get(topic);
-                return topicsPattern.matcher(destinationName.toString()).matches();
-            })
+            .map(TopicName::get)
+            .map(TopicName::toString)
+            .filter(topic -> shortenedTopicsPattern.matcher(topic.split("\\:\\/\\/")[1]).matches())
             .collect(Collectors.toList());
     }
 
