@@ -240,7 +240,7 @@ public class MessageImpl<T> implements Message<T> {
         return null;
     }
 
-    ByteBuf getDataBuffer() {
+    public ByteBuf getDataBuffer() {
         return payload;
     }
 
@@ -273,7 +273,7 @@ public class MessageImpl<T> implements Message<T> {
         return properties.get(name);
     }
 
-    MessageMetadata.Builder getMessageBuilder() {
+    public MessageMetadata.Builder getMessageBuilder() {
         return msgMetadataBuilder;
     }
 

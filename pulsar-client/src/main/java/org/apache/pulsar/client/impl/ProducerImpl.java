@@ -205,10 +205,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    CompletableFuture<MessageId> internalSendAsync(Message<T> message) {
-        CompletableFuture<MessageId> future = new CompletableFuture<>();
+    CompletableFuture<MessageId> internalSendAsync(Message<T> message) {CompletableFuture<MessageId> future = new CompletableFuture<>();
 
-        Message<T> interceptorMessage = callInterceptorsForBeforeSend(message);
+        MessageImpl<T> interceptorMessage = (MessageImpl<T>) callInterceptorsForBeforeSend(message);
+        interceptorMessage.getDataBuffer().retain();
 
         sendAsync(interceptorMessage, new SendCallback() {
             SendCallback nextCallback = null;
@@ -234,23 +234,30 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             public void sendComplete(Exception e) {
                 if (e != null) {
                     stats.incrementSendFailed();
+                    callInterceptorsForOnSendAcknowledgement(interceptorMessage, null, e);
                     future.completeExceptionally(e);
                 } else {
-                    future.complete(message.getMessageId());
+                    callInterceptorsForOnSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
+                    future.complete(interceptorMessage.getMessageId());
                     stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                 }
+                interceptorMessage.getDataBuffer().release();
+                interceptorMessage.getMessageBuilder().recycle();
                 while (nextCallback != null) {
                     SendCallback sendCallback = nextCallback;
                     MessageImpl<?> msg = nextMsg;
+                    msg.getDataBuffer().retain();
                     if (e != null) {
                         stats.incrementSendFailed();
+                        callInterceptorsForOnSendAcknowledgement((Message<T>) msg, null, e);
                         sendCallback.getFuture().completeExceptionally(e);
-                        callInterceptorsForOnSendAcknowledgement(interceptorMessage, null, e);
                     } else {
+                        callInterceptorsForOnSendAcknowledgement((Message<T>) msg, msg.getMessageId(), null);
                         sendCallback.getFuture().complete(msg.getMessageId());
-                        callInterceptorsForOnSendAcknowledgement(interceptorMessage, msg.getMessageId(), null);
                         stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                     }
+                    msg.getDataBuffer().release();
+                    msg.getMessageBuilder().recycle();
                     nextMsg = nextCallback.getNextMessage();
                     nextCallback = nextCallback.getNextSendCallback();
                 }

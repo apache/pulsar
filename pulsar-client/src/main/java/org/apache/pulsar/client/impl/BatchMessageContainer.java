@@ -105,7 +105,6 @@ class BatchMessageContainer {
         batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
                 msg.getDataBuffer(), batchedMessageMetadataAndPayload);
         messages.add(msg);
-        msgBuilder.recycle();
     }
 
     ByteBuf getCompressedBatchMetadataAndPayload() {
