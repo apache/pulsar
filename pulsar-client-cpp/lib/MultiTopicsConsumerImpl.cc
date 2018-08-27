@@ -175,17 +175,30 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     boost::shared_ptr<std::atomic<int>> partitionsNeedCreate =
         boost::make_shared<std::atomic<int>>(numPartitions);
 
-    for (int i = 0; i < numPartitions; i++) {
-        std::string topicPartitionName = topicName->getTopicPartitionName(i);
-        consumer = boost::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
-                                                    internalListenerExecutor, Partitioned);
+    if (numPartitions == 1) {
+        // We don't have to add partition-n suffix
+        consumer = boost::make_shared<ConsumerImpl>(client_, topicName->toString(), subscriptionName_, config,
+                                                    internalListenerExecutor, NonPartitioned);
         consumer->getConsumerCreatedFuture().addListener(
-            boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
-                        partitionsNeedCreate, topicSubResultPromise));
-        consumer->setPartitionIndex(i);
-        consumers_.insert(std::make_pair(topicPartitionName, consumer));
-        LOG_DEBUG("Create Consumer for - " << topicPartitionName << " - " << consumerStr_);
+                boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
+                            partitionsNeedCreate, topicSubResultPromise));
+        consumers_.insert(std::make_pair(topicName->toString(), consumer));
+        LOG_DEBUG("Creating Consumer for - " << topicName << " - " << consumerStr_);
         consumer->start();
+
+    } else {
+        for (int i = 0; i < numPartitions; i++) {
+            std::string topicPartitionName = topicName->getTopicPartitionName(i);
+            consumer = boost::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
+                                                        internalListenerExecutor, Partitioned);
+            consumer->getConsumerCreatedFuture().addListener(
+                    boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
+                                partitionsNeedCreate, topicSubResultPromise));
+            consumer->setPartitionIndex(i);
+            consumers_.insert(std::make_pair(topicPartitionName, consumer));
+            LOG_DEBUG("Creating Consumer for - " << topicPartitionName << " - " << consumerStr_);
+            consumer->start();
+        }
     }
 }
 
