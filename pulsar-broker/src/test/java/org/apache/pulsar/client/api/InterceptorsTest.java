@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -27,9 +26,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class InterceptorsTest extends ProducerConsumerBase {
 
@@ -49,7 +45,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testProducerInterceptor() throws PulsarClientException {
+    public void testProducerBeforeSend() throws PulsarClientException {
         ProducerInterceptor<String> interceptor1 = new ProducerInterceptor<String>() {
             @Override
             public void close() {
@@ -111,249 +107,5 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         MessageId messageId = producer.newMessage().property("key", "before").value("Hello Pulsar!").send();
         log.info("Send result messageId: {}", messageId);
-        producer.close();
-    }
-
-    @Test
-    public void testConsumerInterceptorWithSingleTopicSubscribe() throws PulsarClientException {
-        ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
-            @Override
-            public void close() {
-
-            }
-
-            @Override
-            public Message<String> beforeConsume(Message<String> message) {
-                MessageImpl<String> msg = (MessageImpl<String>) message;
-                msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
-                return msg;
-            }
-
-            @Override
-            public void onAcknowledge(MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
-            }
-
-            @Override
-            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
-            }
-        };
-
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
-                .subscriptionType(SubscriptionType.Shared)
-                .intercept(interceptor)
-                .subscriptionName("my-subscription")
-                .subscribe();
-
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
-                .create();
-
-        producer.newMessage().value("Hello Pulsar!").send();
-
-        Message<String> received = consumer.receive();
-        MessageImpl<String> msg = (MessageImpl<String>) received;
-        boolean haveKey = false;
-        for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
-            if ("beforeConsumer".equals(keyValue.getKey())) {
-                haveKey = true;
-            }
-        }
-        Assert.assertTrue(haveKey);
-        consumer.acknowledge(received);
-        producer.close();
-        consumer.close();
-    }
-
-    @Test
-    public void testConsumerInterceptorWithMultiTopicSubscribe() throws PulsarClientException {
-
-        ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
-            @Override
-            public void close() {
-
-            }
-
-            @Override
-            public Message<String> beforeConsume(Message<String> message) {
-                MessageImpl<String> msg = (MessageImpl<String>) message;
-                msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
-                return msg;
-            }
-
-            @Override
-            public void onAcknowledge(MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
-            }
-
-            @Override
-            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
-            }
-        };
-
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
-                .create();
-
-        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic1")
-                .create();
-
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic", "persistent://my-property/my-ns/my-topic1")
-                .subscriptionType(SubscriptionType.Shared)
-                .intercept(interceptor)
-                .subscriptionName("my-subscription")
-                .subscribe();
-
-        producer.newMessage().value("Hello Pulsar!").send();
-        producer1.newMessage().value("Hello Pulsar!").send();
-
-        int keyCount = 0;
-        for (int i = 0; i < 2; i++) {
-            Message<String> received = consumer.receive();
-            MessageImpl<String> msg = (MessageImpl<String>) ((TopicMessageImpl<String>) received).getMessage();
-            for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
-                if ("beforeConsumer".equals(keyValue.getKey())) {
-                    keyCount++;
-                }
-            }
-            consumer.acknowledge(received);
-        }
-        Assert.assertEquals(2, keyCount);
-        producer.close();
-        producer1.close();
-        consumer.close();
-    }
-
-    @Test
-    public void testConsumerInterceptorWithPatternTopicSubscribe() throws PulsarClientException {
-
-        ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
-            @Override
-            public void close() {
-
-            }
-
-            @Override
-            public Message<String> beforeConsume(Message<String> message) {
-                MessageImpl<String> msg = (MessageImpl<String>) message;
-                msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
-                return msg;
-            }
-
-            @Override
-            public void onAcknowledge(MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
-            }
-
-            @Override
-            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
-            }
-        };
-
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
-                .create();
-
-        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic1")
-                .create();
-
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topicsPattern("persistent://my-property/my-ns/my-.*")
-                .subscriptionType(SubscriptionType.Shared)
-                .intercept(interceptor)
-                .subscriptionName("my-subscription")
-                .subscribe();
-
-        producer.newMessage().value("Hello Pulsar!").send();
-        producer1.newMessage().value("Hello Pulsar!").send();
-
-        int keyCount = 0;
-        for (int i = 0; i < 2; i++) {
-            Message<String> received = consumer.receive();
-            MessageImpl<String> msg = (MessageImpl<String>) ((TopicMessageImpl<String>) received).getMessage();
-            for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
-                if ("beforeConsumer".equals(keyValue.getKey())) {
-                    keyCount++;
-                }
-            }
-            consumer.acknowledge(received);
-        }
-        Assert.assertEquals(2, keyCount);
-        producer.close();
-        producer1.close();
-        consumer.close();
-    }
-
-    @Test
-    public void testConsumerInterceptorForAcknowledgeCumulative() throws PulsarClientException {
-
-        List<MessageId> ackHolder = new ArrayList<>();
-
-        ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
-            @Override
-            public void close() {
-
-            }
-
-            @Override
-            public Message<String> beforeConsume(Message<String> message) {
-                MessageImpl<String> msg = (MessageImpl<String>) message;
-                msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
-                return msg;
-            }
-
-            @Override
-            public void onAcknowledge(MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
-            }
-
-            @Override
-            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
-                long acknowledged = ackHolder.stream().filter(m -> (m.compareTo(messageId) <= 0)).count();
-                Assert.assertEquals(acknowledged, 100);
-                ackHolder.clear();
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
-            }
-        };
-
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
-                .subscriptionType(SubscriptionType.Failover)
-                .intercept(interceptor)
-                .subscriptionName("my-subscription")
-                .subscribe();
-
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
-                .create();
-
-        for (int i = 0; i < 100; i++) {
-            producer.newMessage().value("Hello Pulsar!").send();
-        }
-
-        int keyCount = 0;
-        for (int i = 0; i < 100; i++) {
-            Message<String> received = consumer.receive();
-            MessageImpl<String> msg = (MessageImpl<String>) received;
-            for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
-                if ("beforeConsumer".equals(keyValue.getKey())) {
-                    keyCount++;
-                }
-            }
-            ackHolder.add(received.getMessageId());
-            if (i == 99) {
-                consumer.acknowledgeCumulative(received);
-            }
-        }
-        Assert.assertEquals(100, keyCount);
-        producer.close();
-        consumer.close();
     }
 }
