@@ -75,6 +75,15 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     }
 
     @Override
+    public Optional<Long> getEventTime() {
+        if (message.getEventTime() != 0) {
+            return Optional.of(message.getEventTime());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Override
     public Optional<EncryptionContext> getEncryptionCtx() {
         return message.getEncryptionCtx();
     }

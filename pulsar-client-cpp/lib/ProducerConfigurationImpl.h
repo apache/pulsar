@@ -44,6 +44,7 @@ struct ProducerConfigurationImpl {
     CryptoKeyReaderPtr cryptoKeyReader;
     std::set<std::string> encryptionKeys;
     ProducerCryptoFailureAction cryptoFailureAction;
+    std::map<std::string, std::string> properties;
     ProducerConfigurationImpl()
         : sendTimeoutMs(30000),
           compressionType(CompressionNone),

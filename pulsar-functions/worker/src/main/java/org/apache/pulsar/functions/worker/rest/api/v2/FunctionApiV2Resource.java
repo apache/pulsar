@@ -25,6 +25,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.util.List;
 
 import javax.ws.rs.Consumes;
@@ -34,17 +35,13 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.apache.pulsar.functions.worker.WorkerInfo;
-
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Path("/functions")
@@ -128,27 +125,6 @@ public class FunctionApiV2Resource extends FunctionApiResource {
 
     }
 
-    @GET
-    @Path("/cluster")
-    @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Fetches information about the Pulsar cluster running Pulsar Functions")
-    public List<WorkerInfo> getCluster() {
-        return functions.getCluster();
-    }
-
-    @GET
-    @Path("/cluster/leader")
-    @Produces(MediaType.APPLICATION_JSON)
-    public WorkerInfo getClusterLeader() {
-        return functions.getClusterLeader();
-    }
-
-    @GET
-    @Path("/assignments")
-    public Response getAssignments() {
-        return functions.getAssignments();
-    }
-
     @POST
     @Path("/{tenant}/{namespace}/{functionName}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -171,7 +147,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public Response restartFunction(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
             final @PathParam("instanceId") String instanceId) {
-        return functions.restartFunctionInstance(tenant, namespace, functionName, instanceId);
+        return functions.restartFunctionInstance(tenant, namespace, functionName, instanceId, this.uri.getRequestUri());
     }
 
     @POST
@@ -196,7 +172,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public Response stopFunction(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName,
             final @PathParam("instanceId") String instanceId) {
-        return functions.stopFunctionInstance(tenant, namespace, functionName, instanceId);
+        return functions.stopFunctionInstance(tenant, namespace, functionName, instanceId, this.uri.getRequestUri());
     }
 
     @POST

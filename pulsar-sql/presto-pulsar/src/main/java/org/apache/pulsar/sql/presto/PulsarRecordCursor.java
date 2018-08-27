@@ -20,6 +20,7 @@ package org.apache.pulsar.sql.presto;
 
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.RecordCursor;
+import com.facebook.presto.spi.type.TimestampWithTimeZoneType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarbinaryType;
 import com.facebook.presto.spi.type.VarcharType;
@@ -55,12 +56,15 @@ import java.util.concurrent.TimeUnit;
 
 import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
+import static com.facebook.presto.spi.type.DateTimeEncoding.packDateTimeWithZone;
+import static com.facebook.presto.spi.type.DateTimeEncoding.unpackMillisUtc;
 import static com.facebook.presto.spi.type.DateType.DATE;
 import static com.facebook.presto.spi.type.IntegerType.INTEGER;
 import static com.facebook.presto.spi.type.RealType.REAL;
 import static com.facebook.presto.spi.type.SmallintType.SMALLINT;
 import static com.facebook.presto.spi.type.TimeType.TIME;
 import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
+import static com.facebook.presto.spi.type.TimestampWithTimeZoneType.TIMESTAMP_WITH_TIME_ZONE;
 import static com.facebook.presto.spi.type.TinyintType.TINYINT;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -264,7 +268,7 @@ public class PulsarRecordCursor implements RecordCursor {
         if (type.equals(BIGINT)) {
             return ((Number) record).longValue();
         } else if (type.equals(DATE)) {
-            return MILLISECONDS.toDays(new Date(TimeUnit.DAYS.toMillis(((Number) record).longValue())).getTime());
+            return ((Number) record).longValue();
         } else if (type.equals(INTEGER)) {
             return (int) record;
         } else if (type.equals(REAL)) {
@@ -272,9 +276,11 @@ public class PulsarRecordCursor implements RecordCursor {
         } else if (type.equals(SMALLINT)) {
             return ((Number) record).shortValue();
         } else if (type.equals(TIME)) {
-            return new Time(((Number) record).longValue()).getTime();
+            return ((Number) record).longValue();
         } else if (type.equals(TIMESTAMP)) {
-            return new Timestamp(((Number) record).longValue()).getTime();
+            return ((Number) record).longValue();
+        } else if (type.equals(TIMESTAMP_WITH_TIME_ZONE)) {
+            return packDateTimeWithZone(((Number) record).longValue(), 0);
         } else if (type.equals(TINYINT)) {
             return Byte.parseByte(record.toString());
         } else {
