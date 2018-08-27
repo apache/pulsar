@@ -650,6 +650,110 @@ class PulsarTest(TestCase):
 
         client.close()
 
+    def test_topics_consumer(self):
+        client = Client(self.serviceUrl)
+        topic1 = 'persistent://sample/standalone/ns/my-python-topics-consumer-1'
+        topic2 = 'persistent://sample/standalone/ns/my-python-topics-consumer-2'
+        topic3 = 'persistent://sample/standalone/ns/my-python-topics-consumer-3'
+        topics = [topic1, topic2, topic3]
+
+        url1 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-topics-consumer-1/partitions'
+        url2 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-topics-consumer-2/partitions'
+        url3 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-topics-consumer-3/partitions'
+
+        doHttpPut(url1, '2')
+        doHttpPut(url2, '3')
+        doHttpPut(url3, '4')
+
+        producer1 = client.create_producer(topic1)
+        producer2 = client.create_producer(topic2)
+        producer3 = client.create_producer(topic3)
+
+        consumer = client.subscribe_topics(topics,
+                                           'my-topics-consumer-sub',
+                                           consumer_type=ConsumerType.Shared,
+                                           receiver_queue_size=10
+                                           )
+
+        for i in range(100):
+            producer1.send('hello-1-%d' % i)
+
+        for i in range(100):
+            producer2.send('hello-2-%d' % i)
+
+        for i in range(100):
+            producer3.send('hello-3-%d' % i)
+
+
+        for i in range(300):
+            msg = consumer.receive()
+            consumer.acknowledge(msg)
+
+        try:
+        # No other messages should be received
+            consumer.receive(timeout_millis=500)
+            self.assertTrue(False)
+        except:
+            # Exception is expected
+            pass
+        client.close()
+
+    def test_topics_pattern_consumer(self):
+        client = Client(self.serviceUrl)
+
+        topics_pattern = 'persistent://sample/standalone/ns/my-python-pattern-consumer.*'
+
+
+        consumer = client.subscribe_pattern(topics_pattern,
+                                            'my-pattern-consumer-sub',
+                                            consumer_type=ConsumerType.Shared,
+                                            receiver_queue_size=10,
+                                            pattern_auto_discovery_period=1
+                                            )
+
+        topic1 = 'persistent://sample/standalone/ns/my-python-pattern-consumer-1'
+        topic2 = 'persistent://sample/standalone/ns/my-python-pattern-consumer-2'
+        topic3 = 'persistent://sample/standalone/ns/my-python-pattern-consumer-3'
+
+        url1 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-pattern-consumer-1/partitions'
+        url2 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-pattern-consumer-2/partitions'
+        url3 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-pattern-consumer-3/partitions'
+
+        doHttpPut(url1, '2')
+        doHttpPut(url2, '3')
+        doHttpPut(url3, '4')
+
+        producer1 = client.create_producer(topic1)
+        producer2 = client.create_producer(topic2)
+        producer3 = client.create_producer(topic3)
+
+        # wait enough time to trigger auto discovery
+        time.sleep(2)
+
+        for i in range(100):
+            producer1.send('hello-1-%d' % i)
+
+        for i in range(100):
+            producer2.send('hello-2-%d' % i)
+
+        for i in range(100):
+            producer3.send('hello-3-%d' % i)
+
+
+        for i in range(300):
+            msg = consumer.receive()
+            consumer.acknowledge(msg)
+
+        try:
+            # No other messages should be received
+            consumer.receive(timeout_millis=500)
+            self.assertTrue(False)
+        except:
+            # Exception is expected
+            pass
+        client.close()
+
+
     def _check_value_error(self, fun):
         try:
             fun()
