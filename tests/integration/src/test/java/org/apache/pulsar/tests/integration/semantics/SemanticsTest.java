@@ -245,7 +245,7 @@ public class SemanticsTest extends PulsarClusterTestBase {
                     Message<String> m = consumer.receive();
                     int topicIdx;
                     if (numTopics > 1) {
-                        String topic = ((TopicMessageIdImpl) m.getMessageId()).getTopicName();
+                        String topic = ((TopicMessageIdImpl) m.getMessageId()).getTopicPartitionName();
 
                         String[] topicParts = StringUtils.split(topic, '-');
                         topicIdx = Integer.parseInt(topicParts[topicParts.length - 1]);
