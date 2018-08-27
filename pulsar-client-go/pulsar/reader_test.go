@@ -82,12 +82,20 @@ func TestReader(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		hasNext, err := reader.HasNext()
+		assertNil(t, err)
+		assertEqual(t, hasNext, true)
+
 		msg, err := reader.Next(ctx)
 		assertNil(t, err)
 		assertNotNil(t, msg)
 
 		assertEqual(t, string(msg.Payload()), fmt.Sprintf("hello-%d", i))
 	}
+
+	hasNext, err := reader.HasNext()
+	assertNil(t, err)
+	assertEqual(t, hasNext, false)
 }
 
 func TestReaderWithInvalidConf(t *testing.T) {
