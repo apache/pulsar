@@ -182,7 +182,7 @@ name: my-function
 tenant: public
 namespace: default
 jar: ./target/my-functions.jar
-classname: org.example.pulsar.functions.MyFunction
+className: org.example.pulsar.functions.MyFunction
 inputs:
 - persistent://public/default/test_src
 output: persistent://public/default/test_result
