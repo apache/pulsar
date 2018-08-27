@@ -31,7 +31,13 @@ import lombok.ToString;
 @ToString
 public class Field {
 
+    /**
+     * The field name.
+     */
     private final String name;
+    /**
+     * The index of the field within the record.
+     */
     private final int index;
 
 }
