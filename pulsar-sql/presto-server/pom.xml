@@ -1,53 +1,53 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+<!--<?xml version="1.0" encoding="UTF-8"?>-->
+<!--<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">-->
+    <!--<modelVersion>4.0.0</modelVersion>-->
 
-    <parent>
-        <groupId>io.airlift</groupId>
-        <artifactId>airbase</artifactId>
-        <version>80</version>
-    </parent>
+    <!--<parent>-->
+        <!--<groupId>io.airlift</groupId>-->
+        <!--<artifactId>airbase</artifactId>-->
+        <!--<version>80</version>-->
+    <!--</parent>-->
 
-    <groupId>com.facebook.presto</groupId>
-    <version>0.206</version>
+    <!--<groupId>com.facebook.presto</groupId>-->
+    <!--<version>0.206</version>-->
 
 
-    <artifactId>presto-server</artifactId>
-    <name>Pulsar SQL :: Pulsar Presto Distribution</name>
-    <packaging>provisio</packaging>
+    <!--<artifactId>presto-server</artifactId>-->
+    <!--<name>Pulsar SQL :: Pulsar Presto Distribution</name>-->
+    <!--<packaging>provisio</packaging>-->
 
-    <properties>
-        <air.check.skip-duplicate-finder>true</air.check.skip-duplicate-finder>
-        <air.check.skip-findbugs>true</air.check.skip-findbugs>
-        <air.check.skip-dependency>true</air.check.skip-dependency>
-        <air.check.skip-dependency-version-check>true</air.check.skip-dependency-version-check>
-        <!-- Dependency versions -->
-        <dep.antlr.version>4.6</dep.antlr.version>
-        <dep.airlift.version>0.170</dep.airlift.version>
-        <dep.packaging.version>${dep.airlift.version}</dep.packaging.version>
-        <dep.slice.version>0.35</dep.slice.version>
-        <dep.aws-sdk.version>1.11.293</dep.aws-sdk.version>
-        <dep.okhttp.version>3.9.0</dep.okhttp.version>
-        <dep.jdbi3.version>3.0.0</dep.jdbi3.version>
-        <dep.drift.version>1.12</dep.drift.version>
-        <dep.tempto.version>1.49</dep.tempto.version>
-        <dep.testng.version>6.10</dep.testng.version>
-        <dep.assertj-core.version>3.8.0</dep.assertj-core.version>
-        <pulsar.version>2.2.0-incubating-SNAPSHOT</pulsar.version>
-        <!-- Launcher properties -->
-        <main-class>com.facebook.presto.server.PrestoServer</main-class>
-        <process-name>${project.artifactId}</process-name>
-    </properties>
+    <!--<properties>-->
+        <!--<air.check.skip-duplicate-finder>true</air.check.skip-duplicate-finder>-->
+        <!--<air.check.skip-findbugs>true</air.check.skip-findbugs>-->
+        <!--<air.check.skip-dependency>true</air.check.skip-dependency>-->
+        <!--<air.check.skip-dependency-version-check>true</air.check.skip-dependency-version-check>-->
+        <!--&lt;!&ndash; Dependency versions &ndash;&gt;-->
+        <!--<dep.antlr.version>4.6</dep.antlr.version>-->
+        <!--<dep.airlift.version>0.170</dep.airlift.version>-->
+        <!--<dep.packaging.version>${dep.airlift.version}</dep.packaging.version>-->
+        <!--<dep.slice.version>0.35</dep.slice.version>-->
+        <!--<dep.aws-sdk.version>1.11.293</dep.aws-sdk.version>-->
+        <!--<dep.okhttp.version>3.9.0</dep.okhttp.version>-->
+        <!--<dep.jdbi3.version>3.0.0</dep.jdbi3.version>-->
+        <!--<dep.drift.version>1.12</dep.drift.version>-->
+        <!--<dep.tempto.version>1.49</dep.tempto.version>-->
+        <!--<dep.testng.version>6.10</dep.testng.version>-->
+        <!--<dep.assertj-core.version>3.8.0</dep.assertj-core.version>-->
+        <!--<pulsar.version>2.2.0-incubating-SNAPSHOT</pulsar.version>-->
+        <!--&lt;!&ndash; Launcher properties &ndash;&gt;-->
+        <!--<main-class>com.facebook.presto.server.PrestoServer</main-class>-->
+        <!--<process-name>${project.artifactId}</process-name>-->
+    <!--</properties>-->
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>io.takari.maven.plugins</groupId>
-                <artifactId>provisio-maven-plugin</artifactId>
-                <version>0.1.40</version>
-                <extensions>true</extensions>
-            </plugin>
-        </plugins>
-    </build>
+    <!--<build>-->
+        <!--<plugins>-->
+            <!--<plugin>-->
+                <!--<groupId>io.takari.maven.plugins</groupId>-->
+                <!--<artifactId>provisio-maven-plugin</artifactId>-->
+                <!--<version>0.1.40</version>-->
+                <!--<extensions>true</extensions>-->
+            <!--</plugin>-->
+        <!--</plugins>-->
+    <!--</build>-->
 
-</project>
+<!--</project>-->

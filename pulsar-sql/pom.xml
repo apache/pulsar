@@ -34,7 +34,7 @@
     <modules>
         <module>presto-pulsar</module>
         <module>presto-pulsar-plugin</module>
-        <module>presto-server</module>
+        <module>presto-distribution</module>
     </modules>
 
 </project>

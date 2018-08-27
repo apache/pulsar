@@ -334,6 +334,7 @@ The Apache Software License, Version 2.0
      - jackson-datatype-joda-2.8.4.jar
      - jackson-datatype-jsr310-2.8.1.jar
      - jackson-datatype-jsr310-2.8.1.jar
+     - jackson-core-2.8.1.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.3.3.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.0.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
@@ -371,6 +372,7 @@ The Apache Software License, Version 2.0
     - io.netty-netty-3.10.1.Final.jar
     - io.netty-netty-all-4.1.22.Final.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.7.Final.jar
+    - netty-3.6.2.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.0.23.jar
     - io.prometheus-simpleclient_common-0.0.23.jar
@@ -520,6 +522,20 @@ The Apache Software License, Version 2.0
     - jmx-0.171.jar
     - jmx-http-0.171.jar
     - jmx-http-rpc-0.159.jar
+    - joni-2.1.5.1.jar
+    - json-0.170.jar
+    - json-0.171.jar
+    - log-0.170.jar
+    - log-0.171.jar
+    - log-manager-0.170.jar
+    - log-manager-0.171.jar
+    - node-0.171.jar
+    - resolver-1.4.jar
+    - security-0.171.jar
+    - slice-0.35.jar
+    - stats-0.171.jar
+    - trace-token-0.171.jar
+    - units-1.0.jar
   * Error Prone Annotations
     - error_prone_annotations-2.1.3.jar
   * Esri Geometry API For Java
@@ -532,6 +548,42 @@ The Apache Software License, Version 2.0
     - jjwt-0.9.0.jar
   * Jmxutils
     - jmxutils-1.19.jar
+  * LevelDB
+    - leveldb-0.10.jar
+    - leveldb-api-0.10.jar
+  * Log4j implemented over SLF4J
+    - log4j-over-slf4j-1.7.25.jar
+  * Lucene Common Analyzers
+    - lucene-analyzers-common-7.2.1.jar
+  * Maven
+    - maven-aether-provider-3.0.4.jar
+    - maven-artifact-3.0.4.jar
+    - maven-compat-3.0.4.jar
+    - maven-core-3.0.4.jar
+    - maven-embedder-3.0.4.jar
+    - maven-model-3.0.4.jar
+    - maven-model-builder-3.0.4.jar
+    - maven-plugin-api-3.0.4.jar
+    - maven-repository-metadata-3.0.4.jar
+    - maven-settings-3.0.4.jar
+    - maven-settings-builder-3.0.4.jar
+  * OkHttp
+    - okhttp-3.9.0.jar
+    - okhttp-urlconnection-3.9.0.jar
+  * OpenCSV
+    - opencsv-2.3.jar
+  * Plexus
+    - plexus-cipher-1.7.jar
+    - plexus-classworlds-2.4.jar
+    - plexus-component-annotations-1.5.5.jar
+    - plexus-container-default-1.5.5.jar
+    - plexus-interpolation-1.14.jar
+    - plexus-sec-dispatcher-1.3.jar
+    - plexus-utils-2.0.6.jar
+  * Apache Maven Wagon
+    - wagon-provider-api-2.2.jar
+  * Apache XBean :: Reflect
+    - xbean-reflect-3.4.jar
 
 BSD 3-clause "New" or "Revised" License
  * EA Agent Loader
@@ -540,6 +592,7 @@ BSD 3-clause "New" or "Revised" License
     - com.google.auth-google-auth-library-credentials-0.9.0.jar -- licenses/LICENSE-google-auth-library.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- licenses/LICENSE-JSR305.txt
+ *  RE2J TD -- re2j-td-1.4.jar
 
 BSD 2-Clause License
  * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.1.9.jar -- licenses/LICENSE-HdrHistogram.txt
@@ -570,6 +623,11 @@ Protocol Buffers License
    - com.google.protobuf-protobuf-java-3.5.1.jar -- licenses/LICENSE-protobuf.txt
    - com.google.protobuf-protobuf-java-util-3.5.1.jar -- licenses/LICENSE-protobuf.txt
    - com.google.protobuf.nano-protobuf-javanano-3.0.0-alpha-5.jar -- licenses/LICENSE-protobuf.txt
+
+ * PCollections
+    - pcollections-2.1.2.jar
+ * SLF4J JDK14 Binding
+    - slf4j-jdk14-1.7.25.jar
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
@@ -607,6 +665,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-hk2-2.26.jar
     - jersey-media-jaxb-2.26.jar
     - jersey-server-2.26.jar
+    - jersey-common-2.26.jar
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.6.jar
  * JavaBeans(TM) Activation Framework -- activation-1.1.1.jar
  * JAXB
@@ -623,6 +682,10 @@ Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
     - aether-impl-1.13.1.jar
     - aether-spi-1.13.1.jar
     - aether-util-1.13.1.jar
+ * JTS Core
+    - jts-core-1.15.0.jar
+ * Logback Core Module
+    - logback-core-1.2.3.jar
 Public Domain
  * XZ for Java -- licenses/LICENSE-xz.txt
     - org.tukaani-xz-1.5.jar
