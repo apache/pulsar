@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link WorkerConfig}.
  */
-public class WorkerConfigTest {
+public class WorkerApiV2ResourceConfigTest {
 
     private static final String TEST_NAME = "test-worker-config";
 

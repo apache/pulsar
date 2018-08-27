@@ -52,7 +52,7 @@ public class TopicSchema {
     public static final String DEFAULT_SERDE = "org.apache.pulsar.functions.api.utils.DefaultSerDe";
 
     public Schema<?> getSchema(String topic, Object object) {
-        return getSchema(topic, object.getClass());
+        return getSchema(topic, object.getClass(), "");
     }
 
     public Schema<?> getSchema(String topic, Object object, String schemaTypeOrClassName) {

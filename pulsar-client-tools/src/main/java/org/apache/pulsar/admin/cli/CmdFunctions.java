@@ -112,7 +112,6 @@ public class CmdFunctions extends CmdBase {
     private final TriggerFunction triggerer;
     private final UploadFunction uploader;
     private final DownloadFunction downloader;
-    private final GetCluster cluster;
 
     /**
      * Base command
@@ -277,7 +276,9 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_userConfigString;
         @Parameter(names = "--user-config", description = "User-defined config key/values")
         protected String userConfigString;
-        @Parameter(names = "--retainOrdering", description = "Function consumes and processes messages in order")
+        @Parameter(names = "--retainOrdering", description = "Function consumes and processes messages in order", hidden = true)
+        protected Boolean DEPRECATED_retainOrdering;
+        @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
         protected boolean retainOrdering;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
         protected Integer parallelism;
@@ -329,8 +330,9 @@ public class CmdFunctions extends CmdBase {
             if (!StringUtils.isBlank(DEPRECATED_customSerdeInputString)) customSerdeInputString = DEPRECATED_customSerdeInputString;
 
             if (!StringUtils.isBlank(DEPRECATED_fnConfigFile)) fnConfigFile = DEPRECATED_fnConfigFile;
-            if (DEPRECATED_processingGuarantees != FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) processingGuarantees = DEPRECATED_processingGuarantees;
+            if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
             if (!StringUtils.isBlank(DEPRECATED_userConfigString)) userConfigString = DEPRECATED_userConfigString;
+            if (DEPRECATED_retainOrdering != null) retainOrdering = DEPRECATED_retainOrdering;
             if (DEPRECATED_windowLengthCount != null) windowLengthCount = DEPRECATED_windowLengthCount;
             if (DEPRECATED_windowLengthDurationMs != null) windowLengthDurationMs = DEPRECATED_windowLengthDurationMs;
             if (DEPRECATED_slidingIntervalCount != null) slidingIntervalCount = DEPRECATED_slidingIntervalCount;
@@ -825,6 +827,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            // merge deprecated args with new args
             mergeArgs();
             CmdFunctions.startLocalRun(convertProto2(functionConfig), functionConfig.getParallelism(),
                     instanceIdOffset, brokerServiceUrl, stateStorageServiceUrl,
@@ -1023,6 +1026,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            // merge deprecated args with new args
             mergeArgs();
             if (triggerFile == null && triggerValue == null) {
                 throw new ParameterException("Either a trigger value or a trigger filepath needs to be specified");
@@ -1057,6 +1061,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            // merge deprecated args with new args
             mergeArgs();
             if (StringUtils.isBlank(sourceFile)) {
                 throw new ParameterException("--source-file needs to be specified");
@@ -1091,22 +1096,13 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            // merge deprecated args with new args
             mergeArgs();
             if (StringUtils.isBlank(destinationFile)) {
                 throw new ParameterException("--destination-file needs to be specified");
             }
             admin.functions().downloadFunction(destinationFile, path);
             print("Downloaded successfully");
-        }
-    }
-
-    @Parameters(commandDescription = "Get list of workers registered in cluster")
-    class GetCluster extends BaseCommand {
-        @Override
-        void runCmd() throws Exception {
-            String json = (new Gson()).toJson(admin.functions().getCluster());
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
         }
     }
 
@@ -1123,7 +1119,6 @@ public class CmdFunctions extends CmdBase {
         triggerer = new TriggerFunction();
         uploader = new UploadFunction();
         downloader = new DownloadFunction();
-        cluster = new GetCluster();
         restart = new RestartFunction();
         stop = new StopFunction();
         jcommander.addCommand("localrun", getLocalRunner());
@@ -1139,7 +1134,6 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("trigger", getTriggerer());
         jcommander.addCommand("upload", getUploader());
         jcommander.addCommand("download", getDownloader());
-        jcommander.addCommand("cluster", cluster);
     }
 
     @VisibleForTesting

@@ -146,6 +146,19 @@ func (r *reader) Next(ctx context.Context) (Message, error) {
 	}
 }
 
+func (r *reader) HasNext() (bool, error) {
+	value := C.int(0)
+	res := C.pulsar_reader_has_message_available(r.ptr, &value)
+
+	if res != C.pulsar_result_Ok {
+		return false, newError(res, "Failed to check if next message is available")
+	} else if value == C.int(1) {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
 func (r *reader) Close() error {
 	channel := make(chan error)
 	r.CloseAsync(func(err error) { channel <- err; close(channel) })

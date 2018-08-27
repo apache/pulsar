@@ -243,8 +243,9 @@ public class ClientCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
         }
-        connectionFuture.complete(null);
+        // set remote protocol version to the correct version before we complete the connection future
         remoteEndpointProtocolVersion = connected.getProtocolVersion();
+        connectionFuture.complete(null);
         state = State.Ready;
     }
 

@@ -137,7 +137,7 @@ public class WorkerService {
             this.connectorsManager = new ConnectorsManager(workerConfig);
 
             //create membership manager
-            this.membershipManager = new MembershipManager(this.workerConfig, this.client);
+            this.membershipManager = new MembershipManager(this, this.client);
 
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(

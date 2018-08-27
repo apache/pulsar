@@ -21,9 +21,12 @@ package org.apache.bookkeeper.mledger.impl;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+import com.google.common.collect.Range;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
@@ -35,6 +38,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
+@Slf4j
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
@@ -122,6 +126,22 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
         ReadOnlyCursorImpl cursor = new ReadOnlyCursorImpl(bookKeeper, config, this, startPosition, "read-only-cursor");
         return cursor;
+    }
+
+    @Override
+    void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+            this.getLedgerHandle(position.getLedgerId()).thenAccept((ledger) -> {
+                this.entryCache.asyncReadEntry(ledger, position, callback, ctx);
+            }).exceptionally((ex) -> {
+                log.error("[{}] Error opening ledger for reading at position {} - {}", new Object[]{this.name, position, ex.getMessage()});
+                callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
+                return null;
+            });
+    }
+
+    @Override
+    public long getNumberOfEntries() {
+        return getNumberOfEntries(Range.openClosed(PositionImpl.earliest, getLastPosition()));
     }
 
     protected boolean isReadOnly() {

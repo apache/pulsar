@@ -198,50 +198,6 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
 
     }
 
-    @GET
-    @ApiOperation(
-            value = "Fetches information about the Pulsar cluster running Pulsar Functions",
-            response = WorkerInfo.class,
-            responseContainer = "List"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
-
-    })
-    @Path("/cluster")
-    @Produces(MediaType.APPLICATION_JSON)
-    public List<WorkerInfo> getCluster() {
-        return functions.getCluster();
-    }
-
-    @GET
-    @ApiOperation(
-            value = "Fetches info about the leader node of the Pulsar cluster running Pulsar Functions",
-            response = WorkerInfo.class
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
-
-    })
-    @Path("/cluster/leader")
-    public WorkerInfo getClusterLeader() {
-        return functions.getClusterLeader();
-    }
-
-    @GET
-    @ApiOperation(
-            value = "Fetches information about which Pulsar Functions are assigned to which Pulsar clusters",
-            response = Assignment.class,
-            responseContainer = "Map"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
-    })
-    @Path("/assignments")
-    public Response getAssignments() {
-        return functions.getAssignments();
-    }
-
     @POST
     @ApiOperation(
             value = "Triggers a Pulsar Function with a user-specified value or file data",

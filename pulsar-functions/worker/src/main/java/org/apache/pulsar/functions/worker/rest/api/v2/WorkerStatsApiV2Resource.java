@@ -16,19 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.v2;
+package org.apache.pulsar.functions.worker.rest.api.v2;
 
+import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Collection;
@@ -36,17 +43,36 @@ import java.util.function.Supplier;
 
 @Slf4j
 @Path("/worker-stats")
-public class WorkerStats extends AdminResource implements Supplier<WorkerService> {
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+@Api(value = "/worker-stats", description = "Workers stats api", tags = "workers-stats")
+public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
 
-    private final WorkerImpl worker;
+    public static final String ATTRIBUTE_WORKERSTATS_SERVICE = "worker-stats";
 
-    public WorkerStats() {
+    protected final WorkerImpl worker;
+    private WorkerService workerService;
+    @Context
+    protected ServletContext servletContext;
+    @Context
+    protected HttpServletRequest httpRequest;
+
+    public WorkerStatsApiV2Resource() {
         this.worker = new WorkerImpl(this);
     }
 
     @Override
-    public WorkerService get() {
-        return pulsar().getWorkerService();
+    public synchronized WorkerService get() {
+        if (this.workerService == null) {
+            this.workerService = (WorkerService) servletContext.getAttribute(ATTRIBUTE_WORKERSTATS_SERVICE);
+        }
+        return this.workerService;
+    }
+
+    public String clientAppId() {
+        return httpRequest != null
+                ? (String) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName)
+                : null;
     }
 
     @GET
@@ -62,7 +88,7 @@ public class WorkerStats extends AdminResource implements Supplier<WorkerService
     @ApiOperation(value = "Get metrics for all functions owned by worker", notes = "Requested should be executed by Monitoring agent on each worker to fetch the metrics", response = Metrics.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 503, message = "Worker service is not running") })
-    public Response getStats() throws IOException {
+    public Response getFunctionsMetrics() throws IOException {
         return worker.getFunctionsMetrics(clientAppId());
     }
 }

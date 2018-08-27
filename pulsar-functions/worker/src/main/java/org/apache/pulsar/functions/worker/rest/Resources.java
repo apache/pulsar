@@ -20,12 +20,11 @@ package org.apache.pulsar.functions.worker.rest;
 
 import org.apache.pulsar.functions.worker.rest.api.FunctionsMetricsResource;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionApiV2Resource;
-import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStats;
+import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 public final class Resources {
@@ -37,7 +36,7 @@ public final class Resources {
         return new HashSet<>(
                 Arrays.asList(
                         FunctionApiV2Resource.class,
-                        WorkerStats.class,
+                        WorkerApiV2Resource.class,
                         MultiPartFeature.class
                 ));
     }
