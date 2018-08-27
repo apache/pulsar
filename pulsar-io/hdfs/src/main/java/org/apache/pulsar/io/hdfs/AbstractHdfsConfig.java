@@ -43,9 +43,8 @@ public abstract class AbstractHdfsConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
-     * A file or comma separated list of files which contains the Hadoop file system configuration.
-     * Without this, Hadoop will search the classpath for a 'core-site.xml' and 'hdfs-site.xml' file
-     * or will revert to a default configuration.
+     * A file or comma separated list of files which contains the Hadoop file system configuration,
+     * e.g. 'core-site.xml', 'hdfs-site.xml'.
      */
     private String hdfsConfigResources;
 
