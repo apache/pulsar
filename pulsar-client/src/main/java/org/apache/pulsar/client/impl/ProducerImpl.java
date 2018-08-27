@@ -208,7 +208,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     CompletableFuture<MessageId> internalSendAsync(Message<T> message) {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
-        sendAsync(message, new SendCallback() {
+        Message<T> interceptorMessage = callInterceptorsForBeforeSend(message);
+
+        sendAsync(interceptorMessage, new SendCallback() {
             SendCallback nextCallback = null;
             MessageImpl<?> nextMsg = null;
             long createdAt = System.nanoTime();
@@ -243,8 +245,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     if (e != null) {
                         stats.incrementSendFailed();
                         sendCallback.getFuture().completeExceptionally(e);
+                        callInterceptorsForOnSendAcknowledgement(interceptorMessage, null, e);
                     } else {
                         sendCallback.getFuture().complete(msg.getMessageId());
+                        callInterceptorsForOnSendAcknowledgement(interceptorMessage, msg.getMessageId(), null);
                         stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                     }
                     nextMsg = nextCallback.getNextMessage();
@@ -264,17 +268,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     public void sendAsync(Message<T> message, SendCallback callback) {
         checkArgument(message instanceof MessageImpl);
 
-        Message<T> interceptorMessage = callInterceptorsForBeforeSend(message);
-
-        if (!isValidProducerState(interceptorMessage, callback)) {
+        if (!isValidProducerState(message, callback)) {
             return;
         }
 
-        if (!canEnqueueRequest(interceptorMessage, callback)) {
+        if (!canEnqueueRequest(message, callback)) {
             return;
         }
 
-        MessageImpl<T> msg = (MessageImpl<T>) interceptorMessage;
+        MessageImpl<T> msg = (MessageImpl<T>) message;
         MessageMetadata.Builder msgMetadataBuilder = msg.getMessageBuilder();
         ByteBuf payload = msg.getDataBuffer();
 
@@ -300,7 +302,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
                                     PulsarDecoder.MaxMessageSize));
             callback.sendComplete(invalidMessageException);
-            callInterceptorsForOnSendAcknowledgement(interceptorMessage, null, invalidMessageException);
             return;
         }
 
@@ -308,7 +309,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             PulsarClientException.InvalidMessageException invalidMessageException =
                     new PulsarClientException.InvalidMessageException("Cannot re-use the same message");
             callback.sendComplete(invalidMessageException);
-            callInterceptorsForOnSendAcknowledgement(interceptorMessage, null, invalidMessageException);
             compressedPayload.release();
             return;
         }
@@ -453,24 +453,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return true;
         case Closing:
         case Closed:
-            PulsarClientException.AlreadyClosedException alreadyClosedException
-                    = new PulsarClientException.AlreadyClosedException("Producer already closed");
-            callback.sendComplete(alreadyClosedException);
-            callInterceptorsForOnSendAcknowledgement(message, null, alreadyClosedException);
+            callback.sendComplete(new PulsarClientException.AlreadyClosedException("Producer already closed"));
             return false;
         case Terminated:
-            PulsarClientException.TopicTerminatedException topicTerminatedException
-                    = new PulsarClientException.TopicTerminatedException("Topic was terminated");
-            callback.sendComplete(topicTerminatedException);
-            callInterceptorsForOnSendAcknowledgement(message, null, topicTerminatedException);
+            callback.sendComplete(new PulsarClientException.TopicTerminatedException("Topic was terminated"));
             return false;
         case Failed:
         case Uninitialized:
         default:
-            PulsarClientException.NotConnectedException notConnectedException
-                    = new PulsarClientException.NotConnectedException();
-            callback.sendComplete(notConnectedException);
-            callInterceptorsForOnSendAcknowledgement(message, null, notConnectedException);
+            callback.sendComplete(new PulsarClientException.NotConnectedException());
             return false;
         }
     }
@@ -481,18 +472,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 semaphore.acquire();
             } else {
                 if (!semaphore.tryAcquire()) {
-                    PulsarClientException.ProducerQueueIsFullError producerQueueIsFullError
-                            = new PulsarClientException.ProducerQueueIsFullError("Producer send queue is full");
-                    callback.sendComplete(producerQueueIsFullError);
-                    callInterceptorsForOnSendAcknowledgement(message, null, producerQueueIsFullError);
+                    callback.sendComplete(new PulsarClientException.ProducerQueueIsFullError("Producer send queue is full"));
                     return false;
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            PulsarClientException pulsarClientException = new PulsarClientException(e);
-            callback.sendComplete(pulsarClientException);
-            callInterceptorsForOnSendAcknowledgement(message, null, pulsarClientException);
+            callback.sendComplete(new PulsarClientException(e));
             return false;
         }
 
