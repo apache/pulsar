@@ -97,7 +97,7 @@ public class WordCountFunction implements Function<String, Void> {
 ```bash
 $ bin/pulsar-admin functions create \
   --jar target/my-jar-with-dependencies.jar \
-  --className org.example.functions.WordCountFunction \
+  --classname org.example.functions.WordCountFunction \
   --tenant public \
   --namespace default \
   --name word-count \
@@ -148,7 +148,7 @@ $ bin/pulsar-functions localrun \
   --inputs persistent://public/default/test_src \
   --output persistent://public/default/test_result \
   --jar examples/api-examples.jar \
-  --className org.apache.pulsar.functions.api.examples.ExclamationFunction
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction
 ```
 
 ## Fully Qualified Function Name (FQFN)
@@ -172,7 +172,7 @@ If you're supplying a YAML configuration, you must specify a path to the file on
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --functionConfigFile ./my-function.yaml
+  --function-config-file ./my-function.yaml
 ```
 
 And here's an example `my-function.yaml` file:
@@ -182,7 +182,7 @@ name: my-function
 tenant: public
 namespace: default
 jar: ./target/my-functions.jar
-className: org.example.pulsar.functions.MyFunction
+classname: org.example.pulsar.functions.MyFunction
 inputs:
 - persistent://public/default/test_src
 output: persistent://public/default/test_result
@@ -277,7 +277,7 @@ If you run a Pulsar Function in **local run** mode, it will run on the machine f
 ```bash
 $ bin/pulsar-admin functions localrun \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
@@ -286,7 +286,7 @@ By default, the function will connect to a Pulsar cluster running on the same ma
 
 ```bash
 $ bin/pulsar-admin functions localrun \
-  --brokerServiceUrl pulsar://my-cluster-host:6650 \
+  --broker-service-url pulsar://my-cluster-host:6650 \
   # Other function parameters
 ```
 
@@ -297,7 +297,7 @@ When you run a Pulsar Function in **cluster mode**, the function code will be up
 ```bash
 $ bin/pulsar-admin functions create \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
@@ -316,7 +316,7 @@ $ bin/pulsar-admin functions create \
   --tenant public \
   --namespace default \
   --py func.py \
-  --className func.ParallelFunction \
+  --classname func.ParallelFunction \
   --parallelism 5
 ```
 
@@ -335,7 +335,7 @@ Here's an example function creation command that allocates 8 cores, 8 GB of RAM,
 ```bash
 $ bin/pulsar-admin functions create \
   --jar target/my-functions.jar \
-  --className org.example.functions.MyFunction \
+  --classname org.example.functions.MyFunction \
   --cpu 8 \
   --ram 8589934592 \
   --disk 10737418240
@@ -350,7 +350,7 @@ Pulsar Functions created using the [Pulsar Functions SDK](#the-pulsar-functions-
 ```bash
 $ bin/pulsar-admin functions create \
   --name my-func-1 \
-  --logTopic persistent://public/default/my-func-1-log \
+  --log-topic persistent://public/default/my-func-1-log \
   # Other configs
 ```
 
@@ -378,7 +378,7 @@ Here's an example of passing a user configuration to a function:
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --userConfig '{"key-1":"value-1","key-2","value-2"}' \
+  --user-config '{"key-1":"value-1","key-2","value-2"}' \
   # Other configs
 ```
 
@@ -416,7 +416,7 @@ $ bin/pulsar-admin functions trigger \
   --tenant public \
   --namespace default \
   --name reverse-func \
-  --triggerValue "snoitcnuf raslup ot emoclew"
+  --trigger-value "snoitcnuf raslup ot emoclew"
 ```
 
 That should return `welcome to pulsar functions` as the console output.
@@ -438,7 +438,7 @@ This command, for example, would run a function in [cluster mode](#cluster-run-m
 ```bash
 $ bin/pulsar-admin functions create \
   --name my-effectively-once-function \
-  --processingGuarantees EFFECTIVELY_ONCE \
+  --processing-guarantees EFFECTIVELY_ONCE \
   # Other function configs
 ```
 

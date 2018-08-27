@@ -234,7 +234,7 @@ bin/pulsar-admin sink create \
     --namespace default \
     --name cassandra-test-sink \
     --sink-type cassandra \
-    --sinkConfigFile examples/cassandra-sink.yml \
+    --sink-config-file examples/cassandra-sink.yml \
     --inputs test_cassandra
 ```
 

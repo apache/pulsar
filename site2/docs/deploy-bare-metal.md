@@ -335,7 +335,7 @@ Create a ExclamationFunction `exclamation`.
 ```bash
 bin/pulsar-admin functions create \
   --jar examples/api-examples.jar \
-  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --tenant public \
@@ -346,7 +346,7 @@ bin/pulsar-admin functions create \
 Check if the function is running as expected by [triggering](functions-deploying.md#triggering-pulsar-functions) the function.
 
 ```bash
-bin/pulsar-admin functions trigger --name exclamation --triggerValue "hello world"
+bin/pulsar-admin functions trigger --name exclamation --trigger-value "hello world"
 ```
 
 You will see output as below:
