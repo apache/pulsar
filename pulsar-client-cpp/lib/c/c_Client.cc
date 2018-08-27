@@ -98,6 +98,27 @@ void pulsar_client_subscribe_async(pulsar_client_t *client, const char *topic, c
                                    boost::bind(&handle_subscribe_callback, _1, _2, callback, ctx));
 }
 
+void pulsar_client_subscribe_multi_topics_async(pulsar_client_t *client, const char **topics, int topicsCount,
+                                                const char *subscriptionName,
+                                                const pulsar_consumer_configuration_t *conf,
+                                                pulsar_subscribe_callback callback, void *ctx) {
+    std::vector<std::string> topicsList;
+    for (int i = 0; i < topicsCount; i++) {
+        topicsList.push_back(topics[i]);
+    }
+
+    client->client->subscribeAsync(topicsList, subscriptionName, conf->consumerConfiguration,
+                                   boost::bind(&handle_subscribe_callback, _1, _2, callback, ctx));
+}
+
+void pulsar_client_subscribe_pattern_async(pulsar_client_t *client, const char *topicPattern,
+                                           const char *subscriptionName,
+                                           const pulsar_consumer_configuration_t *conf,
+                                           pulsar_subscribe_callback callback, void *ctx) {
+    client->client->subscribeWithRegexAsync(topicPattern, subscriptionName, conf->consumerConfiguration,
+                                            boost::bind(&handle_subscribe_callback, _1, _2, callback, ctx));
+}
+
 pulsar_result pulsar_client_create_reader(pulsar_client_t *client, const char *topic,
                                           const pulsar_message_id_t *startMessageId,
                                           pulsar_reader_configuration_t *conf, pulsar_reader_t **c_reader) {

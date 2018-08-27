@@ -73,6 +73,19 @@ static inline void _pulsar_client_subscribe_async(pulsar_client_t *client, const
     pulsar_client_subscribe_async(client, topic, subscriptionName, conf, pulsarSubscribeCallbackProxy, ctx);
 }
 
+static inline void _pulsar_client_subscribe_multi_topics_async(pulsar_client_t *client, const char ** topics,
+                                                  int topicsCount,  const char *subscriptionName,
+                                                  const pulsar_consumer_configuration_t *conf, void *ctx) {
+    pulsar_client_subscribe_multi_topics_async(client, topics, topicsCount, subscriptionName, conf,
+                                               pulsarSubscribeCallbackProxy, ctx);
+}
+
+static inline void _pulsar_client_subscribe_pattern_async(pulsar_client_t *client, const char *topicPattern,
+                                                  const char *subscriptionName,
+                                                  const pulsar_consumer_configuration_t *conf, void *ctx) {
+    pulsar_client_subscribe_pattern_async(client, topicPattern, subscriptionName, conf, pulsarSubscribeCallbackProxy, ctx);
+}
+
 void pulsarMessageListenerProxy(pulsar_consumer_t *consumer, pulsar_message_t *message, void *ctx);
 
 static inline void _pulsar_consumer_configuration_set_message_listener(
