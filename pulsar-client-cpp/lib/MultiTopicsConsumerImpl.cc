@@ -180,8 +180,8 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
         consumer = boost::make_shared<ConsumerImpl>(client_, topicName->toString(), subscriptionName_, config,
                                                     internalListenerExecutor, NonPartitioned);
         consumer->getConsumerCreatedFuture().addListener(
-                boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
-                            partitionsNeedCreate, topicSubResultPromise));
+            boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
+                        partitionsNeedCreate, topicSubResultPromise));
         consumers_.insert(std::make_pair(topicName->toString(), consumer));
         LOG_DEBUG("Creating Consumer for - " << topicName << " - " << consumerStr_);
         consumer->start();
@@ -189,11 +189,11 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     } else {
         for (int i = 0; i < numPartitions; i++) {
             std::string topicPartitionName = topicName->getTopicPartitionName(i);
-            consumer = boost::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
-                                                        internalListenerExecutor, Partitioned);
+            consumer = boost::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_,
+                                                        config, internalListenerExecutor, Partitioned);
             consumer->getConsumerCreatedFuture().addListener(
-                    boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
-                                partitionsNeedCreate, topicSubResultPromise));
+                boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
+                            partitionsNeedCreate, topicSubResultPromise));
             consumer->setPartitionIndex(i);
             consumers_.insert(std::make_pair(topicPartitionName, consumer));
             LOG_DEBUG("Creating Consumer for - " << topicPartitionName << " - " << consumerStr_);
