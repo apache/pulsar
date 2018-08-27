@@ -52,9 +52,9 @@ public class JdbcSinkTest {
     @ToString
     @EqualsAndHashCode
     public static class Foo {
-        private final String field1;
-        private final String field2;
-        private final int field3;
+        private String field1;
+        private String field2;
+        private int field3;
     }
 
     @BeforeMethod
@@ -89,7 +89,10 @@ public class JdbcSinkTest {
         );
 
         // prepare a foo Record
-        Foo obj = new Foo("ValueOfField1", "ValueOfField1", 3);
+        Foo obj = new Foo();
+        obj.setField1("ValueOfField1");
+        obj.setField2("ValueOfField1");
+        obj.setField3(3);
         AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
         conf.put("schema",  new String(schema.getSchemaInfo().getSchema()));
         log.info("schema: {}", new String(schema.getSchemaInfo().getSchema()));
@@ -107,7 +110,7 @@ public class JdbcSinkTest {
             message.getValue().toString(),
             record.getValue().toString());
 
-        // change batchSize to 1, to flush each write.
+        // change batchSize to 1, to flush on each write.
         conf.put("batchSize", 1);
         // open should success
         jdbcSink.open(conf, null);

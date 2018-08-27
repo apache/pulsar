@@ -81,9 +81,27 @@ public class JdbcUtils {
     }
 
     /**
+     * Given a driver type(such as mysql), return its jdbc driver class name.
+     * TODO: test and support more types
+     */
+    public static String getDriverClassName(String driver) throws Exception {
+        if (driver.equals("mysql")) {
+            return "com.mysql.jdbc.Driver";
+        } if (driver.equals("sqlite")) {
+            return "org.sqlite.JDBC";
+        } else {
+            throw new Exception("Not tested jdbc driver type: " + driver);
+        }
+    }
+
+    /**
      * Get the {@link Connection} for the given jdbcUrl.
      */
     public static Connection getConnection(String jdbcUrl, Properties properties) throws Exception {
+        String driver = jdbcUrl.split(":")[1];
+        String driverClassName = getDriverClassName(driver);
+        Class.forName(driverClassName);
+
         return DriverManager.getConnection(jdbcUrl, properties);
     }
 

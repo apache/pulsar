@@ -85,7 +85,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         }
 
         connection = JdbcUtils.getConnection(jdbcUrl, properties);
-        log.info("Connection open");
+        log.info("Connection opened");
 
         schema = jdbcSinkConfig.getSchema();
         tableName = jdbcSinkConfig.getTableName();
@@ -116,7 +116,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     }
 
     @Override
-    public void write(Record<T> record) throws Exception{
+    public void write(Record<T> record) throws Exception {
         int number;
         synchronized (incomingList) {
             incomingList.add(record);
@@ -157,6 +157,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 for (Record<T> record : swapList) {
                     bindValue(insertStatement, record);
                     insertStatement.addBatch();
+                    record.ack();
                 }
 
                 for (int updates : insertStatement.executeBatch()) {
@@ -171,6 +172,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 }
             } catch (Exception e) {
                 log.error("Got exception ", e);
+                swapList.forEach(tRecord -> tRecord.fail());
             }
 
             if (swapList.size() != updateCount) {

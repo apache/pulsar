@@ -50,9 +50,9 @@ public class JdbcSinkTester extends SinkTester {
     @ToString
     @EqualsAndHashCode
     public static class Foo {
-        private final String field1;
-        private final String field2;
-        private final int field3;
+        private String field1;
+        private String field2;
+        private int field3;
     }
 
     private static final String NAME = "jdbc";
@@ -89,17 +89,19 @@ public class JdbcSinkTester extends SinkTester {
     @Override
     public void prepareSink() throws Exception {
         String jdbcUrl = mySQLContainer.getJdbcUrl();
-        sinkConfig.put("jdbcUrl", jdbcUrl);
+        // we need set mysql server address in cluster network.
+        sinkConfig.put("jdbcUrl", "jdbc:mysql://jdbc:3306/test");
         String driver = mySQLContainer.getDriverClassName();
         Class.forName(driver);
 
         connection = DriverManager.getConnection(jdbcUrl, "test", "test");
+        log.info("getConnection: {}, jdbcurl: {}", connection, jdbcUrl);
 
         // create table
         String createTable = "CREATE TABLE " + tableName +
             " (field1 TEXT, field2 TEXT, field3 INTEGER, PRIMARY KEY (field3))";
-        connection.createStatement().executeUpdate(createTable);
-        log.info("created table in jdbc: {}", createTable);
+        int ret = connection.createStatement().executeUpdate(createTable);
+        log.info("created table in jdbc: {}, return value: {}", createTable, ret);
     }
 
     @Override
@@ -108,6 +110,9 @@ public class JdbcSinkTester extends SinkTester {
         String querySql = "SELECT * FROM " + tableName;
         ResultSet rs;
         try {
+            // backend flush may not complete.
+            Thread.sleep(1000);
+
             PreparedStatement statement = connection.prepareStatement(querySql);
             rs = statement.executeQuery();
 
@@ -115,10 +120,9 @@ public class JdbcSinkTester extends SinkTester {
                 String field1 = rs.getString(1);
                 String field2 = rs.getString(2);
                 int field3 = rs.getInt(3);
-                log.info("Row : {}, {}, {}", field3, field1, field2);
 
                 String value = kvs.get("key-" + field3);
-                log.info("Value in Kvs: {}", value);
+
                 Foo obj = schema.decode(value.getBytes());
                 assertEquals(obj.field1, field1);
                 assertEquals(obj.field2, field2);

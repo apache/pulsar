@@ -51,6 +51,7 @@ import org.apache.pulsar.tests.integration.io.SinkTester;
 import org.apache.pulsar.tests.integration.io.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -84,9 +85,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String inputTopicName = "test-sink-connector-"
-            + functionRuntimeType + "-input-topic-" + randomName(8);
+            + tester.getSinkType() + "-" + functionRuntimeType + "-input-topic-" + randomName(8);
         final String sinkName = "test-sink-connector-"
-            + functionRuntimeType + "-name-" + randomName(8);
+            + tester.getSinkType() + "-" + functionRuntimeType + "-name-" + randomName(8);
         final int numMessages = 20;
 
         // prepare the testing environment for sink
@@ -223,17 +224,20 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
         @Cleanup
-        Producer<String> producer = client.newProducer(schema)
+        Producer<String> producer = client.newProducer(Schema.STRING)
             .topic(inputTopicName)
             .create();
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
 
-            Foo obj = new Foo("field1_" + i, "field2_" + i, i);
+            Foo obj = new Foo();
+            obj.setField1("field1_" + i);
+            obj.setField2("field2_" + i);
+            obj.setField3(i);
             String value = new String(schema.encode(obj));
 
-            log.info("produce message {}: {}", i, value);
+            log.debug("produce message {}: {}", i, value);
 
             kvs.put(key, value);
             producer.newMessage()
@@ -268,8 +272,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 // expected in early iterations
             }
 
-            log.info("{} ms has elapsed but the sink hasn't process {} messages, backoff to wait for another 1 second",
-                stopwatch.elapsed(TimeUnit.MILLISECONDS), numMessages);
+            log.info("{} ms has elapsed but the sink {} hasn't process {} messages, backoff to wait for another 1 second",
+                stopwatch.elapsed(TimeUnit.MILLISECONDS), sinkName, numMessages);
             TimeUnit.SECONDS.sleep(1);
         }
     }

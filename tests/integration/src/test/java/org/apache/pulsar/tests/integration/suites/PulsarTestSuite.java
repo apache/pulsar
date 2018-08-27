@@ -72,7 +72,8 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
         final String jdbcServiceName = "jdbc";
         externalServices.put(
             jdbcServiceName,
-            new MySQLContainer());
+            new MySQLContainer()
+                .withExposedPorts(3306));
 
         builder = builder.externalServices(externalServices);
 
