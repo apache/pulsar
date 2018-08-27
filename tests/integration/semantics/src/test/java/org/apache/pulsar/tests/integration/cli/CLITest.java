@@ -167,7 +167,7 @@ public class CLITest extends PulsarClusterTestBase {
 
     @Test
     public void testSetInfiniteRetention() throws Exception {
-        ContainerExecResult result;
+        ExecResult result;
 
         String namespace = "get-and-set-retention" + randomName(8);
         pulsarCluster.createNamespace(namespace);
@@ -179,7 +179,6 @@ public class CLITest extends PulsarClusterTestBase {
         };
 
         result = pulsarCluster.runAdminCommandOnAnyBroker(setCommand);
-        assertEquals(0, result.getExitCode());
         assertTrue(
             result.getStdout().isEmpty(),
             result.getStdout()
@@ -194,7 +193,6 @@ public class CLITest extends PulsarClusterTestBase {
         };
 
         result = pulsarCluster.runAdminCommandOnAnyBroker(getCommand);
-        assertEquals(0, result.getExitCode());
         assertTrue(
             result.getStdout().contains("\"retentionTimeInMinutes\" : -1"),
             result.getStdout());
