@@ -76,7 +76,6 @@ public class MembershipManagerTest {
         when(mockConsumerBuilder.subscriptionName(anyString())).thenReturn(mockConsumerBuilder);
         when(mockConsumerBuilder.subscriptionType(any(SubscriptionType.class))).thenReturn(mockConsumerBuilder);
         when(mockConsumerBuilder.property(anyString(), anyString())).thenReturn(mockConsumerBuilder);
-
         when(mockConsumerBuilder.subscribe()).thenReturn(mockConsumer);
         WorkerService workerService = mock(WorkerService.class);
         doReturn(workerConfig).when(workerService).getWorkerConfig();
@@ -120,7 +119,7 @@ public class MembershipManagerTest {
         when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class))).thenReturn(mockConsumerBuilder);
 
         when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
-
+        
         return mockClient;
     }
 

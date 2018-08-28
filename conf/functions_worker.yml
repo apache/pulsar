@@ -27,6 +27,7 @@ connectorsDirectory: ./connectors
 functionMetadataTopicName: metadata
 clusterCoordinationTopicName: coordinate
 pulsarFunctionsNamespace: public/functions
+pulsarAssignmentNamespace: public/assignment
 pulsarFunctionsCluster: standalone
 pulsarServiceUrl: pulsar://localhost:6650
 pulsarWebServiceUrl: http://localhost:8080

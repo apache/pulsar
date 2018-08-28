@@ -105,6 +105,7 @@ public class PulsarSinkE2ETest {
     WorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
+    String pulsarAssignmentNamespace = tenant + "/use/pulsar-assignment";
     String primaryHost;
     String workerId;
 
@@ -212,6 +213,7 @@ public class PulsarSinkE2ETest {
     private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
         workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
+        workerConfig.setPulsarAssignmentNamespace(pulsarAssignmentNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("use"));
