@@ -48,9 +48,15 @@ public class BacklogQuotaManager {
     private final ZooKeeperDataCache<Policies> zkCache;
 
     public BacklogQuotaManager(PulsarService pulsar) {
+        RetentionPolicy retentionPolicy = null;
+        try {
+            retentionPolicy = RetentionPolicy.valueOf(pulsar.getConfiguration().getBacklogQuotaRetentionPolicy());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid Backlog retention policy: {} in broker.conf ", pulsar.getConfiguration().getBacklogQuotaRetentionPolicy(), e);
+        }
         this.defaultQuota = new BacklogQuota(
                 pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024,
-                RetentionPolicy.producer_request_hold);
+                retentionPolicy == null ? RetentionPolicy.producer_request_hold : retentionPolicy);
         this.zkCache = pulsar.getConfigurationCache().policiesCache();
     }
 
