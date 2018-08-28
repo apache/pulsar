@@ -98,7 +98,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
         }
 
-        return interceptorList == null || interceptorList.size() == 0 ?
+        return interceptorList.size() == 0 ?
                 client.createProducerAsync(conf, schema, null) :
                 client.createProducerAsync(conf, schema, new ProducerInterceptors<>(interceptorList));
     }
