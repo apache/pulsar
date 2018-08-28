@@ -115,13 +115,13 @@ class Footer extends React.Component {
   render() {
     const currentYear = new Date().getFullYear();
 
-    const contactUrl = this.pageUrl('contact')
-    const eventsUrl = this.pageUrl('events')
+    const contactUrl = this.pageUrl('contact', this.props.language)
+    const eventsUrl = this.pageUrl('events', this.props.language)
     const twitterUrl = 'https://twitter.com/Apache_Pulsar'
     const wikiUrl = 'https://github.com/apache/incubator-pulsar/wiki'
     const issuesUrl = 'https://github.com/apache/incubator-pulsar/issues'
-    const resourcesUrl = this.pageUrl('resources')
-    const teamUrl = this.pageUrl('team')
+    const resourcesUrl = this.pageUrl('resources', this.props.language)
+    const teamUrl = this.pageUrl('team', this.props.language)
     const contributingUrl = this.pageUrl('contributing', this.props.language)
 
     const communityMenuJs = `

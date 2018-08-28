@@ -29,7 +29,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 
@@ -82,8 +81,6 @@ public class FunctionConfig {
     private Map<String, String> customSerdeInputs;
     @isValidTopicName
     private String topicsPattern;
-    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
-            valueValidatorClasses = { ValidatorImpls.SchemaValidator.class }, targetRuntime = ConfigValidation.Runtime.JAVA)
     @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class }, targetRuntime = ConfigValidation.Runtime.PYTHON)
     private Map<String, String> customSchemaInputs;
 
