@@ -477,9 +477,8 @@ public class CmdFunctions extends CmdBase {
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
 
-            if (isBlank(functionConfig.getOutput()) && !functionConfig.isSkipOutput()) {
-                throw new ParameterException(
-                        "output topic is not present (pass skipOutput flag to skip publish output on topic)");
+            if (functionConfig.isSkipOutput() && !isBlank(functionConfig.getOutput())) {
+                functionConfig.setOutput("");
             }
 
             if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
