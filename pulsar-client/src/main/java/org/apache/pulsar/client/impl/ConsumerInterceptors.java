@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +43,21 @@ public class ConsumerInterceptors<T> implements Closeable {
         this.interceptors = interceptors;
     }
 
+    /**
+     * This is called just before the message is returned by {@link Consumer#receive()},
+     * {@link MessageListener#received(Consumer, Message)} or the {@link java.util.concurrent.CompletableFuture}
+     * returned by {@link Consumer#receiveAsync()} completes.
+     * <p>
+     * This method calls {@link ConsumerInterceptor#beforeConsume(Message)} for each interceptor. Messages returned
+     * from each interceptor get passed to beforeConsume() of the next interceptor in the chain of interceptors.
+     * <p>
+     * This method does not throw exceptions. If any of the interceptors in the chain throws an exception, it gets
+     * caught and logged, and next interceptor in int the chain is called with 'messages' returned by the previous
+     * successful interceptor beforeConsume call.
+     *
+     * @param message message to be consume by the client.
+     * @return messages that are either modified by interceptors or same as messages passed to this method.
+     */
     public Message<T> beforeConsume(Message<T> message) {
         Message<T> interceptorMessage = message;
         for (ConsumerInterceptor<T> interceptor : this.interceptors) {
@@ -53,6 +70,16 @@ public class ConsumerInterceptors<T> implements Closeable {
         return interceptorMessage;
     }
 
+    /**
+     * This is called when acknowledge request return from the broker.
+     * <p>
+     * This method calls {@link ConsumerInterceptor#onAcknowledge(Message, Throwable)} method for each interceptor.
+     * <p>
+     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
+     *
+     * @param message message to acknowledge.
+     * @param cause exception returned by broker.
+     */
     public void onAcknowledge(Message<T> message, Throwable cause) {
         for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {
@@ -63,6 +90,16 @@ public class ConsumerInterceptors<T> implements Closeable {
         }
     }
 
+    /**
+     * This is called when acknowledge cumulative request return from the broker.
+     * <p>
+     * This method calls {@link ConsumerInterceptor#onAcknowledgeCumulative(List, Throwable)} (Message, Throwable)} method for each interceptor.
+     * <p>
+     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
+     *
+     * @param messages messages to acknowledge.
+     * @param cause exception returned by broker.
+     */
     public void onAcknowledgeCumulative(List<Message<T>> messages, Throwable cause) {
         for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Queues;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -370,15 +371,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected void onAcknowledge(MessageId messageId, Throwable cause) {
+    protected void onAcknowledge(Message<T> message, Throwable cause) {
         if (interceptors != null) {
-            interceptors.onAcknowledge(messageId, cause);
+            interceptors.onAcknowledge(message, cause);
         }
     }
 
-    protected void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+    protected void onAcknowledgeCumulative(List<Message<T>> messages, Throwable cause) {
         if (interceptors != null) {
-            interceptors.onAcknowledgeCumulative(messageId, cause);
+            interceptors.onAcknowledgeCumulative(messages, cause);
         }
     }
 

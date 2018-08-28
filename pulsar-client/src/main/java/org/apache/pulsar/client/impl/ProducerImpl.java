@@ -207,7 +207,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @Override
     CompletableFuture<MessageId> internalSendAsync(Message<T> message) {CompletableFuture<MessageId> future = new CompletableFuture<>();
 
-        MessageImpl<T> interceptorMessage = (MessageImpl<T>) callInterceptorsForBeforeSend(message);
+        MessageImpl<T> interceptorMessage = (MessageImpl<T>) beforeSend(message);
         interceptorMessage.getDataBuffer().retain();
 
         sendAsync(interceptorMessage, new SendCallback() {
@@ -234,10 +234,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             public void sendComplete(Exception e) {
                 if (e != null) {
                     stats.incrementSendFailed();
-                    callInterceptorsForOnSendAcknowledgement(interceptorMessage, null, e);
+                    onSendAcknowledgement(interceptorMessage, null, e);
                     future.completeExceptionally(e);
                 } else {
-                    callInterceptorsForOnSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
+                    onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
                     future.complete(interceptorMessage.getMessageId());
                     stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                 }
@@ -249,10 +249,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msg.getDataBuffer().retain();
                     if (e != null) {
                         stats.incrementSendFailed();
-                        callInterceptorsForOnSendAcknowledgement((Message<T>) msg, null, e);
+                        onSendAcknowledgement((Message<T>) msg, null, e);
                         sendCallback.getFuture().completeExceptionally(e);
                     } else {
-                        callInterceptorsForOnSendAcknowledgement((Message<T>) msg, msg.getMessageId(), null);
+                        onSendAcknowledgement((Message<T>) msg, msg.getMessageId(), null);
                         sendCallback.getFuture().complete(msg.getMessageId());
                         stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                     }
