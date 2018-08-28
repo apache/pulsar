@@ -127,4 +127,8 @@ public class TopicMessageImpl<T> implements Message<T> {
     public Optional<EncryptionContext> getEncryptionCtx() {
         return msg.getEncryptionCtx();
     }
+
+    public Message<T> getMessage() {
+        return msg;
+    }
 }
