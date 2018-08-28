@@ -49,8 +49,16 @@ const (
 // ConsumerBuilder is used to configure and create instances of Consumer
 type ConsumerOptions struct {
 	// Specify the topic this consumer will subscribe on.
-	// This argument is required when subscribing
+	// Either a topic, a list of topics or a topics pattern are required when subscribing
 	Topic string
+
+	// Specify a list of topics this consumer will subscribe on.
+	// Either a topic, a list of topics or a topics pattern are required when subscribing
+	Topics []string
+
+	// Specify a regular expression to subscribe to multiple topics under the same namespace.
+	// Either a topic, a list of topics or a topics pattern are required when subscribing
+	TopicsPattern string
 
 	// Specify the subscription name for this consumer
 	// This argument is required when subscribing

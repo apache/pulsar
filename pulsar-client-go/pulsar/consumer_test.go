@@ -271,3 +271,122 @@ func makeHttpCall(t *testing.T, method string, url string) string {
 
 	return string(body)
 }
+
+func TestConsumerMultiTopics(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+
+	assertNil(t, err)
+	defer client.Close()
+
+	producer1, err := client.CreateProducer(ProducerOptions{
+		Topic: "multi-topic-1",
+	})
+
+	assertNil(t, err)
+
+	producer2, err := client.CreateProducer(ProducerOptions{
+		Topic: "multi-topic-2",
+	})
+
+	assertNil(t, err)
+	defer producer1.Close()
+	defer producer2.Close()
+
+	consumer, err := client.Subscribe(ConsumerOptions{
+		Topics:           []string{"multi-topic-1", "multi-topic-2"},
+		SubscriptionName: "my-sub",
+	})
+
+	assertNil(t, err)
+	defer consumer.Close()
+
+	assertEqual(t, consumer.Subscription(), "my-sub")
+
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		if err := producer1.Send(ctx, ProducerMessage{
+			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := producer2.Send(ctx, ProducerMessage{
+			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for i := 0; i < 20; i++ {
+		msg, err := consumer.Receive(ctx)
+		assertNil(t, err)
+		assertNotNil(t, msg)
+
+		consumer.Ack(msg)
+	}
+
+	consumer.Unsubscribe()
+}
+
+
+func TestConsumerRegex(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+
+	assertNil(t, err)
+	defer client.Close()
+
+	producer1, err := client.CreateProducer(ProducerOptions{
+		Topic: "topic-1",
+	})
+
+	assertNil(t, err)
+
+	producer2, err := client.CreateProducer(ProducerOptions{
+		Topic: "topic-2",
+	})
+
+	assertNil(t, err)
+	defer producer1.Close()
+	defer producer2.Close()
+
+	consumer, err := client.Subscribe(ConsumerOptions{
+		TopicsPattern: "topic-\\d+",
+		SubscriptionName: "my-sub",
+	})
+
+	assertNil(t, err)
+	defer consumer.Close()
+
+	assertEqual(t, consumer.Subscription(), "my-sub")
+
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		if err := producer1.Send(ctx, ProducerMessage{
+			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := producer2.Send(ctx, ProducerMessage{
+			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for i := 0; i < 20; i++ {
+		msg, err := consumer.Receive(ctx)
+		assertNil(t, err)
+		assertNotNil(t, msg)
+
+		consumer.Ack(msg)
+	}
+
+	consumer.Unsubscribe()
+}
