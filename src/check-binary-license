@@ -26,7 +26,6 @@
 
 # all error fatal
 set -e
-#set -x
 
 TARBALL="$1"
 if [ -z $TARBALL ]; then
