@@ -34,7 +34,7 @@ $ go get -u github.com/apache/incubator-pulsar/pulsar-client-go/pulsar
 Or you can use [dep](https://github.com/golang/dep) for managing the dependencies.
 
 ```bash
-$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v{{pulsar.version}}
+$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v{{pulsar:version}}
 ```
 
 Once installed locally, you can import it into your project:
