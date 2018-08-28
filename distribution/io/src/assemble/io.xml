@@ -74,11 +74,5 @@
       <outputDirectory>connectors</outputDirectory>
       <fileMode>644</fileMode>
     </file>
-
-    <file>
-      <source>${basedir}/../../pulsar-io/aerospike/target/pulsar-io-aerospike-${project.version}.nar</source>
-      <outputDirectory>connectors</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
   </files>
 </assembly>
