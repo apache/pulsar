@@ -132,7 +132,9 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		}
 	}
 
-  subName := C.CString(options.SubscriptionName)
+	C.pulsar_consumer_set_read_compacted(conf, cBool(options.ReadCompacted))
+
+	subName := C.CString(options.SubscriptionName)
 	defer C.free(unsafe.Pointer(subName))
 
 	callbackPtr := savePointer(&subscribeContext{conf: conf, consumer: consumer, callback: callback})
