@@ -66,8 +66,7 @@ public class SinkConfig {
     @isValidTopicName
     private String topicsPattern;
 
-    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
-            valueValidatorClasses = { ValidatorImpls.SchemaValidator.class })
+    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class })
     private Map<String, String> topicToSchemaType;
 
     private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
