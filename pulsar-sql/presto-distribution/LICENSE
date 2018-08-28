@@ -357,13 +357,6 @@ The Apache Software License, Version 2.0
     - jcommander-1.48.jar
   * FindBugs JSR305
     - jsr305-3.0.2.jar
-  * Pulsar
-    - managed-ledger-2.2.0-incubating-SNAPSHOT.jar
-    - protobuf-shaded-2.1.0-incubating.jar
-    - pulsar-client-admin-2.2.0-incubating-SNAPSHOT.jar
-    - pulsar-client-schema-2.2.0-incubating-SNAPSHOT.jar
-    - pulsar-functions-api-2.2.0-incubating-SNAPSHOT.jar
-    - pulsar-presto-connector-original-2.2.0-incubating-SNAPSHOT.jar
   * Objenesis
     - objenesis-2.1.jar
   * Okio
@@ -390,6 +383,7 @@ The Apache Software License, Version 2.0
 Protocol Buffers License
  * Protocol Buffers
    - protobuf-java-3.5.1.jar -- licenses/LICENSE-protobuf.txt
+   - protobuf-shaded-2.1.0-incubating.jar
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar

@@ -129,7 +129,7 @@ where command is one of:
     websocket           Run a web socket proxy server
     functions-worker    Run a functions worker server
     sql-worker          Run a sql worker server
-    sql-cli             Run sql CLI
+    sql                 Run sql CLI
     standalone          Run a broker server with local bookies and local zookeeper
 
     initialize-cluster-metadata     One-time metadata initialization
