@@ -237,8 +237,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             obj.setField3(i);
             String value = new String(schema.encode(obj));
 
-            log.debug("produce message {}: {}", i, value);
-
             kvs.put(key, value);
             producer.newMessage()
                 .key(key)

@@ -82,7 +82,7 @@ public class JdbcUtils {
 
     /**
      * Given a driver type(such as mysql), return its jdbc driver class name.
-     * TODO: test and support more types
+     * TODO: test and support more types, also add Driver in pom file.
      */
     public static String getDriverClassName(String driver) throws Exception {
         if (driver.equals("mysql")) {
@@ -117,7 +117,9 @@ public class JdbcUtils {
                 String gotTableName = rs.getString(3);
                 checkState(tableName.equals(gotTableName),
                     "TableName not match: " + tableName + " Got: " + gotTableName);
-                log.debug("Get Table: {}, {}, {}", catalogName, schemaName, tableName);
+                if (log.isDebugEnabled()) {
+                    log.debug("Get Table: {}, {}, {}", catalogName, schemaName, tableName);
+                }
                 return TableId.of(catalogName, schemaName, tableName);
             } else {
                 throw new Exception("Not able to find table: " + tableName);
@@ -145,7 +147,9 @@ public class JdbcUtils {
                 final int position = rs.getInt(17);
 
                 table.columns.add(ColumnId.of(tableId, columnName, sqlDataType, typeName, position));
-                log.debug("Get column. name: {}, data type: {}, position: {}", columnName, typeName, position);
+                if (log.isDebugEnabled()) {
+                    log.debug("Get column. name: {}, data type: {}, position: {}", columnName, typeName, position);
+                }
             }
             return table;
         }

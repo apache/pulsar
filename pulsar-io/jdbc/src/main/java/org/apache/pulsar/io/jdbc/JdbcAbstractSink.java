@@ -48,6 +48,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     private JdbcSinkConfig jdbcSinkConfig;
     @Getter
     private Connection connection;
+    private String jdbcUrl;
     private String tableName;
 
     private JdbcUtils.TableId tableId;
@@ -69,7 +70,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         jdbcSinkConfig = JdbcSinkConfig.load(config);
 
-        String jdbcUrl = jdbcSinkConfig.getJdbcUrl();
+        jdbcUrl = jdbcSinkConfig.getJdbcUrl();
         if (jdbcSinkConfig.getJdbcUrl() == null) {
             throw new IllegalArgumentException("Required jdbc Url not set.");
         }
@@ -85,7 +86,8 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         }
 
         connection = JdbcUtils.getConnection(jdbcUrl, properties);
-        log.info("Connection opened");
+        connection.setAutoCommit(false);
+        log.info("Opened jdbc connection: {}, autoCommit: {}", jdbcUrl, connection.getAutoCommit());
 
         schema = jdbcSinkConfig.getSchema();
         tableName = jdbcSinkConfig.getTableName();
@@ -112,7 +114,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         if (connection != null) {
             connection.close();
         }
-        log.info("Connection Closed");
+        log.info("Closed jdbc connection: {}", jdbcUrl);
     }
 
     @Override
@@ -136,8 +138,10 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     private void flush() {
         // if not in flushing state, do flush, else return;
-        if (isFlushing.compareAndSet(false, true)) {
-            log.debug("Starting flush, queue size: {}", incomingList.size());
+        if (incomingList.size() > 0 && isFlushing.compareAndSet(false, true)) {
+            if (log.isDebugEnabled()) {
+                log.debug("Starting flush, queue size: {}", incomingList.size());
+            }
             checkState(swapList.isEmpty(),
                 "swapList should be empty since last flush. swapList.size: " + swapList.size());
 
@@ -167,9 +171,8 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                     }
                     updateCount += updateCount;
                 }
-                if (!connection.getAutoCommit()) {
-                    connection.commit();
-                }
+                connection.commit();
+                swapList.forEach(tRecord -> tRecord.ack());
             } catch (Exception e) {
                 log.error("Got exception ", e);
                 swapList.forEach(tRecord -> tRecord.fail());
@@ -180,10 +183,14 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             }
 
             // finish flush
-            log.debug("Finish flush, queue size: {}", swapList.size());
+            if (log.isDebugEnabled()) {
+                log.debug("Finish flush, queue size: {}", swapList.size());
+            }
             isFlushing.set(false);
         } else {
-            log.debug("Already in flushing state, will not flush, queue size: {}", incomingList.size());
+            if (log.isDebugEnabled()) {
+                log.debug("Already in flushing state, will not flush, queue size: {}", incomingList.size());
+            }
         }
     }
 

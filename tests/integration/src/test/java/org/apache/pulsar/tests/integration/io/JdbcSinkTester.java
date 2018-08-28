@@ -78,7 +78,7 @@ public class JdbcSinkTester extends SinkTester {
 
     @Override
     public void findSinkServiceContainer(Map<String, GenericContainer<?>> containers) {
-        GenericContainer<?> container = containers.get(NAME);
+        GenericContainer<?> container = containers.get("mysql");
         checkState(container instanceof MySQLContainer,
             "No MySQL service found in the cluster");
 
@@ -90,7 +90,7 @@ public class JdbcSinkTester extends SinkTester {
     public void prepareSink() throws Exception {
         String jdbcUrl = mySQLContainer.getJdbcUrl();
         // we need set mysql server address in cluster network.
-        sinkConfig.put("jdbcUrl", "jdbc:mysql://jdbc:3306/test");
+        sinkConfig.put("jdbcUrl", "jdbc:mysql://mysql:3306/test");
         String driver = mySQLContainer.getDriverClassName();
         Class.forName(driver);
 

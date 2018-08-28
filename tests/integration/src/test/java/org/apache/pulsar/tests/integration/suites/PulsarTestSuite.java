@@ -69,7 +69,7 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
             new CassandraContainer(clusterName));
 
         // use mySQL for jdbc test
-        final String jdbcServiceName = "jdbc";
+        final String jdbcServiceName = "mysql";
         externalServices.put(
             jdbcServiceName,
             new MySQLContainer()
