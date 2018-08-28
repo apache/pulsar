@@ -131,6 +131,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final SubscriptionInitialPosition subscriptionInitialPosition;
     private final ConnectionHandler connectionHandler;
 
+    private final String topicNameWithoutPartition;
+
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -202,6 +204,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             this.acknowledgmentsGroupingTracker =
                 NonPersistentAcknowledgmentGroupingTracker.of();
         }
+
+        topicNameWithoutPartition = topicName.getPartitionedTopicName();
 
         grabCnx();
     }
@@ -1456,6 +1460,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     void grabCnx() {
         this.connectionHandler.grabCnx();
+    }
+
+    public String getTopicNameWithoutPartition() {
+        return topicNameWithoutPartition;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);

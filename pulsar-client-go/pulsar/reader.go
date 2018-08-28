@@ -67,6 +67,9 @@ type Reader interface {
 	// Read the next message in the topic, blocking until a message is available
 	Next(context.Context) (Message, error)
 
+	// Check if there is any message available to read from the current position
+	HasNext() (bool, error)
+
 	// Close the reader and stop the broker to push more messages
 	Close() error
 }
