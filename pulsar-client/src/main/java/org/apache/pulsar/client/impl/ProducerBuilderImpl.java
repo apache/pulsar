@@ -57,7 +57,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         this.client = client;
         this.conf = conf;
         this.schema = schema;
-        this.interceptorList = new ArrayList<>();
     }
 
 
@@ -99,7 +98,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
         }
 
-        return interceptorList.size() == 0 ?
+        return interceptorList == null || interceptorList.size() == 0 ?
                 client.createProducerAsync(conf, schema, null) :
                 client.createProducerAsync(conf, schema, new ProducerInterceptors<>(interceptorList));
     }
@@ -233,6 +232,9 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> intercept(ProducerInterceptor<T>... interceptors) {
+        if (interceptorList == null) {
+            interceptorList = new ArrayList<>();
+        }
         interceptorList.addAll(Arrays.asList(interceptors));
         return this;
     }
