@@ -69,7 +69,7 @@ the issue tracking system and/or the dev mailing list.
 ## Design
 
 To avoid potential frustration during the code review cycle, we encourage you to clearly scope and
-design non-trivial contributions with the BookKeeper community before you start coding.
+design non-trivial contributions with the Pulsar community before you start coding.
 
 We are using "Pulsar Improvement Proposals" (or "PIP") for managing major changes to Pulsar. The
 list of all PIPs is maintained in the Pulsar wiki at https://github.com/apache/incubator-pulsar/wiki.
@@ -109,7 +109,7 @@ GitHub by following [their instructions](https://help.github.com/articles/genera
 Clone your personal Pulsar’s GitHub fork.
 
     $ git clone https://github.com/<Github_user>/incubator-pulsar.git
-    $ cd bookkeeper
+    $ cd incubator-pulsar
 
 Add Apache Repo as additional Git remotes, where you can sync the changes (for committers, you need
 these two remotes for pushing changes).
