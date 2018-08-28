@@ -106,7 +106,7 @@ fi
 # find pulsar sql presto distribution location
 if [ ! -d "${PRESTO_HOME}" ]; then
 
-  BUILT_PRESTO_HOME=$(find ${SQL_HOME}/presto-distribution/target/ -type d -name pulsar-presto-distribution-*)
+  BUILT_PRESTO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
   if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
         echo "\nCouldn't find presto distribution.";
         echo "Make sure you've run 'mvn package'\n";

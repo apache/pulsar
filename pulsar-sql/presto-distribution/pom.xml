@@ -22,13 +22,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-presto-distribution</artifactId>
     <name>Pulsar SQL :: Pulsar Presto Distribution</name>
     <version>2.2.0-incubating-SNAPSHOT</version>
 
     <properties>
+        <presto.version>0.206</presto.version>
+        <airlift.version>0.170</airlift.version>
         <!-- Launcher properties -->
         <main-class>com.facebook.presto.server.PrestoServer</main-class>
         <process-name>${project.artifactId}</process-name>
@@ -39,19 +40,26 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-main</artifactId>
-            <version>0.206</version>
+            <version>${presto.version}</version>
+            <exclusions>
+                <!-- exclude openjdk because of GPL license-->
+                <exclusion>
+                    <groupId>org.openjdk.jol</groupId>
+                    <artifactId>jol-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-cli</artifactId>
-            <version>0.206</version>
+            <version>${presto.version}</version>
         </dependency>
 
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>launcher</artifactId>
-            <version>0.170</version>
+            <version>${airlift.version}</version>
             <type>tar.gz</type>
             <classifier>bin</classifier>
         </dependency>
@@ -59,7 +67,7 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>launcher</artifactId>
-            <version>0.170</version>
+            <version>${airlift.version}</version>
             <type>tar.gz</type>
             <classifier>properties</classifier>
         </dependency>
@@ -67,8 +75,9 @@
         <dependency>
             <groupId>org.apache.pulsar</groupId>
             <artifactId>pulsar-presto-connector</artifactId>
-            <version>2.2.0-incubating-SNAPSHOT</version>
+            <version>${project.version}</version>
             <type>tar.gz</type>
+            <scope>provided</scope>
         </dependency>
 
     </dependencies>
@@ -88,6 +97,7 @@
                     <descriptors>
                         <descriptor>src/assembly/assembly.xml</descriptor>
                     </descriptors>
+                    <finalName>${project.artifactId}</finalName>
                 </configuration>
                 <executions>
                     <execution>
@@ -100,30 +110,36 @@
                 </executions>
             </plugin>
 
-        <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>templating-maven-plugin</artifactId>
-            <version>1.0.0</version>
-            <executions>
-                <execution>
-                    <id>filter-src</id>
-                    <goals>
-                        <goal>filter-sources</goal>
-                    </goals>
-                    <phase>package</phase>
-                    <configuration>
-                        <sourceDirectory>${project.build.directory}/${project.artifactId}-${project.version}/bin/</sourceDirectory>
-                        <outputDirectory>${project.build.directory}/${project.artifactId}-${project.version}/bin/</outputDirectory>
-                        <overwrite>true</overwrite>
-                        <delimiters>
-                            <delimiter>${*}</delimiter>
-]                        </delimiters>
-                    </configuration>
-                </execution>
-            </executions>
-        </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>templating-maven-plugin</artifactId>
+                <version>1.0.0</version>
+                <executions>
+                    <execution>
+                        <id>filter-src</id>
+                        <goals>
+                            <goal>filter-sources</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration>
+                            <sourceDirectory>${project.build.directory}/${project.artifactId}/bin/</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/${project.artifactId}/bin/</outputDirectory>
+                            <overwrite>true</overwrite>
+                            <delimiters>
+                                <delimiter>${*}</delimiter>
+                            </delimiters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>3.0.rc1</version>
+                <configuration>
+                    <header>../../src/license-header.txt</header>
+                </configuration>
+            </plugin>
         </plugins>
-
     </build>
-
 </project>

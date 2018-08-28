@@ -27,29 +27,35 @@
         <format>dir</format>
     </formats>
     <includeBaseDirectory>false</includeBaseDirectory>
+    <files>
+        <file>
+            <source>${basedir}/LICENSE</source>
+            <destName>LICENSE</destName>
+            <outputDirectory>.</outputDirectory>
+            <fileMode>644</fileMode>
+        </file>
+    </files>
+    <fileSets>
+        <fileSet>
+            <directory>${basedir}/../presto-pulsar-plugin/target/pulsar-presto-connector/</directory>
+            <outputDirectory>plugin/</outputDirectory>
+        </fileSet>
+    </fileSets>
     <dependencySets>
         <dependencySet>
             <outputDirectory>lib/</outputDirectory>
-            <useProjectArtifact>false</useProjectArtifact>
+            <useProjectArtifact>true</useProjectArtifact>
             <scope>runtime</scope>
             <excludes>
-                <exclude>io.airlift:launcher:tar.gz:bin:0.170</exclude>
-                <exclude>io.airlift:launcher:tar.gz:properties:0.170</exclude>
-                <exclude>org.apache.pulsar:*</exclude>
+                <exclude>io.airlift:launcher:tar.gz:bin:${airlift.version}</exclude>
+                <exclude>io.airlift:launcher:tar.gz:properties:${airlift.version}</exclude>
             </excludes>
         </dependencySet>
         <dependencySet>
             <outputDirectory></outputDirectory>
             <includes>
-                <include>io.airlift:launcher:tar.gz:bin:0.170</include>
-                <include>io.airlift:launcher:tar.gz:properties:0.170</include>
-            </includes>
-            <unpack>true</unpack>
-        </dependencySet>
-        <dependencySet>
-            <outputDirectory>plugin/</outputDirectory>
-            <includes>
-                <include>org.apache.pulsar:pulsar-presto-connector:tar.gz:2.2.0-incubating-SNAPSHOT</include>
+                <include>io.airlift:launcher:tar.gz:bin:${airlift.version}</include>
+                <include>io.airlift:launcher:tar.gz:properties:${airlift.version}</include>
             </includes>
             <unpack>true</unpack>
         </dependencySet>
