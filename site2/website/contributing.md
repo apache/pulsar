@@ -140,8 +140,8 @@ To configure annotation processing in IntelliJ:
 
 ##### Eclipse
 
-Use a recent Eclipse version that includes m2e. Currently we recommend Eclipse Neon.
-Start Eclipse with a fresh workspace in a separate directory from your checkout.
+Use a recent Eclipse version that includes m2e. Start Eclipse with a fresh workspace in a
+separate directory from your checkout.
 
 ###### Initial setup
 
@@ -193,11 +193,24 @@ Organize your commits to make a committer’s job easier when reviewing. Committ
 
 You'll then push to your branch on GitHub. Note: when updating your commit after pull request feedback and use squash to get back to one commit, you will need to do a force submit to the branch on your repo.
 
-Navigate to the [Pulsar GitHub Repo](https://github.com/apache/incubator-pulsar) to create a pull request. The title of the pull request should be strictly in the following format:
+Navigate to the [Pulsar GitHub Repo](https://github.com/apache/incubator-pulsar) to create a pull request.
 
-	Issue <Github-issue-#> <Title of the pull request>
+In the pull request description, please include:
 
-Please include a descriptive pull request message to help make the comitter’s job easier when reviewing. It’s fine to refer to existing design docs or the contents of the associated JIRA as appropriate.
+ * Motivation : Why is this change needed? What problem is addressing?
+ * Changes: Summary of what this pull request is changing, to help reviewers at better understanding
+   the changes.
+
+Please include a descriptive pull request message to help make the comitter’s job easier when reviewing.
+It’s fine to refer to existing design docs or the contents of the associated issue as appropriate.
+
+If the pull request is fixing an issue, include a mention to in the description, like:
+
+```
+Fixes #1234
+```
+
+This will automatically change the state on the referenced issues.
 
 If you know a good committer to review your pull request, please make a comment like the following. If not, don’t worry -- a committer will pick it up.
 
