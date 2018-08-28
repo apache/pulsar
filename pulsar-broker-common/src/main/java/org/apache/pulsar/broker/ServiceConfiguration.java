@@ -90,7 +90,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     //'producer_request_hold' Policy which holds producer's send request until the resource becomes available (or holding times out)
     //'producer_exception' Policy which throws javax.jms.ResourceAllocationException to the producer
     //'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog
-    private String backlogQuotaRetentionPolicy = "producer_request_hold";
+    private String backlogQuotaDefaultRetentionPolicy = "producer_request_hold";
     // Enable the deletion of inactive topics
     private boolean brokerDeleteInactiveTopicsEnabled = true;
     // How often to check for inactive topics
@@ -1814,11 +1814,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return this.brokerServiceCompactionMonitorIntervalInSeconds;
     }
 
-    public String getBacklogQuotaRetentionPolicy() {
-        return backlogQuotaRetentionPolicy;
+    public String getBacklogQuotaDefaultRetentionPolicy() {
+        return backlogQuotaDefaultRetentionPolicy;
     }
 
-    public void setBacklogQuotaRetentionPolicy(String backlogQuotaRetentionPolicy) {
-        this.backlogQuotaRetentionPolicy = backlogQuotaRetentionPolicy;
+    public void setBacklogQuotaDefaultRetentionPolicy(String backlogQuotaDefaultRetentionPolicy) {
+        this.backlogQuotaDefaultRetentionPolicy = backlogQuotaDefaultRetentionPolicy;
     }
 }

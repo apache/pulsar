@@ -50,9 +50,9 @@ public class BacklogQuotaManager {
     public BacklogQuotaManager(PulsarService pulsar) {
         RetentionPolicy retentionPolicy = null;
         try {
-            retentionPolicy = RetentionPolicy.valueOf(pulsar.getConfiguration().getBacklogQuotaRetentionPolicy());
+            retentionPolicy = RetentionPolicy.valueOf(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy());
         } catch (IllegalArgumentException e) {
-            log.error("Invalid Backlog retention policy: {} in broker.conf ", pulsar.getConfiguration().getBacklogQuotaRetentionPolicy(), e);
+            log.error("Invalid Backlog retention policy: {} in broker.conf ", pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy(), e);
         }
         this.defaultQuota = new BacklogQuota(
                 pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024,
