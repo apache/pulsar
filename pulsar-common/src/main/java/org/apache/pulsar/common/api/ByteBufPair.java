@@ -109,6 +109,7 @@ public final class ByteBufPair extends AbstractReferenceCounted {
     }
 
     public static final Encoder ENCODER = new Encoder();
+    public static final CopyingEncoder COPYING_ENCODER = new CopyingEncoder();
 
     @Sharable
     public static class Encoder extends ChannelOutboundHandlerAdapter {
@@ -123,6 +124,28 @@ public final class ByteBufPair extends AbstractReferenceCounted {
                 try {
                     ctx.write(b.getFirst().retainedDuplicate(), ctx.voidPromise());
                     ctx.write(b.getSecond().retainedDuplicate(), promise);
+                } finally {
+                    ReferenceCountUtil.safeRelease(b);
+                }
+            } else {
+                ctx.write(msg, promise);
+            }
+        }
+    }
+
+    @Sharable
+    public static class CopyingEncoder extends ChannelOutboundHandlerAdapter {
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            if (msg instanceof ByteBufPair) {
+                ByteBufPair b = (ByteBufPair) msg;
+
+                // Some handlers in the pipeline will modify the bytebufs passed in to them (i.e. SslHandler).
+                // For these handlers, we need to pass a copy of the buffers as the source buffers may be cached
+                // for multiple requests.
+                try {
+                    ctx.write(b.getFirst().copy(), ctx.voidPromise());
+                    ctx.write(b.getSecond().copy(), promise);
                 } finally {
                     ReferenceCountUtil.safeRelease(b);
                 }
