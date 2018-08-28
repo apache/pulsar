@@ -170,7 +170,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
     // Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic
     @FieldContext(dynamic = true)
-    private int maxConcurrentLookupRequest = 10000;
+    private int maxConcurrentLookupRequest = 50000;
     // Max number of concurrent topic loading request broker allows to control number of zk-operations
     @FieldContext(dynamic = true)
     private int maxConcurrentTopicLoadRequest = 5000;
