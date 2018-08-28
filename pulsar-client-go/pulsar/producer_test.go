@@ -62,7 +62,6 @@ func TestProducer(t *testing.T) {
 		OperationTimeoutSeconds:  30,
 		ConcurrentLookupRequests: 1000,
 		MessageListenerThreads:   5,
-		EnableTLS:                false,
 	})
 
 	assertNil(t, err)
