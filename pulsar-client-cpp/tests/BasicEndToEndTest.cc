@@ -1604,10 +1604,12 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
     std::string topicName1 = "persistent://prop/unit/ns/testMultiTopicsConsumer1";
     std::string topicName2 = "persistent://prop/unit/ns/testMultiTopicsConsumer2";
     std::string topicName3 = "persistent://prop/unit/ns/testMultiTopicsConsumer3";
+    std::string topicName4 = "persistent://prop/unit/ns/testMultiTopicsConsumer4";
 
     topicNames.push_back(topicName1);
     topicNames.push_back(topicName2);
     topicNames.push_back(topicName3);
+    topicNames.push_back(topicName4);
 
     // call admin api to make topics partitioned
     std::string url1 = adminUrl + "admin/persistent/prop/unit/ns/testMultiTopicsConsumer1/partitions";
@@ -1631,7 +1633,11 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
     result = client.createProducer(topicName3, producer3);
     ASSERT_EQ(ResultOk, result);
 
-    LOG_INFO("created 3 producers");
+    Producer producer4;
+    result = client.createProducer(topicName4, producer4);
+    ASSERT_EQ(ResultOk, result);
+
+    LOG_INFO("created 4 producers");
 
     int messageNumber = 100;
     ConsumerConfiguration consConfig;
@@ -1644,7 +1650,7 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
     result = consumerFuture.get(consumer);
     ASSERT_EQ(ResultOk, result);
     ASSERT_EQ(consumer.getSubscriptionName(), subName);
-    LOG_INFO("created topics consumer on 3 topics");
+    LOG_INFO("created topics consumer on 4 topics");
 
     std::string msgContent = "msg-content";
     LOG_INFO("Publishing 100 messages by producer 1 synchronously");
@@ -1673,14 +1679,23 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
         ASSERT_EQ(ResultOk, producer3.send(msg));
     }
 
-    LOG_INFO("Consuming and acking 300 messages by multiTopicsConsumer");
-    for (int i = 0; i < 3 * messageNumber; i++) {
+    msgContent = "msg-content4";
+    LOG_INFO("Publishing 100 messages by producer 4 synchronously");
+    for (int msgNum = 0; msgNum < messageNumber; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer4.send(msg));
+    }
+
+    LOG_INFO("Consuming and acking 400 messages by multiTopicsConsumer");
+    for (int i = 0; i < 4 * messageNumber; i++) {
         Message m;
         ASSERT_EQ(ResultOk, consumer.receive(m, 10000));
         ASSERT_EQ(ResultOk, consumer.acknowledge(m));
     }
 
-    LOG_INFO("Consumed and acked 300 messages by multiTopicsConsumer");
+    LOG_INFO("Consumed and acked 400 messages by multiTopicsConsumer");
 
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
 
