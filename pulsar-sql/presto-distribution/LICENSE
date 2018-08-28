@@ -1,0 +1,468 @@
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+----------------------------------------------------------------------------------------------------
+
+This projects includes binary packages with the following licenses:
+
+The Apache Software License, Version 2.0
+
+  * Jackson
+    - jackson-annotations-2.8.1.jar
+    - jackson-databind-2.8.1.jar
+    - jackson-dataformat-smile-2.8.1.jar
+    - jackson-datatype-guava-2.8.1.jar
+    - jackson-datatype-guava-2.8.1.jar
+    - jackson-datatype-jdk8-2.8.1.jar
+    - jackson-datatype-jdk8-2.8.1.jar
+    - jackson-datatype-joda-2.8.1.jar
+    - jackson-datatype-joda-2.8.4.jar
+    - jackson-datatype-jsr310-2.8.1.jar
+    - jackson-datatype-jsr310-2.8.1.jar
+    - jackson-annotations-2.8.4.jar
+    - jackson-core-2.8.1.jar
+    - jackson-core-2.8.4.jar
+    - jackson-core-asl-1.9.13.jar
+    - jackson-databind-2.8.4.jar
+    - jackson-mapper-asl-1.9.13.jar
+ * Guava
+    - guava-21.0.jar
+    - guava-24.1-jre.jar
+ * Google Guice
+    - guice-4.2.0.jar
+    - guice-multibindings-4.0.jar
+ * Apache Commons
+    - commons-math3-3.6.1.jar
+    - commons-beanutils-core-1.8.3.jar
+    - commons-beanutils-core-1.8.0.jar
+    - commons-compress-1.15.jar
+    - commons-lang3-3.3.2.jar
+    - commons-lang3-3.4.jar
+ * Netty
+    - netty-3.6.2.Final.jar
+ * Joda Time
+     - joda-time-2.9.9.jar
+ * Jetty
+    - http2-client-9.4.11.v20180605.jar
+    - http2-common-9.4.11.v20180605.jar
+    - http2-hpack-9.4.11.v20180605.jar
+    - http2-http-client-transport-9.4.11.v20180605.jar
+    - http2-server-9.4.11.v20180605.jar
+    - jetty-alpn-client-9.4.11.v20180605.jar
+    - jetty-client-9.4.11.v20180605.jar
+    - jetty-http-9.4.11.v20180605.jar
+    - jetty-io-9.4.11.v20180605.jar
+    - jetty-jmx-9.4.11.v20180605.jar
+    - jetty-security-9.4.11.v20180605.jar
+    - jetty-server-9.4.11.v20180605.jar
+    - jetty-servlet-9.4.11.v20180605.jar
+    - jetty-util-9.4.11.v20180605.jar
+  * Javassist
+    - javassist-3.22.0-CR2.jar
+  * Asynchronous Http Client
+    - async-http-client-1.6.5.jar
+  * Apache BVal
+    - bval-core-1.1.1.jar
+    - bval-jsr-1.1.1.jar
+  * Bytecode
+    - bytecode-1.0.jar
+  * CGLIB Nodep
+    - cglib-nodep-3.2.5.jar
+  * Airlift
+    - aircompressor-0.11.jar
+    - airline-0.8.jar
+    - bootstrap-0.170.jar
+    - bootstrap-0.171.jar
+    - concurrent-0.171.jar
+    - configuration-0.171.jar
+    - configuration-0.170.jar
+    - discovery-0.171.jar
+    - discovery-server-1.29.jar
+    - event-0.171.jar
+    - http-client-0.171.jar
+    - http-server-0.171.jar
+    - jmx-0.171.jar
+    - jmx-http-0.171.jar
+    - jmx-http-rpc-0.159.jar
+    - joni-2.1.5.1.jar
+    - json-0.170.jar
+    - json-0.171.jar
+    - log-0.170.jar
+    - log-0.171.jar
+    - log-manager-0.170.jar
+    - log-manager-0.171.jar
+    - node-0.171.jar
+    - resolver-1.4.jar
+    - security-0.171.jar
+    - slice-0.35.jar
+    - stats-0.171.jar
+    - trace-token-0.171.jar
+    - units-1.0.jar
+  * Error Prone Annotations
+    - error_prone_annotations-2.1.3.jar
+  * Esri Geometry API For Java
+    - esri-geometry-api-2.1.0.jar
+  * Fastutil
+    - fastutil-6.5.9.jar
+  * J2ObjC Annotations
+    - j2objc-annotations-1.1.jar
+  * JSON Web Token Support For The JVM
+    - jjwt-0.9.0.jar
+  * Jmxutils
+    - jmxutils-1.19.jar
+  * LevelDB
+    - leveldb-0.10.jar
+    - leveldb-api-0.10.jar
+  * Log4j implemented over SLF4J
+    - log4j-over-slf4j-1.7.25.jar
+  * Lucene Common Analyzers
+    - lucene-analyzers-common-7.2.1.jar
+  * Maven
+    - maven-aether-provider-3.0.4.jar
+    - maven-artifact-3.0.4.jar
+    - maven-compat-3.0.4.jar
+    - maven-core-3.0.4.jar
+    - maven-embedder-3.0.4.jar
+    - maven-model-3.0.4.jar
+    - maven-model-builder-3.0.4.jar
+    - maven-plugin-api-3.0.4.jar
+    - maven-repository-metadata-3.0.4.jar
+    - maven-settings-3.0.4.jar
+    - maven-settings-builder-3.0.4.jar
+  * OkHttp
+    - okhttp-3.9.0.jar
+    - okhttp-urlconnection-3.9.0.jar
+  * OpenCSV
+    - opencsv-2.3.jar
+  * Plexus
+    - plexus-cipher-1.7.jar
+    - plexus-classworlds-2.4.jar
+    - plexus-component-annotations-1.5.5.jar
+    - plexus-container-default-1.5.5.jar
+    - plexus-interpolation-1.14.jar
+    - plexus-sec-dispatcher-1.3.jar
+    - plexus-utils-2.0.6.jar
+  * Apache Maven Wagon
+    - wagon-provider-api-2.2.jar
+  * Apache XBean :: Reflect
+    - xbean-reflect-3.4.jar
+  * Avro
+    - avro-1.8.2.jar
+  * Javax
+    - javax.inject-1.jar
+    - javax.inject-1.jar
+    - javax.servlet-api-3.1.0.jar
+    - javax.ws.rs-api-2.1.jar
+  * JCommander
+    - jcommander-1.48.jar
+  * FindBugs JSR305
+    - jsr305-3.0.2.jar
+  * Objenesis
+    - objenesis-2.1.jar
+  * Okio
+    - okio-1.13.0.jar
+  * Presto
+    - presto-array-0.206.jar
+    - presto-cli-0.206.jar
+    - presto-client-0.206.jar
+    - presto-geospatial-toolkit-0.206.jar
+    - presto-main-0.206.jar
+    - presto-matching-0.206.jar
+    - presto-memory-context-0.206.jar
+    - presto-parser-0.206.jar
+    - presto-spi-0.206.jar
+  * RocksDB JNI
+    - rocksdbjni-5.13.3.jar
+  * SnakeYAML
+    - snakeyaml-1.15.jar
+  * Snappy Java
+    - snappy-java-1.1.1.3.jar
+  * Bean Validation API
+    - validation-api-1.1.0.Final.jar
+
+Protocol Buffers License
+ * Protocol Buffers
+   - protobuf-java-3.5.1.jar -- licenses/LICENSE-protobuf.txt
+   - protobuf-shaded-2.1.0-incubating.jar
+
+BSD 3-clause "New" or "Revised" License
+  *  RE2J TD -- re2j-td-1.4.jar
+
+BSD License
+ * ANTLR 4 Runtime -- antlr4-runtime-4.6.jar
+ * ASM, a very small and fast Java bytecode manipulation framework
+    - asm-6.1.1.jar
+    - asm-analysis-6.0.jar
+    - asm-tree-6.0.jar
+    - asm-util-6.0.jar
+ * JLine
+   - jline-2.14.6.jar
+ * ParaNamer Core
+   - paranamer-2.7.jar
+
+MIT License
+ * Animal Sniffer Annotations -- animal-sniffer-annotations-1.14.jar
+ * Checker Qua -- checker-compat-qual-2.0.0.jar
+ * PCollections
+   - pcollections-2.1.2.jar
+ * SLF4J
+   - slf4j-jdk14-1.7.25.jar
+   - slf4j-api-1.7.12.jar
+   - slf4j-api-1.7.25.jar
+ * JCL 1.2 Implemented Over SLF4J
+   - jcl-over-slf4j-1.7.25.jar
+ * JUL to SLF4J Bridge
+   - jul-to-slf4j-1.7.25.jar
+
+CDDL - 1.0
+ * OSGi Resource Locator
+    - osgi-resource-locator-1.0.1.jar
+
+CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
+ * Java Annotations API
+   - javax.annotation-api-1.3.1.jar
+ * HK2 - Dependency Injection Kernel
+   - hk2-api-2.5.0-b42.jar
+   - hk2-locator-2.5.0-b42.jar
+   - hk2-utils-2.5.0-b42.jar
+ * Jersey
+    - jaxrs-0.171.jar
+    - jersey-client-2.26.jar
+    - jersey-container-servlet-2.26.jar
+    - jersey-container-servlet-core-2.26.jar
+    - jersey-hk2-2.26.jar
+    - jersey-media-jaxb-2.26.jar
+    - jersey-server-2.26.jar
+    - jersey-common-2.26.jar
+ * JavaBeans(TM) Activation Framework -- activation-1.1.1.jar
+ * JAXB
+    - jaxb-api-2.2.6.jar
+    - jaxb-impl-2.2.6.jar
+
+ Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
+  * Aether
+     - aether-api-1.13.1.jar
+     - aether-connector-asynchttpclient-1.13.1.jar
+     - aether-connector-file-1.13.1.jar
+     - aether-impl-1.13.1.jar
+     - aether-spi-1.13.1.jar
+     - aether-util-1.13.1.jar
+  * JTS Core
+     - jts-core-1.15.0.jar
+  *JGraphT Core
+     - jgrapht-core-0.9.0.jar
+  * Logback Core Module
+    - logback-core-1.2.3.jar
+
+Public Domain (CC0) -- licenses/LICENSE-CC0.txt
+ * HdrHistogram
+   - HdrHistogram-2.1.9.jar
+ * AOP Alliance
+   - aopalliance-1.0.jar
+ * XZ For Java
+    - xz-1.5.jar
+
+Bouncy Castle License
+ * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
+    - bcpkix-jdk15on-1.55.jar
+    - bcprov-jdk15on-1.55.jar

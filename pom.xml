@@ -166,6 +166,7 @@ flexible messaging model and an intuitive client API.</description>
     <aws-sdk.version>1.11.297</aws-sdk.version>
     <avro.version>1.8.2</avro.version>
     <jclouds.version>2.1.1</jclouds.version>
+    <presto.version>0.206</presto.version>
 
     <!-- test dependencies -->
     <arquillian-cube.version>1.15.1</arquillian-cube.version>
