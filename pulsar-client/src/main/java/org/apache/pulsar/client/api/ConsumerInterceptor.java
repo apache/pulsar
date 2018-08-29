@@ -79,18 +79,18 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      *
      * <p>Any exception thrown by this method will be ignored by the caller.
      *
-     * @param message message to ack, null if acknowledge fail.
+     * @param messageId message to ack, null if acknowledge fail.
      * @param cause the exception on acknowledge.
      */
-    void onAcknowledge(Message<T> message, Throwable cause);
+    void onAcknowledge(MessageId messageId, Throwable cause);
 
     /**
      * This is called consumer send the cumulative acknowledgment to the broker.
      *
      * <p>Any exception thrown by this method will be ignored by the caller.
      *
-     * @param messages messages to ack cumulative, null if acknowledge fail.
+     * @param messageId message to ack, null if acknowledge fail.
      * @param cause the exception on acknowledge.
      */
-    void onAcknowledgeCumulative(List<Message<T>> messages, Throwable cause);
+    void onAcknowledgeCumulative(MessageId messageId, Throwable cause);
 }

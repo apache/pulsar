@@ -28,6 +28,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class InterceptorsTest extends ProducerConsumerBase {
@@ -129,13 +130,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onAcknowledge(Message<String> message, Throwable cause) {
-
+            public void onAcknowledge(MessageId messageId, Throwable cause) {
+                log.info("onAcknowledge messageId: {}", messageId, cause);
             }
 
             @Override
-            public void onAcknowledgeCumulative(List<Message<String>> messages, Throwable cause) {
-
+            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
             }
         };
 
@@ -161,6 +162,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
         }
         Assert.assertTrue(haveKey);
+        consumer.acknowledge(received);
         producer.close();
         consumer.close();
     }
@@ -182,13 +184,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onAcknowledge(Message<String> message, Throwable cause) {
-
+            public void onAcknowledge(MessageId messageId, Throwable cause) {
+                log.info("onAcknowledge messageId: {}", messageId, cause);
             }
 
             @Override
-            public void onAcknowledgeCumulative(List<Message<String>> messages, Throwable cause) {
-
+            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
             }
         };
 
@@ -219,8 +221,9 @@ public class InterceptorsTest extends ProducerConsumerBase {
                     keyCount++;
                 }
             }
+            consumer.acknowledge(received);
         }
-        Assert.assertTrue(keyCount == 2);
+        Assert.assertEquals(2, keyCount);
         producer.close();
         producer1.close();
         consumer.close();
@@ -243,13 +246,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onAcknowledge(Message<String> message, Throwable cause) {
-
+            public void onAcknowledge(MessageId messageId, Throwable cause) {
+                log.info("onAcknowledge messageId: {}", messageId, cause);
             }
 
             @Override
-            public void onAcknowledgeCumulative(List<Message<String>> messages, Throwable cause) {
-
+            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
             }
         };
 
@@ -280,10 +283,77 @@ public class InterceptorsTest extends ProducerConsumerBase {
                     keyCount++;
                 }
             }
+            consumer.acknowledge(received);
         }
-        Assert.assertTrue(keyCount == 2);
+        Assert.assertEquals(2, keyCount);
         producer.close();
         producer1.close();
+        consumer.close();
+    }
+
+    @Test
+    public void testConsumerInterceptorForAcknowledgeCumulative() throws PulsarClientException {
+
+        List<MessageId> ackHolder = new ArrayList<>();
+
+        ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
+            @Override
+            public void close() {
+
+            }
+
+            @Override
+            public Message<String> beforeConsume(Message<String> message) {
+                MessageImpl<String> msg = (MessageImpl<String>) message;
+                msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
+                return msg;
+            }
+
+            @Override
+            public void onAcknowledge(MessageId messageId, Throwable cause) {
+                log.info("onAcknowledge messageId: {}", messageId, cause);
+            }
+
+            @Override
+            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+                long acknowledged = ackHolder.stream().filter(m -> (m.compareTo(messageId) <= 0)).count();
+                Assert.assertEquals(acknowledged, 100);
+                ackHolder.clear();
+                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
+            }
+        };
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic("persistent://my-property/my-ns/my-topic")
+                .subscriptionType(SubscriptionType.Failover)
+                .intercept(interceptor)
+                .subscriptionName("my-subscription")
+                .subscribe();
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic("persistent://my-property/my-ns/my-topic")
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage().value("Hello Pulsar!").send();
+        }
+
+        int keyCount = 0;
+        for (int i = 0; i < 100; i++) {
+            Message<String> received = consumer.receive();
+            MessageImpl<String> msg = (MessageImpl<String>) received;
+            for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
+                if ("beforeConsumer".equals(keyValue.getKey())) {
+                    keyCount++;
+                }
+            }
+            ackHolder.add(received.getMessageId());
+            if (i == 99) {
+                consumer.acknowledgeCumulative(received);
+            }
+        }
+        Assert.assertEquals(100, keyCount);
+        producer.close();
         consumer.close();
     }
 }
