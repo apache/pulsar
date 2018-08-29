@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,17 +74,17 @@ public class ConsumerInterceptors<T> implements Closeable {
     /**
      * This is called when acknowledge request return from the broker.
      * <p>
-     * This method calls {@link ConsumerInterceptor#onAcknowledge(Message, Throwable)} method for each interceptor.
+     * This method calls {@link ConsumerInterceptor#onAcknowledge(MessageId, Throwable)} method for each interceptor.
      * <p>
      * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
      *
-     * @param message message to acknowledge.
+     * @param messageId message to acknowledge.
      * @param cause exception returned by broker.
      */
-    public void onAcknowledge(Message<T> message, Throwable cause) {
+    public void onAcknowledge(MessageId messageId, Throwable cause) {
         for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {
-                interceptor.onAcknowledge(message, cause);
+                interceptor.onAcknowledge(messageId, cause);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onAcknowledge callback ", e);
             }
@@ -93,17 +94,17 @@ public class ConsumerInterceptors<T> implements Closeable {
     /**
      * This is called when acknowledge cumulative request return from the broker.
      * <p>
-     * This method calls {@link ConsumerInterceptor#onAcknowledgeCumulative(List, Throwable)} (Message, Throwable)} method for each interceptor.
+     * This method calls {@link ConsumerInterceptor#onAcknowledgeCumulative(MessageId, Throwable)} (Message, Throwable)} method for each interceptor.
      * <p>
      * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
      *
-     * @param messages messages to acknowledge.
+     * @param messageId messages to acknowledge.
      * @param cause exception returned by broker.
      */
-    public void onAcknowledgeCumulative(List<Message<T>> messages, Throwable cause) {
+    public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
         for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {
-                interceptor.onAcknowledgeCumulative(messages, cause);
+                interceptor.onAcknowledgeCumulative(messageId, cause);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onAcknowledgeCumulative callback ", e);
             }
