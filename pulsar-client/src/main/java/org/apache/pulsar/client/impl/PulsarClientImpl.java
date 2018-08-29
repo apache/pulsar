@@ -237,6 +237,10 @@ public class PulsarClientImpl implements PulsarClient {
         return createProducerAsync(conf, Schema.BYTES, null);
     }
 
+    public <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf,  Schema<T> schema) {
+        return createProducerAsync(conf, schema, null);
+    }
+
     public <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf, Schema<T> schema,
           ProducerInterceptors<T> interceptors) {
         if (conf == null) {

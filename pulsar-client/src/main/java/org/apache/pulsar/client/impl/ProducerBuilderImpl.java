@@ -40,7 +40,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     private final Schema<T> schema;
     private List<ProducerInterceptor<T>> interceptorList;
 
-    ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+    public ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ProducerConfigurationData(), schema);
     }
 
