@@ -47,12 +47,8 @@ import org.apache.pulsar.functions.proto.Request;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
-import com.google.common.collect.Iterables;
-
 @Slf4j
 public class SchedulerManager implements AutoCloseable {
-
-    private static final int MAX_ASSIGNMENTS_IN_MSG = 2000;
 
     private final WorkerConfig workerConfig;
 
@@ -103,14 +99,6 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     private void invokeScheduler() {
-        
-        // publish new assignment only once function-runtime manager updates previously updated version so,
-        // scheduled-manager can publish new assignment with updated version at FunctionRuntimeManager
-        if (!functionRuntimeManager.isInitialized()) {
-            schedule();
-            return;
-        }
-        
         List<String> currentMembership = this.membershipManager.getCurrentMembership()
                 .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toList());
 
@@ -155,12 +143,21 @@ public class SchedulerManager implements AutoCloseable {
         List<Assignment> assignments = this.scheduler.schedule(
                 needsAssignment, currentAssignments, currentMembership);
 
-        if (log.isDebugEnabled()) {
-            log.debug("New assignments computed: {}", assignments);
-        }
+        log.debug("New assignments computed: {}", assignments);
 
         long assignmentVersion = this.functionRuntimeManager.getCurrentAssignmentVersion() + 1;
-        publishAssignmentUpdate(assignmentVersion, assignments);
+        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.newBuilder()
+                .setVersion(assignmentVersion)
+                .addAllAssignments(assignments)
+                .build();
+
+        CompletableFuture<MessageId> messageIdCompletableFuture = producer.sendAsync(assignmentsUpdate.toByteArray());
+        try {
+            messageIdCompletableFuture.get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Failed to send assignment update", e);
+            throw new RuntimeException(e);
+        }
 
         // wait for assignment update to go throw the pipeline
         int retries = 0;
@@ -177,23 +174,6 @@ public class SchedulerManager implements AutoCloseable {
             }
             retries++;
         }
-    }
-
-    private void publishAssignmentUpdate(long assignmentVersion, List<Assignment> assignments) {
-
-        Iterable<List<Assignment>> batches = Iterables.partition(assignments, MAX_ASSIGNMENTS_IN_MSG);
-        batches.forEach(assignmentBatch -> {
-            Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.newBuilder()
-                    .setVersion(assignmentVersion).addAllAssignments(assignmentBatch).build();
-            CompletableFuture<MessageId> messageIdCompletableFuture = producer
-                    .sendAsync(assignmentsUpdate.toByteArray());
-            try {
-                messageIdCompletableFuture.get();
-            } catch (InterruptedException | ExecutionException e) {
-                log.error("Failed to send assignment update", e);
-                throw new RuntimeException(e);
-            }
-        });
     }
 
     public static Map<String, Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions) {

@@ -20,16 +20,10 @@ package org.apache.pulsar.functions.worker;
 
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request;
@@ -51,7 +45,6 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class FunctionRuntimeManagerTest {
 
@@ -88,7 +81,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
 
-        PulsarClient pulsarClient = mockPulsarClient();
+        PulsarClient pulsarClient = mock(PulsarClient.class);
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
@@ -185,7 +178,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
 
-        PulsarClient pulsarClient = mockPulsarClient();
+        PulsarClient pulsarClient = mock(PulsarClient.class);
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
@@ -286,7 +279,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
 
-        PulsarClient pulsarClient = mockPulsarClient();
+        PulsarClient pulsarClient = mock(PulsarClient.class);
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
@@ -400,25 +393,5 @@ public class FunctionRuntimeManagerTest {
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment3);
-    }
-    
-    private static PulsarClient mockPulsarClient() throws PulsarClientException {
-        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
-
-        ConsumerImpl<byte[]> mockConsumer = mock(ConsumerImpl.class);
-        ConsumerBuilder<byte[]> mockConsumerBuilder = mock(ConsumerBuilder.class);
-
-        when(mockConsumerBuilder.topic(anyString())).thenReturn(mockConsumerBuilder);
-        when(mockConsumerBuilder.subscriptionName(anyString())).thenReturn(mockConsumerBuilder);
-        when(mockConsumerBuilder.subscriptionType(any(SubscriptionType.class))).thenReturn(mockConsumerBuilder);
-        when(mockConsumerBuilder.property(anyString(), anyString())).thenReturn(mockConsumerBuilder);
-
-        when(mockConsumerBuilder.subscribe()).thenReturn(mockConsumer);
-
-        when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class))).thenReturn(mockConsumerBuilder);
-
-        when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
-        
-        return mockClient;
     }
 }
