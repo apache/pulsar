@@ -98,7 +98,7 @@ class Download extends React.Component {
             <h2><translate>Release notes</translate></h2>
             <div>
               <p>
-                <a href={`${siteConfig.baseUrl}/release-notes`}>Release notes</a> for all Pulsar's versions
+                <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes`}>Release notes</a> for all Pulsar's versions
               </p>
             </div>
 
