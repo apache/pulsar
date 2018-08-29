@@ -409,7 +409,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         checkArgument(messageId instanceof MessageIdImpl);
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
-            return FutureUtil.failedFuture(new PulsarClientException("Consumer not ready. State: " + getState()));
+            PulsarClientException exception = new PulsarClientException("Consumer not ready. State: " + getState());
+            onAcknowledge(messageId, exception);
+            return FutureUtil.failedFuture(exception);
         }
 
         if (messageId instanceof BatchMessageIdImpl) {
@@ -443,7 +445,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 unAckedMessageTracker.remove(msgId);
                 stats.incrementNumAcksSent(1);
             }
+            onAcknowledge(messageId, null);
         } else if (ackType == AckType.Cumulative) {
+            onAcknowledgeCumulative(messageId, null);
             stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
         }
 
