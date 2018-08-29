@@ -292,3 +292,16 @@ If you would like to become a committer, you should engage with the
 community and start contributing to Apache Pulsar in any of the above
 ways. You might also want to talk to other committers and ask for their
 advice and guidance.
+
+## Becoming member of PMC
+
+The PMC is the project governance body. Committers or contributors that
+have demonstrated continued involvement with the community can be
+nominated to become members of the PMC.
+
+PMC members nominate new contributors to the project as either
+committers or as new PMC members, and PMC members cast votes on electing
+new committers or PMC members to the project. PMC members also have
+binding votes on any project matters. Refer to
+[ASF PMCs governance](http://www.apache.org/foundation/governance/pmcs.html)
+for a more detailed explanation of the duties and roles of the PMC.
