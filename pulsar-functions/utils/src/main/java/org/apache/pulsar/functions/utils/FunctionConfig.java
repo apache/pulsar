@@ -101,7 +101,6 @@ public class FunctionConfig {
      */
     private String outputSchemaType;
 
-    private boolean skipOutput;
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String outputSerdeClassName;
     @isValidTopicName
