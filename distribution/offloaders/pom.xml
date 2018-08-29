@@ -24,18 +24,45 @@
 
   <parent>
     <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar</artifactId>
+    <artifactId>distribution</artifactId>
     <version>2.2.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>distribution</artifactId>
+  <artifactId>pulsar-offloader-distribution</artifactId>
   <packaging>pom</packaging>
-  <name>Pulsar :: Distribution</name>
+  <name>Pulsar :: Distribution :: Offloader</name>
 
-  <modules>
-    <module>server</module>
-    <module>io</module>
-    <module>offloaders</module>
-  </modules>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>managed-ledger-original</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>distro-assembly</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+            <configuration>
+              <attach>true</attach>
+              <tarLongFileMode>posix</tarLongFileMode>
+              <finalName>apache-pulsar-offloaders-${project.version}</finalName>
+              <descriptors>
+                <descriptor>src/assemble/offloaders.xml</descriptor>
+              </descriptors>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

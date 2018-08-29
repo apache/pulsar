@@ -42,7 +42,6 @@
       <groupId>org.apache.pulsar</groupId>
       <artifactId>jclouds-shaded</artifactId>
       <version>${project.version}</version>
-        <!--
       <exclusions>
         <exclusion>
           <groupId>com.google.code.gson</groupId>
@@ -69,7 +68,6 @@
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
-      -->
     </dependency>
     <dependency>
       <groupId>com.amazonaws</groupId>
@@ -129,4 +127,12 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.nifi</groupId>
+        <artifactId>nifi-nar-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
 </project>
