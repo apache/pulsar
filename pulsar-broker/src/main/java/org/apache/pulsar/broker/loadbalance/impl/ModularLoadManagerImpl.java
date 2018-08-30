@@ -791,9 +791,22 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             } catch (KeeperException.NodeExistsException e) {
                 long ownerZkSessionId = getBrokerZnodeOwner();
                 if (ownerZkSessionId != 0 && ownerZkSessionId != zkClient.getSessionId()) {
-                    log.error("Broker znode - [{}] is own by different zookeeper-ssession {} ", brokerZnodePath,
-                            ownerZkSessionId);
-                    throw new PulsarServerException("Broker-znode owned by different zk-session " + ownerZkSessionId);
+                    if (conf.isRunningStandalone()) {
+                        // When running in standalone, this error can happen when killing the "standalone" process
+                        // ungracefully since the ZK session will not be closed and it will take some time for ZK server
+                        // to prune the expired sessions after startup.
+                        // Since there's a single broker instance running, it's safe, in this mode, to remove the old lock
+
+                        // Delete and recreate z-node
+                        zkClient.delete(brokerZnodePath, -1);
+                        ZkUtils.createFullPathOptimistic(zkClient, brokerZnodePath, localData.getJsonBytes(),
+                                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+                    } else {
+                        log.error("Broker znode - [{}] is own by different zookeeper-ssession {} ", brokerZnodePath,
+                                ownerZkSessionId);
+                        throw new PulsarServerException(
+                                "Broker-znode owned by different zk-session " + ownerZkSessionId);
+                    }
                 }
                 // Node may already be created by another load manager: in this case update the data.
                 zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);

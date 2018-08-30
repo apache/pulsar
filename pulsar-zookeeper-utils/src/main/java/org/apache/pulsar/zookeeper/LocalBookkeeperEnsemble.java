@@ -222,9 +222,17 @@ public class LocalBookkeeperEnsemble {
                 cleanDirectory(bkDataDir);
             }
 
+            int bookiePort = initialPort + i;
+
+            // Ensure registration Z-nodes are cleared when standalone service is restarted ungracefully
+            String registrationZnode = String.format("/ledgers/available/%s:%d", baseConf.getAdvertisedAddress(), bookiePort);
+            if (zkc.exists(registrationZnode, null) != null) {
+                zkc.delete(registrationZnode, -1);
+            }
+
             bsConfs[i] = new ServerConfiguration(baseConf);
             // override settings
-            bsConfs[i].setBookiePort(initialPort + i);
+            bsConfs[i].setBookiePort(bookiePort);
             bsConfs[i].setZkServers("127.0.0.1:" + ZooKeeperDefaultPort);
             bsConfs[i].setJournalDirName(bkDataDir.getPath());
             bsConfs[i].setLedgerDirNames(new String[] { bkDataDir.getPath() });
