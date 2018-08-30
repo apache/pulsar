@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.AutoSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.BytesSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
@@ -76,5 +78,9 @@ public interface Schema<T> {
 
     static <T> Schema<T> JSON(Class<T> clazz) {
         return JSONSchema.of(clazz);
+    }
+
+    static Schema<GenericRecord> AUTO() {
+        return new AutoSchema();
     }
 }
