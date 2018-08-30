@@ -159,8 +159,11 @@ public class SchedulerManager implements AutoCloseable {
             log.debug("New assignments computed: {}", assignments);
         }
 
-        long assignmentVersion = this.functionRuntimeManager.getCurrentAssignmentVersion() + 1;
-        publishAssignmentUpdate(assignmentVersion, assignments);
+        long assignmentVersion = this.functionRuntimeManager.getCurrentAssignmentVersion();
+        if (!assignments.isEmpty()) {
+            assignmentVersion += 1;
+            publishAssignmentUpdate(assignmentVersion, assignments);
+        }
 
         // wait for assignment update to go throw the pipeline
         int retries = 0;
