@@ -47,7 +47,7 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
      * logged, but not propagated further.
      * <p>
      * Since the producer may run multiple interceptors, a particular
-     * interceptor's {@link #beforeSend(Message)} callback will be called in the
+     * interceptor's {@link #beforeSend(Producer, Message)} callback will be called in the
      * order specified by
      * {@link ProducerBuilder#intercept(ProducerInterceptor[])}.
      * <p>
@@ -64,10 +64,11 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
      * interceptor is called with the message returned by the last successful
      * interceptor in the list, or otherwise the client.
      *
+     * @param producer the producer which contains the interceptor.
      * @param message message to send
      * @return the intercepted message
      */
-    Message<T> beforeSend(Message<T> message);
+    Message<T> beforeSend(Producer<T> producer, Message<T> message);
 
     /**
      * This method is called when the message sent to the broker has been
@@ -81,10 +82,11 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
      * implementation should be reasonably fast. Otherwise, sending of messages
      * from other threads could be delayed.
      *
+     * @param producer the producer which contains the interceptor.
      * @param message the message that application sends
      * @param msgId the message id that assigned by the broker; null if send failed.
      * @param cause the exception on sending messages, null indicates send has succeed.
      */
-    void onSendAcknowledgement(Message<T> message, MessageId msgId, Throwable cause);
+    void onSendAcknowledgement(Producer<T> producer, Message<T> message, MessageId msgId, Throwable cause);
 
 }

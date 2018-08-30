@@ -49,21 +49,22 @@ public class ConsumerInterceptors<T> implements Closeable {
      * {@link MessageListener#received(Consumer, Message)} or the {@link java.util.concurrent.CompletableFuture}
      * returned by {@link Consumer#receiveAsync()} completes.
      * <p>
-     * This method calls {@link ConsumerInterceptor#beforeConsume(Message)} for each interceptor. Messages returned
+     * This method calls {@link ConsumerInterceptor#beforeConsume(Consumer, Message)} for each interceptor. Messages returned
      * from each interceptor get passed to beforeConsume() of the next interceptor in the chain of interceptors.
      * <p>
      * This method does not throw exceptions. If any of the interceptors in the chain throws an exception, it gets
      * caught and logged, and next interceptor in int the chain is called with 'messages' returned by the previous
      * successful interceptor beforeConsume call.
      *
+     * @param consumer the consumer which contains the interceptors
      * @param message message to be consume by the client.
      * @return messages that are either modified by interceptors or same as messages passed to this method.
      */
-    public Message<T> beforeConsume(Message<T> message) {
+    public Message<T> beforeConsume(Consumer<T> consumer, Message<T> message) {
         Message<T> interceptorMessage = message;
         for (ConsumerInterceptor<T> interceptor : this.interceptors) {
             try {
-                interceptorMessage = interceptor.beforeConsume(interceptorMessage);
+                interceptorMessage = interceptor.beforeConsume(consumer, interceptorMessage);
             } catch (Exception e) {
                 log.warn("Error executing interceptor beforeConsume callback ", e);
             }
@@ -74,17 +75,18 @@ public class ConsumerInterceptors<T> implements Closeable {
     /**
      * This is called when acknowledge request return from the broker.
      * <p>
-     * This method calls {@link ConsumerInterceptor#onAcknowledge(MessageId, Throwable)} method for each interceptor.
+     * This method calls {@link ConsumerInterceptor#onAcknowledge(Consumer, MessageId, Throwable)} method for each interceptor.
      * <p>
      * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
      *
+     * @param consumer the consumer which contains the interceptors
      * @param messageId message to acknowledge.
      * @param cause exception returned by broker.
      */
-    public void onAcknowledge(MessageId messageId, Throwable cause) {
+    public void onAcknowledge(Consumer<T> consumer, MessageId messageId, Throwable cause) {
         for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {
-                interceptor.onAcknowledge(messageId, cause);
+                interceptor.onAcknowledge(consumer, messageId, cause);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onAcknowledge callback ", e);
             }
@@ -94,17 +96,18 @@ public class ConsumerInterceptors<T> implements Closeable {
     /**
      * This is called when acknowledge cumulative request return from the broker.
      * <p>
-     * This method calls {@link ConsumerInterceptor#onAcknowledgeCumulative(MessageId, Throwable)} (Message, Throwable)} method for each interceptor.
+     * This method calls {@link ConsumerInterceptor#onAcknowledgeCumulative(Consumer, MessageId, Throwable)} (Message, Throwable)} method for each interceptor.
      * <p>
      * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
      *
+     * @param consumer the consumer which contains the interceptors
      * @param messageId messages to acknowledge.
      * @param cause exception returned by broker.
      */
-    public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+    public void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable cause) {
         for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {
-                interceptor.onAcknowledgeCumulative(messageId, cause);
+                interceptor.onAcknowledgeCumulative(consumer, messageId, cause);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onAcknowledgeCumulative callback ", e);
             }

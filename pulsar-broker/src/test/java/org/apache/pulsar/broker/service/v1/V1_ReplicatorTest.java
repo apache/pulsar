@@ -241,7 +241,7 @@ public class V1_ReplicatorTest extends V1_ReplicatorTestBase {
         Thread.sleep(3000);
 
         Mockito.verify(pulsarClient, Mockito.times(1)).createProducerAsync(Mockito.any(ProducerConfigurationData.class),
-                Mockito.any(Schema.class), null);
+                Mockito.any(Schema.class));
 
         client1.shutdown();
     }

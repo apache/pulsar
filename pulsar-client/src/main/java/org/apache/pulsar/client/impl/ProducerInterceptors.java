@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +45,7 @@ public class ProducerInterceptors<T> implements Closeable {
 
     /**
      * This is called when client sends message to pulsar broker, before key and value gets serialized.
-     * The method calls {@link ProducerInterceptor#beforeSend(Message)} method. Message returned from
+     * The method calls {@link ProducerInterceptor#beforeSend(Producer,Message)} method. Message returned from
      * first interceptor's beforeSend() is passed to the second interceptor beforeSend(), and so on in the
      * interceptor chain. The message returned from the last interceptor is returned from this method.
      *
@@ -53,14 +54,15 @@ public class ProducerInterceptors<T> implements Closeable {
      * the next interceptor in the chain will be called with a message returned by the previous interceptor that did
      * not throw an exception.
      *
+     * @param producer the producer which contains the interceptor.
      * @param message the message from client
      * @return the message to send to topic/partition
      */
-    public Message<T> beforeSend(Message<T> message) {
+    public Message<T> beforeSend(Producer<T> producer, Message<T> message) {
         Message<T> interceptorMessage = message;
         for (ProducerInterceptor<T> interceptor : this.interceptors) {
             try {
-                interceptorMessage = interceptor.beforeSend(interceptorMessage);
+                interceptorMessage = interceptor.beforeSend(producer, interceptorMessage);
             } catch (Exception e) {
                 if (message != null) {
                     log.warn("Error executing interceptor beforeSend callback for messageId: {}", message.getMessageId(), e);
@@ -75,19 +77,20 @@ public class ProducerInterceptors<T> implements Closeable {
     /**
      * This method is called when the message send to the broker has been acknowledged, or when sending the record fails
      * before it gets send to the broker.
-     * This method calls {@link ProducerInterceptor#onSendAcknowledgement(Message, MessageId, Throwable)} method for
+     * This method calls {@link ProducerInterceptor#onSendAcknowledgement(Producer, Message, MessageId, Throwable)} method for
      * each interceptor.
      *
      * This method does not throw exceptions. Exceptions thrown by any of interceptor methods are caught and ignored.
      *
-     * @param message The message returned from the last interceptor is returned from {@link ProducerInterceptor#beforeSend(Message)}
+     * @param producer the producer which contains the interceptor.
+     * @param message The message returned from the last interceptor is returned from {@link ProducerInterceptor#beforeSend(Producer, Message)}
      * @param msgId The message id that broker returned. Null if has error occurred.
      * @param cause The exception thrown during processing of this message. Null if no error occurred.
      */
-    public void onSendAcknowledgement(Message<T> message, MessageId msgId, Throwable cause) {
+    public void onSendAcknowledgement(Producer<T> producer, Message<T> message, MessageId msgId, Throwable cause) {
         this.interceptors.forEach(interceptor -> {
             try {
-                interceptor.onSendAcknowledgement(message, msgId, cause);
+                interceptor.onSendAcknowledgement(producer, message, msgId, cause);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onSendAcknowledgement callback ", e);
             }
