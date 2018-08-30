@@ -285,8 +285,16 @@ features, or bug fixes. You need to show that you take responsibility
 for the code that you contribute, add tests and documentation, and help
 maintaining it.
 
-Candidates for new committers are suggested by current committers or PMC
-members, and voted upon by the PMC.
+Every new committer has to be proposed by a current committer and then
+privately discussed and voted in by the members of the Pulsar PMC.
+For details about this process and for candidate requirements see the
+general [Apache guidelines for assessing new candidates for committership](https://community.apache.org/newcommitter.html).
+Candidates prepare for their nomination as committer by contributing
+to the Pulsar project and its community, by acting according to the
+[Apache Way](https://www.apache.org/foundation/how-it-works.html),
+and by generally following the path from
+[contributor to committer](https://community.apache.org/contributors/)
+for Apache projects.
 
 If you would like to become a committer, you should engage with the
 community and start contributing to Apache Pulsar in any of the above
