@@ -325,7 +325,6 @@ Options
 |`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
 |`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
 |`--schema-type`|Schema Type to be used for storing output messages||
-|`--skip-output`|Do we supress writing to the output topic||
 |`--sliding-interval-count`|Number of messages after which the window ends||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
 |`--state-storage-service-url`|The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)||
@@ -366,7 +365,6 @@ Options
 |`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
 |`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
 |`--schema-type`|Schema Type to be used for storing output messages||
-|`--skip-output`|Do we supress writing to the output topic||
 |`--sliding-interval-count`|Number of messages after which the window ends||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
 |`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
@@ -423,7 +421,6 @@ Options
 |`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
 |`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
 |`--schema-type`|Schema Type to be used for storing output messages||
-|`--skip-output`|Do we supress writing to the output topic||
 |`--sliding-interval-count`|Number of messages after which the window ends||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
 |`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
