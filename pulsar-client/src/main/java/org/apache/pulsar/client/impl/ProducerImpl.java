@@ -210,6 +210,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
         MessageImpl<T> interceptorMessage = (MessageImpl<T>) beforeSend(message);
+        //Retain the buffer used by interceptors callback to get message. Buffer will release after complete interceptors.
         interceptorMessage.getDataBuffer().retain();
 
         sendAsync(interceptorMessage, new SendCallback() {
@@ -234,34 +235,42 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             @Override
             public void sendComplete(Exception e) {
-                if (e != null) {
-                    stats.incrementSendFailed();
-                    onSendAcknowledgement(interceptorMessage, null, e);
-                    future.completeExceptionally(e);
-                } else {
-                    onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
-                    future.complete(interceptorMessage.getMessageId());
-                    stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                try {
+                    if (e != null) {
+                        stats.incrementSendFailed();
+                        onSendAcknowledgement(interceptorMessage, null, e);
+                        future.completeExceptionally(e);
+                    } else {
+                        onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
+                        future.complete(interceptorMessage.getMessageId());
+                        stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                    }
+                } finally {
+                    interceptorMessage.getDataBuffer().release();
+                    interceptorMessage.getMessageBuilder().recycle();
                 }
-                interceptorMessage.getDataBuffer().release();
-                interceptorMessage.getMessageBuilder().recycle();
+
                 while (nextCallback != null) {
                     SendCallback sendCallback = nextCallback;
                     MessageImpl<?> msg = nextMsg;
-                    msg.getDataBuffer().retain();
-                    if (e != null) {
-                        stats.incrementSendFailed();
-                        onSendAcknowledgement((Message<T>) msg, null, e);
-                        sendCallback.getFuture().completeExceptionally(e);
-                    } else {
-                        onSendAcknowledgement((Message<T>) msg, msg.getMessageId(), null);
-                        sendCallback.getFuture().complete(msg.getMessageId());
-                        stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                    //Retain the buffer used by interceptors callback to get message. Buffer will release after complete interceptors.
+                    try {
+                        msg.getDataBuffer().retain();
+                        if (e != null) {
+                            stats.incrementSendFailed();
+                            onSendAcknowledgement((Message<T>) msg, null, e);
+                            sendCallback.getFuture().completeExceptionally(e);
+                        } else {
+                            onSendAcknowledgement((Message<T>) msg, msg.getMessageId(), null);
+                            sendCallback.getFuture().complete(msg.getMessageId());
+                            stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                        }
+                        nextMsg = nextCallback.getNextMessage();
+                        nextCallback = nextCallback.getNextSendCallback();
+                    } finally {
+                        msg.getDataBuffer().release();
+                        msg.getMessageBuilder().recycle();
                     }
-                    msg.getDataBuffer().release();
-                    msg.getMessageBuilder().recycle();
-                    nextMsg = nextCallback.getNextMessage();
-                    nextCallback = nextCallback.getNextSendCallback();
                 }
             }
 
