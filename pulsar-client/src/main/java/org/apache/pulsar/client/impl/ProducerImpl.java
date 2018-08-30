@@ -275,11 +275,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     public void sendAsync(Message<T> message, SendCallback callback) {
         checkArgument(message instanceof MessageImpl);
 
-        if (!isValidProducerState(message, callback)) {
+        if (!isValidProducerState(callback)) {
             return;
         }
 
-        if (!canEnqueueRequest(message, callback)) {
+        if (!canEnqueueRequest(callback)) {
             return;
         }
 
@@ -451,7 +451,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         payload.release();
     }
 
-    private boolean isValidProducerState(Message<T> message, SendCallback callback) {
+    private boolean isValidProducerState(SendCallback callback) {
         switch (getState()) {
         case Ready:
             // OK
@@ -473,7 +473,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private boolean canEnqueueRequest(Message<T> message, SendCallback callback) {
+    private boolean canEnqueueRequest(SendCallback callback) {
         try {
             if (conf.isBlockIfQueueFull()) {
                 semaphore.acquire();
