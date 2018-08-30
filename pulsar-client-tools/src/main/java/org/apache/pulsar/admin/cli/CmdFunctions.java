@@ -24,6 +24,7 @@ import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
@@ -280,6 +281,8 @@ public class CmdFunctions extends CmdBase {
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
         protected boolean retainOrdering;
+        @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
+        protected String subsName;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
@@ -402,6 +405,10 @@ public class CmdFunctions extends CmdBase {
             }
 
             functionConfig.setRetainOrdering(retainOrdering);
+            
+            if (isNotBlank(subsName)) {
+                functionConfig.setSubName(subsName);
+            }
 
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
@@ -671,6 +678,10 @@ public class CmdFunctions extends CmdBase {
                             ? SubscriptionType.FAILOVER
                             : SubscriptionType.SHARED;
             sourceSpecBuilder.setSubscriptionType(subType);
+            
+            if (isNotBlank(functionConfig.getSubName())) {
+                sourceSpecBuilder.setSubscriptionName(functionConfig.getSubName());
+            }
 
             if (typeArgs != null) {
                 sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
