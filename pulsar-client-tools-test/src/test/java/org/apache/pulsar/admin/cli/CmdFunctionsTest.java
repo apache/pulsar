@@ -200,6 +200,7 @@ public class CmdFunctionsTest {
             "--inputs", inputTopicName,
             "--output", outputTopicName,
             "--jar", "SomeJar.jar",
+            "--auto-ack", "false",
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", DummyFunction.class.getName(),
@@ -209,6 +210,7 @@ public class CmdFunctionsTest {
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
+        assertEquals(false, creater.isAutoAck());
 
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
 
