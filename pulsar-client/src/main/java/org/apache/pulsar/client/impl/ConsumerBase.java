@@ -364,7 +364,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected Message<T> beforeConsume(Message<T> message) {
         if (interceptors != null) {
-            return interceptors.beforeConsume(message);
+            return interceptors.beforeConsume(this, message);
         } else {
             return message;
         }
@@ -372,13 +372,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected void onAcknowledge(MessageId messageId, Throwable cause) {
         if (interceptors != null) {
-            interceptors.onAcknowledge(messageId, cause);
+            interceptors.onAcknowledge(this, messageId, cause);
         }
     }
 
     protected void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
         if (interceptors != null) {
-            interceptors.onAcknowledgeCumulative(messageId, cause);
+            interceptors.onAcknowledgeCumulative(this, messageId, cause);
         }
     }
 

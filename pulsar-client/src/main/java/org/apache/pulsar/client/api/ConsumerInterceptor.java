@@ -68,29 +68,32 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      * successful interceptor in the list, or otherwise the original consumed
      * message.
      *
+     * @param consumer the consumer which contains the interceptor
      * @param message the message to be consumed by the client.
      * @return message that is either modified by the interceptor or same message
      *         passed into the method.
      */
-    Message<T> beforeConsume(Message<T> message);
+    Message<T> beforeConsume(Consumer<T> consumer, Message<T> message);
 
     /**
      * This is called consumer sends the acknowledgment to the broker.
      *
      * <p>Any exception thrown by this method will be ignored by the caller.
      *
+     * @param consumer the consumer which contains the interceptor
      * @param messageId message to ack, null if acknowledge fail.
      * @param cause the exception on acknowledge.
      */
-    void onAcknowledge(MessageId messageId, Throwable cause);
+    void onAcknowledge(Consumer<T> consumer, MessageId messageId, Throwable cause);
 
     /**
      * This is called consumer send the cumulative acknowledgment to the broker.
      *
      * <p>Any exception thrown by this method will be ignored by the caller.
      *
+     * @param consumer the consumer which contains the interceptor
      * @param messageId message to ack, null if acknowledge fail.
      * @param cause the exception on acknowledge.
      */
-    void onAcknowledgeCumulative(MessageId messageId, Throwable cause);
+    void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable cause);
 }
