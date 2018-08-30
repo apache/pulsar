@@ -108,3 +108,32 @@ presto> select * from pulsar."public/default".generator_test;
 ```
 
 Now, you have some mock data to query and play around with!
+
+If you want to try to ingest some of your own data to play around with, you can write a simple producer to write custom defined data to Pulsar.
+
+For example:
+
+```java
+public class Test {
+    
+     public static class Foo {
+        private int field1 = 1;
+        private String field2;
+        private long field3;
+     }
+    
+     public static void main(String[] args) throws Exception {
+        Producer<Foo> producer = pulsarClient.newProducer(AvroSchema.of(Foo.class)).topic("test_topic").create();
+        
+        for (int i = 0; i < 1000; i++) {
+            Foo foo = new Foo();
+            foo.setField1(i);
+            foo.setField2("foo" + i);
+            foo.setField3(System.currentTimeMillis());
+            producer.newMessage().value(foo).send();
+        }
+     }
+}
+```
+
+Afterwards, you should be able query the data you just wrote.
