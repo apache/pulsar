@@ -85,12 +85,12 @@ public class ProducerInterceptors<T> implements Closeable {
      * @param producer the producer which contains the interceptor.
      * @param message The message returned from the last interceptor is returned from {@link ProducerInterceptor#beforeSend(Producer, Message)}
      * @param msgId The message id that broker returned. Null if has error occurred.
-     * @param cause The exception thrown during processing of this message. Null if no error occurred.
+     * @param exception The exception thrown during processing of this message. Null if no error occurred.
      */
-    public void onSendAcknowledgement(Producer<T> producer, Message<T> message, MessageId msgId, Throwable cause) {
+    public void onSendAcknowledgement(Producer<T> producer, Message<T> message, MessageId msgId, Throwable exception) {
         this.interceptors.forEach(interceptor -> {
             try {
-                interceptor.onSendAcknowledgement(producer, message, msgId, cause);
+                interceptor.onSendAcknowledgement(producer, message, msgId, exception);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onSendAcknowledgement callback ", e);
             }

@@ -85,8 +85,8 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
      * @param producer the producer which contains the interceptor.
      * @param message the message that application sends
      * @param msgId the message id that assigned by the broker; null if send failed.
-     * @param cause the exception on sending messages, null indicates send has succeed.
+     * @param exception the exception on sending messages, null indicates send has succeed.
      */
-    void onSendAcknowledgement(Producer<T> producer, Message<T> message, MessageId msgId, Throwable cause);
+    void onSendAcknowledgement(Producer<T> producer, Message<T> message, MessageId msgId, Throwable exception);
 
 }

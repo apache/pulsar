@@ -81,12 +81,12 @@ public class ConsumerInterceptors<T> implements Closeable {
      *
      * @param consumer the consumer which contains the interceptors
      * @param messageId message to acknowledge.
-     * @param cause exception returned by broker.
+     * @param exception exception returned by broker.
      */
-    public void onAcknowledge(Consumer<T> consumer, MessageId messageId, Throwable cause) {
+    public void onAcknowledge(Consumer<T> consumer, MessageId messageId, Throwable exception) {
         for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {
-                interceptor.onAcknowledge(consumer, messageId, cause);
+                interceptor.onAcknowledge(consumer, messageId, exception);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onAcknowledge callback ", e);
             }
@@ -102,12 +102,12 @@ public class ConsumerInterceptors<T> implements Closeable {
      *
      * @param consumer the consumer which contains the interceptors
      * @param messageId messages to acknowledge.
-     * @param cause exception returned by broker.
+     * @param exception exception returned by broker.
      */
-    public void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable cause) {
+    public void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable exception) {
         for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {
-                interceptor.onAcknowledgeCumulative(consumer, messageId, cause);
+                interceptor.onAcknowledgeCumulative(consumer, messageId, exception);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onAcknowledgeCumulative callback ", e);
             }
