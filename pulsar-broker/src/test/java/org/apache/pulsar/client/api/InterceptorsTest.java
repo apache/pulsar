@@ -57,7 +57,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public Message<String> beforeSend(Message<String> message) {
+            public Message<String> beforeSend(Producer<String> producer, Message<String> message) {
                 MessageImpl<String> msg = (MessageImpl<String>) message;
                 log.info("Before send message: {}", new String(msg.getData()));
                 java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> properties = msg.getMessageBuilder().getPropertiesList();
@@ -70,7 +70,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onSendAcknowledgement(Message<String> message, MessageId msgId, Throwable cause) {
+            public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId, Throwable cause) {
                 message.getProperties();
                 Assert.assertEquals("complete", message.getProperty("key"));
                 log.info("Send acknowledgement message: {}, msgId: {}", new String(message.getData()), msgId, cause);
@@ -84,7 +84,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public Message<String> beforeSend(Message<String> message) {
+            public Message<String> beforeSend(Producer<String> producer, Message<String> message) {
                 MessageImpl<String> msg = (MessageImpl<String>) message;
                 log.info("Before send message: {}", new String(msg.getData()));
                 java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> properties = msg.getMessageBuilder().getPropertiesList();
@@ -97,7 +97,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public void onSendAcknowledgement(Message<String> message, MessageId msgId, Throwable cause) {
+            public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId, Throwable cause) {
                 message.getProperties();
                 Assert.assertEquals("complete", message.getProperty("key"));
                 log.info("Send acknowledgement message: {}, msgId: {}", new String(message.getData()), msgId, cause);
@@ -123,19 +123,19 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public Message<String> beforeConsume(Message<String> message) {
+            public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
                 MessageImpl<String> msg = (MessageImpl<String>) message;
                 msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
                 return msg;
             }
 
             @Override
-            public void onAcknowledge(MessageId messageId, Throwable cause) {
+            public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
                 log.info("onAcknowledge messageId: {}", messageId, cause);
             }
 
             @Override
-            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+            public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
                 log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
             }
         };
@@ -177,19 +177,19 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public Message<String> beforeConsume(Message<String> message) {
+            public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
                 MessageImpl<String> msg = (MessageImpl<String>) message;
                 msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
                 return msg;
             }
 
             @Override
-            public void onAcknowledge(MessageId messageId, Throwable cause) {
+            public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
                 log.info("onAcknowledge messageId: {}", messageId, cause);
             }
 
             @Override
-            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+            public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
                 log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
             }
         };
@@ -239,19 +239,19 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public Message<String> beforeConsume(Message<String> message) {
+            public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
                 MessageImpl<String> msg = (MessageImpl<String>) message;
                 msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
                 return msg;
             }
 
             @Override
-            public void onAcknowledge(MessageId messageId, Throwable cause) {
+            public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
                 log.info("onAcknowledge messageId: {}", messageId, cause);
             }
 
             @Override
-            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+            public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
                 log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
             }
         };
@@ -303,19 +303,19 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
-            public Message<String> beforeConsume(Message<String> message) {
+            public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
                 MessageImpl<String> msg = (MessageImpl<String>) message;
                 msg.getMessageBuilder().addProperties(PulsarApi.KeyValue.newBuilder().setKey("beforeConsumer").setValue("1").build());
                 return msg;
             }
 
             @Override
-            public void onAcknowledge(MessageId messageId, Throwable cause) {
+            public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
                 log.info("onAcknowledge messageId: {}", messageId, cause);
             }
 
             @Override
-            public void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+            public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
                 long acknowledged = ackHolder.stream().filter(m -> (m.compareTo(messageId) <= 0)).count();
                 Assert.assertEquals(acknowledged, 100);
                 ackHolder.clear();

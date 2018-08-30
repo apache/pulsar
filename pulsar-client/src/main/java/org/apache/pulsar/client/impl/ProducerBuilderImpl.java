@@ -20,6 +20,9 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -33,6 +36,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
+import org.apache.pulsar.client.api.ProducerInterceptor;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
@@ -45,7 +49,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     private final PulsarClientImpl client;
     private ProducerConfigurationData conf;
-    private final Schema<T> schema;
+    private Schema<T> schema;
     private List<ProducerInterceptor<T>> interceptorList;
 
     @VisibleForTesting
