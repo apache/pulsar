@@ -337,6 +337,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return subscription;
     }
 
+    @Override
     public String getConsumerName() {
         return this.consumerName;
     }
