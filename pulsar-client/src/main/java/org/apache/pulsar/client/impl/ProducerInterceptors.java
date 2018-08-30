@@ -60,9 +60,9 @@ public class ProducerInterceptors<T> implements Closeable {
      */
     public Message<T> beforeSend(Producer<T> producer, Message<T> message) {
         Message<T> interceptorMessage = message;
-        for (int i = 0; i < interceptors.size(); i++) {
+        for (ProducerInterceptor<T> interceptor : this.interceptors) {
             try {
-                interceptorMessage = interceptors.get(i).beforeSend(producer, interceptorMessage);
+                interceptorMessage = interceptor.beforeSend(producer, interceptorMessage);
             } catch (Exception e) {
                 if (message != null && producer != null) {
                     log.warn("Error executing interceptor beforeSend callback for messageId: {}, topicName:{} ", message.getMessageId(), producer.getTopic(), e);
@@ -88,23 +88,23 @@ public class ProducerInterceptors<T> implements Closeable {
      * @param exception The exception thrown during processing of this message. Null if no error occurred.
      */
     public void onSendAcknowledgement(Producer<T> producer, Message<T> message, MessageId msgId, Throwable exception) {
-        for (int i = 0; i < interceptors.size(); i++) {
+        this.interceptors.forEach(interceptor -> {
             try {
-                interceptors.get(i).onSendAcknowledgement(producer, message, msgId, exception);
+                interceptor.onSendAcknowledgement(producer, message, msgId, exception);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onSendAcknowledgement callback ", e);
             }
-        }
+        });
     }
 
     @Override
     public void close() throws IOException {
-        for (int i = 0; i < interceptors.size(); i++) {
+        this.interceptors.forEach(interceptor -> {
             try {
-                interceptors.get(i).close();
+                interceptor.close();
             } catch (Exception e) {
                 log.error("Fail to close producer interceptor ", e);
             }
-        }
+        });
     }
 }

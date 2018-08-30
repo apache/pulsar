@@ -62,9 +62,9 @@ public class ConsumerInterceptors<T> implements Closeable {
      */
     public Message<T> beforeConsume(Consumer<T> consumer, Message<T> message) {
         Message<T> interceptorMessage = message;
-        for (int i = 0; i < interceptors.size(); i++) {
+        for (ConsumerInterceptor<T> interceptor : this.interceptors) {
             try {
-                interceptorMessage = interceptors.get(i).beforeConsume(consumer, interceptorMessage);
+                interceptorMessage = interceptor.beforeConsume(consumer, interceptorMessage);
             } catch (Exception e) {
                 if (consumer != null) {
                     log.warn("Error executing interceptor beforeConsume callback topic: {} consumerName: {}", consumer.getTopic(), consumer.getConsumerName(), e);
@@ -88,9 +88,9 @@ public class ConsumerInterceptors<T> implements Closeable {
      * @param exception exception returned by broker.
      */
     public void onAcknowledge(Consumer<T> consumer, MessageId messageId, Throwable exception) {
-        for (int i = 0; i < interceptors.size(); i++) {
+        for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {
-                interceptors.get(i).onAcknowledge(consumer, messageId, exception);
+                interceptor.onAcknowledge(consumer, messageId, exception);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onAcknowledge callback ", e);
             }
@@ -109,9 +109,9 @@ public class ConsumerInterceptors<T> implements Closeable {
      * @param exception exception returned by broker.
      */
     public void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable exception) {
-        for (int i = 0; i < interceptors.size(); i++) {
+        for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {
-                interceptors.get(i).onAcknowledgeCumulative(consumer, messageId, exception);
+                interceptor.onAcknowledgeCumulative(consumer, messageId, exception);
             } catch (Exception e) {
                 log.warn("Error executing interceptor onAcknowledgeCumulative callback ", e);
             }
@@ -120,13 +120,13 @@ public class ConsumerInterceptors<T> implements Closeable {
 
     @Override
     public void close() throws IOException {
-        for (int i = 0; i < interceptors.size(); i++) {
+        this.interceptors.forEach(interceptor -> {
             try {
-                interceptors.get(i).close();
+                interceptor.close();
             } catch (Exception e) {
                 log.error("Fail to close consumer interceptor ", e);
             }
-        }
+        });
     }
 
 }
