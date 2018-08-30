@@ -158,9 +158,9 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
-    protected void onSendAcknowledgement(Message<T> message, MessageId msgId, Throwable cause) {
+    protected void onSendAcknowledgement(Message<T> message, MessageId msgId, Throwable exception) {
         if (interceptors != null) {
-            interceptors.onSendAcknowledgement(this, message, msgId, cause);
+            interceptors.onSendAcknowledgement(this, message, msgId, exception);
         }
     }
 

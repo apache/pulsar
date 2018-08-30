@@ -370,15 +370,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected void onAcknowledge(MessageId messageId, Throwable cause) {
+    protected void onAcknowledge(MessageId messageId, Throwable exception) {
         if (interceptors != null) {
-            interceptors.onAcknowledge(this, messageId, cause);
+            interceptors.onAcknowledge(this, messageId, exception);
         }
     }
 
-    protected void onAcknowledgeCumulative(MessageId messageId, Throwable cause) {
+    protected void onAcknowledgeCumulative(MessageId messageId, Throwable exception) {
         if (interceptors != null) {
-            interceptors.onAcknowledgeCumulative(this, messageId, cause);
+            interceptors.onAcknowledgeCumulative(this, messageId, exception);
         }
     }
 
