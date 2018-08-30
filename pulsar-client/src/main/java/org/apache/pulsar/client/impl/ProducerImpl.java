@@ -205,7 +205,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    CompletableFuture<MessageId> internalSendAsync(Message<T> message) {CompletableFuture<MessageId> future = new CompletableFuture<>();
+    CompletableFuture<MessageId> internalSendAsync(Message<T> message) {
+
+        CompletableFuture<MessageId> future = new CompletableFuture<>();
 
         MessageImpl<T> interceptorMessage = (MessageImpl<T>) beforeSend(message);
         interceptorMessage.getDataBuffer().retain();
