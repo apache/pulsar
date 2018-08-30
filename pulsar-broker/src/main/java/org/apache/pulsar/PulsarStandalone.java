@@ -21,6 +21,9 @@ package org.apache.pulsar;
 import com.beust.jcommander.Parameter;
 import com.ea.agentloader.AgentLoader;
 import com.google.common.collect.Sets;
+
+import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -36,6 +39,7 @@ import org.aspectj.weaver.loadtime.Agent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -251,11 +255,14 @@ public class PulsarStandalone implements AutoCloseable {
         AgentLoader.loadAgentClass(Agent.class.getName(), null);
 
         if (!this.isOnlyBroker()) {
+            ServerConfiguration bkServerConf = new ServerConfiguration();
+            bkServerConf.loadConf(new File(configFile).toURI().toURL());
+
             // Start LocalBookKeeper
             bkEnsemble = new LocalBookkeeperEnsemble(
                     this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
                     this.getBkDir(), this.isWipeData(), "127.0.0.1");
-            bkEnsemble.startStandalone(!this.isNoStreamStorage());
+            bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
         }
 
         if (this.isNoBroker()) {
