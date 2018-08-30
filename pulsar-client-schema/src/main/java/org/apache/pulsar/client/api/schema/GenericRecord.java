@@ -16,20 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.client.api.schema;
 
-package org.apache.pulsar.io.aerospike;
-
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
+import java.util.List;
 
 /**
- * Aerospike sink that treats incoming messages on the input topic as Strings
- * and write identical key/value pairs.
+ * An interface represents a message with schema.
  */
-public class AerospikeStringSink extends AerospikeAbstractSink<String, String> {
-    @Override
-    public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {
-        String key = record.getKey().orElseGet(() -> new String(record.getValue()));
-        return new KeyValue<>(key, new String(record.getValue()));
-    }
+public interface GenericRecord {
+
+    /**
+     * Returns the list of fields associated with the record.
+     *
+     * @return the list of fields associated with the record.
+     */
+    List<Field> getFields();
+
+    /**
+     * Retrieve the value of the provided <tt>field</tt>.
+     *
+     * @param field the field to retrieve the value
+     * @return the value object
+     */
+    Object getField(Field field);
+
+    /**
+     * Retrieve the value of the provided <tt>fieldName</tt>.
+     *
+     * @param fieldName the field name
+     * @return the value object
+     */
+    Object getField(String fieldName);
+
 }

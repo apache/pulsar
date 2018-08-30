@@ -48,7 +48,7 @@ A JAR file containing this and several other functions (written in Java) is incl
 ```bash
 $ bin/pulsar-admin functions localrun \
   --jar examples/api-examples.jar \
-  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --name exclamation
@@ -104,7 +104,7 @@ This command, for example, would deploy the same exclamation function we ran loc
 ```bash
 $ bin/pulsar-admin functions create \
   --jar examples/api-examples.jar \
-  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --name exclamation
@@ -171,7 +171,7 @@ As we can see, the parallelism of the function is 1, meaning that only one insta
 ```bash
 $ bin/pulsar-admin functions update \
   --jar examples/api-examples.jar \
-  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --tenant public \
@@ -235,7 +235,7 @@ Here, the `process` method defines the processing logic of the Pulsar Function. 
 ```bash
 $ bin/pulsar-admin functions create \
   --py reverse.py \
-  --className reverse \
+  --class-name reverse \
   --inputs persistent://public/default/backwards \
   --output persistent://public/default/forwards \
   --tenant public \
@@ -250,7 +250,7 @@ $ bin/pulsar-admin functions trigger \
   --name reverse \
   --tenant public \
   --namespace default \
-  --triggerValue "sdrawrof won si tub sdrawkcab saw gnirts sihT"
+  --trigger-value "sdrawrof won si tub sdrawkcab saw gnirts sihT"
 ```
 
 You should get this output:

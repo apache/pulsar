@@ -58,7 +58,6 @@ public class SourceConfig {
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String serdeClassName;
 
-    @isImplementationOfClass(implementsClass = Schema.class)
     private String schemaType;
 
     private Map<String, Object> configs;

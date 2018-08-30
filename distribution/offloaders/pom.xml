@@ -19,57 +19,50 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <parent>
     <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar-io</artifactId>
+    <artifactId>distribution</artifactId>
     <version>2.2.0-incubating-SNAPSHOT</version>
+    <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>pulsar-io-aerospike</artifactId>
-  <name>Pulsar IO :: Aerospike</name>
+  <artifactId>pulsar-offloader-distribution</artifactId>
+  <packaging>pom</packaging>
+  <name>Pulsar :: Distribution :: Offloader</name>
 
   <dependencies>
-
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-io-core</artifactId>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>managed-ledger-original</artifactId>
       <version>${project.version}</version>
     </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-yaml</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.aerospike</groupId>
-      <artifactId>aerospike-client</artifactId>
-      <version>${aerospike-client.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.gnu</groupId>
-          <artifactId>gnu-crypto</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>org.apache.nifi</groupId>
-        <artifactId>nifi-nar-maven-plugin</artifactId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>distro-assembly</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+            <configuration>
+              <attach>true</attach>
+              <tarLongFileMode>posix</tarLongFileMode>
+              <finalName>apache-pulsar-offloaders-${project.version}</finalName>
+              <descriptors>
+                <descriptor>src/assemble/offloaders.xml</descriptor>
+              </descriptors>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
-
-
 </project>

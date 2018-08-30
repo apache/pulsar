@@ -17,37 +17,37 @@ const team = require(`${CWD}/data/team.js`)
 class Team extends React.Component {
   render() {
     let language = this.props.language || '';
-    
+
 
     return (
       <div className="docMainWrapper wrapper">
         <Container className="mainContainer documentContainer postContainer">
           <div className="post">
             <header className="postHeader">
-              <h1><translate>Contact</translate></h1>
+              <h1><translate>Team</translate></h1>
               <hr />
             </header>
             <p>
             <translate>
-              A successful project requires many people to play many roles. 
-              Some members write code or documentation, while others are valuable as testers, 
+              A successful project requires many people to play many roles.
+              Some members write code or documentation, while others are valuable as testers,
               submitting patches and suggestions.
             </translate>
             </p>
             <p>
             <translate>
-              The team is comprised of Members and Contributors. 
-              Members have direct access to the source of a project and actively evolve the codebase. 
-              Contributors improve the project through submission of patches and 
-              suggestions to the Members. The number of Contributors to the project is unbounded. 
+              The team is comprised of Members and Contributors.
+              Members have direct access to the source of a project and actively evolve the codebase.
+              Contributors improve the project through submission of patches and
+              suggestions to the Members. The number of Contributors to the project is unbounded.
               Get involved today. All contributions to the project are greatly appreciated.
             </translate>
             </p>
-            
+
             <h2><translate>Committers</translate></h2>
             <p>
             <translate>
-              The following is a list of developers with commit privileges that have directly 
+              The following is a list of developers with commit privileges that have directly
               contributed to the project in one way or another.
             </translate>
             </p>

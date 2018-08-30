@@ -762,7 +762,7 @@ public class CmdFunctions extends CmdBase {
         // for backwards compatibility purposes
         @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service (by default Apache BookKeeper)", hidden = true)
         protected String DEPRECATED_stateStorageServiceUrl;
-        @Parameter(names = "--state-storag-service-url", description = "The URL for the state storage service (by default Apache BookKeeper)")
+        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service (by default Apache BookKeeper)")
         protected String stateStorageServiceUrl;
         // for backwards compatibility purposes
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)

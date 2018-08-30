@@ -99,6 +99,8 @@ func createReaderAsync(client *client, options ReaderOptions, callback func(Read
 		C.pulsar_reader_configuration_set_subscription_role_prefix(conf, prefix)
 	}
 
+	C.pulsar_reader_configuration_set_read_compacted(conf, cBool(options.ReadCompacted))
+
 	if options.Name != "" {
 		name := C.CString(options.Name)
 		defer C.free(unsafe.Pointer(name))

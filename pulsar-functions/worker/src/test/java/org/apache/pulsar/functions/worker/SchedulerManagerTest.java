@@ -111,6 +111,7 @@ public class SchedulerManagerTest {
 
         schedulerManager = spy(new SchedulerManager(workerConfig, pulsarClient));
         functionRuntimeManager = mock(FunctionRuntimeManager.class);
+        when(functionRuntimeManager.isInitialized()).thenReturn(true);
         functionMetaDataManager = mock(FunctionMetaDataManager.class);
         membershipManager = mock(MembershipManager.class);
         schedulerManager.setFunctionMetaDataManager(functionMetaDataManager);
@@ -145,6 +146,7 @@ public class SchedulerManagerTest {
 
         //set version
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
+        doReturn(true).when(functionRuntimeManager).isInitialized();
 
         // single node
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -186,6 +188,7 @@ public class SchedulerManagerTest {
         assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
+        doReturn(true).when(functionRuntimeManager).isInitialized();
 
         //set version
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
@@ -242,6 +245,7 @@ public class SchedulerManagerTest {
         assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
+        doReturn(true).when(functionRuntimeManager).isInitialized();
 
         //set version
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
@@ -313,6 +317,7 @@ public class SchedulerManagerTest {
 
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
+        doReturn(true).when(functionRuntimeManager).isInitialized();
 
         //set version
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
@@ -372,6 +377,7 @@ public class SchedulerManagerTest {
 
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
+        doReturn(true).when(functionRuntimeManager).isInitialized();
 
         //set version
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
@@ -478,6 +484,7 @@ public class SchedulerManagerTest {
 
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
+        doReturn(true).when(functionRuntimeManager).isInitialized();
 
         //set version
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
@@ -646,6 +653,7 @@ public class SchedulerManagerTest {
 
         //set version
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
+        doReturn(true).when(functionRuntimeManager).isInitialized();
 
         // single node
         List<WorkerInfo> workerInfoList = new LinkedList<>();
