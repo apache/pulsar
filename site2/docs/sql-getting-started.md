@@ -123,6 +123,7 @@ public class Test {
      }
     
      public static void main(String[] args) throws Exception {
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
         Producer<Foo> producer = pulsarClient.newProducer(AvroSchema.of(Foo.class)).topic("test_topic").create();
         
         for (int i = 0; i < 1000; i++) {
@@ -132,6 +133,8 @@ public class Test {
             foo.setField3(System.currentTimeMillis());
             producer.newMessage().value(foo).send();
         }
+        producer.close();
+        pulsarClient.close();
      }
 }
 ```
