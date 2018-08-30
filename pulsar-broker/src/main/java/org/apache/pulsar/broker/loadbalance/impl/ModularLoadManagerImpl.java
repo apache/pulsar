@@ -798,7 +798,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                         // Since there's a single broker instance running, it's safe, in this mode, to remove the old lock
 
                         // Delete and recreate z-node
-                        zkClient.delete(brokerZnodePath, -1);
+                        try {
+                            zkClient.delete(brokerZnodePath, -1);
+                        } catch (NoNodeException nne) {
+                            // Ignore if z-node was just expired
+                        }
                         ZkUtils.createFullPathOptimistic(zkClient, brokerZnodePath, localData.getJsonBytes(),
                                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
                     } else {

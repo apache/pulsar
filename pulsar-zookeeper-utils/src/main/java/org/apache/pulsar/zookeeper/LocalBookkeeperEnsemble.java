@@ -45,7 +45,6 @@ import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.bookkeeper.clients.exceptions.ClientException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceExistsException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
@@ -62,9 +61,9 @@ import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
 import org.apache.bookkeeper.util.MathUtils;
 import org.apache.commons.configuration.CompositeConfiguration;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
@@ -227,7 +226,11 @@ public class LocalBookkeeperEnsemble {
             // Ensure registration Z-nodes are cleared when standalone service is restarted ungracefully
             String registrationZnode = String.format("/ledgers/available/%s:%d", baseConf.getAdvertisedAddress(), bookiePort);
             if (zkc.exists(registrationZnode, null) != null) {
-                zkc.delete(registrationZnode, -1);
+                try {
+                    zkc.delete(registrationZnode, -1);
+                } catch (NoNodeException nne) {
+                    // Ignore if z-node was just expired
+                }
             }
 
             bsConfs[i] = new ServerConfiguration(baseConf);
