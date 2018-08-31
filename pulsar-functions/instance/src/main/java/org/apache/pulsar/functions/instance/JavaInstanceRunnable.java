@@ -553,7 +553,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sourceSpec.getTimeoutMs() > 0 ) {
                 pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
             }
-            object = new PulsarSource(this.client, pulsarSourceConfig);
+            object = new PulsarSource(this.client, pulsarSourceConfig,
+                    FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
         } else {
             object = Reflections.createInstance(
                     sourceSpec.getClassName(),
@@ -599,7 +600,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
 
-                object = new PulsarSink(this.client, pulsarSinkConfig);
+                object = new PulsarSink(this.client, pulsarSinkConfig,
+                        FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
             }
         } else {
             object = Reflections.createInstance(
