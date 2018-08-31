@@ -244,10 +244,6 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--topics-pattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
         protected String topicsPattern;
 
-        @Parameter(names = { "-st",
-                "--schema-type" }, description = "The builtin schema type (eg: 'avro', 'json', etc..) or the class name for a Schema implementation")
-        protected String schemaType = "";
-
         @Parameter(names = "--subsName", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer", hidden = true)
         protected String DEPRECATED_subsName;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
