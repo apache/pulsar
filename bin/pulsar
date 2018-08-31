@@ -18,8 +18,6 @@
 # under the License.
 #
 
-set -x
-
 BINDIR=$(dirname "$0")
 export PULSAR_HOME=`cd $BINDIR/..;pwd`
 
