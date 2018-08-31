@@ -238,10 +238,8 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)")
         protected String topicsPattern;
 
-        @Parameter(names = {"-o", "--output"}, description = "The function's output topic (use skipOutput flag to skip output topic)")
+        @Parameter(names = {"-o", "--output"}, description = "The function's output topic (If none is specified, no output is written)")
         protected String output;
-        @Parameter(names = "--skip-output", description = "Skip publishing function output to output topic")
-        protected boolean skipOutput;
         // for backwards compatibility purposes
         @Parameter(names = "--logTopic", description = "The topic to which the function's logs are produced", hidden = true)
         protected String DEPRECATED_logTopic;
@@ -390,7 +388,6 @@ public class CmdFunctions extends CmdBase {
             if (null != output) {
                 functionConfig.setOutput(output);
             }
-            functionConfig.setSkipOutput(skipOutput);
             if (null != logTopic) {
                 functionConfig.setLogTopic(logTopic);
             }
@@ -479,11 +476,6 @@ public class CmdFunctions extends CmdBase {
         }
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
-
-            if (isBlank(functionConfig.getOutput()) && !functionConfig.isSkipOutput()) {
-                throw new ParameterException(
-                        "output topic is not present (pass skipOutput flag to skip publish output on topic)");
-            }
 
             if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"
