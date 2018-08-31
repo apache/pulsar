@@ -307,6 +307,7 @@ Options
 |`--ram`|The RAM to allocate to each function instance (in bytes)||
 |`--disk`|The disk space to allocate to each function instance (in bytes)||
 |`--auto-ack`|Let the functions framework manage acking||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--broker-service-url `|The URL of the Pulsar broker||
 |`--classname`|The name of the function’s class||
 |`--custom-serde-inputs`|A map of the input topic to SerDe name||
@@ -352,6 +353,7 @@ Options
 |`--ram`|The RAM to allocate to each function instance (in bytes)||
 |`--disk`|The disk space to allocate to each function instance (in bytes)||
 |`--auto-ack`|Let the functions framework manage acking||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--classname`|The name of the function’s class||
 |`--custom-serde-inputs`|A map of the input topic to SerDe name||
 |`--custom-schema-inputs`|A map of the input topic to Schema class name||
@@ -409,6 +411,7 @@ Options
 |`--ram`|The RAM to allocate to each function instance (in bytes)||
 |`--disk`|The disk space to allocate to each function instance (in bytes)||
 |`--auto-ack`|Let the functions framework manage acking||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--classname`|The name of the function’s class||
 |`--custom-serde-inputs`|A map of the input topic to SerDe name||
 |`--custom-schema-inputs`|A map of the input topic to Schema class name||
