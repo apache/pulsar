@@ -588,7 +588,7 @@ public class FunctionsImpl {
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function in getFunction does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            log.error("Function in trigger function does not exist @ /{}/{}/{}", tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
@@ -599,15 +599,18 @@ public class FunctionsImpl {
         String inputTopicToWrite;
         if (topic != null) {
             inputTopicToWrite = topic;
-        } else if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
-            inputTopicToWrite = functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()
+        } else if (functionMetaData.getFunctionDetails().getSource().getInputSpecsCount() == 1) {
+            inputTopicToWrite = functionMetaData.getFunctionDetails().getSource().getInputSpecsMap()
                     .keySet().iterator().next();
         } else {
+            log.error("Function in trigger function has more than 1 input topics @ /{}/{}/{}", tenant, namespace, functionName);
             return Response.status(Status.BAD_REQUEST).build();
         }
-        if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap() == null
-                || !functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()
+        if (functionMetaData.getFunctionDetails().getSource().getInputSpecsCount() == 0
+                || !functionMetaData.getFunctionDetails().getSource().getInputSpecsMap()
                         .containsKey(inputTopicToWrite)) {
+            log.error("Function in trigger function has unidentified topic @ /{}/{}/{} {}", tenant, namespace, functionName, inputTopicToWrite);
+
             return Response.status(Status.BAD_REQUEST).build();
         }
         String outputTopic = functionMetaData.getFunctionDetails().getSink().getTopic();
