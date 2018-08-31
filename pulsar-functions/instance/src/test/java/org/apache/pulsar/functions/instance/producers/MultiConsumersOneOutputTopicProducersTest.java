@@ -199,7 +199,7 @@ public class MultiConsumersOneOutputTopicProducersTest {
         when(mockClient.newProducer(any(Schema.class)))
             .thenReturn(new MockProducerBuilder());
 
-        producers = new MultiConsumersOneOuputTopicProducers<byte[]>(mockClient, TEST_OUTPUT_TOPIC, Schema.BYTES);
+        producers = new MultiConsumersOneOuputTopicProducers<byte[]>(mockClient, TEST_OUTPUT_TOPIC, Schema.BYTES, "test");
         producers.initialize();
     }
 
