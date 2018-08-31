@@ -313,8 +313,8 @@ public class CmdFunctions extends CmdBase {
         // for backwards compatibility purposes
         @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages", hidden = true)
         protected Boolean DEPRECATED_autoAck = null;
-        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages")
-        protected Boolean autoAck ;
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
+        protected boolean autoAck = true;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
         protected Long DEPRECATED_timeoutMs;
@@ -458,11 +458,7 @@ public class CmdFunctions extends CmdBase {
 
             functionConfig.setWindowConfig(windowConfig);
 
-            if  (null != autoAck) {
-                functionConfig.setAutoAck(autoAck);
-            } else {
-                functionConfig.setAutoAck(true);
-            }
+            functionConfig.setAutoAck(autoAck);
 
             if (null != jarFile) {
                 functionConfig.setJar(jarFile);
@@ -577,7 +573,7 @@ public class CmdFunctions extends CmdBase {
                 WindowUtils.inferDefaultConfigs(windowConfig);
                 // set auto ack to false since windowing framework is responsible
                 // for acking and not the function framework
-                if (autoAck != null && autoAck == true) {
+                if (autoAck) {
                     throw new ParameterException("Cannot enable auto ack when using windowing functionality");
                 }
                 functionConfig.setAutoAck(false);

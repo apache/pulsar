@@ -42,14 +42,17 @@ public class MultiConsumersOneOuputTopicProducers<T> extends AbstractOneOuputTop
     private final Map<String, Producer<T>> producers;
 
     private final Schema<T> schema;
+    private final String fqfn;
 
 
     public MultiConsumersOneOuputTopicProducers(PulsarClient client,
-                                                String outputTopic, Schema<T> schema)
+                                                String outputTopic, Schema<T> schema,
+                                                String fqfn)
             throws PulsarClientException {
         super(client, outputTopic);
         this.producers = new ConcurrentHashMap<>();
         this.schema = schema;
+        this.fqfn = fqfn;
     }
 
     @Override
@@ -65,7 +68,7 @@ public class MultiConsumersOneOuputTopicProducers<T> extends AbstractOneOuputTop
     public synchronized Producer<T> getProducer(String srcPartitionId) throws PulsarClientException {
         Producer<T> producer = producers.get(srcPartitionId);
         if (null == producer) {
-            producer = createProducer(outputTopic, srcPartitionId, schema);
+            producer = createProducerWithProducerName(outputTopic, srcPartitionId, schema, fqfn);
             producers.put(srcPartitionId, producer);
         }
         return producer;
