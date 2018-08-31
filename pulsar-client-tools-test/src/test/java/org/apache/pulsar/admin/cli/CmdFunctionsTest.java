@@ -498,7 +498,6 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
                 "create",
                 "--inputs", inputTopicName,
-                "--skip-output",
                 "--jar", "SomeJar.jar",
                 "--tenant", "sample",
                 "--namespace", "ns1",
@@ -513,7 +512,7 @@ public class CmdFunctionsTest {
 
     
     @Test
-    public void testCreateWithoutOutputTopic() throws Exception {
+    public void testCreateWithoutOutputTopic() {
 
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
         consoleOutputCapturer.start();
@@ -530,9 +529,8 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         consoleOutputCapturer.stop();
-        String output = consoleOutputCapturer.getStderr();
         assertNull(creater.getFunctionConfig().getOutput());
-        assertTrue(output.contains("output topic is not present"));
+        assertTrue(consoleOutputCapturer.getStdout().contains("Created successfully"));
     }
 
     @Test
