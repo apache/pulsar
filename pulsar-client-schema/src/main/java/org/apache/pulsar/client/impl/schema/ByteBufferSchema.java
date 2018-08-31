@@ -18,55 +18,57 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import java.nio.ByteBuffer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-
 /**
- * Schema definition for Strings encoded in UTF-8 format.
+ * A bytebuffer schema.
  */
-public class StringSchema implements Schema<String> {
+public class ByteBufferSchema implements Schema<ByteBuffer> {
 
-    public static StringSchema utf8() {
-        return UTF8;
+    public static ByteBufferSchema of() {
+        return INSTANCE;
     }
 
-    private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);
+    private static final ByteBufferSchema INSTANCE = new ByteBufferSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("String")
-        .setType(SchemaType.STRING)
+        .setName("ByteBuffer")
+        .setType(SchemaType.BYTEBUFFER)
         .setSchema(new byte[0]);
 
-    private final Charset charset;
-    private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+    @Override
+    public byte[] encode(ByteBuffer data) {
+        if (data == null) {
+            return null;
+        }
 
-    public StringSchema() {
-        this.charset = DEFAULT_CHARSET;
+        data.rewind();
+
+        if (data.hasArray()) {
+            byte[] arr = data.array();
+            if (data.arrayOffset() == 0 && arr.length == data.remaining()) {
+                return arr;
+            }
+        }
+
+        byte[] ret = new byte[data.remaining()];
+        data.get(ret, 0, ret.length);
+        data.rewind();
+        return ret;
     }
 
-    public StringSchema(Charset charset) {
-        this.charset = charset;
-    }
-
-    public byte[] encode(String message) {
-        if (null == message) {
+    @Override
+    public ByteBuffer decode(byte[] data) {
+        if (null == data) {
             return null;
         } else {
-            return message.getBytes(charset);
+            return ByteBuffer.wrap(data);
         }
     }
 
-    public String decode(byte[] bytes) {
-        if (null == bytes) {
-            return null;
-        } else {
-            return new String(bytes, charset);
-        }
-    }
-
+    @Override
     public SchemaInfo getSchemaInfo() {
         return SCHEMA_INFO;
     }

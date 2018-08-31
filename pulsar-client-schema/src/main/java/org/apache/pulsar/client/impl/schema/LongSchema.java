@@ -19,54 +19,60 @@
 package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-
 /**
- * Schema definition for Strings encoded in UTF-8 format.
+ * A schema for `Long`.
  */
-public class StringSchema implements Schema<String> {
+public class LongSchema implements Schema<Long> {
 
-    public static StringSchema utf8() {
-        return UTF8;
+    public static LongSchema of() {
+        return INSTANCE;
     }
 
-    private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);
+    private static final LongSchema INSTANCE = new LongSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("String")
-        .setType(SchemaType.STRING)
+        .setName("INT64")
+        .setType(SchemaType.INT64)
         .setSchema(new byte[0]);
 
-    private final Charset charset;
-    private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
-
-    public StringSchema() {
-        this.charset = DEFAULT_CHARSET;
-    }
-
-    public StringSchema(Charset charset) {
-        this.charset = charset;
-    }
-
-    public byte[] encode(String message) {
-        if (null == message) {
+    @Override
+    public byte[] encode(Long data) {
+        if (null == data) {
             return null;
         } else {
-            return message.getBytes(charset);
+            return new byte[] {
+                (byte) (data >>> 56),
+                (byte) (data >>> 48),
+                (byte) (data >>> 40),
+                (byte) (data >>> 32),
+                (byte) (data >>> 24),
+                (byte) (data >>> 16),
+                (byte) (data >>> 8),
+                data.byteValue()
+            };
         }
     }
 
-    public String decode(byte[] bytes) {
+    @Override
+    public Long decode(byte[] bytes) {
         if (null == bytes) {
             return null;
-        } else {
-            return new String(bytes, charset);
         }
+        if (bytes.length != 8) {
+            throw new SchemaSerializationException("Size of data received by LongSchema is not 8");
+        }
+        long value = 0L;
+        for (byte b : bytes) {
+            value <<= 8;
+            value |= b & 0xFF;
+        }
+        return value;
     }
 
+    @Override
     public SchemaInfo getSchemaInfo() {
         return SCHEMA_INFO;
     }

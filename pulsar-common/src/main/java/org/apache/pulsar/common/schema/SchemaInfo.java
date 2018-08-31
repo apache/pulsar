@@ -27,6 +27,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import lombok.experimental.Accessors;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.Schema;
@@ -34,6 +35,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.Schema;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Accessors(chain = true)
 public class SchemaInfo {
 
     @EqualsAndHashCode.Exclude
