@@ -890,6 +890,8 @@ public class PulsarService implements AutoCloseable {
             LOG.info("Starting function worker service");
             String namespace = functionWorkerService.get()
                     .getWorkerConfig().getPulsarFunctionsNamespace();
+            String assignmentNamespace = functionWorkerService.get()
+                    .getWorkerConfig().getPulsarAssignmentNamespace();
             String[] a = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsNamespace().split("/");
             String property = a[0];
             String cluster = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster();
@@ -960,6 +962,27 @@ public class PulsarService implements AutoCloseable {
                 LOG.debug("Failed to create already existing namespace {} for function worker service", namespace);
             } catch (Exception e) {
                 LOG.error("Failed to create namespace {}", namespace, e);
+                throw e;
+            }
+
+            // create namespace for function assignment worker service
+            try {
+                Policies policies = new Policies();
+                policies.replication_clusters = Collections.singleton(functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster());
+                int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
+                policies.bundles = getBundles(defaultNumberOfBundles);
+
+                this.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, assignmentNamespace));
+                ZkUtils.createFullPathOptimistic(this.getGlobalZkCache().getZooKeeper(),
+                        AdminResource.path(POLICIES, assignmentNamespace),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                        CreateMode.PERSISTENT);
+                LOG.info("Created namespace {} for function worker service", assignmentNamespace);
+            } catch (KeeperException.NodeExistsException e) {
+                LOG.debug("Failed to create already existing namespace {} for function worker service", assignmentNamespace);
+            } catch (Exception e) {
+                LOG.error("Failed to create namespace {}", assignmentNamespace, e);
                 throw e;
             }
 
