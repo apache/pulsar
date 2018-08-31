@@ -20,7 +20,7 @@ First, start a Pulsar standalone cluster:
 
 Next, start a Pulsar SQL worker:
 ```bash
-./bin/pulsar sql-worker
+./bin/pulsar sql-worker run
 ```
 
 After both the Pulsar standalone cluster and the SQL worker are done initializing, run the SQL CLI:

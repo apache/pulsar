@@ -75,7 +75,13 @@ There is a set of default configs for the cluster located in ```${project.root}/
 You can also set the worker to read from a different configuration directory as well as set a different directory for writing its data:
 
 ```bash
-$ ./bin/pulsar sql-worker --etc-dir /tmp/incubator-pulsar/conf/presto --data-dir /tmp/presto-1
+$ ./bin/pulsar sql-worker run --etc-dir /tmp/incubator-pulsar/conf/presto --data-dir /tmp/presto-1
+```
+
+You can also start the worker as daemon process:
+
+```bash
+$ ./bin sql-worker start
 ```
 
 ### Deploying to a 3 node cluster
@@ -100,7 +106,7 @@ Also, modify ```pulsar.broker-service-url``` and  ```pulsar.zookeeper-uri``` con
 
 Afterwards, you can start the coordinator by just running
 
-```$ ./bin/pulsar sql-worker```
+```$ ./bin/pulsar sql-worker run```
 
 For the other two nodes that will only serve as worker nodes, the configurations can be the following:
 
@@ -117,7 +123,7 @@ Also, modify ```pulsar.broker-service-url``` and  ```pulsar.zookeeper-uri``` con
 
 You can also start the worker by just running:
 
-```$ ./bin/pulsar sql-worker```
+```$ ./bin/pulsar sql-worker run```
 
 You can check the status of your cluster from the SQL CLI.  To start the SQL CLI:
 
