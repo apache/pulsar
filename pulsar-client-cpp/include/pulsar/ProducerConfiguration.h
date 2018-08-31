@@ -128,7 +128,7 @@ class ProducerConfiguration {
     ProducerConfiguration& addEncryptionKey(std::string key);
 
     /**
-     * Check whether the message has a specific property attached.
+     * Check whether the producer has a specific property attached.
      *
      * @param name the name of the property to check
      * @return true if the message has the specified property
@@ -150,7 +150,8 @@ class ProducerConfiguration {
     std::map<std::string, std::string>& getProperties() const;
 
     /**
-     * Sets a new property on a message.
+     * Sets a new property on the producer
+     * .
      * @param name   the name of the property
      * @param value  the associated value
      */
