@@ -66,11 +66,6 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
             cassandraServiceName,
             new CassandraContainer(clusterName));
         
-        final String hdfsServiceName = "HDFS";
-        externalServices.put(
-                hdfsServiceName,
-            new HdfsContainer(clusterName));
-        
         builder = builder.externalServices(externalServices);
 
         return builder;
