@@ -82,13 +82,13 @@
 <p>Deploying Pulsar Functions is handled by the <a href="/docs/en/next/pulsar-admin"><code>pulsar-admin</code></a> CLI tool, in particular the <a href="/docs/en/next/pulsar-admin#functions"><code>functions</code></a> command. Here's an example command that would run our <a href="#example-function">sanitizer</a> function from above in <a href="/docs/en/next/functions-deploying#local-run-mode">local run</a> mode:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --py sanitizer.py \          <span class="hljs-comment"># The Python file with the function's code</span>
-  --className sanitizer \      <span class="hljs-comment"># The class or function holding the processing logic</span>
+  --classname sanitizer \      <span class="hljs-comment"># The class or function holding the processing logic</span>
   --tenant public \            <span class="hljs-comment"># The function's tenant (derived from the topic name by default)</span>
   --namespace default \        <span class="hljs-comment"># The function's namespace (derived from the topic name by default)</span>
   --name sanitizer-function \  <span class="hljs-comment"># The name of the function (the class name by default)</span>
   --inputs dirty-strings-in \  <span class="hljs-comment"># The input topic(s) for the function</span>
   --output clean-strings-out \ <span class="hljs-comment"># The output topic for the function</span>
-  --logTopic sanitizer-logs    <span class="hljs-comment"># The topic to which all functions logs are published</span>
+  --<span class="hljs-built_in">log</span>-topic sanitizer-logs   <span class="hljs-comment"># The topic to which all functions logs are published</span>
 </code></pre>
 <p>For instructions on running functions in your Pulsar cluster, see the <a href="/docs/en/next/functions-deploying">Deploying Pulsar Functions</a> guide.</p>
 <h3><a class="anchor" aria-hidden="true" id="available-apis"></a><a href="#available-apis" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Available APIs</h3>
@@ -114,7 +114,15 @@
         function_name = context.function_name()
         <span class="hljs-keyword">return</span> <span class="hljs-string">"The function processing this message has the name {0}"</span>.format(function_name)
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="serialization-and-deserialization-serde"></a><a href="#serialization-and-deserialization-serde" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Serialization and deserialization (SerDe)</h3>
+<h3><a class="anchor" aria-hidden="true" id="functions-messages-and-message-types"></a><a href="#functions-messages-and-message-types" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Functions, Messages and Message Types</h3>
+<p>Pulsar Functions can take byte arrays as inputs and spit out byte arrays as output. However in languages that support typed interfaces(just Java at the moment) one can write typed Functions as well. In this scenario, there are two ways one can bind messages to types.</p>
+<ul>
+<li><a href="#Schema-Registry">Schema Registry</a></li>
+<li><a href="#SerDe">SerDe</a></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="schema-registry"></a><a href="#schema-registry" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema Registry</h3>
+<p>Pulsar has a built in <a href="concepts-schema-registry">Schema Registry</a> and comes bundled with a variety of popular schema types(avro, json and protobuf). Pulsar Functions can leverage existing schema information from input topics to derive the input type. The same applies for output topic as well.</p>
+<h3><a class="anchor" aria-hidden="true" id="serde"></a><a href="#serde" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>SerDe</h3>
 <p>SerDe stands for <strong>Ser</strong>ialization and <strong>De</strong>serialization. All Pulsar Functions use SerDe for message handling. How SerDe works by default depends on the language you're using for a particular function:</p>
 <ul>
 <li>In <a href="#python-serde">Python</a>, the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns</li>
@@ -142,7 +150,7 @@
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --name word-filter \
   <span class="hljs-comment"># Other function configs</span>
-  --userConfig <span class="hljs-string">'{"forbidden-word":"rosebud"}'</span>
+  --user-config <span class="hljs-string">'{"forbidden-word":"rosebud"}'</span>
 </code></pre>
 <p>If the function were a Python function, that config value could be accessed like this:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
@@ -244,11 +252,10 @@
 <p>The <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/functions/api/Context">Context</a>
  interface provides a number of methods that you can use to access the function's <a href="#context">context</a>. The various method signatures for the <code>Context</code> interface are listed below:</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">Context</span> </span>{
-    <span class="hljs-keyword">byte</span>[] getMessageId();
-    <span class="hljs-function">String <span class="hljs-title">getTopicName</span><span class="hljs-params">()</span></span>;
-    <span class="hljs-function">Collection&lt;String&gt; <span class="hljs-title">getSourceTopics</span><span class="hljs-params">()</span></span>;
-    <span class="hljs-function">String <span class="hljs-title">getSinkTopic</span><span class="hljs-params">()</span></span>;
-    <span class="hljs-function">String <span class="hljs-title">getOutputSerdeClassName</span><span class="hljs-params">()</span></span>;
+    Record&lt;?&gt; getCurrentRecord();
+    <span class="hljs-function">Collection&lt;String&gt; <span class="hljs-title">getInputTopics</span><span class="hljs-params">()</span></span>;
+    <span class="hljs-function">String <span class="hljs-title">getOutputTopic</span><span class="hljs-params">()</span></span>;
+    <span class="hljs-function">String <span class="hljs-title">getOutputSchemaType</span><span class="hljs-params">()</span></span>;
     <span class="hljs-function">String <span class="hljs-title">getTenant</span><span class="hljs-params">()</span></span>;
     <span class="hljs-function">String <span class="hljs-title">getNamespace</span><span class="hljs-params">()</span></span>;
     <span class="hljs-function">String <span class="hljs-title">getFunctionName</span><span class="hljs-params">()</span></span>;
@@ -256,13 +263,16 @@
     <span class="hljs-function">String <span class="hljs-title">getInstanceId</span><span class="hljs-params">()</span></span>;
     <span class="hljs-function">String <span class="hljs-title">getFunctionVersion</span><span class="hljs-params">()</span></span>;
     <span class="hljs-function">Logger <span class="hljs-title">getLogger</span><span class="hljs-params">()</span></span>;
-    <span class="hljs-function">Map&lt;String, String&gt; <span class="hljs-title">getUserConfigMap</span><span class="hljs-params">()</span></span>;
-    <span class="hljs-function">Optional&lt;String&gt; <span class="hljs-title">getUserConfigValue</span><span class="hljs-params">(String key)</span></span>;
-    <span class="hljs-function">String <span class="hljs-title">getUserConfigValueOrDefault</span><span class="hljs-params">(String key, String <span class="hljs-keyword">default</span>)</span></span>;
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">incrCounter</span><span class="hljs-params">(String key, <span class="hljs-keyword">long</span> amount)</span></span>;
+    <span class="hljs-function"><span class="hljs-keyword">long</span> <span class="hljs-title">getCounter</span><span class="hljs-params">(String key)</span></span>;
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putState</span><span class="hljs-params">(String key, ByteBuffer value)</span></span>;
+    <span class="hljs-function">ByteBuffer <span class="hljs-title">getState</span><span class="hljs-params">(String key)</span></span>;
+    <span class="hljs-function">Map&lt;String, Object&gt; <span class="hljs-title">getUserConfigMap</span><span class="hljs-params">()</span></span>;
+    <span class="hljs-function">Optional&lt;Object&gt; <span class="hljs-title">getUserConfigValue</span><span class="hljs-params">(String key)</span></span>;
+    <span class="hljs-function">Object <span class="hljs-title">getUserConfigValueOrDefault</span><span class="hljs-params">(String key, Object defaultValue)</span></span>;
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">recordMetric</span><span class="hljs-params">(String metricName, <span class="hljs-keyword">double</span> value)</span></span>;
-    &lt;O&gt; <span class="hljs-function">CompletableFuture&lt;Void&gt; <span class="hljs-title">publish</span><span class="hljs-params">(String topicName, O object, String serDeClassName)</span></span>;
+    &lt;O&gt; <span class="hljs-function">CompletableFuture&lt;Void&gt; <span class="hljs-title">publish</span><span class="hljs-params">(String topicName, O object, String schemaOrSerdeClassName)</span></span>;
     &lt;O&gt; <span class="hljs-function">CompletableFuture&lt;Void&gt; <span class="hljs-title">publish</span><span class="hljs-params">(String topicName, O object)</span></span>;
-    <span class="hljs-function">CompletableFuture&lt;Void&gt; <span class="hljs-title">ack</span><span class="hljs-params">(<span class="hljs-keyword">byte</span>[] messageId, String topic)</span></span>;
 }
 </code></pre>
 <p>Here's an example function that uses several methods available via the <code>Context</code> object:</p>
@@ -364,7 +374,7 @@
 <p>Here's an example <a href="/docs/en/next/pulsar-admin#create-1"><code>create</code></a> operation:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar /path/to/your.jar \
-  --outputSerdeClassName com.example.serde.TweetSerde \
+  --output-serde-classname com.example.serde.TweetSerde \
   <span class="hljs-comment"># Other function attributes</span>
 </code></pre>
 <blockquote>
@@ -396,8 +406,8 @@
 <p>If you want your function to produce logs, you need to specify a log topic when creating or running the function. Here's an example:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar my-functions.jar \
-  --className my.package.LoggingFunction \
-  --logTopic persistent://public/default/logging-function-logs \
+  --classname my.package.LoggingFunction \
+  --<span class="hljs-built_in">log</span>-topic persistent://public/default/logging-function-logs \
   <span class="hljs-comment"># Other function configs</span>
 </code></pre>
 <p>Now, all logs produced by the <code>LoggingFunction</code> above can be accessed via the <code>persistent://public/default/logging-function-logs</code> topic.</p>
@@ -405,7 +415,7 @@
 <p>The Java SDK's <a href="#context"><code>Context</code></a> object enables you to access key/value pairs provided to the Pulsar Function via the command line (as JSON). Here's an example function creation command that passes a key/value pair:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   <span class="hljs-comment"># Other function configs</span>
-  --userConfig <span class="hljs-string">'{"word-of-the-day":"verdure"}'</span>
+  --user-config <span class="hljs-string">'{"word-of-the-day":"verdure"}'</span>
 </code></pre>
 <p>To access that value in a Java function:</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
@@ -469,16 +479,9 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <li>A <code>Function</code> class that has a <code>process</code> method that provides a message input to process and a <a href="#context">context</a> object</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="getting-started-1"></a><a href="#getting-started-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Getting started</h3>
-<p>Regardless of which <a href="/docs/en/next/functions-deploying">deployment mode</a> you're using, you'll need to install the following Python libraries on any machine that's running Pulsar Functions written in Python:</p>
-<ul>
-<li>pulsar-client</li>
-<li>protobuf</li>
-<li>futures</li>
-<li>grpcio</li>
-<li>grpcio-tools</li>
-</ul>
+<p>Regardless of which <a href="/docs/en/next/functions-deploying">deployment mode</a> you're using, 'pulsar-client' python library has to installed on any machine that's running Pulsar Functions written in Python.</p>
 <p>That could be your local machine for <a href="/docs/en/next/functions-deploying#local-run-mode">local run mode</a> or a machine running a Pulsar <a href="/docs/en/next/reference-terminology#broker">broker</a> for <a href="/docs/en/next/functions-deploying#cluster-mode">cluster mode</a>. To install those libraries using pip:</p>
-<pre><code class="hljs css language-bash">$ pip install pulsar-client protobuf futures grpcio grpcio-tools
+<pre><code class="hljs css language-bash">$ pip install pulsar-client
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="packaging-1"></a><a href="#packaging-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Packaging</h3>
 <p>At the moment, the code for Pulsar Functions written in Python must be contained within a single Python file. In the future, Pulsar Functions may support other packaging formats, such as <a href="https://github.com/pantsbuild/pex"><strong>P</strong>ython <strong>EX</strong>ecutables</a> (PEXes).</p>
@@ -518,7 +521,9 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>get_message_id</code></td><td style="text-align:left">The message ID of the message being processed</td></tr>
-<tr><td style="text-align:left"><code>get_topic_name</code></td><td style="text-align:left">The input topic of the message being processed</td></tr>
+<tr><td style="text-align:left"><code>get_current_message_topic_name</code></td><td style="text-align:left">The topic of the message being currently being processed</td></tr>
+<tr><td style="text-align:left"><code>get_function_tenant</code></td><td style="text-align:left">The tenant under which the current Pulsar Function runs under</td></tr>
+<tr><td style="text-align:left"><code>get_function_namespace</code></td><td style="text-align:left">The namespace under which the current Pulsar Function runs under</td></tr>
 <tr><td style="text-align:left"><code>get_function_name</code></td><td style="text-align:left">The name of the current Pulsar Function</td></tr>
 <tr><td style="text-align:left"><code>get_function_id</code></td><td style="text-align:left">The ID of the current Pulsar Function</td></tr>
 <tr><td style="text-align:left"><code>get_instance_id</code></td><td style="text-align:left">The ID of the current Pulsar Functions instance</td></tr>
@@ -539,9 +544,9 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
   --namespace default \
   --name my_function \
   --py my_function.py \
-  --className my_function.MyFunction \
-  --customSerdeInputs <span class="hljs-string">'{"input-topic-1":"Serde1","input-topic-2":"Serde2"}'</span> \
-  --outputSerdeClassName Serde3 \
+  --classname my_function.MyFunction \
+  --custom-serde-inputs <span class="hljs-string">'{"input-topic-1":"Serde1","input-topic-2":"Serde2"}'</span> \
+  --output-serde-classname Serde3 \
   --output output-topic-1
 </code></pre>
 <p>In this case, there are two input topics, <code>input-topic-1</code> and <code>input-topic-2</code>, each of which is mapped to a different SerDe class (the map must be specified as a JSON string). The output topic, <code>output-topic-1</code>, uses the <code>Serde3</code> class for SerDe. At the moment, all Pulsar Function logic, include processing function and SerDe classes, must be contained within a single Python file.</p>
@@ -603,8 +608,8 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <p>If you want your function to produce logs on a Pulsar topic, you need to specify a <strong>log topic</strong> when creating or running the function. Here's an example:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py logging_function.py \
-  --className logging_function.LoggingFunction \
-  --logTopic logging-function-logs \
+  --classname logging_function.LoggingFunction \
+  --<span class="hljs-built_in">log</span>-topic logging-function-logs \
   <span class="hljs-comment"># Other function configs</span>
 </code></pre>
 <p>Now, all logs produced by the <code>LoggingFunction</code> above can be accessed via the <code>logging-function-logs</code> topic.</p>
@@ -612,7 +617,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <p>The Python SDK's <a href="#context"><code>Context</code></a> object enables you to access key/value pairs provided to the Pulsar Function via the command line (as JSON). Here's an example function creation command that passes a key/value pair:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   <span class="hljs-comment"># Other function configs \</span>
-  --userConfig <span class="hljs-string">'{"word-of-the-day":"verdure"}'</span>
+  --user-config <span class="hljs-string">'{"word-of-the-day":"verdure"}'</span>
 </code></pre>
 <p>To access that value in a Python function:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
@@ -637,7 +642,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
         <span class="hljs-keyword">if</span> input == <span class="hljs-number">11</span>:
             context.record_metric(<span class="hljs-string">'elevens-count'</span>, <span class="hljs-number">1</span>)
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/functions-quickstart">← Getting started with Pulsar Functions</a><a class="docs-next button" href="/docs/en/next/functions-deploying">Deploying and managing Pulsar Functions →</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#core-programming-model">Core programming model</a><ul class="toc-headings"><li><a href="#example-function">Example function</a></li><li><a href="#example-deployment">Example deployment</a></li><li><a href="#available-apis">Available APIs</a></li><li><a href="#serialization-and-deserialization-serde">Serialization and deserialization (SerDe)</a></li><li><a href="#context">Context</a></li><li><a href="#user-config">User config</a></li></ul></li><li><a href="#functions-for-java">Functions for Java</a><ul class="toc-headings"><li><a href="#getting-started">Getting started</a></li><li><a href="#java-native-functions">Java native functions</a></li><li><a href="#java-sdk-functions">Java SDK functions</a></li><li><a href="#java-context-object">Java context object</a></li><li><a href="#void-functions">Void functions</a></li><li><a href="#java-serde">Java SerDe</a></li><li><a href="#java-logging">Java logging</a></li><li><a href="#java-user-config">Java user config</a></li><li><a href="#java-metrics">Java metrics</a></li></ul></li><li><a href="#functions-for-python">Functions for Python</a><ul class="toc-headings"><li><a href="#getting-started-1">Getting started</a></li><li><a href="#packaging-1">Packaging</a></li><li><a href="#python-native-functions">Python native functions</a></li><li><a href="#python-sdk-functions">Python SDK functions</a></li><li><a href="#python-serde">Python SerDe</a></li><li><a href="#python-logging">Python logging</a></li><li><a href="#python-user-config">Python user config</a></li><li><a href="#python-metrics">Python metrics</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/functions-quickstart">← Getting started with Pulsar Functions</a><a class="docs-next button" href="/docs/en/next/functions-deploying">Deploying and managing Pulsar Functions →</a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#core-programming-model">Core programming model</a><ul class="toc-headings"><li><a href="#example-function">Example function</a></li><li><a href="#example-deployment">Example deployment</a></li><li><a href="#available-apis">Available APIs</a></li><li><a href="#functions-messages-and-message-types">Functions, Messages and Message Types</a></li><li><a href="#schema-registry">Schema Registry</a></li><li><a href="#serde">SerDe</a></li><li><a href="#context">Context</a></li><li><a href="#user-config">User config</a></li></ul></li><li><a href="#functions-for-java">Functions for Java</a><ul class="toc-headings"><li><a href="#getting-started">Getting started</a></li><li><a href="#java-native-functions">Java native functions</a></li><li><a href="#java-sdk-functions">Java SDK functions</a></li><li><a href="#java-context-object">Java context object</a></li><li><a href="#void-functions">Void functions</a></li><li><a href="#java-serde">Java SerDe</a></li><li><a href="#java-logging">Java logging</a></li><li><a href="#java-user-config">Java user config</a></li><li><a href="#java-metrics">Java metrics</a></li></ul></li><li><a href="#functions-for-python">Functions for Python</a><ul class="toc-headings"><li><a href="#getting-started-1">Getting started</a></li><li><a href="#packaging-1">Packaging</a></li><li><a href="#python-native-functions">Python native functions</a></li><li><a href="#python-sdk-functions">Python SDK functions</a></li><li><a href="#python-serde">Python SerDe</a></li><li><a href="#python-logging">Python logging</a></li><li><a href="#python-user-config">Python user config</a></li><li><a href="#python-metrics">Python metrics</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -645,6 +650,7 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
         '<div id="community-dropdown" class="hide">' +
           '<ul id="community-dropdown-items">' +
             '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
             '<li><a href="/en/events">Events</a></li>' +
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +

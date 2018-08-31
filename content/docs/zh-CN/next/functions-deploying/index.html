@@ -80,7 +80,7 @@
 <tr><th style="text-align:left">Parameter</th><th style="text-align:left">Default</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">Function name</td><td style="text-align:left">Whichever value is specified for the class name (minus org, library, etc.). The flag <code>--className org.example.MyFunction</code>, for example, would give the function a name of <code>MyFunction</code>.</td></tr>
+<tr><td style="text-align:left">Function name</td><td style="text-align:left">Whichever value is specified for the class name (minus org, library, etc.). The flag <code>--classname org.example.MyFunction</code>, for example, would give the function a name of <code>MyFunction</code>.</td></tr>
 <tr><td style="text-align:left">Tenant</td><td style="text-align:left">Derived from the input topics' names. If the input topics are under the <code>marketing</code> tenant---i.e. the topic names have the form <code>persistent://marketing/{namespace}/{topicName}</code>---then the tenant will be <code>marketing</code>.</td></tr>
 <tr><td style="text-align:left">Namespace</td><td style="text-align:left">Derived from the input topics' names. If the input topics are under the <code>asia</code> namespace under the <code>marketing</code> tenant---i.e. the topic names have the form <code>persistent://marketing/asia/{topicName}</code>, then the namespace will be <code>asia</code>.</td></tr>
 <tr><td style="text-align:left">Output topic</td><td style="text-align:left"><code>{input topic}-{function name}-output</code>. A function with an input topic name of <code>incoming</code> and a function name of <code>exclamation</code>, for example, would have an output topic of <code>incoming-exclamation-output</code>.</td></tr>
@@ -93,7 +93,7 @@
 <p>Take this <code>create</code> command:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar my-pulsar-functions.jar \
-  --className org.example.MyFunction \
+  --classname org.example.MyFunction \
   --inputs my-function-input-topic1,my-function-input-topic2
 </code></pre>
 <p>The created function would have default values supplied for the function name (<code>MyFunction</code>), tenant (<code>public</code>), namespace (<code>default</code>), subscription type (<code>SHARED</code>), processing guarantees (<code>ATLEAST_ONCE</code>), and Pulsar service URL (<code>pulsar://localhost:6650</code>).</p>
@@ -101,20 +101,20 @@
 <p>If you run a Pulsar Function in <strong>local run</strong> mode, it will run on the machine from which the command is run (this could be your laptop, an <a href="https://aws.amazon.com/ec2/">AWS EC2</a> instance, etc.). Here's an example <a href="/docs/zh-CN/next/pulsar-admin#localrun"><code>localrun</code></a> command:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 </code></pre>
 <p>By default, the function will connect to a Pulsar cluster running on the same machine, via a local <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a> service URL of <code>pulsar://localhost:6650</code>. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the <code>--brokerServiceUrl</code> flag. Here's an example:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
-  --brokerServiceUrl pulsar://my-cluster-host:6650 \
+  --broker-service-url pulsar://my-cluster-host:6650 \
   <span class="hljs-comment"># Other function parameters</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="cluster-mode"></a><a href="#cluster-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cluster mode</h2>
 <p>When you run a Pulsar Function in <strong>cluster mode</strong>, the function code will be uploaded to a Pulsar broker and run <em>alongside the broker</em> rather than in your <a href="#local-run-mode">local environment</a>. You can run a function in cluster mode using the <a href="/docs/zh-CN/next/pulsar-admin#create-1"><code>create</code></a> command. Here's an example:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 </code></pre>
@@ -122,7 +122,7 @@
 <p>You can use the <a href="/docs/zh-CN/next/pulsar-admin#update-1"><code>update</code></a> command to update a Pulsar Function running in cluster mode. This command, for example, would update the function created in the section <a href="#cluster-mode">above</a>:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> update \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/new-input-topic \
   --output persistent://public/default/new-output-topic
 </code></pre>
@@ -148,7 +148,7 @@
 </code></pre>
 <p>And here's the corresponding update command:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> update \
-  --functionConfigFile <span class="hljs-keyword">function</span>-config.yaml
+  --<span class="hljs-keyword">function</span>-config-file <span class="hljs-keyword">function</span>-config.yaml
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="function-instance-resources"></a><a href="#function-instance-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function instance resources</h3>
 <p>When you run Pulsar Functions in <a href="#cluster-mode">cluster run</a> mode, you can specify the resources that are assigned to each function <a href="#parallelism">instance</a>:</p>
@@ -165,7 +165,7 @@
 <p>Here's an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar target/my-functions.jar \
-  --className org.example.functions.MyFunction \
+  --classname org.example.functions.MyFunction \
   --cpu 8 \
   --ram 8589934592 \
   --disk 10737418240
@@ -190,7 +190,7 @@
   --namespace default \
   --name myfunc \
   --py myfunc.py \
-  --className myfunc \
+  --classname myfunc \
   --inputs persistent://public/default/<span class="hljs-keyword">in</span> \
   --output persistent://public/default/out
 </code></pre>
@@ -204,7 +204,7 @@
   --tenant public \
   --namespace default \
   --name myfunc \
-  --triggerValue <span class="hljs-string">"hello world"</span>
+  --trigger-value <span class="hljs-string">"hello world"</span>
 </code></pre>
 <p>The consumer listening on the output topic should then produce this in its logs:</p>
 <pre><code class="hljs">----- got message -----
@@ -222,6 +222,7 @@ This function has been triggered with a value of hello world
         '<div id="community-dropdown" class="hide">' +
           '<ul id="community-dropdown-items">' +
             '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
             '<li><a href="/zh-CN/events">Events</a></li>' +
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +

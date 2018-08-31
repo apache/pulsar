@@ -205,7 +205,7 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
     --namespace default \
     --name cassandra-test-sink \
     --sink-type cassandra \
-    --sinkConfigFile examples/cassandra-sink.yml \
+    --sink-config-file examples/cassandra-sink.yml \
     --inputs test_cassandra
 </code></pre>
 <p>Once the command is executed, Pulsar will create a sink connector named <code>cassandra-test-sink</code> and the sink connector will be running as a Pulsar Function and write the messages produced in topic <code>test_cassandra</code> to Cassandra table <code>pulsar_test_table</code>.</p>
@@ -340,6 +340,7 @@ cqlsh:pulsar_test_keyspace&gt; select * from pulsar_test_table;
         '<div id="community-dropdown" class="hide">' +
           '<ul id="community-dropdown-items">' +
             '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
             '<li><a href="/zh-CN/events">Events</a></li>' +
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +

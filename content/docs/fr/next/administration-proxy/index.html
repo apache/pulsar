@@ -86,7 +86,7 @@ $ bin/pulsar proxy \
 <tr><td>superUserRoles</td><td>Role names that are treated as “super-users,” meaning that they will be able to perform all admin</td><td></td></tr>
 <tr><td>forwardAuthorizationCredentials</td><td>Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.</td><td>false</td></tr>
 <tr><td>maxConcurrentInboundConnections</td><td>Max concurrent inbound connections. The proxy will reject requests beyond that.</td><td>10000</td></tr>
-<tr><td>maxConcurrentLookupRequests</td><td>Max concurrent outbound connections. The proxy will error out requests beyond that.</td><td>10000</td></tr>
+<tr><td>maxConcurrentLookupRequests</td><td>Max concurrent outbound connections. The proxy will error out requests beyond that.</td><td>50000</td></tr>
 <tr><td>tlsEnabledInProxy</td><td>Whether TLS is enabled for the proxy</td><td>false</td></tr>
 <tr><td>tlsEnabledWithBroker</td><td>Whether TLS is enabled when communicating with Pulsar brokers</td><td>false</td></tr>
 <tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file</td><td></td></tr>
@@ -104,6 +104,7 @@ $ bin/pulsar proxy \
         '<div id="community-dropdown" class="hide">' +
           '<ul id="community-dropdown-items">' +
             '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
             '<li><a href="/fr/events">Events</a></li>' +
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +

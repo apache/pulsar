@@ -181,7 +181,7 @@
 <tr><td>tlsAllowInsecureConnection</td><td>Accept untrusted TLS certificate from client</td><td>false</td></tr>
 <tr><td>maxUnackedMessagesPerConsumer</td><td>Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction</td><td>50000</td></tr>
 <tr><td>maxUnackedMessagesPerSubscription</td><td>Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction</td><td>200000</td></tr>
-<tr><td>maxConcurrentLookupRequest</td><td>Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic</td><td>10000</td></tr>
+<tr><td>maxConcurrentLookupRequest</td><td>Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic</td><td>50000</td></tr>
 <tr><td>maxConcurrentTopicLoadRequest</td><td>Max number of concurrent topic loading request broker allows to control number of zk-operations</td><td>5000</td></tr>
 <tr><td>authenticationEnabled</td><td>Enable authentication</td><td>false</td></tr>
 <tr><td>authenticationProviders</td><td>Autentication provider name list, which is comma separated list of class names</td><td></td></tr>
@@ -469,7 +469,7 @@
 <tr><td>superUserRoles</td><td>Role names that are treated as “super-users,” meaning that they will be able to perform all admin</td><td></td></tr>
 <tr><td>forwardAuthorizationCredentials</td><td>Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.</td><td>false</td></tr>
 <tr><td>maxConcurrentInboundConnections</td><td>Max concurrent inbound connections. The proxy will reject requests beyond that.</td><td>10000</td></tr>
-<tr><td>maxConcurrentLookupRequests</td><td>Max concurrent outbound connections. The proxy will error out requests beyond that.</td><td>10000</td></tr>
+<tr><td>maxConcurrentLookupRequests</td><td>Max concurrent outbound connections. The proxy will error out requests beyond that.</td><td>50000</td></tr>
 <tr><td>tlsEnabledInProxy</td><td>Whether TLS is enabled for the proxy</td><td>false</td></tr>
 <tr><td>tlsEnabledWithBroker</td><td>Whether TLS is enabled when communicating with Pulsar brokers</td><td>false</td></tr>
 <tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file</td><td></td></tr>
@@ -513,6 +513,7 @@ server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.
         '<div id="community-dropdown" class="hide">' +
           '<ul id="community-dropdown-items">' +
             '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
             '<li><a href="/en/events">Events</a></li>' +
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +

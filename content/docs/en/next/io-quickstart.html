@@ -214,7 +214,7 @@ Pulsar IO will be using for writing Pulsar messages to.</p>
     --namespace default \
     --name cassandra-test-sink \
     --sink-type cassandra \
-    --sinkConfigFile examples/cassandra-sink.yml \
+    --sink-config-file examples/cassandra-sink.yml \
     --inputs test_cassandra
 </code></pre>
 <p>Once the command is executed, Pulsar will create a sink connector named <code>cassandra-test-sink</code> and the sink connector will be running
@@ -351,6 +351,7 @@ cqlsh:pulsar_test_keyspace&gt; select * from pulsar_test_table;
         '<div id="community-dropdown" class="hide">' +
           '<ul id="community-dropdown-items">' +
             '<li><a href="/en/contact">Contact</a></li>' +
+            '<li><a href="/en/contributing">Contributing</a></li>' +
             '<li><a href="/en/events">Events</a></li>' +
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
