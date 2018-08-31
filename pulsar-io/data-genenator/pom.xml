@@ -20,25 +20,38 @@
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <packaging>pom</packaging>
-  <parent>
-    <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar</artifactId>
-    <version>2.2.0-incubating-SNAPSHOT</version>
-  </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.apache.pulsar</groupId>
+        <artifactId>pulsar-io</artifactId>
+        <version>2.2.0-incubating-SNAPSHOT</version>
+    </parent>
 
-  <artifactId>pulsar-io</artifactId>
-  <name>Pulsar IO :: Parent</name>
+    <artifactId>pulsar-io-data-generator</artifactId>
+    <name>Pulsar IO :: Data Generator</name>
 
-  <modules>
-    <module>core</module>
-    <module>twitter</module>
-    <module>cassandra</module>
-    <module>kafka</module>
-    <module>rabbitmq</module>
-    <module>kinesis</module>
-    <module>data-genenator</module>
-  </modules>
+    <dependencies>
 
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-io-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.codearte.jfairy</groupId>
+            <artifactId>jfairy</artifactId>
+            <version>0.5.9</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-nar-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>
