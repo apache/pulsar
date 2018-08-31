@@ -498,7 +498,6 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
                 "create",
                 "--inputs", inputTopicName,
-                "--skip-output",
                 "--jar", "SomeJar.jar",
                 "--tenant", "sample",
                 "--namespace", "ns1",
