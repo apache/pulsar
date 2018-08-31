@@ -71,7 +71,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testSink(new CassandraSinkTester());
     }
     
-    @Test
+    @Test(enabled = false)
     public void testHdfsSink() throws Exception {
     	testSink(new HdfsSinkTester());
     }
