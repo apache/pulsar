@@ -310,6 +310,7 @@ Options
 |`--broker-service-url `|The URL of the Pulsar broker||
 |`--classname`|The name of the function’s class||
 |`--custom-serde-inputs`|A map of the input topic to SerDe name||
+|`--custom-schema-inputs`|A map of the input topic to Schema class name||
 |`--client-auth-params`|Client Authentication Params||
 |`--function-config-file`|The path of the YAML config file used to configure the function||
 |`--hostname-verification-enabled`|Enable Hostname verification||
@@ -353,6 +354,7 @@ Options
 |`--auto-ack`|Let the functions framework manage acking||
 |`--classname`|The name of the function’s class||
 |`--custom-serde-inputs`|A map of the input topic to SerDe name||
+|`--custom-schema-inputs`|A map of the input topic to Schema class name||
 |`--function-config-file`|The path of the YAML config file used to configure the function||
 |`--inputs`|The input topics for the function (as a comma-separated list if more than one topic is desired)||
 |`--log-topic`|The topic to which logs from this function are published||
@@ -409,6 +411,7 @@ Options
 |`--auto-ack`|Let the functions framework manage acking||
 |`--classname`|The name of the function’s class||
 |`--custom-serde-inputs`|A map of the input topic to SerDe name||
+|`--custom-schema-inputs`|A map of the input topic to Schema class name||
 |`--function-config-file`|The path of the YAML config file used to configure the function||
 |`--inputs`|The input topics for the function (as a comma-separated list if more than one topic is desired)||
 |`--log-topic`|The topic to which logs from this function are published||

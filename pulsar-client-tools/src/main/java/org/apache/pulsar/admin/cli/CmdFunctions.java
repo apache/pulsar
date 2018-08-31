@@ -254,6 +254,8 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_customSerdeInputString;
         @Parameter(names = "--custom-serde-inputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
+        @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema class names (as a JSON string)")
+        protected String customSchemaInputString;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String DEPRECATED_outputSerdeClassName;
@@ -309,8 +311,8 @@ public class CmdFunctions extends CmdBase {
         // for backwards compatibility purposes
         @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages", hidden = true)
         protected Boolean DEPRECATED_autoAck = null;
-        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages")
-        protected Boolean autoAck ;
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
+        protected boolean autoAck = true;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
         protected Long DEPRECATED_timeoutMs;
@@ -374,6 +376,11 @@ public class CmdFunctions extends CmdBase {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
                 functionConfig.setCustomSerdeInputs(customSerdeInputMap);
+            }
+            if (null != customSchemaInputString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> customschemaInputMap = new Gson().fromJson(customSchemaInputString, type);
+                functionConfig.setCustomSchemaInputs(customschemaInputMap);
             }
             if (null != topicsPattern) {
                 functionConfig.setTopicsPattern(topicsPattern);
@@ -448,11 +455,7 @@ public class CmdFunctions extends CmdBase {
 
             functionConfig.setWindowConfig(windowConfig);
 
-            if  (null != autoAck) {
-                functionConfig.setAutoAck(autoAck);
-            } else {
-                functionConfig.setAutoAck(true);
-            }
+            functionConfig.setAutoAck(autoAck);
 
             if (null != jarFile) {
                 functionConfig.setJar(jarFile);
@@ -562,7 +565,7 @@ public class CmdFunctions extends CmdBase {
                 WindowUtils.inferDefaultConfigs(windowConfig);
                 // set auto ack to false since windowing framework is responsible
                 // for acking and not the function framework
-                if (autoAck != null && autoAck == true) {
+                if (autoAck) {
                     throw new ParameterException("Cannot enable auto ack when using windowing functionality");
                 }
                 functionConfig.setAutoAck(false);
