@@ -246,12 +246,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void loadJars() throws Exception {
 
-        if (jarFile.endsWith(".nar")) {
-            // The functions code is contained in a NAR archive
+        try {
+            // Let's first try to treat it as a nar archive
             fnCache.registerFunctionInstanceWithArchive(instanceConfig.getFunctionId(), instanceConfig.getInstanceId(),
                     jarFile);
-        } else {
-            log.info("Loading JAR files for function {} from archive {}", instanceConfig, jarFile);
+        } catch (Exception e) {
+            log.info("For Function {} Loading as NAR failed with {}; treating it as Jar instead", instanceConfig, e);
             // create the function class loader
             fnCache.registerFunctionInstance(
                     instanceConfig.getFunctionId(),
