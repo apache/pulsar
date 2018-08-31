@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.suites;
 
 import java.util.Map;
 import org.apache.pulsar.tests.integration.containers.CassandraContainer;
+import org.apache.pulsar.tests.integration.containers.HdfsContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec.PulsarClusterSpecBuilder;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.GenericContainer;
@@ -64,6 +65,12 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
         externalServices.put(
             cassandraServiceName,
             new CassandraContainer(clusterName));
+        
+        final String hdfsServiceName = "HDFS";
+        externalServices.put(
+                hdfsServiceName,
+            new HdfsContainer(clusterName));
+        
         builder = builder.externalServices(externalServices);
 
         return builder;
