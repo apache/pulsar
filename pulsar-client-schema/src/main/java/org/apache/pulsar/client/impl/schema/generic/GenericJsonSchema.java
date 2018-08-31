@@ -21,11 +21,9 @@ package org.apache.pulsar.client.impl.schema.generic;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.util.Map;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -47,7 +45,7 @@ class GenericJsonSchema extends GenericSchema {
         checkArgument(message instanceof GenericAvroRecord);
         GenericJsonRecord gjr = (GenericJsonRecord) message;
         try {
-            return objectMapper.writeValueAsBytes(gjr.asJson());
+            return objectMapper.writeValueAsBytes(gjr.getJsonNode().toString());
         } catch (IOException ioe) {
             throw new RuntimeException(new SchemaSerializationException(ioe));
         }
@@ -56,8 +54,8 @@ class GenericJsonSchema extends GenericSchema {
     @Override
     public GenericRecord decode(byte[] bytes) {
         try {
-            Map<String, Object> values = objectMapper.readValue(new String(bytes, UTF_8), Map.class);
-            return new GenericJsonRecord(fields, values);
+            JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
+            return new GenericJsonRecord(fields, jn);
         } catch (IOException ioe) {
             throw new RuntimeException(new SchemaSerializationException(ioe));
         }

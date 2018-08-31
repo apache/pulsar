@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.Lists;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.schema.Field;
@@ -31,16 +32,16 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 class GenericJsonRecord implements GenericRecord {
 
     private final List<Field> fields;
-    private final Map<String, Object> values;
+    private final JsonNode jn;
 
     GenericJsonRecord(List<Field> fields,
-                      Map<String, Object> values) {
+                      JsonNode jn) {
         this.fields = fields;
-        this.values = values;
+        this.jn = jn;
     }
 
-    Map<String, Object> asJson() {
-        return values;
+    JsonNode getJsonNode() {
+        return jn;
     }
 
     @Override
@@ -50,16 +51,24 @@ class GenericJsonRecord implements GenericRecord {
 
     @Override
     public Object getField(String fieldName) {
-        Object obj = values.get(fieldName);
-        if (obj instanceof Map) {
-            Map<String, Object> objValues = (Map<String, Object>) obj;
+        JsonNode fn = jn.get(fieldName);
+        if (fn.isContainerNode()) {
             AtomicInteger idx = new AtomicInteger(0);
-            List<Field> fields = objValues.keySet()
+            List<Field> fields = Lists.newArrayList(fn.fieldNames())
                 .stream()
                 .map(f -> new Field(f, idx.getAndIncrement()))
                 .collect(Collectors.toList());
-            return new GenericJsonRecord(fields, objValues);
+            return new GenericJsonRecord(fields, fn);
+        } else if (fn.isBoolean()) {
+            return fn.asBoolean();
+        } else if (fn.isInt()) {
+            return fn.asInt();
+        } else if (fn.isFloatingPointNumber()) {
+            return fn.asDouble();
+        } else if (fn.isDouble()) {
+            return fn.asDouble();
+        } else {
+            return fn.asText();
         }
-        return obj;
     }
 }
