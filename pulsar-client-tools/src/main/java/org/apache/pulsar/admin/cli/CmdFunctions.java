@@ -24,6 +24,7 @@ import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
@@ -238,10 +239,8 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)")
         protected String topicsPattern;
 
-        @Parameter(names = {"-o", "--output"}, description = "The function's output topic (use skipOutput flag to skip output topic)")
+        @Parameter(names = {"-o", "--output"}, description = "The function's output topic (If none is specified, no output is written)")
         protected String output;
-        @Parameter(names = "--skip-output", description = "Skip publishing function output to output topic")
-        protected boolean skipOutput;
         // for backwards compatibility purposes
         @Parameter(names = "--logTopic", description = "The topic to which the function's logs are produced", hidden = true)
         protected String DEPRECATED_logTopic;
@@ -256,6 +255,8 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_customSerdeInputString;
         @Parameter(names = "--custom-serde-inputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
+        @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema class names (as a JSON string)")
+        protected String customSchemaInputString;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String DEPRECATED_outputSerdeClassName;
@@ -280,6 +281,8 @@ public class CmdFunctions extends CmdBase {
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
         protected boolean retainOrdering;
+        @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
+        protected String subsName;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
@@ -311,8 +314,8 @@ public class CmdFunctions extends CmdBase {
         // for backwards compatibility purposes
         @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages", hidden = true)
         protected Boolean DEPRECATED_autoAck = null;
-        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages")
-        protected Boolean autoAck ;
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
+        protected boolean autoAck = true;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
         protected Long DEPRECATED_timeoutMs;
@@ -377,13 +380,17 @@ public class CmdFunctions extends CmdBase {
                 Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
                 functionConfig.setCustomSerdeInputs(customSerdeInputMap);
             }
+            if (null != customSchemaInputString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> customschemaInputMap = new Gson().fromJson(customSchemaInputString, type);
+                functionConfig.setCustomSchemaInputs(customschemaInputMap);
+            }
             if (null != topicsPattern) {
                 functionConfig.setTopicsPattern(topicsPattern);
             }
             if (null != output) {
                 functionConfig.setOutput(output);
             }
-            functionConfig.setSkipOutput(skipOutput);
             if (null != logTopic) {
                 functionConfig.setLogTopic(logTopic);
             }
@@ -402,6 +409,10 @@ public class CmdFunctions extends CmdBase {
             }
 
             functionConfig.setRetainOrdering(retainOrdering);
+            
+            if (isNotBlank(subsName)) {
+                functionConfig.setSubName(subsName);
+            }
 
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
@@ -451,11 +462,7 @@ public class CmdFunctions extends CmdBase {
 
             functionConfig.setWindowConfig(windowConfig);
 
-            if  (null != autoAck) {
-                functionConfig.setAutoAck(autoAck);
-            } else {
-                functionConfig.setAutoAck(true);
-            }
+            functionConfig.setAutoAck(autoAck);
 
             if (null != jarFile) {
                 functionConfig.setJar(jarFile);
@@ -476,11 +483,6 @@ public class CmdFunctions extends CmdBase {
         }
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
-
-            if (isBlank(functionConfig.getOutput()) && !functionConfig.isSkipOutput()) {
-                throw new ParameterException(
-                        "output topic is not present (pass skipOutput flag to skip publish output on topic)");
-            }
 
             if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"
@@ -570,7 +572,7 @@ public class CmdFunctions extends CmdBase {
                 WindowUtils.inferDefaultConfigs(windowConfig);
                 // set auto ack to false since windowing framework is responsible
                 // for acking and not the function framework
-                if (autoAck != null && autoAck == true) {
+                if (autoAck) {
                     throw new ParameterException("Cannot enable auto ack when using windowing functionality");
                 }
                 functionConfig.setAutoAck(false);
@@ -671,6 +673,10 @@ public class CmdFunctions extends CmdBase {
                             ? SubscriptionType.FAILOVER
                             : SubscriptionType.SHARED;
             sourceSpecBuilder.setSubscriptionType(subType);
+            
+            if (isNotBlank(functionConfig.getSubName())) {
+                sourceSpecBuilder.setSubscriptionName(functionConfig.getSubName());
+            }
 
             if (typeArgs != null) {
                 sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
@@ -770,7 +776,7 @@ public class CmdFunctions extends CmdBase {
         // for backwards compatibility purposes
         @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service (by default Apache BookKeeper)", hidden = true)
         protected String DEPRECATED_stateStorageServiceUrl;
-        @Parameter(names = "--state-storag-service-url", description = "The URL for the state storage service (by default Apache BookKeeper)")
+        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service (by default Apache BookKeeper)")
         protected String stateStorageServiceUrl;
         // for backwards compatibility purposes
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)

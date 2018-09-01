@@ -29,18 +29,19 @@ class Team extends React.Component {
             </header>
             <p>
             <translate>
-              A successful project requires many people to play many roles.
-              Some members write code or documentation, while others are valuable as testers,
-              submitting patches and suggestions.
+              A successful project requires many people to play many roles. Some write
+              code or documentation, while others are valuable as testers, submitting
+              patches and suggestions.
             </translate>
             </p>
             <p>
             <translate>
-              The team is comprised of Members and Contributors.
-              Members have direct access to the source of a project and actively evolve the codebase.
-              Contributors improve the project through submission of patches and
-              suggestions to the Members. The number of Contributors to the project is unbounded.
-              Get involved today. All contributions to the project are greatly appreciated.
+              The team is comprised of PMC members, Committers and Contributors.
+              Committers have direct access to the source of a project and actively
+              evolve the codebase. Contributors improve the project through submission of
+              patches and suggestions to be reviewed by the Committers. The number of
+              Committers and Contributors to the project is unbounded. Get involved
+              today. All contributions to the project are greatly appreciated.
             </translate>
             </p>
 

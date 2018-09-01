@@ -134,6 +134,9 @@ void pulsar_producer_configuration_set_batching_max_publish_delay_ms(pulsar_prod
 unsigned long pulsar_producer_configuration_get_batching_max_publish_delay_ms(
     pulsar_producer_configuration_t *conf);
 
+void pulsar_producer_configuration_set_property(pulsar_producer_configuration_t *conf, const char *name,
+                                                const char *value);
+
 // const CryptoKeyReaderPtr getCryptoKeyReader() const;
 // ProducerConfiguration &setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
 //

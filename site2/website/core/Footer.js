@@ -122,6 +122,7 @@ class Footer extends React.Component {
     const issuesUrl = 'https://github.com/apache/incubator-pulsar/issues'
     const resourcesUrl = this.pageUrl('resources', this.props.language)
     const teamUrl = this.pageUrl('team', this.props.language)
+    const contributingUrl = this.pageUrl('contributing', this.props.language)
 
     const communityMenuJs = `
       const community = document.querySelector("a[href='#community']").parentNode;
@@ -131,6 +132,7 @@ class Footer extends React.Component {
         '<div id="community-dropdown" class="hide">' +
           '<ul id="community-dropdown-items">' +
             '<li><a href="${contactUrl}">Contact</a></li>' +
+            '<li><a href="${contributingUrl}">Contributing</a></li>' +
             '<li><a href="${eventsUrl}">Events</a></li>' +
             '<li><a href="${twitterUrl}" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="${wikiUrl}" target="_blank">Wiki &#x2750</a></li>' +

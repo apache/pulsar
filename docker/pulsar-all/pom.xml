@@ -40,6 +40,14 @@
       <type>tar.gz</type>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-offloader-distribution</artifactId>
+      <version>${project.parent.version}</version>
+      <classifier>bin</classifier>
+      <type>tar.gz</type>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <profiles>
@@ -69,6 +77,18 @@
                 <configuration>
                   <outputDirectory>${project.build.directory}/</outputDirectory>
                   <includeArtifactIds>pulsar-io-distribution</includeArtifactIds>
+                  <excludeTransitive>true</excludeTransitive>
+                </configuration>
+              </execution>
+              <execution>
+                <id>copy-offloader-tarball</id>
+                <goals>
+                  <goal>copy-dependencies</goal>
+                </goals>
+                <phase>generate-resources</phase>
+                <configuration>
+                  <outputDirectory>${project.build.directory}/</outputDirectory>
+                  <includeArtifactIds>pulsar-offloader-distribution</includeArtifactIds>
                   <excludeTransitive>true</excludeTransitive>
                 </configuration>
               </execution>
@@ -103,6 +123,7 @@
               <tag>${project.version}</tag>
               <buildArgs>
                 <PULSAR_IO_TARBALL>target/pulsar-io-distribution-${project.version}-bin.tar.gz</PULSAR_IO_TARBALL>
+                <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
               </buildArgs>
             </configuration>
           </plugin>

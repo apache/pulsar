@@ -321,7 +321,7 @@ elif [ $COMMAND == "compact-topic" ]; then
 elif [ $COMMAND == "sql" ]; then
     exec $JAVA -cp "${PRESTO_HOME}/lib/*" com.facebook.presto.cli.Presto --server localhost:8081 $@
 elif [ $COMMAND == "sql-worker" ]; then
-    exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} run $@
+    exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} $@
 elif [ $COMMAND == "help" ]; then
     pulsar_help;
 else
