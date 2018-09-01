@@ -27,6 +27,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.AutoSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.GenericAvroSchema;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -115,11 +116,29 @@ public class AvroSchemaTest {
     @Test
     public void testEncodeAndDecodeGenericRecord() {
         AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, null);
+        GenericAvroSchema genericAvroSchema = new GenericAvroSchema(avroSchema.getSchemaInfo());
+
+        log.info("Avro Schema : {}", genericAvroSchema.getAvroSchema());
+
+        testGenericSchema(avroSchema, genericAvroSchema);
+    }
+
+    @Test
+    public void testAutoSchema() {
+        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, null);
 
         GenericAvroSchema genericAvroSchema = new GenericAvroSchema(avroSchema.getSchemaInfo());
 
         log.info("Avro Schema : {}", genericAvroSchema.getAvroSchema());
 
+        AutoSchema schema = new AutoSchema();
+        schema.setSchema(genericAvroSchema);
+
+        testGenericSchema(avroSchema, schema);
+    }
+
+    private void testGenericSchema(AvroSchema<Foo> avroSchema,
+                                   org.apache.pulsar.client.api.Schema<GenericRecord> genericRecordSchema) {
         int numRecords = 10;
         for (int i = 0; i < numRecords; i++) {
             Foo foo = new Foo();
@@ -132,7 +151,7 @@ public class AvroSchemaTest {
 
             byte[] data = avroSchema.encode(foo);
 
-            GenericRecord record = genericAvroSchema.decode(data);
+            GenericRecord record = genericRecordSchema.decode(data);
             Object field1 = record.getField("field1");
             assertEquals("field-1-" + i, field1, "Field 1 is " + field1.getClass());
             Object field2 = record.getField("field2");
