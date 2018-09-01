@@ -71,7 +71,7 @@ $ pulsar-admin tenants get my-tenant
 
 ### Delete
 
-#### pulsar-adnin
+#### pulsar-admin
 
 You can delete a tenant using the [`delete`](reference-pulsar-admin.md#tenants-delete) subcommand and specifying the tenant name:
 
