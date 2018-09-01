@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
@@ -439,5 +440,99 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                 .toString();
         }
     }
+
+    @Test
+    public void testAvroProducerAndAutoSchemaConsumer() throws Exception {
+       log.info("-- Starting {} test --", methodName);
+
+       AvroSchema<AvroEncodedPojo> avroSchema =
+           AvroSchema.of(AvroEncodedPojo.class);
+
+       Producer<AvroEncodedPojo> producer = pulsarClient
+           .newProducer(avroSchema)
+           .topic("persistent://my-property/use/my-ns/my-topic1")
+           .create();
+
+       for (int i = 0; i < 10; i++) {
+           String message = "my-message-" + i;
+           producer.send(new AvroEncodedPojo(message));
+       }
+
+       Consumer<GenericRecord> consumer = pulsarClient
+           .newConsumer(Schema.AUTO())
+           .topic("persistent://my-property/use/my-ns/my-topic1")
+           .subscriptionName("my-subscriber-name")
+           .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+           .subscribe();
+
+       Message<GenericRecord> msg = null;
+       Set<String> messageSet = Sets.newHashSet();
+       for (int i = 0; i < 10; i++) {
+           msg = consumer.receive(5, TimeUnit.SECONDS);
+           GenericRecord receivedMessage = msg.getValue();
+           log.debug("Received message: [{}]", receivedMessage);
+           String expectedMessage = "my-message-" + i;
+           String actualMessage = (String) receivedMessage.getField("message");
+           testMessageOrderAndDuplicates(messageSet, actualMessage, expectedMessage);
+       }
+       // Acknowledge the consumption of all messages at once
+       consumer.acknowledgeCumulative(msg);
+       consumer.close();
+
+       SchemaRegistry.SchemaAndMetadata storedSchema = pulsar.getSchemaRegistryService()
+           .getSchema("my-property/my-ns/my-topic1")
+           .get();
+
+       Assert.assertEquals(storedSchema.schema.getData(), avroSchema.getSchemaInfo().getSchema());
+
+       log.info("-- Exiting {} test --", methodName);
+
+   }
+
+   @Test
+    public void testAvroProducerAndAutoSchemaReader() throws Exception {
+       log.info("-- Starting {} test --", methodName);
+
+       AvroSchema<AvroEncodedPojo> avroSchema =
+           AvroSchema.of(AvroEncodedPojo.class);
+
+       Producer<AvroEncodedPojo> producer = pulsarClient
+           .newProducer(avroSchema)
+           .topic("persistent://my-property/use/my-ns/my-topic1")
+           .create();
+
+       for (int i = 0; i < 10; i++) {
+           String message = "my-message-" + i;
+           producer.send(new AvroEncodedPojo(message));
+       }
+
+       Reader<GenericRecord> reader = pulsarClient
+           .newReader(Schema.AUTO())
+           .topic("persistent://my-property/use/my-ns/my-topic1")
+           .startMessageId(MessageId.earliest)
+           .create();
+
+       Message<GenericRecord> msg = null;
+       Set<String> messageSet = Sets.newHashSet();
+       for (int i = 0; i < 10; i++) {
+           msg = reader.readNext();
+           GenericRecord receivedMessage = msg.getValue();
+           log.debug("Received message: [{}]", receivedMessage);
+           String expectedMessage = "my-message-" + i;
+           String actualMessage = (String) receivedMessage.getField("message");
+           testMessageOrderAndDuplicates(messageSet, actualMessage, expectedMessage);
+       }
+       // Acknowledge the consumption of all messages at once
+       reader.close();
+
+       SchemaRegistry.SchemaAndMetadata storedSchema = pulsar.getSchemaRegistryService()
+           .getSchema("my-property/my-ns/my-topic1")
+           .get();
+
+       Assert.assertEquals(storedSchema.schema.getData(), avroSchema.getSchemaInfo().getSchema());
+
+       log.info("-- Exiting {} test --", methodName);
+
+   }
 
 }

@@ -64,6 +64,10 @@ type ConsumerOptions struct {
 	// This argument is required when subscribing
 	SubscriptionName string
 
+	// Attach a set of application defined properties to the consumer
+	// This properties will be visible in the topic stats
+	Properties map[string]string
+
 	// Set the timeout for unacked messages
 	// Message not acknowledged within the give time, will be replayed by the broker to the same or a different consumer
 	// Default is 0, which means message are not being replayed based on ack time
