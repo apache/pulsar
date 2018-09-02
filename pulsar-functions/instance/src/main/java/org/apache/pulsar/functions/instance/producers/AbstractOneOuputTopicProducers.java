@@ -54,23 +54,20 @@ public abstract class AbstractOneOuputTopicProducers<T> implements Producers<T> 
                 .messageRouter(FunctionResultRouter.of());
     }
 
-    protected Producer<T> createProducer(String topic, Schema<T> schema)
+    protected Producer<T> createProducerWithProducerName(String topic, String producerName, Schema<T> schema, String fqfn)
             throws PulsarClientException {
-        return createProducer(client, topic, schema);
+        return createProducer(client, topic, producerName, schema, fqfn);
     }
 
-    public static <T> Producer<T> createProducer(PulsarClient client, String topic, Schema<T> schema)
+    public static <T> Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema, String fqfn)
             throws PulsarClientException {
-        return newProducerBuilder(client, schema).topic(topic).create();
-    }
+        ProducerBuilder<T> builder = newProducerBuilder(client, schema).topic(topic);
+        if (producerName != null) {
+            builder.producerName(producerName);
+        }
 
-    protected Producer<T> createProducer(String topic, String producerName, Schema<T> schema)
-            throws PulsarClientException {
-        return createProducer(client, topic, schema, producerName);
-    }
-
-    public static <T> Producer<T> createProducer(PulsarClient client, String topic, Schema<T> schema, String producerName)
-            throws PulsarClientException {
-        return newProducerBuilder(client, schema).topic(topic).producerName(producerName).create();
+        return builder
+                .property("application", "pulsarfunction")
+                .property("fqfn", fqfn).create();
     }
 }

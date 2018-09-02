@@ -61,7 +61,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String pulsarWebServiceUrl;
     private String clusterCoordinationTopicName;
     private String pulsarFunctionsNamespace;
-    private String pulsarAssignmentNamespace;
     private String pulsarFunctionsCluster;
     private int numFunctionPackageReplicas;
     private String downloadDirectory;
@@ -134,7 +133,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     }
 
     public String getFunctionAssignmentTopic() {
-        return String.format("persistent://%s/%s", pulsarAssignmentNamespace, functionAssignmentTopicName);
+        return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionAssignmentTopicName);
     }
 
     public static WorkerConfig load(String yamlFile) throws IOException {

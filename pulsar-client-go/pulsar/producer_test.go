@@ -20,9 +20,9 @@
 package pulsar
 
 import (
-	"testing"
-	"fmt"
 	"context"
+	"fmt"
+	"testing"
 	"time"
 )
 
@@ -77,6 +77,10 @@ func TestProducer(t *testing.T) {
 		MaxPendingMessages:      100,
 		BlockIfQueueFull:        true,
 		CompressionType:         LZ4,
+		Properties: map[string]string{
+			"my-name": "test",
+			"key":     "value",
+		},
 	})
 
 	assertNil(t, err)

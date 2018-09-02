@@ -57,6 +57,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * Latest cumulative ack sent to broker
      */
     private volatile MessageIdImpl lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
+    private volatile boolean cumulativeAckFulshRequired = false; 
 
     private static final AtomicReferenceFieldUpdater<PersistentAcknowledgmentsGroupingTracker, MessageIdImpl> LAST_CUMULATIVE_ACK_UPDATER = AtomicReferenceFieldUpdater
             .newUpdater(PersistentAcknowledgmentsGroupingTracker.class, MessageIdImpl.class, "lastCumulativeAck");
@@ -119,6 +120,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             if (msgId.compareTo(lastCumlativeAck) > 0) {
                 if (LAST_CUMULATIVE_ACK_UPDATER.compareAndSet(this, lastCumlativeAck, msgId)) {
                     // Successfully updated the last cumlative ack. Next flush iteration will send this to broker.
+                    cumulativeAckFulshRequired = true;
                     return;
                 }
             } else {
@@ -160,10 +162,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             return;
         }
 
-        if (!lastCumulativeAck.equals(MessageId.earliest)) {
+        if (cumulativeAckFulshRequired) {
             ByteBuf cmd = Commands.newAck(consumer.consumerId, lastCumulativeAck.ledgerId, lastCumulativeAck.entryId,
                     AckType.Cumulative, null, Collections.emptyMap());
             cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+            cumulativeAckFulshRequired = false;
         }
 
         // Flush all individual acks

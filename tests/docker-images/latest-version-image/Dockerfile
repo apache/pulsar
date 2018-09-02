@@ -19,7 +19,7 @@
 
 FROM apachepulsar/pulsar-all:latest
 
-RUN apt-get update && apt-get install -y supervisor python-pip
+RUN apt-get update && apt-get install -y supervisor
 
 RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
 
@@ -32,8 +32,4 @@ COPY ssl/ca.cert.pem ssl/broker.key-pk8.pem ssl/broker.cert.pem \
 
 COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
      scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh \
-     scripts/install-pulsar-client.sh /pulsar/bin/
-
-ADD target/python-client/ /pulsar/pulsar-client
-RUN /pulsar/bin/install-pulsar-client.sh
-
+     /pulsar/bin/
