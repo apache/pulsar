@@ -62,6 +62,7 @@ import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -137,7 +138,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final String topicNameWithoutPartition;
 
-    private ConcurrentHashMap<MessageIdImpl, List<MessageImpl>> possibleSendToDeadLetterTopicMessages;
+    private ConcurrentHashMap<MessageIdImpl, List<MessageImpl<T>>> possibleSendToDeadLetterTopicMessages;
 
     private DeadLetterPolicy deadLetterPolicy;
 
@@ -223,7 +224,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 this.deadLetterPolicy = new DeadLetterPolicy(conf.getDeadLetterPolicy().getMaxRedeliverCount(), String.format("%s-%s-DLQ", topic, subscription));
             }
             try {
-                deadLetterProducer = client.newProducer(schema)
+                PulsarClient deadLetterClient = PulsarClient.builder().serviceUrl(client.getConfiguration().getServiceUrl()).build();
+                deadLetterProducer = deadLetterClient.newProducer(schema)
                         .topic(this.deadLetterPolicy.getDeadLetterTopic())
                         .blockIfQueueFull(false)
                         .create();
@@ -469,11 +471,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 stats.incrementNumAcksSent(batchMessageId.getBatchSize());
                 unAckedMessageTracker.remove(new MessageIdImpl(batchMessageId.getLedgerId(),
                         batchMessageId.getEntryId(), batchMessageId.getPartitionIndex()));
-                possibleSendToDeadLetterTopicMessages.remove(batchMessageId);
+                if (possibleSendToDeadLetterTopicMessages != null) {
+                    possibleSendToDeadLetterTopicMessages.remove(batchMessageId);
+                }
             } else {
                 // increment counter by 1 for non-batch msg
                 unAckedMessageTracker.remove(msgId);
-                possibleSendToDeadLetterTopicMessages.remove(msgId);
+                if (possibleSendToDeadLetterTopicMessages != null) {
+                    possibleSendToDeadLetterTopicMessages.remove(msgId);
+                }
                 stats.incrementNumAcksSent(1);
             }
         } else if (ackType == AckType.Cumulative) {
@@ -925,7 +931,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 getPartitionIndex());
         BatchMessageAcker acker = BatchMessageAcker.newAcker(batchSize);
         unAckedMessageTracker.add(batchMessage);
-        List<MessageImpl> possibleToDeadLetter = null;
+        List<MessageImpl<T>> possibleToDeadLetter = null;
         if (deadLetterPolicy != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
             possibleToDeadLetter = new ArrayList<>();
         }
@@ -1229,15 +1235,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             MessageIdData.Builder builder = MessageIdData.newBuilder();
             batches.forEach(ids -> {
                 List<MessageIdData> messageIdDatas = ids.stream().map(messageId -> {
-                    List<MessageImpl> messages = possibleSendToDeadLetterTopicMessages.get(messageId);
+                    List<MessageImpl<T>> messages = possibleSendToDeadLetterTopicMessages.get(messageId);
                     if (messages != null) {
                         try {
-                            for (MessageImpl message : messages) {
-                                deadLetterProducer.send(message);
+                            for (MessageImpl<T> message : messages) {
+                                deadLetterProducer.newMessage()
+                                        .value(message.getValue())
+                                        .properties(message.getProperties())
+                                        .send();
                             }
                             acknowledge(messageId);
                         } catch (Exception e) {
-                            log.error("Send to dead letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId);
+                            log.error("Send to dead letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId, e);
                         }
                     }
                     // attempt to remove message from batchMessageAckTracker
