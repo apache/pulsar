@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.policies.data.DeadLetterPolicy;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;
@@ -242,7 +243,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 		return this;
 	}
 
-	public ConsumerConfigurationData<T> getConf() {
+    @Override
+    public ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy) {
+        conf.setDeadLetterPolicy(deadLetterPolicy);
+        return this;
+    }
+
+    public ConsumerConfigurationData<T> getConf() {
 	    return conf;
 	}
 }

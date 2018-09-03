@@ -13543,9 +13543,9 @@ public final class PulsarApi {
     boolean hasMessageId();
     org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
     
-    // optional uint64 redelivery_count = 3 [default = 0];
+    // optional uint32 redelivery_count = 3 [default = 0];
     boolean hasRedeliveryCount();
-    long getRedeliveryCount();
+    int getRedeliveryCount();
   }
   public static final class CommandMessage extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -13602,20 +13602,20 @@ public final class PulsarApi {
       return messageId_;
     }
     
-    // optional uint64 redelivery_count = 3 [default = 0];
+    // optional uint32 redelivery_count = 3 [default = 0];
     public static final int REDELIVERY_COUNT_FIELD_NUMBER = 3;
-    private long redeliveryCount_;
+    private int redeliveryCount_;
     public boolean hasRedeliveryCount() {
       return ((bitField0_ & 0x00000004) == 0x00000004);
     }
-    public long getRedeliveryCount() {
+    public int getRedeliveryCount() {
       return redeliveryCount_;
     }
     
     private void initFields() {
       consumerId_ = 0L;
       messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
-      redeliveryCount_ = 0L;
+      redeliveryCount_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -13653,7 +13653,7 @@ public final class PulsarApi {
         output.writeMessage(2, messageId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeUInt64(3, redeliveryCount_);
+        output.writeUInt32(3, redeliveryCount_);
       }
     }
     
@@ -13673,7 +13673,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(3, redeliveryCount_);
+          .computeUInt32Size(3, redeliveryCount_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -13792,7 +13792,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x00000002);
-        redeliveryCount_ = 0L;
+        redeliveryCount_ = 0;
         bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
@@ -13912,7 +13912,7 @@ public final class PulsarApi {
             }
             case 24: {
               bitField0_ |= 0x00000004;
-              redeliveryCount_ = input.readUInt64();
+              redeliveryCount_ = input.readUInt32();
               break;
             }
           }
@@ -13985,15 +13985,15 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional uint64 redelivery_count = 3 [default = 0];
-      private long redeliveryCount_ ;
+      // optional uint32 redelivery_count = 3 [default = 0];
+      private int redeliveryCount_ ;
       public boolean hasRedeliveryCount() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
       }
-      public long getRedeliveryCount() {
+      public int getRedeliveryCount() {
         return redeliveryCount_;
       }
-      public Builder setRedeliveryCount(long value) {
+      public Builder setRedeliveryCount(int value) {
         bitField0_ |= 0x00000004;
         redeliveryCount_ = value;
         
@@ -14001,7 +14001,7 @@ public final class PulsarApi {
       }
       public Builder clearRedeliveryCount() {
         bitField0_ = (bitField0_ & ~0x00000004);
-        redeliveryCount_ = 0L;
+        redeliveryCount_ = 0;
         
         return this;
       }

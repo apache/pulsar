@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.policies.data.DeadLetterPolicy;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -330,4 +332,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Set subscriptionInitialPosition for the consumer
     */
     ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition);
+
+    /**
+     * Set dead letter policy for consumer
+     */
+    ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 }
