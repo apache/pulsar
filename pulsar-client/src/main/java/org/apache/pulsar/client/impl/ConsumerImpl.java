@@ -472,7 +472,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 unAckedMessageTracker.remove(new MessageIdImpl(batchMessageId.getLedgerId(),
                         batchMessageId.getEntryId(), batchMessageId.getPartitionIndex()));
                 if (possibleSendToDeadLetterTopicMessages != null) {
-                    possibleSendToDeadLetterTopicMessages.remove(batchMessageId);
+                    possibleSendToDeadLetterTopicMessages.remove(new MessageIdImpl(batchMessageId.getLedgerId(),
+                            batchMessageId.getEntryId(), batchMessageId.getPartitionIndex()));
                 }
             } else {
                 // increment counter by 1 for non-batch msg
