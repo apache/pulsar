@@ -1235,7 +1235,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             MessageIdData.Builder builder = MessageIdData.newBuilder();
             batches.forEach(ids -> {
                 List<MessageIdData> messageIdDatas = ids.stream().map(messageId -> {
-                    List<MessageImpl<T>> messages = possibleSendToDeadLetterTopicMessages.get(messageId);
+                    List<MessageImpl<T>> messages = null;
+                    if (messageId instanceof BatchMessageIdImpl) {
+                        messages = possibleSendToDeadLetterTopicMessages.get(new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
+                                getPartitionIndex()));
+                    } else {
+                        messages = possibleSendToDeadLetterTopicMessages.get(messageId);
+                    }
                     if (messages != null) {
                         try {
                             for (MessageImpl<T> message : messages) {

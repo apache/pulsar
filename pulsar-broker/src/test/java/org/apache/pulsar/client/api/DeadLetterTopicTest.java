@@ -116,6 +116,82 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testDeadLetterTopicWithMultiTopic() throws Exception {
+        final String topic1 = "persistent://my-property/my-ns/dead-letter-topic-1";
+        final String topic2 = "persistent://my-property/my-ns/dead-letter-topic-2";
+
+        final int maxRedeliveryCount = 2;
+
+        int sendMessages = 100;
+
+        Producer<byte[]> producer1 = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic1)
+                .create();
+
+        Producer<byte[]> producer2 = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic2)
+                .create();
+
+        for (int i = 0; i < sendMessages; i++) {
+            producer1.send(String.format("Hello Pulsar [%d]", i).getBytes());
+            producer2.send(String.format("Hello Pulsar [%d]", i).getBytes());
+        }
+
+        sendMessages = sendMessages * 2;
+
+        producer1.close();
+        producer2.close();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic1, topic2)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(3, TimeUnit.SECONDS)
+                .deadLetterPolicy(new DeadLetterPolicy(maxRedeliveryCount))
+                .receiverQueueSize(100)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic("persistent://my-property/my-ns/dead-letter-topic-1-my-subscription-DLQ", "persistent://my-property/my-ns/dead-letter-topic-2-my-subscription-DLQ")
+                .subscriptionName("my-subscription")
+                .subscribe();
+
+        int totalReceived = 0;
+        do {
+            Message<byte[]> message = consumer.receive();
+            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            totalReceived++;
+        } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
+
+        int totalInDeadLetter = 0;
+        do {
+            Message message = deadLetterConsumer.receive();
+            log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            deadLetterConsumer.acknowledge(message);
+            totalInDeadLetter++;
+        } while (totalInDeadLetter < sendMessages);
+
+        deadLetterConsumer.close();
+        consumer.close();
+
+        Consumer<byte[]> checkConsumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic1, topic2)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
+        if (checkMessage != null) {
+            log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
+        }
+        assertNull(checkMessage);
+
+        checkConsumer.close();
+    }
+
+    @Test
     public void testDeadLetterTopicByCustomTopicName() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
         final int maxRedeliveryCount = 2;
