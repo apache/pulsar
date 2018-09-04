@@ -60,25 +60,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test
     public void testKafkaSink() throws Exception {
-        testSink(new KafkaSinkTester());
+        testSink(new KafkaSinkTester(), true);
     }
 
     @Test
     public void testCassandraSink() throws Exception {
-        testSink(new CassandraSinkTester());
+        testSink(new CassandraSinkTester(), true);
     }
 
     @Test
     public void testCassandraArchiveSink() throws Exception {
-        testSink(new CassandraSinkArchiveTester());
+        testSink(new CassandraSinkArchiveTester(), false);
     }
 
     @Test
     public void testJdbcSink() throws Exception {
-        testSink(new JdbcSinkTester());
+        testSink(new JdbcSinkTester(), true);
     }
 
-    private void testSink(SinkTester tester) throws Exception {
+    private void testSink(SinkTester tester, boolean builtin) throws Exception {
         tester.findSinkServiceContainer(pulsarCluster.getExternalServices());
 
         final String tenant = TopicName.PUBLIC_TENANT;
@@ -86,7 +86,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String inputTopicName = "test-sink-connector-"
             + tester.getSinkType() + "-" + functionRuntimeType + "-input-topic-" + randomName(8);
         final String sinkName = "test-sink-connector-"
-            + tester.getSinkType() + "-" + functionRuntimeType + "-name-" + randomName(8);
+            + tester.getSinkType().name().toLowerCase() + "-" + functionRuntimeType + "-name-" + randomName(8);
         final int numMessages = 20;
 
         // prepare the testing environment for sink
@@ -96,7 +96,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         submitSinkConnector(tester, tenant, namespace, sinkName, inputTopicName);
 
         // get sink info
-        getSinkInfoSuccess(tester, tenant, namespace, sinkName);
+        getSinkInfoSuccess(tester, tenant, namespace, sinkName, builtin);
 
         // get sink status
         getSinkStatus(tenant, namespace, sinkName);
@@ -104,7 +104,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // produce messages
         Map<String, String> kvs;
         if (tester instanceof JdbcSinkTester) {
-            kvs = produceSchemaMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(Foo.class));
+            kvs = produceSchemaMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
         } else {
             kvs = produceMessagesToInputTopic(inputTopicName, numMessages);
         }
@@ -166,7 +166,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void getSinkInfoSuccess(SinkTester tester,
                                       String tenant,
                                       String namespace,
-                                      String sinkName) throws Exception {
+                                      String sinkName,
+                                      boolean builtin) throws Exception {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -177,10 +178,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         log.info("Get sink info : {}", result.getStdout());
-        assertTrue(
-            result.getStdout().contains("\"builtin\": \"" + tester.getSinkType() + "\""),
-            result.getStdout()
-        );
+        if (builtin) {
+            assertTrue(
+                    result.getStdout().contains("\"builtin\": \"" + tester.getSinkType() + "\""),
+                    result.getStdout()
+            );
+        } else {
+            assertTrue(
+                    result.getStdout().contains("\"className\": \"" + tester.getSinkClassName() + "\""),
+                    result.getStdout()
+            );
+        }
     }
 
     protected void getSinkStatus(String tenant, String namespace, String sinkName) throws Exception {
@@ -245,7 +253,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
 
-            Foo obj = new Foo();
+            JdbcSinkTester.Foo obj = new JdbcSinkTester.Foo();
             obj.setField1("field1_" + i);
             obj.setField2("field2_" + i);
             obj.setField3(i);
