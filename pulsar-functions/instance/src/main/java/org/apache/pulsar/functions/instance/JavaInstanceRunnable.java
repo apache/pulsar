@@ -209,14 +209,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.incrementProcessed(processAt);
                 addLogTopicHandler();
                 JavaExecutionResult result;
-                MessageId messageId = null;
-                String topicName = null;
-
-                if (currentRecord instanceof PulsarRecord) {
-                    PulsarRecord<?> pulsarRecord = (PulsarRecord<?>) currentRecord;
-                    messageId = pulsarRecord.getMessageId();
-                    topicName = pulsarRecord.getTopicName().get();
-                }
 
                 result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
 
@@ -510,7 +502,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // If source classname is not set, we default pulsar source
         if (sourceSpec.getClassName().isEmpty()) {
             PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
-            sourceSpec.getInputSpecs().forEach((topic, conf) -> {
+            sourceSpec.getInputSpecsMap().forEach((topic, conf) -> {
                 ConsumerConfig consumerConfig = ConsumerConfig.builder().isRegexPattern(conf.getIsRegexPattern()).build();
                 if (conf.getSchemaType() != null && !conf.getSchemaType().isEmpty()) {
                     consumerConfig.setSchemaType(conf.getSchemaType());
