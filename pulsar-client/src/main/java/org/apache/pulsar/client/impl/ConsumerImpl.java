@@ -805,7 +805,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
                 // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
                 unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
-                if (deadLetterPolicy != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
+                if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(), Collections.singletonList(message));
                 }
                 if (!pendingReceives.isEmpty()) {
@@ -995,7 +995,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName);
             discardCorruptedMessage(messageId, cnx, ValidationError.BatchDeSerializeError);
         }
-        if (possibleToDeadLetter != null) {
+        if (possibleToDeadLetter != null && possibleSendToDeadLetterTopicMessages != null) {
             possibleSendToDeadLetterTopicMessages.put(batchMessage, possibleToDeadLetter);
         }
 
@@ -1237,11 +1237,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             batches.forEach(ids -> {
                 List<MessageIdData> messageIdDatas = ids.stream().map(messageId -> {
                     List<MessageImpl<T>> messages = null;
-                    if (messageId instanceof BatchMessageIdImpl) {
-                        messages = possibleSendToDeadLetterTopicMessages.get(new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
-                                getPartitionIndex()));
-                    } else {
-                        messages = possibleSendToDeadLetterTopicMessages.get(messageId);
+                    if (possibleSendToDeadLetterTopicMessages != null) {
+                        if (messageId instanceof BatchMessageIdImpl) {
+                            messages = possibleSendToDeadLetterTopicMessages.get(new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
+                                    getPartitionIndex()));
+                        } else {
+                            messages = possibleSendToDeadLetterTopicMessages.get(messageId);
+                        }
                     }
                     if (messages != null) {
                         try {
