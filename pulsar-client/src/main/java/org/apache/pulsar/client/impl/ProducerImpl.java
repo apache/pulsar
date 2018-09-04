@@ -212,8 +212,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         MessageImpl<T> interceptorMessage = (MessageImpl<T>) beforeSend(message);
         //Retain the buffer used by interceptors callback to get message. Buffer will release after complete interceptors.
         interceptorMessage.getDataBuffer().retain();
-        interceptorMessage.getProperties();
-
+        if (interceptors != null) {
+            interceptorMessage.getProperties();
+        }
         sendAsync(interceptorMessage, new SendCallback() {
             SendCallback nextCallback = null;
             MessageImpl<?> nextMsg = null;
