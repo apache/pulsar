@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.io.twitter;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twitter.hbc.ClientBuilder;
 import com.twitter.hbc.common.DelimitedStreamReader;
 import com.twitter.hbc.core.Constants;
@@ -32,9 +34,12 @@ import com.twitter.hbc.httpclient.auth.OAuth1;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
@@ -44,7 +49,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Simple Push based Twitter FireHose Source
  */
-public class TwitterFireHose extends PushSource<String> {
+@Slf4j
+public class TwitterFireHose extends PushSource<TweetData> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TwitterFireHose.class);
 
@@ -52,6 +58,8 @@ public class TwitterFireHose extends PushSource<String> {
 
     // ----- Runtime fields
     private Object waitObject;
+
+    private final ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws IOException {
@@ -116,14 +124,15 @@ public class TwitterFireHose extends PushSource<String> {
 
                     @Override
                     public boolean process() throws IOException, InterruptedException {
-                        String line = reader.readLine();
+                        String tweetStr = reader.readLine();
                         try {
+                            TweetData tweet = mapper.readValue(tweetStr, TweetData.class);
                             // We don't really care if the record succeeds or not.
                             // However might be in the future to count failures
                             // TODO:- Figure out the metrics story for connectors
-                            consume(new TwitterRecord(line));
+                            consume(new TwitterRecord(tweet, config.getGuestimateTweetTime()));
                         } catch (Exception e) {
-                            LOG.error("Exception thrown");
+                            LOG.error("Exception thrown: {}", e);
                         }
                         return true;
                     }
@@ -159,11 +168,14 @@ public class TwitterFireHose extends PushSource<String> {
         }
     }
 
-    static private class TwitterRecord implements Record<String> {
-        private String tweet;
+    static private class TwitterRecord implements Record<TweetData> {
+        private final TweetData tweet;
+        private static SimpleDateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss Z yyyy");
+        private final boolean guestimateTweetTime;
 
-        public TwitterRecord(String tweet) {
+        public TwitterRecord(TweetData tweet, boolean guestimateTweetTime) {
             this.tweet = tweet;
+            this.guestimateTweetTime = guestimateTweetTime;
         }
 
         @Override
@@ -173,7 +185,23 @@ public class TwitterFireHose extends PushSource<String> {
         }
 
         @Override
-        public String getValue() {
+        public Optional<Long> getEventTime() {
+            try {
+                if (tweet.getCreatedAt() != null) {
+                    Date d = dateFormat.parse(tweet.getCreatedAt());
+                    return Optional.of(d.toInstant().toEpochMilli());
+                } else if (guestimateTweetTime) {
+                    return Optional.of(System.currentTimeMillis());
+                } else {
+                    return Optional.empty();
+                }
+            } catch (Exception e) {
+                return Optional.empty();
+            }
+        }
+
+        @Override
+        public TweetData getValue() {
             return tweet;
         }
     }

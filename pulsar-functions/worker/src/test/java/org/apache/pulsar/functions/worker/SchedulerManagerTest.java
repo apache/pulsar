@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Request;
 import org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler;
 import org.mockito.Mockito;
@@ -554,6 +555,62 @@ public class SchedulerManagerTest {
         );
     }
 
+    @Test
+    public void testHeartbeatFunction() throws Exception {
+        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        final long version = 5;
+        final String workerId1 = "host-workerId-1";
+        final String workerId2 = "host-workerId-2";
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName(workerId1)
+                        .setNamespace(RoundRobinScheduler.HEARTBEAT_NAMESPACE)
+                        .setTenant(RoundRobinScheduler.HEARTBEAT_TENANT).setParallelism(1))
+                .setVersion(version).build();
+
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName(workerId2)
+                        .setNamespace(RoundRobinScheduler.HEARTBEAT_NAMESPACE)
+                        .setTenant(RoundRobinScheduler.HEARTBEAT_TENANT).setParallelism(1))
+                .setVersion(version).build();
+        functionMetaDataList.add(function1);
+        functionMetaDataList.add(function2);
+        doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
+
+        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
+
+        currentAssignments.put("worker-1", assignmentEntry1);
+        doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
+
+        // set version
+        doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
+
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of(workerId1, "workerHostname-1", 5000));
+        workerInfoList.add(WorkerInfo.of(workerId2, "workerHostname-1", 6000));
+        doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
+
+        // i am leader
+        doReturn(true).when(membershipManager).isLeader();
+
+        callSchedule();
+
+        List<Invocation> invocations = getMethodInvocationDetails(producer,
+                Producer.class.getMethod("sendAsync", Object.class));
+        Assert.assertEquals(invocations.size(), 1);
+
+        byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
+        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
+
+        List<Assignment> assignmentList = assignmentsUpdate.getAssignmentsList();
+        Assert.assertEquals(assignmentList.size(), 2);
+        for (Assignment assignment : assignmentList) {
+            String functionName = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName();
+            String assignedWorkerId = assignment.getWorkerId();
+            Assert.assertEquals(functionName, assignedWorkerId);
+        }
+    }
+    
     @Test
     public void testUpdate() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();

@@ -32,12 +32,12 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
             int currentSetRemovedMsgCount = currentSet.removeIf(m -> {
                 checkState(m instanceof TopicMessageIdImpl,
                     "message should be of type TopicMessageIdImpl");
-                return ((TopicMessageIdImpl)m).getTopicName().contains(topicName);
+                return ((TopicMessageIdImpl)m).getTopicPartitionName().contains(topicName);
             });
             int oldSetRemovedMsgCount = oldOpenSet.removeIf(m -> {
                 checkState(m instanceof TopicMessageIdImpl,
                     "message should be of type TopicMessageIdImpl");
-                return ((TopicMessageIdImpl)m).getTopicName().contains(topicName);
+                return ((TopicMessageIdImpl)m).getTopicPartitionName().contains(topicName);
             });
 
             return currentSetRemovedMsgCount + oldSetRemovedMsgCount;

@@ -18,23 +18,6 @@
  */
 package org.apache.pulsar.functions.source;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.io.core.SourceContext;
-import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyLong;
@@ -46,13 +29,35 @@ import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+import javax.xml.validation.Schema;
+
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.utils.ConsumerConfig;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.io.core.SourceContext;
+import org.testng.annotations.Test;
+
 @Slf4j
 public class PulsarSourceTest {
 
-    private static final String SUBSCRIPTION_NAME = "test/test-namespace/example";
-    private static Map<String, String> topicSerdeClassNameMap = new HashMap<>();
+    private static Map<String, ConsumerConfig> consumerConfigs = new HashMap<>();
     static {
-        topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result", DefaultSerDe.class.getName());
+        consumerConfigs.put("persistent://sample/standalone/ns1/test_result", ConsumerConfig.builder()
+                .serdeClassName(TopicSchema.DEFAULT_SERDE).isRegexPattern(false).build());
     }
 
     public static class TestSerDe implements SerDe<String> {
@@ -72,24 +77,27 @@ public class PulsarSourceTest {
      * Verify that JavaInstance does not support functions that take Void type as input
      */
 
-    private static PulsarClient getPulsarClient() throws PulsarClientException {
-        PulsarClient pulsarClient = mock(PulsarClient.class);
+    private static PulsarClientImpl getPulsarClient() throws PulsarClientException {
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConsumerBuilder consumerBuilder = mock(ConsumerBuilder.class);
         doReturn(consumerBuilder).when(consumerBuilder).topics(anyList());
         doReturn(consumerBuilder).when(consumerBuilder).cryptoFailureAction(any());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(anyString());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(any());
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
+        doReturn(consumerBuilder).when(consumerBuilder).messageListener(any());
         Consumer consumer = mock(Consumer.class);
         doReturn(consumer).when(consumerBuilder).subscribe();
-        doReturn(consumerBuilder).when(pulsarClient).newConsumer();
+        doReturn(consumerBuilder).when(pulsarClient).newConsumer(any());
+        doReturn(CompletableFuture.completedFuture(consumer)).when(consumerBuilder).subscribeAsync();
+        doReturn(CompletableFuture.completedFuture(Optional.empty())).when(pulsarClient).getSchema(anyString());
         return pulsarClient;
     }
 
     private static PulsarSourceConfig getPulsarConfigs() {
         PulsarSourceConfig pulsarConfig = new PulsarSourceConfig();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
+        pulsarConfig.setTopicSchema(consumerConfigs);
         pulsarConfig.setTypeClassName(String.class.getName());
         return pulsarConfig;
     }
@@ -119,7 +127,7 @@ public class PulsarSourceTest {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(Void.class.getName());
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, "test");
 
         try {
             pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
@@ -141,10 +149,11 @@ public class PulsarSourceTest {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to be inconsistent to that of SerDe
         pulsarConfig.setTypeClassName(Integer.class.getName());
-        Map<String, String> topicSerdeClassNameMap = new HashMap<>();
-        topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result", TestSerDe.class.getName());
-        pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+        Map<String, ConsumerConfig> topicSerdeClassNameMap = new HashMap<>();
+        topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result",
+                ConsumerConfig.builder().serdeClassName(TestSerDe.class.getName()).build());
+        pulsarConfig.setTopicSchema(topicSerdeClassNameMap);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, "test");
         try {
             pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
@@ -166,9 +175,10 @@ public class PulsarSourceTest {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
-        topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result", null);
-        pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+        consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
+                ConsumerConfig.builder().serdeClassName(TopicSchema.DEFAULT_SERDE).build());
+        pulsarConfig.setTopicSchema(consumerConfigs);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, "test");
 
         pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
     }
@@ -181,26 +191,24 @@ public class PulsarSourceTest {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
-        topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result", DefaultSerDe.class.getName());
-        pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+        consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
+                ConsumerConfig.builder().serdeClassName(TopicSchema.DEFAULT_SERDE).build());
+        pulsarConfig.setTopicSchema(consumerConfigs);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, "test");
 
         pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
     }
 
     @Test
-    public void testComplexOuputType() throws PulsarClientException {
+    public void testComplexOuputType() throws Exception {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
-        topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result",ComplexSerDe.class.getName());
-        pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+        consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
+                ConsumerConfig.builder().serdeClassName(ComplexSerDe.class.getName()).build());
+        pulsarConfig.setTopicSchema(consumerConfigs);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, "test");
 
-        try {
-            pulsarSource.setupSerDe();
-        } catch (Exception ex) {
-            fail();
-        }
+        pulsarSource.setupConsumerConfigs();
     }
 }

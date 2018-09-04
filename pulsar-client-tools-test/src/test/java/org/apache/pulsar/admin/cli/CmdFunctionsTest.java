@@ -32,6 +32,7 @@ import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
 import org.apache.pulsar.admin.cli.CmdFunctions.RestartFunction;
+import org.apache.pulsar.admin.cli.CmdFunctions.StopFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.admin.cli.CmdSinks.CreateSink;
 import org.apache.pulsar.admin.cli.CmdSources.CreateSource;
@@ -40,7 +41,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -137,7 +137,6 @@ public class CmdFunctionsTest {
             .thenReturn(true);
         when(Reflections.classImplementsIface(anyString(), any())).thenReturn(true);
         when(Reflections.createInstance(eq(DummyFunction.class.getName()), any(File.class))).thenReturn(new DummyFunction());
-        when(Reflections.createInstance(eq(DefaultSerDe.class.getName()), any(File.class))).thenReturn(new DefaultSerDe(String.class));
         PowerMockito.stub(PowerMockito.method(Utils.class, "fileExists")).toReturn(true);
     }
 
@@ -201,6 +200,7 @@ public class CmdFunctionsTest {
             "--inputs", inputTopicName,
             "--output", outputTopicName,
             "--jar", "SomeJar.jar",
+            "--auto-ack", "false",
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", DummyFunction.class.getName(),
@@ -210,6 +210,7 @@ public class CmdFunctionsTest {
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
+        assertEquals(false, creater.isAutoAck());
 
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
 
@@ -243,6 +244,34 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).restartFunction(tenant, namespace, fnName);
     }
 
+    @Test
+    public void stopFunction() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String tenant = "sample";
+        String namespace = "ns1";
+        int instanceId = 0;
+        cmd.run(new String[] { "stop", "--tenant", tenant, "--namespace", namespace, "--name", fnName,
+                "--instance-id", Integer.toString(instanceId)});
+
+        StopFunction stop = cmd.getStopper();
+        assertEquals(fnName, stop.getFunctionName());
+
+        verify(functions, times(1)).stopFunction(tenant, namespace, fnName, instanceId);
+    }
+
+    @Test
+    public void stopFunctionInstances() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String tenant = "sample";
+        String namespace = "ns1";
+        cmd.run(new String[] { "stop", "--tenant", tenant, "--namespace", namespace, "--name", fnName });
+
+        StopFunction stop = cmd.getStopper();
+        assertEquals(fnName, stop.getFunctionName());
+
+        verify(functions, times(1)).stopFunction(tenant, namespace, fnName);
+    }
+    
     @Test
     public void testCreateFunctionWithHttpUrl() throws Exception {
         String fnName = TEST_NAME + "-function";
@@ -469,7 +498,6 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
                 "create",
                 "--inputs", inputTopicName,
-                "--skip-output",
                 "--jar", "SomeJar.jar",
                 "--tenant", "sample",
                 "--namespace", "ns1",
@@ -484,7 +512,7 @@ public class CmdFunctionsTest {
 
     
     @Test
-    public void testCreateWithoutOutputTopic() throws Exception {
+    public void testCreateWithoutOutputTopic() {
 
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
         consoleOutputCapturer.start();
@@ -501,9 +529,8 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         consoleOutputCapturer.stop();
-        String output = consoleOutputCapturer.getStderr();
         assertNull(creater.getFunctionConfig().getOutput());
-        assertTrue(output.contains("output topic is not present"));
+        assertTrue(consoleOutputCapturer.getStdout().contains("Created successfully"));
     }
 
     @Test

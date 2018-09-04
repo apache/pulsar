@@ -28,15 +28,14 @@
         <version>2.2.0-incubating-SNAPSHOT</version>
     </parent>
 
-
-    <artifactId>presto-pulsar</artifactId>
-    <description>Presto - Apache Pulsar Connector</description>
+    <artifactId>pulsar-presto-connector</artifactId>
+    <name>Pulsar SQL :: Pulsar Presto Connector</name>
 
     <dependencies>
 
         <dependency>
             <groupId>org.apache.pulsar</groupId>
-            <artifactId>presto-pulsar-original</artifactId>
+            <artifactId>pulsar-presto-connector-original</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -55,7 +54,7 @@
                     <appendAssemblyId>false</appendAssemblyId>
                     <attach>true</attach>
                     <descriptors>
-                        <descriptor>src/main/assembly/assembly.xml</descriptor>
+                        <descriptor>src/assembly/assembly.xml</descriptor>
                     </descriptors>
                 </configuration>
                 <executions>

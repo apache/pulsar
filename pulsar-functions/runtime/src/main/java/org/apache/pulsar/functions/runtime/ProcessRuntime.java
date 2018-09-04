@@ -309,7 +309,7 @@ class ProcessRuntime implements Runtime {
         });
         return retval;
     }
-    
+
     public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
         CompletableFuture<InstanceCommunication.HealthCheckResult> retval = new CompletableFuture<>();
         if (stub == null) {

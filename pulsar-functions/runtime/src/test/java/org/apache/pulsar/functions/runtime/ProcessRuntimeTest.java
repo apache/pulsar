@@ -19,37 +19,36 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import static org.testng.Assert.assertEquals;
+
+import com.google.gson.Gson;
 import com.google.protobuf.util.JsonFormat;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.testng.Assert.assertEquals;
+import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link ThreadRuntime}.
  */
-@Slf4j
 public class ProcessRuntimeTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ProcessRuntimeTest.class);
 
     private static final String TEST_TENANT = "test-function-tenant";
     private static final String TEST_NAMESPACE = "test-function-namespace";
     private static final String TEST_NAME = "test-function-container";
     private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
+    private static final Map<String, ConsumerSpec> topicsToSchema = new HashMap<>();
     static {
-        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", DefaultSerDe.class.getName());
+        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
+        topicsToSchema.put("persistent://sample/standalone/ns1/test_src",
+                ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
     }
 
     private final ProcessRuntimeFactory factory;
@@ -92,8 +91,7 @@ public class ProcessRuntimeTest {
         functionDetailsBuilder.setLogTopic(TEST_NAME + "-log");
         functionDetailsBuilder.setSource(Function.SourceSpec.newBuilder()
                 .setSubscriptionType(Function.SubscriptionType.FAILOVER)
-                .putAllTopicsToSerDeClassName(topicsToSerDeClassName)
-                .setTopicsPattern("persistent://tenant/ns/.*")
+                .putAllInputSpecs(topicsToSchema)
                 .setClassName("org.pulsar.pulsar.TestSource")
                 .setTypeClassName(String.class.getName()));
         return functionDetailsBuilder.build();
@@ -130,7 +128,7 @@ public class ProcessRuntimeTest {
                 + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(23)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl;
-        assertEquals(expectedArgs, String.join(" ", args));
+        assertEquals(String.join(" ", args), expectedArgs);
     }
 
     @Test
@@ -148,7 +146,7 @@ public class ProcessRuntimeTest {
                 + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
                 + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(21);
-        assertEquals(expectedArgs, String.join(" ", args));
+        assertEquals(String.join(" ", args), expectedArgs);
     }
 
 }

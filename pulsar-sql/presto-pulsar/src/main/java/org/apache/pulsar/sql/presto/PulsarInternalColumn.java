@@ -20,6 +20,7 @@ package org.apache.pulsar.sql.presto;
 
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.TimestampType;
+import com.facebook.presto.spi.type.TimestampWithTimeZoneType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -132,8 +133,9 @@ public abstract class PulsarInternalColumn {
     public static final PulsarInternalColumn EVENT_TIME = new EventTimeColumn("__event_time__", TimestampType
             .TIMESTAMP, "Application defined timestamp in milliseconds of when the event occurred");
 
-    public static final PulsarInternalColumn PUBLISH_TIME = new PublishTimeColumn("__publish_time__", TimestampType
-            .TIMESTAMP, "The timestamp in milliseconds of when event as published");
+    public static final PulsarInternalColumn PUBLISH_TIME = new PublishTimeColumn("__publish_time__",
+            TimestampWithTimeZoneType.TIMESTAMP_WITH_TIME_ZONE,
+            "The timestamp in milliseconds of when event as published");
 
     public static final PulsarInternalColumn MESSAGE_ID = new MessageIdColumn("__message_id__", VarcharType.VARCHAR,
             "The message ID of the message used to generate this row");

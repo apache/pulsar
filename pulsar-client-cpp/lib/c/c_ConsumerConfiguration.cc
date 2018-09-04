@@ -113,3 +113,8 @@ void pulsar_consumer_set_read_compacted(pulsar_consumer_configuration_t *consume
                                         int compacted) {
     consumer_configuration->consumerConfiguration.setReadCompacted(compacted);
 }
+
+void pulsar_consumer_configuration_set_property(pulsar_consumer_configuration_t *conf, const char *name,
+                                                const char *value) {
+    conf->consumerConfiguration.setProperty(name, value);
+}

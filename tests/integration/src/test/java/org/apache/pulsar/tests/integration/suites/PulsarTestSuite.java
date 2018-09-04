@@ -25,6 +25,7 @@ import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec.PulsarCl
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.containers.MySQLContainer;
 import org.testng.ITest;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
@@ -52,6 +53,7 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
 
         // register external services
         Map<String, GenericContainer<?>> externalServices = Maps.newHashMap();
+
         final String kafkaServiceName = "kafka";
         externalServices.put(
             kafkaServiceName,
@@ -61,11 +63,19 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
                 .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
                     .withName(kafkaServiceName)
                     .withHostName(clusterName + "-" + kafkaServiceName)));
+
         final String cassandraServiceName = "cassandra";
         externalServices.put(
             cassandraServiceName,
             new CassandraContainer(clusterName));
-        
+
+        // use mySQL for jdbc test
+        final String jdbcServiceName = "mysql";
+        externalServices.put(
+            jdbcServiceName,
+            new MySQLContainer()
+                .withExposedPorts(3306));
+
         builder = builder.externalServices(externalServices);
 
         return builder;

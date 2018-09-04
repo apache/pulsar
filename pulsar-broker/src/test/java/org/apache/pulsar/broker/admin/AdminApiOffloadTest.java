@@ -23,6 +23,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Sets;
 
@@ -78,6 +79,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
     private void testOffload(String topicName, String mlName) throws Exception {
         LedgerOffloader offloader = mock(LedgerOffloader.class);
+        when(offloader.getOffloadDriverName()).thenReturn("mock");
+
         doReturn(offloader).when(pulsar).getManagedLedgerOffloader();
 
         CompletableFuture<Void> promise = new CompletableFuture<>();

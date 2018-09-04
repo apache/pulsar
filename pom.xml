@@ -92,6 +92,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-proxy</module>
     <module>pulsar-discovery-service</module>
     <module>pulsar-storm</module>
+    <module>pulsar-flink</module>
     <module>pulsar-spark</module>
     <module>pulsar-zookeeper-utils</module>
     <module>pulsar-testclient</module>
@@ -161,11 +162,16 @@ flexible messaging model and an intuitive client API.</description>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra-driver-core.version>3.4.0</cassandra-driver-core.version>
-    <aerospike-client.version>4.1.5</aerospike-client.version>
     <kafka-client.version>0.10.2.1</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
     <aws-sdk.version>1.11.297</aws-sdk.version>
     <avro.version>1.8.2</avro.version>
+    <jclouds.version>2.1.1</jclouds.version>
+    <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
+    <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <presto.version>0.206</presto.version>
+    <flink.version>1.6.0</flink.version>
+    <scala.binary.version>2.11</scala.binary.version>
 
     <!-- test dependencies -->
     <arquillian-cube.version>1.15.1</arquillian-cube.version>
@@ -789,6 +795,12 @@ flexible messaging model and an intuitive client API.</description>
         </exclusions>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.jclouds</groupId>
+        <artifactId>jclouds-allblobstore</artifactId>
+        <version>${jclouds.version}</version>
+      </dependency>
+
       <!-- test dependencies -->
       <dependency>
         <groupId>com.lmax</groupId>
@@ -803,6 +815,11 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>kafka</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>mysql</artifactId>
         <version>${testcontainers.version}</version>
       </dependency>
       <dependency>
@@ -1070,7 +1087,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
-            
+
             <!-- pulasr-io-connector kinesis : auto generated files from flatbuffer schema -->
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>

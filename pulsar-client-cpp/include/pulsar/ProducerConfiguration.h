@@ -127,6 +127,41 @@ class ProducerConfiguration {
     bool isEncryptionEnabled() const;
     ProducerConfiguration& addEncryptionKey(std::string key);
 
+    /**
+     * Check whether the producer has a specific property attached.
+     *
+     * @param name the name of the property to check
+     * @return true if the message has the specified property
+     * @return false if the property is not defined
+     */
+    bool hasProperty(const std::string& name) const;
+
+    /**
+     * Get the value of a specific property
+     *
+     * @param name the name of the property
+     * @return the value of the property or null if the property was not defined
+     */
+    const std::string& getProperty(const std::string& name) const;
+
+    /**
+     * Get all the properties attached to this producer.
+     */
+    std::map<std::string, std::string>& getProperties() const;
+
+    /**
+     * Sets a new property on the producer
+     * .
+     * @param name   the name of the property
+     * @param value  the associated value
+     */
+    ProducerConfiguration& setProperty(const std::string& name, const std::string& value);
+
+    /**
+     * Add all the properties in the provided map
+     */
+    ProducerConfiguration& setProperties(const std::map<std::string, std::string>& properties);
+
     friend class PulsarWrapper;
 
    private:

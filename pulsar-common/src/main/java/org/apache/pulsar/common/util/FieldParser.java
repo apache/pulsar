@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+
 import io.netty.util.internal.StringUtil;
 
 /**
@@ -134,7 +136,10 @@ public final class FieldParser {
             if (properties.containsKey(f.getName())) {
                 try {
                     f.setAccessible(true);
-                    f.set(obj, value((String) properties.get(f.getName()), f));
+                    String v = (String) properties.get(f.getName());
+                    if (!StringUtils.isBlank(v)) {
+                        f.set(obj, value(v, f));
+                    }
                 } catch (Exception e) {
                     throw new IllegalArgumentException(format("failed to initialize %s field while setting value %s",
                             f.getName(), properties.get(f.getName())), e);
