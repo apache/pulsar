@@ -43,6 +43,7 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.io.CassandraSinkTester;
+import org.apache.pulsar.tests.integration.io.HdfsSinkTester;
 import org.apache.pulsar.tests.integration.io.JdbcSinkTester;
 import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
 import org.apache.pulsar.tests.integration.io.KafkaSinkTester;
@@ -72,6 +73,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     @Test
     public void testCassandraSink() throws Exception {
         testSink(new CassandraSinkTester());
+    }
+    
+    @Test(enabled = false)
+    public void testHdfsSink() throws Exception {
+    	testSink(new HdfsSinkTester());
     }
 
     @Test
