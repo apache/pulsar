@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -61,12 +62,15 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.client.impl.schema.AutoSchema;
+import org.apache.pulsar.client.impl.schema.GenericAvroSchema;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
@@ -248,6 +252,11 @@ public class PulsarClientImpl implements PulsarClient {
                     new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
         }
 
+        if (schema instanceof AutoSchema) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("AutoSchema is only used by consumers to detect schemas automatically"));
+        }
+
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed : state = " + state.get()));
         }
@@ -382,6 +391,29 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private <T> CompletableFuture<Consumer<T>> singleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
+        if (schema instanceof AutoSchema) {
+            AutoSchema autoSchema = (AutoSchema) schema;
+            return lookup.getSchema(TopicName.get(conf.getSingleTopic()))
+                    .thenCompose(schemaInfoOptional -> {
+                        if (schemaInfoOptional.isPresent() && schemaInfoOptional.get().getType() == SchemaType.AVRO) {
+                            GenericAvroSchema genericAvroSchema = new GenericAvroSchema(schemaInfoOptional.get());
+                            log.info("Auto detected schema for topic {} : {}",
+                                conf.getSingleTopic(), new String(schemaInfoOptional.get().getSchema(), UTF_8));
+                            autoSchema.setSchema(genericAvroSchema);
+                            return doSingleTopicSubscribeAsync(conf, schema, interceptors);
+                        } else {
+                            return FutureUtil.failedFuture(
+                                new PulsarClientException.LookupException("Currently schema detection only works for topics with avro schemas"));
+                        }
+                    });
+        } else {
+            return doSingleTopicSubscribeAsync(conf, schema, interceptors);
+        }
+    }
+
+
+
+    private <T> CompletableFuture<Consumer<T>> doSingleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
         String topic = conf.getSingleTopic();
@@ -510,6 +542,26 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
+        if (schema instanceof AutoSchema) {
+            AutoSchema autoSchema = (AutoSchema) schema;
+            return lookup.getSchema(TopicName.get(conf.getTopicName()))
+                    .thenCompose(schemaInfoOptional -> {
+                        if (schemaInfoOptional.isPresent() && schemaInfoOptional.get().getType() == SchemaType.AVRO) {
+                            GenericAvroSchema genericAvroSchema = new GenericAvroSchema(schemaInfoOptional.get());
+                            log.info("Auto detected schema for topic {} : {}",
+                                conf.getTopicName(), new String(schemaInfoOptional.get().getSchema(), UTF_8));
+                            autoSchema.setSchema(genericAvroSchema);
+                            return doCreateReaderAsync(conf, schema);
+                        } else {
+                            return FutureUtil.failedFuture(
+                                new PulsarClientException.LookupException("Currently schema detection only works for topics with avro schemas"));
+                        }
+                    });
+        } else {
+            return doCreateReaderAsync(conf, schema);
+        }
+    }
+    <T> CompletableFuture<Reader<T>> doCreateReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
