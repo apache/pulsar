@@ -34,6 +34,11 @@
       "io-connectors",
       "io-develop"
     ],
+    "Pulsar SQL": [
+      "sql-overview",
+      "sql-getting-started",
+      "sql-deployment-configurations"
+    ],
     "Deployment": [
       "deploy-aws",
       "deploy-kubernetes",
@@ -75,7 +80,8 @@
       "admin-api-permissions",
       "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
-      "admin-api-partitioned-topics"
+      "admin-api-partitioned-topics",
+      "admin-api-schemas"
     ],
     "Adaptors": [
       "adaptors-kafka",

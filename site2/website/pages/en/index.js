@@ -8,6 +8,8 @@ const GridBlock = CompLibrary.GridBlock;
 
 const CWD = process.cwd();
 
+const translate = require('../../server/translate.js').translate;
+
 const siteConfig = require(`${CWD}/siteConfig.js`);
 
 function imgUrl(img) {
@@ -131,7 +133,7 @@ const features_lang = language => {
     ],
     row3: [
       {
-        content: `Persistent message storage based on Apache BookKeeper. Provides IO-level isolation between write and read operations`,
+        content: 'Persistent message storage based on Apache BookKeeper. Provides IO-level isolation between write and read operations',
         title: `[Persistent storage](${docUrl('concepts-architecture-overview#persistent-storage', language)})`,
       },
       {

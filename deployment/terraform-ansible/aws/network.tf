@@ -91,7 +91,7 @@ resource "aws_route" "internet_access" {
 /* Load balancer */
 resource "aws_elb" "default" {
   name            = "pulsar-elb"
-  instances       = ["${aws_instance.pulsar.*.id}"]
+  instances       = ["${aws_instance.proxy.*.id}"]
   security_groups = ["${aws_security_group.elb.id}"]
   subnets         = ["${aws_subnet.default.id}"]
 

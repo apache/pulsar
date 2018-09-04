@@ -24,6 +24,7 @@ import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
@@ -75,6 +76,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Resources;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
@@ -82,6 +84,7 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.ConsumerConfig;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
@@ -102,13 +105,14 @@ public class CmdFunctions extends CmdBase {
     private final DeleteFunction deleter;
     private final UpdateFunction updater;
     private final GetFunction getter;
-    private final GetFunctionStatus statuser;
+    private final GetFunctionStatus functionStatus;
+    private final RestartFunction restart;
+    private final StopFunction stop;
     private final ListFunctions lister;
     private final StateGetter stateGetter;
     private final TriggerFunction triggerer;
     private final UploadFunction uploader;
     private final DownloadFunction downloader;
-    private final GetCluster cluster;
 
     /**
      * Base command
@@ -226,25 +230,33 @@ public class CmdFunctions extends CmdBase {
                 description = "Path to the main Python file for the function (if the function is written in Python)",
                 listConverter = StringConverter.class)
         protected String pyFile;
-        @Parameter(names = "--inputs", description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
+        @Parameter(names = { "-i",
+                "--inputs" }, description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
         // for backwards compatibility purposes
         @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)", hidden = true)
         protected String DEPRECATED_topicsPattern;
         @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)")
         protected String topicsPattern;
-        @Parameter(names = "--output", description = "The function's output topic")
+
+        @Parameter(names = {"-o", "--output"}, description = "The function's output topic (If none is specified, no output is written)")
         protected String output;
         // for backwards compatibility purposes
         @Parameter(names = "--logTopic", description = "The topic to which the function's logs are produced", hidden = true)
         protected String DEPRECATED_logTopic;
         @Parameter(names = "--log-topic", description = "The topic to which the function's logs are produced")
         protected String logTopic;
+
+        @Parameter(names = {"-st", "--schema-type"}, description = "The builtin schema type or custom schema class name to be used for messages output by the function")
+        protected String schemaType = "";
+
         // for backwards compatibility purposes
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
         protected String DEPRECATED_customSerdeInputString;
         @Parameter(names = "--custom-serde-inputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
+        @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema class names (as a JSON string)")
+        protected String customSchemaInputString;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String DEPRECATED_outputSerdeClassName;
@@ -265,8 +277,12 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_userConfigString;
         @Parameter(names = "--user-config", description = "User-defined config key/values")
         protected String userConfigString;
-        @Parameter(names = "--retainOrdering", description = "Function consumes and processes messages in order")
+        @Parameter(names = "--retainOrdering", description = "Function consumes and processes messages in order", hidden = true)
+        protected Boolean DEPRECATED_retainOrdering;
+        @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
         protected boolean retainOrdering;
+        @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
+        protected String subsName;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
@@ -298,8 +314,8 @@ public class CmdFunctions extends CmdBase {
         // for backwards compatibility purposes
         @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages", hidden = true)
         protected Boolean DEPRECATED_autoAck = null;
-        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages")
-        protected Boolean autoAck ;
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
+        protected boolean autoAck = true;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
         protected Long DEPRECATED_timeoutMs;
@@ -314,9 +330,12 @@ public class CmdFunctions extends CmdBase {
             if (!StringUtils.isBlank(DEPRECATED_topicsPattern)) topicsPattern = DEPRECATED_topicsPattern;
             if (!StringUtils.isBlank(DEPRECATED_logTopic)) logTopic = DEPRECATED_logTopic;
             if (!StringUtils.isBlank(DEPRECATED_outputSerdeClassName)) outputSerdeClassName = DEPRECATED_outputSerdeClassName;
+            if (!StringUtils.isBlank(DEPRECATED_customSerdeInputString)) customSerdeInputString = DEPRECATED_customSerdeInputString;
+
             if (!StringUtils.isBlank(DEPRECATED_fnConfigFile)) fnConfigFile = DEPRECATED_fnConfigFile;
-            if (DEPRECATED_processingGuarantees != FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) processingGuarantees = DEPRECATED_processingGuarantees;
+            if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
             if (!StringUtils.isBlank(DEPRECATED_userConfigString)) userConfigString = DEPRECATED_userConfigString;
+            if (DEPRECATED_retainOrdering != null) retainOrdering = DEPRECATED_retainOrdering;
             if (DEPRECATED_windowLengthCount != null) windowLengthCount = DEPRECATED_windowLengthCount;
             if (DEPRECATED_windowLengthDurationMs != null) windowLengthDurationMs = DEPRECATED_windowLengthDurationMs;
             if (DEPRECATED_slidingIntervalCount != null) slidingIntervalCount = DEPRECATED_slidingIntervalCount;
@@ -361,6 +380,11 @@ public class CmdFunctions extends CmdBase {
                 Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
                 functionConfig.setCustomSerdeInputs(customSerdeInputMap);
             }
+            if (null != customSchemaInputString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> customschemaInputMap = new Gson().fromJson(customSchemaInputString, type);
+                functionConfig.setCustomSchemaInputs(customschemaInputMap);
+            }
             if (null != topicsPattern) {
                 functionConfig.setTopicsPattern(topicsPattern);
             }
@@ -376,22 +400,24 @@ public class CmdFunctions extends CmdBase {
             if (null != outputSerdeClassName) {
                 functionConfig.setOutputSerdeClassName(outputSerdeClassName);
             }
+
+            if (null != schemaType) {
+                functionConfig.setOutputSchemaType(schemaType);
+            }
             if (null != processingGuarantees) {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
             }
-            
+
             functionConfig.setRetainOrdering(retainOrdering);
             
+            if (isNotBlank(subsName)) {
+                functionConfig.setSubName(subsName);
+            }
+
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
-            }
-            if (functionConfig.getInputs() == null) {
-                functionConfig.setInputs(new LinkedList<>());
-            }
-            if (functionConfig.getCustomSerdeInputs() == null) {
-                functionConfig.setCustomSerdeInputs(new HashMap<>());
             }
             if (functionConfig.getUserConfig() == null) {
                 functionConfig.setUserConfig(new HashMap<>());
@@ -436,11 +462,7 @@ public class CmdFunctions extends CmdBase {
 
             functionConfig.setWindowConfig(windowConfig);
 
-            if  (null != autoAck) {
-                functionConfig.setAutoAck(autoAck);
-            } else {
-                functionConfig.setAutoAck(true);
-            }
+            functionConfig.setAutoAck(autoAck);
 
             if (null != jarFile) {
                 functionConfig.setJar(jarFile);
@@ -534,9 +556,6 @@ public class CmdFunctions extends CmdBase {
             if (StringUtils.isEmpty(functionConfig.getNamespace())) {
                 inferMissingNamespace(functionConfig);
             }
-            if (StringUtils.isEmpty(functionConfig.getOutput())) {
-                inferMissingOutput(functionConfig);
-            }
 
             if (functionConfig.getParallelism() == 0) {
                 functionConfig.setParallelism(1);
@@ -553,7 +572,7 @@ public class CmdFunctions extends CmdBase {
                 WindowUtils.inferDefaultConfigs(windowConfig);
                 // set auto ack to false since windowing framework is responsible
                 // for acking and not the function framework
-                if (autoAck != null && autoAck == true) {
+                if (autoAck) {
                     throw new ParameterException("Cannot enable auto ack when using windowing functionality");
                 }
                 functionConfig.setAutoAck(false);
@@ -581,28 +600,6 @@ public class CmdFunctions extends CmdBase {
             functionConfig.setNamespace(DEFAULT_NAMESPACE);
         }
 
-        private void inferMissingOutput(FunctionConfig functionConfig) {
-            try {
-                String inputTopic = getUniqueInput(functionConfig);
-                String outputTopic = String.format("%s-%s-output", inputTopic, functionConfig.getName());
-                functionConfig.setOutput(outputTopic);
-            } catch (IllegalArgumentException ex) {
-                // It might be that we really don't need an output topic
-                // So we cannot really throw an exception
-            }
-        }
-
-        private String getUniqueInput(FunctionConfig functionConfig) {
-            if (functionConfig.getInputs().size() + functionConfig.getCustomSerdeInputs().size() != 1) {
-                throw new IllegalArgumentException();
-            }
-            if (functionConfig.getInputs().size() == 1) {
-                return functionConfig.getInputs().iterator().next();
-            } else {
-                return functionConfig.getCustomSerdeInputs().keySet().iterator().next();
-            }
-        }
-
         protected FunctionDetails convert(FunctionConfig functionConfig)
                 throws IOException {
 
@@ -625,12 +622,49 @@ public class CmdFunctions extends CmdBase {
 
             // Setup source
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            Map<String, String> topicToSerDeClassNameMap = new HashMap<>();
-            topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
-            functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
-            sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
-            if (StringUtils.isNotBlank(functionConfig.getTopicsPattern())) {
-                sourceSpecBuilder.setTopicsPattern(functionConfig.getTopicsPattern());
+            if (functionConfig.getInputs() != null) {
+                functionConfig.getInputs().forEach((topicName -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setIsRegexPattern(false)
+                                    .build());
+                }));
+            }
+            if (functionConfig.getTopicsPattern() != null && !functionConfig.getTopicsPattern().isEmpty()) {
+                sourceSpecBuilder.putInputSpecs(functionConfig.getTopicsPattern(),
+                        ConsumerSpec.newBuilder()
+                                .setIsRegexPattern(true)
+                                .build());
+            }
+            if (functionConfig.getCustomSerdeInputs() != null) {
+                functionConfig.getCustomSerdeInputs().forEach((topicName, serdeClassName) -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setSerdeClassName(serdeClassName)
+                                    .setIsRegexPattern(false)
+                                    .build());
+                });
+            }
+            if (functionConfig.getCustomSchemaInputs() != null) {
+                functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            ConsumerSpec.newBuilder()
+                                    .setSchemaType(schemaType)
+                                    .setIsRegexPattern(false)
+                                    .build());
+                });
+            }
+            if (functionConfig.getInputSpecs() != null) {
+                functionConfig.getInputSpecs().forEach((topicName, consumerConf) -> {
+                    ConsumerSpec.Builder bldr = ConsumerSpec.newBuilder()
+                            .setIsRegexPattern(consumerConf.isRegexPattern());
+                    if (!StringUtils.isBlank(consumerConf.getSchemaType())) {
+                        bldr.setSchemaType(consumerConf.getSchemaType());
+                    } else if (!StringUtils.isBlank(consumerConf.getSerdeClassName())) {
+                        bldr.setSerdeClassName(consumerConf.getSerdeClassName());
+                    }
+                    sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
+                });
             }
 
             // Set subscription type based on ordering and EFFECTIVELY_ONCE semantics
@@ -640,6 +674,10 @@ public class CmdFunctions extends CmdBase {
                             : SubscriptionType.SHARED;
             sourceSpecBuilder.setSubscriptionType(subType);
             
+            if (isNotBlank(functionConfig.getSubName())) {
+                sourceSpecBuilder.setSubscriptionName(functionConfig.getSubName());
+            }
+
             if (typeArgs != null) {
                 sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
             }
@@ -653,9 +691,13 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getOutput() != null) {
                 sinkSpecBuilder.setTopic(functionConfig.getOutput());
             }
-            if (functionConfig.getOutputSerdeClassName() != null) {
+            if (!StringUtils.isBlank(functionConfig.getOutputSerdeClassName())) {
                 sinkSpecBuilder.setSerDeClassName(functionConfig.getOutputSerdeClassName());
             }
+            if (!StringUtils.isBlank(functionConfig.getOutputSchemaType())) {
+                sinkSpecBuilder.setSchemaType(functionConfig.getOutputSchemaType());
+            }
+
             if (typeArgs != null) {
                 sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
             }
@@ -734,7 +776,7 @@ public class CmdFunctions extends CmdBase {
         // for backwards compatibility purposes
         @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service (by default Apache BookKeeper)", hidden = true)
         protected String DEPRECATED_stateStorageServiceUrl;
-        @Parameter(names = "--state-storag-service-url", description = "The URL for the state storage service (by default Apache BookKeeper)")
+        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service (by default Apache BookKeeper)")
         protected String stateStorageServiceUrl;
         // for backwards compatibility purposes
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
@@ -791,6 +833,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            // merge deprecated args with new args
             mergeArgs();
             CmdFunctions.startLocalRun(convertProto2(functionConfig), functionConfig.getParallelism(),
                     instanceIdOffset, brokerServiceUrl, stateStorageServiceUrl,
@@ -834,6 +877,48 @@ public class CmdFunctions extends CmdBase {
             String json = Utils.printJson(admin.functions().getFunctionStatus(tenant, namespace, functionName));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(new JsonParser().parse(json)));
+        }
+    }
+
+    @Parameters(commandDescription = "Restart function instance")
+    class RestartFunction extends FunctionCommand {
+
+        @Parameter(names = "--instance-id", description = "The function instanceId (restart all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.functions().restartFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.functions().restartFunction(tenant, namespace, functionName);
+            }
+            System.out.println("Restarted successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Temporary stops function instance. (If worker restarts then it reassigns and starts functiona again")
+    class StopFunction extends FunctionCommand {
+        
+        @Parameter(names = "--instance-id", description = "The function instanceId (stop all instances if instance-id is not provided")
+        protected String instanceId;
+        
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.functions().stopFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.functions().stopFunction(tenant, namespace, functionName);
+            }
+            System.out.println("Restarted successfully");
         }
     }
 
@@ -947,6 +1032,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            // merge deprecated args with new args
             mergeArgs();
             if (triggerFile == null && triggerValue == null) {
                 throw new ParameterException("Either a trigger value or a trigger filepath needs to be specified");
@@ -981,6 +1067,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            // merge deprecated args with new args
             mergeArgs();
             if (StringUtils.isBlank(sourceFile)) {
                 throw new ParameterException("--source-file needs to be specified");
@@ -1015,6 +1102,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            // merge deprecated args with new args
             mergeArgs();
             if (StringUtils.isBlank(destinationFile)) {
                 throw new ParameterException("--destination-file needs to be specified");
@@ -1024,16 +1112,6 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get list of workers registered in cluster")
-    class GetCluster extends BaseCommand {
-        @Override
-        void runCmd() throws Exception {
-            String json = (new Gson()).toJson(admin.functions().getCluster());
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
-        }
-    }
-    
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
@@ -1041,25 +1119,27 @@ public class CmdFunctions extends CmdBase {
         deleter = new DeleteFunction();
         updater = new UpdateFunction();
         getter = new GetFunction();
-        statuser = new GetFunctionStatus();
+        functionStatus = new GetFunctionStatus();
         lister = new ListFunctions();
         stateGetter = new StateGetter();
         triggerer = new TriggerFunction();
         uploader = new UploadFunction();
         downloader = new DownloadFunction();
-        cluster = new GetCluster();
+        restart = new RestartFunction();
+        stop = new StopFunction();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
         jcommander.addCommand("update", getUpdater());
         jcommander.addCommand("get", getGetter());
+        jcommander.addCommand("restart", getRestarter());
+        jcommander.addCommand("stop", getStopper());
         jcommander.addCommand("getstatus", getStatuser());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
         jcommander.addCommand("trigger", getTriggerer());
         jcommander.addCommand("upload", getUploader());
         jcommander.addCommand("download", getDownloader());
-        jcommander.addCommand("cluster", cluster);
     }
 
     @VisibleForTesting
@@ -1088,7 +1168,7 @@ public class CmdFunctions extends CmdBase {
     }
 
     @VisibleForTesting
-    GetFunctionStatus getStatuser() { return statuser; }
+    GetFunctionStatus getStatuser() { return functionStatus; }
 
     @VisibleForTesting
     ListFunctions getLister() {
@@ -1115,6 +1195,16 @@ public class CmdFunctions extends CmdBase {
         return downloader;
     }
 
+    @VisibleForTesting
+    RestartFunction getRestarter() {
+        return restart;
+    }
+
+    @VisibleForTesting
+    StopFunction getStopper() {
+        return stop;
+    }
+
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
         String[] args = fqfn.split("/");
         if (args.length != 3) {
@@ -1138,6 +1228,7 @@ public class CmdFunctions extends CmdBase {
         if (serviceUrl == null) {
             serviceUrl = DEFAULT_SERVICE_URL;
         }
+
         try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, stateStorageServiceUrl, authConfig, null, null,
                 null)) {
             List<RuntimeSpawner> spawners = new LinkedList<>();

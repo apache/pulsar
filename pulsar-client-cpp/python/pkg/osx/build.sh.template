@@ -27,7 +27,7 @@ BOOST_VERSION=1.67
 
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 
-brew install openssl git boost@$BOOST_VERSION pkg-config jsoncpp cmake protobuf260 log4cxx
+brew install openssl git boost@$BOOST_VERSION pkg-config jsoncpp cmake protobuf260
 
 brew link --force boost@$BOOST_VERSION
 
@@ -40,8 +40,8 @@ fi
 
 if [ "$PYTHONVER" = "PYTHON3" ]
 then
-	brew install python boost-python3@BOOST_VERSION
-	brew link --force boost-python3@$BOOST_VERSION
+	brew install python boost-python3
+	brew link --force boost-python3
 fi
 
 brew link --force protobuf260
@@ -52,4 +52,10 @@ cd incubator-pulsar/pulsar-client-cpp
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
 make _pulsar -j8
 cd python
-python setup.py bdist_wheel
+
+if [ "$PYTHONVER" = "PYTHON2" ]
+then
+  python2 setup.py bdist_wheel
+else
+  python3 setup.py bdist_wheel
+fi

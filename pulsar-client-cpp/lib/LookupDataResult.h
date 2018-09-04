@@ -31,9 +31,9 @@ typedef boost::shared_ptr<LookupDataResultPromise> LookupDataResultPromisePtr;
 class LookupDataResult {
    public:
     void setBrokerUrl(const std::string& brokerUrl) { brokerUrl_ = brokerUrl; }
-    void setBrokerUrlSsl(const std::string& brokerUrlSsl) { brokerUrlSsl_ = brokerUrlSsl; }
+    void setBrokerUrlTls(const std::string& brokerUrlTls) { brokerUrlTls_ = brokerUrlTls; }
     const std::string& getBrokerUrl() const { return brokerUrl_; }
-    const std::string& getBrokerUrlSsl() const { return brokerUrlSsl_; }
+    const std::string& getBrokerUrlTls() const { return brokerUrlTls_; }
 
     bool isAuthoritative() const { return authoritative; }
 
@@ -56,7 +56,7 @@ class LookupDataResult {
    private:
     friend inline std::ostream& operator<<(std::ostream& os, const LookupDataResult& b);
     std::string brokerUrl_;
-    std::string brokerUrlSsl_;
+    std::string brokerUrlTls_;
     int partitions;
     bool authoritative;
     bool redirect;
@@ -65,7 +65,7 @@ class LookupDataResult {
 };
 
 std::ostream& operator<<(std::ostream& os, const LookupDataResult& b) {
-    os << "{ LookupDataResult [brokerUrl_ = " << b.brokerUrl_ << "] [brokerUrlSsl_ = " << b.brokerUrlSsl_
+    os << "{ LookupDataResult [brokerUrl_ = " << b.brokerUrl_ << "] [brokerUrlTls_ = " << b.brokerUrlTls_
        << "] [partitions = " << b.partitions << "] [authoritative = " << b.authoritative
        << "] [redirect = " << b.redirect << "] proxyThroughServiceUrl = " << b.proxyThroughServiceUrl_
        << "] }";

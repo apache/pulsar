@@ -20,9 +20,7 @@ package org.apache.pulsar.tests.integration.offload;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 
-import com.google.common.collect.ImmutableMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -36,57 +34,18 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
-
-import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.S3Container;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
+import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
 
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static java.util.stream.Collectors.joining;
-
 @Slf4j
-public class TestS3Offload extends PulsarClusterTestBase {
+public class TestS3Offload extends PulsarTieredStorageTestSuite {
 
     private static final int ENTRY_SIZE = 1024;
-    private static final int ENTRIES_PER_LEDGER = 1024;
-
-    @Override
-    @BeforeClass
-    public void setupCluster() throws Exception {
-
-        final String clusterName = Stream.of(this.getClass().getSimpleName(), randomName(5))
-                .filter(s -> s != null && !s.isEmpty())
-                .collect(joining("-"));
-
-        PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .numBookies(2)
-            .numBrokers(1)
-            .externalServices(ImmutableMap.of(S3Container.NAME, new S3Container(clusterName, S3Container.NAME)))
-            .clusterName(clusterName)
-            .build();
-
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
-
-        pulsarCluster = PulsarCluster.forSpec(spec);
-
-        for(BrokerContainer brokerContainer : pulsarCluster.getBrokers()){
-            brokerContainer.withEnv("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
-            brokerContainer.withEnv("managedLedgerMinLedgerRolloverTimeMinutes", "0");
-            brokerContainer.withEnv("managedLedgerOffloadDriver", "s3");
-            brokerContainer.withEnv("s3ManagedLedgerOffloadBucket", "pulsar-integtest");
-            brokerContainer.withEnv("s3ManagedLedgerOffloadServiceEndpoint", "http://" + S3Container.NAME + ":9090");
-        }
-
-        pulsarCluster.start();
-
-        log.info("Cluster {} is setup", spec.clusterName());
-    }
 
     private static byte[] buildEntry(String pattern) {
         byte[] entry = new byte[ENTRY_SIZE];
@@ -96,6 +55,25 @@ public class TestS3Offload extends PulsarClusterTestBase {
             entry[i] = patternBytes[i % patternBytes.length];
         }
         return entry;
+    }
+
+    private S3Container s3Container;
+
+    @BeforeClass
+    public void setupS3() {
+        s3Container = new S3Container(
+            pulsarCluster.getClusterName(),
+            S3Container.NAME)
+            .withNetwork(pulsarCluster.getNetwork())
+            .withNetworkAliases(S3Container.NAME);
+        s3Container.start();
+    }
+
+    @AfterClass
+    public void teardownS3() {
+        if (null != s3Container) {
+            s3Container.stop();
+        }
     }
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
@@ -349,5 +327,6 @@ public class TestS3Offload extends PulsarClusterTestBase {
         Thread.sleep(5000);
         Assert.assertTrue(ledgerExistsInBookKeeper(offloadedLedger));
     }
+
 
 }

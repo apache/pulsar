@@ -56,10 +56,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private int workerPortTls;
     private String connectorsDirectory = "./connectors";
     private String functionMetadataTopicName;
+    private String functionWebServiceUrl;
     private String pulsarServiceUrl;
     private String pulsarWebServiceUrl;
     private String clusterCoordinationTopicName;
-    private String functionMetadataSnapshotsTopicPath;
     private String pulsarFunctionsNamespace;
     private String pulsarFunctionsCluster;
     private int numFunctionPackageReplicas;
@@ -143,7 +143,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public String getWorkerId() {
         if (StringUtils.isBlank(this.workerId)) {
-            this.workerId = getWorkerHostname();
+            this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort());
         }
         return this.workerId;
     }
@@ -154,7 +154,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         }
         return this.workerHostname;
     }
-    
+
+    public String getWorkerWebAddress() {
+        return String.format("http://%s:%d", this.getWorkerHostname(), this.getWorkerPort());
+    }
+
     public static String unsafeLocalhostResolve() {
         try {
             return InetAddress.getLocalHost().getHostName();

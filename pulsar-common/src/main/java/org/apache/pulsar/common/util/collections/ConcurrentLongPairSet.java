@@ -26,7 +26,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.StampedLock;
-import java.util.function.Predicate;
 
 /**
  * Concurrent hash set where values are composed of pairs of longs.
@@ -163,11 +162,11 @@ public class ConcurrentLongPairSet {
 
     /**
      * Removes all of the elements of this collection that satisfy the given predicate.
-     * 
+     *
      * @param filter
      *            a predicate which returns {@code true} for elements to be removed
      * @return {@code true} if any elements were removed
-     * 
+     *
      * @return number of removed values
      */
     public int removeIf(LongPairPredicate filter) {
@@ -209,9 +208,9 @@ public class ConcurrentLongPairSet {
     @SuppressWarnings("serial")
     private static final class Section extends StampedLock {
         // Keys and values are stored interleaved in the table array
-        private long[] table;
+        private volatile long[] table;
 
-        private int capacity;
+        private volatile int capacity;
         private volatile int size;
         private int usedBuckets;
         private int resizeThreshold;
@@ -449,9 +448,11 @@ public class ConcurrentLongPairSet {
                 }
             }
 
-            capacity = newCapacity;
             table = newTable;
             usedBuckets = size;
+            // Capacity needs to be updated after the values, so that we won't see
+            // a capacity value bigger than the actual array size
+            capacity = newCapacity;
             resizeThreshold = (int) (capacity * SetFillFactor);
         }
 
@@ -532,7 +533,7 @@ public class ConcurrentLongPairSet {
             }
         }
     }
-    
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

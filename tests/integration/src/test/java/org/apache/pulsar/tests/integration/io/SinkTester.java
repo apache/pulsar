@@ -19,34 +19,36 @@
 package org.apache.pulsar.tests.integration.io;
 
 import java.util.Map;
+import lombok.Getter;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.collections.Maps;
 
 /**
  * A tester used for testing a specific sink.
  */
+@Getter
 public abstract class SinkTester {
 
     protected final String sinkType;
     protected final Map<String, Object> sinkConfig;
 
-    protected SinkTester(String sinkType) {
+    public SinkTester(String sinkType) {
         this.sinkType = sinkType;
         this.sinkConfig = Maps.newHashMap();
     }
 
-    protected abstract Map<String, GenericContainer<?>> newSinkService(String clusterName);
+    public abstract void findSinkServiceContainer(Map<String, GenericContainer<?>> externalServices);
 
-    protected String sinkType() {
+    public String sinkType() {
         return sinkType;
     }
 
-    protected Map<String, Object> sinkConfig() {
+    public Map<String, Object> sinkConfig() {
         return sinkConfig;
     }
 
-    protected abstract void prepareSink() throws Exception;
+    public abstract void prepareSink() throws Exception;
 
-    protected abstract void validateSinkResult(Map<String, String> kvs);
+    public abstract void validateSinkResult(Map<String, String> kvs);
 
 }

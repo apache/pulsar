@@ -114,13 +114,13 @@ class Stats(object):
     
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, user_code, log_topic, pulsar_client):
+  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, user_code, pulsar_client):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     self.queue = Queue.Queue(max_buffered_tuples)
     self.log_topic_handler = None
-    if log_topic is not None:
-      self.log_topic_handler = log.LogTopicHandler(str(log_topic), pulsar_client)
+    if function_details.logTopic is not None and function_details.logTopic != "":
+      self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
     self.pulsar_client = pulsar_client
     self.input_serdes = {}
     self.consumers = {}
@@ -167,6 +167,20 @@ class PythonInstance(object):
         serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
       else:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
+      self.input_serdes[topic] = serde_kclass()
+      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      self.consumers[topic] = self.pulsar_client.subscribe(
+        str(topic), subscription_name,
+        consumer_type=mode,
+        message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
+        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+      )
+
+    for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
+      if not consumer_conf.serdeClassName:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
+      else:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
       self.input_serdes[topic] = serde_kclass()
       Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       self.consumers[topic] = self.pulsar_client.subscribe(

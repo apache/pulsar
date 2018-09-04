@@ -40,7 +40,7 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 #### Java
 
 ```java
-String topicName = "persistent://my-property/my-namespace/my-topic";
+String topicName = "persistent://my-tenant/my-namespace/my-topic";
 int numPartitions = 4;
 admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 ```
@@ -62,7 +62,7 @@ subcommand. Here's an example:
 
 ```shell
 $ pulsar-admin topics get-partitioned-topic-metadata \
-  persistent://my-property/my-namespace/my-topic
+  persistent://my-tenant/my-namespace/my-topic
 {
   "partitions": 4
 }

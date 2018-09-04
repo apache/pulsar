@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.testng.Assert.assertTrue;
 
@@ -37,7 +38,6 @@ import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
-import org.testng.collections.Maps;
 
 /**
  * A tester for testing kafka source.
@@ -68,21 +68,16 @@ public class KafkaSourceTester extends SourceTester {
     }
 
     @Override
-    protected Map<String, GenericContainer<?>> newSourceService(String clusterName) {
-        this.kafkaContainer = new KafkaContainer()
-            .withEmbeddedZookeeper()
-            .withNetworkAliases(NAME)
-            .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
-                .withName(NAME)
-                .withHostName(clusterName + "-" + NAME));
+    public void findSourceServiceContainer(Map<String, GenericContainer<?>> containers) {
+        GenericContainer<?> container = containers.get(NAME);
+        checkState(container instanceof KafkaContainer,
+            "No kafka service found in the cluster");
 
-        Map<String, GenericContainer<?>> containers = Maps.newHashMap();
-        containers.put("kafka", kafkaContainer);
-        return containers;
+        this.kafkaContainer = (KafkaContainer) container;
     }
 
     @Override
-    protected void prepareSource() throws Exception {
+    public void prepareSource() throws Exception {
         ExecResult execResult = kafkaContainer.execInContainer(
             "/usr/bin/kafka-topics",
             "--create",
@@ -112,7 +107,7 @@ public class KafkaSourceTester extends SourceTester {
     }
 
     @Override
-    protected Map<String, String> produceSourceMessages(int numMessages) throws Exception{
+    public Map<String, String> produceSourceMessages(int numMessages) throws Exception{
         KafkaProducer<String, String> producer = new KafkaProducer<>(
                 ImmutableMap.of(
                         ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),

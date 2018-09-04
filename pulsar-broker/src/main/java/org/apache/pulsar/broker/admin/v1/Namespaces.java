@@ -217,7 +217,8 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Grant a new permission to a role on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Concurrent modification") })
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 501, message = "Authorization is not enabled")})
     public void grantPermissionOnNamespace(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("role") String role, Set<AuthAction> actions) {
         validateNamespaceName(property, cluster, namespace);

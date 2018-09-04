@@ -813,7 +813,7 @@ void ClientConnection::handleIncomingCommand() {
                                 lookupResultPtr->setBrokerUrl(lookupTopicResponse.brokerserviceurl());
                             }
 
-                            lookupResultPtr->setBrokerUrlSsl(lookupTopicResponse.brokerserviceurltls());
+                            lookupResultPtr->setBrokerUrlTls(lookupTopicResponse.brokerserviceurltls());
                             lookupResultPtr->setAuthoritative(lookupTopicResponse.authoritative());
                             lookupResultPtr->setRedirect(lookupTopicResponse.response() ==
                                                          CommandLookupTopicResponse::Redirect);

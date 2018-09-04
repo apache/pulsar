@@ -5,6 +5,7 @@ const CompLibrary = require('../../core/CompLibrary.js');
 const Container = CompLibrary.Container;
 const MarkdownBlock = CompLibrary.MarkdownBlock; /* Used to read markdown */
 const GridBlock = CompLibrary.GridBlock;
+const translate = require('../../server/translate.js').translate;
 
 const CWD = process.cwd();
 
@@ -42,22 +43,23 @@ class Contact extends React.Component {
         <Container className="mainContainer documentContainer postContainer">
           <div className="post">
             <header className="postHeader">
-              <h1>Contact</h1>
+              <h1><translate>Contact</translate></h1>
               <hr />
             </header>
-            <p>
+            <p><translate>
             There are many ways to get help from the Apache Pulsar community.
             The mailing lists are the primary place where all Pulsar committers are present.
             Bugs and feature requests can either be discussed on the dev mailing list or
-            by opening an issue on <a href="https://github.com/apache/incubator-pulsar/" target="_blank">GitHub</a>.
-            </p>
+            by opening an issue on
+            <a href="https://github.com/apache/incubator-pulsar/" target="_blank">GitHub</a>.
+            </translate></p>
 
-            <h2>Mailing Lists</h2>
+            <h2><translate>Mailing Lists</translate></h2>
             <table className="versions">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Scope</th>
+                  <th><translate>Name</translate></th>
+                  <th><translate>Scope</translate></th>
                   <th></th>
                   <th></th>
                   <th></th>
@@ -69,22 +71,22 @@ class Contact extends React.Component {
                       <tr key={list.email}>
                         <td>{list.email}</td>
                         <td>{list.desc}</td>
-                        <td><a href={list.subscribe}>Subscribe</a></td>
-                        <td><a href={list.unsubscribe}>Unsubscribe</a></td>
-                        <td><a href={list.archives}>Archives</a></td>
+                        <td><a href={list.subscribe}><translate>Subscribe</translate></a></td>
+                        <td><a href={list.unsubscribe}><translate>Unsubscribe</translate></a></td>
+                        <td><a href={list.archives}><translate>Archives</translate></a></td>
                       </tr>
                     )
                 )}
               </tbody>
             </table>
 
-            <h2>Slack</h2>
-            <p>There is a Pulsar slack channel that is used for informal discussions for devs and users.</p>
+            <h2><translate>Slack</translate></h2>
+            <p><translate>There is a Pulsar slack channel that is used for informal discussions for devs and users.</translate></p>
 
-            <p>The Slack instance is at <a href="https://apache-pulsar.slack.com/" target="_blank">
+            <p><translate>The Slack instance is at </translate> <a href="https://apache-pulsar.slack.com/" target="_blank">
                     https://apache-pulsar.slack.com/</a></p>
 
-            <p>You can self-register at <a href="https://apache-pulsar.herokuapp.com/" target="_blank">
+            <p><translate>You can self-register at </translate> <a href="https://apache-pulsar.herokuapp.com/" target="_blank">
                     https://apache-pulsar.herokuapp.com/</a></p>
           </div>
         </Container>

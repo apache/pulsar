@@ -18,9 +18,26 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.Assert.assertEquals;
+
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+
+import java.io.File;
+import java.net.URL;
+import java.nio.file.Files;
+import java.util.*;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -39,21 +56,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.net.URL;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-
 @Slf4j
 @PrepareForTest({CmdFunctions.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*", "org.apache.pulsar.functions.api.*" })
@@ -69,8 +71,19 @@ public class TestCmdSinks {
     private static final String NAME = "test";
     private static final String CLASS_NAME = CassandraStringSink.class.getName();
     private static final String INPUTS = "test-src1,test-src2";
+    private static final List<String> INPUTS_LIST;
+    static {
+        INPUTS_LIST = new LinkedList<>();
+        INPUTS_LIST.add("test-src1");
+        INPUTS_LIST.add("test-src2");
+    }
     private static final String TOPIC_PATTERN = "test-src*";
     private static final String CUSTOM_SERDE_INPUT_STRING = "{\"test_src3\": \"\"}";
+    private static final Map<String, String> CUSTOM_SERDE_INPUT_MAP;
+    static {
+        CUSTOM_SERDE_INPUT_MAP = new HashMap<>();
+        CUSTOM_SERDE_INPUT_MAP.put("test_src3", "");
+    }
     private static final FunctionConfig.ProcessingGuarantees PROCESSING_GUARANTEES
             = FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
     private static final Integer PARALLELISM = 1;
@@ -121,12 +134,10 @@ public class TestCmdSinks {
         sinkConfig.setNamespace(NAMESPACE);
         sinkConfig.setName(NAME);
 
-        Map<String, String> topicsToSerDeClassName = new HashMap<>();
-        createSink.parseInputs(INPUTS, topicsToSerDeClassName);
-        createSink.parseCustomSerdeInput(CUSTOM_SERDE_INPUT_STRING, topicsToSerDeClassName);
-        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
-
+        sinkConfig.setInputs(INPUTS_LIST);
+        sinkConfig.setTopicToSerdeClassName(CUSTOM_SERDE_INPUT_MAP);
         sinkConfig.setTopicsPattern(TOPIC_PATTERN);
+
         sinkConfig.setProcessingGuarantees(PROCESSING_GUARANTEES);
         sinkConfig.setParallelism(PARALLELISM);
         sinkConfig.setArchive(JAR_FILE_PATH);
@@ -225,9 +236,8 @@ public class TestCmdSinks {
     @Test
     public void testMissingInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        Map<String, String> topicsToSerDeClassName = new HashMap<>();
-        createSink.parseCustomSerdeInput(CUSTOM_SERDE_INPUT_STRING, topicsToSerDeClassName);
-        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+        sinkConfig.setInputSpecs(new HashMap<>());
+        sinkConfig.setInputs(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -249,9 +259,9 @@ public class TestCmdSinks {
     @Test
     public void testMissingCustomSerdeInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        Map<String, String> topicsToSerDeClassName = new HashMap<>();
-        createSink.parseInputs(INPUTS, topicsToSerDeClassName);
-        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+        sinkConfig.setTopicToSerdeClassName(null);
+        sinkConfig.setTopicToSchemaType(null);
+        sinkConfig.setInputSpecs(new HashMap<>());
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -273,6 +283,7 @@ public class TestCmdSinks {
     @Test
     public void testMissingTopicPattern() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
+        sinkConfig.getInputSpecs().clear();
         sinkConfig.setTopicsPattern(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
@@ -292,11 +303,9 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Must specify at least one topic of input via inputs, customSerdeInputs, or topicPattern")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Must specify at least one topic of input via topicToSerdeClassName, topicsPattern, topicToSchemaType or inputSpecs")
     public void testMissingAllInputTopics() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setTopicsPattern(null);
-        sinkConfig.setTopicToSerdeClassName(new HashMap<>());
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -677,32 +686,29 @@ public class TestCmdSinks {
     @Test
     public void testCmdSinkConfigFileMissingTopicToSerdeClassName() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setTopicToSerdeClassName(null);
 
         SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setTopicToSerdeClassName(null);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
     @Test
     public void testCmdSinkConfigFileMissingTopicsPattern() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setTopicsPattern(null);
 
         SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setTopicsPattern(null);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Must specify at least one topic of input via inputs, customSerdeInputs, or topicPattern")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Must specify at least one topic of input via topicToSerdeClassName, topicsPattern, topicToSchemaType or inputSpecs")
     public void testCmdSinkConfigFileMissingAllInput() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setTopicsPattern(null);
+        testSinkConfig.setInputs(null);
+        testSinkConfig.setTopicToSchemaType(null);
         testSinkConfig.setTopicToSerdeClassName(null);
+        testSinkConfig.setTopicsPattern(null);
+        testSinkConfig.setInputSpecs(null);
 
         SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setTopicsPattern(null);
-        expectedSinkConfig.setTopicToSerdeClassName(null);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
@@ -826,12 +832,11 @@ public class TestCmdSinks {
         testSinkConfig.setNamespace(NAMESPACE + "-prime");
         testSinkConfig.setName(NAME + "-prime");
 
-        Map<String, String> topicsToSerDeClassName = new HashMap<>();
-        createSink.parseInputs(INPUTS + ",test-src-prime", topicsToSerDeClassName);
-        createSink.parseCustomSerdeInput("{\"test_src3-prime\": \"\"}", topicsToSerDeClassName);
-        testSinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
-
+        testSinkConfig.setTopicToSerdeClassName(new HashMap<>());
+        testSinkConfig.getTopicToSerdeClassName().put("test-src-prime", "");
+        testSinkConfig.getTopicToSerdeClassName().put("test_src3-prime", "");
         testSinkConfig.setTopicsPattern(TOPIC_PATTERN + "-prime");
+
         testSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
         testSinkConfig.setParallelism(PARALLELISM + 1);
         testSinkConfig.setArchive(JAR_FILE_PATH + "-prime");
@@ -922,7 +927,6 @@ public class TestCmdSinks {
         updateSink.disk = disk;
         updateSink.sinkConfigString = sinkConfigString;
         updateSink.sinkConfigFile = sinkConfigFile;
-
 
         updateSink.processArguments();
 

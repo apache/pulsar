@@ -62,7 +62,7 @@ With that implementation in hand, you can send
 
 ```java
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
-String topic = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
 
 PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
 ProducerConfiguration config = new ProducerConfiguration();

@@ -25,11 +25,11 @@ import com.datastax.driver.core.Session;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.CassandraContainer;
 import org.testcontainers.containers.GenericContainer;
-import org.testng.collections.Maps;
 
 import java.util.List;
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -39,6 +39,8 @@ import static org.junit.Assert.assertNotNull;
  */
 @Slf4j
 public class CassandraSinkTester extends SinkTester {
+
+    private static final String NAME = "cassandra";
 
     private static final String ROOTS = "cassandra";
     private static final String KEY = "key";
@@ -67,15 +69,16 @@ public class CassandraSinkTester extends SinkTester {
     }
 
     @Override
-    protected Map<String, GenericContainer<?>> newSinkService(String clusterName) {
-        this.cassandraCluster = new CassandraContainer(clusterName);
-        Map<String, GenericContainer<?>> containers = Maps.newHashMap();
-        containers.put(CassandraContainer.NAME, cassandraCluster);
-        return containers;
+    public void findSinkServiceContainer(Map<String, GenericContainer<?>> containers) {
+        GenericContainer<?> container = containers.get(NAME);
+        checkState(container instanceof CassandraContainer,
+            "No kafka service found in the cluster");
+
+        this.cassandraCluster = (CassandraContainer) container;
     }
 
     @Override
-    protected void prepareSink() {
+    public void prepareSink() {
         // build the sink
         cluster = Cluster.builder()
             .addContactPoint("localhost")
@@ -101,7 +104,7 @@ public class CassandraSinkTester extends SinkTester {
     }
 
     @Override
-    protected void validateSinkResult(Map<String, String> kvs) {
+    public void validateSinkResult(Map<String, String> kvs) {
         String query = "SELECT * FROM " + tableName + ";";
         ResultSet result = session.execute(query);
         List<Row> rows = result.all();

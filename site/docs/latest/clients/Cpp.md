@@ -138,7 +138,6 @@ client.close();
 
 ```cpp
 ClientConfiguration config = ClientConfiguration();
-config.setUseTls(true);
 config.setTlsTrustCertsFilePath("/path/to/cacert.pem");
 config.setTlsAllowInsecureConnection(false);
 config.setAuth(pulsar::AuthTls::create(

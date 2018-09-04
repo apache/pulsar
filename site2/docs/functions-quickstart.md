@@ -48,14 +48,16 @@ A JAR file containing this and several other functions (written in Java) is incl
 ```bash
 $ bin/pulsar-admin functions localrun \
   --jar examples/api-examples.jar \
-  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --name exclamation
 ```
 
 > #### Multiple input topics allowed
+>
 > In the example above, a single topic was specified using the `--inputs` flag. You can also specify multiple input topics as a comma-separated list using the same flag. Here's an example:
+>
 > ```bash
 > --inputs topic1,topic2
 > ```
@@ -102,7 +104,7 @@ This command, for example, would deploy the same exclamation function we ran loc
 ```bash
 $ bin/pulsar-admin functions create \
   --jar examples/api-examples.jar \
-  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --name exclamation
@@ -169,7 +171,7 @@ As we can see, the parallelism of the function is 1, meaning that only one insta
 ```bash
 $ bin/pulsar-admin functions update \
   --jar examples/api-examples.jar \
-  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --tenant public \
@@ -210,7 +212,7 @@ If you see `Deleted successfully` in the output, then you've succesfully run, up
 
 > In order to write and run the [Python](functions-api.md#functions-for-python) function below, you'll need to install a few dependencies:
 > ```bash
-> $ pip install pulsar-client protobuf futures grpcio grpcio-tools
+> $ pip install pulsar-client
 > ```
 
 In the above examples, we ran and managed a pre-written Pulsar Function and saw how it worked. To really get our hands dirty, let's write and our own function from scratch, using the Python API. This simple function will also take a string as input but it will reverse the string and publish the resulting, reversed string to the specified topic.
@@ -233,7 +235,7 @@ Here, the `process` method defines the processing logic of the Pulsar Function. 
 ```bash
 $ bin/pulsar-admin functions create \
   --py reverse.py \
-  --className reverse \
+  --class-name reverse \
   --inputs persistent://public/default/backwards \
   --output persistent://public/default/forwards \
   --tenant public \
@@ -248,7 +250,7 @@ $ bin/pulsar-admin functions trigger \
   --name reverse \
   --tenant public \
   --namespace default \
-  --triggerValue "sdrawrof won si tub sdrawkcab saw gnirts sihT"
+  --trigger-value "sdrawrof won si tub sdrawkcab saw gnirts sihT"
 ```
 
 You should get this output:

@@ -45,8 +45,9 @@ public class AvroSchema<T> implements Schema<T> {
     private BinaryEncoder encoder;
     private ByteArrayOutputStream byteArrayOutputStream;
 
-    private AvroSchema(Class<T> pojo, Map<String, String> properties) {
-        this.schema = ReflectData.AllowNull.get().getSchema(pojo);
+    private AvroSchema(org.apache.avro.Schema schema,
+                       Map<String, String> properties) {
+        this.schema = schema;
 
         this.schemaInfo = new SchemaInfo();
         this.schemaInfo.setName("");
@@ -61,8 +62,7 @@ public class AvroSchema<T> implements Schema<T> {
     }
 
     @Override
-    public byte[] encode(T message) {
-
+    public synchronized byte[] encode(T message) {
         try {
             datumWriter.write(message, this.encoder);
             this.encoder.flush();
@@ -88,11 +88,16 @@ public class AvroSchema<T> implements Schema<T> {
         return this.schemaInfo;
     }
 
+    private static <T> org.apache.avro.Schema createAvroSchema(Class<T> pojo) {
+        return ReflectData.AllowNull.get().getSchema(pojo);
+    }
+
     public static <T> AvroSchema<T> of(Class<T> pojo) {
-        return new AvroSchema<>(pojo, Collections.emptyMap());
+        return new AvroSchema<>(createAvroSchema(pojo), Collections.emptyMap());
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        return new AvroSchema<>(pojo, properties);
+        return new AvroSchema<>(createAvroSchema(pojo), properties);
     }
+
 }

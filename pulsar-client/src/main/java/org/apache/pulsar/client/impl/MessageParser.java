@@ -95,15 +95,10 @@ public class MessageParser {
             if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
                 final MessageImpl<?> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload, null, null);
                 processor.process(msgId, message, uncompressedPayload);
-
-                uncompressedPayload.release();
-
             } else {
                 // handle batch message enqueuing; uncompressed payload has all messages in batch
                 receiveIndividualMessagesFromBatch(msgMetadata, uncompressedPayload, messageId, null, -1, processor);
-                uncompressedPayload.release();
             }
-
         } finally {
             if (uncompressedPayload != null) {
                 uncompressedPayload.release();

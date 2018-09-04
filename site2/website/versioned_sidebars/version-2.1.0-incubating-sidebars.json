@@ -75,7 +75,8 @@
       "version-2.1.0-incubating-admin-api-permissions",
       "version-2.1.0-incubating-admin-api-persistent-topics",
       "version-2.1.0-incubating-admin-api-non-persistent-topics",
-      "version-2.1.0-incubating-admin-api-partitioned-topics"
+      "version-2.1.0-incubating-admin-api-partitioned-topics",
+      "version-2.1.0-incubating-admin-api-schemas"
     ],
     "Adaptors": [
       "version-2.1.0-incubating-adaptors-kafka",

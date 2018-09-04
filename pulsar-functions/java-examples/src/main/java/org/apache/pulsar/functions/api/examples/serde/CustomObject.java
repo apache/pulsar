@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.functions.api.examples.serde;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 /**
  * This class simulates a user defined POJO
@@ -28,6 +26,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
+@NoArgsConstructor
 public class CustomObject {
     private long value;
 }

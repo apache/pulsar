@@ -315,12 +315,14 @@ class Client:
                         send_timeout_millis=30000,
                         compression_type=CompressionType.NONE,
                         max_pending_messages=1000,
+                        max_pending_messages_across_partitions=50000,
                         block_if_queue_full=False,
                         batching_enabled=False,
                         batching_max_messages=1000,
                         batching_max_allowed_size_in_bytes=128*1024,
                         batching_max_publish_delay_ms=10,
-                        message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution
+                        message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
+                        properties=None,
                         ):
         """
         Create a new producer on a given topic.
@@ -352,11 +354,17 @@ class Client:
         * `max_pending_messages`:
           Set the max size of the queue holding the messages pending to receive
           an acknowledgment from the broker.
+        * `max_pending_messages_across_partitions`:
+          Set the max size of the queue holding the messages pending to receive
+          an acknowledgment across partitions from the broker.
         * `block_if_queue_full`: Set whether `send_async` operations should
           block when the outgoing message queue is full.
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
           other option is `PartitionsRoutingMode.UseSinglePartition`
+        * `properties`:
+          Sets the properties for the producer. The properties associated with a producer
+          can be used for identify a producer at broker side.
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
@@ -364,16 +372,19 @@ class Client:
         _check_type(int, send_timeout_millis, 'send_timeout_millis')
         _check_type(CompressionType, compression_type, 'compression_type')
         _check_type(int, max_pending_messages, 'max_pending_messages')
+        _check_type(int, max_pending_messages_across_partitions, 'max_pending_messages_across_partitions')
         _check_type(bool, block_if_queue_full, 'block_if_queue_full')
         _check_type(bool, batching_enabled, 'batching_enabled')
         _check_type(int, batching_max_messages, 'batching_max_messages')
         _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
         _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
+        _check_type_or_none(dict, properties, 'properties')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
         conf.compression_type(compression_type)
         conf.max_pending_messages(max_pending_messages)
+        conf.max_pending_messages_across_partitions(max_pending_messages_across_partitions)
         conf.block_if_queue_full(block_if_queue_full)
         conf.batching_enabled(batching_enabled)
         conf.batching_max_messages(batching_max_messages)
@@ -384,6 +395,10 @@ class Client:
             conf.producer_name(producer_name)
         if initial_sequence_id:
             conf.initial_sequence_id(initial_sequence_id)
+        if properties:
+            for k, v in properties.items():
+                conf.property(k, v)
+
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
         return p
@@ -392,10 +407,12 @@ class Client:
                   consumer_type=ConsumerType.Exclusive,
                   message_listener=None,
                   receiver_queue_size=1000,
+                  max_total_receiver_queue_size_across_partitions=50000,
                   consumer_name=None,
                   unacked_messages_timeout_ms=None,
                   broker_consumer_stats_cache_time_ms=30000,
-                  is_read_compacted=False
+                  is_read_compacted=False,
+                  properties=None
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -434,6 +451,9 @@ class Client:
           should not be interrupted when the consumer queue size is zero. The
           default value is 1000 messages and should work well for most use
           cases.
+        * `max_total_receiver_queue_size_across_partitions`
+          Set the max total receiver queue size across partitions.
+          This setting will be used to reduce the receiver queue size for individual partitions
         * `consumer_name`:
           Sets the consumer name.
         * `unacked_messages_timeout_ms`:
@@ -445,15 +465,21 @@ class Client:
         * `broker_consumer_stats_cache_time_ms`:
           Sets the time duration for which the broker-side consumer stats will
           be cached in the client.
+        * `properties`:
+          Sets the properties for the consumer. The properties associated with a consumer
+          can be used for identify a consumer at broker side.
         """
         _check_type(str, topic, 'topic')
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
+        _check_type(int, max_total_receiver_queue_size_across_partitions,
+                    'max_total_receiver_queue_size_across_partitions')
         _check_type_or_none(str, consumer_name, 'consumer_name')
         _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
         _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
         _check_type(bool, is_read_compacted, 'is_read_compacted')
+        _check_type_or_none(dict, properties, 'properties')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
@@ -461,13 +487,223 @@ class Client:
         if message_listener:
             conf.message_listener(message_listener)
         conf.receiver_queue_size(receiver_queue_size)
+        conf.max_total_receiver_queue_size_across_partitions(max_total_receiver_queue_size_across_partitions)
         if consumer_name:
             conf.consumer_name(consumer_name)
         if unacked_messages_timeout_ms:
             conf.unacked_messages_timeout_ms(unacked_messages_timeout_ms)
         conf.broker_consumer_stats_cache_time_ms(broker_consumer_stats_cache_time_ms)
+        if properties:
+            for k, v in properties.items():
+                conf.property(k, v)
+
         c = Consumer()
         c._consumer = self._client.subscribe(topic, subscription_name, conf)
+        c._client = self
+        self._consumers.append(c)
+        return c
+
+    def subscribe_topics(self, topics, subscription_name,
+                         consumer_type=ConsumerType.Exclusive,
+                         message_listener=None,
+                         receiver_queue_size=1000,
+                         max_total_receiver_queue_size_across_partitions=50000,
+                         consumer_name=None,
+                         unacked_messages_timeout_ms=None,
+                         broker_consumer_stats_cache_time_ms=30000,
+                         is_read_compacted=False,
+                         properties=None
+                         ):
+        """
+        Subscribe to the given topics and subscription combination.
+
+        **Args**
+
+        * `topics`: The list name of the topics.
+        * `subscription`: The name of the subscription.
+
+        **Options**
+
+        * `consumer_type`:
+          Select the subscription type to be used when subscribing to the topic.
+        * `message_listener`:
+          Sets a message listener for the consumer. When the listener is set,
+          the application will receive messages through it. Calls to
+          `consumer.receive()` will not be allowed. The listener function needs
+          to accept (consumer, message), for example:
+
+                #!python
+                def my_listener(consumer, message):
+                    # process message
+                    consumer.acknowledge(message)
+
+        * `receiver_queue_size`:
+          Sets the size of the consumer receive queue. The consumer receive
+          queue controls how many messages can be accumulated by the consumer
+          before the application calls `receive()`. Using a higher value could
+          potentially increase the consumer throughput at the expense of higher
+          memory utilization. Setting the consumer queue size to zero decreases
+          the throughput of the consumer by disabling pre-fetching of messages.
+          This approach improves the message distribution on shared subscription
+          by pushing messages only to those consumers that are ready to process
+          them. Neither receive with timeout nor partitioned topics can be used
+          if the consumer queue size is zero. The `receive()` function call
+          should not be interrupted when the consumer queue size is zero. The
+          default value is 1000 messages and should work well for most use
+          cases.
+        * `max_total_receiver_queue_size_across_partitions`
+          Set the max total receiver queue size across partitions.
+          This setting will be used to reduce the receiver queue size for individual partitions
+        * `consumer_name`:
+          Sets the consumer name.
+        * `unacked_messages_timeout_ms`:
+          Sets the timeout in milliseconds for unacknowledged messages. The
+          timeout needs to be greater than 10 seconds. An exception is thrown if
+          the given value is less than 10 seconds. If a successful
+          acknowledgement is not sent within the timeout, all the unacknowledged
+          messages are redelivered.
+        * `broker_consumer_stats_cache_time_ms`:
+          Sets the time duration for which the broker-side consumer stats will
+          be cached in the client.
+        * `properties`:
+          Sets the properties for the consumer. The properties associated with a consumer
+          can be used for identify a consumer at broker side.
+        """
+        _check_type(list, topics, 'topics')
+        _check_type(str, subscription_name, 'subscription_name')
+        _check_type(ConsumerType, consumer_type, 'consumer_type')
+        _check_type(int, receiver_queue_size, 'receiver_queue_size')
+        _check_type(int, max_total_receiver_queue_size_across_partitions,
+                    'max_total_receiver_queue_size_across_partitions')
+        _check_type_or_none(str, consumer_name, 'consumer_name')
+        _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
+        _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
+        _check_type(bool, is_read_compacted, 'is_read_compacted')
+        _check_type_or_none(dict, properties, 'properties')
+
+        conf = _pulsar.ConsumerConfiguration()
+        conf.consumer_type(consumer_type)
+        conf.read_compacted(is_read_compacted)
+        if message_listener:
+            conf.message_listener(message_listener)
+        conf.receiver_queue_size(receiver_queue_size)
+        conf.max_total_receiver_queue_size_across_partitions(max_total_receiver_queue_size_across_partitions)
+        if consumer_name:
+            conf.consumer_name(consumer_name)
+        if unacked_messages_timeout_ms:
+            conf.unacked_messages_timeout_ms(unacked_messages_timeout_ms)
+        conf.broker_consumer_stats_cache_time_ms(broker_consumer_stats_cache_time_ms)
+        if properties:
+            for k, v in properties.items():
+                conf.property(k, v)
+
+        c = Consumer()
+        c._consumer = self._client.subscribe_topics(topics, subscription_name, conf)
+        c._client = self
+        self._consumers.append(c)
+        return c
+
+    def subscribe_pattern(self, topics_pattern, subscription_name,
+                          consumer_type=ConsumerType.Exclusive,
+                          message_listener=None,
+                          receiver_queue_size=1000,
+                          max_total_receiver_queue_size_across_partitions=50000,
+                          consumer_name=None,
+                          unacked_messages_timeout_ms=None,
+                          broker_consumer_stats_cache_time_ms=30000,
+                          is_read_compacted=False,
+                          pattern_auto_discovery_period=60,
+                          properties=None
+                          ):
+        """
+        Subscribe to multiple topics, which match given regexPattern, under the same namespace.
+
+        **Args**
+
+        * `topics_pattern`: The regex pattern to match topics.
+        * `subscription`: The name of the subscription.
+
+        **Options**
+
+        * `consumer_type`:
+          Select the subscription type to be used when subscribing to the topic.
+        * `message_listener`:
+          Sets a message listener for the consumer. When the listener is set,
+          the application will receive messages through it. Calls to
+          `consumer.receive()` will not be allowed. The listener function needs
+          to accept (consumer, message), for example:
+
+                #!python
+                def my_listener(consumer, message):
+                    # process message
+                    consumer.acknowledge(message)
+
+        * `receiver_queue_size`:
+          Sets the size of the consumer receive queue. The consumer receive
+          queue controls how many messages can be accumulated by the consumer
+          before the application calls `receive()`. Using a higher value could
+          potentially increase the consumer throughput at the expense of higher
+          memory utilization. Setting the consumer queue size to zero decreases
+          the throughput of the consumer by disabling pre-fetching of messages.
+          This approach improves the message distribution on shared subscription
+          by pushing messages only to those consumers that are ready to process
+          them. Neither receive with timeout nor partitioned topics can be used
+          if the consumer queue size is zero. The `receive()` function call
+          should not be interrupted when the consumer queue size is zero. The
+          default value is 1000 messages and should work well for most use
+          cases.
+        * `max_total_receiver_queue_size_across_partitions`
+          Set the max total receiver queue size across partitions.
+          This setting will be used to reduce the receiver queue size for individual partitions
+        * `consumer_name`:
+          Sets the consumer name.
+        * `unacked_messages_timeout_ms`:
+          Sets the timeout in milliseconds for unacknowledged messages. The
+          timeout needs to be greater than 10 seconds. An exception is thrown if
+          the given value is less than 10 seconds. If a successful
+          acknowledgement is not sent within the timeout, all the unacknowledged
+          messages are redelivered.
+        * `broker_consumer_stats_cache_time_ms`:
+          Sets the time duration for which the broker-side consumer stats will
+          be cached in the client.
+        * `pattern_auto_discovery_period`:
+          Periods of seconds for consumer to auto discover match topics.
+        * `properties`:
+          Sets the properties for the consumer. The properties associated with a consumer
+          can be used for identify a consumer at broker side.
+        """
+        _check_type(str, topics_pattern, 'topics_pattern')
+        _check_type(str, subscription_name, 'subscription_name')
+        _check_type(ConsumerType, consumer_type, 'consumer_type')
+        _check_type(int, receiver_queue_size, 'receiver_queue_size')
+        _check_type(int, max_total_receiver_queue_size_across_partitions,
+                    'max_total_receiver_queue_size_across_partitions')
+        _check_type_or_none(str, consumer_name, 'consumer_name')
+        _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
+        _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
+        _check_type(bool, is_read_compacted, 'is_read_compacted')
+        _check_type(int, pattern_auto_discovery_period, 'pattern_auto_discovery_period')
+        _check_type_or_none(dict, properties, 'properties')
+
+        conf = _pulsar.ConsumerConfiguration()
+        conf.consumer_type(consumer_type)
+        conf.read_compacted(is_read_compacted)
+        if message_listener:
+            conf.message_listener(message_listener)
+        conf.receiver_queue_size(receiver_queue_size)
+        conf.max_total_receiver_queue_size_across_partitions(max_total_receiver_queue_size_across_partitions)
+        if consumer_name:
+            conf.consumer_name(consumer_name)
+        if unacked_messages_timeout_ms:
+            conf.unacked_messages_timeout_ms(unacked_messages_timeout_ms)
+        conf.broker_consumer_stats_cache_time_ms(broker_consumer_stats_cache_time_ms)
+        conf.pattern_auto_discovery_period(pattern_auto_discovery_period)
+        if properties:
+            for k, v in properties.items():
+                conf.property(k, v)
+
+        c = Consumer()
+        c._consumer = self._client.subscribe_pattern(topics_pattern, subscription_name, conf)
         c._client = self
         self._consumers.append(c)
         return c

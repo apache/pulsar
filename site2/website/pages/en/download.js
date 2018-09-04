@@ -46,10 +46,10 @@ class Download extends React.Component {
         <Container className="mainContainer documentContainer postContainer">
           <div className="post">
             <header className="postHeader">
-              <h1>Apache Pulsar downloads</h1>
+              <h1><translate>Apache Pulsar downloads</translate></h1>
               <hr />
             </header>
-            <h2 id="latest">Current version (Stable) {latestVersion}</h2>
+            <h2 id="latest"><translate>Current version (Stable)</translate> {latestVersion}</h2>
             <table className="versions" style={{width:'100%'}}>
               <thead>
                 <tr>
@@ -60,7 +60,7 @@ class Download extends React.Component {
               </thead>
               <tbody>
                 <tr key={'binary'}>
-                  <th>Binary</th>
+                  <th><translate>Binary</translate></th>
                   <td>
                     <a href={latestArchiveMirrorUrl}>pulsar-{latestVersion}-bin.tar.gz</a>
                   </td>
@@ -71,7 +71,7 @@ class Download extends React.Component {
                   </td>
                 </tr>
                 <tr key={'source'}>
-                  <th>Source</th>
+                  <th><translate>Source</translate></th>
                   <td>
                     <a href={latestSrcArchiveMirrorUrl}>pulsar-{latestVersion}-src.tar.gz</a>
                   </td>
@@ -84,7 +84,7 @@ class Download extends React.Component {
               </tbody>
             </table>
 
-            <h2>Release Integrity</h2>
+            <h2><translate>Release Integrity</translate></h2>
             <MarkdownBlock>
               You must [verify](https://www.apache.org/info/verification.html) the integrity of the downloaded files.
               We provide OpenPGP signatures for every release file. This signature should be matched against the
@@ -95,60 +95,64 @@ class Download extends React.Component {
             </MarkdownBlock>
 
 
-            <h2>Release notes</h2>
+            <h2><translate>Release notes</translate></h2>
             <div>
               <p>
-                <a href={`${siteConfig.baseUrl}/release-notes`}>Release notes</a> for all Pulsar's versions
+                <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes`}>Release notes</a> for all Pulsar's versions
               </p>
             </div>
 
-            <h2>Getting started</h2>
+            <h2><translate>Getting started</translate></h2>
             <div>
               <p>
+              <translate>
                 Once you've downloaded a Pulsar release, instructions on getting up and running with a standalone cluster
                 that you can run on your laptop can be found in the{' '}
-                <a href={`${siteConfig.baseUrl}docs/${this.props.language}/standalone`}>Run Pulsar locally</a> tutorial.
+              </translate>
+                <a href={`${siteConfig.baseUrl}docs/${this.props.language}/standalone`}><translate>Run Pulsar locally</translate></a> <translate>tutorial</translate>.
               </p>
             </div>
             <p>
+              <translate>
               If you need to connect to an existing Pulsar cluster or instance using an officially supported client,
               see the client docs for these languages:
+              </translate>
             </p>
             <table className="clients">
               <thead>
                 <tr>
-                  <th>Client guide</th>
-                  <th>API docs</th>
+                  <th><translate>Client guide</translate></th>
+                  <th><translate>API docs</translate></th>
                 </tr>
               </thead>
               <tbody>
                 <tr key={'java'}>
-                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-java`}>The Pulsar java client</a></td>
-                  <td>The Pulsar java client</td>
+                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-java`}><translate>The Pulsar java client</translate></a></td>
+                  <td><translate>The Pulsar java client</translate></td>
                 </tr>
                 <tr key={'go'}>
-                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-go`}>The Pulsar go client</a></td>
-                  <td>The Pulsar go client</td>
+                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-go`}><translate>The Pulsar go client</translate></a></td>
+                  <td><translate>The Pulsar go client</translate></td>
                 </tr>
                 <tr key={'python'}>
-                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-python`}>The Pulsar python client</a></td>
-                  <td>The Pulsar python client</td>
+                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-python`}><translate>The Pulsar python client</translate></a></td>
+                  <td><translate>The Pulsar python client</translate></td>
                 </tr>
                 <tr key={'cpp'}>
-                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-cpp`}>The Pulsar C++ client</a></td>
-                  <td>The Pulsar C++ client</td>
+                  <td><a href={`${siteConfig.baseUrl}docs/${this.props.language}/client-libraries-cpp`}><translate>The Pulsar C++ client</translate></a></td>
+                  <td><translate>The Pulsar C++ client</translate></td>
                 </tr>
               </tbody>
             </table>
 
-            <h2 id="archive">Older releases</h2>
+            <h2 id="archive"><translate>Older releases</translate></h2>
             <table className="versions">
               <thead>
                 <tr>
-                  <th>Release</th>
-                  <th>Binary</th>
-                  <th>Source</th>
-                  <th>Release notes</th>
+                  <th><translate>Release</translate></th>
+                  <th><translate>Binary</translate></th>
+                  <th><translate>Source</translate></th>
+                  <th><translate>Release notes</translate></th>
                 </tr>
               </thead>
               <tbody>
@@ -172,7 +176,7 @@ class Download extends React.Component {
                             <a href={`${info.srcArchiveUrl}.sha512`}>sha512</a>)
                         </td>
                         <td>
-                          <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes#${info.version}`}>Release Notes</a>
+                          <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes#${info.version}`}><translate>Release Notes</translate></a>
                         </td>
                       </tr>
                     )

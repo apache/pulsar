@@ -136,6 +136,9 @@ public class PerformanceProducer {
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
         public long testTime = 0;
 
+        @Parameter(names = "--warmup-time", description = "Warm-up time in seconds (Default: 1 sec)")
+        public double warmupTimeSeconds = 1.0;
+
         @Parameter(names = {
                 "--use-tls" }, description = "Use TLS encryption on the connection")
         public boolean useTls;
@@ -211,8 +214,6 @@ public class PerformanceProducer {
                arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
             }
         }
-
-        arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
 
         // Dump config variables
         ObjectMapper m = new ObjectMapper();
@@ -319,14 +320,16 @@ public class PerformanceProducer {
             try {
                 RateLimiter rateLimiter = RateLimiter.create(arguments.msgRate);
 
-                long startTime = System.currentTimeMillis();
+                long startTime = System.nanoTime();
+                long warmupEndTime = startTime + (long) (arguments.warmupTimeSeconds * 1e9);
+                long testEndTime = startTime + (long) (arguments.testTime * 1e9);
 
                 // Send messages on all topics/producers
                 long totalSent = 0;
                 while (true) {
                     for (Producer<byte[]> producer : producers) {
                         if (arguments.testTime > 0) {
-                            if (System.currentTimeMillis() - startTime > arguments.testTime) {
+                            if (System.nanoTime() > testEndTime) {
                                 log.info("------------------- DONE -----------------------");
                                 printAggregatedStats();
                                 isDone.set(true);
@@ -352,9 +355,12 @@ public class PerformanceProducer {
                             messagesSent.increment();
                             bytesSent.add(payloadData.length);
 
-                            long latencyMicros = NANOSECONDS.toMicros(System.nanoTime() - sendTime);
-                            recorder.recordValue(latencyMicros);
-                            cumulativeRecorder.recordValue(latencyMicros);
+                            long now = System.nanoTime();
+                            if (now > warmupEndTime) {
+                                long latencyMicros = NANOSECONDS.toMicros(now - sendTime);
+                                recorder.recordValue(latencyMicros);
+                                cumulativeRecorder.recordValue(latencyMicros);
+                            }
                         }).exceptionally(ex -> {
                             log.warn("Write error on message", ex);
                             System.exit(-1);

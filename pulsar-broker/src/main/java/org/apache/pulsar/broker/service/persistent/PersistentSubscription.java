@@ -103,11 +103,6 @@ public class PersistentSubscription implements Subscription {
             throw new SubscriptionFencedException("Subscription is fenced");
         }
 
-        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog() == 0) {
-            // Immediately notify the consumer that there are no more available messages
-            consumer.reachedEndOfTopic();
-        }
-
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
             switch (consumer.subType()) {
             case Exclusive:

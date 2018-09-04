@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 import org.apache.pulsar.functions.worker.WorkerInfo;
 
 /**
@@ -180,7 +181,74 @@ public interface Functions {
      *             Unexpected error
      */
     FunctionStatusList getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException;
+    
+    /**
+     * Restart function instance
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @param instanceId
+     *            Function instanceId
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void restartFunction(String tenant, String namespace, String function, int instanceId) throws PulsarAdminException;
+    
+    /**
+     * Restart all function instances
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void restartFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
+    
+    /**
+     * Stop function instance
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @param instanceId
+     *            Function instanceId
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void stopFunction(String tenant, String namespace, String function, int instanceId) throws PulsarAdminException;
+    
+    /**
+     * Stop all function instances
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void stopFunction(String tenant, String namespace, String function) throws PulsarAdminException;
+    
     /**
      * Triggers the function by writing to the input topic.
      *
@@ -252,11 +320,4 @@ public interface Functions {
      *
      */
     Set<String> getSinks() throws PulsarAdminException;
-    
-    /**
-     * Get list of workers present under a cluster
-     * @return
-     * @throws PulsarAdminException 
-     */
-    List<WorkerInfo> getCluster() throws PulsarAdminException;
 }

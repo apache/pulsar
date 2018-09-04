@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 
 /**
  * Example function that uses the built in publish function in the context

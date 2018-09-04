@@ -30,5 +30,5 @@ output "pulsar_web_url" {
 }
 
 output "pulsar_ssh_host" {
-  value = "${aws_instance.pulsar.0.public_ip}"
+  value = "${aws_instance.proxy.0.public_ip}"
 }

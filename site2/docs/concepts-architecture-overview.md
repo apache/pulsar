@@ -72,7 +72,7 @@ In addition to message data, *cursors* are also persistently stored in BookKeepe
 At the moment, Pulsar only supports persistent message storage. This accounts for the `persistent` in all topic names. Here's an example:
 
 ```http
-persistent://my-property/my-namespace/my-topic
+persistent://my-tenant/my-namespace/my-topic
 ```
 
 > Pulsar also supports ephemeral ([non-persistent](concepts-messaging.md#non-persistent-topics)) message storage.

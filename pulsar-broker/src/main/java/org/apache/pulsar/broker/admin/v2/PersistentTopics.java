@@ -124,12 +124,15 @@ public class PersistentTopics extends PersistentTopicsBase {
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Create a partitioned topic.", notes = "It needs to be called before creating a producer on a partitioned topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Partitioned topic already exist") })
+    @ApiResponses(value = {
+        @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 409, message = "Partitioned topic already exist"),
+        @ApiResponse(code = 412, message = "Partitioned topic name is invalid")
+    })
     public void createPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, int numPartitions,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
+        validatePartitionedTopicName(tenant, namespace, encodedTopic);
         internalCreatePartitionedTopic(numPartitions, authoritative);
     }
 
@@ -151,18 +154,25 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Increment partitons of an existing partitioned topic.", notes = "It only increments partitions of existing non-global partitioned-topic")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Partitioned topic does not exist") })
+    @ApiResponses(value = {
+        @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
+        @ApiResponse(code = 412, message = "Partitioned topic name is invalid")
+    })
     public void updatePartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, int numPartitions) {
-        validateTopicName(tenant, namespace, encodedTopic);
+        validatePartitionedTopicName(tenant, namespace, encodedTopic);
         internalUpdatePartitionedTopic(numPartitions);
     }
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Get partitioned topic metadata.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = {
+        @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
+        @ApiResponse(code = 412, message = "Partitioned topic name is invalid")
+    })
     public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
@@ -173,13 +183,16 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Delete a partitioned topic.", notes = "It will also delete all the partitions of the topic if it exists.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Partitioned topic does not exist") })
+    @ApiResponses(value = {
+        @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 404, message = "Partitioned topic does not exist"),
+        @ApiResponse(code = 412, message = "Partitioned topic name is invalid")
+    })
     public void deletePartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("force") @DefaultValue("false") boolean force,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
+        validatePartitionedTopicName(tenant, namespace, encodedTopic);
         internalDeletePartitionedTopic(authoritative, force);
     }
 
@@ -259,12 +272,15 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("{tenant}/{namespace}/{topic}/partitioned-stats")
     @ApiOperation(value = "Get the stats for the partitioned topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
+    @ApiResponses(value = {
+        @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 404, message = "Topic does not exist"),
+        @ApiResponse(code = 412, message = "Partitioned topic name is invalid")
+    })
     public PartitionedTopicStats getPartitionedStats(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
+        validatePartitionedTopicName(tenant, namespace, encodedTopic);
         return internalGetPartitionedStats(authoritative);
     }
 

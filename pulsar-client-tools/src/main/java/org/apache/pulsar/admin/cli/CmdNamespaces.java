@@ -93,7 +93,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the configuration policies of a namspace")
+    @Parameters(commandDescription = "Get the configuration policies of a namespace")
     private class GetPolicies extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -162,7 +162,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Grant permissions on a namspace")
+    @Parameters(commandDescription = "Grant permissions on a namespace")
     private class GrantPermissions extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -180,7 +180,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Revoke permissions on a namspace")
+    @Parameters(commandDescription = "Revoke permissions on a namespace")
     private class RevokePermissions extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -195,7 +195,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the permissions on a namspace")
+    @Parameters(commandDescription = "Get the permissions on a namespace")
     private class Permissions extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -207,7 +207,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set replication clusters for a namspace")
+    @Parameters(commandDescription = "Set replication clusters for a namespace")
     private class SetReplicationClusters extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -224,7 +224,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get replication clusters for a namspace")
+    @Parameters(commandDescription = "Get replication clusters for a namespace")
     private class GetReplicationClusters extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -236,7 +236,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set Message TTL for a namspace")
+    @Parameters(commandDescription = "Set Message TTL for a namespace")
     private class SetMessageTTL extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -251,7 +251,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set Anti-affinity group name for a namspace")
+    @Parameters(commandDescription = "Set Anti-affinity group name for a namespace")
     private class SetAntiAffinityGroup extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -266,7 +266,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get Anti-affinity group name for a namspace")
+    @Parameters(commandDescription = "Get Anti-affinity group name for a namespace")
     private class GetAntiAffinityGroup extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -297,7 +297,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Remove Anti-affinity group name for a namspace")
+    @Parameters(commandDescription = "Remove Anti-affinity group name for a namespace")
     private class DeleteAntiAffinityGroup extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -374,7 +374,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get message TTL for a namspace")
+    @Parameters(commandDescription = "Get message TTL for a namespace")
     private class GetMessageTTL extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;

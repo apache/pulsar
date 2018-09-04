@@ -22,11 +22,15 @@ function downloadPageUrl() {
 }
 
 function binaryReleaseUrl(version) {
-  return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-bin.tar.gz`
+  return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-bin.tar.gz`
 }
 
 function connectorReleaseUrl(version) {
-  return `http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-${version}/apache-pulsar-io-connectors-${version}-bin.tar.gz`
+  return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-io-connectors-${version}-bin.tar.gz`
+}
+
+function prestoPulsarReleaseUrl(version) {
+  return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/pulsar-presto-connector-${version}.tar.gz`
 }
 
 function rpmReleaseUrl(version, type) {
@@ -62,6 +66,7 @@ const from = [
   /{{pulsar:version}}/g, 
   /pulsar:binary_release_url/g,
   /pulsar:connector_release_url/g,
+  /pulsar:presto_pulsar_connector_release_url/g,
   /pulsar:download_page_url/g,
   /{{pulsar:rpm:client}}/g,
   /{{pulsar:rpm:client-debuginfo}}/g,
@@ -81,7 +86,8 @@ const options = {
     `${latestVersionWithoutIncubating}`, 
     `${latestVersion}`, 
     binaryReleaseUrl(`${latestVersion}`), 
-    connectorReleaseUrl(`${latestVersion}`), 
+    connectorReleaseUrl(`${latestVersion}`),
+    prestoPulsarReleaseUrl(`${latestVersion}`)
     downloadPageUrl(),
     rpmReleaseUrl(`${latestVersion}`, ""),
     rpmReleaseUrl(`${latestVersion}`, "-debuginfo"),
@@ -112,6 +118,7 @@ for (v of versions) {
       `${v}`, 
       binaryReleaseUrl(`${v}`),
       connectorReleaseUrl(`${v}`),
+      prestoPulsarReleaseUrl(`${latestVersion}`)
       downloadPageUrl(),
       rpmReleaseUrl(`${v}`, ""),
       rpmReleaseUrl(`${v}`, "-debuginfo"),
@@ -123,4 +130,3 @@ for (v of versions) {
   };
   doReplace(opts);
 }
-

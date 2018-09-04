@@ -417,9 +417,9 @@ $ pulsar-admin functions get options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--name`|The name of the function to delete||
-|`--namespace`|The namespace of the function to delete||
-|`--tenant`|The tenant of the function to delete||
+|`--name`|The name of the function||
+|`--namespace`|The namespace of the function||
+|`--tenant`|The tenant of the function||
 
 
 ### `getstatus`
@@ -433,9 +433,9 @@ $ pulsar-admin functions getstatus options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--name`|The name of the function to delete||
-|`--namespace`|The namespace of the function to delete||
-|`--tenant`|The tenant of the function to delete||
+|`--name`|The name of the function||
+|`--namespace`|The namespace of the function||
+|`--tenant`|The tenant of the function||
 
 
 ### `list`
@@ -449,8 +449,8 @@ $ pulsar-admin functions list options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--namespace`|The namespace of the function to delete||
-|`--tenant`|The tenant of the function to delete||
+|`--namespace`|The namespace of the function||
+|`--tenant`|The tenant of the function||
 
 
 ### `querystate`

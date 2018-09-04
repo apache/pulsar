@@ -100,9 +100,10 @@ public class ConnectionPool implements Closeable {
                                 conf.getTlsTrustCertsFilePath());
                     }
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
+                    ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
+                } else {
+                    ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
                 }
-
-                ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4));
                 ch.pipeline().addLast("handler", clientCnxSupplier.get());
             }

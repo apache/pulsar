@@ -114,7 +114,7 @@ public class KinesisSink implements Sink<byte[]> {
                     record.getRecordSequence());
             throw new IllegalStateException("kinesis queue has publish failure");
         }
-        String partitionedKey = record.getKey().orElse(defaultPartitionedKey);
+        String partitionedKey = record.getKey().orElse(record.getTopicName().orElse(defaultPartitionedKey));
         partitionedKey = partitionedKey.length() > maxPartitionedKeyLength
                 ? partitionedKey.substring(0, maxPartitionedKeyLength - 1)
                 : partitionedKey; // partitionedKey Length must be at least one, and at most 256
@@ -231,8 +231,8 @@ public class KinesisSink implements Sink<byte[]> {
 
         @Override
         public void onFailure(Throwable exception) {
-            LOG.error("[{}] Failed to published message for replicator of {}-{} ", kinesisSink.streamName,
-                    resultContext.getPartitionId(), resultContext.getRecordSequence());
+            LOG.error("[{}] Failed to published message for replicator of {}-{}, {} ", kinesisSink.streamName,
+                    resultContext.getPartitionId(), resultContext.getRecordSequence(), exception.getMessage());
             kinesisSink.previousPublishFailed = TRUE;
             if (kinesisSink.sinkContext != null) {
                 kinesisSink.sinkContext.recordMetric(METRICS_TOTAL_FAILURE, 1);

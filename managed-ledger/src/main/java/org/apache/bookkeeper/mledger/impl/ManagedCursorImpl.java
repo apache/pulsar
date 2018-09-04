@@ -687,6 +687,11 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
+        return findNewestMatching(FindPositionConstraint.SearchActiveEntries, condition);
+    }
+
+    @Override
+    public Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
         final CountDownLatch counter = new CountDownLatch(1);
         class Result {
             ManagedLedgerException exception = null;
@@ -694,7 +699,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         final Result result = new Result();
-        asyncFindNewestMatching(FindPositionConstraint.SearchActiveEntries, condition, new FindEntryCallback() {
+        asyncFindNewestMatching(constraint, condition, new FindEntryCallback() {
             @Override
             public void findEntryComplete(Position position, Object ctx) {
                 result.position = position;

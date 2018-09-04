@@ -103,7 +103,6 @@ You'll need to add the following parameters to that file to use TLS authenticati
 ```properties
 webServiceUrl=https://broker.example.com:8443/
 brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
-useTls=true
 tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/ca.cert.pem
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
@@ -117,7 +116,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar+ssl://broker.example.com:6651/")
-    .enableTls(true)
     .tlsTrustCertsFilePath("/path/to/ca.cert.pem")
     .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                     "tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem")
@@ -142,7 +140,6 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 #include <pulsar/Client.h>
 
 pulsar::ClientConfiguration config;
-config.setUseTls(true);
 config.setTlsTrustCertsFilePath("/path/to/ca.cert.pem");
 config.setTlsAllowInsecureConnection(false);
 

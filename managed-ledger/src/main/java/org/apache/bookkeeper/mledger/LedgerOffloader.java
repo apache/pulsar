@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.Beta;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -27,10 +28,29 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.ReadHandle;
 
 /**
- * Interface for offloading ledgers to longterm storage
+ * Interface for offloading ledgers to long-term storage
  */
 @Beta
 public interface LedgerOffloader {
+
+    /**
+     * Get offload driver name.
+     *
+     * @return offload driver name.
+     */
+    String getOffloadDriverName();
+
+    /**
+     * Get offload driver metadata.
+     *
+     * <p>The driver metadata will be recorded as part of the metadata of the original ledger.
+     *
+     * @return offload driver metadata.
+     */
+    default Map<String, String> getOffloadDriverMetadata() {
+        return Collections.emptyMap();
+    }
+
     /**
      * Offload the passed in ledger to longterm storage.
      * Metadata passed in is for inspection purposes only and should be stored
@@ -51,10 +71,9 @@ public interface LedgerOffloader {
      *
      * @param ledger the ledger to offload
      * @param uid unique id to identity this offload attempt
-     * @param extraMetadata metadata to be stored with the ledger for informational
+     * @param extraMetadata metadata to be stored with the offloaded ledger for informational
      *                      purposes
-     * @return a future, which when completed, denotes that the offload has been
-     *         successful
+     * @return a future, which when completed, denotes that the offload has been successful.
      */
     CompletableFuture<Void> offload(ReadHandle ledger,
                                     UUID uid,
@@ -69,9 +88,11 @@ public interface LedgerOffloader {
      *
      * @param ledgerId the ID of the ledger to load from longterm storage
      * @param uid unique ID for previous successful offload attempt
+     * @param offloadDriverMetadata offload driver metadata
      * @return a future, which when completed, returns a ReadHandle
      */
-    CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid);
+    CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid,
+                                                Map<String, String> offloadDriverMetadata);
 
     /**
      * Delete a ledger from long term storage.
@@ -81,9 +102,11 @@ public interface LedgerOffloader {
      *
      * @param ledgerId the ID of the ledger to delete from longterm storage
      * @param uid unique ID for previous offload attempt
+     * @param offloadDriverMetadata offload driver metadata
      * @return a future, which when completed, signifies that the ledger has
      *         been deleted
      */
-    CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid);
+    CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid,
+                                            Map<String, String> offloadDriverMetadata);
 }
 

@@ -46,7 +46,7 @@ Commands:
 
 Example:
 ```bash
-$ pulsar broker --conf /path/to/broker.conf
+$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 ```
 
 The table below lists the environment variables that you can use to configure the `pulsar` tool.
@@ -81,17 +81,15 @@ Options
 
 |Option|Description|Default|
 |---|---|---|
-|`-c`, `--config`|Configuration for the bookie server||
 |`-readOnly`|Force start a read-only bookie server|false|
 |`-withAutoRecovery`|Start auto-recover service bookie server|false|
 
 
 Example
 ```bash
-$ pulsar bookie \
+$ PULSAR_BOOKKEEPER_CONF=/path/to/bookkeeper.conf pulsar bookie \
   -readOnly \
-  -withAutoRecovery \
-  --conf /path/to/bookkeeper.conf
+  -withAutoRecovery
 ```
 
 ### `broker`
@@ -106,14 +104,13 @@ $ pulsar broker options
 Options
 |Option|Description|Default|
 |---|---|---|
-|`-c` , `--broker-conf`|Configuration file for the broker||
 |`-bc` , `--bookie-conf`|Configuration file for BookKeeper||
 |`-rb` , `--run-bookie`|Run a BookKeeper bookie on the same host as the Pulsar broker|false|
 |`-ra` , `--run-bookie-autorecovery`|Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker|false|
 
 Example
 ```bash
-$ pulsar broker --broker-conf /path/to/broker.conf
+$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 ```
 
 ### `compact-topic`
@@ -128,7 +125,6 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`-t` , `--topic`|The Pulsar topic that you would like to compact||
-|`-c` , `--broker-conf`|Configuration file for the broker|${pulsarDirectory}/conf/broker.conf|
 
 Example
 ```bash
@@ -141,17 +137,12 @@ Run a discovery server
 
 Usage
 ```bash
-$ pulsar discovery options
+$ pulsar discovery
 ```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`-c` , `--conf`|Configuration file for the discovery service||
 
 Example
 ```bash
-$ pulsar discovery --conf /path/to/discovery.conf
+$ PULSAR_DISCOVERY_CONF=/path/to/discovery.conf pulsar discovery
 ```
 
 ### `configuration-store`
@@ -160,14 +151,13 @@ Starts up the Pulsar configuration store
 
 Usage
 ```bash
-$ pulsar configuration-store options
+$ pulsar configuration-store
 ```
 
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`-c` , `--conf`|Configuration file for the configuration store||
-
+Example
+```bash
+$ PULSAR_CONFIGURATION_STORE_CONF=/path/to/configuration_store.conf pulsar configuration-store
+```
 
 ### `initialize-cluster-metadata`
 
@@ -202,13 +192,12 @@ $ pulsar proxy options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`-c` , `--config`|Path to a Pulsar proxy configuration file||
 |`--configuration-store`|Configuration store connection string||
 |`-zk` , `--zookeeper-servers`|Local ZooKeeper connection string||
 
 Example
 ```bash
-$ pulsar proxy \
+$ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk2 \
   --configuration-store zk-0,zk-1,zk-2
 ```
@@ -228,7 +217,6 @@ Options
 |`-a` , `--advertised-address`|The standalone broker advertised address||
 |`--bookkeeper-dir`|Local bookies’ base data directory|data/standalone/bookeeper|
 |`--bookkeeper-port`|Local bookies’ base port|3181|
-|`-c` , `--config`|Configuration file path||
 |`--no-broker`|Only start ZooKeeper and BookKeeper services, not the broker|false|
 |`--num-bookies`|The number of local bookies|1|
 |`--only-broker`|Only start the Pulsar broker service (not ZooKeeper or BookKeeper)||
@@ -236,19 +224,22 @@ Options
 |`--zookeeper-dir`|Local ZooKeeper’s data directory|data/standalone/zookeeper|
 |`--zookeeper-port` |Local ZooKeeper’s port|2181|
 
+Example
+```bash
+$ PULSAR_STANDALONE_CONF=/path/to/standalone.conf pulsar standalone
+```
 
 ### `websocket`
 
 Usage
 ```bash
-$ pulsar websocket options
+$ pulsar websocket
 ```
 
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`-c`, `--conf`|Configuration file for WebSocket service||
-
+Example
+```bash
+$ PULSAR_WEBSOCKET_CONF=/path/to/websocket.conf pulsar websocket
+```
 
 ### `zookeeper`
 
@@ -256,13 +247,13 @@ Starts up a ZooKeeper cluster
 
 Usage
 ```bash
-$ pulsar zookeeper options
+$ pulsar zookeeper
 ```
 
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`-c`, `--conf`|Configuration file for ZooKeeper||
+Example
+```bash
+$ PULSAR_ZK_CONF=/path/to/zookeeper.conf pulsar zookeeper
+```
 
 
 ### `zookeeper-shell`

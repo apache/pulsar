@@ -39,7 +39,10 @@ HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
                                      const AuthenticationPtr &authData)
     : executorProvider_(boost::make_shared<ExecutorServiceProvider>(NUMBER_OF_LOOKUP_THREADS)),
       authenticationPtr_(authData),
-      lookupTimeoutInSeconds_(clientConfiguration.getOperationTimeoutSeconds()) {
+      lookupTimeoutInSeconds_(clientConfiguration.getOperationTimeoutSeconds()),
+      isUseTls_(clientConfiguration.isUseTls()),
+      tlsAllowInsecure_(clientConfiguration.isTlsAllowInsecureConnection()),
+      tlsTrustCertsFilePath_(clientConfiguration.getTlsTrustCertsFilePath()) {
     if (lookupUrl[lookupUrl.length() - 1] == '/') {
         // Remove trailing '/'
         adminUrl_ = lookupUrl.substr(0, lookupUrl.length() - 1);
@@ -186,6 +189,36 @@ Result HTTPLookupService::sendHTTPRequest(const std::string completeUrl, std::st
     }
     curl_easy_setopt(handle, CURLOPT_HTTPHEADER, list);
 
+    // TLS
+    if (isUseTls_) {
+        if (curl_easy_setopt(handle, CURLOPT_SSLENGINE, NULL) != CURLE_OK) {
+            LOG_ERROR("Unable to load SSL engine for url " << completeUrl);
+            curl_easy_cleanup(handle);
+            return ResultConnectError;
+        }
+        if (curl_easy_setopt(handle, CURLOPT_SSLENGINE_DEFAULT, 1L) != CURLE_OK) {
+            LOG_ERROR("Unable to load SSL engine as default, for url " << completeUrl);
+            curl_easy_cleanup(handle);
+            return ResultConnectError;
+        }
+        curl_easy_setopt(handle, CURLOPT_SSLCERTTYPE, "PEM");
+
+        if (tlsAllowInsecure_) {
+            curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
+        } else {
+            curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 1L);
+        }
+
+        if (!tlsTrustCertsFilePath_.empty()) {
+            curl_easy_setopt(handle, CURLOPT_CAINFO, tlsTrustCertsFilePath_.c_str());
+        }
+
+        if (authDataContent->hasDataForTls()) {
+            curl_easy_setopt(handle, CURLOPT_SSLCERT, authDataContent->getTlsCertificates().c_str());
+            curl_easy_setopt(handle, CURLOPT_SSLKEY, authDataContent->getTlsPrivateKey().c_str());
+        }
+    }
+
     LOG_INFO("Curl Lookup Request sent for " << completeUrl);
 
     // Make get call to server
@@ -260,15 +293,15 @@ LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) 
         return LookupDataResultPtr();
     }
 
-    const std::string brokerUrlSsl = root.get("brokerUrlSsl", defaultNotFoundString).asString();
-    if (brokerUrlSsl == defaultNotFoundString) {
-        LOG_ERROR("malformed json! - brokerUrlSsl not present" << json);
+    const std::string brokerUrlTls = root.get("brokerUrlTls", defaultNotFoundString).asString();
+    if (brokerUrlTls == defaultNotFoundString) {
+        LOG_ERROR("malformed json! - brokerUrlTls not present" << json);
         return LookupDataResultPtr();
     }
 
     LookupDataResultPtr lookupDataResultPtr = boost::make_shared<LookupDataResult>();
     lookupDataResultPtr->setBrokerUrl(brokerUrl);
-    lookupDataResultPtr->setBrokerUrlSsl(brokerUrlSsl);
+    lookupDataResultPtr->setBrokerUrlTls(brokerUrlTls);
 
     LOG_INFO("parseLookupData = " << *lookupDataResultPtr);
     return lookupDataResultPtr;

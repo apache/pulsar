@@ -417,7 +417,7 @@ Pulsar currently supports two authentication schemes: [TLS](../../security/tls) 
 
 ### TLS Authentication
 
-To use [TLS](../../security/tls), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](../../security/tls), point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 Here's an example configuration:
 
@@ -431,7 +431,6 @@ Authentication tlsAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(tlsAuth)
         .build();
@@ -439,7 +438,7 @@ PulsarClient client = PulsarClient.builder()
 
 ### Athenz
 
-To use [Athenz](../../security/athenz) as an authentication provider, you need to [use TLS](#tls-authentication) and provide values for four parameters in a hash:
+To use [Athenz](../../security/athenz) as an authentication provider, you need to [use TLS transport](../../security/tls-transport) and provide values for four parameters in a hash:
 
 * `tenantDomain`
 * `tenantService`
@@ -461,7 +460,6 @@ Authentication athenzAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(athenzAuth)
         .build();
