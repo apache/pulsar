@@ -307,9 +307,11 @@ Options
 |`--ram`|The RAM to allocate to each function instance (in bytes)||
 |`--disk`|The disk space to allocate to each function instance (in bytes)||
 |`--auto-ack`|Let the functions framework manage acking||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--broker-service-url `|The URL of the Pulsar broker||
 |`--classname`|The name of the function’s class||
 |`--custom-serde-inputs`|A map of the input topic to SerDe name||
+|`--custom-schema-inputs`|A map of the input topic to Schema class name||
 |`--client-auth-params`|Client Authentication Params||
 |`--function-config-file`|The path of the YAML config file used to configure the function||
 |`--hostname-verification-enabled`|Enable Hostname verification||
@@ -325,7 +327,6 @@ Options
 |`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
 |`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
 |`--schema-type`|Schema Type to be used for storing output messages||
-|`--skip-output`|Do we supress writing to the output topic||
 |`--sliding-interval-count`|Number of messages after which the window ends||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
 |`--state-storage-service-url`|The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)||
@@ -352,8 +353,10 @@ Options
 |`--ram`|The RAM to allocate to each function instance (in bytes)||
 |`--disk`|The disk space to allocate to each function instance (in bytes)||
 |`--auto-ack`|Let the functions framework manage acking||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--classname`|The name of the function’s class||
 |`--custom-serde-inputs`|A map of the input topic to SerDe name||
+|`--custom-schema-inputs`|A map of the input topic to Schema class name||
 |`--function-config-file`|The path of the YAML config file used to configure the function||
 |`--inputs`|The input topics for the function (as a comma-separated list if more than one topic is desired)||
 |`--log-topic`|The topic to which logs from this function are published||
@@ -366,7 +369,6 @@ Options
 |`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
 |`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
 |`--schema-type`|Schema Type to be used for storing output messages||
-|`--skip-output`|Do we supress writing to the output topic||
 |`--sliding-interval-count`|Number of messages after which the window ends||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
 |`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
@@ -409,8 +411,10 @@ Options
 |`--ram`|The RAM to allocate to each function instance (in bytes)||
 |`--disk`|The disk space to allocate to each function instance (in bytes)||
 |`--auto-ack`|Let the functions framework manage acking||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
 |`--classname`|The name of the function’s class||
 |`--custom-serde-inputs`|A map of the input topic to SerDe name||
+|`--custom-schema-inputs`|A map of the input topic to Schema class name||
 |`--function-config-file`|The path of the YAML config file used to configure the function||
 |`--inputs`|The input topics for the function (as a comma-separated list if more than one topic is desired)||
 |`--log-topic`|The topic to which logs from this function are published||
@@ -423,7 +427,6 @@ Options
 |`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
 |`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
 |`--schema-type`|Schema Type to be used for storing output messages||
-|`--skip-output`|Do we supress writing to the output topic||
 |`--sliding-interval-count`|Number of messages after which the window ends||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
 |`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|

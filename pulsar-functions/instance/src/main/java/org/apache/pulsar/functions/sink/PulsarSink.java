@@ -57,9 +57,10 @@ public class PulsarSink<T> implements Sink<T> {
     private PulsarSinkProcessor<T> pulsarSinkProcessor;
 
     private final TopicSchema topicSchema;
+    private final String fqfn;
 
     private interface PulsarSinkProcessor<T> {
-        void initializeOutputProducer(String outputTopic, Schema<T> schema) throws Exception;
+        void initializeOutputProducer(String outputTopic, Schema<T> schema, String fqfn) throws Exception;
 
         TypedMessageBuilder<T> newMessage(Record<T> record) throws Exception;
 
@@ -72,9 +73,9 @@ public class PulsarSink<T> implements Sink<T> {
         private Producer<T> producer;
 
         @Override
-        public void initializeOutputProducer(String outputTopic, Schema<T> schema) throws Exception {
+        public void initializeOutputProducer(String outputTopic, Schema<T> schema, String fqfn) throws Exception {
             this.producer = AbstractOneOuputTopicProducers.createProducer(
-                    client, pulsarSinkConfig.getTopic(), schema);
+                    client, pulsarSinkConfig.getTopic(), null, schema, fqfn);
         }
 
         @Override
@@ -103,9 +104,9 @@ public class PulsarSink<T> implements Sink<T> {
         private Producer<T> producer;
 
         @Override
-        public void initializeOutputProducer(String outputTopic, Schema<T> schema) throws Exception {
+        public void initializeOutputProducer(String outputTopic, Schema<T> schema, String fqfn) throws Exception {
             this.producer = AbstractOneOuputTopicProducers.createProducer(
-                    client, pulsarSinkConfig.getTopic(), schema);
+                    client, pulsarSinkConfig.getTopic(), null, schema, fqfn);
         }
 
         @Override
@@ -136,8 +137,8 @@ public class PulsarSink<T> implements Sink<T> {
         protected Producers<T> outputProducer;
 
         @Override
-        public void initializeOutputProducer(String outputTopic, Schema<T> schema) throws Exception {
-            outputProducer = new MultiConsumersOneOuputTopicProducers<T>(client, outputTopic, schema);
+        public void initializeOutputProducer(String outputTopic, Schema<T> schema, String fqfn) throws Exception {
+            outputProducer = new MultiConsumersOneOuputTopicProducers<T>(client, outputTopic, schema, fqfn);
             outputProducer.initialize();
         }
 
@@ -195,10 +196,11 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig) {
+    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, String fqfn) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client);
+        this.fqfn = fqfn;
     }
 
     @Override
@@ -217,7 +219,7 @@ public class PulsarSink<T> implements Sink<T> {
                 this.pulsarSinkProcessor = new PulsarSinkEffectivelyOnceProcessor();
                 break;
         }
-        this.pulsarSinkProcessor.initializeOutputProducer(this.pulsarSinkConfig.getTopic(), schema);
+        this.pulsarSinkProcessor.initializeOutputProducer(this.pulsarSinkConfig.getTopic(), schema, fqfn);
     }
 
     @Override

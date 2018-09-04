@@ -26,16 +26,10 @@ import java.net.URISyntaxException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -44,7 +38,6 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
-import org.inferred.freebuilder.shaded.org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 
 import javax.ws.rs.WebApplicationException;
@@ -65,7 +58,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -102,11 +94,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private final ConnectorsManager connectorsManager;
     
     private final PulsarAdmin functionAdmin;
-    
-    private static final String ASSIGNMENT_TOPIC_SUBSCRIPTION = "pulsar.functions";
-    protected AtomicBoolean isActiveRuntimeConsumer = new AtomicBoolean(false);
-    protected Consumer<byte[]> assignmentConsumer;
-    protected volatile boolean initialized = false;
 
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
             MembershipManager membershipManager, ConnectorsManager connectorsManager) throws Exception {
@@ -116,7 +103,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         Reader<byte[]> reader = workerService.getClient().newReader()
                 .topic(this.workerConfig.getFunctionAssignmentTopic())
-                .startMessageId(getLatestAssignmentMsgId(workerConfig, workerService))
+                .startMessageId(MessageId.earliest)
                 .create();
 
         this.functionAssignmentTailer = new FunctionAssignmentTailer(this, reader);
@@ -145,20 +132,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
         } else {
             throw new RuntimeException("Either Thread or Process Container Factory need to be set");
         }
-        
-        this.assignmentConsumer = workerService.getClient().newConsumer()
-                .topic(this.workerConfig.getFunctionAssignmentTopic()).subscriptionName(ASSIGNMENT_TOPIC_SUBSCRIPTION)
-                .subscriptionType(SubscriptionType.Failover).consumerEventListener(new ConsumerEventListener() {
-                    private static final long serialVersionUID = 1L;
-
-                    public void becameActive(Consumer<?> consumer, int partitionId) {
-                        isActiveRuntimeConsumer.set(true);
-                    }
-
-                    public void becameInactive(Consumer<?> consumer, int partitionId) {
-                        isActiveRuntimeConsumer.set(false);
-                    }
-                }).subscribe();
 
         this.actionQueue = new LinkedBlockingQueue<>();
 
@@ -166,29 +139,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 dlogNamespace, actionQueue, connectorsManager);
 
         this.membershipManager = membershipManager;
-    }
-
-    private MessageId getLatestAssignmentMsgId(WorkerConfig workerConfig, WorkerService workerService) {
-        try {
-            PulsarAdmin admin = workerService.getBrokerAdmin();
-            PersistentTopicInternalStats topicStats = admin.topics()
-                    .getInternalStats(workerConfig.getFunctionAssignmentTopic());
-            if (topicStats != null && topicStats.cursors != null) {
-                CursorStats cursor = topicStats.cursors.get(ASSIGNMENT_TOPIC_SUBSCRIPTION);
-                if (cursor != null && StringUtils.isNotBlank(cursor.markDeletePosition)) {
-                    String[] ids = cursor.markDeletePosition.split(":");
-                    if (ids.length == 2) {
-                        MessageIdImpl msgId = new MessageIdImpl(Long.parseLong(ids[0]), Long.parseLong(ids[1]), -1);
-                        log.info("Assignment-reader starts reading from {}", msgId);
-                        return msgId;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to get assignment-msg id for runtime-manager for {}-{}",
-                    workerConfig.getFunctionAssignmentTopic(), ASSIGNMENT_TOPIC_SUBSCRIPTION, e);
-        }
-        return MessageId.earliest;
     }
 
     /**
@@ -500,12 +450,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return functionStatusListBuilder.build();
     }
 
-    public synchronized void processAssignmentUpdate(MessageId messageId, List<AssignmentsUpdate> assignmentsUpdates) {
-        assignmentsUpdates.forEach(assignmentsUpdate -> {
-            processAssignmentUpdate(messageId, assignmentsUpdate);
-        });
-    }
-    
     /**
      * Process an assignment update from the assignment topic
      * @param messageId the message id of the update assignment
@@ -604,10 +548,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
             // set as current assignment
             this.currentAssignmentVersion = assignmentsUpdate.getVersion();
+
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Received out of date assignment update: {}", assignmentsUpdate);
-            }
+            log.debug("Received out of date assignment update: {}", assignmentsUpdate);
         }
     }
 
@@ -745,9 +688,5 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private FunctionRuntimeInfo getFunctionRuntimeInfo(String fullyQualifiedInstanceId) {
         return this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
-    }
-    
-    public boolean isInitialized() {
-        return initialized;
     }
 }
