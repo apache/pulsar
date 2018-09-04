@@ -107,7 +107,7 @@ class HttpLookupService implements LookupService {
         CompletableFuture<List<String>> future = new CompletableFuture<>();
 
         String format = namespace.isV2()
-            ? "admin/v2/namespaces/%s/topics" : "admin/namespaces/%s/destinations?mode=%s";
+            ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
         httpClient
             .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {

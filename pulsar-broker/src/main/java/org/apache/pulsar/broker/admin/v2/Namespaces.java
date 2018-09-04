@@ -36,6 +36,7 @@ import javax.ws.rs.core.MediaType;
 
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -74,7 +75,8 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public List<String> getTopics(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+                                  @PathParam("namespace") String namespace,
+                                  @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode) {
         validateAdminAccessForTenant(tenant);
         validateNamespaceName(tenant, namespace);
 
@@ -82,7 +84,7 @@ public class Namespaces extends NamespacesBase {
         getNamespacePolicies(namespaceName);
 
         try {
-            return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
+            return pulsar().getNamespaceService().getListOfTopics(namespaceName, mode);
         } catch (Exception e) {
             log.error("Failed to get topics list for namespace {}", namespaceName, e);
             throw new RestException(e);
