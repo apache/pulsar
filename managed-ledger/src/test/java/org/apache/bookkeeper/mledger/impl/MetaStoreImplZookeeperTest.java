@@ -18,10 +18,13 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
@@ -31,6 +34,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.Test;
@@ -213,5 +217,53 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
         });
 
         latch.await();
+    }
+
+    @Test(timeOut = 20000)
+    public void createOptimisticBaseNotExist() throws Exception {
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        MetaStoreImplZookeeper.asyncCreateFullPathOptimistic(
+                zkc, "/foo", "bar/zar/gar", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
+                (rc, path, ctx, name) -> {
+                    if (rc != KeeperException.Code.OK.intValue()) {
+                        promise.completeExceptionally(KeeperException.create(rc));
+                    } else {
+                        promise.complete(null);
+                    }
+                });
+        try {
+            promise.get();
+            fail("should have failed");
+        } catch (ExecutionException ee) {
+            assertEquals(ee.getCause().getClass(), KeeperException.NoNodeException.class);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void createOptimisticBaseExists() throws Exception {
+        zkc.create("/foo", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        MetaStoreImplZookeeper.asyncCreateFullPathOptimistic(
+                zkc, "/foo", "bar/zar/gar", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
+                (rc, path, ctx, name) -> {
+                    if (rc != KeeperException.Code.OK.intValue()) {
+                        promise.completeExceptionally(KeeperException.create(rc));
+                    } else {
+                        promise.complete(null);
+                    }
+                });
+        promise.get();
+
+        CompletableFuture<Void> promise2 = new CompletableFuture<>();
+        MetaStoreImplZookeeper.asyncCreateFullPathOptimistic(
+                zkc, "/foo", "blah", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
+                (rc, path, ctx, name) -> {
+                    if (rc != KeeperException.Code.OK.intValue()) {
+                        promise2.completeExceptionally(KeeperException.create(rc));
+                    } else {
+                        promise2.complete(null);
+                    }
+                });
+        promise2.get();
     }
 }

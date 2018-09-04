@@ -28,7 +28,9 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
+import org.apache.zookeeper.ZooDefs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -79,6 +81,8 @@ public abstract class MockedBookKeeperTestCase {
 
         ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
         factory = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
+
+        zkc.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
     @AfterMethod
