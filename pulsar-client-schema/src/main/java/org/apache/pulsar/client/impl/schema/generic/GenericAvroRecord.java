@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.schema;
+package org.apache.pulsar.client.impl.schema.generic;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -46,11 +46,6 @@ class GenericAvroRecord implements GenericRecord {
     @Override
     public List<Field> getFields() {
         return fields;
-    }
-
-    @Override
-    public Object getField(Field field) {
-        return getField(field.getName());
     }
 
     @Override
