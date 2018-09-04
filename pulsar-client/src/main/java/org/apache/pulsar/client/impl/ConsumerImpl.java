@@ -223,15 +223,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 this.deadLetterPolicy = new DeadLetterPolicy(conf.getDeadLetterPolicy().getMaxRedeliverCount(), String.format("%s-%s-DLQ", topic, subscription));
             }
-            try {
-                PulsarClient deadLetterClient = PulsarClient.builder().serviceUrl(client.getConfiguration().getServiceUrl()).build();
-                deadLetterProducer = deadLetterClient.newProducer(schema)
-                        .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                        .blockIfQueueFull(false)
-                        .create();
-            } catch (Exception e) {
-                log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
-            }
         }
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
@@ -1236,26 +1227,38 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             MessageIdData.Builder builder = MessageIdData.newBuilder();
             batches.forEach(ids -> {
                 List<MessageIdData> messageIdDatas = ids.stream().map(messageId -> {
-                    List<MessageImpl<T>> messages = null;
+                    List<MessageImpl<T>> deadLetterMessages = null;
                     if (possibleSendToDeadLetterTopicMessages != null) {
                         if (messageId instanceof BatchMessageIdImpl) {
-                            messages = possibleSendToDeadLetterTopicMessages.get(new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
+                            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
                                     getPartitionIndex()));
                         } else {
-                            messages = possibleSendToDeadLetterTopicMessages.get(messageId);
+                            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(messageId);
                         }
                     }
-                    if (messages != null) {
-                        try {
-                            for (MessageImpl<T> message : messages) {
-                                deadLetterProducer.newMessage()
-                                        .value(message.getValue())
-                                        .properties(message.getProperties())
-                                        .send();
+                    if (deadLetterMessages != null) {
+                        if (deadLetterProducer == null) {
+                            try {
+                                deadLetterProducer = client.newProducer(schema)
+                                        .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                                        .blockIfQueueFull(false)
+                                        .create();
+                            } catch (Exception e) {
+                                log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
                             }
-                            acknowledge(messageId);
-                        } catch (Exception e) {
-                            log.error("Send to dead letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId, e);
+                        }
+                        if (deadLetterProducer != null) {
+                            try {
+                                for (MessageImpl<T> message : deadLetterMessages) {
+                                    deadLetterProducer.newMessage()
+                                            .value(message.getValue())
+                                            .properties(message.getProperties())
+                                            .send();
+                                }
+                                acknowledge(messageId);
+                            } catch (Exception e) {
+                                log.error("Send to dead letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId, e);
+                            }
                         }
                     }
                     // attempt to remove message from batchMessageAckTracker
