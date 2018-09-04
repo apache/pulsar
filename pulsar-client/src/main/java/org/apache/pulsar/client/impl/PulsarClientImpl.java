@@ -390,7 +390,7 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
-    private <T> CompletableFuture<Consumer<T>> singleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema) {
+    private <T> CompletableFuture<Consumer<T>> singleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
         if (schema instanceof AutoSchema) {
             AutoSchema autoSchema = (AutoSchema) schema;
             return lookup.getSchema(TopicName.get(conf.getSingleTopic()))
@@ -400,20 +400,20 @@ public class PulsarClientImpl implements PulsarClient {
                             log.info("Auto detected schema for topic {} : {}",
                                 conf.getSingleTopic(), new String(schemaInfoOptional.get().getSchema(), UTF_8));
                             autoSchema.setSchema(genericAvroSchema);
-                            return doSingleTopicSubscribeAsync(conf, schema);
+                            return doSingleTopicSubscribeAsync(conf, schema, interceptors);
                         } else {
                             return FutureUtil.failedFuture(
                                 new PulsarClientException.LookupException("Currently schema detection only works for topics with avro schemas"));
                         }
                     });
         } else {
-            return doSingleTopicSubscribeAsync(conf, schema);
+            return doSingleTopicSubscribeAsync(conf, schema, interceptors);
         }
     }
 
 
 
-    private <T> CompletableFuture<Consumer<T>> doSingleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema) {
+    private <T> CompletableFuture<Consumer<T>> doSingleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
         String topic = conf.getSingleTopic();
