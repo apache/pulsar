@@ -86,7 +86,7 @@ Retrieve the schema of a given version:
 
 ### Delete Schema
 
-#### pulsar-adnin
+#### pulsar-admin
 
 You can delete a schema using the [`delete`](reference-pulsar-admin.md#delete-8) subcommand.
 
