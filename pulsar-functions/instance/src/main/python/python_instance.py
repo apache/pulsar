@@ -172,7 +172,7 @@ class PythonInstance(object):
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
-        message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
+        message_listener=partial(self.message_listener, self.input_serdes[topic]),
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
       )
 
@@ -187,7 +187,7 @@ class PythonInstance(object):
         self.consumers[topic] = self.pulsar_client.subscribe_pattern(
           str(topic), subscription_name,
           consumer_type=mode,
-          message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
+          message_listener=partial(self.message_listener, self.input_serdes[topic]),
           unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
         )
       else:
@@ -309,7 +309,7 @@ class PythonInstance(object):
         batching_max_publish_delay_ms=1,
         max_pending_messages=100000)
 
-  def message_listener(self, topic, serde, consumer, message):
+  def message_listener(self, serde, consumer, message):
     item = InternalMessage(message, message.topic, serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
