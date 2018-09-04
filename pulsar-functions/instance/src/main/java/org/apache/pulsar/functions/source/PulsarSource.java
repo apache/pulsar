@@ -22,10 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -58,11 +55,14 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private List<String> inputTopics;
     private List<Consumer<T>> inputConsumers;
     private final TopicSchema topicSchema;
+    private final String fqfn;
 
-    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
+    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig,
+                        String fqfn) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarConfig;
         this.topicSchema = new TopicSchema(pulsarClient);
+        this.fqfn = fqfn;
     }
 
     @Override
@@ -70,6 +70,10 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         // Setup schemas
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
         Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
+
+        Map<String, String> properties = new HashMap<>();
+        properties.put("application", "pulsarfunction");
+        properties.put("fqfn", fqfn);
 
         inputConsumers = configs.entrySet().stream().map(e -> {
             String topic = e.getKey();
@@ -87,6 +91,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             } else {
                 cb.topic(topic);
             }
+            cb.properties(properties);
 
             if (pulsarSourceConfig.getTimeoutMs() != null) {
                 cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);

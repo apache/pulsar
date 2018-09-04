@@ -98,7 +98,6 @@ public class FunctionConfig {
      */
     private String outputSchemaType;
 
-    private boolean skipOutput;
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String outputSerdeClassName;
     @isValidTopicName
@@ -108,6 +107,7 @@ public class FunctionConfig {
     private Map<String, Object> userConfig;
     private Runtime runtime;
     private boolean autoAck;
+    private String subName;
     @isPositiveNumber
     private int parallelism;
     @isValidResources

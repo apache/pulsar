@@ -25,6 +25,7 @@ import static org.testng.Assert.assertTrue;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.AutoSchema;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
 import org.testng.annotations.Test;
@@ -37,19 +38,36 @@ public class GenericSchemaTest {
 
     @Test
     public void testGenericAvroSchema() {
-        testEncodeAndDecodeGenericRecord(Schema.AVRO(Foo.class));
+        Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
+        GenericSchema decodeSchema = GenericSchema.of(encodeSchema.getSchemaInfo());
+        testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
     @Test
     public void testGenericJsonSchema() {
-        testEncodeAndDecodeGenericRecord(Schema.JSON(Foo.class));
+        Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
+        GenericSchema decodeSchema = GenericSchema.of(encodeSchema.getSchemaInfo());
+        testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
-    public void testEncodeAndDecodeGenericRecord(Schema<Foo> baseSchema) {
-        GenericSchema genericSchema = GenericSchema.of(baseSchema.getSchemaInfo());
+    @Test
+    public void testAutoAvroSchema() {
+        Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
+        AutoSchema decodeSchema = new AutoSchema();
+        decodeSchema.setSchema(GenericSchema.of(encodeSchema.getSchemaInfo()));
+        testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
+    }
 
-        log.info("Schema : {}", genericSchema.getAvroSchema());
+    @Test
+    public void testAutoJsonSchema() {
+        Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
+        AutoSchema decodeSchema = new AutoSchema();
+        decodeSchema.setSchema(GenericSchema.of(encodeSchema.getSchemaInfo()));
+        testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
+    }
 
+    public void testEncodeAndDecodeGenericRecord(Schema<Foo> encodeSchema,
+                                                 Schema<GenericRecord> decodeSchema) {
         int numRecords = 10;
         for (int i = 0; i < numRecords; i++) {
             Foo foo = new Foo();
@@ -60,11 +78,11 @@ public class GenericSchemaTest {
             bar.setField1(i % 2 == 0);
             foo.setField4(bar);
 
-            byte[] data = baseSchema.encode(foo);
+            byte[] data = encodeSchema.encode(foo);
 
             log.info("Decoding : {}", new String(data, UTF_8));
 
-            GenericRecord record = genericSchema.decode(data);
+            GenericRecord record = decodeSchema.decode(data);
             Object field1 = record.getField("field1");
             assertEquals("field-1-" + i, field1, "Field 1 is " + field1.getClass());
             Object field2 = record.getField("field2");

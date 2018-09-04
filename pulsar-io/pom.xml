@@ -38,6 +38,7 @@
     <module>kafka</module>
     <module>rabbitmq</module>
     <module>kinesis</module>
+    <module>data-genenator</module>
   </modules>
 
 </project>

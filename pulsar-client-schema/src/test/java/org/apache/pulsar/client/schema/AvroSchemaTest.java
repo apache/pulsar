@@ -79,5 +79,4 @@ public class AvroSchemaTest {
         assertEquals(object2, foo2);
     }
 
-
 }
