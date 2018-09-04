@@ -17,9 +17,6 @@
 # under the License.
 #
 
-{
-"hdfsConfigResources": "core-site.xml",
-"directory": "/foo/bar",
-"filenamePrefix": "prefix",
-"compression": "SNAPPY"
-}
+name: hdfs
+description: Writes data into HDFS
+sinkClass: org.apache.pulsar.io.hdfs.sink.text.HdfsStringSink
