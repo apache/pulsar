@@ -41,11 +41,7 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
-import org.apache.pulsar.tests.integration.io.CassandraSinkTester;
-import org.apache.pulsar.tests.integration.io.KafkaSinkTester;
-import org.apache.pulsar.tests.integration.io.KafkaSourceTester;
-import org.apache.pulsar.tests.integration.io.SinkTester;
-import org.apache.pulsar.tests.integration.io.SourceTester;
+import org.apache.pulsar.tests.integration.io.*;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
@@ -68,6 +64,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     @Test
     public void testCassandraSink() throws Exception {
         testSink(new CassandraSinkTester());
+    }
+
+    @Test
+    public void testCassandraArchiveSink() throws Exception {
+        testSink(new CassandraSinkArchiveTester());
     }
 
     private void testSink(SinkTester tester) throws Exception {
@@ -118,16 +119,31 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                        String namespace,
                                        String sinkName,
                                        String inputTopicName) throws Exception {
-        String[] commands = {
-            PulsarCluster.ADMIN_SCRIPT,
-            "sink", "create",
-            "--tenant", tenant,
-            "--namespace", namespace,
-            "--name", sinkName,
-            "--sink-type", tester.sinkType(),
-            "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
-            "--inputs", inputTopicName
-        };
+        String[] commands;
+        if (tester.getSinkType() != SinkTester.SinkType.UNDEFINED) {
+            commands = new String[] {
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "sink", "create",
+                    "--tenant", tenant,
+                    "--namespace", namespace,
+                    "--name", sinkName,
+                    "--sink-type", tester.sinkType().name().toLowerCase(),
+                    "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
+                    "--inputs", inputTopicName
+            };
+        } else {
+            commands = new String[] {
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "sink", "create",
+                    "--tenant", tenant,
+                    "--namespace", namespace,
+                    "--name", sinkName,
+                    "--archive", tester.getSinkArchive(),
+                    "--classname", tester.getSinkClassName(),
+                    "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
+                    "--inputs", inputTopicName
+            };
+        }
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
