@@ -25,9 +25,11 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.TextFormat;
 import com.google.protobuf.TextFormat.ParseException;
 
+import java.io.File;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -35,7 +37,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.AsyncCallback.StringCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -95,10 +96,6 @@ public class MetaStoreImplZookeeper implements MetaStore {
             throws Exception {
         this.zk = zk;
         this.executor = executor;
-
-        if (zk.exists(prefixName, false) == null) {
-            zk.create(prefixName, new byte[0], Acl, CreateMode.PERSISTENT);
-        }
     }
 
     //
@@ -157,8 +154,8 @@ public class MetaStoreImplZookeeper implements MetaStore {
                                 }
                             };
 
-                            ZkUtils.asyncCreateFullPathOptimistic(zk, prefix + ledgerName, new byte[0], Acl,
-                                    CreateMode.PERSISTENT, createcb, null);
+                            asyncCreateFullPathOptimistic(zk, prefixName, ledgerName, new byte[0], Acl,
+                                                          CreateMode.PERSISTENT, createcb);
                         } else {
                             // Tried to open a managed ledger but it doesn't exist and we shouldn't creating it at this
                             // point
@@ -363,6 +360,59 @@ public class MetaStoreImplZookeeper implements MetaStore {
             return builder.build();
         }
 
+    }
+
+    public static void asyncCreateFullPathOptimistic(
+            final ZooKeeper zk, final String basePath, final String nodePath, final byte[] data,
+            final List<ACL> acl, final CreateMode createMode, final StringCallback callback) {
+        String fullPath = basePath + "/" + nodePath;
+
+        zk.create(fullPath, data, acl, createMode,
+                  (rc, path, ignoreCtx1, name) -> {
+                      Runnable retry = () -> {
+                          asyncCreateFullPathOptimistic(zk, basePath, nodePath, data,
+                                                        acl, createMode, callback);
+                      };
+
+                      Consumer<Integer> complete = (finalrc) -> {
+                          callback.processResult(finalrc, path, null, name);
+                      };
+
+                      if (rc != Code.NONODE.intValue()) {
+                          complete.accept(rc);
+                          return;
+                      }
+
+                      // Since I got a nonode, it means that my parents don't exist
+                      // create mode is persistent since ephemeral nodes can't be
+                      // parents
+                      String nodeParent = new File(nodePath).getParent();
+                      if (nodeParent == null) {
+                          zk.exists(basePath, false,
+                                    (existsRc, existsPath, ignoreCtx2, stat) -> {
+                                        if (existsRc == Code.OK.intValue()) {
+                                            if (stat != null) {
+                                                retry.run();
+                                            } else {
+                                                complete.accept(Code.NONODE.intValue());
+                                            }
+                                        } else {
+                                            complete.accept(existsRc);
+                                        }
+                                    }, null);
+                      } else {
+                          nodeParent = nodeParent.replace("\\", "/");
+                          asyncCreateFullPathOptimistic(
+                                  zk, basePath, nodeParent, new byte[0], acl, CreateMode.PERSISTENT,
+                                  (parentRc, parentPath, ignoreCtx3, parentName) -> {
+                                      if (parentRc == Code.OK.intValue() || parentRc == Code.NODEEXISTS.intValue()) {
+                                          retry.run();
+                                      } else {
+                                          complete.accept(parentRc);
+                                      }
+                                  });
+                      }
+                  }, null);
     }
 
     private static final Logger log = LoggerFactory.getLogger(MetaStoreImplZookeeper.class);
