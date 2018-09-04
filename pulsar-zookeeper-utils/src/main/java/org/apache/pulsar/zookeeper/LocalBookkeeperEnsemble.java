@@ -63,6 +63,7 @@ import org.apache.bookkeeper.util.MathUtils;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
@@ -220,9 +221,21 @@ public class LocalBookkeeperEnsemble {
                 cleanDirectory(bkDataDir);
             }
 
+            int bookiePort = initialPort + i;
+
+            // Ensure registration Z-nodes are cleared when standalone service is restarted ungracefully
+            String registrationZnode = String.format("/ledgers/available/%s:%d", baseConf.getAdvertisedAddress(), bookiePort);
+            if (zkc.exists(registrationZnode, null) != null) {
+                try {
+                    zkc.delete(registrationZnode, -1);
+                } catch (NoNodeException nne) {
+                    // Ignore if z-node was just expired
+                }
+            }
+
             bsConfs[i] = new ServerConfiguration(baseConf);
             // override settings
-            bsConfs[i].setBookiePort(initialPort + i);
+            bsConfs[i].setBookiePort(bookiePort);
             bsConfs[i].setZkServers("127.0.0.1:" + ZooKeeperDefaultPort);
             bsConfs[i].setJournalDirName(bkDataDir.getPath());
             bsConfs[i].setLedgerDirNames(new String[] { bkDataDir.getPath() });
