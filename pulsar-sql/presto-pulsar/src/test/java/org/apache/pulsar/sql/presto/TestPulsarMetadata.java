@@ -282,9 +282,6 @@ public class TestPulsarMetadata extends TestPulsarConnector {
                         .getSchema()));
                 Assert.assertEquals(pulsarColumnHandle.getConnectorId(), pulsarConnectorId.toString());
                 Assert.assertEquals(pulsarColumnHandle.getName(), field);
-                log.info("here-name: %s", field);
-                log.info("fooPositionIndices.get(field): %s", Arrays.asList(fooPositionIndices.get(field)));
-                log.info("pulsarColumnHandle.getPositionIndices(): %s", Arrays.asList(pulsarColumnHandle.getPositionIndices()));
                 Assert.assertEquals(pulsarColumnHandle.getPositionIndices(), fooPositionIndices.get(field));
                 Assert.assertEquals(pulsarColumnHandle.getFieldNames(), fooFieldNames.get(field));
                 Assert.assertEquals(pulsarColumnHandle.getType(), fooTypes.get(field));
@@ -305,8 +302,6 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         List<ColumnMetadata> columnMetadataList
                 = tableColumnsMap.get(new SchemaTableName(TOPIC_1.getNamespace(), TOPIC_1.getLocalName()));
         Assert.assertNotNull(columnMetadataList);
-        log.info("columnMetadataList: %s - %s", columnMetadataList.size(), columnMetadataList);
-        log.info("fooColumnHandles: %s - %s", fooColumnHandles.size(), fooColumnHandles);
         Assert.assertEquals(columnMetadataList.size(),
                 fooColumnHandles.size());
 
