@@ -194,7 +194,7 @@ class PythonInstance(object):
         self.consumers[topic] = self.pulsar_client.subscribe(
           str(topic), subscription_name,
           consumer_type=mode,
-          message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
+          message_listener=partial(self.message_listener, self.input_serdes[topic]),
           unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
         )
 
