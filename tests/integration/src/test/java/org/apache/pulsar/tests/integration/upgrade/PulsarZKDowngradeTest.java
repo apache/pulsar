@@ -33,8 +33,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.tests.integration.containers.BrokerContainer;
-import org.apache.pulsar.tests.integration.containers.S3Container;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
@@ -71,15 +69,6 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
                 spec.clusterName(), spec.numBookies(), spec.numBrokers());
 
         pulsarCluster = PulsarCluster.forSpec(spec);
-
-        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
-            brokerContainer.withEnv("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
-            brokerContainer.withEnv("managedLedgerMinLedgerRolloverTimeMinutes", "0");
-            brokerContainer.withEnv("managedLedgerOffloadDriver", "s3");
-            brokerContainer.withEnv("s3ManagedLedgerOffloadBucket", "pulsar-integtest");
-            brokerContainer.withEnv("s3ManagedLedgerOffloadServiceEndpoint", "http://" + S3Container.NAME + ":9090");
-        }
-
         pulsarCluster.start();
 
         log.info("Cluster {} is setup", spec.clusterName());
