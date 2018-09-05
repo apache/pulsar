@@ -32,7 +32,8 @@ public abstract class SinkTester {
     public enum SinkType {
         UNDEFINED,
         CASSANDRA,
-        KAFKA
+        KAFKA,
+        JDBC
     }
 
     protected final SinkType sinkType;
