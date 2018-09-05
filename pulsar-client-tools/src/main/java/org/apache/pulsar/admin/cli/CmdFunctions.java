@@ -872,9 +872,16 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Check the current status of a Pulsar Function")
     class GetFunctionStatus extends FunctionCommand {
+
+        @Parameter(names = "--instance-id", description = "The function instanceId (Get-status of all instances if instance-id is not provided")
+        protected String instanceId;
+
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(admin.functions().getFunctionStatus(tenant, namespace, functionName));
+            String json = Utils.printJson(
+                    isBlank(instanceId) ? admin.functions().getFunctionStatus(tenant, namespace, functionName)
+                            : admin.functions().getFunctionStatus(tenant, namespace, functionName,
+                                    Integer.parseInt(instanceId)));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(new JsonParser().parse(json)));
         }
