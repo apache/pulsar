@@ -19,15 +19,13 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
-import io.airlift.slice.Slice;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.nio.charset.Charset;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
-
-import static com.facebook.presto.spi.type.BigintType.BIGINT;
 
 @Test(singleThreaded = true)
 public class TestPulsarRecordCursor extends TestPulsarConnector {
@@ -44,31 +42,81 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
             PulsarRecordCursor pulsarRecordCursor = entry.getValue();
             TopicName topicName = entry.getKey();
 
-            long count = 0L;
+            int count = 0;
             while (pulsarRecordCursor.advanceNextPosition()) {
+                List<String> columnsSeen = new LinkedList<>();
                 for (int i = 0; i < fooColumnHandles.size(); i++) {
-
                     if (pulsarRecordCursor.isNull(i)) {
-
+                        columnsSeen.add(fooColumnHandles.get(i).getName());
                     } else {
-                        if (fooColumnHandles.get(i).getType().getJavaType() == long.class) {
-                            if (fooColumnHandles.get(i).getType() == BIGINT) {
-                                Assert.assertEquals(pulsarRecordCursor.getLong(i), count);
-                            }
-                        } else if (fooColumnHandles.get(i).getType().getJavaType() == boolean.class) {
-                            Assert.assertEquals(pulsarRecordCursor.getBoolean(i), count % 2 == 0);
-                        } else if (fooColumnHandles.get(i).getType().getJavaType() == double.class) {
-                            Assert.assertEquals(pulsarRecordCursor.getDouble(i), Long.valueOf(count).doubleValue());
-                        } else if (fooColumnHandles.get(i).getType().getJavaType() == Slice.class) {
-                            if (!fooColumnHandles.get(i).isInternal()) {
-                                Assert.assertEquals(pulsarRecordCursor.getSlice(i).toStringUtf8().getBytes(),
-                                        Charset.forName("UTF-8").encode(String.valueOf(count)).array());
-                            }
+                        if (fooColumnHandles.get(i).getName().equals("field1")) {
+                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("field1").apply(count)).longValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("field2")) {
+                            Assert.assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), ((String) fooFunctions.get("field2").apply(count)).getBytes());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("field3")) {
+                            Assert.assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits(((Float) fooFunctions.get("field3").apply(count)).floatValue()));
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("field4")) {
+                            Assert.assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("field4").apply(count)).doubleValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("field5")) {
+                            Assert.assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("field5").apply(count)).booleanValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("field6")) {
+                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("field6").apply(count)).longValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("timestamp")) {
+                            pulsarRecordCursor.getLong(i);
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("time")) {
+                            pulsarRecordCursor.getLong(i);
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("date")) {
+                            pulsarRecordCursor.getLong(i);
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.field1")) {
+                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.field1").apply(count)).longValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.field2")) {
+                            Assert.assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), ((String) fooFunctions.get("bar.field2").apply(count)).getBytes());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.field3")) {
+                            Assert.assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits(((Float) fooFunctions.get("bar.field3").apply(count)).floatValue()));
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.test.field4")) {
+                            Assert.assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("bar.test.field4").apply(count)).doubleValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.test.field5")) {
+                            Assert.assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("bar.test.field5").apply(count)).booleanValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.test.field6")) {
+                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("bar.test.field6").apply(count)).longValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.test.foobar.field1")) {
+                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.test.foobar.field1").apply(count)).longValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.test2.field4")) {
+                            Assert.assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("bar.test2.field4").apply(count)).doubleValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.test2.field5")) {
+                            Assert.assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("bar.test2.field5").apply(count)).booleanValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.test2.field6")) {
+                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("bar.test2.field6").apply(count)).longValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
+                        } else if (fooColumnHandles.get(i).getName().equals("bar.test2.foobar.field1")) {
+                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.test2.foobar.field1").apply(count)).longValue());
+                            columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else {
-                            Assert.fail("Unknown type: " + fooColumnHandles.get(i).getType().getJavaType());
+                            if (PulsarInternalColumn.getInternalFieldsMap().containsKey(fooColumnHandles.get(i).getName())) {
+                                columnsSeen.add(fooColumnHandles.get(i).getName());
+                            }
                         }
                     }
                 }
+                Assert.assertEquals(columnsSeen.size(), fooColumnHandles.size());
                 count++;
             }
             Assert.assertEquals(count, topicsToNumEntries.get(topicName.getSchemaName()).longValue());
