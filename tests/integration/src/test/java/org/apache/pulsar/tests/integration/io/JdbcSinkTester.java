@@ -63,7 +63,7 @@ public class JdbcSinkTester extends SinkTester {
     private Connection connection;
 
     public JdbcSinkTester() {
-        super(NAME);
+        super(SinkType.JDBC);
 
         // container default value is test
         sinkConfig.put("userName", "test");
