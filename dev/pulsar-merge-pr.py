@@ -371,7 +371,6 @@ def get_reviewers(pr_num):
 def check_ci_status(pr):
     ci_status = get_json("%s/commits/%s/status" % (GITHUB_API_BASE, pr["head"]["sha"]))
     state = ci_status["state"]
-    return
     if state != "success":
         comments = get_json(pr["comments_url"])
         ignore_ci_comments = [c for c in comments if c["body"].upper() == "IGNORE CI"]
