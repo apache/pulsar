@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.functions.worker.WorkerInfo;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
@@ -102,6 +103,25 @@ public class FunctionsImpl extends BaseResource implements Functions {
             }
             String jsonResponse = response.readEntity(String.class);
             FunctionStatusList.Builder functionStatusBuilder = FunctionStatusList.newBuilder();
+            mergeJson(jsonResponse, functionStatusBuilder);
+            return functionStatusBuilder.build();
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public FunctionStatus getFunctionStatus(String tenant, String namespace, String function, int id)
+            throws PulsarAdminException {
+        try {
+            Response response = request(
+                    functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("status"))
+                            .get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            String jsonResponse = response.readEntity(String.class);
+            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             mergeJson(jsonResponse, functionStatusBuilder);
             return functionStatusBuilder.build();
         } catch (Exception e) {

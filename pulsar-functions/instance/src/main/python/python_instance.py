@@ -148,7 +148,7 @@ class PythonInstance(object):
   def process_spawner_health_check_timer(self):
     if time.time() - self.last_health_check_ts > 90:
       Log.critical("Haven't received health check from spawner in a while. Stopping instance...")
-      os.kill(os.getpid(), signal.SIGTERM)
+      os.kill(os.getpid(), signal.SIGKILL)
       sys.exit(1)
 
     Timer(30, self.process_spawner_health_check_timer).start()
