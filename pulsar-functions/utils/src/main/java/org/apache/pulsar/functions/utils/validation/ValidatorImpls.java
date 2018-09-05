@@ -754,7 +754,7 @@ public class ValidatorImpls {
                     FunctionConfigValidator.validateSerde(sourceConfig.getSerdeClassName(),typeArg, name, clsLoader, false);
                 }
                 if (sourceConfig.getSchemaType() != null && !sourceConfig.getSchemaType().isEmpty()) {
-                    FunctionConfigValidator.validateSchema(sourceConfig.getSchemaType(), typeArg, name, clsLoader);
+                    FunctionConfigValidator.validateSchema(sourceConfig.getSchemaType(), typeArg, name, clsLoader, false);
                 }
             } catch (IOException e) {
                 throw new IllegalArgumentException(e);
@@ -797,7 +797,7 @@ public class ValidatorImpls {
 
                 if (sinkConfig.getTopicToSchemaType() != null) {
                     sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
-                        FunctionConfigValidator.validateSchema(schemaType, typeArg, name, clsLoader);
+                        FunctionConfigValidator.validateSchema(schemaType, typeArg, name, clsLoader, true);
                     });
                 }
 
@@ -814,7 +814,7 @@ public class ValidatorImpls {
                             FunctionConfigValidator.validateSerde(consumerSpec.getSerdeClassName(), typeArg, name, clsLoader, true);
                         }
                         if (consumerSpec.getSchemaType() != null && !consumerSpec.getSchemaType().isEmpty()) {
-                            FunctionConfigValidator.validateSchema(consumerSpec.getSchemaType(), typeArg, name, clsLoader);
+                            FunctionConfigValidator.validateSchema(consumerSpec.getSchemaType(), typeArg, name, clsLoader, true);
                         }
                     });
                 }
