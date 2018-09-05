@@ -310,7 +310,7 @@ class PythonInstance(object):
         max_pending_messages=100000)
 
   def message_listener(self, serde, consumer, message):
-    item = InternalMessage(message, message.topic, serde, consumer)
+    item = InternalMessage(message, consumer.topic(), serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
       consumer.acknowledge(message)
