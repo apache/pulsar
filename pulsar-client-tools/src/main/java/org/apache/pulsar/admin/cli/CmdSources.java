@@ -388,8 +388,7 @@ public class CmdSources extends CmdBase {
                 if(sourceConfig.getArchive().startsWith(Utils.HTTP)) {
                     File tempPkgFile = null;
                     try {
-                        tempPkgFile = File.createTempFile(sourceConfig.getName(), "source");
-                        downloadFromHttpUrl(sourceConfig.getArchive(), new FileOutputStream(tempPkgFile));
+                        tempPkgFile = downloadFromHttpUrl(sourceConfig.getArchive(), sourceConfig.getName());
                         archivePath = tempPkgFile.getAbsolutePath();
                     } catch(Exception e) {
                         if(tempPkgFile!=null ) {
