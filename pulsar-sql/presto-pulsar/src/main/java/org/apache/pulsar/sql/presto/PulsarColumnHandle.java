@@ -56,34 +56,6 @@ public class PulsarColumnHandle implements ColumnHandle {
 
     private final Integer[] positionIndices;
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        PulsarColumnHandle that = (PulsarColumnHandle) o;
-
-        if (hidden != that.hidden) return false;
-        if (internal != that.internal) return false;
-        if (connectorId != null ? !connectorId.equals(that.connectorId) : that.connectorId != null) return false;
-        if (name != null ? !name.equals(that.name) : that.name != null) return false;
-        if (type != null ? !type.equals(that.type) : that.type != null) return false;
-        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) return false;
-        return Arrays.deepEquals(positionIndices, that.positionIndices);
-    }
-
-    @Override
-    public int hashCode() {
-        int result = connectorId != null ? connectorId.hashCode() : 0;
-        result = 31 * result + (name != null ? name.hashCode() : 0);
-        result = 31 * result + (type != null ? type.hashCode() : 0);
-        result = 31 * result + (hidden ? 1 : 0);
-        result = 31 * result + (internal ? 1 : 0);
-        result = 31 * result + Arrays.hashCode(fieldNames);
-        result = 31 * result + Arrays.hashCode(positionIndices);
-        return result;
-    }
-
     @JsonCreator
     public PulsarColumnHandle(
             @JsonProperty("connectorId") String connectorId,
@@ -140,6 +112,34 @@ public class PulsarColumnHandle implements ColumnHandle {
 
     ColumnMetadata getColumnMetadata() {
         return new ColumnMetadata(name, type, null, hidden);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        PulsarColumnHandle that = (PulsarColumnHandle) o;
+
+        if (hidden != that.hidden) return false;
+        if (internal != that.internal) return false;
+        if (connectorId != null ? !connectorId.equals(that.connectorId) : that.connectorId != null) return false;
+        if (name != null ? !name.equals(that.name) : that.name != null) return false;
+        if (type != null ? !type.equals(that.type) : that.type != null) return false;
+        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) return false;
+        return Arrays.deepEquals(positionIndices, that.positionIndices);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = connectorId != null ? connectorId.hashCode() : 0;
+        result = 31 * result + (name != null ? name.hashCode() : 0);
+        result = 31 * result + (type != null ? type.hashCode() : 0);
+        result = 31 * result + (hidden ? 1 : 0);
+        result = 31 * result + (internal ? 1 : 0);
+        result = 31 * result + Arrays.hashCode(fieldNames);
+        result = 31 * result + Arrays.hashCode(positionIndices);
+        return result;
     }
 
     @Override
