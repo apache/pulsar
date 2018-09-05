@@ -60,10 +60,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
     protected int maxReceiverQueueSize;
     protected Schema<T> schema;
+    protected final ConsumerInterceptors<T> interceptors;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorService listenerExecutor,
-                           CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema) {
+                           CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema, ConsumerInterceptors interceptors) {
         super(client, topic);
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = conf.getSubscriptionName();
@@ -81,6 +82,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.listenerExecutor = listenerExecutor;
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
+        this.interceptors = interceptors;
     }
 
     @Override
@@ -335,6 +337,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return subscription;
     }
 
+    @Override
     public String getConsumerName() {
         return this.consumerName;
     }
@@ -358,6 +361,26 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected void setMaxReceiverQueueSize(int newSize) {
         this.maxReceiverQueueSize = newSize;
+    }
+
+    protected Message<T> beforeConsume(Message<T> message) {
+        if (interceptors != null) {
+            return interceptors.beforeConsume(this, message);
+        } else {
+            return message;
+        }
+    }
+
+    protected void onAcknowledge(MessageId messageId, Throwable exception) {
+        if (interceptors != null) {
+            interceptors.onAcknowledge(this, messageId, exception);
+        }
+    }
+
+    protected void onAcknowledgeCumulative(MessageId messageId, Throwable exception) {
+        if (interceptors != null) {
+            interceptors.onAcknowledgeCumulative(this, messageId, exception);
+        }
     }
 
 }
