@@ -180,7 +180,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         log.info("Get sink info : {}", result.getStdout());
         if (builtin) {
             assertTrue(
-                    result.getStdout().contains("\"builtin\": \"" + tester.getSinkType() + "\""),
+                    result.getStdout().contains("\"builtin\": \"" + tester.getSinkType().name().toLowerCase() + "\""),
                     result.getStdout()
             );
         } else {
