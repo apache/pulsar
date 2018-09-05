@@ -51,16 +51,12 @@ public class TopicSchema {
 
     public static final String DEFAULT_SERDE = "org.apache.pulsar.functions.api.utils.DefaultSerDe";
 
-    public Schema<?> getSchema(String topic, Object object) {
-        return getSchema(topic, object.getClass(), "");
+    public Schema<?> getSchema(String topic, Object object, String schemaTypeOrClassName, boolean input) {
+        return getSchema(topic, object.getClass(), schemaTypeOrClassName, input);
     }
 
-    public Schema<?> getSchema(String topic, Object object, String schemaTypeOrClassName) {
-        return getSchema(topic, object.getClass(), schemaTypeOrClassName);
-    }
-
-    public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName) {
-        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName));
+    public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName, boolean input) {
+        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input));
     }
 
     public Schema<?> getSchema(String topic, Class<?> clazz, Optional<SchemaType> schemaType) {
@@ -134,7 +130,7 @@ public class TopicSchema {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName) {
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input) {
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
 
@@ -161,11 +157,11 @@ public class TopicSchema {
         // First try with Schema
         try {
             return (Schema<T>) InstanceUtils.initializeCustomSchema(schemaTypeOrClassName,
-                    Thread.currentThread().getContextClassLoader(), clazz);
+                    Thread.currentThread().getContextClassLoader(), clazz, input);
         } catch (Throwable t) {
             // Now try with Serde or just fail
             SerDe<T> serDe = (SerDe<T>) InstanceUtils.initializeSerDe(schemaTypeOrClassName,
-                    Thread.currentThread().getContextClassLoader(), clazz);
+                    Thread.currentThread().getContextClassLoader(), clazz, input);
             return new SerDeSchema<>(serDe);
         }
     }

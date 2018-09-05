@@ -389,7 +389,7 @@ public class ValidatorImpls {
             // implements SerDe class
             if (functionConfig.getCustomSchemaInputs() != null) {
                 functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
-                    validateSchema(schemaType, typeArgs[0], name, clsLoader);
+                    validateSchema(schemaType, typeArgs[0], name, clsLoader, true);
                 });
             }
 
@@ -408,7 +408,7 @@ public class ValidatorImpls {
                         validateSerde(conf.getSerdeClassName(), typeArgs[0], name, clsLoader, true);
                     }
                     if (conf.getSchemaType() != null && !conf.getSchemaType().isEmpty()) {
-                        validateSchema(conf.getSchemaType(), typeArgs[0], name, clsLoader);
+                        validateSchema(conf.getSchemaType(), typeArgs[0], name, clsLoader, true);
                     }
                 });
             }
@@ -425,7 +425,7 @@ public class ValidatorImpls {
             }
 
             if (functionConfig.getOutputSchemaType() != null && !functionConfig.getOutputSchemaType().isEmpty()) {
-                validateSchema(functionConfig.getOutputSchemaType(), typeArgs[1], name, clsLoader);
+                validateSchema(functionConfig.getOutputSchemaType(), typeArgs[1], name, clsLoader, false);
             }
 
             if (functionConfig.getOutputSerdeClassName() != null && !functionConfig.getOutputSerdeClassName().isEmpty()) {
@@ -434,7 +434,8 @@ public class ValidatorImpls {
 
         }
 
-        private static void validateSchema(String schemaType, Class<?> typeArg, String name, ClassLoader clsLoader) {
+        private static void validateSchema(String schemaType, Class<?> typeArg, String name, ClassLoader clsLoader,
+                                           boolean input) {
             if (StringUtils.isEmpty(schemaType) || getBuiltinSchemaType(schemaType) != null) {
                 // If it's empty, we use the default schema and no need to validate
                 // If it's built-in, no need to validate
@@ -447,7 +448,7 @@ public class ValidatorImpls {
                                     schemaType, Schema.class.getCanonicalName()));
                 }
 
-                validateSchemaType(schemaType, typeArg, clsLoader);
+                validateSchemaType(schemaType, typeArg, clsLoader, input);
             }
         }
 
@@ -916,8 +917,8 @@ public class ValidatorImpls {
         }
     }
 
-    private static void validateSchemaType(String scheamType, Class<?> typeArg, ClassLoader clsLoader) {
-        validateCustomSchemaType(scheamType, typeArg, clsLoader);
+    private static void validateSchemaType(String scheamType, Class<?> typeArg, ClassLoader clsLoader, boolean input) {
+        validateCustomSchemaType(scheamType, typeArg, clsLoader, input);
     }
 
     private static void validateSerDeType(String serdeClassName, Class<?> typeArg, ClassLoader clsLoader) {
@@ -945,7 +946,8 @@ public class ValidatorImpls {
         }
     }
 
-    private static void validateCustomSchemaType(String schemaClassName, Class<?> typeArg, ClassLoader clsLoader) {
+    private static void validateCustomSchemaType(String schemaClassName, Class<?> typeArg, ClassLoader clsLoader,
+                                                 boolean input) {
         Schema<?> schema = (Schema<?>) Reflections.createInstance(schemaClassName, clsLoader);
         if (schema == null) {
             throw new IllegalArgumentException(String.format("The Schema class %s does not exist",
@@ -964,9 +966,16 @@ public class ValidatorImpls {
             throw new IllegalArgumentException("Failed to load type class", e);
         }
 
-        if (!fnInputClass.isAssignableFrom(schemaInputClass)) {
-            throw new IllegalArgumentException(
-                    "Schema type mismatch " + typeArg + " vs " + schemaTypes[0]);
+        if (input) {
+            if (!fnInputClass.isAssignableFrom(schemaInputClass)) {
+                throw new IllegalArgumentException(
+                        "Schema type mismatch " + typeArg + " vs " + schemaTypes[0]);
+            }
+        } else {
+            if (!schemaInputClass.isAssignableFrom(fnInputClass)) {
+                throw new IllegalArgumentException(
+                        "Schema type mismatch " + typeArg + " vs " + schemaTypes[0]);
+            }
         }
     }
 }
