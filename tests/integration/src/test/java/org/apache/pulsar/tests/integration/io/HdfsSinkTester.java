@@ -32,7 +32,7 @@ public class HdfsSinkTester extends SinkTester {
 	private HdfsContainer hdfsCluster;
 	
 	public HdfsSinkTester() {
-		super(NAME);
+		super(SinkType.HDFS);
 		
 		// TODO How do I get the core-site.xml, and hdfs-site.xml files from the container?
 		sinkConfig.put("hdfsConfigResources", "");
