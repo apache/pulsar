@@ -20,15 +20,11 @@ package org.apache.pulsar.functions.worker;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Request;
 
-import com.google.common.collect.Lists;
-
 import java.io.IOException;
-import java.util.List;
 import java.util.function.Function;
 
 @Slf4j
@@ -37,22 +33,13 @@ public class FunctionAssignmentTailer
 
         private final FunctionRuntimeManager functionRuntimeManager;
         private final Reader<byte[]> reader;
-        
-        private long currentVersion = 0;
-        private final List<Request.AssignmentsUpdate> currentVersionAssignments;
-        private volatile MessageId previousOldAssignmentMsgId = null;
 
     public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager,
                 Reader<byte[]> reader)
             throws PulsarClientException {
-        this.functionRuntimeManager = functionRuntimeManager;
-        this.reader = reader;
-        this.currentVersionAssignments = Lists.newArrayList();
-        // complete init if reader has no message to read so, scheduled-manager can schedule assignments
-        if (!hasMessageAvailable()) {
-            this.functionRuntimeManager.initialized = true;
+            this.functionRuntimeManager = functionRuntimeManager;
+            this.reader = reader;
         }
-    }
 
     public void start() {
 
@@ -79,40 +66,29 @@ public class FunctionAssignmentTailer
     @Override
     public void accept(Message<byte[]> msg) {
 
-        Request.AssignmentsUpdate assignmentsUpdate;
+        // check if latest
+        boolean hasMessageAvailable;
         try {
-            assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(msg.getData());
-        } catch (IOException e) {
-            log.error("[{}] Received bad assignment update at message {}", reader.getTopic(), msg.getMessageId(),
-                    e);
-            // TODO: find a better way to handle bad request
+            hasMessageAvailable = this.reader.hasMessageAvailable();
+        } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Received assignment update: {}", assignmentsUpdate);
-        }
-
-        // clear previous version assignments and ack all previous messages
-        if (currentVersion < assignmentsUpdate.getVersion()) {
-            currentVersionAssignments.clear();
-            // ack the outdated version to avoid processing again
-            if (previousOldAssignmentMsgId != null && this.functionRuntimeManager.isActiveRuntimeConsumer.get()) {
-                this.functionRuntimeManager.assignmentConsumer.acknowledgeCumulativeAsync(previousOldAssignmentMsgId);
+        if (!hasMessageAvailable) {
+            Request.AssignmentsUpdate assignmentsUpdate;
+            try {
+                assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(msg.getData());
+            } catch (IOException e) {
+                log.error("[{}] Received bad assignment update at message {}", reader.getTopic(), msg.getMessageId(),
+                        e);
+                // TODO: find a better way to handle bad request
+                throw new RuntimeException(e);
             }
-        }
+            if (log.isDebugEnabled()) {
+                log.debug("Received assignment update: {}", assignmentsUpdate);
+            }
 
-        currentVersionAssignments.add(assignmentsUpdate);
-        
-        // process only if the latest message
-        if (!hasMessageAvailable()) {
-            this.functionRuntimeManager.processAssignmentUpdate(msg.getMessageId(), currentVersionAssignments);
-            // function-runtime manager has processed all assignments in the topic at least once.. so scheduled-manager
-            // can only publish any new assignment with latest processed version
-            this.functionRuntimeManager.initialized = true;
+            this.functionRuntimeManager.processAssignmentUpdate(msg.getMessageId(), assignmentsUpdate);
         }
-
-        currentVersion = assignmentsUpdate.getVersion();
-        previousOldAssignmentMsgId = msg.getMessageId();
         // receive next request
         receiveOne();
     }
@@ -122,13 +98,5 @@ public class FunctionAssignmentTailer
         log.error("Failed to retrieve messages from assignment update topic", cause);
         // TODO: find a better way to handle consumer functions
         throw new RuntimeException(cause);
-    }
-    
-    private boolean hasMessageAvailable() {
-        try {
-            return this.reader.hasMessageAvailable();
-        } catch (PulsarClientException e) {
-            throw new RuntimeException(e);
-        }
     }
 }

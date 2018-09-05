@@ -51,6 +51,7 @@ import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.pulsar.functions.proto.Function;
 import static org.apache.pulsar.functions.utils.Utils.FILE;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 @Slf4j
 public final class Utils {
@@ -159,7 +160,14 @@ public final class Utils {
         ReadableByteChannel rbc = Channels.newChannel(website.openStream());
         outputStream.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
     }
-    
+
+    public static File downloadFromHttpUrl(String destPkgUrl, String fileName) throws IOException {
+        File tempPkgFile = File.createTempFile(fileName, "function");
+        tempPkgFile.deleteOnExit();
+        downloadFromHttpUrl(destPkgUrl, new FileOutputStream(tempPkgFile));
+        return tempPkgFile;
+    }
+
     public static void downloadFromBookkeeper(Namespace namespace,
                                                  OutputStream outputStream,
                                                  String packagePath) throws IOException {

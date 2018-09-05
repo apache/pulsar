@@ -23,13 +23,41 @@
           xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
     <id>bin</id>
     <formats>
-        <format>zip</format>
+        <format>tar.gz</format>
+        <format>dir</format>
     </formats>
+    <includeBaseDirectory>false</includeBaseDirectory>
+    <files>
+        <file>
+            <source>${basedir}/LICENSE</source>
+            <destName>LICENSE</destName>
+            <outputDirectory>.</outputDirectory>
+            <fileMode>644</fileMode>
+        </file>
+    </files>
+    <fileSets>
+        <fileSet>
+            <directory>${basedir}/../presto-pulsar-plugin/target/pulsar-presto-connector/</directory>
+            <outputDirectory>plugin/</outputDirectory>
+        </fileSet>
+    </fileSets>
     <dependencySets>
         <dependencySet>
-            <outputDirectory>/</outputDirectory>
-            <useProjectArtifact>false</useProjectArtifact>
+            <outputDirectory>lib/</outputDirectory>
+            <useProjectArtifact>true</useProjectArtifact>
             <scope>runtime</scope>
+            <excludes>
+                <exclude>io.airlift:launcher:tar.gz:bin:${airlift.version}</exclude>
+                <exclude>io.airlift:launcher:tar.gz:properties:${airlift.version}</exclude>
+            </excludes>
+        </dependencySet>
+        <dependencySet>
+            <outputDirectory></outputDirectory>
+            <includes>
+                <include>io.airlift:launcher:tar.gz:bin:${airlift.version}</include>
+                <include>io.airlift:launcher:tar.gz:properties:${airlift.version}</include>
+            </includes>
+            <unpack>true</unpack>
         </dependencySet>
     </dependencySets>
 </assembly>

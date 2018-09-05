@@ -71,6 +71,10 @@ type ProducerOptions struct {
 	// a topic.
 	Name string
 
+	// Attach a set of application defined properties to the producer
+	// This properties will be visible in the topic stats
+	Properties map[string]string
+
 	// Set the send timeout (default: 30 seconds)
 	// If a message is not acknowledged by the server before the sendTimeout expires, an error will be reported.
 	// Setting the timeout to -1, will set the timeout to infinity, which can be useful when using Pulsar's message

@@ -99,7 +99,7 @@ pulsar-io-twitter-{{pulsar:version}}.nar
 
 > #### NOTES
 >
-> If you are running Pulsar in a bare mental cluster, you need to make sure `connectors` tarball is unzipped in every broker's pulsar directory
+> If you are running Pulsar in a bare metal cluster, you need to make sure `connectors` tarball is unzipped in every broker's pulsar directory
 > (or in every function-worker's pulsar directory if you are running a separate worker cluster for Pulsar functions).
 > 
 > If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)),

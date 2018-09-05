@@ -306,24 +306,36 @@ Options
 |`--cpu`|The CPU to allocate to each function instance (in number of cores)||
 |`--ram`|The RAM to allocate to each function instance (in bytes)||
 |`--disk`|The disk space to allocate to each function instance (in bytes)||
-|`--brokerServiceUrl `|The URL of the Pulsar broker||
-|`--className`|The name of the function’s class||
-|`--customSerdeInputs`|A map of the input topic to SerDe name||
-|`--functionConfigFile`|The path of the YAML config file used to configure the function||
+|`--auto-ack`|Let the functions framework manage acking||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
+|`--broker-service-url `|The URL of the Pulsar broker||
+|`--classname`|The name of the function’s class||
+|`--custom-serde-inputs`|A map of the input topic to SerDe name||
+|`--custom-schema-inputs`|A map of the input topic to Schema class name||
+|`--client-auth-params`|Client Authentication Params||
+|`--function-config-file`|The path of the YAML config file used to configure the function||
+|`--hostname-verification-enabled`|Enable Hostname verification||
+|`--instance-id-offset`|Instance ids will be assigned starting from this offset||
 |`--inputs`|The input topics for the function (as a comma-separated list if more than one topic is desired)||
-|`--logTopic`|The topic to which logs from this function are published||
+|`--log-topic`|The topic to which logs from this function are published||
 |`--jar`|A path to the JAR file for the function (if the function is written in Java)||
-|`--name`|The name of the function|The value specified by --className|
+|`--name`|The name of the function||
 |`--namespace`|The function’s namespace||
 |`--output`|The name of the topic to which the function publishes its output (if any)||
-|`--outputSerdeClassName`|The SerDe class used for the function’s output||
+|`--output-serde-classname`|The SerDe class used for the function’s output||
 |`--parallelism`|The function’s parallelism factor, i.e. the number of instances of the function to run|1|
-|`--processingGuarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
+|`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
 |`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
-|`--stateStorageServiceUrl`|The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)||
-|`--subscriptionType`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
+|`--schema-type`|Schema Type to be used for storing output messages||
+|`--sliding-interval-count`|Number of messages after which the window ends||
+|`--sliding-interval-duration-ms`|The time duration after which the window slides||
+|`--state-storage-service-url`|The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)||
+|`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
 |`--tenant`|The function’s tenant||
-|`--userConfig`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
+|`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern||
+|`--user-config`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
+|`--window-length-count`|The number of messages per window.||
+|`--window-length-duration-ms`|The time duration of the window in milliseconds.||
 
 
 ### `create`
@@ -340,24 +352,31 @@ Options
 |`--cpu`|The CPU to allocate to each function instance (in number of cores)||
 |`--ram`|The RAM to allocate to each function instance (in bytes)||
 |`--disk`|The disk space to allocate to each function instance (in bytes)||
-|`--brokerServiceUrl `|The URL of the Pulsar broker||
-|`--className`|The name of the function’s class||
-|`--customSerdeInputs`|A map of the input topic to SerDe name||
-|`--functionConfigFile`|The path of the YAML config file used to configure the function||
+|`--auto-ack`|Let the functions framework manage acking||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
+|`--classname`|The name of the function’s class||
+|`--custom-serde-inputs`|A map of the input topic to SerDe name||
+|`--custom-schema-inputs`|A map of the input topic to Schema class name||
+|`--function-config-file`|The path of the YAML config file used to configure the function||
 |`--inputs`|The input topics for the function (as a comma-separated list if more than one topic is desired)||
-|`--logTopic`|The topic to which logs from this function are published||
+|`--log-topic`|The topic to which logs from this function are published||
 |`--jar`|A path to the JAR file for the function (if the function is written in Java)||
-|`--name`|The name of the function|The value specified by --className|
+|`--name`|The name of the function||
 |`--namespace`|The function’s namespace||
 |`--output`|The name of the topic to which the function publishes its output (if any)||
-|`--outputSerdeClassName`|The SerDe class used for the function’s output||
+|`--output-serde-classname`|The SerDe class used for the function’s output||
 |`--parallelism`|The function’s parallelism factor, i.e. the number of instances of the function to run|1|
-|`--processingGuarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
+|`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
 |`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
-|`--stateStorageServiceUrl`|The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)||
-|`--subscriptionType`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
+|`--schema-type`|Schema Type to be used for storing output messages||
+|`--sliding-interval-count`|Number of messages after which the window ends||
+|`--sliding-interval-duration-ms`|The time duration after which the window slides||
+|`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
 |`--tenant`|The function’s tenant||
-|`--userConfig`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
+|`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern||
+|`--user-config`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
+|`--window-length-count`|The number of messages per window.||
+|`--window-length-duration-ms`|The time duration of the window in milliseconds.||
 
 
 ### `delete`
@@ -388,22 +407,35 @@ $ pulsar-admin functions update options
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--className`|The name of the function’s class||
-|`--customSerdeInputs`|A map of the input topic to SerDe name||
-|`--functionConfigFile`|The path of the YAML config file used to configure the function||
+|`--cpu`|The CPU to allocate to each function instance (in number of cores)||
+|`--ram`|The RAM to allocate to each function instance (in bytes)||
+|`--disk`|The disk space to allocate to each function instance (in bytes)||
+|`--auto-ack`|Let the functions framework manage acking||
+|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
+|`--classname`|The name of the function’s class||
+|`--custom-serde-inputs`|A map of the input topic to SerDe name||
+|`--custom-schema-inputs`|A map of the input topic to Schema class name||
+|`--function-config-file`|The path of the YAML config file used to configure the function||
 |`--inputs`|The input topics for the function (as a comma-separated list if more than one topic is desired)||
-|`--logTopic`|The topic to which logs from this function are published||
+|`--log-topic`|The topic to which logs from this function are published||
 |`--jar`|A path to the JAR file for the function (if the function is written in Java)||
-|`--name`|The name of the function|The value specified by --className|
+|`--name`|The name of the function||
 |`--namespace`|The function’s namespace||
 |`--output`|The name of the topic to which the function publishes its output (if any)||
-|`--outputSerdeClassName`|The SerDe class used for the function’s output||
+|`--output-serde-classname`|The SerDe class used for the function’s output||
 |`--parallelism`|The function’s parallelism factor, i.e. the number of instances of the function to run|1|
-|`--processingGuarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
+|`--processing-guarantees`|The processing guarantees applied to the function. Can be one of: ATLEAST_ONCE, ATMOST_ONCE, or EFFECTIVELY_ONCE|ATLEAST_ONCE|
 |`--py`|The path of the Python file containing the function’s processing logic (if the function is written in Python)||
-|`--subscriptionType`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
+|`--schema-type`|Schema Type to be used for storing output messages||
+|`--sliding-interval-count`|Number of messages after which the window ends||
+|`--sliding-interval-duration-ms`|The time duration after which the window slides||
+|`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
 |`--tenant`|The function’s tenant||
-|`--userConfig`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
+|`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern||
+|`--user-config`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
+|`--window-length-count`|The number of messages per window.||
+|`--window-length-duration-ms`|The time duration of the window in milliseconds.||
+
 
 ### `get`
 Fetch information about an existing Pulsar Function
@@ -421,6 +453,40 @@ Options
 |`--tenant`|The tenant of the function||
 
 
+### `restart`
+Restarts either all instances or one particular instance of a function
+
+Usage
+```bash
+$ pulsar-admin functions restart options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--name`|The name of the function||
+|`--namespace`|The namespace of the function||
+|`--tenant`|The tenant of the function||
+|`--instance-id`|The function instanceId; restart all instances if instance-id is not provided||
+
+
+### `stop`
+Temporary stops function instance. (If worker restarts then it reassigns and starts functiona again)
+
+Usage
+```bash
+$ pulsar-admin functions stop options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--name`|The name of the function||
+|`--namespace`|The namespace of the function||
+|`--tenant`|The tenant of the function||
+|`--instance-id`|The function instanceId; stop all instances if instance-id is not provided||
+
+
 ### `getstatus`
 Get the status of an existing Pulsar Function
 
@@ -435,7 +501,7 @@ Options
 |`--name`|The name of the function||
 |`--namespace`|The namespace of the function||
 |`--tenant`|The tenant of the function||
-
+|`--instance-id`|The function instanceId; get status of all instances if instance-id is not provided||
 
 ### `list`
 List all Pulsar Functions for a specific tenant and namespace
@@ -485,8 +551,8 @@ Options
 |`--name`|The name of the Pulsar Function to trigger||
 |`--namespace`|The namespace of the Pulsar Function to trigger||
 |`--tenant`|The tenant of the Pulsar Function to trigger||
-|`--triggerFile`|The path to the file containing the data with which the Pulsar Function is to be triggered||
-|`--triggerValue`|The value with which the Pulsar Function is to be triggered||
+|`--trigger-file`|The path to the file containing the data with which the Pulsar Function is to be triggered||
+|`--trigger-value`|The value with which the Pulsar Function is to be triggered||
 
 
 ## `namespaces`
@@ -914,8 +980,10 @@ $ pulsar-admin sink subcommand
 
 Subcommands
 * `create`
+* `update`
 * `delete`
 * `localrun`
+* `available-sinks`
 
 
 ### `create`
@@ -929,19 +997,52 @@ $ pulsar-admin sink create options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--className`|The sink’s Java class name||
+|`--classname`|The sink’s Java class name||
 |`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--customSerdeInputs`|The map of input topics to SerDe class names (as a JSON string)||
+|`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
+|`--custom-schema-inputs`|The map of input topics to Schema types or class names (as a JSON string)||
 |`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--inputs`|The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)||
-|`--jar`|Path to the Java jar file for the sink||
+|`--archive`|Path to the archive file for the sink||
 |`--name`|The sink’s name||
 |`--namespace`|The sink’s namespace||
 |`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
-|`--processingGuarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--sinkConfig`|Sink config key/values||
-|`--sinkConfigFile`|The path to a YAML config file specifying the sink’s configuration||
+|`--sink-config`|Sink config key/values||
+|`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
+|`--sink-type`|The built-in sinks's connector provider||
+|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern.||
+|`--tenant`|The sink’s tenant||
+
+
+### `update`
+Submit a Pulsar IO sink connector to run in a Pulsar cluster
+
+Usage
+```bash
+$ pulsar-admin sink update options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`--classname`|The sink’s Java class name||
+|`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
+|`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
+|`--custom-schema-inputs`|The map of input topics to Schema types or class names (as a JSON string)||
+|`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
+|`--inputs`|The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)||
+|`--archive`|Path to the archive file for the sink||
+|`--name`|The sink’s name||
+|`--namespace`|The sink’s namespace||
+|`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
+|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
+|`--sink-config`|Sink config key/values||
+|`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
+|`--sink-type`|The built-in sinks's connector provider||
+|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern.||
 |`--tenant`|The sink’s tenant||
 
 
@@ -972,22 +1073,33 @@ $ pulsar-admin sink localrun options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--brokerServiceUrl`|The URL for the Pulsar broker||
-|`--className`|The sink’s Java class name||
+|`--broker-service-url`|The URL for the Pulsar broker||
+|`--classname`|The sink’s Java class name||
 |`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--customSerdeInputs`|The map of input topics to SerDe class names (as a JSON string)||
+|`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
+|`--custom-schema-inputs`|The map of input topics to Schema types or class names (as a JSON string)||
 |`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
 |`--inputs`|The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)||
-|`--jar`|Path to the Java jar file for the sink||
+|`--archive`|Path to the archive file for the sink||
 |`--name`|The sink’s name||
 |`--namespace`|The sink’s namespace||
 |`--parallelism`|“The sink’s parallelism factor (i.e. the number of sink instances to run).”||
-|`--processingGuarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--sinkConfig`|Sink config key/values||
-|`--sinkConfigFile`|The path to a YAML config file specifying the sink’s configuration||
+|`--sink-config`|Sink config key/values||
+|`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
+|`--sink-type`|The built-in sinks's connector provider||
+|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern.||
 |`--tenant`|The sink’s tenant||
 
+
+### `available-sinks`
+Get a list of all built-in sink connectors
+
+Usage
+```bash
+$ pulsar-admin sink available-sinks
+```
 
 
 ## `source`
@@ -1000,8 +1112,10 @@ $ pulsar-admin source subcommand
 
 Subcommands
 * `create`
+* `update`
 * `delete`
 * `localrun`
+* `available-sources`
 
 
 ### `create`
@@ -1015,19 +1129,50 @@ $ pulsar-admin source create options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--className`|The source’s Java class name||
+|`--classname`|The source’s Java class name||
 |`--cpu`|The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--deserializationClassName`|The SerDe classname for the source||
-|`--destinationTopicName`|The Pulsar topic to which data is sent||
+|`--deserialization-classname`|The SerDe classname for the source||
+|`--destination-topic-name`|The Pulsar topic to which data is sent||
 |`--disk`|The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--jar`|Path to the Java jar file for the source||
+|`--archive`|The path to the NAR archive for the Source||
 |`--name`|The source’s name||
 |`--namespace`|The source’s namespace||
 |`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processingGuarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--sourceConfig`|Source config key/values||
-|`--sourceConfigFile`|The path to a YAML config file specifying the source’s configuration||
+|`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
+|`--source-type`|One of the built-in source's connector provider||
+|`--source-config`|Source config key/values||
+|`--source-config-file`|The path to a YAML config file specifying the source’s configuration||
+|`--tenant`|The source’s tenant||
+
+
+### `update`
+Update a already submitted Pulsar IO source connector
+
+Usage
+```bash
+$ pulsar-admin source update options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`--classname`|The source’s Java class name||
+|`--cpu`|The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)||
+|`--deserialization-classname`|The SerDe classname for the source||
+|`--destination-topic-name`|The Pulsar topic to which data is sent||
+|`--disk`|The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
+|`--archive`|The path to the NAR archive for the Source||
+|`--name`|The source’s name||
+|`--namespace`|The source’s namespace||
+|`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
+|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
+|`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
+|`--source-type`|One of the built-in source's connector provider||
+|`--source-config`|Source config key/values||
+|`--source-config-file`|The path to a YAML config file specifying the source’s configuration||
 |`--tenant`|The source’s tenant||
 
 
@@ -1058,21 +1203,31 @@ $ pulsar-admin source localrun options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--className`|The source’s Java class name||
+|`--classname`|The source’s Java class name||
 |`--cpu`|The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--deserializationClassName`|The SerDe classname for the source||
-|`--destinationTopicName`|The Pulsar topic to which data is sent||
+|`--deserialization-classname`|The SerDe classname for the source||
+|`--destination-topic-name`|The Pulsar topic to which data is sent||
 |`--disk`|The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--jar`|Path to the Java jar file for the source||
+|`--archive`|The path to the NAR archive for the Source||
 |`--name`|The source’s name||
 |`--namespace`|The source’s namespace||
 |`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processingGuarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
+|`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--sourceConfig`|Source config key/values||
-|`--sourceConfigFile`|The path to a YAML config file specifying the source’s configuration||
+|`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
+|`--source-type`|One of the built-in source's connector provider||
+|`--source-config`|Source config key/values||
+|`--source-config-file`|The path to a YAML config file specifying the source’s configuration||
 |`--tenant`|The source’s tenant||
 
+
+### `available-sources`
+Get a list of all built-in source connectors
+
+Usage
+```bash
+$ pulsar-admin source available-sources
+```
 
 
 ## `topics`

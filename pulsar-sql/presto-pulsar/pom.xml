@@ -28,8 +28,9 @@
         <version>2.2.0-incubating-SNAPSHOT</version>
     </parent>
 
-    <artifactId>presto-pulsar-original</artifactId>
-    <description>Presto - Apache Pulsar Connector</description>
+    <artifactId>pulsar-presto-connector-original</artifactId>
+    <description>Pulsar SQL - Pulsar Presto Connector</description>
+    <name>Pulsar SQL :: Pulsar Presto Connector Packaging</name>
 
     <properties>
         <dep.airlift.version>0.170</dep.airlift.version>
@@ -92,7 +93,7 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-spi</artifactId>
-            <version>0.206</version>
+            <version>${presto.version}</version>
             <scope>provided</scope>
         </dependency>
         <!-- test dependencies -->

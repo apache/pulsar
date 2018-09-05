@@ -85,7 +85,7 @@ message SourceSpec {
     map<string, ConsumerSpec> inputSpecs = 10;
 
     uint64 timeoutMs = 6;
-    string topicsPattern = 7;
+    string topicsPattern = 7 [deprecated = true];
 
     /* If specified, this will refer to an archive that is
      * already present in the server */
