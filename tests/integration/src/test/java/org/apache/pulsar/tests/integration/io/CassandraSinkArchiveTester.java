@@ -35,10 +35,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
- * A tester for testing cassandra sink.
+ * A tester for testing cassandra sink submitted as an archive.
  */
 @Slf4j
-public class CassandraSinkTester extends SinkTester {
+public class CassandraSinkArchiveTester extends SinkTester {
 
     private static final String NAME = "cassandra";
 
@@ -54,8 +54,8 @@ public class CassandraSinkTester extends SinkTester {
     private Cluster cluster;
     private Session session;
 
-    public CassandraSinkTester() {
-        super(SinkType.CASSANDRA);
+    public CassandraSinkArchiveTester() {
+        super("/pulsar/connectors/pulsar-io-cassandra-2.2.0-incubating-SNAPSHOT.nar", "org.apache.pulsar.io.cassandra.CassandraStringSink");
 
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.keySpace = "keySpace_" + suffix;

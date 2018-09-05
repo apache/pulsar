@@ -29,17 +29,35 @@ import org.testng.collections.Maps;
 @Getter
 public abstract class SinkTester {
 
-    protected final String sinkType;
+    public enum SinkType {
+        UNDEFINED,
+        CASSANDRA,
+        KAFKA,
+        JDBC
+    }
+
+    protected final SinkType sinkType;
+    protected final String sinkArchive;
+    protected final String sinkClassName;
     protected final Map<String, Object> sinkConfig;
 
-    public SinkTester(String sinkType) {
+    public SinkTester(SinkType sinkType) {
         this.sinkType = sinkType;
+        this.sinkArchive = null;
+        this.sinkClassName = null;
+        this.sinkConfig = Maps.newHashMap();
+    }
+
+    public SinkTester(String sinkArchive, String sinkClassName) {
+        this.sinkType = SinkType.UNDEFINED;
+        this.sinkArchive = sinkArchive;
+        this.sinkClassName = sinkClassName;
         this.sinkConfig = Maps.newHashMap();
     }
 
     public abstract void findSinkServiceContainer(Map<String, GenericContainer<?>> externalServices);
 
-    public String sinkType() {
+    public SinkType sinkType() {
         return sinkType;
     }
 
