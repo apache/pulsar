@@ -431,8 +431,7 @@ public class CmdSinks extends CmdBase {
                 if(sinkConfig.getArchive().startsWith(Utils.HTTP)) {
                     File tempPkgFile = null;
                     try {
-                        tempPkgFile = File.createTempFile(sinkConfig.getName(), "sink");
-                        downloadFromHttpUrl(sinkConfig.getArchive(), new FileOutputStream(tempPkgFile));
+                        tempPkgFile = downloadFromHttpUrl(sinkConfig.getArchive(), sinkConfig.getName());
                         archivePath = tempPkgFile.getAbsolutePath();
                     } catch(Exception e) {
                         if(tempPkgFile!=null ) {

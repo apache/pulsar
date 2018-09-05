@@ -501,8 +501,7 @@ public class CmdFunctions extends CmdBase {
                     // download jar file if url is http or file is downloadable
                     File tempPkgFile = null;
                     try {
-                        tempPkgFile = File.createTempFile(functionConfig.getName(), "function");
-                        downloadFromHttpUrl(functionConfig.getJar(), new FileOutputStream(tempPkgFile));
+                        tempPkgFile = downloadFromHttpUrl(functionConfig.getJar(), functionConfig.getName());
                         jarFilePath = tempPkgFile.getAbsolutePath();
                     } catch (Exception e) {
                         if (tempPkgFile != null) {
