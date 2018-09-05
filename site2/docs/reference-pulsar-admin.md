@@ -501,7 +501,7 @@ Options
 |`--name`|The name of the function||
 |`--namespace`|The namespace of the function||
 |`--tenant`|The tenant of the function||
-
+|`--instance-id`|The function instanceId; get status of all instances if instance-id is not provided||
 
 ### `list`
 List all Pulsar Functions for a specific tenant and namespace
