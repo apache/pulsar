@@ -1020,6 +1020,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
             <exclude>**/.idea/*</exclude>
+            <exclude>**/zk-3.5-test-data/*</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
@@ -1121,6 +1122,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>deployment/terraform-ansible/templates/myid</exclude>
             <exclude>certificate-authority/index.txt</exclude>
             <exclude>certificate-authority/README.md</exclude>
+
+            <!-- Exclude ZK test data file -->
+            <exclude>**/zk-3.5-test-data/*</exclude>
 
             <!-- Python requirements files -->
             <exclude>**/requirements.txt</exclude>
