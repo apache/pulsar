@@ -381,7 +381,7 @@ public class ValidatorImpls {
             // implements SerDe class
             if (functionConfig.getCustomSerdeInputs() != null) {
                 functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
-                    validateSerde(inputSerializer, typeArgs[0], name, clsLoader);
+                    validateSerde(inputSerializer, typeArgs[0], name, clsLoader, true);
                 });
             }
 
@@ -405,7 +405,7 @@ public class ValidatorImpls {
                                 String.format("Only one of schemaType or serdeClassName should be set in inputSpec"));
                     }
                     if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
-                        validateSerde(conf.getSerdeClassName(), typeArgs[0], name, clsLoader);
+                        validateSerde(conf.getSerdeClassName(), typeArgs[0], name, clsLoader, true);
                     }
                     if (conf.getSchemaType() != null && !conf.getSchemaType().isEmpty()) {
                         validateSchema(conf.getSchemaType(), typeArgs[0], name, clsLoader);
@@ -429,7 +429,7 @@ public class ValidatorImpls {
             }
 
             if (functionConfig.getOutputSerdeClassName() != null && !functionConfig.getOutputSerdeClassName().isEmpty()) {
-                validateSerde(functionConfig.getOutputSerdeClassName(), typeArgs[1], name, clsLoader);
+                validateSerde(functionConfig.getOutputSerdeClassName(), typeArgs[1], name, clsLoader, false);
             }
 
         }
@@ -451,7 +451,8 @@ public class ValidatorImpls {
             }
         }
 
-        private static void validateSerde(String inputSerializer, Class<?> typeArg, String name, ClassLoader clsLoader) {
+        private static void validateSerde(String inputSerializer, Class<?> typeArg, String name, ClassLoader clsLoader,
+                                          boolean deser) {
             if (StringUtils.isEmpty(inputSerializer)) return;
             Class<?> serdeClass;
             try {
@@ -492,8 +493,14 @@ public class ValidatorImpls {
                     throw new IllegalArgumentException("Failed to load type class", e);
                 }
 
-                if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
-                    throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " + serDeTypes[0]);
+                if (deser) {
+                    if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
+                        throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " + serDeTypes[0]);
+                    }
+                } else {
+                    if (!serdeInputClass.isAssignableFrom(fnInputClass)) {
+                        throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " + serDeTypes[0]);
+                    }
                 }
             }
         }
@@ -743,7 +750,7 @@ public class ValidatorImpls {
                 }
 
                 if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()) {
-                    FunctionConfigValidator.validateSerde(sourceConfig.getSerdeClassName(),typeArg, name, clsLoader);
+                    FunctionConfigValidator.validateSerde(sourceConfig.getSerdeClassName(),typeArg, name, clsLoader, false);
                 }
                 if (sourceConfig.getSchemaType() != null && !sourceConfig.getSchemaType().isEmpty()) {
                     FunctionConfigValidator.validateSchema(sourceConfig.getSchemaType(), typeArg, name, clsLoader);
@@ -783,7 +790,7 @@ public class ValidatorImpls {
 
                 if (sinkConfig.getTopicToSerdeClassName() != null) {
                     sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
-                        FunctionConfigValidator.validateSerde(serdeClassName, typeArg, name, clsLoader);
+                        FunctionConfigValidator.validateSerde(serdeClassName, typeArg, name, clsLoader, true);
                     });
                 }
 
@@ -803,7 +810,7 @@ public class ValidatorImpls {
                             throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
                         }
                         if (consumerSpec.getSerdeClassName() != null && !consumerSpec.getSerdeClassName().isEmpty()) {
-                            FunctionConfigValidator.validateSerde(consumerSpec.getSerdeClassName(), typeArg, name, clsLoader);
+                            FunctionConfigValidator.validateSerde(consumerSpec.getSerdeClassName(), typeArg, name, clsLoader, true);
                         }
                         if (consumerSpec.getSchemaType() != null && !consumerSpec.getSchemaType().isEmpty()) {
                             FunctionConfigValidator.validateSchema(consumerSpec.getSchemaType(), typeArg, name, clsLoader);
