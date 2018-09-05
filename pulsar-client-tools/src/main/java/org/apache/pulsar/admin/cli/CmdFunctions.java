@@ -879,7 +879,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             String json = Utils.printJson(
-                    isNotBlank(instanceId) ? admin.functions().getFunctionStatus(tenant, namespace, functionName)
+                    isBlank(instanceId) ? admin.functions().getFunctionStatus(tenant, namespace, functionName)
                             : admin.functions().getFunctionStatus(tenant, namespace, functionName,
                                     Integer.parseInt(instanceId)));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
