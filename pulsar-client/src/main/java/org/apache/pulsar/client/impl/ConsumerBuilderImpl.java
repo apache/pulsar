@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -32,6 +34,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -53,6 +56,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private final PulsarClientImpl client;
     private ConsumerConfigurationData<T> conf;
     private final Schema<T> schema;
+    private List<ConsumerInterceptor<T>> interceptorList;
 
     private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
 
@@ -105,8 +109,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("Subscription name must be set on the consumer builder"));
         }
-
-        return client.subscribeAsync(conf, schema);
+        return interceptorList == null || interceptorList.size() == 0 ?
+                client.subscribeAsync(conf, schema, null) :
+                client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
     }
 
     @Override
@@ -242,6 +247,15 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
 		return this;
 	}
+
+    @Override
+    public ConsumerBuilder<T> intercept(ConsumerInterceptor<T>... interceptors) {
+        if (interceptorList == null) {
+            interceptorList = new ArrayList<>();
+        }
+        interceptorList.addAll(Arrays.asList(interceptors));
+        return this;
+    }
 
     @Override
     public ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy) {

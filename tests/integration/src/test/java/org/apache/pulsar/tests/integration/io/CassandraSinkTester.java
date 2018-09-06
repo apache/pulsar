@@ -55,7 +55,7 @@ public class CassandraSinkTester extends SinkTester {
     private Session session;
 
     public CassandraSinkTester() {
-        super("cassandra");
+        super(SinkType.CASSANDRA);
 
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.keySpace = "keySpace_" + suffix;

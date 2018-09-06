@@ -360,12 +360,8 @@ public class FunctionsImpl {
             functionStatus = functionRuntimeManager.getFunctionInstanceStatus(tenant, namespace, functionName,
                     Integer.parseInt(instanceId));
         } catch (Exception e) {
-            log.error("Got Exception Getting Status", e);
-            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
-            functionStatusBuilder.setRunning(false);
-            String functionDetailsJson = org.apache.pulsar.functions.utils.Utils
-                    .printJson(functionStatusBuilder.build());
-            return Response.status(Status.OK).entity(functionDetailsJson).build();
+            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, functionName, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
         }
 
         String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatus);

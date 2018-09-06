@@ -334,6 +334,14 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition);
 
     /**
+     * Intercept {@link Consumer}.
+     *
+     * @param interceptors the list of interceptors to intercept the consumer created by this builder.
+     * @return consumer builder.
+     */
+    ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
+
+    /**
      * Set dead letter policy for consumer
      */
     ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);

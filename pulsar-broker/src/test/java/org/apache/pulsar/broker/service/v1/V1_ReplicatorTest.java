@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.v1;
 
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -241,7 +242,7 @@ public class V1_ReplicatorTest extends V1_ReplicatorTestBase {
         Thread.sleep(3000);
 
         Mockito.verify(pulsarClient, Mockito.times(1)).createProducerAsync(Mockito.any(ProducerConfigurationData.class),
-                Mockito.any(Schema.class));
+                Mockito.any(Schema.class), eq(null));
 
         client1.shutdown();
     }
