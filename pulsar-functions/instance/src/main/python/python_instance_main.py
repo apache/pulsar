@@ -82,9 +82,6 @@ def main():
 
   Log.info("Starting Python instance with %s" % str(args))
 
-  if function_details.source.topicsPattern:
-    raise ValueError('topicsPattern is not supported by python client')
-
   authentication = None
   use_tls = False
   tls_allow_insecure_connection = False

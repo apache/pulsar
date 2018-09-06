@@ -172,7 +172,7 @@ class PythonInstance(object):
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
-        message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
+        message_listener=partial(self.message_listener, self.input_serdes[topic]),
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
       )
 
@@ -183,12 +183,20 @@ class PythonInstance(object):
         serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
       self.input_serdes[topic] = serde_kclass()
       Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
-      self.consumers[topic] = self.pulsar_client.subscribe(
-        str(topic), subscription_name,
-        consumer_type=mode,
-        message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
-        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
-      )
+      if consumer_conf.isRegexPattern:
+        self.consumers[topic] = self.pulsar_client.subscribe_pattern(
+          str(topic), subscription_name,
+          consumer_type=mode,
+          message_listener=partial(self.message_listener, self.input_serdes[topic]),
+          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+        )
+      else:
+        self.consumers[topic] = self.pulsar_client.subscribe(
+          str(topic), subscription_name,
+          consumer_type=mode,
+          message_listener=partial(self.message_listener, self.input_serdes[topic]),
+          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+        )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
     if function_kclass is None:
@@ -301,8 +309,8 @@ class PythonInstance(object):
         batching_max_publish_delay_ms=1,
         max_pending_messages=100000)
 
-  def message_listener(self, topic, serde, consumer, message):
-    item = InternalMessage(message, topic, serde, consumer)
+  def message_listener(self, serde, consumer, message):
+    item = InternalMessage(message, consumer.topic(), serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
       consumer.acknowledge(message)

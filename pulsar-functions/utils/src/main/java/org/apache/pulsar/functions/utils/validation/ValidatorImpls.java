@@ -506,15 +506,6 @@ public class ValidatorImpls {
             if (functionConfig.getWindowConfig() != null) {
                 throw new IllegalArgumentException("There is currently no support windowing in python");
             }
-
-            if (functionConfig.getTopicsPattern() != null && !functionConfig.getTopicsPattern().isEmpty()) {
-                throw new IllegalArgumentException("Topic-patterns is not supported for python runtime");
-            }
-            functionConfig.getInputSpecs().forEach((topic, conf) -> {
-                if (conf.isRegexPattern()) {
-                    throw new IllegalArgumentException("Topic-patterns is not supported for python runtime");
-                }
-            });
         }
 
         private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic) throws IllegalArgumentException {

@@ -288,4 +288,10 @@ public interface Consumer<T> extends Closeable {
      * @return Whether the consumer is connected to the broker
      */
     boolean isConnected();
+
+    /**
+     * Get the name of consumer.
+     * @return consumer name.
+     */
+    String getConsumerName();
 }
