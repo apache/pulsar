@@ -81,6 +81,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final ManagedLedgerFactoryConfig config;
     protected final OrderedScheduler scheduledExecutor;
     private final OrderedExecutor orderedExecutor;
+    private final boolean isOrderedExecutorOwned;
 
     protected final ManagedLedgerFactoryMBeanImpl mbean;
 
@@ -126,10 +127,18 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .numThreads(config.getNumManagedLedgerSchedulerThreads())
                 .name("bookkeeper-ml-scheduler")
                 .build();
-        orderedExecutor = OrderedExecutor.newBuilder()
-                .numThreads(config.getNumManagedLedgerWorkerThreads())
-                .name("bookkeeper-ml-workers")
-                .build();
+
+        if (bookKeeper.getMainWorkerPool() != null) {
+            // Reuse BK worker threads for managed ledger as well
+            orderedExecutor = bookKeeper.getMainWorkerPool();
+            isOrderedExecutorOwned = false;
+        } else {
+            orderedExecutor = OrderedExecutor.newBuilder()
+                    .numThreads(config.getNumManagedLedgerWorkerThreads())
+                    .name("bookkeeper-ml-workers")
+                    .build();
+            isOrderedExecutorOwned = true;
+        }
 
         this.bookKeeper = bookKeeper;
         this.isBookkeeperManaged = isBookkeeperManaged;
@@ -365,7 +374,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }
 
         scheduledExecutor.shutdown();
-        orderedExecutor.shutdown();
+        if (isOrderedExecutorOwned) {
+            orderedExecutor.shutdown();
+        }
 
         entryCacheManager.clear();
     }
