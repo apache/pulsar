@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.suites;
 
 import java.util.Map;
 import org.apache.pulsar.tests.integration.containers.CassandraContainer;
+import org.apache.pulsar.tests.integration.containers.HdfsContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec.PulsarClusterSpecBuilder;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.GenericContainer;
