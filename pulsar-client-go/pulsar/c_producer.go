@@ -24,13 +24,14 @@ package pulsar
 */
 import "C"
 import (
-	"runtime"
-	"unsafe"
-	"time"
 	"context"
+	"runtime"
+	"time"
+	"unsafe"
 )
 
 type createProducerCtx struct {
+	client   *client
 	callback func(producer Producer, err error)
 	conf     *C.pulsar_producer_configuration_t
 }
@@ -44,7 +45,7 @@ func pulsarCreateProducerCallbackProxy(res C.pulsar_result, ptr *C.pulsar_produc
 	if res != C.pulsar_result_Ok {
 		producerCtx.callback(nil, newError(res, "Failed to create Producer"))
 	} else {
-		p := &producer{ptr: ptr}
+		p := &producer{client: producerCtx.client, ptr: ptr}
 		runtime.SetFinalizer(p, producerFinalizer)
 		producerCtx.callback(p, nil)
 	}
@@ -140,7 +141,7 @@ func createProducerAsync(client *client, options ProducerOptions, callback func(
 	defer C.free(unsafe.Pointer(topicName))
 
 	C._pulsar_client_create_producer_async(client.ptr, topicName, conf,
-		savePointer(createProducerCtx{callback, conf}))
+		savePointer(createProducerCtx{client,callback, conf}))
 }
 
 type topicMetadata struct {
@@ -161,7 +162,8 @@ func pulsarRouterCallbackProxy(msg *C.pulsar_message_t, metadata *C.pulsar_topic
 /// Producer
 
 type producer struct {
-	ptr *C.pulsar_producer_t
+	client *client
+	ptr    *C.pulsar_producer_t
 }
 
 func producerFinalizer(p *producer) {

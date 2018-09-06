@@ -31,6 +31,7 @@ import (
 )
 
 type reader struct {
+	client         *client
 	ptr            *C.pulsar_reader_t
 	defaultChannel chan ReaderMessage
 }
@@ -73,7 +74,7 @@ func createReaderAsync(client *client, options ReaderOptions, callback func(Read
 		return
 	}
 
-	reader := &reader{}
+	reader := &reader{client: client}
 
 	if options.MessageChannel == nil {
 		// If there is no message listener, set a default channel so that we can have receive to
