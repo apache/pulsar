@@ -32,6 +32,7 @@ import (
 )
 
 type consumer struct {
+	client         *client
 	ptr            *C.pulsar_consumer_t
 	defaultChannel chan ConsumerMessage
 }
@@ -76,7 +77,7 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 
 	conf := C.pulsar_consumer_configuration_create()
 
-	consumer := &consumer{}
+	consumer := &consumer{client: client}
 
 	if options.MessageChannel == nil {
 		// If there is no message listener, set a default channel so that we can have receive to
