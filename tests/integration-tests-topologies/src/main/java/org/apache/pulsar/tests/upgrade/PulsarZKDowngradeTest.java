@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.upgrade;
+package org.apache.pulsar.tests.upgrade;
 
 import static java.util.stream.Collectors.joining;
 import static org.testng.Assert.assertEquals;
@@ -33,9 +33,9 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
+import org.apache.pulsar.tests.topologies.PulsarCluster;
+import org.apache.pulsar.tests.topologies.PulsarClusterSpec;
+import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
