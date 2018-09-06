@@ -20,12 +20,14 @@ package org.apache.pulsar.tests.topologies;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.TreeMap;
+
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import org.apache.pulsar.tests.containers.ChaosContainer;
+
 import org.testcontainers.containers.GenericContainer;
 
 /**
@@ -100,4 +102,9 @@ public class PulsarClusterSpec {
     @Default
     boolean enableContainerLog = false;
 
+    /**
+     * Provide a map of paths (in the classpath) to mount as volumes inside the containers
+     */
+    @Builder.Default
+    Map<String, String> classPathVolumeMounts = new TreeMap<>();
 }
