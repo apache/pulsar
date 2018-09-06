@@ -33,7 +33,8 @@ public abstract class SinkTester {
         UNDEFINED,
         CASSANDRA,
         KAFKA,
-        JDBC
+        JDBC,
+        HDFS
     }
 
     protected final SinkType sinkType;
