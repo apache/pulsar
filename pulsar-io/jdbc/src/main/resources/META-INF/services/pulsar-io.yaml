@@ -19,4 +19,4 @@
 
 name: jdbc
 description: Jdbc sink
-sinkClass: org.apache.pulsar.io.jdbc.JdbcAvroSchemaSink
+sinkClass: org.apache.pulsar.io.jdbc.JdbcAutoSchemaSink
