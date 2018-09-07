@@ -374,7 +374,6 @@ public interface PulsarClient extends Closeable {
      *
      * close all producer connection and close all consumer producer.
      *
-     * @throws PulsarClientException
      */
-    void forceCloseConnection() throws PulsarClientException;
+    void forceCloseConnection();
 }

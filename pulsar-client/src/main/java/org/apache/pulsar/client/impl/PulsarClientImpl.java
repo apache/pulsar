@@ -709,26 +709,52 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public void forceCloseConnection() {
         if (this.producers != null) {
-            this.producers.keySet().forEach(producer -> {
+            for (ProducerBase<?> producer : this.producers.keySet()) {
                 if (producer instanceof ProducerImpl) {
-                    ((ProducerImpl<?>) producer).connectionClosed(((ProducerImpl<?>) producer).getClientCnx());
+                    ProducerImpl<?> producerImpl = (ProducerImpl<?>) producer;
+                    if (producerImpl.getClientCnx() != null) {
+                        try {
+                            producerImpl.getClientCnx().channelInactive(producerImpl.getClientCnx().ctx());
+                        } catch (Exception e) {
+                            log.error("Force close producer connection [{}] exception", producerImpl.getClientCnx().serverAddrees(), e);
+                        }
+                    }
                 } else if (producer instanceof PartitionedProducerImpl) {
-                    ((PartitionedProducerImpl<?>) producer).getProducers().forEach(producerImpl -> {
-                        producerImpl.connectionClosed(producerImpl.getClientCnx());
-                    });
+                    for (ProducerImpl<?> producerImpl : ((PartitionedProducerImpl<?>) producer).getProducers()) {
+                        if (producerImpl.getClientCnx() != null) {
+                            try {
+                                producerImpl.getClientCnx().channelInactive(producerImpl.getClientCnx().ctx());
+                            } catch (Exception e) {
+                                log.error("Force close producer connection [{}] exception", producerImpl.getClientCnx().serverAddrees(), e);
+                            }
+                        }
+                    }
                 }
-            });
+            }
         }
         if (this.consumers != null) {
-            this.consumers.keySet().forEach(consumer -> {
+            for (ConsumerBase<?> consumer : this.consumers.keySet()) {
                 if (consumer instanceof ConsumerImpl) {
-                    ((ConsumerImpl<?>) consumer).connectionClosed(((ConsumerImpl<?>) consumer).getClientCnx());
+                    ConsumerImpl<?> consumerImpl = (ConsumerImpl<?>) consumer;
+                    if (consumerImpl.getClientCnx() != null) {
+                        try {
+                            consumerImpl.getClientCnx().channelInactive(consumerImpl.getClientCnx().ctx());
+                        } catch (Exception e) {
+                            log.error("Force close consumer connection [{}] exception", consumerImpl.getClientCnx().serverAddrees(), e);
+                        }
+                    }
                 } else if (consumer instanceof MultiTopicsConsumerImpl) {
-                    ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().forEach(consumerImpl -> {
-                        consumerImpl.connectionClosed(consumerImpl.getClientCnx());
-                    });
+                    for (ConsumerImpl<?> consumerImpl : ((MultiTopicsConsumerImpl<?>) consumer).getConsumers()) {
+                        if (consumerImpl.getClientCnx() != null) {
+                            try {
+                                consumerImpl.getClientCnx().channelInactive(consumerImpl.getClientCnx().ctx());
+                            } catch (Exception e) {
+                                log.error("Force close consumer connection [{}] exception", consumerImpl.getClientCnx().serverAddrees(), e);
+                            }
+                        }
+                    }
                 }
-            });
+            }
         }
     }
 
