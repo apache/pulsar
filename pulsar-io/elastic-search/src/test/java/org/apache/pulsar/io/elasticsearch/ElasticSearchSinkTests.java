@@ -93,19 +93,19 @@ public class ElasticSearchSinkTests {
         sink.close();
     }
     
-    @Test(expectedExceptions = ElasticsearchStatusException.class)
+    @Test(enabled = false, expectedExceptions = ElasticsearchStatusException.class)
     public final void invalidIndexNameTest() throws Exception {
         map.put("indexName", "myIndex");
         sink.open(map, mockSinkContext);
     }
     
-    @Test
+    @Test(enabled = false)
     public final void createIndexTest() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);
     }
     
-    @Test
+    @Test(enabled = false)
     public final void singleRecordTest() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);
@@ -113,7 +113,7 @@ public class ElasticSearchSinkTests {
         verify(mockRecord, times(1)).ack();
     }
     
-    @Test
+    @Test(enabled = false)
     public final void send100Test() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);
