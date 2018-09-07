@@ -87,6 +87,7 @@ $ tar xvfz /path/to/apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
 $ cd apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
 
 $ ls connectors
+pulsar-io-aerospike-{{pulsar:version}}.nar
 pulsar-io-cassandra-{{pulsar:version}}.nar
 pulsar-io-kafka-{{pulsar:version}}.nar
 pulsar-io-kinesis-{{pulsar:version}}.nar
@@ -97,7 +98,7 @@ pulsar-io-twitter-{{pulsar:version}}.nar
 
 > #### NOTES
 >
-> If you are running Pulsar in a bare mental cluster, you need to make sure `connectors` tarball is unzipped in every broker's pulsar directory
+> If you are running Pulsar in a bare metal cluster, you need to make sure `connectors` tarball is unzipped in every broker's pulsar directory
 > (or in every function-worker's pulsar directory if you are running a separate worker cluster for Pulsar functions).
 > 
 > If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)),

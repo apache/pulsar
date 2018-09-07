@@ -51,8 +51,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                                           ConsumerConfigurationData<T> conf,
                                           ExecutorService listenerExecutor,
                                           CompletableFuture<Consumer<T>> subscribeFuture,
-                                          Schema<T> schema) {
-        super(client, conf, listenerExecutor, subscribeFuture, schema);
+                                          Schema<T> schema, ConsumerInterceptors<T> interceptors) {
+        super(client, conf, listenerExecutor, subscribeFuture, schema, interceptors);
         this.topicsPattern = topicsPattern;
 
         if (this.namespaceName == null) {

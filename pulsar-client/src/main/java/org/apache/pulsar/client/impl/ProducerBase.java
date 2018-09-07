@@ -36,13 +36,15 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected final CompletableFuture<Producer<T>> producerCreatedFuture;
     protected final ProducerConfigurationData conf;
     protected final Schema<T> schema;
+    protected final ProducerInterceptors<T> interceptors;
 
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
-            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema) {
+            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors<T> interceptors) {
         super(client, topic);
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
         this.schema = schema;
+        this.interceptors = interceptors;
     }
 
     @Override
@@ -146,6 +148,20 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
 
     public CompletableFuture<Producer<T>> producerCreatedFuture() {
         return producerCreatedFuture;
+    }
+
+    protected Message<T> beforeSend(Message<T> message) {
+        if (interceptors != null) {
+            return interceptors.beforeSend(this, message);
+        } else {
+            return message;
+        }
+    }
+
+    protected void onSendAcknowledgement(Message<T> message, MessageId msgId, Throwable exception) {
+        if (interceptors != null) {
+            interceptors.onSendAcknowledgement(this, message, msgId, exception);
+        }
     }
 
     @Override

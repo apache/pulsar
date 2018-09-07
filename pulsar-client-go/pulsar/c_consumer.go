@@ -32,6 +32,7 @@ import (
 )
 
 type consumer struct {
+	client         *client
 	ptr            *C.pulsar_consumer_t
 	defaultChannel chan ConsumerMessage
 }
@@ -76,7 +77,7 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 
 	conf := C.pulsar_consumer_configuration_create()
 
-	consumer := &consumer{}
+	consumer := &consumer{client: client}
 
 	if options.MessageChannel == nil {
 		// If there is no message listener, set a default channel so that we can have receive to
@@ -118,6 +119,18 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		defer C.free(unsafe.Pointer(name))
 
 		C.pulsar_consumer_set_consumer_name(conf, name)
+	}
+
+	if options.Properties != nil {
+		for key, value := range options.Properties {
+			cKey := C.CString(key)
+			cValue := C.CString(value)
+
+			C.pulsar_consumer_configuration_set_property(conf, cKey, cValue)
+
+			C.free(unsafe.Pointer(cKey))
+			C.free(unsafe.Pointer(cValue))
+		}
 	}
 
 	C.pulsar_consumer_set_read_compacted(conf, cBool(options.ReadCompacted))

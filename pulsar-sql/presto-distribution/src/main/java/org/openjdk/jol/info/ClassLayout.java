@@ -18,18 +18,36 @@
  */
 package org.openjdk.jol.info;
 
+import com.twitter.common.objectsize.ObjectSizeCalculator;
+import io.airlift.log.Logger;
+import org.objenesis.ObjenesisStd;
+
 /**
  * Mock class avoid a dependency on OpenJDK JOL,
  * which is incompatible with the Apache License.
  */
 public class ClassLayout {
 
-    public static ClassLayout parseClass(Class<?> ignored) {
-        return new ClassLayout();
+    private static final Logger log = Logger.get(ClassLayout.class);
+
+    private int size;
+    private static final int DEFAULT_SIZE = 64;
+
+    private ClassLayout(int size) {
+        this.size = size;
     }
 
-    // TODO find a better estimate of class size
+    public static ClassLayout parseClass(Class<?> clazz) {
+        long size = DEFAULT_SIZE;
+        try {
+            size = ObjectSizeCalculator.getObjectSize(new ObjenesisStd().newInstance(clazz));
+        } catch (Throwable th) {
+            log.info("Error estimating size of class %s",clazz, th);
+        }
+        return new ClassLayout(Math.toIntExact(size));
+    }
+
     public int instanceSize() {
-        return 64; // random, means nothing
+        return size;
     }
 }

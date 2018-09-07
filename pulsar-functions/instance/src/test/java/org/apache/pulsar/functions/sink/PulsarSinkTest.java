@@ -117,7 +117,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(Void.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
 
         try {
             pulsarSink.initializeSchema();
@@ -134,13 +134,13 @@ public class PulsarSinkTest {
         // set type to be inconsistent to that of SerDe
         pulsarConfig.setTypeClassName(Integer.class.getName());
         pulsarConfig.setSerdeClassName(TestSerDe.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
         try {
             pulsarSink.initializeSchema();
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
-            assertTrue(ex.getMessage().startsWith("Inconsistent types found between function input type and input serde type:"));
+            assertTrue(ex.getMessage().startsWith("Inconsistent types found between function input type and serde type:"));
         } catch (Exception ex) {
             log.error("Exception: {}", ex, ex);
             assertTrue(false);
@@ -156,7 +156,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
 
         try {
             pulsarSink.initializeSchema();
@@ -175,7 +175,7 @@ public class PulsarSinkTest {
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
         pulsarConfig.setSerdeClassName(TopicSchema.DEFAULT_SERDE);
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
 
         try {
             pulsarSink.initializeSchema();
@@ -191,7 +191,7 @@ public class PulsarSinkTest {
         // set type to void
         pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
         pulsarConfig.setSerdeClassName(ComplexSerDe.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
 
         try {
             pulsarSink.initializeSchema();

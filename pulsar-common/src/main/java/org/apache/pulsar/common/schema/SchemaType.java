@@ -85,5 +85,10 @@ public enum SchemaType {
     /**
      * Serialize and deserialize via avro
      */
-    AVRO
+    AVRO,
+
+    /**
+     * Auto Detect Schema Type.
+     */
+    AUTO
 }
