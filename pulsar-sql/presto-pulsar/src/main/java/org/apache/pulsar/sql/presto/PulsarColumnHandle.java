@@ -24,9 +24,8 @@ import com.facebook.presto.spi.type.Type;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Objects;
+import java.util.Arrays;
 
-import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
 public class PulsarColumnHandle implements ColumnHandle {
@@ -53,10 +52,9 @@ public class PulsarColumnHandle implements ColumnHandle {
      */
     private final boolean internal;
 
-    /**
-     * The index of the field in the schema associated with this column.
-     */
-    private Integer positionIndex;
+    private final String[] fieldNames;
+
+    private final Integer[] positionIndices;
 
     @JsonCreator
     public PulsarColumnHandle(
@@ -65,13 +63,15 @@ public class PulsarColumnHandle implements ColumnHandle {
             @JsonProperty("type") Type type,
             @JsonProperty("hidden") boolean hidden,
             @JsonProperty("internal") boolean internal,
-            @JsonProperty("positionIndex") Integer positionIndex) {
+            @JsonProperty("fieldNames") String[] fieldNames,
+            @JsonProperty("positionIndices") Integer[] positionIndices) {
         this.connectorId = requireNonNull(connectorId, "connectorId is null");
         this.name = requireNonNull(name, "name is null");
         this.type = requireNonNull(type, "type is null");
         this.hidden = hidden;
         this.internal = internal;
-        this.positionIndex = positionIndex;
+        this.fieldNames = fieldNames;
+        this.positionIndices = positionIndices;
     }
 
     @JsonProperty
@@ -100,8 +100,13 @@ public class PulsarColumnHandle implements ColumnHandle {
     }
 
     @JsonProperty
-    public Integer getPositionIndex() {
-        return positionIndex;
+    public String[] getFieldNames() {
+        return fieldNames;
+    }
+
+    @JsonProperty
+    public Integer[] getPositionIndices() {
+        return positionIndices;
     }
 
 
@@ -110,37 +115,43 @@ public class PulsarColumnHandle implements ColumnHandle {
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(connectorId, name, type, hidden, internal);
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        PulsarColumnHandle that = (PulsarColumnHandle) o;
+
+        if (hidden != that.hidden) return false;
+        if (internal != that.internal) return false;
+        if (connectorId != null ? !connectorId.equals(that.connectorId) : that.connectorId != null) return false;
+        if (name != null ? !name.equals(that.name) : that.name != null) return false;
+        if (type != null ? !type.equals(that.type) : that.type != null) return false;
+        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) return false;
+        return Arrays.deepEquals(positionIndices, that.positionIndices);
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null || getClass() != obj.getClass()) {
-            return false;
-        }
-
-        PulsarColumnHandle other = (PulsarColumnHandle) obj;
-        return Objects.equals(this.connectorId, other.connectorId) &&
-                Objects.equals(this.name, other.name) &&
-                Objects.equals(this.type, other.type) &&
-                Objects.equals(this.hidden, other.hidden) &&
-                Objects.equals(this.internal, other.internal) &&
-                Objects.equals(this.positionIndex, other.positionIndex);
+    public int hashCode() {
+        int result = connectorId != null ? connectorId.hashCode() : 0;
+        result = 31 * result + (name != null ? name.hashCode() : 0);
+        result = 31 * result + (type != null ? type.hashCode() : 0);
+        result = 31 * result + (hidden ? 1 : 0);
+        result = 31 * result + (internal ? 1 : 0);
+        result = 31 * result + Arrays.hashCode(fieldNames);
+        result = 31 * result + Arrays.hashCode(positionIndices);
+        return result;
     }
 
     @Override
     public String toString() {
-        return toStringHelper(this)
-                .add("connectorId", connectorId)
-                .add("name", name)
-                .add("type", type)
-                .add("hidden", hidden)
-                .add("internal", internal)
-                .add("positionIndex", positionIndex)
-                .toString();
+        return "PulsarColumnHandle{" +
+                "connectorId='" + connectorId + '\'' +
+                ", name='" + name + '\'' +
+                ", type=" + type +
+                ", hidden=" + hidden +
+                ", internal=" + internal +
+                ", fieldNames=" + Arrays.toString(fieldNames) +
+                ", positionIndices=" + Arrays.toString(positionIndices) +
+                '}';
     }
 }
