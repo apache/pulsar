@@ -399,6 +399,7 @@ BSD License
     - asm-tree-6.0.jar
     - asm-util-6.0.jar
  * JLine
+   - jline-0.9.94.jar
    - jline-2.14.6.jar
  * ParaNamer Core
    - paranamer-2.7.jar
@@ -469,3 +470,4 @@ Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
     - bcpkix-jdk15on-1.55.jar
     - bcprov-jdk15on-1.55.jar
+

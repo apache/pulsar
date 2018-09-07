@@ -96,7 +96,7 @@ Generate the certificate request...
 
 ```bash
 $ openssl req -config openssl.cnf \
-      -key broker.key.pem -new -sha256 -out broker.cert.pem
+      -key broker.key.pem -new -sha256 -out broker.csr.pem
 ```
 
 ... and sign it with the certificate authority.
