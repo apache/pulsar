@@ -569,11 +569,6 @@ public class CmdFunctions extends CmdBase {
             WindowConfig windowConfig = functionConfig.getWindowConfig();
             if (windowConfig != null) {
                 WindowUtils.inferDefaultConfigs(windowConfig);
-                // set auto ack to false since windowing framework is responsible
-                // for acking and not the function framework
-                if (autoAck) {
-                    throw new ParameterException("Cannot enable auto ack when using windowing functionality");
-                }
                 functionConfig.setAutoAck(false);
             }
         }
