@@ -136,7 +136,7 @@ class ProcessRuntime implements Runtime {
                 args.add("--client_auth_plugin");
                 args.add(authConfig.getClientAuthenticationPlugin());
                 args.add("--client_auth_params");
-                args.add(authConfig.getClientAuthenticationParameters());
+                args.add("'" + authConfig.getClientAuthenticationParameters() + "'");
             }
             args.add("--use_tls");
             args.add(Boolean.toString(authConfig.isUseTls()));
