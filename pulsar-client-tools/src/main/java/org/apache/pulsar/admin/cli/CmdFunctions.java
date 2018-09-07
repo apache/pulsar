@@ -501,8 +501,7 @@ public class CmdFunctions extends CmdBase {
                     // download jar file if url is http or file is downloadable
                     File tempPkgFile = null;
                     try {
-                        tempPkgFile = File.createTempFile(functionConfig.getName(), "function");
-                        downloadFromHttpUrl(functionConfig.getJar(), new FileOutputStream(tempPkgFile));
+                        tempPkgFile = downloadFromHttpUrl(functionConfig.getJar(), functionConfig.getName());
                         jarFilePath = tempPkgFile.getAbsolutePath();
                     } catch (Exception e) {
                         if (tempPkgFile != null) {
@@ -570,11 +569,6 @@ public class CmdFunctions extends CmdBase {
             WindowConfig windowConfig = functionConfig.getWindowConfig();
             if (windowConfig != null) {
                 WindowUtils.inferDefaultConfigs(windowConfig);
-                // set auto ack to false since windowing framework is responsible
-                // for acking and not the function framework
-                if (autoAck) {
-                    throw new ParameterException("Cannot enable auto ack when using windowing functionality");
-                }
                 functionConfig.setAutoAck(false);
             }
         }
@@ -872,9 +866,16 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Check the current status of a Pulsar Function")
     class GetFunctionStatus extends FunctionCommand {
+
+        @Parameter(names = "--instance-id", description = "The function instanceId (Get-status of all instances if instance-id is not provided")
+        protected String instanceId;
+
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(admin.functions().getFunctionStatus(tenant, namespace, functionName));
+            String json = Utils.printJson(
+                    isBlank(instanceId) ? admin.functions().getFunctionStatus(tenant, namespace, functionName)
+                            : admin.functions().getFunctionStatus(tenant, namespace, functionName,
+                                    Integer.parseInt(instanceId)));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(new JsonParser().parse(json)));
         }

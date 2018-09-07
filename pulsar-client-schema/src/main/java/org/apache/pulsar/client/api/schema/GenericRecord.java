@@ -38,7 +38,9 @@ public interface GenericRecord {
      * @param field the field to retrieve the value
      * @return the value object
      */
-    Object getField(Field field);
+    default Object getField(Field field) {
+        return getField(field.getName());
+    }
 
     /**
      * Retrieve the value of the provided <tt>fieldName</tt>.

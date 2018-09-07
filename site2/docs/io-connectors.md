@@ -9,6 +9,7 @@ These connectors import and export data from some of the most commonly used data
 as easy as writing a simple connector configuration and running the connector locally or submitting the connector to a
 Pulsar Functions cluster.
 
+- [Aerospike Sink Connector](io-aerospike.md)
 - [Cassandra Sink Connector](io-cassandra.md)
 - [Kafka Sink Connector](io-kafka.md#sink)
 - [Kafka Source Connector](io-kafka.md#source)

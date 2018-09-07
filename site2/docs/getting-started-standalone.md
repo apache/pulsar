@@ -87,6 +87,7 @@ $ tar xvfz /path/to/apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
 $ cd apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
 
 $ ls connectors
+pulsar-io-aerospike-{{pulsar:version}}.nar
 pulsar-io-cassandra-{{pulsar:version}}.nar
 pulsar-io-kafka-{{pulsar:version}}.nar
 pulsar-io-kinesis-{{pulsar:version}}.nar

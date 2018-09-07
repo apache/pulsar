@@ -190,6 +190,30 @@ license header. You can add license header to your files by running following co
 $ mvn license:format
 ```
 
+### Develop C++/Python Client
+
+Currently C++ and Python client are developed under `pulsar-client-cpp` directory. You can use following commands to build and test your c++ or python code changes.
+
+#### Build C++/Python Client
+
+```
+$ ./pulsar-client-cpp/docker-build.sh
+```
+
+### Run C++/Python Client Tests
+
+```
+$ ./pulsar-client-cpp/docker-test.sh
+```
+
+### Checkstyle
+
+Before you push the C++/Python changes for review, you should format the files to apply the checkstyle rule Pulsar is using for C++/Python code.
+
+```
+$ ./pulsar-client-cpp/docker-format.sh
+```
+
 ## Review
 
 Once the initial code is complete and the tests pass, it’s time to start the code review process. We review and discuss all code, no matter who authors it. It’s a great way to build community, since you can learn from other developers, and they become familiar with your contribution. It also builds a strong project by encouraging a high quality bar and keeping code consistent throughout the project.
