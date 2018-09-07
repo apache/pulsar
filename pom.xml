@@ -136,8 +136,8 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.15</commons-compress.version>
 
-    <bookkeeper.version>4.7.1</bookkeeper.version>
-    <zookeeper.version>3.5.4-beta</zookeeper.version>
+    <bookkeeper.version>4.7.2</bookkeeper.version>
+    <zookeeper.version>3.4.13</zookeeper.version>
     <netty.version>4.1.22.Final</netty.version>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
@@ -1026,6 +1026,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
             <exclude>**/.idea/*</exclude>
+            <exclude>**/zk-3.5-test-data/*</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
@@ -1127,6 +1128,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>deployment/terraform-ansible/templates/myid</exclude>
             <exclude>certificate-authority/index.txt</exclude>
             <exclude>certificate-authority/README.md</exclude>
+
+            <!-- Exclude ZK test data file -->
+            <exclude>**/zk-3.5-test-data/*</exclude>
 
             <!-- Python requirements files -->
             <exclude>**/requirements.txt</exclude>

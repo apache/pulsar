@@ -277,10 +277,10 @@ public class PulsarSink<T> implements Sink<T> {
 
         if (!StringUtils.isEmpty(pulsarSinkConfig.getSchemaType())) {
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                    pulsarSinkConfig.getSchemaType());
+                    pulsarSinkConfig.getSchemaType(), false);
         } else {
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                    pulsarSinkConfig.getSerdeClassName());
+                    pulsarSinkConfig.getSerdeClassName(), false);
         }
     }
 }
