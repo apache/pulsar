@@ -42,7 +42,6 @@
     <module>hdfs</module>
     <module>jdbc</module>
     <module>data-genenator</module>
-    <module>hdfs</module>
     <module>elastic-search</module>
   </modules>
 
