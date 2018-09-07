@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
@@ -68,6 +69,12 @@ public class ClientBuilderImpl implements ClientBuilder {
         if (!conf.isUseTls()) {
             enableTls(serviceUrl.startsWith("pulsar+ssl") || serviceUrl.startsWith("https"));
         }
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider) {
+        serviceUrl(serviceUrlProvider.getServiceUrl());
         return this;
     }
 

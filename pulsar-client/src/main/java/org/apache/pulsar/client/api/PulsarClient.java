@@ -368,4 +368,13 @@ public interface PulsarClient extends Closeable {
      *             if the forceful shutdown fails
      */
     void shutdown() throws PulsarClientException;
+
+    /**
+     * Force close connection of pulsar client.
+     *
+     * close all producer connection and close all consumer producer.
+     *
+     * @throws PulsarClientException
+     */
+    void forceCloseConnection() throws PulsarClientException;
 }

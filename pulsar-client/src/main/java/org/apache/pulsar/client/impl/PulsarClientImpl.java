@@ -706,6 +706,32 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
+    @Override
+    public void forceCloseConnection() {
+        if (this.producers != null) {
+            this.producers.keySet().forEach(producer -> {
+                if (producer instanceof ProducerImpl) {
+                    ((ProducerImpl<?>) producer).connectionClosed(((ProducerImpl<?>) producer).getClientCnx());
+                } else if (producer instanceof PartitionedProducerImpl) {
+                    ((PartitionedProducerImpl<?>) producer).getProducers().forEach(producerImpl -> {
+                        producerImpl.connectionClosed(producerImpl.getClientCnx());
+                    });
+                }
+            });
+        }
+        if (this.consumers != null) {
+            this.consumers.keySet().forEach(consumer -> {
+                if (consumer instanceof ConsumerImpl) {
+                    ((ConsumerImpl<?>) consumer).connectionClosed(((ConsumerImpl<?>) consumer).getClientCnx());
+                } else if (consumer instanceof MultiTopicsConsumerImpl) {
+                    ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().forEach(consumerImpl -> {
+                        consumerImpl.connectionClosed(consumerImpl.getClientCnx());
+                    });
+                }
+            });
+        }
+    }
+
     protected CompletableFuture<ClientCnx> getConnection(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return lookup.getBroker(topicName)
