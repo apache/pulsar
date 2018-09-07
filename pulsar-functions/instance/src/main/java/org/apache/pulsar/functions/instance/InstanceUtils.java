@@ -31,27 +31,42 @@ import net.jodah.typetools.TypeResolver;
 
 @UtilityClass
 public class InstanceUtils {
-    public static SerDe<?> initializeSerDe(String serdeClassName, ClassLoader clsLoader, Class<?> typeArg) {
+    public static SerDe<?> initializeSerDe(String serdeClassName, ClassLoader clsLoader, Class<?> typeArg,
+                                           boolean deser) {
         SerDe<?> serDe = createInstance(serdeClassName, clsLoader, SerDe.class);
 
         Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-        checkArgument(typeArg.isAssignableFrom(inputSerdeTypeArgs[0]),
-                "Inconsistent types found between function input type and input serde type: "
-                        + " function type = " + typeArg + " should be assignable from "
-                        + inputSerdeTypeArgs[0]);
+        if (deser) {
+            checkArgument(typeArg.isAssignableFrom(inputSerdeTypeArgs[0]),
+                    "Inconsistent types found between function input type and serde type: "
+                            + " function type = " + typeArg + " should be assignable from "
+                            + inputSerdeTypeArgs[0]);
+        } else {
+            checkArgument(inputSerdeTypeArgs[0].isAssignableFrom(typeArg),
+                    "Inconsistent types found between function input type and serde type: "
+                            + " serde type = " + inputSerdeTypeArgs[0] + " should be assignable from "
+                            + typeArg);
+        }
 
         return serDe;
     }
 
-    public static Schema<?> initializeCustomSchema(String schemaClassName, ClassLoader clsLoader, Class<?> typeArg) {
+    public static Schema<?> initializeCustomSchema(String schemaClassName, ClassLoader clsLoader, Class<?> typeArg,
+                                                   boolean input) {
         Schema<?> schema = createInstance(schemaClassName, clsLoader, Schema.class);
 
         Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(Schema.class, schema.getClass());
-        checkArgument(typeArg.isAssignableFrom(inputSerdeTypeArgs[0]),
-                "Inconsistent types found between function input type and input schema type: "
-                        + " function type = " + typeArg + " should be assignable from "
-                        + inputSerdeTypeArgs[0]);
-
+        if (input) {
+            checkArgument(typeArg.isAssignableFrom(inputSerdeTypeArgs[0]),
+                    "Inconsistent types found between function type and schema type: "
+                            + " function type = " + typeArg + " should be assignable from "
+                            + inputSerdeTypeArgs[0]);
+        } else {
+            checkArgument(inputSerdeTypeArgs[0].isAssignableFrom(typeArg),
+                    "Inconsistent types found between function type and schema type: "
+                            + " schema type = " + inputSerdeTypeArgs[0] + " should be assignable from "
+                            + typeArg);
+        }
         return schema;
     }
 
