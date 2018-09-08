@@ -38,6 +38,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
+import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
@@ -45,7 +47,6 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runt
 import org.apache.pulsar.tests.integration.io.*;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -594,8 +595,23 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                   String inputTopicName,
                                                   String outputTopicName,
                                                   String functionName) throws Exception {
+        submitFunction(
+            runtime,
+            inputTopicName,
+            outputTopicName,
+            functionName,
+            getExclamationClass(runtime),
+            Schema.STRING);
+    }
+
+    private static <T> void submitFunction(Runtime runtime,
+                                           String inputTopicName,
+                                           String outputTopicName,
+                                           String functionName,
+                                           String functionClass,
+                                           Schema<T> inputTopicSchema) throws Exception {
         CommandGenerator generator;
-        generator = CommandGenerator.createDefaultGenerator(inputTopicName, getExclamationClass(runtime));
+        generator = CommandGenerator.createDefaultGenerator(inputTopicName, functionClass);
         generator.setSinkTopic(outputTopicName);
         generator.setFunctionName(functionName);
         String command;
@@ -619,7 +635,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         try (PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build()) {
-            try (Consumer<String> ignored = client.newConsumer(Schema.STRING)
+            try (Consumer<T> ignored = client.newConsumer(inputTopicSchema)
                 .topic(inputTopicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName(String.format("public/default/%s", functionName))
@@ -705,6 +721,61 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
         assertTrue(result.getStderr().isEmpty());
+    }
+
+    @Test
+    public void testAutoSchemaFunction() throws Exception {
+        String inputTopicName = "test-autoschema-input-" + randomName(8);
+        String outputTopicName = "test-autoshcema-output-" + randomName(8);
+        String functionName = "test-autoschema-fn-" + randomName(8);
+        final int numMessages = 10;
+
+        // submit the exclamation function
+        submitFunction(
+            Runtime.JAVA, inputTopicName, outputTopicName, functionName,
+            AutoSchemaFunction.class.getName(),
+            Schema.AVRO(CustomObject.class));
+
+        // get function info
+        getFunctionInfoSuccess(functionName);
+
+        // publish and consume result
+        publishAndConsumeAvroMessages(inputTopicName, outputTopicName, numMessages);
+
+        // get function status
+        getFunctionStatus(functionName, numMessages);
+
+        // delete function
+        deleteFunction(functionName);
+
+        // get function info
+        getFunctionInfoNotFound(functionName);
+    }
+
+    private static void publishAndConsumeAvroMessages(String inputTopic,
+                                                      String outputTopic,
+                                                      int numMessages) throws Exception {
+        @Cleanup PulsarClient client = PulsarClient.builder()
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
+        @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+            .topic(outputTopic)
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscriptionName("test-sub")
+            .subscribe();
+        @Cleanup Producer<CustomObject> producer = client.newProducer(Schema.AVRO(CustomObject.class))
+            .topic(inputTopic)
+            .create();
+
+        for (int i = 0; i < numMessages; i++) {
+            CustomObject co = new CustomObject(i);
+            producer.send(co);
+        }
+
+        for (int i = 0; i < numMessages; i++) {
+            Message<String> msg = consumer.receive();
+            assertEquals("value-" + i, msg.getValue());
+        }
     }
 
 }

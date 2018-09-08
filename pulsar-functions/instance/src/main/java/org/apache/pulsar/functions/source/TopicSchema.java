@@ -26,6 +26,7 @@ import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
@@ -68,24 +69,31 @@ public class TopicSchema {
     }
 
     public Schema<?> getSchema(String topic, Class<?> clazz, SchemaType schemaType) {
-        return cachedSchemas.computeIfAbsent(topic, t -> extractSchema(clazz, schemaType));
+        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(clazz, schemaType));
     }
 
     /**
      * If the topic is already created, we should be able to fetch the schema type (avro, json, ...)
      */
     private SchemaType getSchemaTypeOrDefault(String topic, Class<?> clazz) {
-        Optional<SchemaInfo> schema = ((PulsarClientImpl) client).getSchema(topic).join();
-        if (schema.isPresent()) {
-            return schema.get().getType();
+        if (GenericRecord.class.isAssignableFrom(clazz)) {
+            return SchemaType.AUTO;
         } else {
-            return getDefaultSchemaType(clazz);
+            Optional<SchemaInfo> schema = ((PulsarClientImpl) client).getSchema(topic).join();
+            if (schema.isPresent()) {
+                return schema.get().getType();
+            } else {
+                return getDefaultSchemaType(clazz);
+            }
         }
     }
 
     private static SchemaType getDefaultSchemaType(Class<?> clazz) {
         if (byte[].class.equals(clazz)) {
             return SchemaType.NONE;
+        } else if (GenericRecord.class.isAssignableFrom(clazz)) {
+            // the function is taking generic record, so we do auto schema detection
+            return SchemaType.AUTO;
         } else if (String.class.equals(clazz)) {
             // If type is String, then we use schema type string, otherwise we fallback on default schema
             return SchemaType.STRING;
@@ -101,6 +109,9 @@ public class TopicSchema {
         switch (type) {
         case NONE:
             return (Schema<T>) Schema.BYTES;
+
+        case AUTO:
+            return (Schema<T>) Schema.AUTO();
 
         case STRING:
             return (Schema<T>) Schema.STRING;
@@ -163,29 +174,6 @@ public class TopicSchema {
             SerDe<T> serDe = (SerDe<T>) InstanceUtils.initializeSerDe(schemaTypeOrClassName,
                     Thread.currentThread().getContextClassLoader(), clazz, input);
             return new SerDeSchema<>(serDe);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> Schema<T> extractSchema(Class<T> clazz, SchemaType type) {
-        switch (type) {
-        case NONE:
-            return (Schema<T>) Schema.BYTES;
-
-        case STRING:
-            return (Schema<T>) Schema.STRING;
-
-        case AVRO:
-            return AvroSchema.of(clazz);
-
-        case JSON:
-            return JSONSchema.of(clazz);
-
-        case PROTOBUF:
-            return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());
-
-        default:
-            throw new RuntimeException("Unsupported schema type" + type);
         }
     }
 }
