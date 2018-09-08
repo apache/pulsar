@@ -61,6 +61,7 @@ class Authentication {
         authDataContent = authData_;
         return ResultOk;
     }
+    static ParamMap parseDefaultFormatAuthParams(const std::string& authParamsString);
 
    protected:
     Authentication();
@@ -104,6 +105,7 @@ class AuthTls : public Authentication {
     AuthTls(AuthenticationDataPtr&);
     ~AuthTls();
     static AuthenticationPtr create(ParamMap& params);
+    static AuthenticationPtr create(const std::string& authParamsString);
     static AuthenticationPtr create(const std::string& certificatePath, const std::string& privateKeyPath);
     const std::string getAuthMethodName() const;
     Result getAuthData(AuthenticationDataPtr& authDataTls) const;
