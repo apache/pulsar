@@ -181,6 +181,15 @@ Then you can push your local, committed changes to your (forked) repository on G
 
 All code should have appropriate unit testing coverage. New code should have new tests in the same contribution. Bug fixes should include a regression test to prevent the issue from reoccurring.
 
+### Licensing
+
+All code contributed to Pulsar will be licensed under [Apache License V2](https://www.apache.org/licenses/LICENSE-2.0). You need to ensure every new files you are adding have the right
+license header. You can add license header to your files by running following command:
+
+```shell
+$ mvn license:format
+```
+
 ### Develop C++/Python Client
 
 Currently C++ and Python client are developed under `pulsar-client-cpp` directory. You can use following commands to build and test your c++ or python code changes.
