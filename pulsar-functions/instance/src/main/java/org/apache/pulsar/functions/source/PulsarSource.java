@@ -78,7 +78,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         inputConsumers = configs.entrySet().stream().map(e -> {
             String topic = e.getKey();
             ConsumerConfig<T> conf = e.getValue();
-            log.info("Creating consumers for topic : {}",  topic);
+            log.info("Creating consumers for topic : {}, schema : {}",  topic, conf.getSchema());
             ConsumerBuilder<T> cb = pulsarClient.newConsumer(conf.getSchema())
                     // consume message even if can't decrypt and deliver it along with encryption-ctx
                     .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)

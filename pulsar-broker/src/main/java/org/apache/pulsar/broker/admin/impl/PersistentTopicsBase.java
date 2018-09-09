@@ -604,6 +604,12 @@ public class PersistentTopicsBase extends AdminResource {
                 stats.add(partitionStats);
                 stats.partitions.put(topicName.getPartition(i).toString(), partitionStats);
             }
+        } catch (PulsarAdminException e) {
+            if (e.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
+                throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+            } else {
+                throw new RestException(e);
+            }
         } catch (Exception e) {
             throw new RestException(e);
         }
