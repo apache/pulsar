@@ -28,26 +28,30 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import org.apache.avro.Schema;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.impl.MessageParser;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.shade.org.apache.bookkeeper.conf.ClientConfiguration;
 
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.TimerTask;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
@@ -67,45 +71,47 @@ public class PulsarRecordCursor implements RecordCursor {
     private List<PulsarColumnHandle> columnHandles;
     private PulsarSplit pulsarSplit;
     private PulsarConnectorConfig pulsarConnectorConfig;
-    private ManagedLedgerFactory managedLedgerFactory;
+    private ScheduledExecutorService scheduledExecutorService;
     private ReadOnlyCursor cursor;
-    private Queue<Message> messageQueue = new LinkedList<>();
+    private Queue<Message> messageQueue = new ConcurrentLinkedQueue<>();
     private Object currentRecord;
     private Message currentMessage;
     private Map<String, PulsarInternalColumn> internalColumnMap = PulsarInternalColumn.getInternalFieldsMap();
     private SchemaHandler schemaHandler;
     private int batchSize;
-    private long completedBytes = 0L;
+    private AtomicLong completedBytes = new AtomicLong(0L);
+    private ReadEntries readEntries;
 
     private static final Logger log = Logger.get(PulsarRecordCursor.class);
 
     public PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit,
                               PulsarConnectorConfig pulsarConnectorConfig) {
-
-        ManagedLedgerFactory managedLedgerFactory;
+        PulsarConnectorCache pulsarConnectorCache;
         try {
-            managedLedgerFactory = getManagedLedgerFactory(pulsarConnectorConfig);
+            pulsarConnectorCache = PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig);
         } catch (Exception e) {
-            log.error(e, "Failed to initialize managed ledger factory");
+            log.error(e, "Failed to initialize Pulsar connector cache");
             close();
             throw new RuntimeException(e);
         }
-        initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory);
+        initialize(columnHandles, pulsarSplit, pulsarConnectorConfig,
+                pulsarConnectorCache.getManagedLedgerFactory(),
+                pulsarConnectorCache.getScheduledExecutorService());
     }
 
     // Exposed for testing purposes
     PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
-            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory) {
-        initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory);
+            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, ScheduledExecutorService scheduledExecutorService) {
+        initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, scheduledExecutorService);
     }
 
     private void initialize(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
-            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory) {
+            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, ScheduledExecutorService scheduledExecutorService) {
         this.columnHandles = columnHandles;
         this.pulsarSplit = pulsarSplit;
         this.pulsarConnectorConfig = pulsarConnectorConfig;
         this.batchSize = pulsarConnectorConfig.getEntryReadBatchSize();
-        this.managedLedgerFactory = managedLedgerFactory;
+        this.scheduledExecutorService = scheduledExecutorService;
 
         Schema schema = PulsarConnectorUtils.parseSchema(pulsarSplit.getSchema());
 
@@ -149,18 +155,9 @@ public class PulsarRecordCursor implements RecordCursor {
         return cursor;
     }
 
-    private ManagedLedgerFactory getManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
-        ClientConfiguration bkClientConfiguration = new ClientConfiguration()
-                .setZkServers(pulsarConnectorConfig.getZookeeperUri())
-                .setAllowShadedLedgerManagerFactoryClass(true)
-                .setShadedLedgerManagerFactoryClassPrefix("org.apache.pulsar.shade.");
-        return new ManagedLedgerFactoryImpl(bkClientConfiguration);
-    }
-
-
     @Override
     public long getCompletedBytes() {
-        return this.completedBytes;
+        return this.completedBytes.get();
     }
 
     @Override
@@ -174,33 +171,31 @@ public class PulsarRecordCursor implements RecordCursor {
         return columnHandles.get(field).getType();
     }
 
-    @Override
-    public boolean advanceNextPosition() {
+    public class ReadEntries extends TimerTask implements AsyncCallbacks.ReadEntriesCallback {
 
-        if (this.messageQueue.isEmpty()) {
-            if (!this.cursor.hasMoreEntries()) {
-                return false;
+        private final TopicName topicName = TopicName.get("persistent",
+                NamespaceName.get(pulsarSplit.getSchemaName()),
+                pulsarSplit.getTableName());
+
+        private AtomicBoolean isDone = new AtomicBoolean(false);
+
+        @Override
+        public void run() {
+            if (!cursor.hasMoreEntries() && ((PositionImpl) cursor.getReadPosition())
+                    .compareTo(pulsarSplit.getEndPosition()) >= 0) {
+                isDone.set(true);
+            } else if (messageQueue.size() < pulsarConnectorConfig.getTargetSplitMessageQueueSize()){
+                cursor.asyncReadEntries(batchSize, this, null);
+            } else {
+                scheduledExecutorService.schedule(this, 50, TimeUnit.MILLISECONDS);
             }
-            if (((PositionImpl) this.cursor.getReadPosition())
-                    .compareTo(this.pulsarSplit.getEndPosition()) >= 0) {
-                return false;
-            }
+        }
 
-            TopicName topicName = TopicName.get("persistent",
-                    NamespaceName.get(this.pulsarSplit.getSchemaName()),
-                    this.pulsarSplit.getTableName());
-
-            List<Entry> newEntries;
-            try {
-                newEntries = this.cursor.readEntries(this.batchSize);
-            } catch (InterruptedException | ManagedLedgerException e) {
-                log.error(e, "Failed to read new entries from pulsar topic %s", topicName.toString());
-                throw new RuntimeException(e);
-            }
-
-            newEntries.forEach(entry -> {
+        @Override
+        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            entries.forEach(entry -> {
                 try {
-                    completedBytes += entry.getDataBuffer().readableBytes();
+                    completedBytes.addAndGet(entry.getDataBuffer().readableBytes());
                     // filter entries that is not part of my split
                     if (((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) < 0) {
                         try {
@@ -217,13 +212,48 @@ public class PulsarRecordCursor implements RecordCursor {
                     entry.release();
                 }
             });
+
+            // loop back
+            run();
         }
 
-        this.currentMessage = this.messageQueue.poll();
-        currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
+        public boolean isDone() {
+            return isDone.get();
+        }
 
+        @Override
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            log.error(exception, "Failed to read entries from topic %s", topicName.toString());
+        }
+
+    }
+    @Override
+    public boolean advanceNextPosition() {
+
+        if (readEntries == null) {
+            readEntries = new ReadEntries();
+            readEntries.run();
+        }
+
+        while(true) {
+            if (messageQueue.isEmpty() && readEntries.isDone()) {
+                return false;
+            }
+            this.currentMessage = this.messageQueue.poll();
+            if (this.currentMessage == null) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                break;
+            }
+        }
+        currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
         return true;
     }
+
 
     @VisibleForTesting
     Object getRecord(int fieldIndex) {
@@ -320,14 +350,6 @@ public class PulsarRecordCursor implements RecordCursor {
         if (this.cursor != null) {
             try {
                 this.cursor.close();
-            } catch (Exception e) {
-                log.error(e);
-            }
-        }
-
-        if (managedLedgerFactory != null) {
-            try {
-                managedLedgerFactory.shutdown();
             } catch (Exception e) {
                 log.error(e);
             }

@@ -30,6 +30,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private String zookeeperUri = "localhost:2181";
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 4;
+    private int targetSplitMessageQueueSize = 10000;
     private PulsarAdmin pulsarAdmin;
 
     @NotNull
@@ -73,6 +74,17 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.target-num-splits")
     public PulsarConnectorConfig setTargetNumSplits(int targetNumSplits) {
         this.targetNumSplits = targetNumSplits;
+        return this;
+    }
+
+    @NotNull
+    public int getTargetSplitMessageQueueSize() {
+        return this.targetSplitMessageQueueSize;
+    }
+
+    @Config("pulsar.target-split-message-queue-size")
+    public PulsarConnectorConfig setTargetSplitMessageQueueSize(int targetSplitMessageQueueSize) {
+        this.targetSplitMessageQueueSize = targetSplitMessageQueueSize;
         return this;
     }
 
