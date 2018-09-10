@@ -60,6 +60,22 @@ Authentication::Authentication() {}
 
 Authentication::~Authentication() {}
 
+ParamMap Authentication::parseDefaultFormatAuthParams(const std::string& authParamsString) {
+    ParamMap paramMap;
+    if (!authParamsString.empty()) {
+        std::vector<std::string> params;
+        boost::algorithm::split(params, authParamsString, boost::is_any_of(","));
+        for (int i = 0; i < params.size(); i++) {
+            std::vector<std::string> kv;
+            boost::algorithm::split(kv, params[i], boost::is_any_of(":"));
+            if (kv.size() == 2) {
+                paramMap[kv[0]] = kv[1];
+            }
+        }
+    }
+    return paramMap;
+}
+
 class AuthDisabledData : public AuthenticationDataProvider {
    public:
     AuthDisabledData(ParamMap& params) {}
@@ -111,6 +127,17 @@ AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, ParamMap& 
     }
 }
 
+AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, const std::string& authParamsString) {
+    if (boost::iequals(pluginName, TLS_PLUGIN_NAME) || boost::iequals(pluginName, TLS_JAVA_PLUGIN_NAME)) {
+        return AuthTls::create(authParamsString);
+    } else if (boost::iequals(pluginName, ATHENZ_PLUGIN_NAME) ||
+               boost::iequals(pluginName, ATHENZ_JAVA_PLUGIN_NAME)) {
+        return AuthAthenz::create(authParamsString);
+    } else {
+        return AuthenticationPtr();
+    }
+}
+
 AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibPath,
                                       const std::string& authParamsString) {
     {
@@ -121,20 +148,7 @@ AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibP
         }
     }
 
-    ParamMap paramMap;
-    if (!authParamsString.empty()) {
-        std::vector<std::string> params;
-        boost::algorithm::split(params, authParamsString, boost::is_any_of(","));
-        for (int i = 0; i < params.size(); i++) {
-            std::vector<std::string> kv;
-            boost::algorithm::split(kv, params[i], boost::is_any_of(":"));
-            if (kv.size() == 2) {
-                paramMap[kv[0]] = kv[1];
-            }
-        }
-    }
-
-    AuthenticationPtr authPtr = tryCreateBuiltinAuth(pluginNameOrDynamicLibPath, paramMap);
+    AuthenticationPtr authPtr = tryCreateBuiltinAuth(pluginNameOrDynamicLibPath, authParamsString);
     if (authPtr) {
         return authPtr;
     }
@@ -151,6 +165,7 @@ AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibP
         if (createAuthentication != NULL) {
             auth = createAuthentication(authParamsString);
         } else {
+            ParamMap paramMap = Authentication::parseDefaultFormatAuthParams(authParamsString);
             return AuthFactory::create(pluginNameOrDynamicLibPath, paramMap);
         }
     }
