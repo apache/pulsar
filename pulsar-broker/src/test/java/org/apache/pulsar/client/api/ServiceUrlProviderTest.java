@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -99,8 +100,8 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
                 .subscribe();
 
         PulsarService pulsarService1 = pulsar;
-        conf.setBrokerServicePort(conf.getBrokerServicePort() + 1);
-        conf.setWebServicePort(conf.getWebServicePort() + 1);
+        conf.setBrokerServicePort(PortManager.nextFreePort());
+        conf.setWebServicePort(PortManager.nextFreePort());
         startBroker();
         PulsarService pulsarService2 = pulsar;
         System.out.println("Pulsar1=" + pulsarService1.getBrokerServiceUrl() + ", Pulsar2=" + pulsarService2.getBrokerServiceUrl());
