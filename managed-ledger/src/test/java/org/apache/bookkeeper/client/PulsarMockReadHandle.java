@@ -29,19 +29,19 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
-
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
 
 /**
  * Mock implementation of ReadHandle.
  */
 @Slf4j
-class MockReadHandle implements ReadHandle {
-    private final MockBookKeeper bk;
+class PulsarMockReadHandle implements ReadHandle {
+    private final PulsarMockBookKeeper bk;
     private final long ledgerId;
     private final LedgerMetadata metadata;
     private final List<LedgerEntryImpl> entries;
 
-    MockReadHandle(MockBookKeeper bk, long ledgerId, LedgerMetadata metadata, List<LedgerEntryImpl> entries) {
+    PulsarMockReadHandle(PulsarMockBookKeeper bk, long ledgerId, LedgerMetadata metadata, List<LedgerEntryImpl> entries) {
         this.bk = bk;
         this.ledgerId = ledgerId;
         this.metadata = metadata;
@@ -50,21 +50,7 @@ class MockReadHandle implements ReadHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
-        if (bk.isStopped()) {
-            promise.completeExceptionally(new BKException.BKClientClosedException());
-            return promise;
-        }
-
-        bk.executor.execute(() -> {
-                if (bk.getProgrammedFailStatus()) {
-                    promise.completeExceptionally(BKException.create(bk.failReturnCode));
-                    return;
-                } else if (bk.isStopped()) {
-                    promise.completeExceptionally(new BKException.BKClientClosedException());
-                    return;
-                }
-
+        return bk.getProgrammedFailure().thenComposeAsync((res) -> {
                 log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
                 List<LedgerEntry> seq = new ArrayList<>();
                 long entryId = firstEntry;
@@ -72,10 +58,9 @@ class MockReadHandle implements ReadHandle {
                     seq.add(entries.get((int) entryId++).duplicate());
                 }
                 log.debug("Entries read: {}", seq);
-                promise.complete(LedgerEntriesImpl.create(seq));
-            });
-        return promise;
 
+                return FutureUtils.value(LedgerEntriesImpl.create(seq));
+            });
     }
 
     @Override
