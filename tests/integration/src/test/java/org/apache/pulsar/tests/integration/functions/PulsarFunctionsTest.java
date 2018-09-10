@@ -83,7 +83,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testSink(new JdbcSinkTester(), true);
     }
 
-    @Test
+    @Test(enabled = false)
     public void testElasticSearchSink() throws Exception {
         testSink(new ElasticSearchSinkTester(), true);
     }
