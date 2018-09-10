@@ -47,6 +47,15 @@ public interface Record<T> {
     T getValue();
 
     /**
+     * Retrieves the event time of the record from the source.
+     *
+     * @return millis since epoch
+     */
+    default Optional<Long> getEventTime() {
+        return Optional.empty();
+    }
+
+    /**
      * Retrieves the partition information if any of the record.
      *
      * @return The partition id where the

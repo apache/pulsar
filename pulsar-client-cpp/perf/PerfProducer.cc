@@ -145,7 +145,7 @@ void runProducer(const Arguments& args, std::string topicName, int threadIndex,
     try {
         while (true) {
             if (args.rate != -1) {
-                limiter->aquire();
+                limiter->acquire();
             }
             pulsar::Message msg = builder.create().setAllocatedContent(payload.get(), args.msgSize).build();
 

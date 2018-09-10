@@ -395,7 +395,7 @@ public interface ManagedCursor {
             final SkipEntriesCallback callback, Object ctx);
 
     /**
-     * Find the newest entry that matches the given predicate.
+     * Find the newest entry that matches the given predicate.  Will only search among active entries
      *
      * @param condition
      *            predicate that reads an entry an applies a condition
@@ -405,9 +405,25 @@ public interface ManagedCursor {
      */
     Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
 
+
     /**
      * Find the newest entry that matches the given predicate.
      *
+     * @param constraint
+     *            search only active entries or all entries
+     * @param condition
+     *            predicate that reads an entry an applies a condition
+     * @return Position of the newest entry that matches the given predicate
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Find the newest entry that matches the given predicate.
+     *
+     * @param constraint
+     *            search only active entries or all entries
      * @param condition
      *            predicate that reads an entry an applies a condition
      * @param callback

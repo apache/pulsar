@@ -32,9 +32,11 @@ metadata:
 data:
   zookeeperServers:
     {{- $global := . }}
-    {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ printf "%s-%s-%s-%d.%s-%s-%s" $global.Release.Name $global.Chart.Name $global.Values.zookeeper.component $i $global.Release.Name $global.Chart.Name $global.Values.zookeeper.component }}{{ end }}
+    {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}-{{ printf "%d" $i }}.{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}{{ end }}
   configurationStoreServers:
     {{- $global := . }}
-    {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ printf "%s-%s-%s-%d.%s-%s-%s" $global.Release.Name $global.Chart.Name $global.Values.zookeeper.component $i $global.Release.Name $global.Chart.Name $global.Values.zookeeper.component }}{{ end }}
+    {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}-{{ printf "%d" $i }}.{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}{{ end }}
   clusterName: {{ template "pulsar.fullname" . }}
+  functionsWorkerEnabled: "true"
+  PF_pulsarFunctionsCluster: {{ template "pulsar.fullname" . }}
 {{ toYaml .Values.broker.configData | indent 2 }}

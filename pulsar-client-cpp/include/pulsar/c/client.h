@@ -86,6 +86,16 @@ void pulsar_client_subscribe_async(pulsar_client_t *client, const char *topic, c
                                    const pulsar_consumer_configuration_t *conf,
                                    pulsar_subscribe_callback callback, void *ctx);
 
+void pulsar_client_subscribe_multi_topics_async(pulsar_client_t *client, const char **topics, int topicsCount,
+                                                const char *subscriptionName,
+                                                const pulsar_consumer_configuration_t *conf,
+                                                pulsar_subscribe_callback callback, void *ctx);
+
+void pulsar_client_subscribe_pattern_async(pulsar_client_t *client, const char *topicPattern,
+                                           const char *subscriptionName,
+                                           const pulsar_consumer_configuration_t *conf,
+                                           pulsar_subscribe_callback callback, void *ctx);
+
 /**
  * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified
  * topic.

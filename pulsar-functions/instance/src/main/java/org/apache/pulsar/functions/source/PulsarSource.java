@@ -18,86 +18,96 @@
  */
 package org.apache.pulsar.functions.source;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
-import org.apache.pulsar.client.impl.TopicMessageImpl;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.io.core.Source;
-import org.apache.pulsar.io.core.SourceContext;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import lombok.Getter;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import lombok.Builder;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
+
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.io.core.PushSource;
+import org.apache.pulsar.io.core.SourceContext;
 
 @Slf4j
-public class PulsarSource<T> implements Source<T> {
+public class PulsarSource<T> extends PushSource<T> implements MessageListener<T> {
 
-    private PulsarClient pulsarClient;
-    private PulsarSourceConfig pulsarSourceConfig;
-    private Map<String, SerDe> topicToSerDeMap = new HashMap<>();
-    private boolean isTopicsPattern;
+    private final PulsarClient pulsarClient;
+    private final PulsarSourceConfig pulsarSourceConfig;
     private List<String> inputTopics;
+    private List<Consumer<T>> inputConsumers;
+    private final TopicSchema topicSchema;
+    private final String fqfn;
 
-    @Getter
-    private org.apache.pulsar.client.api.Consumer<byte[]> inputConsumer;
-
-    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
+    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig,
+                        String fqfn) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarConfig;
+        this.topicSchema = new TopicSchema(pulsarClient);
+        this.fqfn = fqfn;
     }
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-        // Setup Serialization/Deserialization
-        setupSerDe();
+        // Setup schemas
+        log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
+        Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
 
-        // Setup pulsar consumer
-        ConsumerBuilder<byte[]> consumerBuilder = this.pulsarClient.newConsumer()
-                //consume message even if can't decrypt and deliver it along with encryption-ctx
-                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
-                .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
-                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType());
+        Map<String, String> properties = new HashMap<>();
+        properties.put("application", "pulsarfunction");
+        properties.put("fqfn", fqfn);
 
-        if(isNotBlank(this.pulsarSourceConfig.getTopicsPattern())) {
-            consumerBuilder.topicsPattern(this.pulsarSourceConfig.getTopicsPattern());
-            isTopicsPattern = true;
-        }else {
-            consumerBuilder.topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()));
-        }
+        inputConsumers = configs.entrySet().stream().map(e -> {
+            String topic = e.getKey();
+            ConsumerConfig<T> conf = e.getValue();
+            log.info("Creating consumers for topic : {}, schema : {}",  topic, conf.getSchema());
+            ConsumerBuilder<T> cb = pulsarClient.newConsumer(conf.getSchema())
+                    // consume message even if can't decrypt and deliver it along with encryption-ctx
+                    .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
+                    .subscriptionName(pulsarSourceConfig.getSubscriptionName())
+                    .subscriptionType(pulsarSourceConfig.getSubscriptionType())
+                    .messageListener(this);
 
-        if (pulsarSourceConfig.getTimeoutMs() != null) {
-            consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
-        }
-        this.inputConsumer = consumerBuilder.subscribe();
-        if (inputConsumer instanceof MultiTopicsConsumerImpl) {
-            inputTopics = ((MultiTopicsConsumerImpl<?>) inputConsumer).getTopics();
-        } else {
-            inputTopics = Collections.singletonList(inputConsumer.getTopic());
-        }
+            if (conf.isRegexPattern) {
+                cb.topicsPattern(topic);
+            } else {
+                cb.topic(topic);
+            }
+            cb.properties(properties);
+
+            if (pulsarSourceConfig.getTimeoutMs() != null) {
+                cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
+            }
+
+            return cb.subscribeAsync();
+        }).collect(Collectors.toList()).stream().map(CompletableFuture::join).collect(Collectors.toList());
+
+        inputTopics = inputConsumers.stream().flatMap(c -> {
+            return (c instanceof MultiTopicsConsumerImpl) ? ((MultiTopicsConsumerImpl<?>) c).getTopics().stream()
+                    : Collections.singletonList(c.getTopic()).stream();
+        }).collect(Collectors.toList());
     }
 
     @Override
-    public Record<T> read() throws Exception {
-        org.apache.pulsar.client.api.Message<byte[]> message = this.inputConsumer.receive();
-
+    public void received(Consumer<T> consumer, Message<T> message) {
         String topicName;
 
         // If more than one topics are being read than the Message return by the consumer will be TopicMessageImpl
@@ -105,44 +115,18 @@ public class PulsarSource<T> implements Source<T> {
         if (message instanceof TopicMessageImpl) {
             topicName = ((TopicMessageImpl<?>) message).getTopicName();
         } else {
-            topicName = this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet().iterator().next();
+            topicName = consumer.getTopic();
         }
 
-        Object object;
-        try {
-            SerDe deserializer = null;
-            if (this.topicToSerDeMap.containsKey(topicName)) {
-                deserializer = this.topicToSerDeMap.get(topicName);
-            } else if (isTopicsPattern) {
-                deserializer = this.topicToSerDeMap.get(this.pulsarSourceConfig.getTopicsPattern());
-            }
-            if (deserializer != null) {
-                object = deserializer.deserialize(message.getData());
-            } else {
-                throw new IllegalStateException("Topic deserializer not configured : " + topicName);
-            }
-        } catch (Exception e) {
-            // TODO Add deserialization exception stats
-            throw new RuntimeException("Error occured when attempting to deserialize input:", e);
-        }
-
-        T input;
-        try {
-            input = (T) object;
-        } catch (ClassCastException e) {
-            throw new RuntimeException("Error in casting input to expected type:", e);
-        }
-
-        return PulsarRecord.<T>builder()
-                .value(input)
+        Record<T> record = PulsarRecord.<T>builder()
                 .message(message)
                 .topicName(topicName)
                 .ackFunction(() -> {
                     if (pulsarSourceConfig
                             .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        inputConsumer.acknowledgeCumulativeAsync(message);
+                        consumer.acknowledgeCumulativeAsync(message);
                     } else {
-                        inputConsumer.acknowledgeAsync(message);
+                        consumer.acknowledgeAsync(message);
                     }
                 }).failFunction(() -> {
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
@@ -150,52 +134,54 @@ public class PulsarSource<T> implements Source<T> {
                     }
                 })
                 .build();
+
+        consume(record);
     }
 
     @Override
     public void close() throws Exception {
-        if (this.inputConsumer != null) {
-            this.inputConsumer.close();
-        }
+        inputConsumers.forEach(consumer -> {
+            try {
+                consumer.close();
+            } catch (PulsarClientException e) {
+            }
+        });
     }
 
+    @SuppressWarnings("unchecked")
     @VisibleForTesting
-    void setupSerDe() throws ClassNotFoundException {
+    Map<String, ConsumerConfig<T>> setupConsumerConfigs() throws ClassNotFoundException {
+        Map<String, ConsumerConfig<T>> configs = new TreeMap<>();
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
                 Thread.currentThread().getContextClassLoader());
 
-        if (Void.class.equals(typeArg)) {
-            throw new RuntimeException("Input type of Pulsar Function cannot be Void");
-        }
+        checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 
-        for (Map.Entry<String, String> entry : this.pulsarSourceConfig.getTopicSerdeClassNameMap().entrySet()) {
-            String topic = entry.getKey();
-            String serDeClassname = entry.getValue();
-            if (serDeClassname == null || serDeClassname.isEmpty()) {
-                serDeClassname = DefaultSerDe.class.getName();
-            }
-            SerDe serDe = InstanceUtils.initializeSerDe(serDeClassname,
-                    Thread.currentThread().getContextClassLoader(), typeArg);
-            this.topicToSerDeMap.put(topic, serDe);
-        }
-
-        for (SerDe serDe : this.topicToSerDeMap.values()) {
-            if (serDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
-                if (!DefaultSerDe.IsSupportedType(typeArg)) {
-                    throw new RuntimeException("Default Serde does not support " + typeArg);
-                }
+        // Check new config with schema types or classnames
+        pulsarSourceConfig.getTopicSchema().forEach((topic, conf) -> {
+            Schema<T> schema;
+            if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
+                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
             } else {
-                Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-                if (!typeArg.isAssignableFrom(inputSerdeTypeArgs[0])) {
-                    throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
-                            + " function type = " + typeArg + " should be assignable from " + inputSerdeTypeArgs[0]);
-                }
+                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSchemaType(), true);
             }
-        }
+            configs.put(topic,
+                    ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).build());
+        });
+
+        return configs;
     }
 
     public List<String> getInputTopics() {
         return inputTopics;
     }
+
+    @Data
+    @Builder
+    private static class ConsumerConfig<T> {
+        private Schema<T> schema;
+        private boolean isRegexPattern;
+    }
+
 }

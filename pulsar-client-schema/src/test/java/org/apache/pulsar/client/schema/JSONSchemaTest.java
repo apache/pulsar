@@ -18,46 +18,18 @@
  */
 package org.apache.pulsar.client.schema;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import static org.apache.pulsar.client.schema.SchemaTestUtils.FOO_FIELDS;
+import static org.apache.pulsar.client.schema.SchemaTestUtils.SCHEMA_JSON;
+
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
+import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class JSONSchemaTest {
-    @Data
-    @ToString
-    @EqualsAndHashCode
-    private static class Foo {
-        private String field1;
-        private String field2;
-        private int field3;
-        private Bar field4;
-    }
-
-    @Data
-    @ToString
-    @EqualsAndHashCode
-    private static class Bar {
-        private boolean field1;
-    }
-
-    private static final String SCHEMA_JSON = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.apache" +
-            ".pulsar.client" +
-            ".schema.JSONSchemaTest$\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\",\"string\"]," +
-            "\"default\":null},{\"name\":\"field2\",\"type\":[\"null\",\"string\"],\"default\":null}," +
-            "{\"name\":\"field3\",\"type\":\"int\"},{\"name\":\"field4\",\"type\":[\"null\",{\"type\":\"record\"," +
-            "\"name\":\"Bar\",\"fields\":[{\"name\":\"field1\",\"type\":\"boolean\"}]}],\"default\":null}]}";
-
-    private static String[] FOO_FIELDS = {
-            "field1",
-            "field2",
-            "field3",
-            "field4"
-    };
 
     @Test
     public void testSchema() {

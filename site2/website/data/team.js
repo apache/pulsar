@@ -1,6 +1,12 @@
 module.exports = {
   committers: [
     {
+      name: 'Boyang Jerry Peng',
+      apacheId: 'jerrypeng',
+      org: 'Streamlio',
+      roles: 'Committer, PPMC'
+    },
+    {
       name: 'Brad McMillen',
       apacheId: 'bradtm',
       org: 'Yahoo',
@@ -13,9 +19,21 @@ module.exports = {
       roles: 'Committer, PPMC'
     },
     {
+      name: 'Ivan Brendan Kelly',
+      apacheId: 'ivank',
+      org: 'Streamlio',
+      roles: 'Committer, PPMC'
+    },
+    {
       name: 'Jai Asher',
       apacheId: 'jai1',
       org: 'Yahoo',
+      roles: 'Committer, PPMC'
+    },
+    {
+      name: 'Jia Zhai',
+      apacheId: 'zhaijia',
+      org: 'Streamlio',
       roles: 'Committer, PPMC'
     },
     {
@@ -27,7 +45,7 @@ module.exports = {
     {
       name: 'Ludwig Pummer',
       apacheId: 'ludwigp',
-      org: 'Yahoo',          
+      org: 'Yahoo',
       roles: 'Committer, PPMC'
     },
     {
@@ -67,6 +85,12 @@ module.exports = {
       roles: 'Committer, PPMC'
     },
     {
+      name: 'Sanjeev Kulkarni',
+      apacheId: 'sanjeevrk',
+      org: 'Streamlio',
+      roles: 'Committer, PPMC'
+    },
+    {
       name: 'Sebastián Schepens',
       apacheId: 'sschepens',
       org: 'MercadoLibre',
@@ -76,6 +100,12 @@ module.exports = {
       name: 'Siddharth Boobna',
       apacheId: 'sboobna',
       org: 'Salesforce',
+      roles: 'Committer, PPMC'
+    },
+    {
+      name: 'Sijie Guo',
+      apacheId: 'sijie',
+      org: 'Streamlio',
       roles: 'Committer, PPMC'
     },
     {

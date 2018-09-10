@@ -35,9 +35,20 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS} -undefined dynamic_lookup")
 endif()
 
+# Newer boost versions don't use the -mt suffix
+if (NOT DEFINED ${Boost_PYTHON27-MT_LIBRARY})
+  set(Boost_PYTHON27-MT_LIBRARY ${Boost_PYTHON27_LIBRARY})
+endif()
+
+if (NOT DEFINED ${Boost_PYTHON37-MT_LIBRARY})
+  set(Boost_PYTHON37-MT_LIBRARY ${Boost_PYTHON37_LIBRARY})
+endif()
+
 # Try all possible boost-python variable namings
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY}
                         ${Boost_PYTHON27-MT_LIBRARY} ${Boost_PYTHON37-MT_LIBRARY})
+
+message(STATUS "Using Boost Python libs: ${PYTHON_WRAPPER_LIBS}")
 
 if (APPLE)
     target_link_libraries(_pulsar -Wl,-all_load pulsarStatic ${PYTHON_WRAPPER_LIBS})

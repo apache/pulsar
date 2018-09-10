@@ -114,7 +114,7 @@ public class KinesisSink implements Sink<byte[]> {
                     record.getRecordSequence());
             throw new IllegalStateException("kinesis queue has publish failure");
         }
-        String partitionedKey = record.getKey().orElse(defaultPartitionedKey);
+        String partitionedKey = record.getKey().orElse(record.getTopicName().orElse(defaultPartitionedKey));
         partitionedKey = partitionedKey.length() > maxPartitionedKeyLength
                 ? partitionedKey.substring(0, maxPartitionedKeyLength - 1)
                 : partitionedKey; // partitionedKey Length must be at least one, and at most 256

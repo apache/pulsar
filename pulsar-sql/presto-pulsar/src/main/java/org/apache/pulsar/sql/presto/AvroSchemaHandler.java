@@ -55,9 +55,23 @@ public class AvroSchemaHandler implements SchemaHandler {
     public Object extractField(int index, Object currentRecord) {
         try {
             GenericRecord record = (GenericRecord) currentRecord;
-            return record.get(this.columnHandles.get(index).getPositionIndex());
+            PulsarColumnHandle pulsarColumnHandle = this.columnHandles.get(index);
+            Integer[] positionIndices = pulsarColumnHandle.getPositionIndices();
+            Object curr = record.get(positionIndices[0]);
+            if (curr == null) {
+                return null;
+            }
+            if (positionIndices.length > 0) {
+                for (int i = 1 ; i < positionIndices.length; i++) {
+                    curr = ((GenericRecord) curr).get(positionIndices[i]);
+                    if (curr == null) {
+                        return null;
+                    }
+                }
+            }
+            return curr;
         } catch (Exception ex) {
-            log.error(ex);
+            log.debug(ex,"%s", ex);
         }
         return null;
     }

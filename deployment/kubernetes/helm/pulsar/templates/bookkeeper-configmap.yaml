@@ -32,5 +32,7 @@ metadata:
 data:
   zkServers:
     {{- $global := . }}
-    {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ printf "%s-%s-%s-%d.%s-%s-%s" $global.Release.Name $global.Chart.Name $global.Values.zookeeper.component $i $global.Release.Name $global.Chart.Name $global.Values.zookeeper.component }}{{ end }}
+    {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}-{{ printf "%d" $i }}.{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}{{ end }}
+  # disable auto recovery on bookies since we will start AutoRecovery in separated pods
+  autoRecoveryDaemonEnabled: "false"
 {{ toYaml .Values.bookkeeper.configData | indent 2 }}

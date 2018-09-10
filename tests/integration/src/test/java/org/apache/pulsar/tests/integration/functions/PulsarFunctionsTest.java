@@ -36,16 +36,15 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
+import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
-import org.apache.pulsar.tests.integration.io.CassandraSinkTester;
-import org.apache.pulsar.tests.integration.io.KafkaSinkTester;
-import org.apache.pulsar.tests.integration.io.KafkaSourceTester;
-import org.apache.pulsar.tests.integration.io.SinkTester;
-import org.apache.pulsar.tests.integration.io.SourceTester;
+import org.apache.pulsar.tests.integration.io.*;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
@@ -62,23 +61,38 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test
     public void testKafkaSink() throws Exception {
-        testSink(new KafkaSinkTester());
+        testSink(new KafkaSinkTester(), true);
     }
 
     @Test
     public void testCassandraSink() throws Exception {
-        testSink(new CassandraSinkTester());
+        testSink(new CassandraSinkTester(), true);
     }
 
-    private void testSink(SinkTester tester) throws Exception {
+    @Test
+    public void testCassandraArchiveSink() throws Exception {
+        testSink(new CassandraSinkArchiveTester(), false);
+    }
+    
+    @Test(enabled = false)
+    public void testHdfsSink() throws Exception {
+        testSink(new HdfsSinkTester(), false);
+    }
+    
+    @Test
+    public void testJdbcSink() throws Exception {
+        testSink(new JdbcSinkTester(), true);
+    }
+
+    private void testSink(SinkTester tester, boolean builtin) throws Exception {
         tester.findSinkServiceContainer(pulsarCluster.getExternalServices());
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String inputTopicName = "test-sink-connector-"
-            + functionRuntimeType + "-input-topic-" + randomName(8);
+            + tester.getSinkType() + "-" + functionRuntimeType + "-input-topic-" + randomName(8);
         final String sinkName = "test-sink-connector-"
-            + functionRuntimeType + "-name-" + randomName(8);
+            + tester.getSinkType().name().toLowerCase() + "-" + functionRuntimeType + "-name-" + randomName(8);
         final int numMessages = 20;
 
         // prepare the testing environment for sink
@@ -88,13 +102,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         submitSinkConnector(tester, tenant, namespace, sinkName, inputTopicName);
 
         // get sink info
-        getSinkInfoSuccess(tester, tenant, namespace, sinkName);
+        getSinkInfoSuccess(tester, tenant, namespace, sinkName, builtin);
 
         // get sink status
         getSinkStatus(tenant, namespace, sinkName);
 
         // produce messages
-        Map<String, String> kvs = produceMessagesToInputTopic(inputTopicName, numMessages);
+        Map<String, String> kvs;
+        if (tester instanceof JdbcSinkTester) {
+            kvs = produceSchemaMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
+        } else {
+            kvs = produceMessagesToInputTopic(inputTopicName, numMessages);
+        }
 
         // wait for sink to process messages
         waitForProcessingMessages(tenant, namespace, sinkName, numMessages);
@@ -118,16 +137,31 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                        String namespace,
                                        String sinkName,
                                        String inputTopicName) throws Exception {
-        String[] commands = {
-            PulsarCluster.ADMIN_SCRIPT,
-            "sink", "create",
-            "--tenant", tenant,
-            "--namespace", namespace,
-            "--name", sinkName,
-            "--sink-type", tester.sinkType(),
-            "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
-            "--inputs", inputTopicName
-        };
+        String[] commands;
+        if (tester.getSinkType() != SinkTester.SinkType.UNDEFINED) {
+            commands = new String[] {
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "sink", "create",
+                    "--tenant", tenant,
+                    "--namespace", namespace,
+                    "--name", sinkName,
+                    "--sink-type", tester.sinkType().name().toLowerCase(),
+                    "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
+                    "--inputs", inputTopicName
+            };
+        } else {
+            commands = new String[] {
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "sink", "create",
+                    "--tenant", tenant,
+                    "--namespace", namespace,
+                    "--name", sinkName,
+                    "--archive", tester.getSinkArchive(),
+                    "--classname", tester.getSinkClassName(),
+                    "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
+                    "--inputs", inputTopicName
+            };
+        }
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
@@ -138,7 +172,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void getSinkInfoSuccess(SinkTester tester,
                                       String tenant,
                                       String namespace,
-                                      String sinkName) throws Exception {
+                                      String sinkName,
+                                      boolean builtin) throws Exception {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -149,10 +184,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         log.info("Get sink info : {}", result.getStdout());
-        assertTrue(
-            result.getStdout().contains("\"builtin\": \"" + tester.getSinkType() + "\""),
-            result.getStdout()
-        );
+        if (builtin) {
+            assertTrue(
+                    result.getStdout().contains("\"builtin\": \"" + tester.getSinkType().name().toLowerCase() + "\""),
+                    result.getStdout()
+            );
+        } else {
+            assertTrue(
+                    result.getStdout().contains("\"className\": \"" + tester.getSinkClassName() + "\""),
+                    result.getStdout()
+            );
+        }
     }
 
     protected void getSinkStatus(String tenant, String namespace, String sinkName) throws Exception {
@@ -202,6 +244,36 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
+    // This for JdbcSinkTester
+    protected Map<String, String> produceSchemaMessagesToInputTopic(String inputTopicName,
+                                                              int numMessages,  Schema schema) throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.STRING)
+            .topic(inputTopicName)
+            .create();
+        LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
+        for (int i = 0; i < numMessages; i++) {
+            String key = "key-" + i;
+
+            JdbcSinkTester.Foo obj = new JdbcSinkTester.Foo();
+            obj.setField1("field1_" + i);
+            obj.setField2("field2_" + i);
+            obj.setField3(i);
+            String value = new String(schema.encode(obj));
+
+            kvs.put(key, value);
+            producer.newMessage()
+                .key(key)
+                .value(value)
+                .send();
+        }
+        return kvs;
+    }
+
     protected void waitForProcessingMessages(String tenant,
                                              String namespace,
                                              String sinkName,
@@ -226,8 +298,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 // expected in early iterations
             }
 
-            log.info("{} ms has elapsed but the sink hasn't process {} messages, backoff to wait for another 1 second",
-                stopwatch.elapsed(TimeUnit.MILLISECONDS), numMessages);
+            log.info("{} ms has elapsed but the sink {} hasn't process {} messages, backoff to wait for another 1 second",
+                stopwatch.elapsed(TimeUnit.MILLISECONDS), sinkName, numMessages);
             TimeUnit.SECONDS.sleep(1);
         }
     }
@@ -523,8 +595,23 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                   String inputTopicName,
                                                   String outputTopicName,
                                                   String functionName) throws Exception {
+        submitFunction(
+            runtime,
+            inputTopicName,
+            outputTopicName,
+            functionName,
+            getExclamationClass(runtime),
+            Schema.STRING);
+    }
+
+    private static <T> void submitFunction(Runtime runtime,
+                                           String inputTopicName,
+                                           String outputTopicName,
+                                           String functionName,
+                                           String functionClass,
+                                           Schema<T> inputTopicSchema) throws Exception {
         CommandGenerator generator;
-        generator = CommandGenerator.createDefaultGenerator(inputTopicName, getExclamationClass(runtime));
+        generator = CommandGenerator.createDefaultGenerator(inputTopicName, functionClass);
         generator.setSinkTopic(outputTopicName);
         generator.setFunctionName(functionName);
         String command;
@@ -542,6 +629,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             commands);
         assertTrue(result.getStdout().contains("\"Created successfully\""));
+
+
+        // ensure the function subscription exists before we start producing messages
+        try (PulsarClient client = PulsarClient.builder()
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build()) {
+            try (Consumer<T> ignored = client.newConsumer(inputTopicSchema)
+                .topic(inputTopicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(String.format("public/default/%s", functionName))
+                .subscribe()) {
+            }
+        }
     }
 
     private static void getFunctionInfoSuccess(String functionName) throws Exception {
@@ -621,6 +721,61 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
         assertTrue(result.getStderr().isEmpty());
+    }
+
+    @Test
+    public void testAutoSchemaFunction() throws Exception {
+        String inputTopicName = "test-autoschema-input-" + randomName(8);
+        String outputTopicName = "test-autoshcema-output-" + randomName(8);
+        String functionName = "test-autoschema-fn-" + randomName(8);
+        final int numMessages = 10;
+
+        // submit the exclamation function
+        submitFunction(
+            Runtime.JAVA, inputTopicName, outputTopicName, functionName,
+            AutoSchemaFunction.class.getName(),
+            Schema.AVRO(CustomObject.class));
+
+        // get function info
+        getFunctionInfoSuccess(functionName);
+
+        // publish and consume result
+        publishAndConsumeAvroMessages(inputTopicName, outputTopicName, numMessages);
+
+        // get function status
+        getFunctionStatus(functionName, numMessages);
+
+        // delete function
+        deleteFunction(functionName);
+
+        // get function info
+        getFunctionInfoNotFound(functionName);
+    }
+
+    private static void publishAndConsumeAvroMessages(String inputTopic,
+                                                      String outputTopic,
+                                                      int numMessages) throws Exception {
+        @Cleanup PulsarClient client = PulsarClient.builder()
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
+        @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+            .topic(outputTopic)
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscriptionName("test-sub")
+            .subscribe();
+        @Cleanup Producer<CustomObject> producer = client.newProducer(Schema.AVRO(CustomObject.class))
+            .topic(inputTopic)
+            .create();
+
+        for (int i = 0; i < numMessages; i++) {
+            CustomObject co = new CustomObject(i);
+            producer.send(co);
+        }
+
+        for (int i = 0; i < numMessages; i++) {
+            Message<String> msg = consumer.receive();
+            assertEquals("value-" + i, msg.getValue());
+        }
     }
 
 }
