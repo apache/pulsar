@@ -23,29 +23,28 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Request;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
+
+import com.google.common.annotations.VisibleForTesting;
+
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SchedulerManager implements AutoCloseable {
@@ -65,16 +64,22 @@ public class SchedulerManager implements AutoCloseable {
 
     private final Producer<byte[]> producer;
 
-    private final ExecutorService executorService;
+    private final ScheduledExecutorService executorService;
+    
+    private final PulsarAdmin admin;
+    
+    AtomicBoolean isCompactionNeeded = new AtomicBoolean(false);
+    private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60; 
 
-    public SchedulerManager(WorkerConfig workerConfig, PulsarClient pulsarClient) {
+    public SchedulerManager(WorkerConfig workerConfig, PulsarClient pulsarClient, PulsarAdmin admin, ScheduledExecutorService executor) {
         this.workerConfig = workerConfig;
+        this.admin = admin;
         this.scheduler = Reflections.createInstance(workerConfig.getSchedulerClassName(), IScheduler.class,
                 Thread.currentThread().getContextClassLoader());
 
         try {
             this.producer = pulsarClient.newProducer().topic(this.workerConfig.getFunctionAssignmentTopic())
-                    .enableBatching(true).blockIfQueueFull(true).compressionType(CompressionType.LZ4).
+                    .enableBatching(false).blockIfQueueFull(true).compressionType(CompressionType.LZ4).
                     sendTimeout(0, TimeUnit.MILLISECONDS).create();
         } catch (PulsarClientException e) {
             log.error("Failed to create producer to function assignment topic "
@@ -82,9 +87,9 @@ public class SchedulerManager implements AutoCloseable {
             throw new RuntimeException(e);
         }
 
-        this.executorService =
-                new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
-                        new LinkedBlockingQueue<>());
+        this.executorService = executor;
+        
+        scheduleCompaction(executor, workerConfig.getTopicCompactionFrequencySec());
     }
 
     public Future<?> schedule() {
@@ -92,13 +97,31 @@ public class SchedulerManager implements AutoCloseable {
             synchronized (SchedulerManager.this) {
                 boolean isLeader = membershipManager.isLeader();
                 if (isLeader) {
-                    invokeScheduler();
+                    try {
+                        invokeScheduler();
+                    } catch (Exception e) {
+                        log.warn("Failed to invoke scheduler", e);
+                        schedule();
+                    }
                 }
             }
         });
     }
 
-    private void invokeScheduler() {
+    private void scheduleCompaction(ScheduledExecutorService executor, long scheduleFrequencySec) {
+        if (executor != null) {
+            executor.scheduleWithFixedDelay(() -> {
+                if (membershipManager.isLeader() && isCompactionNeeded.get()) {
+                    compactAssignmentTopic();
+                    isCompactionNeeded.set(false);
+                }
+            }, scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
+        }
+    }
+    
+    @VisibleForTesting
+    public void invokeScheduler() {
+        
         List<String> currentMembership = this.membershipManager.getCurrentMembership()
                 .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toList());
 
@@ -111,12 +134,16 @@ public class SchedulerManager implements AutoCloseable {
         while (it.hasNext()) {
             Map.Entry<String, Map<String, Assignment>> workerIdToAssignmentEntry = it.next();
             Map<String, Assignment> functionMap = workerIdToAssignmentEntry.getValue();
+
             // remove instances that don't exist anymore
-            functionMap.entrySet().removeIf(
-                    entry -> {
-                        String fullyQualifiedInstanceId = entry.getKey();
-                        return !allInstances.containsKey(fullyQualifiedInstanceId);
-                    });
+            functionMap.entrySet().removeIf(entry -> {
+                String fullyQualifiedInstanceId = entry.getKey();
+                boolean deleted = !allInstances.containsKey(fullyQualifiedInstanceId);
+                if (deleted) {
+                    publishNewAssignment(entry.getValue().toBuilder().build(), true);
+                }
+                return deleted;
+            });
 
             // update assignment instances in case attributes of a function gets updated
             for (Map.Entry<String, Assignment> entry : functionMap.entrySet()) {
@@ -143,36 +170,40 @@ public class SchedulerManager implements AutoCloseable {
         List<Assignment> assignments = this.scheduler.schedule(
                 needsAssignment, currentAssignments, currentMembership);
 
-        log.debug("New assignments computed: {}", assignments);
-
-        long assignmentVersion = this.functionRuntimeManager.getCurrentAssignmentVersion() + 1;
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.newBuilder()
-                .setVersion(assignmentVersion)
-                .addAllAssignments(assignments)
-                .build();
-
-        CompletableFuture<MessageId> messageIdCompletableFuture = producer.sendAsync(assignmentsUpdate.toByteArray());
-        try {
-            messageIdCompletableFuture.get();
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to send assignment update", e);
-            throw new RuntimeException(e);
+        if (log.isDebugEnabled()) {
+            log.debug("New assignments computed: {}", assignments);
         }
 
-        // wait for assignment update to go throw the pipeline
-        int retries = 0;
-        while (this.functionRuntimeManager.getCurrentAssignmentVersion() < assignmentVersion) {
-            if (retries >= this.workerConfig.getAssignmentWriteMaxRetries()) {
-                log.warn("Max number of retries reached for waiting for assignment to propagate. Will continue now.");
-                break;
-            }
-            log.info("Waiting for assignments to propagate...");
+        isCompactionNeeded.set(!assignments.isEmpty());
+
+        for(Assignment assignment : assignments) {
+            publishNewAssignment(assignment, false);
+        }
+        
+    }
+
+    public void compactAssignmentTopic() {
+        if (this.admin != null) {
             try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                this.admin.topics().triggerCompaction(workerConfig.getFunctionAssignmentTopic());
+            } catch (PulsarAdminException e) {
+                log.error("Failed to trigger compaction {}", e);
+                executorService.schedule(() -> compactAssignmentTopic(), DEFAULT_ADMIN_API_BACKOFF_SEC,
+                        TimeUnit.SECONDS);
             }
-            retries++;
+        }
+    }
+
+    private void publishNewAssignment(Assignment assignment, boolean deleted) {
+        try {
+            String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+            // publish empty message with instance-id key so, compactor can delete and skip delivery of this instance-id
+            // message 
+            producer.newMessage().key(fullyQualifiedInstanceId)
+                    .value(deleted ? "".getBytes() : assignment.toByteArray()).sendAsync().get();
+        } catch (Exception e) {
+            log.error("Failed to {} assignment update {}", assignment, deleted ? "send" : "deleted", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -224,6 +255,5 @@ public class SchedulerManager implements AutoCloseable {
         } catch (PulsarClientException e) {
             log.warn("Failed to shutdown scheduler manager assignment producer", e);
         }
-        this.executorService.shutdown();
     }
 }
