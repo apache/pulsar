@@ -18,20 +18,33 @@
  */
 package org.apache.pulsar.broker;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import java.io.IOException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.MockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+
 import org.apache.zookeeper.ZooKeeper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
+    private static final Logger log = LoggerFactory.getLogger(MockedBookKeeperClientFactory.class);
 
     private final BookKeeper mockedBk;
+    private final ExecutorService executor;
 
     public MockedBookKeeperClientFactory() {
         try {
-            mockedBk = new MockBookKeeper(null);
+            executor = Executors.newSingleThreadExecutor(
+                    new ThreadFactoryBuilder().setNameFormat("mock-bk-client-factory")
+                    .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
+                    .build());
+            mockedBk = new PulsarMockBookKeeper(null, executor);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -48,5 +61,6 @@ public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
             mockedBk.close();
         } catch (BKException | InterruptedException e) {
         }
+        executor.shutdown();
     }
 }
