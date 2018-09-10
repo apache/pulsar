@@ -37,7 +37,6 @@ import org.apache.pulsar.shade.javax.ws.rs.core.Response;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -85,16 +84,6 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     }
 
     @Test
-    public void testGetTableLayouts() {
-
-    }
-
-    @Test
-    public void testGetTableLayout() {
-
-    }
-
-    @Test
     public void testGetTableMetadata() {
 
         List<TopicName> allTopics = new LinkedList<>();
@@ -116,12 +105,9 @@ public class TestPulsarMetadata extends TestPulsarConnector {
             Assert.assertEquals(tableMetadata.getTable().getTableName(), topic.getLocalName());
 
             Assert.assertEquals(tableMetadata.getColumns().size(),
-                    Foo.class.getDeclaredFields().length + PulsarInternalColumn.getInternalFields().size());
+                    fooColumnHandles.size());
 
-            List<String> fieldNames = new LinkedList<>();
-            for (Field field : Foo.class.getDeclaredFields()) {
-                fieldNames.add(field.getName());
-            }
+            List<String> fieldNames = new LinkedList<>(fooFieldNames.keySet());
 
             for (PulsarInternalColumn internalField : PulsarInternalColumn.getInternalFields()) {
                 fieldNames.add(internalField.getName());
@@ -278,10 +264,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         Map<String, ColumnHandle> columnHandleMap
                 = new HashMap<>(this.pulsarMetadata.getColumnHandles(mock(ConnectorSession.class), pulsarTableHandle));
 
-        List<String> fieldNames = new LinkedList<>();
-        for (Field field : Foo.class.getDeclaredFields()) {
-            fieldNames.add(field.getName());
-        }
+        List<String> fieldNames = new LinkedList<>(fooFieldNames.keySet());
 
         for (PulsarInternalColumn internalField : PulsarInternalColumn.getInternalFields()) {
             fieldNames.add(internalField.getName());
@@ -298,9 +281,9 @@ public class TestPulsarMetadata extends TestPulsarConnector {
                 Schema schema = new Schema.Parser().parse(new String(topicsToSchemas.get(TOPIC_1.getSchemaName())
                         .getSchema()));
                 Assert.assertEquals(pulsarColumnHandle.getConnectorId(), pulsarConnectorId.toString());
-                Assert.assertEquals(pulsarColumnHandle.getName(), schema.getField(field).name());
-                Assert.assertNotNull(pulsarColumnHandle.getPositionIndex());
-                Assert.assertEquals(pulsarColumnHandle.getPositionIndex().intValue(), schema.getField(field).pos());
+                Assert.assertEquals(pulsarColumnHandle.getName(), field);
+                Assert.assertEquals(pulsarColumnHandle.getPositionIndices(), fooPositionIndices.get(field));
+                Assert.assertEquals(pulsarColumnHandle.getFieldNames(), fooFieldNames.get(field));
                 Assert.assertEquals(pulsarColumnHandle.getType(), fooTypes.get(field));
                 Assert.assertEquals(pulsarColumnHandle.isHidden(), false);
             }
@@ -319,13 +302,10 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         List<ColumnMetadata> columnMetadataList
                 = tableColumnsMap.get(new SchemaTableName(TOPIC_1.getNamespace(), TOPIC_1.getLocalName()));
         Assert.assertNotNull(columnMetadataList);
-        Assert.assertEquals(columnMetadataList.size(), Foo.class.getDeclaredFields().length,
-                PulsarInternalColumn.getInternalFields().size());
+        Assert.assertEquals(columnMetadataList.size(),
+                fooColumnHandles.size());
 
-        List<String> fieldNames = new LinkedList<>();
-        for (Field field : Foo.class.getDeclaredFields()) {
-            fieldNames.add(field.getName());
-        }
+        List<String> fieldNames = new LinkedList<>(fooFieldNames.keySet());
 
         for (PulsarInternalColumn internalField : PulsarInternalColumn.getInternalFields()) {
             fieldNames.add(internalField.getName());
@@ -345,13 +325,10 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
         columnMetadataList = tableColumnsMap.get(new SchemaTableName(TOPIC_2.getNamespace(), TOPIC_2.getLocalName()));
         Assert.assertNotNull(columnMetadataList);
-        Assert.assertEquals(columnMetadataList.size(), Foo.class.getDeclaredFields().length,
-                PulsarInternalColumn.getInternalFields().size());
+        Assert.assertEquals(columnMetadataList.size(),
+                fooColumnHandles.size());
 
-        fieldNames = new LinkedList<>();
-        for (Field field : Foo.class.getDeclaredFields()) {
-            fieldNames.add(field.getName());
-        }
+        fieldNames = new LinkedList<>(fooFieldNames.keySet());
 
         for (PulsarInternalColumn internalField : PulsarInternalColumn.getInternalFields()) {
             fieldNames.add(internalField.getName());
@@ -377,13 +354,10 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         Assert.assertEquals(tableColumnsMap.size(), 1);
         columnMetadataList = tableColumnsMap.get(new SchemaTableName(TOPIC_4.getNamespace(), TOPIC_4.getLocalName()));
         Assert.assertNotNull(columnMetadataList);
-        Assert.assertEquals(columnMetadataList.size(), Foo.class.getDeclaredFields().length,
-                PulsarInternalColumn.getInternalFields().size());
+        Assert.assertEquals(columnMetadataList.size(),
+                fooColumnHandles.size());
 
-        fieldNames = new LinkedList<>();
-        for (Field field : Foo.class.getDeclaredFields()) {
-            fieldNames.add(field.getName());
-        }
+        fieldNames = new LinkedList<>(fooFieldNames.keySet());
 
         for (PulsarInternalColumn internalField : PulsarInternalColumn.getInternalFields()) {
             fieldNames.add(internalField.getName());
