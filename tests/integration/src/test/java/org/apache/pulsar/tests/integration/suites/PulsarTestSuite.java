@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.suites;
 
 import java.util.Map;
 import org.apache.pulsar.tests.integration.containers.CassandraContainer;
+import org.apache.pulsar.tests.integration.containers.ElasticSearchContainer;
 import org.apache.pulsar.tests.integration.containers.HdfsContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec.PulsarClusterSpecBuilder;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
@@ -75,6 +76,11 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
             jdbcServiceName,
             new MySQLContainer()
                 .withExposedPorts(3306));
+        
+        externalServices.put(
+                ElasticSearchContainer.NAME, 
+                new ElasticSearchContainer(ElasticSearchContainer.NAME)
+                .withExposedPorts(9200));
 
         builder = builder.externalServices(externalServices);
 
