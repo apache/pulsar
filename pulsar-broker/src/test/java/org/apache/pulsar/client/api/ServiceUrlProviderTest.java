@@ -18,39 +18,31 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.google.common.collect.Sets;
-
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
-public class ServiceUrlProviderTest extends MockedPulsarServiceBaseTest {
+public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
-        init();
-        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
-        admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("my-property/my-ns");
-        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
+        super.internalSetup();
+        super.producerBaseSetup();
+
     }
 
-    @AfterMethod
+    @AfterClass
     @Override
     protected void cleanup() throws Exception {
-        //no-op
+        super.internalCleanup();
     }
 
     @Test
@@ -82,6 +74,9 @@ public class ServiceUrlProviderTest extends MockedPulsarServiceBaseTest {
             received++;
         } while (received < 200);
         Assert.assertEquals(200, received);
+        producer.close();
+        consumer.close();
+        client.close();
     }
 
     @Test
@@ -115,6 +110,9 @@ public class ServiceUrlProviderTest extends MockedPulsarServiceBaseTest {
         serviceUrlProvider.onServiceUrlChanged(pulsarService2.getBrokerServiceUrl());
         Assert.assertEquals("pulsar://" + producer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
         Assert.assertEquals("pulsar://" + consumer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
+        producer.close();
+        consumer.close();
+        client.close();
     }
 
     class TestServiceUrlProvider implements ServiceUrlProvider {
