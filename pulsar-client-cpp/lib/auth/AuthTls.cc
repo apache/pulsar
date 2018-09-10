@@ -36,6 +36,11 @@ AuthTls::AuthTls(AuthenticationDataPtr& authDataTls) { authDataTls_ = authDataTl
 
 AuthTls::~AuthTls() {}
 
+AuthenticationPtr AuthTls::create(const std::string& authParamsString) {
+    ParamMap params = parseDefaultFormatAuthParams(authParamsString);
+    return create(params);
+}
+
 AuthenticationPtr AuthTls::create(ParamMap& params) {
     return create(params["tlsCertFile"], params["tlsKeyFile"]);
 }
