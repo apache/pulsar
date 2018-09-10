@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -44,11 +45,17 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public PulsarClient build() throws PulsarClientException {
-        if (conf.getServiceUrl() == null) {
-            throw new IllegalArgumentException("service URL needs to be specified on the ClientBuilder object");
+        if (conf.getServiceUrlProvider() != null && StringUtils.isNotBlank(conf.getServiceUrlProvider().getServiceUrl())) {
+            conf.setServiceUrl(conf.getServiceUrlProvider().getServiceUrl());
         }
-
-        return new PulsarClientImpl(conf);
+        if (conf.getServiceUrl() == null) {
+            throw new IllegalArgumentException("service URL or service URL provider needs to be specified on the ClientBuilder object");
+        }
+        PulsarClient client = new PulsarClientImpl(conf);
+        if (conf.getServiceUrlProvider() != null) {
+            conf.getServiceUrlProvider().setClient(client);
+        }
+        return client;
     }
 
     @Override
@@ -74,7 +81,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider) {
-        serviceUrl(serviceUrlProvider.getServiceUrl());
+        conf.setServiceUrlProvider(serviceUrlProvider);
         return this;
     }
 

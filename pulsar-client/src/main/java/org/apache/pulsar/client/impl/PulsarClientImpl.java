@@ -34,6 +34,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -82,7 +83,7 @@ public class PulsarClientImpl implements PulsarClient {
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
 
     private final ClientConfigurationData conf;
-    private final LookupService lookup;
+    private LookupService lookup;
     private final ConnectionPool cnxPool;
     private final Timer timer;
     private final ExecutorProvider externalExecutorProvider;
@@ -708,51 +709,12 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public void forceCloseConnection() {
-        if (this.producers != null) {
-            for (ProducerBase<?> producer : this.producers.keySet()) {
-                if (producer instanceof ProducerImpl) {
-                    ProducerImpl<?> producerImpl = (ProducerImpl<?>) producer;
-                    if (producerImpl.getClientCnx() != null) {
-                        try {
-                            producerImpl.getClientCnx().channelInactive(producerImpl.getClientCnx().ctx());
-                        } catch (Exception e) {
-                            log.error("Force close producer connection [{}] exception", producerImpl.getClientCnx().serverAddrees(), e);
-                        }
-                    }
-                } else if (producer instanceof PartitionedProducerImpl) {
-                    for (ProducerImpl<?> producerImpl : ((PartitionedProducerImpl<?>) producer).getProducers()) {
-                        if (producerImpl.getClientCnx() != null) {
-                            try {
-                                producerImpl.getClientCnx().channelInactive(producerImpl.getClientCnx().ctx());
-                            } catch (Exception e) {
-                                log.error("Force close producer connection [{}] exception", producerImpl.getClientCnx().serverAddrees(), e);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (this.consumers != null) {
-            for (ConsumerBase<?> consumer : this.consumers.keySet()) {
-                if (consumer instanceof ConsumerImpl) {
-                    ConsumerImpl<?> consumerImpl = (ConsumerImpl<?>) consumer;
-                    if (consumerImpl.getClientCnx() != null) {
-                        try {
-                            consumerImpl.getClientCnx().channelInactive(consumerImpl.getClientCnx().ctx());
-                        } catch (Exception e) {
-                            log.error("Force close consumer connection [{}] exception", consumerImpl.getClientCnx().serverAddrees(), e);
-                        }
-                    }
-                } else if (consumer instanceof MultiTopicsConsumerImpl) {
-                    for (ConsumerImpl<?> consumerImpl : ((MultiTopicsConsumerImpl<?>) consumer).getConsumers()) {
-                        if (consumerImpl.getClientCnx() != null) {
-                            try {
-                                consumerImpl.getClientCnx().channelInactive(consumerImpl.getClientCnx().ctx());
-                            } catch (Exception e) {
-                                log.error("Force close consumer connection [{}] exception", consumerImpl.getClientCnx().serverAddrees(), e);
-                            }
-                        }
-                    }
+        for (ConcurrentMap<Integer, CompletableFuture<ClientCnx>> cnxMap : cnxPool.pool.values()) {
+            for (CompletableFuture<ClientCnx> clientCnxCompletableFuture : cnxMap.values()) {
+                try {
+                    clientCnxCompletableFuture.get().close();
+                } catch (Exception e) {
+                    log.error("Force close connection exception ", e);
                 }
             }
         }
@@ -795,6 +757,19 @@ public class PulsarClientImpl implements PulsarClient {
 
     public LookupService getLookup() {
         return lookup;
+    }
+
+    public void reloadLookUp() throws PulsarClientException {
+        if (conf.getServiceUrl().startsWith("http")) {
+            lookup = new HttpLookupService(conf, eventLoopGroup);
+        } else {
+            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.isUseTls(), externalExecutorProvider.getExecutor());
+        }
+    }
+
+    @Override
+    public ClientConfigurationData getConf() {
+        return conf;
     }
 
     public CompletableFuture<Integer> getNumberOfPartitions(String topic) {

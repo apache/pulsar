@@ -376,4 +376,18 @@ public interface PulsarClient extends Closeable {
      *
      */
     void forceCloseConnection();
+
+    /**
+     * Reload lookup service in pulsar client.
+     *
+     * @throws PulsarClientException
+     */
+    void reloadLookUp() throws PulsarClientException;
+
+    /**
+     * Get client config data.
+     *
+     * @return
+     */
+    ClientConfigurationData getConf();
 }
