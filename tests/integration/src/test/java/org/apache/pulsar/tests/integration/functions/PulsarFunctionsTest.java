@@ -84,6 +84,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testSink(new JdbcSinkTester(), true);
     }
 
+    @Test(enabled = false)
+    public void testElasticSearchSink() throws Exception {
+        testSink(new ElasticSearchSinkTester(), true);
+    }
+    
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
         tester.findSinkServiceContainer(pulsarCluster.getExternalServices());
 
