@@ -25,6 +25,7 @@ import org.apache.pulsar.shade.com.google.gson.JsonElement;
 import org.apache.pulsar.shade.com.google.gson.JsonObject;
 import org.apache.pulsar.shade.com.google.gson.JsonParser;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static com.facebook.presto.spi.type.IntegerType.INTEGER;
@@ -54,10 +55,19 @@ public class JSONSchemaHandler implements SchemaHandler {
         try {
             JsonObject jsonObject = (JsonObject) currentRecord;
             PulsarColumnHandle pulsarColumnHandle = columnHandles.get(index);
-            JsonElement field = jsonObject.get(pulsarColumnHandle.getName());
+
+            String[] fieldNames = pulsarColumnHandle.getFieldNames();
+            JsonElement field = jsonObject.get(fieldNames[0]);
             if (field.isJsonNull()) {
                 return null;
             }
+            for (int i = 1; i < fieldNames.length ; i++) {
+                field = field.getAsJsonObject().get(fieldNames[i]);
+                if (field.isJsonNull()) {
+                    return null;
+                }
+            }
+
             Type type = pulsarColumnHandle.getType();
             Class<?> javaType = type.getJavaType();
 
@@ -81,7 +91,7 @@ public class JSONSchemaHandler implements SchemaHandler {
                 return null;
             }
         } catch (Exception ex) {
-            log.error(ex);
+            log.debug(ex,"%s", ex);
         }
         return null;
     }

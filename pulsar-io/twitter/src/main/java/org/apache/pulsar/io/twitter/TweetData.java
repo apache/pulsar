@@ -82,13 +82,6 @@ public class TweetData {
         private Boolean defaultProfileImage;
     }
     @Data
-    public static class Url {
-        private String url;
-        private String expandedUrl;
-        private String displayUrl;
-        private List<Long> indices = null;
-    }
-    @Data
     public static class RetweetedStatus {
         private String createdAt;
         private Long id;

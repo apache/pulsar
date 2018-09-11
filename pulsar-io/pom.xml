@@ -35,11 +35,14 @@
     <module>core</module>
     <module>twitter</module>
     <module>cassandra</module>
+    <module>aerospike</module>
     <module>kafka</module>
     <module>rabbitmq</module>
     <module>kinesis</module>
+    <module>hdfs</module>
     <module>jdbc</module>
     <module>data-genenator</module>
+    <module>elastic-search</module>
   </modules>
 
 </project>
