@@ -48,11 +48,10 @@ target/
 generated-site/
 
 # Ansible and Terraform artifacts
-deployment/terraform-ansible/deploy-pulsar.retry
-deployment/terraform-ansible/aws/.terraform/
-deployment/terraform-ansible/aws/.terraform.tfstate.lock.info
-deployment/terraform-ansible/aws/terraform.tfstate
-deployment/terraform-ansible/aws/terraform.tfstate.backup
+**/.terraform/
+**/.terraform.tfstate*
+**/terraform.tfstate*
+deployment/**/*.retry
 
 # Vagrant
 **/.vagrant

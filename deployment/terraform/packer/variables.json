@@ -1,0 +1,11 @@
+{
+  "pulsar_version": "2.1.0-incubating",
+
+  "azure_client_id": "",
+  "azure_client_secret": "",
+  "azure_subscription_id": "",
+  "azure_tenant_id": "",
+  "azure_location": "eastus",
+  "azure_resource_group_name": "packer-pulsar-images",
+  "azure_elasticsearch_image_name": ""
+}

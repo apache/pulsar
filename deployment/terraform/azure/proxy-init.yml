@@ -1,0 +1,36 @@
+#cloud-config
+
+package_upgrade: true
+packages:
+  - wget
+  - java
+  - sysstat
+  - vim
+write-files:
+  - path: "/etc/environment"
+    permissions: 0644
+    content: |
+      PULSAR_MEM="-Xms512m -Xmx1g -XX:MaxDirectMemorySize=1g"
+  - path: "/etc/systemd/system/pulsar.proxy.service"
+    permissions: 0644
+    content: |
+      [Unit]
+      Description=Pulsar Proxy
+      After=network.target
+
+      [Service]
+      ExecStart=/opt/pulsar/bin/pulsar proxy
+      WorkingDirectory=/opt/pulsar
+      RestartSec=1s
+      Restart=on-failure
+      Type=simple
+
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - mkdir -p /opt
+  - cd /opt
+  - wget http://archive.apache.org/dist/incubator/pulsar/pulsar-${pulsar_version}/apache-pulsar-${pulsar_version}-bin.tar.gz
+  - mv apache-pulsar-${pulsar_version} pulsar
+  - sed -i 's/zookeeperServers=.*/zookeeperServers=${zk_servers}/' /opt/pulsar/conf/proxy.conf
+  - sed -i 's/configurationStoreServers=.*/configurationStoreServers=${zk_servers}/' /opt/pulsar/conf/proxy.conf
