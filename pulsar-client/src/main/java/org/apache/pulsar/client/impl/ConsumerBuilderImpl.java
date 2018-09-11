@@ -44,7 +44,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.policies.data.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;

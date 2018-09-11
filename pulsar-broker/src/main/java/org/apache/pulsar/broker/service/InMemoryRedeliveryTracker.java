@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.nonpersistent;
+package org.apache.pulsar.broker.service;
 
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.service.RedeliveryTracker;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class NonPersistentRedeliveryTracker implements RedeliveryTracker {
+public class InMemoryRedeliveryTracker implements RedeliveryTracker {
 
     private ConcurrentHashMap<Position, AtomicInteger> trackerCache = new ConcurrentHashMap<>(16);
 

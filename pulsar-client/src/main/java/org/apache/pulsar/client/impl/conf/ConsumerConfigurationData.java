@@ -38,7 +38,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.common.policies.data.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 
 @Data
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {

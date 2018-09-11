@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.common.policies.data.DeadLetterPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -71,7 +70,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(3, TimeUnit.SECONDS)
-                .deadLetterPolicy(new DeadLetterPolicy(maxRedeliveryCount))
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
@@ -147,7 +146,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(3, TimeUnit.SECONDS)
-                .deadLetterPolicy(new DeadLetterPolicy(maxRedeliveryCount))
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
@@ -209,7 +208,10 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(3, TimeUnit.SECONDS)
                 .receiverQueueSize(100)
-                .deadLetterPolicy(new DeadLetterPolicy(maxRedeliveryCount, "persistent://my-property/my-ns/dead-letter-custom-topic-my-subscription-custom-DLQ"))
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .deadLetterTopic("persistent://my-property/my-ns/dead-letter-custom-topic-my-subscription-custom-DLQ")
+                        .build())
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)

@@ -27,14 +27,12 @@ import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import static java.util.Base64.getEncoder;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -62,7 +60,6 @@ import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -85,7 +82,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -219,9 +216,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getDeadLetterPolicy() != null) {
             possibleSendToDeadLetterTopicMessages = new ConcurrentHashMap<>();
             if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
-                this.deadLetterPolicy = new DeadLetterPolicy(conf.getDeadLetterPolicy().getMaxRedeliverCount(), conf.getDeadLetterPolicy().getDeadLetterTopic());
+                this.deadLetterPolicy = DeadLetterPolicy.builder()
+                        .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
+                        .deadLetterTopic(conf.getDeadLetterPolicy().getDeadLetterTopic())
+                        .build();
             } else {
-                this.deadLetterPolicy = new DeadLetterPolicy(conf.getDeadLetterPolicy().getMaxRedeliverCount(), String.format("%s-%s-DLQ", topic, subscription));
+                this.deadLetterPolicy = DeadLetterPolicy.builder()
+                        .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
+                        .deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription))
+                        .build();
             }
         }
 
@@ -1239,40 +1242,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             MessageIdData.Builder builder = MessageIdData.newBuilder();
             batches.forEach(ids -> {
                 List<MessageIdData> messageIdDatas = ids.stream().map(messageId -> {
-                    List<MessageImpl<T>> deadLetterMessages = null;
-                    if (possibleSendToDeadLetterTopicMessages != null) {
-                        if (messageId instanceof BatchMessageIdImpl) {
-                            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
-                                    getPartitionIndex()));
-                        } else {
-                            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(messageId);
-                        }
-                    }
-                    if (deadLetterMessages != null) {
-                        if (deadLetterProducer == null) {
-                            try {
-                                deadLetterProducer = client.newProducer(schema)
-                                        .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                        .blockIfQueueFull(false)
-                                        .create();
-                            } catch (Exception e) {
-                                log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
-                            }
-                        }
-                        if (deadLetterProducer != null) {
-                            try {
-                                for (MessageImpl<T> message : deadLetterMessages) {
-                                    deadLetterProducer.newMessage()
-                                            .value(message.getValue())
-                                            .properties(message.getProperties())
-                                            .send();
-                                }
-                                acknowledge(messageId);
-                            } catch (Exception e) {
-                                log.error("Send to dead letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId, e);
-                            }
-                        }
-                    }
+                    // process message possible to dead letter topic
+                    processPossibleToDLQ(messageId);
                     // attempt to remove message from batchMessageAckTracker
                     builder.setPartition(messageId.getPartitionIndex());
                     builder.setLedgerId(messageId.getLedgerId());
@@ -1298,6 +1269,43 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
+        }
+    }
+
+    private void processPossibleToDLQ(MessageIdImpl messageId) {
+        List<MessageImpl<T>> deadLetterMessages = null;
+        if (possibleSendToDeadLetterTopicMessages != null) {
+            if (messageId instanceof BatchMessageIdImpl) {
+                deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
+                        getPartitionIndex()));
+            } else {
+                deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(messageId);
+            }
+        }
+        if (deadLetterMessages != null) {
+            if (deadLetterProducer == null) {
+                try {
+                    deadLetterProducer = client.newProducer(schema)
+                            .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                            .blockIfQueueFull(false)
+                            .create();
+                } catch (Exception e) {
+                    log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
+                }
+            }
+            if (deadLetterProducer != null) {
+                try {
+                    for (MessageImpl<T> message : deadLetterMessages) {
+                        deadLetterProducer.newMessage()
+                                .value(message.getValue())
+                                .properties(message.getProperties())
+                                .send();
+                    }
+                    acknowledge(messageId);
+                } catch (Exception e) {
+                    log.error("Send to dead letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId, e);
+                }
+            }
         }
     }
 

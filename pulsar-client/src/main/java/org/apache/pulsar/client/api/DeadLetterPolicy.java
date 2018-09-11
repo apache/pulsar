@@ -16,30 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
+package org.apache.pulsar.client.api;
 
+import lombok.Builder;
+import lombok.Data;
+
+@Builder
+@Data
 public class DeadLetterPolicy {
 
-    private final int maxRedeliverCount;
+    private int maxRedeliverCount;
 
     private String deadLetterTopic;
-
-
-    public DeadLetterPolicy(int maxRedeliverCount) {
-        this.maxRedeliverCount = maxRedeliverCount;
-    }
-
-    public DeadLetterPolicy(int maxRedeliverCount, String deadLetterTopic) {
-        this.maxRedeliverCount = maxRedeliverCount;
-        this.deadLetterTopic = deadLetterTopic;
-    }
-
-    public int getMaxRedeliverCount() {
-        return maxRedeliverCount;
-    }
-
-    public String getDeadLetterTopic() {
-        return deadLetterTopic;
-    }
 
 }
