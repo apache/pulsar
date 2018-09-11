@@ -798,6 +798,16 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             fail(e.getMessage());
         }
 
+        try {
+            admin.topics().getSubscriptions(partitionedTopicName);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // ok
+            assertEquals(e.getStatusCode(), Status.NOT_FOUND.getStatusCode());
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
+
         // create consumer and subscription
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
