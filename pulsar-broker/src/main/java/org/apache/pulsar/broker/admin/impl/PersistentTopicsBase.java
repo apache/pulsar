@@ -529,6 +529,12 @@ public class PersistentTopicsBase extends AdminResource {
                 // subscriptions
                 subscriptions.addAll(pulsar().getAdminClient().topics()
                         .getSubscriptions(topicName.getPartition(0).toString()));
+            } catch (PulsarAdminException e) {
+                if (e.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
+                    throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+                } else {
+                    throw new RestException(e);
+                }
             } catch (Exception e) {
                 throw new RestException(e);
             }
