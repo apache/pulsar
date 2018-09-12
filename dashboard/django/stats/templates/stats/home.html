@@ -30,7 +30,7 @@
 <table>
 <thead>
     <tr>
-        {% column_header properties 'name' 'Property' %}
+        {% column_header properties 'name' 'Tenant' %}
         {% column_header properties 'numNamespaces' 'Namespaces' %}
         {% column_header properties 'numTopics' 'Topics' %}
         {% column_header properties 'numProducers' 'Producers' %}
@@ -64,7 +64,7 @@
         <td>{{property.storage | filesizeformat}}</td>
     </tr>
 {% empty %}
-    <tr><td>No properties</td></tr>
+    <tr><td>No tenants</td></tr>
 {% endfor %}
 </tbody>
 </table>
