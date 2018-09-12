@@ -23,24 +23,14 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.shade.org.apache.bookkeeper.conf.ClientConfiguration;
 
-import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-
 public class PulsarConnectorCache {
 
     private static PulsarConnectorCache instance;
 
-    private final String instanceId;
-    private final PulsarConnectorConfig pulsarConnectorConfig;
     private final ManagedLedgerFactory managedLedgerFactory;
-    private final ScheduledExecutorService scheduledExecutorService;
 
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
-        this.instanceId = UUID.randomUUID().toString();
-        this.pulsarConnectorConfig = pulsarConnectorConfig;
         this.managedLedgerFactory = initManagedLedgerFactory(pulsarConnectorConfig);
-        this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     }
 
     public static PulsarConnectorCache getConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
@@ -65,14 +55,9 @@ public class PulsarConnectorCache {
         return managedLedgerFactory;
     }
 
-    public ScheduledExecutorService getScheduledExecutorService() {
-        return scheduledExecutorService;
-    }
-
     public static void shutdown() throws ManagedLedgerException, InterruptedException {
         if (instance != null) {
             instance.managedLedgerFactory.shutdown();
-            instance.scheduledExecutorService.shutdown();
             instance = null;
         }
     }

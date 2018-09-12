@@ -664,6 +664,9 @@ public abstract class TestPulsarConnector {
     @BeforeMethod
     public void setup() throws Exception {
         this.pulsarConnectorConfig = spy(new PulsarConnectorConfig());
+        this.pulsarConnectorConfig.setEntryReadBatchSize(1);
+        this.pulsarConnectorConfig.setMaxSplitEntryQueueSize(10);
+        this.pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
 
         Tenants tenants = mock(Tenants.class);
         doReturn(new LinkedList<>(topicNames.stream().map(new Function<TopicName, String>() {
@@ -921,7 +924,7 @@ public abstract class TestPulsarConnector {
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
 
-            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(fooColumnHandles, split.getValue(), pulsarConnectorConfig, managedLedgerFactory, Executors.newSingleThreadScheduledExecutor()));
+            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(fooColumnHandles, split.getValue(), pulsarConnectorConfig, managedLedgerFactory));
             this.pulsarRecordCursors.put(split.getKey(), pulsarRecordCursor);
         }
     }
