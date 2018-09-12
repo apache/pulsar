@@ -97,10 +97,7 @@ public class FlinkPulsarProducer<IN>
     /**
      * The callback than handles error propagation or logging callbacks.
      */
-    protected transient Function<MessageId, MessageId> successCallback = msgId -> {
-        acknowledgeMessage();
-        return msgId;
-    };
+    protected transient Function<MessageId, MessageId> successCallback;
 
     protected transient Function<Throwable, MessageId> failureCallback;
 
@@ -204,6 +201,11 @@ public class FlinkPulsarProducer<IN>
             LOG.warn("Flushing on checkpoint is enabled, but checkpointing is not enabled. Disabling flushing.");
             flushOnCheckpoint = false;
         }
+
+        this.successCallback =  msgId -> {
+            acknowledgeMessage();
+            return msgId;
+        };
 
         if (PulsarProduceMode.AT_MOST_ONCE == produceMode) {
             this.failureCallback = cause -> {
