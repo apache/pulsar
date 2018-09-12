@@ -572,7 +572,6 @@ public class FunctionsImpl {
             return getUnavailableResponse();
         }
 
-        FunctionDetails functionDetails;
         // validate parameters
         try {
             validateTriggerRequestParams(tenant, namespace, functionName, topic, input, uploadedInputStream);
@@ -595,16 +594,23 @@ public class FunctionsImpl {
         String inputTopicToWrite;
         if (topic != null) {
             inputTopicToWrite = topic;
+        } else if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
+            // the function was submitted by an old CLI which only have topics-to-serde-class-name map.
+            inputTopicToWrite = functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()
+                    .keySet().iterator().next();
         } else if (functionMetaData.getFunctionDetails().getSource().getInputSpecsCount() == 1) {
+            // the function was submitted by a newer CLI which is using input specs
             inputTopicToWrite = functionMetaData.getFunctionDetails().getSource().getInputSpecsMap()
                     .keySet().iterator().next();
         } else {
             log.error("Function in trigger function has more than 1 input topics @ /{}/{}/{}", tenant, namespace, functionName);
             return Response.status(Status.BAD_REQUEST).build();
         }
-        if (functionMetaData.getFunctionDetails().getSource().getInputSpecsCount() == 0
-                || !functionMetaData.getFunctionDetails().getSource().getInputSpecsMap()
-                        .containsKey(inputTopicToWrite)) {
+        boolean topicIdentified =
+            (functionMetaData.getFunctionDetails().getSource().getInputSpecsCount() > 0
+                && functionMetaData.getFunctionDetails().getSource().getInputSpecsMap().containsKey(inputTopicToWrite))
+            || functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().containsKey(inputTopicToWrite);
+        if (!topicIdentified) {
             log.error("Function in trigger function has unidentified topic @ /{}/{}/{} {}", tenant, namespace, functionName, inputTopicToWrite);
 
             return Response.status(Status.BAD_REQUEST).build();
