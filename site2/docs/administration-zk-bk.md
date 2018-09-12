@@ -7,7 +7,7 @@ sidebar_label: ZooKeeper and BookKeeper
 Pulsar relies on two external systems for essential tasks:
 
 * [ZooKeeper](https://zookeeper.apache.org/) is responsible for a wide variety of configuration- and coordination-related tasks.
-* [BookKeeper](http://bookkeeper.apache.org/) is responsible for [persistent storage](getting-started-concepts-and-architecture.md#persistent-storage) of message data.
+* [BookKeeper](http://bookkeeper.apache.org/) is responsible for [persistent storage](concepts-architecture-overview.md#persistent-storage) of message data.
 
 ZooKeeper and BookKeeper are both open-source [Apache](https://www.apache.org/) projects.
 
@@ -146,9 +146,6 @@ In Pulsar, ZooKeeper configuration is handled by two separate configuration file
 
 Configuration for local ZooKeeper is handled by the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. The table below shows the available parameters:
 
-{% include config.html id="zookeeper" %}
-
-
 |Name|Description|Default|
 |---|---|---|
 |tickTime|  The tick is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like heartbeats and timeouts. tickTime is the length of a single tick.  |2000|
@@ -174,9 +171,7 @@ BookKeeper is responsible for all durable message storage in Pulsar. BookKeeper 
 
 ### Deploying BookKeeper
 
-{% include explanations/deploying-bk.md %}
-
-BookKeeper provides [persistent message storage](getting-started-concepts-and-architecture.md#persistent-storage) for Pulsar.
+BookKeeper provides [persistent message storage](concepts-architecture-overview.md#persistent-storage) for Pulsar.
 
 Each Pulsar broker needs to have its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
 
@@ -250,7 +245,7 @@ In Pulsar, you can set *persistence policies*, at the namespace level, that dete
 
 ### Set persistence policies
 
-You can set persistence policies for BookKeeper at the {% popover namespace %} level.
+You can set persistence policies for BookKeeper at the [namespace](reference-terminology.md#namespace) level.
 
 #### pulsar-admin
 
@@ -259,7 +254,7 @@ Use the [`set-persistence`](reference-pulsar-admin.md#namespaces-set-persistence
 Flag | Description | Default
 :----|:------------|:-------
 `-a`, `--bookkeeper-ack-quorom` | The number of acks (guaranteed copies) to wait on for each entry | 0
-`-e`, `--bookkeeper-ensemble` | The number of {% popover bookies %} to use for topics in the namespace | 0
+`-e`, `--bookkeeper-ensemble` | The number of [bookies](reference-terminology.md#bookie) to use for topics in the namespace | 0
 `-w`, `--bookkeeper-write-quorum` | How many writes to make for each entry | 0
 `-r`, `--ml-mark-delete-max-rate` | Throttling rate for mark-delete operations (0 means no throttle) | 0
 
@@ -273,11 +268,7 @@ $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
 
 #### REST API
 
-```http
-POST /admin/v2/namespaces/:tenant/:namespace/persistence
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/persistence)
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence}
 
 #### Java
 
@@ -313,11 +304,7 @@ $ pulsar-admin namespaces get-persistence my-tenant/my-ns
 
 #### REST API
 
-```http
-GET /admin/v2/namespaces/:tenant/:namespace/persistence
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/persistence)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence}
 
 #### Java
 
@@ -329,6 +316,6 @@ PersistencePolicies policies = admin.namespaces().getPersistence(namespace);
 
 This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluster:
 
-![ZooKeeper and BookKeeper](/docs/assets/pulsar-system-architecture.png)
+![ZooKeeper and BookKeeper](assets/pulsar-system-architecture.png)
 
 Each Pulsar cluster consists of one or more message brokers. Each broker relies on an ensemble of bookies.

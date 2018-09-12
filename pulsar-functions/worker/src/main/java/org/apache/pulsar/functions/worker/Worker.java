@@ -38,7 +38,7 @@ public class Worker extends AbstractService {
 
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
-    private Thread serverThread;
+    private WorkerServer server;
 
     public Worker(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
@@ -57,15 +57,13 @@ public class Worker extends AbstractService {
         }
     }
 
-    protected void doStartImpl() throws InterruptedException, IOException, PulsarAdminException {
+    protected void doStartImpl() throws Exception {
         URI dlogUri = initialize(this.workerConfig);
 
         workerService.start(dlogUri);
-        WorkerServer server = new WorkerServer(workerService);
-        this.serverThread = new Thread(server, server.getThreadName());
-
+        this.server = new WorkerServer(workerService);
+        this.server.start();
         log.info("Start worker server on port {}...", this.workerConfig.getWorkerPort());
-        this.serverThread.start();
     }
 
     private static URI initialize(WorkerConfig workerConfig)
@@ -150,13 +148,8 @@ public class Worker extends AbstractService {
 
     @Override
     protected void doStop() {
-        if (null != serverThread) {
-            serverThread.interrupt();
-            try {
-                serverThread.join();
-            } catch (InterruptedException e) {
-                log.warn("Worker server thread is interrupted", e);
-            }
+        if (null != this.server) {
+            this.server.stop();
         }
         workerService.stop();
     }

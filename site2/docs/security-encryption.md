@@ -19,10 +19,10 @@ A message can be encrypted with more than one key.  Any one of the keys used for
 Pulsar does not store the encryption key anywhere in the pulsar service. If you lose/delete the private key, your message is irretrievably lost, and is unrecoverable
 
 ## Producer
-![alt text](/docs/assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
+![alt text](assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
 
 ## Consumer
-![alt text](/docs/assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
+![alt text](assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
 
 ## Here are the steps to get started:
 
@@ -78,7 +78,7 @@ ProducerConfiguration prodConf = new ProducerConfiguration();
 prodConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
 prodConf.addEncryptionKey("myappkey");
 
-Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic", prodConf);
+Producer producer = pulsarClient.createProducer("persistent://my-tenant/my-ns/my-topic", prodConf);
 
 for (int i = 0; i < 10; i++) {
     producer.send("my-message".getBytes());
@@ -126,7 +126,7 @@ class RawFileKeyReader implements CryptoKeyReader {
 ConsumerConfiguration consConf = new ConsumerConfiguration();
 consConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
 PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
-Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic", "my-subscriber-name", consConf);
+Consumer consumer = pulsarClient.subscribe("persistent://my-tenant/my-ns/my-topic", "my-subscriber-name", consConf);
 Message msg = null;
 
 for (int i = 0; i < 10; i++) {

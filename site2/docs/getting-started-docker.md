@@ -17,7 +17,7 @@ $ docker run -it \
   -p 6650:6650 \
   -p 8080:8080 \
   -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:{{site.current_version}} \
+  apachepulsar/pulsar:{{pulsar:version}} \
   bin/pulsar standalone
 ```
 
@@ -38,7 +38,7 @@ If Pulsar has been successfully started, you should see `INFO`-level log message
 > #### Automatically created namespace
 > When you start a local standalone cluster, Pulsar will automatically create a `public/default`
 namespace that you can use for development purposes. All Pulsar topics are managed within namespaces.
-For more info, see [Topics](getting-started-concepts-and-architecture.md#Topics).
+For more info, see [Topics](concepts-messaging.md#topics).
 
 
 ## Start publishing and consuming messages

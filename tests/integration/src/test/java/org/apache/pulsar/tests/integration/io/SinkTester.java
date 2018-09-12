@@ -19,34 +19,56 @@
 package org.apache.pulsar.tests.integration.io;
 
 import java.util.Map;
+import lombok.Getter;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.collections.Maps;
 
 /**
  * A tester used for testing a specific sink.
  */
+@Getter
 public abstract class SinkTester {
 
-    protected final String sinkType;
+    public enum SinkType {
+        UNDEFINED,
+        CASSANDRA,
+        KAFKA,
+        JDBC,
+        HDFS,
+        ELASTIC_SEARCH
+    }
+
+    protected final SinkType sinkType;
+    protected final String sinkArchive;
+    protected final String sinkClassName;
     protected final Map<String, Object> sinkConfig;
 
-    protected SinkTester(String sinkType) {
+    public SinkTester(SinkType sinkType) {
         this.sinkType = sinkType;
+        this.sinkArchive = null;
+        this.sinkClassName = null;
         this.sinkConfig = Maps.newHashMap();
     }
 
-    protected abstract Map<String, GenericContainer<?>> newSinkService(String clusterName);
+    public SinkTester(String sinkArchive, String sinkClassName) {
+        this.sinkType = SinkType.UNDEFINED;
+        this.sinkArchive = sinkArchive;
+        this.sinkClassName = sinkClassName;
+        this.sinkConfig = Maps.newHashMap();
+    }
 
-    protected String sinkType() {
+    public abstract void findSinkServiceContainer(Map<String, GenericContainer<?>> externalServices);
+
+    public SinkType sinkType() {
         return sinkType;
     }
 
-    protected Map<String, Object> sinkConfig() {
+    public Map<String, Object> sinkConfig() {
         return sinkConfig;
     }
 
-    protected abstract void prepareSink() throws Exception;
+    public abstract void prepareSink() throws Exception;
 
-    protected abstract void validateSinkResult(Map<String, String> kvs);
+    public abstract void validateSinkResult(Map<String, String> kvs);
 
 }

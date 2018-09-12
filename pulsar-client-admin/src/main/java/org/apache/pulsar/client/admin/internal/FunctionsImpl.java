@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.functions.worker.WorkerInfo;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
@@ -102,6 +103,25 @@ public class FunctionsImpl extends BaseResource implements Functions {
             }
             String jsonResponse = response.readEntity(String.class);
             FunctionStatusList.Builder functionStatusBuilder = FunctionStatusList.newBuilder();
+            mergeJson(jsonResponse, functionStatusBuilder);
+            return functionStatusBuilder.build();
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public FunctionStatus getFunctionStatus(String tenant, String namespace, String function, int id)
+            throws PulsarAdminException {
+        try {
+            Response response = request(
+                    functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("status"))
+                            .get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            String jsonResponse = response.readEntity(String.class);
+            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             mergeJson(jsonResponse, functionStatusBuilder);
             return functionStatusBuilder.build();
         } catch (Exception e) {
@@ -216,6 +236,48 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
+    public void restartFunction(String tenant, String namespace, String functionName, int instanceId)
+            throws PulsarAdminException {
+        try {
+            request(functions.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
+                    .path("restart")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void restartFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
+        try {
+            request(functions.path(tenant).path(namespace).path(functionName).path("restart"))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void stopFunction(String tenant, String namespace, String functionName, int instanceId)
+            throws PulsarAdminException {
+        try {
+            request(functions.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
+                    .path("stop")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void stopFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
+        try {
+            request(functions.path(tenant).path(namespace).path(functionName).path("stop"))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public void uploadFunction(String sourceFile, String path) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
@@ -273,15 +335,15 @@ public class FunctionsImpl extends BaseResource implements Functions {
                 .map(ConnectorDefinition::getName).collect(Collectors.toSet());
     }
 
-    public List<WorkerInfo> getWorkers() throws PulsarAdminException {
+    public List<WorkerInfo> getCluster() throws PulsarAdminException {
         try {
-            return request(functions.path("workers")).get(new GenericType<List<WorkerInfo>>() {
+            return request(functions.path("cluster")).get(new GenericType<List<WorkerInfo>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
-    
+
     public static void mergeJson(String json, Builder builder) throws IOException {
         JsonFormat.parser().merge(json, builder);
     }
@@ -289,4 +351,5 @@ public class FunctionsImpl extends BaseResource implements Functions {
     public static String printJson(MessageOrBuilder msg) throws IOException {
         return JsonFormat.printer().print(msg);
     }
+
 }

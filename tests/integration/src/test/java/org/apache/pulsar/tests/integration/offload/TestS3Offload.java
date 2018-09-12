@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 
-import com.google.common.collect.ImmutableMap;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -32,57 +33,19 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-
-import org.apache.pulsar.tests.integration.containers.BrokerContainer;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
 import org.apache.pulsar.tests.integration.containers.S3Container;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
+import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
 
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static java.util.stream.Collectors.joining;
-
 @Slf4j
-public class TestS3Offload extends PulsarClusterTestBase {
+public class TestS3Offload extends PulsarTieredStorageTestSuite {
 
     private static final int ENTRY_SIZE = 1024;
-    private static final int ENTRIES_PER_LEDGER = 1024;
-
-    @Override
-    @BeforeClass
-    public void setupCluster() throws Exception {
-
-        final String clusterName = Stream.of(this.getClass().getSimpleName(), randomName(5))
-                .filter(s -> s != null && !s.isEmpty())
-                .collect(joining("-"));
-
-        PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .numBookies(2)
-            .numBrokers(1)
-            .externalServices(ImmutableMap.of(S3Container.NAME, new S3Container(clusterName, S3Container.NAME)))
-            .clusterName(clusterName)
-            .build();
-
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
-
-        pulsarCluster = PulsarCluster.forSpec(spec);
-
-        for(BrokerContainer brokerContainer : pulsarCluster.getBrokers()){
-            brokerContainer.withEnv("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
-            brokerContainer.withEnv("managedLedgerMinLedgerRolloverTimeMinutes", "0");
-            brokerContainer.withEnv("managedLedgerOffloadDriver", "s3");
-            brokerContainer.withEnv("s3ManagedLedgerOffloadBucket", "pulsar-integtest");
-            brokerContainer.withEnv("s3ManagedLedgerOffloadServiceEndpoint", "http://" + S3Container.NAME + ":9090");
-        }
-
-        pulsarCluster.start();
-
-        log.info("Cluster {} is setup", spec.clusterName());
-    }
 
     private static byte[] buildEntry(String pattern) {
         byte[] entry = new byte[ENTRY_SIZE];
@@ -92,6 +55,25 @@ public class TestS3Offload extends PulsarClusterTestBase {
             entry[i] = patternBytes[i % patternBytes.length];
         }
         return entry;
+    }
+
+    private S3Container s3Container;
+
+    @BeforeClass
+    public void setupS3() {
+        s3Container = new S3Container(
+            pulsarCluster.getClusterName(),
+            S3Container.NAME)
+            .withNetwork(pulsarCluster.getNetwork())
+            .withNetworkAliases(S3Container.NAME);
+        s3Container.start();
+    }
+
+    @AfterClass
+    public void teardownS3() {
+        if (null != s3Container) {
+            s3Container.stop();
+        }
     }
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
@@ -241,4 +223,110 @@ public class TestS3Offload extends PulsarClusterTestBase {
             Assert.assertEquals(admin.namespaces().getOffloadThreshold(namespace), -1L);
         }
     }
+
+    private boolean ledgerOffloaded(List<LedgerInfo> ledgers, long ledgerId) {
+        return ledgers.stream().filter(l -> l.ledgerId == ledgerId)
+            .map(l -> l.offloaded).findFirst().get();
+    }
+
+    private long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic) throws Exception {
+        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+            Producer producer = client.newProducer().topic(topic)
+                .blockIfQueueFull(true).enableBatching(false).create();
+            PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+
+            List<LedgerInfo> ledgers = admin.topics().getInternalStats(topic).ledgers;
+            long currentLedger = ledgers.get(ledgers.size() - 1).ledgerId;
+
+            client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe().close();
+
+            // write enough to topic to make it roll twice
+            for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
+                producer.sendAsync(buildEntry("offload-message" + i));
+            }
+            producer.send(buildEntry("final-offload-message"));
+
+            // wait up to 30 seconds for offload to occur
+            for (int i = 0;
+                 i < 300 && !ledgerOffloaded(admin.topics().getInternalStats(topic).ledgers, currentLedger);
+                 i++) {
+                Thread.sleep(100);
+            }
+            Assert.assertTrue(ledgerOffloaded(admin.topics().getInternalStats(topic).ledgers, currentLedger));
+
+            return currentLedger;
+        }
+    }
+
+    public boolean ledgerExistsInBookKeeper(long ledgerId) throws Exception {
+        ClientConfiguration bkConf = new ClientConfiguration();
+        bkConf.setZkServers(pulsarCluster.getZKConnString());
+        try (BookKeeperAdmin bk = new BookKeeperAdmin(bkConf)) {
+            try {
+                bk.openLedger(ledgerId).close();
+                return true;
+            } catch (BKException.BKNoSuchLedgerExistsException e) {
+                return false;
+            }
+        }
+    }
+
+    @Test(dataProvider =  "ServiceAndAdminUrls")
+    public void testPublishOffloadAndConsumeDeletionLag(String serviceUrl, String adminUrl) throws Exception {
+        final String tenant = "s3-offload-test-deletion-lag-" + randomName(4);
+        final String namespace = tenant + "/ns1";
+        final String topic = "persistent://" + namespace + "/topic1";
+
+        pulsarCluster.runAdminCommandOnAnyBroker("tenants",
+                "create", "--allowed-clusters", pulsarCluster.getClusterName(),
+                "--admin-roles", "offload-admin", tenant);
+
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
+                "create", "--clusters", pulsarCluster.getClusterName(), namespace);
+
+        // set threshold to offload runs immediately after role
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
+                                                 "set-offload-threshold", "--size", "0", namespace);
+
+        String output = pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        Assert.assertTrue(output.contains("Unset for namespace"));
+
+        long offloadedLedger = writeAndWaitForOffload(serviceUrl, adminUrl, topic);
+        // give it up to 5 seconds to delete, it shouldn't
+        // so we wait this every time
+        Thread.sleep(5000);
+        Assert.assertTrue(ledgerExistsInBookKeeper(offloadedLedger));
+
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-deletion-lag", namespace,
+                                                 "--lag", "0m");
+        output = pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        Assert.assertTrue(output.contains("0 minute(s)"));
+
+        offloadedLedger = writeAndWaitForOffload(serviceUrl, adminUrl, topic);
+        // wait up to 10 seconds for ledger to be deleted
+        for (int i = 0; i < 10 && ledgerExistsInBookKeeper(offloadedLedger); i++) {
+            writeAndWaitForOffload(serviceUrl, adminUrl, topic);
+            Thread.sleep(1000);
+        }
+        Assert.assertFalse(ledgerExistsInBookKeeper(offloadedLedger));
+
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "clear-offload-deletion-lag", namespace);
+
+        Thread.sleep(5); // wait 5 seconds to allow broker to see update
+
+        output = pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        Assert.assertTrue(output.contains("Unset for namespace"));
+
+        offloadedLedger = writeAndWaitForOffload(serviceUrl, adminUrl, topic);
+
+        // give it up to 5 seconds to delete, it shouldn't
+        // so we wait this every time
+        Thread.sleep(5000);
+        Assert.assertTrue(ledgerExistsInBookKeeper(offloadedLedger));
+    }
+
+
 }

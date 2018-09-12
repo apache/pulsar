@@ -43,6 +43,7 @@ import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
 import org.apache.pulsar.client.admin.internal.SchemasImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
+import org.apache.pulsar.client.admin.internal.WorkerImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
@@ -84,6 +85,7 @@ public class PulsarAdmin implements Closeable {
     private final String serviceUrl;
     private final Lookup lookups;
     private final Functions functions;
+    private final Worker worker;
     private final Schemas schemas;
     protected final WebTarget root;
     protected final Authentication auth;
@@ -187,6 +189,7 @@ public class PulsarAdmin implements Closeable {
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, useTls);
         this.functions = new FunctionsImpl(root, auth);
+        this.worker = new WorkerImpl(root, auth);
         this.schemas = new SchemasImpl(root, auth);
         this.bookies = new BookiesImpl(root, auth);
     }
@@ -354,6 +357,14 @@ public class PulsarAdmin implements Closeable {
         return functions;
     }
 
+    /**
+    *
+    * @return the Worker stats
+    */
+   public Worker worker() {
+       return worker;
+   }
+    
     /**
      * @return the broker statics
      */

@@ -46,6 +46,18 @@
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-api-examples</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-client-schema</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -78,6 +90,27 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>mysql</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>${mysql-jdbc.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-io-jdbc</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
@@ -88,6 +121,13 @@
       <artifactId>jackson-dataformat-yaml</artifactId>
       <scope>test</scope>
     </dependency>
+    
+    <dependency>
+  	  <groupId>org.elasticsearch.client</groupId>
+  	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
+  	  <version>6.3.2</version>
+  	</dependency>
+  	
   </dependencies>
 
   <build>
@@ -131,6 +171,10 @@
               -Dio.netty.leakDetectionLevel=advanced
               </argLine>
               <skipTests>false</skipTests>
+              <suiteXmlFiles>
+                <file>src/test/resources/pulsar.xml</file>
+              </suiteXmlFiles>
+              <forkCount>1</forkCount>
             </configuration>
           </plugin>
         </plugins>

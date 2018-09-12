@@ -108,6 +108,8 @@ void export_config() {
             .def("compression_type", &ProducerConfiguration::setCompressionType, return_self<>())
             .def("max_pending_messages", &ProducerConfiguration::getMaxPendingMessages)
             .def("max_pending_messages", &ProducerConfiguration::setMaxPendingMessages, return_self<>())
+            .def("max_pending_messages_across_partitions", &ProducerConfiguration::getMaxPendingMessagesAcrossPartitions)
+            .def("max_pending_messages_across_partitions", &ProducerConfiguration::setMaxPendingMessagesAcrossPartitions, return_self<>())
             .def("block_if_queue_full", &ProducerConfiguration::getBlockIfQueueFull)
             .def("block_if_queue_full", &ProducerConfiguration::setBlockIfQueueFull, return_self<>())
             .def("partitions_routing_mode", &ProducerConfiguration::getPartitionsRoutingMode)
@@ -120,6 +122,7 @@ void export_config() {
             .def("batching_max_allowed_size_in_bytes", &ProducerConfiguration::setBatchingMaxAllowedSizeInBytes, return_self<>())
             .def("batching_max_publish_delay_ms", &ProducerConfiguration::getBatchingMaxPublishDelayMs, return_value_policy<copy_const_reference>())
             .def("batching_max_publish_delay_ms", &ProducerConfiguration::setBatchingMaxPublishDelayMs, return_self<>())
+            .def("property", &ProducerConfiguration::setProperty, return_self<>())
             ;
 
     class_<ConsumerConfiguration>("ConsumerConfiguration")
@@ -128,14 +131,19 @@ void export_config() {
             .def("message_listener", &ConsumerConfiguration_setMessageListener, return_self<>())
             .def("receiver_queue_size", &ConsumerConfiguration::getReceiverQueueSize)
             .def("receiver_queue_size", &ConsumerConfiguration::setReceiverQueueSize)
+            .def("max_total_receiver_queue_size_across_partitions", &ConsumerConfiguration::getMaxTotalReceiverQueueSizeAcrossPartitions)
+            .def("max_total_receiver_queue_size_across_partitions", &ConsumerConfiguration::setMaxTotalReceiverQueueSizeAcrossPartitions)
             .def("consumer_name", &ConsumerConfiguration::getConsumerName, return_value_policy<copy_const_reference>())
             .def("consumer_name", &ConsumerConfiguration::setConsumerName)
             .def("unacked_messages_timeout_ms", &ConsumerConfiguration::getUnAckedMessagesTimeoutMs)
             .def("unacked_messages_timeout_ms", &ConsumerConfiguration::setUnAckedMessagesTimeoutMs)
             .def("broker_consumer_stats_cache_time_ms", &ConsumerConfiguration::getBrokerConsumerStatsCacheTimeInMs)
             .def("broker_consumer_stats_cache_time_ms", &ConsumerConfiguration::setBrokerConsumerStatsCacheTimeInMs)
+            .def("pattern_auto_discovery_period", &ConsumerConfiguration::getPatternAutoDiscoveryPeriod)
+            .def("pattern_auto_discovery_period", &ConsumerConfiguration::setPatternAutoDiscoveryPeriod)
             .def("read_compacted", &ConsumerConfiguration::isReadCompacted)
             .def("read_compacted", &ConsumerConfiguration::setReadCompacted)
+            .def("property", &ConsumerConfiguration::setProperty, return_self<>())
             ;
 
     class_<ReaderConfiguration>("ReaderConfiguration")

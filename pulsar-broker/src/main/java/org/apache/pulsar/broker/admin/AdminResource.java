@@ -254,6 +254,15 @@ public abstract class AdminResource extends PulsarWebResource {
         this.topicName = TopicName.get(domain(), namespaceName, topic);
     }
 
+    protected void validatePartitionedTopicName(String tenant, String namespace, String encodedTopic) {
+        // first, it has to be a validate topic name
+        validateTopicName(tenant, namespace, encodedTopic);
+        // second, "-partition-" is not allowed
+        if (encodedTopic.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Partitioned Topic Name should not contain '-partition-'");
+        }
+    }
+
     @Deprecated
     protected void validateTopicName(String property, String cluster, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);

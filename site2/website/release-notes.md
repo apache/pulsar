@@ -1,6 +1,30 @@
 
 ## Apache incubator
 
+### 2.1.0-incubating &mdash; 2018-08-02 <a id="2.1.0-incubating"></a>
+
+This is the seventh release of Apache Pulsar since entering the ASF incubator.
+
+It is a feature release, including several new features and major improvements:
+
+- [Pulsar IO](/docs/en/io-overview/): A connector framework for moving data in and out of Apache Pulsar leveraging [Pulsar Functions](/docs/en/functions-overview/) runtime.
+- A list of [Builtin Connectors](/docs/en/io-connectors):
+  - [Aerospike Connector](/docs/en/io-aerospike/)
+  - [Cassandra Connector](/docs/en/io-cassandra/)
+  - [Kafka Connector](/docs/en/io-kafka/)
+  - [Kinesis Connector](/docs/en/io-kinesis/)
+  - [RabbitMQ Connector](/docs/en/io-rabbitmq/)
+  - [Twitter Firehose Connector](/docs/en/io-twitter/) 
+- [Tiered Storage](/docs/en/concepts-tiered-storage/): An extension in Pulsar segment store to offload older segments into long term storage (e.g. HDFS, S3).
+  S3 support is supported in 2.1 release.
+- [Stateful function](/docs/en/functions-state/): Pulsar Functions is able to use [State API](/docs/en/functions-state#api) for storing state within Pulsar.
+- Pulsar [Go Client](/docs/en/client-libraries-go/)
+- [Avro](https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/AvroSchema.java) and
+  [Protobuf](https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/pulsar-client-schema/src/main/java/org/apache/pulsar/client/impl/schema/ProtobufSchema.java) Schema support
+
+The complete list of changes can be found at: https://github.com/apache/incubator-pulsar/milestone/13?closed=1
+
+https://github.com/apache/incubator-pulsar/releases/tag/v2.1.0-incubating
 
 ### 2.0.1-incubating &mdash; 2018-06-18 <a id="2.0.1-incubating"></a>
 

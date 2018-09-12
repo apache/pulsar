@@ -62,25 +62,29 @@
 
 /* for drop down menus */
 #community-dropdown.hide,
-#apache-dropdown.hide {
+#apache-dropdown.hide,
+#languages-dropdown.hide {
   display: none;
 }
 
 
 #community-dropdown.visible,
-#apache-dropdown.visible {
+#apache-dropdown.visible,
+#languages-dropdown.visible {
   display: flex;
 }
 
 #community-dropdown,
-#apache-dropdown {
+#apache-dropdown,
+#languages-dropdown {
   pointer-events: none;
   position: absolute;
   width: 100%;
 }
 
 #community-dropdown-items,
-#apache-dropdown-items {
+#apache-dropdown-items,
+#languages-dropdown-items {
   background-color: white;
   display: flex;
   flex-direction: column;

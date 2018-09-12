@@ -18,20 +18,6 @@
  */
 package org.apache.pulsar.functions.sink;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.testng.annotations.Test;
-
-import java.io.IOException;
-
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyLong;
@@ -42,11 +28,27 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
+import java.io.IOException;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.testng.annotations.Test;
+
 @Slf4j
 public class PulsarSinkTest {
 
     private static final String TOPIC = "persistent://sample/standalone/ns1/test_result";
-    private static final String serDeClassName = DefaultSerDe.class.getName();
 
     public static class TestSerDe implements SerDe<String> {
 
@@ -65,8 +67,8 @@ public class PulsarSinkTest {
      * Verify that JavaInstance does not support functions that take Void type as input
      */
 
-    private static PulsarClient getPulsarClient() throws PulsarClientException {
-        PulsarClient pulsarClient = mock(PulsarClient.class);
+    private static PulsarClientImpl getPulsarClient() throws PulsarClientException {
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConsumerBuilder consumerBuilder = mock(ConsumerBuilder.class);
         doReturn(consumerBuilder).when(consumerBuilder).topics(anyList());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(anyString());
@@ -74,7 +76,8 @@ public class PulsarSinkTest {
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
         Consumer consumer = mock(Consumer.class);
         doReturn(consumer).when(consumerBuilder).subscribe();
-        doReturn(consumerBuilder).when(pulsarClient).newConsumer();
+        doReturn(consumerBuilder).when(pulsarClient).newConsumer(any());
+        doReturn(CompletableFuture.completedFuture(Optional.empty())).when(pulsarClient).getSchema(anyString());
         return pulsarClient;
     }
 
@@ -82,7 +85,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = new PulsarSinkConfig();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         pulsarConfig.setTopic(TOPIC);
-        pulsarConfig.setSerDeClassName(serDeClassName);
+        pulsarConfig.setSerdeClassName(TopicSchema.DEFAULT_SERDE);
         pulsarConfig.setTypeClassName(String.class.getName());
         return pulsarConfig;
     }
@@ -114,10 +117,10 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(Void.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
 
         try {
-            pulsarSink.setupSerDe();
+            pulsarSink.initializeSchema();
         } catch (Exception ex) {
             ex.printStackTrace();
             assertEquals(ex, null);
@@ -130,14 +133,14 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to be inconsistent to that of SerDe
         pulsarConfig.setTypeClassName(Integer.class.getName());
-        pulsarConfig.setSerDeClassName(TestSerDe.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
+        pulsarConfig.setSerdeClassName(TestSerDe.class.getName());
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
         try {
-            pulsarSink.setupSerDe();
+            pulsarSink.initializeSchema();
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
-            assertTrue(ex.getMessage().startsWith("Inconsistent types found between function output type and output serde type:"));
+            assertTrue(ex.getMessage().startsWith("Inconsistent types found between function input type and serde type:"));
         } catch (Exception ex) {
             log.error("Exception: {}", ex, ex);
             assertTrue(false);
@@ -153,11 +156,10 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
-        pulsarConfig.setSerDeClassName(null);
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
 
         try {
-            pulsarSink.setupSerDe();
+            pulsarSink.initializeSchema();
         } catch (Exception ex) {
             ex.printStackTrace();
             fail();
@@ -172,11 +174,11 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
-        pulsarConfig.setSerDeClassName(DefaultSerDe.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
+        pulsarConfig.setSerdeClassName(TopicSchema.DEFAULT_SERDE);
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
 
         try {
-            pulsarSink.setupSerDe();
+            pulsarSink.initializeSchema();
         } catch (Exception ex) {
             ex.printStackTrace();
             fail();
@@ -188,11 +190,11 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
-        pulsarConfig.setSerDeClassName(ComplexSerDe.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig);
+        pulsarConfig.setSerdeClassName(ComplexSerDe.class.getName());
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
 
         try {
-            pulsarSink.setupSerDe();
+            pulsarSink.initializeSchema();
         } catch (Exception ex) {
             ex.printStackTrace();
             fail();

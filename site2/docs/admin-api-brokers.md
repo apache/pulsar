@@ -6,26 +6,24 @@ sidebar_label: Brokers
 
 Pulsar brokers consist of two components:
 
-1. An HTTP server exposing a [REST interface](reference-rest-api.md) administration and {% popover topic %} lookup.
-2. A dispatcher that handles all Pulsar {% popover message %} transfers.
+1. An HTTP server exposing a {@inject: rest:REST:/} interface administration and [topic](reference-terminology.md#topic) lookup.
+2. A dispatcher that handles all Pulsar [message](reference-terminology.md#message) transfers.
 
-{% popover Brokers %} can be managed via:
+[Brokers](reference-terminology.md#broker) can be managed via:
 
 * The [`brokers`](reference-pulsar-admin.md#brokers) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
-* The `/admin/brokers` endpoint of the admin [REST API](reference-rest-api.md)
-* The `brokers` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](client-libraries-java.md)
+* The `/admin/v2/brokers` endpoint of the admin {@inject: rest:REST:/} API
+* The `brokers` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin.html} object in the [Java API](client-libraries-java.md)
 
 In addition to being configurable when you start them up, brokers can also be [dynamically configured](#dynamic-broker-configuration).
 
-{% include admonition.html type="info" content="
-See the [Configuration](reference-configuration.md#broker) page for a full listing of broker-specific configuration parameters.
-" %}
+> See the [Configuration](reference-configuration.md#broker) page for a full listing of broker-specific configuration parameters.
 
 ## Brokers resources
 
 ### List active brokers
 
-Fetch all available active brokers that are serving traffic.  
+Fetch all available active brokers that are serving traffic.
 
 #### pulsar-admin
 
@@ -40,9 +38,7 @@ broker1.use.org.com:8080
 
 ###### REST
 
-{% endpoint GET /admin/brokers/:cluster %}
-
-[More info](reference-rest-api.md#/admin/brokers/:cluster)
+{@inject: endpoint|GET|/admin/v2/brokers/:cluster|operation/getActiveBrokers}
 
 ###### Java
 
@@ -52,7 +48,7 @@ admin.brokers().getActiveBrokers(clusterName)
 
 #### list of namespaces owned by a given broker
 
-It finds all namespaces which are owned and served by a given broker.  
+It finds all namespaces which are owned and served by a given broker.
 
 ###### CLI
 
@@ -72,7 +68,7 @@ $ pulsar-admin brokers namespaces use \
 ```
 ###### REST
 
-{% endpoint GET /admin/brokers/:cluster/:broker:/ownedNamespaces %}
+{@inject: endpoint|GET|/admin/v2/brokers/:cluster/:broker/ownedNamespaces|operation/getOwnedNamespaes}
 
 ###### Java
 
@@ -82,12 +78,12 @@ admin.brokers().getOwnedNamespaces(cluster,brokerUrl);
 
 ### Dynamic broker configuration
 
-One way to configure a Pulsar {% popover broker %} is to supply a [configuration](reference-configuration.md#broker) when the broker is [started up](reference-cli-tools.md#pulsar-broker).
+One way to configure a Pulsar [broker](reference-terminology.md#broker) is to supply a [configuration](reference-configuration.md#broker) when the broker is [started up](reference-cli-tools.md#pulsar-broker).
 
-But since all broker configuration in Pulsar is stored in {% popover ZooKeeper %}, configuration values can also be dynamically updated *while the broker is running*. When you update broker configuration dynamically, ZooKeeper will notify the broker of the change and the broker will then override any existing configuration values.
+But since all broker configuration in Pulsar is stored in ZooKeeper, configuration values can also be dynamically updated *while the broker is running*. When you update broker configuration dynamically, ZooKeeper will notify the broker of the change and the broker will then override any existing configuration values.
 
 * The [`brokers`](reference-pulsar-admin.md#brokers) command for the [`pulsar-admin`](reference-pulsar-admin.md) tool has a variety of subcommands that enable you to manipulate a broker's configuration dynamically, enabling you to [update config values](#update-dynamic-configuration) and more.
-* In the Pulsar admin [REST API](reference-rest-api.md), dynamic configuration is managed through the `/admin/brokers/configuration` endpoint.
+* In the Pulsar admin {@inject: rest:REST:/} API, dynamic configuration is managed through the `/admin/v2/brokers/configuration` endpoint.
 
 ### Update dynamic configuration
 
@@ -101,9 +97,7 @@ $ pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
 
 #### REST API
 
-{% endpoint POST /admin/brokers/configuration/:configName/:configValue %}
-
-[More info](reference-rest-api.md#/admin/brokers/configuration/:configName/:configValue)
+{@inject: endpoint|POST|/admin/v2/brokers/configuration/:configName/:configValue|operation/updateDynamicConfiguration}
 
 #### Java
 
@@ -124,9 +118,7 @@ brokerShutdownTimeoutMs
 
 #### REST API
 
-{% endpoint GET /admin/brokers/configuration %}
-
-[More info](reference-rest-api.md#/admin/brokers/configuration)
+{@inject: endpoint|GET|/admin/v2/brokers/configuration|operation/getDynamicConfigurationName}
 
 #### Java
 
@@ -147,9 +139,7 @@ brokerShutdownTimeoutMs:100
 
 #### REST API
 
-{% endpoint GET /admin/brokers/configuration/values %}
-
-[More info](reference-rest-api.md#/admin/brokers/configuration/values)
+{@inject: endpoint|GET|/admin/v2/brokers/configuration/values|operation/getAllDynamicConfigurations}
 
 #### Java
 

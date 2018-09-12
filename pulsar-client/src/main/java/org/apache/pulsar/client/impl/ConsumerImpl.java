@@ -132,6 +132,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final ConnectionHandler connectionHandler;
 
     private final TopicName topicName;
+    private final String topicNameWithoutPartition;
 
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
@@ -143,14 +144,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema) {
-        this(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, SubscriptionMode.Durable, null, schema);
+            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema, ConsumerInterceptors interceptors) {
+        this(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, SubscriptionMode.Durable, null, schema, interceptors);
     }
 
     ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                  ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
-                 SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema) {
-        super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema);
+                 SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors interceptors) {
+        super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema, interceptors);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl((MessageIdImpl) startMessageId) : null;
@@ -161,15 +162,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.priorityLevel = conf.getPriorityLevel();
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
-
-        this.topicName = TopicName.get(topic);
-        if (topicName.isPersistent()) {
-            this.acknowledgmentsGroupingTracker =
-                new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
-        } else {
-            this.acknowledgmentsGroupingTracker =
-                NonPersistentAcknowledgmentGroupingTracker.of();
-        }
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -204,6 +196,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.connectionHandler = new ConnectionHandler(this,
             new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS),
             this);
+
+        this.topicName = TopicName.get(topic);
+        if (this.topicName.isPersistent()) {
+            this.acknowledgmentsGroupingTracker =
+                new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
+        } else {
+            this.acknowledgmentsGroupingTracker =
+                NonPersistentAcknowledgmentGroupingTracker.of();
+        }
+
+        topicNameWithoutPartition = topicName.getPartitionedTopicName();
 
         grabCnx();
     }
@@ -261,8 +264,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         Message<T> message;
         try {
             message = incomingMessages.take();
-            messageProcessed(message);
-            return message;
+            Message<T> interceptMsg = beforeConsume(message);
+            messageProcessed(interceptMsg);
+            return interceptMsg;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             stats.incrementNumReceiveFailed();
@@ -291,8 +295,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (message == null && conf.getReceiverQueueSize() == 0) {
             sendFlowPermitsToBroker(cnx(), 1);
         } else if (message != null) {
-            messageProcessed(message);
-            result.complete(message);
+            Message<T> interceptMsg = beforeConsume(message);
+            messageProcessed(interceptMsg);
+            result.complete(interceptMsg);
         }
 
         return result;
@@ -309,7 +314,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         Message<T> message;
         try {
-            // is cnx is null or if the connection breaks the connectionOpened function will send the flow again
+            // if cnx is null or if the connection breaks the connectionOpened function will send the flow again
             waitingOnReceiveForZeroQueueSize = true;
             synchronized (this) {
                 if (isConnected()) {
@@ -350,10 +355,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         Message<T> message;
         try {
             message = incomingMessages.poll(timeout, unit);
-            if (message != null) {
-                messageProcessed(message);
+            Message<T> interceptMsg = beforeConsume(message);
+            if (interceptMsg != null) {
+                messageProcessed(interceptMsg);
             }
-            return message;
+            return interceptMsg;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
 
@@ -408,7 +414,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         checkArgument(messageId instanceof MessageIdImpl);
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
-            return FutureUtil.failedFuture(new PulsarClientException("Consumer not ready. State: " + getState()));
+            PulsarClientException exception = new PulsarClientException("Consumer not ready. State: " + getState());
+            if (AckType.Individual.equals(ackType)) {
+                onAcknowledge(messageId, exception);
+            } else if (AckType.Cumulative.equals(ackType)) {
+                onAcknowledgeCumulative(messageId, exception);
+            }
+            return FutureUtil.failedFuture(exception);
         }
 
         if (messageId instanceof BatchMessageIdImpl) {
@@ -442,7 +454,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 unAckedMessageTracker.remove(msgId);
                 stats.incrementNumAcksSent(1);
             }
+            onAcknowledge(messageId, null);
         } else if (ackType == AckType.Cumulative) {
+            onAcknowledgeCumulative(messageId, null);
             stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
         }
 
@@ -836,9 +850,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         receivedFuture.complete(message);
                     } else {
                         // increase permits for available message-queue
-                        messageProcessed(message);
+                        Message<T> interceptMsg = beforeConsume(message);
+                        messageProcessed(interceptMsg);
                         // return message to receivedCallback
-                        listenerExecutor.execute(() -> receivedFuture.complete(message));
+                        listenerExecutor.execute(() -> receivedFuture.complete(interceptMsg));
                     }
                 }
             } else {
@@ -1459,6 +1474,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     void grabCnx() {
         this.connectionHandler.grabCnx();
+    }
+
+    public String getTopicNameWithoutPartition() {
+        return topicNameWithoutPartition;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);

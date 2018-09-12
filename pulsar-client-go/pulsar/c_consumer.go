@@ -25,13 +25,14 @@ package pulsar
 import "C"
 
 import (
+	"context"
 	"runtime"
 	"time"
 	"unsafe"
-	"context"
 )
 
 type consumer struct {
+	client         *client
 	ptr            *C.pulsar_consumer_t
 	defaultChannel chan ConsumerMessage
 }
@@ -64,7 +65,7 @@ type subscribeContext struct {
 }
 
 func subscribeAsync(client *client, options ConsumerOptions, callback func(Consumer, error)) {
-	if options.Topic == "" {
+	if options.Topic == "" && options.Topics == nil && options.TopicsPattern == "" {
 		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required"))
 		return
 	}
@@ -76,7 +77,7 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 
 	conf := C.pulsar_consumer_configuration_create()
 
-	consumer := &consumer{}
+	consumer := &consumer{client: client}
 
 	if options.MessageChannel == nil {
 		// If there is no message listener, set a default channel so that we can have receive to
@@ -120,12 +121,52 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		C.pulsar_consumer_set_consumer_name(conf, name)
 	}
 
-	topic := C.CString(options.Topic)
+	if options.Properties != nil {
+		for key, value := range options.Properties {
+			cKey := C.CString(key)
+			cValue := C.CString(value)
+
+			C.pulsar_consumer_configuration_set_property(conf, cKey, cValue)
+
+			C.free(unsafe.Pointer(cKey))
+			C.free(unsafe.Pointer(cValue))
+		}
+	}
+
+	C.pulsar_consumer_set_read_compacted(conf, cBool(options.ReadCompacted))
+
 	subName := C.CString(options.SubscriptionName)
-	defer C.free(unsafe.Pointer(topic))
 	defer C.free(unsafe.Pointer(subName))
-	C._pulsar_client_subscribe_async(client.ptr, topic, subName,
-		conf, savePointer(&subscribeContext{conf: conf, consumer: consumer, callback: callback}))
+
+	callbackPtr := savePointer(&subscribeContext{conf: conf, consumer: consumer, callback: callback})
+
+	if options.Topic != "" {
+		topic := C.CString(options.Topic)
+		defer C.free(unsafe.Pointer(topic))
+		C._pulsar_client_subscribe_async(client.ptr, topic, subName, conf, callbackPtr)
+	} else if options.Topics != nil {
+		cArray := C.malloc(C.size_t(len(options.Topics)) * C.size_t(unsafe.Sizeof(uintptr(0))))
+
+		// convert the C array to a Go Array so we can index it
+		a := (*[1<<30 - 1]*C.char)(cArray)
+
+		for idx, topic := range options.Topics {
+			a[idx] = C.CString(topic)
+		}
+
+		C._pulsar_client_subscribe_multi_topics_async(client.ptr, (**C.char)(cArray), C.int(len(options.Topics)),
+			subName, conf, callbackPtr)
+
+		for idx, _ := range options.Topics {
+			C.free(unsafe.Pointer(a[idx]))
+		}
+
+		C.free(cArray)
+	} else if options.TopicsPattern != "" {
+		topicsPattern := C.CString(options.TopicsPattern)
+		defer C.free(unsafe.Pointer(topicsPattern))
+		C._pulsar_client_subscribe_pattern_async(client.ptr, topicsPattern, subName, conf, callbackPtr)
+	}
 }
 
 type consumerCallback struct {

@@ -28,7 +28,7 @@ RUN apt-get update && \
                 liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless clang-format-5.0 \
-                gnupg2 golang-1.10-go
+                gnupg2 golang-1.10-go zip unzip
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
@@ -56,6 +56,10 @@ RUN apt-get install -y nodejs
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
 RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
 RUN apt-get update && apt-get install yarn
+
+# Install crowdin
+RUN wget https://artifacts.crowdin.com/repo/deb/crowdin.deb -O crowdin.deb
+RUN dpkg -i crowdin.deb
 
 # Install PIP and PDoc
 RUN wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py

@@ -76,6 +76,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>buildtools</module>
     <module>managed-ledger</module>
     <module>managed-ledger-shaded</module>
+    <module>tiered-storage</module>
     <module>pulsar-common</module>
     <module>pulsar-broker-common</module>
     <module>pulsar-broker</module>
@@ -91,6 +92,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-proxy</module>
     <module>pulsar-discovery-service</module>
     <module>pulsar-storm</module>
+    <module>pulsar-flink</module>
     <module>pulsar-spark</module>
     <module>pulsar-zookeeper-utils</module>
     <module>pulsar-testclient</module>
@@ -99,7 +101,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-kafka-compat</module>
     <module>pulsar-zookeeper</module>
     <module>pulsar-log4j2-appender</module>
-    <module>protobuf-shaded</module>
+    <module>pulsar-sql</module>
+
     <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
     <module>jclouds-shaded</module>
 
@@ -108,6 +111,9 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- connector-related modules -->
     <module>pulsar-io</module>
+
+    <!-- examples -->
+    <module>examples</module>
 
     <!-- all these 3 modules should be put at the end in this exact sequence -->
     <module>distribution</module>
@@ -127,11 +133,14 @@ flexible messaging model and an intuitive client API.</description>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
 
+    <!-- pin the protobuf-shaded version to make the pulsar build friendly to intellij -->
+    <pulsar.protobuf.shaded.version>2.1.0-incubating</pulsar.protobuf.shaded.version>
+
     <!-- apache commons -->
     <commons-compress.version>1.15</commons-compress.version>
 
-    <bookkeeper.version>4.7.1</bookkeeper.version>
-    <zookeeper.version>3.5.4-beta</zookeeper.version>
+    <bookkeeper.version>4.7.2</bookkeeper.version>
+    <zookeeper.version>3.4.13</zookeeper.version>
     <netty.version>4.1.22.Final</netty.version>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
@@ -156,11 +165,17 @@ flexible messaging model and an intuitive client API.</description>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra-driver-core.version>3.4.0</cassandra-driver-core.version>
-    <aerospike-client.version>4.1.5</aerospike-client.version>
+    <aerospike-client.version>4.1.11</aerospike-client.version>
     <kafka-client.version>0.10.2.1</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
     <aws-sdk.version>1.11.297</aws-sdk.version>
     <avro.version>1.8.2</avro.version>
+    <jclouds.version>2.1.1</jclouds.version>
+    <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
+    <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <presto.version>0.206</presto.version>
+    <flink.version>1.6.0</flink.version>
+    <scala.binary.version>2.11</scala.binary.version>
 
     <!-- test dependencies -->
     <arquillian-cube.version>1.15.1</arquillian-cube.version>
@@ -484,12 +499,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>2.5</version>
-      </dependency>
-
-      <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
         <version>1.10</version>
@@ -612,13 +621,13 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>io.swagger</groupId>
         <artifactId>swagger-core</artifactId>
-        <version>1.5.3</version>
+        <version>1.5.20</version>
       </dependency>
 
       <dependency>
-        <groupId>com.wordnik</groupId>
+        <groupId>io.swagger</groupId>
         <artifactId>swagger-annotations</artifactId>
-        <version>1.5.3-M1</version>
+        <version>1.5.20</version>
       </dependency>
 
       <dependency>
@@ -790,6 +799,12 @@ flexible messaging model and an intuitive client API.</description>
         </exclusions>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.jclouds</groupId>
+        <artifactId>jclouds-allblobstore</artifactId>
+        <version>${jclouds.version}</version>
+      </dependency>
+
       <!-- test dependencies -->
       <dependency>
         <groupId>com.lmax</groupId>
@@ -804,6 +819,11 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>kafka</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>mysql</artifactId>
         <version>${testcontainers.version}</version>
       </dependency>
       <dependency>
@@ -1009,6 +1029,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
             <exclude>**/.idea/*</exclude>
+            <exclude>**/zk-3.5-test-data/*</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
@@ -1071,7 +1092,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
-            
+
             <!-- pulasr-io-connector kinesis : auto generated files from flatbuffer schema -->
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
@@ -1111,6 +1132,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>certificate-authority/index.txt</exclude>
             <exclude>certificate-authority/README.md</exclude>
 
+            <!-- Exclude ZK test data file -->
+            <exclude>**/zk-3.5-test-data/*</exclude>
+
             <!-- Python requirements files -->
             <exclude>**/requirements.txt</exclude>
 
@@ -1140,6 +1164,7 @@ flexible messaging model and an intuitive client API.</description>
           <verbose>false</verbose>
           <generateGitPropertiesFile>true</generateGitPropertiesFile>
           <generateGitPropertiesFilename>${project.build.outputDirectory}/${project.artifactId}-git.properties</generateGitPropertiesFilename>
+          <failOnNoGitDirectory>false</failOnNoGitDirectory>
           <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
           <format>properties</format>
           <gitDescribe>
@@ -1250,6 +1275,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>wagon-ssh-external</artifactId>
         <version>2.10</version>
       </extension>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.4.1.Final</version>
+      </extension>
     </extensions>
   </build>
 
@@ -1316,6 +1346,50 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
     <profile>
       <id>docker</id>
+    </profile>
+    
+    <profile>
+      <!-- Checks style and licensing requirements. This is a good
+           idea to run for contributions and for the release process. While it would
+           be nice to run always these plugins can considerably slow the build and have
+           proven to create unstable builds in our multi-module project and when building
+           using multiple threads. The stability issues seen with Checkstyle in multi-module
+           builds include false-positives and false negatives. -->
+      <id>contrib-check</id>
+         <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.rat</groupId>
+                    <artifactId>apache-rat-plugin</artifactId>
+                    <executions>
+                      <execution>
+                          <goals>
+                              <goal>check</goal>
+                          </goals>
+                          <phase>verify</phase>
+                      </execution>
+                   </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <executions>
+                       <execution>
+                          <id>check-style</id>
+                          <phase>verify</phase>
+                          <configuration>
+         					  <configLocation>./buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+         					  <suppressionsLocation>/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+                              <encoding>UTF-8</encoding>
+                          </configuration>
+                          <goals>
+                             <goal>check</goal>
+                          </goals>
+                       </execution>
+                    </executions>
+                </plugin>
+             </plugins>
+         </build>
     </profile>
   </profiles>
 

@@ -60,7 +60,7 @@ Message metadata is stored alongside the application-specified payload as a seri
 | `sequence_id`                        | The sequence ID of the message, assigned by producer}                                                                                                                                                                                        |
 | `publish_time`                       | The publish timestamp in Unix time (i.e. as the number of milliseconds since January 1st, 1970 in UTC)                                                                                                                                                    |
 | `properties`                         | A sequence of key/value pairs (using the [`KeyValue`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32) message). These are application-defined keys and values with no special meaning to Pulsar. |
-| `replicated_from` *(optional)*       | Indicates that the message has been replicated and specifies the name of the {% popover cluster %} where the message was originally published                                                                                                             |
+| `replicated_from` *(optional)*       | Indicates that the message has been replicated and specifies the name of the [cluster](reference-terminology.md#cluster) where the message was originally published                                                                                                             |
 | `partition_key` *(optional)*         | While publishing on a partition topic, if the key is present, the hash of the key is used to determine which partition to choose                                                                                                                          |
 | `compression` *(optional)*           | Signals that payload has been compressed and with which compression library                                                                                                                                                                               |
 | `uncompressed_size` *(optional)*     | If compression is used, the producer must fill the uncompressed size field with the original payload size                                                                                                                                                 |
@@ -99,7 +99,7 @@ When compression is enabled, the whole batch will be compressed at once.
 After opening a TCP connection to a broker, typically on port 6650, the client
 is responsible to initiate the session.
 
-![Connect interaction](/docs/assets/binary-protocol-connect.png)
+![Connect interaction](assets/binary-protocol-connect.png)
 
 After receiving a `Connected` response from the broker, the client can
 consider the connection ready to use. Alternatively, if the broker doesn't
@@ -164,7 +164,7 @@ authorized to publish on the topic.
 Once the client gets confirmation of the producer creation, it can publish
 messages to the broker, referring to the producer id negotiated before.
 
-![Producer interaction](/docs/assets/binary-protocol-producer.png)
+![Producer interaction](assets/binary-protocol-producer.png)
 
 ##### Command Producer
 
@@ -277,7 +277,7 @@ A consumer is used to attach to a subscription and consume messages from it.
 After every reconnection, a client needs to subscribe to the topic. If a
 subscription is not already there, a new one will be created.
 
-![Consumer](/docs/assets/binary-protocol-consumer.png)
+![Consumer](assets/binary-protocol-consumer.png)
 
 #### Flow control
 
@@ -458,7 +458,7 @@ connect to, or a broker hostname to which retry the lookup.
 The `LookupTopic` command has to be used in a connection that has already
 gone through the `Connect` / `Connected` initial handshake.
 
-![Topic lookup](/docs/assets/binary-protocol-topic-lookup.png)
+![Topic lookup](assets/binary-protocol-topic-lookup.png)
 
 ```protobuf
 message CommandLookupTopic {
@@ -549,9 +549,4 @@ message CommandPartitionedTopicMetadataResponse {
 
 ## Protobuf interface
 
-{% include protobuf.html %}
-
-
-
-
-
+All Pulsar's Protobuf definitions can be found {@inject: github:here:/pulsar-common/src/main/proto/PulsarApi.proto}.

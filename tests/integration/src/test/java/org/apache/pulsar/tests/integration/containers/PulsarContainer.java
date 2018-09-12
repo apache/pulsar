@@ -25,6 +25,7 @@ import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
+import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 
 /**
  * Abstract Test Container for Pulsar.
@@ -46,6 +47,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     private final String serviceEntryPoint;
     private final int servicePort;
     private final int httpPort;
+    private final String httpPath;
 
     public PulsarContainer(String clusterName,
                            String hostname,
@@ -53,12 +55,23 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                            String serviceEntryPoint,
                            int servicePort,
                            int httpPort) {
+        this(clusterName, hostname, serviceName, serviceEntryPoint, servicePort, httpPort, "/metrics");
+    }
+
+    public PulsarContainer(String clusterName,
+                           String hostname,
+                           String serviceName,
+                           String serviceEntryPoint,
+                           int servicePort,
+                           int httpPort,
+                           String httpPath) {
         super(clusterName, IMAGE_NAME);
         this.hostname = hostname;
         this.serviceName = serviceName;
         this.serviceEntryPoint = serviceEntryPoint;
         this.servicePort = servicePort;
         this.httpPort = httpPort;
+        this.httpPath = httpPath;
     }
 
     @Override
@@ -90,7 +103,13 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
     @Override
     public void start() {
-        if (httpPort > 0 || servicePort > 0) {
+        if (httpPort > 0 && servicePort < 0) {
+            this.waitStrategy = new HttpWaitStrategy()
+                .forPort(httpPort)
+                .forStatusCode(200)
+                .forPath(httpPath)
+                .withStartupTimeout(Duration.of(300, SECONDS));
+        } else if (httpPort > 0 || servicePort > 0) {
             this.waitStrategy = new HostPortWaitStrategy()
                 .withStartupTimeout(Duration.of(300, SECONDS));
         }

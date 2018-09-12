@@ -4,9 +4,9 @@ window.addEventListener('load', function() {
 
   // setup apache menu items in nav bar
   /*const community = document.querySelector("a[href='#community']").parentNode;
-  const communityMenu = 
+  const communityMenu =
     '<li>' +
-    '<a id="community-menu" href="#">Community</a>' + 
+    '<a id="community-menu" href="#">Community</a>' +
     '<div id="community-dropdown" class="hide">' +
       '<ul id="community-dropdown-items">' +
         '<li><a href="/contact">Contant</a></li>' +
@@ -36,16 +36,16 @@ window.addEventListener('load', function() {
 
   // setup apache menu items in nav bar
   const apache = document.querySelector("a[href='#apache']").parentNode;
-  const apacheMenu = 
+  const apacheMenu =
     '<li>' +
-    '<a id="apache-menu" href="#">Apache</a>' + 
+    '<a id="apache-menu" href="#">Apache <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
     '<div id="apache-dropdown" class="hide">' +
       '<ul id="apache-dropdown-items">' +
-        '<li><a href="https://www.apache.org/">Foundation</a></li>' +
-        '<li><a href="https://www.apache.org/licenses/">License</a></li>' +
-        '<li><a href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>' +
-        '<li><a href="https://www.apache.org/foundation/thanks.html">Thanks</a></li>' +
-        '<li><a href="https://www.apache.org/security">Security</a></li>' +
+        '<li><a href="https://www.apache.org/" target="_blank" >Foundation &#x2750</a></li>' +
+        '<li><a href="https://www.apache.org/licenses/" target="_blank">License &#x2750</a></li>' +
+        '<li><a href="https://www.apache.org/foundation/sponsorship.html" target="_blank">Sponsorship &#x2750</a></li>' +
+        '<li><a href="https://www.apache.org/foundation/thanks.html" target="_blank">Thanks &#x2750</a></li>' +
+        '<li><a href="https://www.apache.org/security" target="_blank">Security &#x2750</a></li>' +
       '</ul>' +
     '</div>' +
     '</li>';

@@ -114,6 +114,30 @@ void Client::subscribeAsync(const std::vector<std::string>& topics, const std::s
     impl_->subscribeAsync(topics, subscriptionName, conf, callback);
 }
 
+Result Client::subscribeWithRegex(const std::string& regexPattern, const std::string& subscriptionName,
+                                  Consumer& consumer) {
+    return subscribeWithRegex(regexPattern, subscriptionName, ConsumerConfiguration(), consumer);
+}
+
+Result Client::subscribeWithRegex(const std::string& regexPattern, const std::string& subscriptionName,
+                                  const ConsumerConfiguration& conf, Consumer& consumer) {
+    Promise<Result, Consumer> promise;
+    subscribeWithRegexAsync(regexPattern, subscriptionName, conf, WaitForCallbackValue<Consumer>(promise));
+    Future<Result, Consumer> future = promise.getFuture();
+
+    return future.get(consumer);
+}
+
+void Client::subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
+                                     SubscribeCallback callback) {
+    subscribeWithRegexAsync(regexPattern, subscriptionName, ConsumerConfiguration(), callback);
+}
+
+void Client::subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
+                                     const ConsumerConfiguration& conf, SubscribeCallback callback) {
+    impl_->subscribeWithRegexAsync(regexPattern, subscriptionName, conf, callback);
+}
+
 Result Client::createReader(const std::string& topic, const MessageId& startMessageId,
                             const ReaderConfiguration& conf, Reader& reader) {
     Promise<Result, Reader> promise;

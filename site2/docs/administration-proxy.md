@@ -4,7 +4,7 @@ title: The Pulsar proxy
 sidebar_label: Pulsar proxy
 ---
 
-The [Pulsar proxy](getting-started-concepts-and-architecture.md#pulsar-proxy) is an optional gateway that you can run over the brokers in a Pulsar cluster. We recommend running a Pulsar proxy in cases when direction connections between clients and Pulsar brokers are either infeasible, undesirable, or both, for example when running Pulsar in a cloud environment or on [Kubernetes](https://kubernetes.io) or an analogous platform.
+The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) is an optional gateway that you can run over the brokers in a Pulsar cluster. We recommend running a Pulsar proxy in cases when direction connections between clients and Pulsar brokers are either infeasible, undesirable, or both, for example when running Pulsar in a cloud environment or on [Kubernetes](https://kubernetes.io) or an analogous platform.
 
 ## Running the proxy
 
@@ -56,7 +56,7 @@ The Pulsar proxy can be configured using the [`proxy.conf`](reference-configurat
 |superUserRoles|  Role names that are treated as “super-users,” meaning that they will be able to perform all admin ||
 |forwardAuthorizationCredentials| Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.  |false|
 |maxConcurrentInboundConnections| Max concurrent inbound connections. The proxy will reject requests beyond that. |10000|
-|maxConcurrentLookupRequests| Max concurrent outbound connections. The proxy will error out requests beyond that. |10000|
+|maxConcurrentLookupRequests| Max concurrent outbound connections. The proxy will error out requests beyond that. |50000|
 |tlsEnabledInProxy| Whether TLS is enabled for the proxy  |false|
 |tlsEnabledWithBroker|  Whether TLS is enabled when communicating with Pulsar brokers |false|
 |tlsCertificateFilePath|  Path for the TLS certificate file ||

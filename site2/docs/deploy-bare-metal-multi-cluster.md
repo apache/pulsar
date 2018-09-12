@@ -4,7 +4,15 @@ title: Deploying a multi-cluster on bare metal
 sidebar_label: Bare metal multi-cluster
 ---
 
-> Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you're interested in experimenting with Pulsar or using it in a startup or on a single team, we recommend opting for a single cluster. For instructions on deploying a single cluster, see the guide [here](deploy-bare-metal.md).
+> ### Tips
+>
+> 1. Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you're interested in experimenting with
+> Pulsar or using it in a startup or on a single team, we recommend opting for a single cluster. For instructions on deploying a single cluster,
+> see the guide [here](deploy-bare-metal.md).
+>
+> 2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
+> package and make sure it is installed under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you
+> have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
 
 A Pulsar *instance* consists of multiple Pulsar clusters working in unison. Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using [geo-replication](administration-geo.md). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 
@@ -27,21 +35,21 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="pulsar:binary_release_url" download>Pulsar pulsar:version binary release</a>
+  * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
 
 * from the Pulsar [downloads page](pulsar:download_page_url)
 * from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  $ wget 'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-pulsar:version/apache-pulsar-pulsar:version-bin.tar.gz' -O apache-pulsar-pulsar:version-bin.tar.gz
+  $ wget 'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-{{pulsar:version}}/apache-pulsar-{{pulsar:version}}-bin.tar.gz' -O apache-pulsar-{{pulsar:version}}-bin.tar.gz
   ```
 
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:
 
 ```bash
-$ tar xvfz apache-pulsar-pulsar:version-bin.tar.gz
-$ cd apache-pulsar-pulsar:version
+$ tar xvfz apache-pulsar-{{pulsar:version}}-bin.tar.gz
+$ cd apache-pulsar-{{pulsar:version}}
 ```
 
 ## What your package contains
@@ -209,15 +217,15 @@ As you can see from the example above, the following needs to be specified:
 * The local ZooKeeper connection string for the cluster
 * The configuration store connection string for the entire instance
 * The web service URL for the cluster
-* A broker service URL enabling interaction with the {% popover brokers %} in the cluster
+* A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
 
-If you're using [TLS](administration-auth.md#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
+If you're using [TLS](security-tls-transport.md), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
 
 Make sure to run `initialize-cluster-metadata` for each cluster in your instance.
 
 ## Deploying BookKeeper
 
-BookKeeper provides [persistent message storage](getting-started-concepts-and-architecture.md#persistent-storage) for Pulsar.
+BookKeeper provides [persistent message storage](concepts-architecture-overview.md#persistent-storage) for Pulsar.
 
 Each Pulsar broker needs to have its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
 
@@ -268,7 +276,7 @@ Brokers can be configured using the [`conf/broker.conf`](reference-configuration
 
 The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you'll need to specify only those ZooKeeper servers located in the same cluster).
 
-You also need to specify the name of the {% popover cluster %} to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter.
+You also need to specify the name of the [cluster](reference-terminology.md#cluster) to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter.
 
 Here's an example configuration:
 
@@ -314,7 +322,8 @@ You can also use your own service discovery system if you'd like. If you use you
 
 The service discovery mechanism included with Pulsar maintains a list of active brokers, stored in ZooKeeper, and supports lookup using HTTP and also Pulsar's [binary protocol](developing-binary-protocol.md).
 
-To get started setting up Pulsar's built-in service discovery, you need to change a few parameters in the [`conf/discovery.conf`](reference-configuration.md#service-discovery) configuration file. Set the [`zookeeperServers`](reference-configuration.md#service-discovery-zookeeperServers) parameter to the cluster's ZooKeeper quorum connection string and the [`configurationStoreServers`](reference-configuration.md#service-discovery-configurationStoreServers) setting to the {% popover configuration store %} quorum connection string.
+To get started setting up Pulsar's built-in service discovery, you need to change a few parameters in the [`conf/discovery.conf`](reference-configuration.md#service-discovery) configuration file. Set the [`zookeeperServers`](reference-configuration.md#service-discovery-zookeeperServers) parameter to the cluster's ZooKeeper quorum connection string and the [`configurationStoreServers`](reference-configuration.md#service-discovery-configurationStoreServers) setting to the [configuration
+store](reference-terminology.md#configuration-store) quorum connection string.
 
 ```properties
 # Zookeeper quorum connection string
@@ -356,7 +365,7 @@ $ bin/pulsar-admin tenants create test-tentant \
 
 This will allow users who identify with role `test-admin-role` to administer the configuration for the tenant `test` which will only be allowed to use the cluster `us-west`. From now on, this tenant will be able to self-manage its resources.
 
-Once a tenant has been created, you will need to create {% popover namespaces %} for topics within that tenant.
+Once a tenant has been created, you will need to create [namespaces](reference-terminology.md#namespace) for topics within that tenant.
 
 The first step is to create a namespace. A namespace is an administrative unit that can contain many topics. A common practice is to create a namespace for each different use case from a single tenant.
 

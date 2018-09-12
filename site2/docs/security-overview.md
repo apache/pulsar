@@ -27,12 +27,12 @@ role token is then used for [Authorization and ACLs](security-authorization.md) 
 
 Currently Pulsar supports two authentication providers:
 
-- [TLS Authentication](security-tls.md)
+- [TLS Authentication](security-tls-authentication.md)
 - [Athenz](security-athenz.md)
 
 ## Contents
 
-- [Encryption and Authentication using TLS](security-tls.md)
+- [Encryption](security-tls-transport.md) and [Authentication](security-tls-authentication.md) using TLS
 - [Authentication using Athenz](security-athenz.md)
 - [Authorization and ACLs](security-authorization.md)
 - [End-to-End Encryption](security-encryption.md)

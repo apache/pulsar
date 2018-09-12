@@ -70,12 +70,12 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof MessageIdImpl) {
-            MessageIdImpl other = (MessageIdImpl) obj;
-            return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex;
-        } else if (obj instanceof BatchMessageIdImpl){
+        if (obj instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl other = (BatchMessageIdImpl) obj;
             return other.equals(this);
+        } else if (obj instanceof MessageIdImpl) {
+            MessageIdImpl other = (MessageIdImpl) obj;
+            return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex;
         }
         return false;
     }

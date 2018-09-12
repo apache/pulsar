@@ -4,7 +4,7 @@ title: Message retention and expiry
 sidebar_label: Message retention and expiry
 ---
 
-Pulsar brokers are responsible for handling messages that pass through Pulsar, including [persistent storage](getting-started-concepts-and-architecture.md#persistent-storage) of messages. By default, brokers:
+Pulsar brokers are responsible for handling messages that pass through Pulsar, including [persistent storage](concepts-architecture-overview.md#persistent-storage) of messages. By default, brokers:
 
 * immediately delete all messages that have been acknowledged on every subscription, and
 * persistently store all unacknowledged messages in a [backlog](#backlog-quotas).
@@ -14,7 +14,7 @@ In Pulsar, you can override both of these default behaviors, at the namespace le
 * You can persistently store messages that have already been consumed and acknowledged for a minimum time by setting [retention policies](#retention-policies).
 * Messages that are not acknowledged within a specified timeframe, can be automatically marked as consumed, by specifying the [time to live](#time-to-live-ttl) (TTL).
 
-Pulsar's [admin interface](admin-api-overview.md) enables you to manage both retention policies and TTL at the namespace level (and thus within a specific tenant and either on a specific cluster or in the [`global`](getting-started-concepts-and-architecture.md#global-cluster) cluster).
+Pulsar's [admin interface](admin-api-overview.md) enables you to manage both retention policies and TTL at the namespace level (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
 
 
 > #### Retention and TTL are solving two different problems
@@ -35,7 +35,7 @@ size retention.
 
 ### Defaults
 
-There are two configuration parameters that you can use to set {% popover instance %}-wide defaults for message retention: [`defaultRetentionTimeInMinutes=0`](reference-configuration.md#broker-defaultRetentionTimeInMinutes) and [`defaultRetentionSizeInMB=0`](reference-configuration.md#broker-defaultRetentionSizeInMB).
+There are two configuration parameters that you can use to set [instance](reference-terminology.md#instance)-wide defaults for message retention: [`defaultRetentionTimeInMinutes=0`](reference-configuration.md#broker-defaultRetentionTimeInMinutes) and [`defaultRetentionSizeInMB=0`](reference-configuration.md#broker-defaultRetentionSizeInMB).
 
 Both of these parameters are in the [`broker.conf`](reference-configuration.md#broker) configuration file.
 
@@ -77,10 +77,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
 
 #### REST API
 
-```http
-POST /admin/v2/namespaces/:tenant/:namespace/retention
-```
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/retention)
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention}
 
 #### Java
 
@@ -111,11 +108,7 @@ $ pulsar-admin namespaces get-retention my-tenant/my-ns
 
 #### REST API
 
-```http
-GET /admin/v2/namespaces/:tenant/:namespace/retention
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/retention)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention}
 
 #### Java
 
@@ -130,7 +123,7 @@ admin.namespaces().getRetention(namespace);
 You can control the allowable size of backlogs, at the namespace level, using *backlog quotas*. Setting a backlog quota involves setting:
 
 * an allowable *size threshold* for each topic in the namespace
-* a *retention policy* that determines which action the {% popover broker %} takes if the threshold is exceeded.
+* a *retention policy* that determines which action the [broker](reference-terminology.md#broker) takes if the threshold is exceeded.
 
 The following retention policies are available:
 
@@ -149,7 +142,7 @@ Backlog quotas are handled at the namespace level. They can be managed via:
 
 ### Set size thresholds and backlog retention policies
 
-You can set a size threshold and backlog retention policy for all of the topics in a {% popover namespace %} by specifying the namespace, a size limit, and a policy by name.
+You can set a size threshold and backlog retention policy for all of the topics in a [namespace](reference-terminology.md#namespace) by specifying the namespace, a size limit, and a policy by name.
 
 #### pulsar-admin
 
@@ -165,11 +158,7 @@ $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
 
 #### REST API
 
-```http
-POST /admin/v2/namespaces/:tenant/:namespace/backlogQuota
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/backlogQuota)
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap}
 
 #### Java
 
@@ -200,13 +189,7 @@ $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:property/:cluster/:namespace/backlogQuotaMap %}
-
-```http
-GET /admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/backlogQuota)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap}
 
 #### Java
 
@@ -227,12 +210,7 @@ $ pulsar-admin namespaces remove-backlog-quotas my-tenant/my-ns
 
 #### REST API
 
-```http
-DELETE /admin/v2/namespaces/:tenant/:namespace/backlogQuota
-```
-
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/backlogQuota)
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota}
 
 #### Java
 
@@ -273,13 +251,7 @@ $ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:property/:cluster/:namespace/messageTTL %}
-
-```http
-POST /admin/v2/namespaces/:tenant/:namespace/messageTTL
-```
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/messageTTL)
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL}
 
 #### Java
 
@@ -302,14 +274,7 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:property/:cluster/:namespace/messageTTL %}
-
-```http
-GET /admin/v2/namespaces/:tenant/:namespace/messageTTL
-```
-
-
-[More info](reference-rest-api.md#/admin/namespaces/:property/:cluster/:namespace/messageTTL)
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL}
 
 #### Java
 

@@ -8,20 +8,20 @@ Message queues are essential components of many large-scale data architectures. 
 
 Pulsar is a great choice for a message queue because:
 
-* it was built with [persistent message storage](getting-started-concepts-and-architecture.md#persistent-storage) in mind
-* it offers automatic load balancing across {% popover consumers %} for messages on a topic (or custom load balancing if you wish)
+* it was built with [persistent message storage](concepts-architecture-overview.md#persistent-storage) in mind
+* it offers automatic load balancing across [consumers](reference-terminology.md#consumer) for messages on a topic (or custom load balancing if you wish)
 
 > You can use the same Pulsar installation to act as a real-time message bus and as a message queue if you wish (or just one or the other). You can set aside some topics for real-time purposes and other topics for message queue purposes (or use specific namespaces for either purpose if you wish).
 
 
 # Client configuration changes
 
-To use a Pulsar popover topic as a message queue, you should distribute the receiver load on that topic across several consumers (the optimal number of consumers will depend on the load). Each consumer must:
+To use a Pulsar [topic](reference-terminology.md#topic) as a message queue, you should distribute the receiver load on that topic across several consumers (the optimal number of consumers will depend on the load). Each consumer must:
 
-* Establish a [shared subscription](getting-started-concepts-and-architecture.md#shared) and use the same subscription name as the other consumers (otherwise the subscription is not shared and the consumers can't act as a processing ensemble)
-* If you'd like to have tight control over message dispatching across consumers, set the consumers' **receiver queue** size very low (potentially even to 0 if necessary). Each Pulsar {% popover consumer %} has a receiver queue that determines how many messages the consumer will attempt to fetch at a time. A receiver queue of 1000 (the default), for example, means that the consumer will attempt to process 1000 messages from the topic's backlog upon connection. Setting the receiver queue to zero essentially means ensuring that each consumer is only doing one thing at a time.
+* Establish a [shared subscription](concepts-messaging.md#shared) and use the same subscription name as the other consumers (otherwise the subscription is not shared and the consumers can't act as a processing ensemble)
+* If you'd like to have tight control over message dispatching across consumers, set the consumers' **receiver queue** size very low (potentially even to 0 if necessary). Each Pulsar [consumer](reference-terminology.md#consumer) has a receiver queue that determines how many messages the consumer will attempt to fetch at a time. A receiver queue of 1000 (the default), for example, means that the consumer will attempt to process 1000 messages from the topic's backlog upon connection. Setting the receiver queue to zero essentially means ensuring that each consumer is only doing one thing at a time.
 
-   The downside to restricting the receiver queue size of consumers is that that limits the potential throughput of those consumers and cannot be used with {% popover partitioned topics %}. Whether the performance/control trade-off is worthwhile will depend on your use case.
+   The downside to restricting the receiver queue size of consumers is that that limits the potential throughput of those consumers and cannot be used with [partitioned topics](reference-terminology.md#partitioned-topic). Whether the performance/control trade-off is worthwhile will depend on your use case.
 
 ## Java clients
 

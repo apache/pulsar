@@ -1,14 +1,14 @@
 ---
 id: cookbooks-deduplication
 title: Message deduplication
-sidebar_label: Managing message deduplication 
+sidebar_label: Message deduplication 
 ---
 
 **Message deduplication** is a feature of Pulsar that, when enabled, ensures that each message produced on Pulsar topics is persisted to disk *only once*, even if the message is produced more than once. Message deduplication essentially unburdens Pulsar applications of the responsibility of ensuring deduplication and instead handles it automatically on the server side.
 
 Using message deduplication in Pulsar involves making some [configuration changes](#configuration) to your Pulsar brokers as well as some minor changes to the behavior of Pulsar [clients](#clients).
 
-> For a more thorough theoretical explanation of message deduplication, see the [Concepts and Architecture](getting-started-concepts-and-architecture.md#message-deduplication) document.
+> For a more thorough theoretical explanation of message deduplication, see the [Concepts and Architecture](concepts-messaging.md#message-deduplication) document.
 
 
 ## How it works
@@ -24,7 +24,7 @@ You can configure message deduplication in Pulsar using the [`broker.conf`](refe
 
 Parameter | Description | Default
 :---------|:------------|:-------
-`brokerDeduplicationEnabled` | Sets the default behavior for message deduplication in the Pulsar {% popover broker %}. If set to `true`, message deduplication will be enabled by default on all namespaces; if set to `false` (the default), deduplication will have to be [enabled](#enabling) and [disabled](#disabling) on a per-namespace basis. | `false`
+`brokerDeduplicationEnabled` | Sets the default behavior for message deduplication in the Pulsar [broker](reference-terminology.md#broker). If set to `true`, message deduplication will be enabled by default on all namespaces; if set to `false` (the default), deduplication will have to be [enabled](#enabling) and [disabled](#disabling) on a per-namespace basis. | `false`
 `brokerDeduplicationMaxNumberOfProducers` | The maximum number of producers for which information will be stored for deduplication purposes. | `10000`
 `brokerDeduplicationEntriesInterval` | The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). | `1000`
 `brokerDeduplicationProducerInactivityTimeoutMinutes` | The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. | `360` (6 hours)
@@ -37,21 +37,21 @@ Regardless of the value of `brokerDeduplicationEnabled`, [enabling](#enabling) a
 
 ### Enabling message deduplication {#enabling}
 
-You can enable message deduplication on specific namespaces, regardless of the the [default](#default) for the broker, using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace. Here's an example:
+You can enable message deduplication on specific namespaces, regardless of the the [default](#default) for the broker, using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace. Here's an example with <tenant>/<namespace>:
 
 ```bash
 $ bin/pulsar-admin namespaces set-deduplication \
-  persistent://public/default/topic-1 \
+  public/default \
   --enable # or just -e
 ```
 
 ### Disabling message deduplication {#disabling}
 
-You can disable message deduplication on a specific namespace using the same method shown [above](#enabling), except using the `--disable`/`-d` flag instead. Here's an example:
+You can disable message deduplication on a specific namespace using the same method shown [above](#enabling), except using the `--disable`/`-d` flag instead. Here's an example with <tenant>/<namespace>:
 
 ```bash
 $ bin/pulsar-admin namespaces set-deduplication \
-  persistent://public/default/topic-1 \
+  public/default \
   --disable # or just -d
 ```
 

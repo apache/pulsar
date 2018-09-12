@@ -29,7 +29,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -43,7 +42,8 @@ import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
-import org.testcontainers.containers.Container.ExecResult;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 
@@ -78,6 +78,7 @@ public class PulsarCluster {
     private final Map<String, BrokerContainer> brokerContainers;
     private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
+    private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
 
     private PulsarCluster(PulsarClusterSpec spec) {
 
@@ -134,6 +135,15 @@ public class PulsarCluster {
                 )
         );
 
+        spec.classPathVolumeMounts.entrySet().forEach(e -> {
+            zkContainer.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE);
+            proxyContainer.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE);
+
+            bookieContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
+            brokerContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
+            workerContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
+        });
+
     }
 
     public String getPlainTextServiceUrl() {
@@ -146,6 +156,14 @@ public class PulsarCluster {
 
     public String getZKConnString() {
         return zkContainer.getContainerIpAddress() + ":" + zkContainer.getMappedPort(ZK_PORT);
+    }
+
+    public Network getNetwork() {
+        return network;
+    }
+
+    public Map<String, GenericContainer<?>> getExternalServices() {
+        return externalServices;
     }
 
     public void start() throws Exception {
@@ -178,20 +196,8 @@ public class PulsarCluster {
         log.info("\tBinary Service Url : {}", getPlainTextServiceUrl());
         log.info("\tHttp Service Url : {}", getHttpServiceUrl());
 
-        // start function workers
-        if (spec.numFunctionWorkers() > 0) {
-            switch (spec.functionRuntimeType()) {
-                case THREAD:
-                    startFunctionWorkersWithThreadContainerFactory(spec.numFunctionWorkers());
-                    break;
-                case PROCESS:
-                    startFunctionWorkersWithProcessContainerFactory(spec.numFunctionWorkers());
-                    break;
-            }
-        }
-
         // start external services
-        final Map<String, GenericContainer<?>> externalServices = spec.externalServices;
+        this.externalServices = spec.externalServices;
         if (null != externalServices) {
             externalServices.entrySet().parallelStream().forEach(service -> {
                 GenericContainer<?> serviceContainer = service.getValue();
@@ -206,7 +212,6 @@ public class PulsarCluster {
     private static <T extends PulsarContainer> Map<String, T> runNumContainers(String serviceName,
                                                                                int numContainers,
                                                                                Function<String, T> containerCreator) {
-        List<CompletableFuture<?>> startFutures = Lists.newArrayList();
         Map<String, T> containers = Maps.newTreeMap();
         for (int i = 0; i < numContainers; i++) {
             String name = "pulsar-" + serviceName + "-" + i;
@@ -216,8 +221,7 @@ public class PulsarCluster {
         return containers;
     }
 
-    public void stop() {
-
+    public synchronized void stop() {
         Stream<GenericContainer> containers = Streams.concat(
                 workerContainers.values().stream(),
                 brokerContainers.values().stream(),
@@ -238,11 +242,22 @@ public class PulsarCluster {
         }
     }
 
-    private void startFunctionWorkersWithProcessContainerFactory(int numFunctionWorkers) {
+    public synchronized void setupFunctionWorkers(String suffix, FunctionRuntimeType runtimeType, int numFunctionWorkers) {
+        switch (runtimeType) {
+            case THREAD:
+                startFunctionWorkersWithThreadContainerFactory(suffix, numFunctionWorkers);
+                break;
+            case PROCESS:
+                startFunctionWorkersWithProcessContainerFactory(suffix, numFunctionWorkers);
+                break;
+        }
+    }
+
+    private void startFunctionWorkersWithProcessContainerFactory(String suffix, int numFunctionWorkers) {
         String serviceUrl = "pulsar://pulsar-broker-0:" + PulsarContainer.BROKER_PORT;
         String httpServiceUrl = "http://pulsar-broker-0:" + PulsarContainer.BROKER_HTTP_PORT;
         workerContainers.putAll(runNumContainers(
-            "functions-worker",
+            "functions-worker-process-" + suffix,
             numFunctionWorkers,
             (name) -> new WorkerContainer(clusterName, name)
                 .withNetwork(network)
@@ -263,11 +278,11 @@ public class PulsarCluster {
         this.startWorkers();
     }
 
-    private void startFunctionWorkersWithThreadContainerFactory(int numFunctionWorkers) {
+    private void startFunctionWorkersWithThreadContainerFactory(String suffix, int numFunctionWorkers) {
         String serviceUrl = "pulsar://pulsar-broker-0:" + PulsarContainer.BROKER_PORT;
         String httpServiceUrl = "http://pulsar-broker-0:" + PulsarContainer.BROKER_HTTP_PORT;
         workerContainers.putAll(runNumContainers(
-            "functions-worker",
+            "functions-worker-thread-" + suffix,
             numFunctionWorkers,
             (name) -> new WorkerContainer(clusterName, name)
                 .withNetwork(network)
@@ -289,17 +304,38 @@ public class PulsarCluster {
         this.startWorkers();
     }
 
-    private void startWorkers() {
+    public synchronized void startWorkers() {
         // Start workers that have been initialized
         workerContainers.values().parallelStream().forEach(WorkerContainer::start);
         log.info("Successfully started {} worker conntainers.", workerContainers.size());
+    }
+
+    public synchronized void stopWorkers() {
+        // Stop workers that have been initialized
+        workerContainers.values().parallelStream().forEach(WorkerContainer::stop);
+        workerContainers.clear();
+    }
+
+    public void startContainers(Map<String, GenericContainer<?>> containers) {
+        containers.forEach((name, container) -> {
+            container
+                .withNetwork(network)
+                .withNetworkAliases(name)
+                .start();
+            log.info("Successfully start container {}.", name);
+        });
+    }
+
+    public void stopContainers(Map<String, GenericContainer<?>> containers) {
+        containers.values().parallelStream().forEach(GenericContainer::stop);
+        log.info("Successfully stop containers : {}", containers);
     }
 
     public BrokerContainer getAnyBroker() {
         return getAnyContainer(brokerContainers, "broker");
     }
 
-    public WorkerContainer getAnyWorker() {
+    public synchronized WorkerContainer getAnyWorker() {
         return getAnyContainer(workerContainers, "functions-worker");
     }
 
@@ -315,15 +351,15 @@ public class PulsarCluster {
         return brokerContainers.values();
     }
 
-    public ExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
+    public ContainerExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
         return runCommandOnAnyBrokerWithScript(ADMIN_SCRIPT, commands);
     }
 
-    public ExecResult runPulsarBaseCommandOnAnyBroker(String...commands) throws Exception {
+    public ContainerExecResult runPulsarBaseCommandOnAnyBroker(String...commands) throws Exception {
         return runCommandOnAnyBrokerWithScript(PULSAR_COMMAND_SCRIPT, commands);
     }
 
-    private ExecResult runCommandOnAnyBrokerWithScript(String scriptType, String...commands) throws Exception {
+    private ContainerExecResult runCommandOnAnyBrokerWithScript(String scriptType, String...commands) throws Exception {
         BrokerContainer container = getAnyBroker();
         String[] cmds = new String[commands.length + 1];
         cmds[0] = scriptType;
@@ -339,13 +375,13 @@ public class PulsarCluster {
         brokerContainers.values().forEach(BrokerContainer::start);
     }
 
-    public ExecResult createNamespace(String nsName) throws Exception {
+    public ContainerExecResult createNamespace(String nsName) throws Exception {
         return runAdminCommandOnAnyBroker(
             "namespaces", "create", "public/" + nsName,
             "--clusters", clusterName);
     }
 
-    public ExecResult enableDeduplication(String nsName, boolean enabled) throws Exception {
+    public ContainerExecResult enableDeduplication(String nsName, boolean enabled) throws Exception {
         return runAdminCommandOnAnyBroker(
             "namespaces", "set-deduplication", "public/" + nsName,
             enabled ? "--enable" : "--disable");

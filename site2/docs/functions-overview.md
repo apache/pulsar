@@ -10,7 +10,7 @@ sidebar_label: Overview
 * apply a user-supplied processing logic to each message,
 * publish the results of the computation to another topic
 
-Here's an example Pulsar Function for Java (using the [native interface](functions-api.md#java-native)):
+Here's an example Pulsar Function for Java (using the [native interface](functions-api.md#java-native-functions)):
 
 ```java
 import java.util.Function;
@@ -21,7 +21,7 @@ public class ExclamationFunction implements Function<String, String> {
 }
 ```
 
-Here's an equivalent function in Python (also using the [native interface](functions-api.md#python-native)):
+Here's an equivalent function in Python (also using the [native interface](functions-api.md#python-native-functions)):
 
 ```python
 def process(input):
@@ -34,7 +34,7 @@ Functions are executed each time a message is published to the input topic. If a
 
 The core goal behind Pulsar Functions is to enable you to easily create processing logic of any level of complexity without needing to deploy a separate neighboring system (such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://apache.github.io/incubator-heron), [Apache Flink](https://flink.apache.org/), etc.). Pulsar Functions is essentially ready-made compute infrastructure at your disposal as part of your Pulsar messaging system. This core goal is tied to a series of other goals:
 
-* Developer productivity ([language-native](#native) vs. [Pulsar Functions SDK](#sdk) functions)
+* Developer productivity ([language-native](#language-native-functions) vs. [Pulsar Functions SDK](#the-pulsar-functions-sdk) functions)
 * Easy troubleshooting
 * Operational simplicity (no need for an external processing system)
 
@@ -54,22 +54,22 @@ Pulsar Functions could be described as
 
 The core programming model behind Pulsar Functions is very simple:
 
-* Functions receive messages from one or more **input {% popover topics %}**. Every time a message is received, the function can do a variety of things:
+* Functions receive messages from one or more **input [topics](reference-terminology.md#topic)**. Every time a message is received, the function can do a variety of things:
   * Apply some processing logic to the input and write output to:
     * An **output topic** in Pulsar
     * [Apache BookKeeper](#state-storage)
   * Write logs to a **log topic** (potentially for debugging purposes)
-  * Increment a [counter](#counters)
+  * Increment a [counter](#word-count-example)
 
-![Pulsar Functions core programming model](/docs/assets/pulsar-functions-overview.png)
+![Pulsar Functions core programming model](assets/pulsar-functions-overview.png)
 
 ### Word count example
 
 If you were to implement the classic word count example using Pulsar Functions, it might look something like this:
 
-![Pulsar Functions word count example](/docs/assets/pulsar-functions-word-count.png)
+![Pulsar Functions word count example](assets/pulsar-functions-word-count.png)
 
-If you were writing the function in [Java](functions-api.md#java) using the [Pulsar Functions SDK for Java](functions-api.md#java-sdk), you could write the function like this...
+If you were writing the function in [Java](functions-api.md#functions-for-java) using the [Pulsar Functions SDK for Java](functions-api.md#java-sdk-functions), you could write the function like this...
 
 ```java
 package org.example.functions;
@@ -92,12 +92,12 @@ public class WordCountFunction implements Function<String, Void> {
 }
 ```
 
-...and then [deploy it](#cluster-mode) in your Pulsar cluster using the [command line](#cli) like this:
+...and then [deploy it](#cluster-run-mode) in your Pulsar cluster using the [command line](#command-line-interface) like this:
 
 ```bash
 $ bin/pulsar-admin functions create \
   --jar target/my-jar-with-dependencies.jar \
-  --className org.example.functions.WordCountFunction \
+  --classname org.example.functions.WordCountFunction \
   --tenant public \
   --namespace default \
   --name word-count \
@@ -111,7 +111,7 @@ The use cases for Pulsar Functions are essentially endless, but let's dig into a
 
 Imagine a function that takes items (strings) as input and publishes them to either a fruits or vegetables topic, depending on the item. Or, if an item is neither a fruit nor a vegetable, a warning is logged to a [log topic](#logging). Here's a visual representation:
 
-![Pulsar Functions routing example](/docs/assets/pulsar-functions-routing-example.png)
+![Pulsar Functions routing example](assets/pulsar-functions-routing-example.png)
 
 If you were implementing this routing functionality in Python, it might look something like this:
 
@@ -141,14 +141,14 @@ class RoutingFunction(Function):
 
 ## Command-line interface
 
-Pulsar Functions are managed using the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool (in particular the [`functions`](reference-pulsar-admin.md#pulsar-admin-functions) command). Here's an example command that would run a function in [local run mode](#local-run):
+Pulsar Functions are managed using the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool (in particular the [`functions`](reference-pulsar-admin.md#functions) command). Here's an example command that would run a function in [local run mode](#local-run-mode):
 
 ```bash
 $ bin/pulsar-functions localrun \
   --inputs persistent://public/default/test_src \
   --output persistent://public/default/test_result \
   --jar examples/api-examples.jar \
-  --className org.apache.pulsar.functions.api.examples.ExclamationFunction
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction
 ```
 
 ## Fully Qualified Function Name (FQFN)
@@ -165,14 +165,14 @@ FQFNs enable you to, for example, create multiple functions with the same name p
 
 Pulsar Functions can be configured in two ways:
 
-* Via [command-line arguments](#cli) passed to the [`pulsar-admin functions`](reference-pulsar-admin.md#pulsar-admin-functions) interface
+* Via [command-line arguments](#command-line-interface) passed to the [`pulsar-admin functions`](reference-pulsar-admin.md#functions) interface
 * Via [YAML](http://yaml.org/) configuration files
 
 If you're supplying a YAML configuration, you must specify a path to the file on the command line. Here's an example:
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --functionConfigFile ./my-function.yaml
+  --function-config-file ./my-function.yaml
 ```
 
 And here's an example `my-function.yaml` file:
@@ -192,7 +192,7 @@ You can also mix and match configuration methods by specifying some function att
 
 ## Supported languages
 
-Pulsar Functions can currently be written in [Java](functions-api.md#java) and [Python](functions-api.md#python). Support for additional languages is coming soon.
+Pulsar Functions can currently be written in [Java](functions-api.md#functions-for-java) and [Python](functions-api.md#functions-for-python). Support for additional languages is coming soon.
 
 ## The Pulsar Functions API
 
@@ -203,12 +203,12 @@ The Pulsar Functions API enables you to create processing logic that is:
 
 ### Function context
 
-Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access to a context object that both provides:
+Each Pulsar Function created using the [Pulsar Functions SDK](#the-pulsar-functions-sdk) has access to a context object that both provides:
 
 1. A wide variety of information about the function, including:
   * The name of the function
   * The tenant and namespace of the function
-  * [User-supplied configuration](#user-config) values
+  * [User-supplied configuration](#user-configuration) values
 2. Special functionality, including:
   * The ability to produce [logs](#logging) to a specified logging topic
   * The ability to produce [metrics](#metrics)
@@ -217,11 +217,11 @@ Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access t
 
 Both Java and Python support writing "native" functions, i.e. Pulsar Functions with no dependencies.
 
-The benefit of native functions is that they don't have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they don't provide access to the function's [context](#context), which is necessary for a variety of functionality, including [logging](#logging), [user configuration](#user-config), and more.
+The benefit of native functions is that they don't have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they don't provide access to the function's [context](#function-context), which is necessary for a variety of functionality, including [logging](#logging), [user configuration](#user-configuration), and more.
 
 ## The Pulsar Functions SDK
 
-If you'd like a Pulsar Function to have access to a [context object](#context), you can use the **Pulsar Functions SDK**, available for both [Java](functions-api.md#java-sdk) and [Pythnon](functions-api.md#python-sdk).
+If you'd like a Pulsar Function to have access to a [context object](#function-context), you can use the **Pulsar Functions SDK**, available for both [Java](functions-api.md#functions-for-java) and [Pythnon](functions-api.md#functions-for-python).
 
 ### Java
 
@@ -267,17 +267,17 @@ The Pulsar Functions feature was built to support a variety of deployment option
 
 Deployment mode | Description
 :---------------|:-----------
-[Local run mode](#local-run) | The function runs in your local environment, for example on your laptop
-[Cluster mode](#cluster-run) | The function runs *inside of* your Pulsar cluster, on the same machines as your Pulsar popover brokers
+[Local run mode](#local-run-mode) | The function runs in your local environment, for example on your laptop
+[Cluster mode](#cluster-run-mode) | The function runs *inside of* your Pulsar cluster, on the same machines as your Pulsar [brokers](reference-terminology.md#broker)
 
 ### Local run mode
 
-If you run a Pulsar Function in **local run** mode, it will run on the machine from which the command is run (this could be your laptop, an [AWS EC2](https://aws.amazon.com/ec2/) instance, etc.). Here's an example [`localrun`](reference-pulsar-admin.md#pulsar-admin-functions-localrun) command:
+If you run a Pulsar Function in **local run** mode, it will run on the machine from which the command is run (this could be your laptop, an [AWS EC2](https://aws.amazon.com/ec2/) instance, etc.). Here's an example [`localrun`](reference-pulsar-admin.md#localrun) command:
 
 ```bash
 $ bin/pulsar-admin functions localrun \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
@@ -286,18 +286,18 @@ By default, the function will connect to a Pulsar cluster running on the same ma
 
 ```bash
 $ bin/pulsar-admin functions localrun \
-  --brokerServiceUrl pulsar://my-cluster-host:6650 \
+  --broker-service-url pulsar://my-cluster-host:6650 \
   # Other function parameters
 ```
 
 ### Cluster run mode
 
-When you run a Pulsar Function in **cluster mode**, the function code will be uploaded to a Pulsar broker and run *alongside the broker* rather than in your [local environment](#local-run). You can run a function in cluster mode using the [`create`](reference-pulsar-admin.md#pulsar-admin-functions-create) command. Here's an example:
+When you run a Pulsar Function in **cluster mode**, the function code will be uploaded to a Pulsar broker and run *alongside the broker* rather than in your [local environment](#local-run-mode). You can run a function in cluster mode using the [`create`](reference-pulsar-admin.md#create-1) command. Here's an example:
 
 ```bash
 $ bin/pulsar-admin functions create \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
@@ -306,7 +306,7 @@ This command will upload `myfunc.py` to Pulsar, which will use the code to start
 
 ### Parallelism
 
-By default, only one **instance** of a Pulsar Function runs when you create and run it in [cluster run mode](#cluster-run). You can also, however, run multiple instances in parallel. You can specify the number of instances when you create the function, or update an existing single-instance function with a new parallelism factor.
+By default, only one **instance** of a Pulsar Function runs when you create and run it in [cluster run mode](#cluster-run-mode). You can also, however, run multiple instances in parallel. You can specify the number of instances when you create the function, or update an existing single-instance function with a new parallelism factor.
 
 This command, for example, would create and run a function with a parallelism of 5 (i.e. 5 instances):
 
@@ -316,13 +316,13 @@ $ bin/pulsar-admin functions create \
   --tenant public \
   --namespace default \
   --py func.py \
-  --className func.ParallelFunction \
+  --classname func.ParallelFunction \
   --parallelism 5
 ```
 
 ### Function instance resources
 
-When you run Pulsar Functions in [cluster run](#cluster-run) mode, you can specify the resources that are assigned to each function [instance](#parallelism):
+When you run Pulsar Functions in [cluster run](#cluster-run-mode) mode, you can specify the resources that are assigned to each function [instance](#parallelism):
 
 Resource | Specified as... | Runtimes
 :--------|:----------------|:--------
@@ -335,7 +335,7 @@ Here's an example function creation command that allocates 8 cores, 8 GB of RAM,
 ```bash
 $ bin/pulsar-admin functions create \
   --jar target/my-functions.jar \
-  --className org.example.functions.MyFunction \
+  --classname org.example.functions.MyFunction \
   --cpu 8 \
   --ram 8589934592 \
   --disk 10737418240
@@ -345,12 +345,12 @@ For more information on resources, see the [Deploying and Managing Pulsar Functi
 
 ### Logging
 
-Pulsar Functions created using the [Pulsar Functions SDK(#sdk) can send logs to a log topic that you specify as part of the function's configuration. The function created using the command below, for example, would produce all logs on the `persistent://public/default/my-func-1-log` topic:
+Pulsar Functions created using the [Pulsar Functions SDK](#the-pulsar-functions-sdk) can send logs to a log topic that you specify as part of the function's configuration. The function created using the command below, for example, would produce all logs on the `persistent://public/default/my-func-1-log` topic:
 
 ```bash
 $ bin/pulsar-admin functions create \
   --name my-func-1 \
-  --logTopic persistent://public/default/my-func-1-log \
+  --log-topic persistent://public/default/my-func-1-log \
   # Other configs
 ```
 
@@ -378,7 +378,7 @@ Here's an example of passing a user configuration to a function:
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --userConfig '{"key-1":"value-1","key-2","value-2"}' \
+  --user-config '{"key-1":"value-1","key-2","value-2"}' \
   # Other configs
 ```
 
@@ -398,11 +398,11 @@ public class ConfigMapFunction implements Function<String, Void> {
 
 ### Triggering Pulsar Functions
 
-Pulsar Functions running in [cluster mode](#cluster-mode) can be [triggered](functions-deploying.md#triggering) via the [command line](#cli). With triggering you can easily pass a specific value to a function and get the function's return value *without* needing to worry about creating a client, sending a message to the right input topic, etc. Triggering can be very useful for---but is by no means limited to---testing and debugging purposes.
+Pulsar Functions running in [cluster mode](#cluster-run-mode) can be [triggered](functions-deploying.md#triggering-pulsar-functions) via the [command line](#command-line-interface). With triggering you can easily pass a specific value to a function and get the function's return value *without* needing to worry about creating a client, sending a message to the right input topic, etc. Triggering can be very useful for---but is by no means limited to---testing and debugging purposes.
 
-> Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. The [`pulsar-admin functions trigger`](reference-pulsar-admin.md#pulsar-admin-functions-trigger) command is essentially a convenient mechanism for sending messages to functions without needing to use the [`pulsar-client`](reference-pulsar-admin.md#pulsar-client) tool or a language-specific client library.
+> Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. The [`pulsar-admin functions trigger`](reference-pulsar-admin.md#trigger) command is essentially a convenient mechanism for sending messages to functions without needing to use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool or a language-specific client library.
 
-Let's take an example Pulsar Function written in Python (using the [native interface](functions-api.md#python-native)) that simply reverses string inputs:
+Let's take an example Pulsar Function written in Python (using the [native interface](functions-api.md#python-native-functions)) that simply reverses string inputs:
 
 ```python
 def process(input):
@@ -416,7 +416,7 @@ $ bin/pulsar-admin functions trigger \
   --tenant public \
   --namespace default \
   --name reverse-func \
-  --triggerValue "snoitcnuf raslup ot emoclew"
+  --trigger-value "snoitcnuf raslup ot emoclew"
 ```
 
 That should return `welcome to pulsar functions` as the console output.
@@ -433,18 +433,18 @@ Delivery semantics | Description
 **At-least-once** delivery | Each message that is sent to the function could be processed more than once (hence the "at least")
 **Effectively-once** delivery | Each message that is sent to the function will have one output associated with it
 
-This command, for example, would run a function in [cluster mode](#cluster-mode) with effectively-once guarantees applied:
+This command, for example, would run a function in [cluster mode](#cluster-run-mode) with effectively-once guarantees applied:
 
 ```bash
 $ bin/pulsar-admin functions create \
   --name my-effectively-once-function \
-  --processingGuarantees EFFECTIVELY_ONCE \
+  --processing-guarantees EFFECTIVELY_ONCE \
   # Other function configs
 ```
 
 ## Metrics
 
-Pulsar Functions that use the [Pulsar Functions SDK](#sdk) can publish metrics to Pulsar. For more information, see [Metrics for Pulsar Functions](functions-metrics.md).
+Pulsar Functions that use the [Pulsar Functions SDK](#the-pulsar-functions-sdk) can publish metrics to Pulsar. For more information, see [Metrics for Pulsar Functions](functions-metrics.md).
 
 ## State storage
 

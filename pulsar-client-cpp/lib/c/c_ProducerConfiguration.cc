@@ -174,3 +174,8 @@ unsigned long pulsar_producer_configuration_get_batching_max_publish_delay_ms(
     pulsar_producer_configuration_t *conf) {
     return conf->conf.getBatchingMaxPublishDelayMs();
 }
+
+void pulsar_producer_configuration_set_property(pulsar_producer_configuration_t *conf, const char *name,
+                                                const char *value) {
+    conf->conf.setProperty(name, value);
+}

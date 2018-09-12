@@ -10,7 +10,9 @@ persisting messages.
 
 In all of the instructions and commands below, the topic name structure is:
 
-{% include topic.html ten="tenant" n="namespace" t="topic" %}
+```shell
+persistent://tenant/namespace/topic
+```
 
 ## Non-persistent topics resources
 
@@ -122,14 +124,14 @@ $ pulsar-admin non-persistent stats \
 
 #### REST API
 
-{% endpoint GET /admin/non-persistent/:tenant/:namespace/:destination/stats %}
+{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/stats|operation/getStats}
 
 
 #### Java
 
 ```java
-String destination = "non-persistent://my-tenant/my-namespace/my-topic";
-admin.nonPersistentTopics().getStats(destination);
+String topic = "non-persistent://my-tenant/my-namespace/my-topic";
+admin.nonPersistentTopics().getStats(topic);
 ```
 
 ### Get internal stats
@@ -163,14 +165,13 @@ $ pulsar-admin non-persistent stats-internal \
 
 #### REST API
 
-{% endpoint GET /admin/non-persistent/:tenant/:namespace/:destination/internalStats %}
-
+{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
 
 #### Java
 
 ```java
-String destination = "non-persistent://my-tenant/my-namespace/my-topic";
-admin.nonPersistentTopics().getInternalStats(destination);
+String topic = "non-persistent://my-tenant/my-namespace/my-topic";
+admin.nonPersistentTopics().getInternalStats(topic);
 ```
 
 ### Create partitioned topic
@@ -187,7 +188,7 @@ $ bin/pulsar-admin non-persistent create-partitioned-topic \
 
 #### REST API
 
-{% endpoint PUT /admin/non-persistent/:tenant/:namespace/:destination/partitions %}
+{@inject: endpoint|PUT|/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic}
 
 #### Java
 
@@ -217,7 +218,7 @@ $ pulsar-admin non-persistent get-partitioned-topic-metadata \
 
 #### REST API
 
-{% endpoint GET /admin/non-persistent/:tenant/:namespace/:destination/partitions %}
+{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata}
 
 
 #### Java
@@ -242,13 +243,11 @@ $ pulsar-admin non-persistent unload \
 
 #### REST API
 
-{% endpoint PUT /admin/non-persistent/:tenant/:namespace/:destination/unload %}
-
-[More info](reference-rest-api.md#/admin/non-persistent/:tenant/:namespace/:destination/unload)
+{@inject: endpoint|PUT|/admin/v2/non-persistent/:tenant/:namespace/:topic/unload|operation/unloadTopic}
 
 #### Java
 
 ```java
-String destination = "non-persistent://my-tenantmy-namespace/my-topic";
-admin.nonPersistentTopics().unload(destination);
+String topic = "non-persistent://my-tenantmy-namespace/my-topic";
+admin.nonPersistentTopics().unload(topic);
 ```

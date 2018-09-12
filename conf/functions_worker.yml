@@ -20,11 +20,11 @@
 workerId: standalone
 workerHostname: localhost
 workerPort: 6750
+workerPortTls: 6751
 
 connectorsDirectory: ./connectors
 
 functionMetadataTopicName: metadata
-functionMetadataSnapshotsTopicPath: snapshots
 clusterCoordinationTopicName: coordinate
 pulsarFunctionsNamespace: public/functions
 pulsarFunctionsCluster: standalone
@@ -53,3 +53,15 @@ authorizationEnabled: false
 authenticationProviders: 
 # Set of role names that are treated as "super-user", meaning they will be able to access any admin-api
 superUserRoles: 
+
+#### tls configuration
+# Enable TLS
+tlsEnabled: false
+# Path for the TLS certificate file
+tlsCertificateFilePath: 
+# Path for the TLS private key file
+tlsKeyFilePath: 
+# Path for the trusted TLS certificate file 
+tlsTrustCertsFilePath:
+# Accept untrusted TLS certificate from client 
+tlsAllowInsecureConnection: false

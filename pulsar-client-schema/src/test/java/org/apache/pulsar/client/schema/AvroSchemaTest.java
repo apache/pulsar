@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.client.schema;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import static org.apache.pulsar.client.schema.SchemaTestUtils.FOO_FIELDS;
+import static org.apache.pulsar.client.schema.SchemaTestUtils.SCHEMA_JSON;
+import static org.testng.Assert.assertEquals;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
+import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -31,44 +34,13 @@ import org.testng.annotations.Test;
 @Slf4j
 public class AvroSchemaTest {
 
-    @Data
-    @ToString
-    @EqualsAndHashCode
-    private static class Foo {
-        private String field1;
-        private String field2;
-        private int field3;
-        private Bar field4;
-    }
-
-    @Data
-    @ToString
-    @EqualsAndHashCode
-    private static class Bar {
-        private boolean field1;
-    }
-
-    private static final String SCHEMA_JSON = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.apache" +
-            ".pulsar.client" +
-            ".schema.AvroSchemaTest$\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\",\"string\"]," +
-            "\"default\":null},{\"name\":\"field2\",\"type\":[\"null\",\"string\"],\"default\":null}," +
-            "{\"name\":\"field3\",\"type\":\"int\"},{\"name\":\"field4\",\"type\":[\"null\",{\"type\":\"record\"," +
-            "\"name\":\"Bar\",\"fields\":[{\"name\":\"field1\",\"type\":\"boolean\"}]}],\"default\":null}]}";
-
-    private static String[] FOO_FIELDS = {
-            "field1",
-            "field2",
-            "field3",
-            "field4"
-    };
-
     @Test
     public void testSchema() {
         AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class);
-        Assert.assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
+        assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
-        Assert.assertEquals(schemaJson, SCHEMA_JSON);
+        assertEquals(schemaJson, SCHEMA_JSON);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {
@@ -103,7 +75,8 @@ public class AvroSchemaTest {
         Foo object1 = avroSchema.decode(bytes1);
         Foo object2 = avroSchema.decode(bytes2);
 
-        Assert.assertEquals(object1, foo1);
-        Assert.assertEquals(object2, foo2);
+        assertEquals(object1, foo1);
+        assertEquals(object2, foo2);
     }
+
 }

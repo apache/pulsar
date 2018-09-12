@@ -29,3 +29,20 @@ docker build -t pulsar-build .
 The image is already available at https://hub.docker.com/r/apachepulsar/pulsar-build
 
 Example: `apachepulsar/pulsar-build:ubuntu-16.04`
+
+## Build and Publish pulsar-build image
+
+> Only committers have permissions on publishing pulsar images to `apachepulsar` docker hub.
+
+### Build pulsar-build image
+
+
+```shell
+docker build -t apachepulsar/pulsar-build:ubuntu-16.04 .
+```
+
+### Publish pulsar-build image
+
+```shell
+publish.sh
+```

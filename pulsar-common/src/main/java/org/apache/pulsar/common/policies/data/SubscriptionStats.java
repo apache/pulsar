@@ -47,8 +47,11 @@ public class SubscriptionStats {
     /** Number of unacknowledged messages for the subscription */
     public long unackedMessages;
 
-    /** whether this subscription is Exclusive or Shared or Failover */
+    /** Whether this subscription is Exclusive or Shared or Failover */
     public SubType type;
+
+    /** The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive */
+    public String activeConsumerName;
 
     /** Total rate of messages expired on this subscription. msg/s */
     public double msgRateExpired;

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.utils;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.InspectContainerResponse;
@@ -25,6 +27,7 @@ import com.github.dockerjava.api.command.InspectExecResponse;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.ContainerNetwork;
 
+import com.github.dockerjava.api.model.StreamType;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,16 +37,16 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,7 +116,7 @@ public class DockerUtils {
         // docker api returns names prefixed with "/", it's part of it's legacy design,
         // this removes it to be consistent with what docker ps shows.
         final String containerName = inspectContainerResponse.getName().replace("/","");
-        File output = new File(getTargetDirectory(containerId),
+        File output = new File(getTargetDirectory(containerName),
                                (path.replace("/", "-") + ".tar.gz").replaceAll("^-", ""));
         try (InputStream dockerStream = dockerClient.copyArchiveFromContainerCmd(containerId, path).exec();
              OutputStream os = new GZIPOutputStream(new FileOutputStream(output))) {
@@ -162,16 +165,20 @@ public class DockerUtils {
         throw new IllegalArgumentException("Container " + containerId + " has no networks");
     }
 
-    public static String getContainerHostname(DockerClient docker, String containerId) {
-        return runCommand(docker, containerId, "hostname").trim();
-    }
-
-    public static String runCommand(DockerClient docker, String containerId, String... cmd) {
+    public static ContainerExecResult runCommand(DockerClient docker,
+                                                 String containerId,
+                                                 String... cmd)
+            throws ContainerExecException {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
-        String execid = docker.execCreateCmd(containerId).withCmd(cmd)
-            .withAttachStderr(true).withAttachStdout(true).exec().getId();
+        String execid = docker.execCreateCmd(containerId)
+            .withCmd(cmd)
+            .withAttachStderr(true)
+            .withAttachStdout(true)
+            .exec()
+            .getId();
         String cmdString = Arrays.stream(cmd).collect(Collectors.joining(" "));
-        StringBuffer output = new StringBuffer();
+        StringBuilder stdout = new StringBuilder();
+        StringBuilder stderr = new StringBuilder();
         docker.execStartCmd(execid).withDetach(false)
             .exec(new ResultCallback<Frame>() {
                 @Override
@@ -185,7 +192,11 @@ public class DockerUtils {
                 @Override
                 public void onNext(Frame object) {
                     LOG.info("DOCKER.exec({}:{}): {}", containerId, cmdString, object);
-                    output.append(new String(object.getPayload()));
+                    if (StreamType.STDOUT == object.getStreamType()) {
+                        stdout.append(new String(object.getPayload(), UTF_8));
+                    } else if (StreamType.STDERR == object.getStreamType()) {
+                        stderr.append(new String(object.getPayload(), UTF_8));
+                    }
                 }
 
                 @Override
@@ -212,15 +223,17 @@ public class DockerUtils {
             resp = docker.inspectExecCmd(execid).exec();
         }
         int retCode = resp.getExitCode();
+        ContainerExecResult result = ContainerExecResult.of(
+            retCode,
+            stdout.toString(),
+            stderr.toString()
+        );
+        LOG.info("DOCKER.exec({}:{}): completed with {}", containerId, cmdString, retCode);
+
         if (retCode != 0) {
-            LOG.error("DOCKER.exec({}:{}): failed with {} : {}", containerId, cmdString, retCode, output);
-            throw new RuntimeException(
-                    String.format("cmd(%s) failed on %s with exitcode %d",
-                                  cmdString, containerId, retCode));
-        } else {
-            LOG.info("DOCKER.exec({}:{}): completed with {}", containerId, cmdString, retCode);
+            throw new ContainerExecException(cmdString, containerId, result);
         }
-        return output.toString();
+        return result;
     }
 
     public static Optional<String> getContainerCluster(DockerClient docker, String containerId) {

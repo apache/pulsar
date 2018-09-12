@@ -43,6 +43,11 @@ public class Metrics {
     @JsonInclude(content=Include.NON_EMPTY)
     final Map<String, String> dimensions;
 
+    public Metrics() {
+        metrics = Maps.newTreeMap();
+        dimensions = Maps.newHashMap();
+    }
+    
     // hide constructor
     protected Metrics(Map<String, String> unmodifiableDimensionMap) {
         this.metrics = Maps.newTreeMap();

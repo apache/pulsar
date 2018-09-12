@@ -4,20 +4,20 @@ title: The Pulsar Java client
 sidebar_label: Java
 ---
 
-The Pulsar Java client can be used both to create Java producers, consumers, and [readers](#readers) of messages and to perform [administrative tasks](admin-api-overview.md). The current version of the Java client is **pulsar:version**.
+The Pulsar Java client can be used both to create Java producers, consumers, and [readers](#readers) of messages and to perform [administrative tasks](admin-api-overview.md). The current version of the Java client is **{{pulsar:version}}**.
 
 Javadoc for the Pulsar client is divided up into two domains, by package:
 
 Package | Description | Maven Artifact
 :-------|:------------|:--------------
-[`org.apache.pulsar.client.api`](/api/client) | The producer and consumer API | [org.apache.pulsar:pulsar-client:pulsar:version](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7Cpulsar:version%7Cjar)
-[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview.md) | [org.apache.pulsar:pulsar-client-admin:pulsar:version](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7Cpulsar:version%7Cjar)
+[`org.apache.pulsar.client.api`](/api/client) | The producer and consumer API | [org.apache.pulsar:pulsar-client:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{pulsar:version}}%7Cjar)
+[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview.md) | [org.apache.pulsar:pulsar-client-admin:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C{{pulsar:version}}%7Cjar)
 
 This document will focus only on the client API for producing and consuming messages on Pulsar topics. For a guide to using the Java admin client, see [The Pulsar admin interface](admin-api-overview.md).
 
 ## Installation
 
-The latest version of the Pulsar Java client library is available via [Maven Central](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7Cpulsar:version%7Cjar). To use the latest version, add the `pulsar-client` library to your build configuration.
+The latest version of the Pulsar Java client library is available via [Maven Central](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{pulsar:version}}%7Cjar). To use the latest version, add the `pulsar-client` library to your build configuration.
 
 ### Maven
 
@@ -25,7 +25,7 @@ If you're using Maven, add this to your `pom.xml`:
 
 ```xml
 <!-- in your <properties> block -->
-<pulsar.version>pulsar:version</pulsar.version>
+<pulsar.version>{{pulsar:version}}</pulsar.version>
 
 <!-- in your <dependencies> block -->
 <dependency>
@@ -40,7 +40,7 @@ If you're using Maven, add this to your `pom.xml`:
 If you're using Gradle, add this to your `build.gradle` file:
 
 ```groovy
-def pulsarVersion = 'pulsar:version'
+def pulsarVersion = '{{pulsar:version}}'
 
 dependencies {
     compile group: 'org.apache.pulsar', name: 'pulsar-client', version: pulsarVersion
@@ -63,7 +63,7 @@ A URL for a production Pulsar cluster may look something like this:
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you're using [TLS](administration-auth.md#tls-client-auth) authentication, the URL will look like something like this:
+If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
 
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
@@ -71,7 +71,7 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 
 ## Client configuration
 
-You can instantiate a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object using just a URL for the target Pulsar {% popover cluster %}, like this:
+You can instantiate a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object using just a URL for the target Pulsar [cluster](reference-terminology.md#cluster), like this:
 
 ```java
 PulsarClient client = PulsarClient.builder()
@@ -82,14 +82,14 @@ PulsarClient client = PulsarClient.builder()
 > #### Default broker URLs for standalone clusters
 > If you're running a cluster in [standalone mode](getting-started-standalone.md), the broker will be available at the `pulsar://localhost:6650` URL by default.
 
-Check out the Javadoc for the {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} class for a full listing of configurable parameters.
+Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full listing of configurable parameters.
 
 > In addition to client-level configuration, you can also apply [producer](#configuring-producers) and [consumer](#configuring-consumers) specific configuration, as you'll see in the sections below.
 
 
 ## Producers
 
-In Pulsar, producers write messages to topics. Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object (as in the section [above](#client-configuration)), you can create a {% javadoc Producer client org.apache.pulsar.client.api.Producer %} for a specific Pulsar {% popover topic %}.
+In Pulsar, producers write messages to topics. Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object (as in the section [above](#client-configuration)), you can create a {@inject: javadoc:Producer:/client/org/apache/pulsar/client/api/Producer} for a specific Pulsar [topic](reference-terminology.md#topic).
 
 ```java
 Producer<byte[]> producer = client.newProducer()
@@ -129,7 +129,7 @@ stringProducer.send("My message");
 
 ### Configuring producers
 
-If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {% javadoc ProducerBuilder client org.apache.pulsar.client.api.ProducerBuilder %} class. Here's an example:
+If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {@inject javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} class. Here's an example:
 
 ```java
 Producer<byte[]> producer = client.newProducer()
@@ -146,7 +146,7 @@ When using partitioned topics, you can specify the routing mode whenever you pub
 
 ### Async send
 
-You can also publish messages [asynchronously](getting-started-concepts-and-architecture.md#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the broker in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
+You can also publish messages [asynchronously](concepts-messaging.md#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the broker in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
 
 Here's an example async send operation:
 
@@ -156,7 +156,7 @@ producer.sendAsync("my-async-message".getBytes()).thenAccept(msgId -> {
 });
 ```
 
-As you can see from the example above, async send operations return a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+As you can see from the example above, async send operations return a {@inject javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
 ### Configuring messages
 
@@ -176,9 +176,9 @@ get a future returned.
 
 ## Consumers
 
-In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new {% popover consumer %} by first instantiating a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object and passing it a URL for a Pulsar broker (as [above](#client-configuration)).
+In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new [consumer](reference-terminology.md#consumer) by first instantiating a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object and passing it a URL for a Pulsar broker (as [above](#client-configuration)).
 
-Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Consumer client org.apache.pulsar.client.api.Consumer %} by specifying a {% popover topic %} and a [subscription](getting-started-concepts-and-architecture.md#subscription-modes).
+Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object, you can create a {@inject: javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer} by specifying a [topic](reference-terminology.md#topic) and a [subscription](concepts-messaging.md#subscription-modes).
 
 ```java
 Consumer consumer = client.newConsumer()
@@ -187,7 +187,7 @@ Consumer consumer = client.newConsumer()
         .subscribe();
 ```
 
-The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then {% popover acknowledges %} that the message has been processed:
+The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed:
 
 ```java
 do {
@@ -203,7 +203,7 @@ do {
 
 ### Configuring consumers
 
-If you instantiate a `Consumer` object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {% javadoc ConsumerBuilder client org.apache.pulsar.client.api.ConsumerBuilder %} class. Here's an example:
+If you instantiate a `Consumer` object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. Here's an example:
 
 Here's an example configuration:
 
@@ -218,7 +218,7 @@ Consumer consumer = client.newConsumer()
 
 ### Async receive
 
-The `receive` method will receive messages synchronously (the consumer process will be blocked until a message is available). You can also use [async receive](getting-started-concepts-and-architecture.md#receive-modes), which will return immediately with a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object that completes once a new message is available.
+The `receive` method will receive messages synchronously (the consumer process will be blocked until a message is available). You can also use [async receive](concepts-messaging.md#receive-modes), which will return immediately with a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object that completes once a new message is available.
 
 Here's an example:
 
@@ -226,11 +226,11 @@ Here's an example:
 CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
 ```
 
-Async receive operations return a {% javadoc Message client org.apache.pulsar.client.api.Message %} wrapped inside of a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+Async receive operations return a {@inject javadoc:Message:/client/org/apache/pulsar/client/api/Message} wrapped inside of a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
 ### Multi-topic subscriptions
 
-In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](getting-started-concepts-and-architecture.md#multi-topic-subscriptions). To use multi-topic subscriptions you can supply either a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
+In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](concepts-messaging.md#multi-topic-subscriptions). To use multi-topic subscriptions you can supply either a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
 
 Here are some examples:
 
@@ -302,7 +302,7 @@ consumerBuilder
 
 ## Reader interface {#readers}
 
-With the [reader interface](getting-started-concepts-and-architecture.md#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a topic, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
+With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic, a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}, and {@inject javadoc:ReaderConfiguration:/client/org/apache/pulsar/client/api/ReaderConfiguration}.
 
 Here's an example:
 
@@ -327,7 +327,7 @@ The code sample above shows pointing the `Reader` object to a specific message (
 
 ## Schemas
 
-In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](getting-started-concepts-and-architecture.md#schema-registry) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](concepts-schema-registry.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
 
 ```java
 Producer<byte[]> producer = client.newProducer()
@@ -335,7 +335,7 @@ Producer<byte[]> producer = client.newProducer()
         .create();
 ```
 
-The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the {% popover topic %}.
+The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the [topic](reference-terminology.md#topic).
 
 ### Schema example
 
@@ -407,11 +407,11 @@ The following schema formats are currently available for Java:
 
 ## Authentication
 
-Pulsar currently supports two authentication schemes: [TLS](administration-auth.md#tls-client-auth) and [Athenz](administration-auth.md#athenz). The Pulsar Java client can be used with both.
+Pulsar currently supports two authentication schemes: [TLS](security-tls-authentication.md) and [Athenz](security-athenz.md). The Pulsar Java client can be used with both.
 
 ### TLS Authentication
 
-To use [TLS](administration-auth.md#tls-client-auth), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](security-tls-authentication.md), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 Here's an example configuration:
 
@@ -433,7 +433,7 @@ PulsarClient client = PulsarClient.builder()
 
 ### Athenz
 
-To use [Athenz](administration-auth.md#athenz) as an authentication provider, you need to [use TLS](#tls-authentication) and provide values for four parameters in a hash:
+To use [Athenz](security-athenz.md) as an authentication provider, you need to [use TLS](#tls-authentication) and provide values for four parameters in a hash:
 
 * `tenantDomain`
 * `tenantService`

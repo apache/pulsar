@@ -40,6 +40,8 @@ class BinaryProtoLookupService : public LookupService {
 
     Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr& topicName);
 
+    Future<Result, NamespaceTopicsPtr> getTopicsOfNamespaceAsync(const NamespaceNamePtr& nsName);
+
    private:
     boost::mutex mutex_;
     uint64_t requestIdGenerator_;
@@ -60,6 +62,13 @@ class BinaryProtoLookupService : public LookupService {
     void handlePartitionMetadataLookup(const std::string& topicName, Result result, LookupDataResultPtr data,
                                        const ClientConnectionWeakPtr& clientCnx,
                                        LookupDataResultPromisePtr promise);
+
+    void sendGetTopicsOfNamespaceRequest(const std::string& nsName, Result result,
+                                         const ClientConnectionWeakPtr& clientCnx,
+                                         NamespaceTopicsPromisePtr promise);
+
+    void getTopicsOfNamespaceListener(Result result, NamespaceTopicsPtr topicsPtr,
+                                      NamespaceTopicsPromisePtr promise);
 
     uint64_t newRequestId();
 };

@@ -57,7 +57,7 @@
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>protobuf-shaded</artifactId>
-      <version>${project.version}</version>
+      <version>${pulsar.protobuf.shaded.version}</version>
     </dependency>
 
     <dependency>
@@ -123,11 +123,6 @@
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
 
     <!-- functions related dependencies (begin) -->
@@ -206,7 +201,7 @@
     </dependency>
 
     <dependency>
-      <groupId>com.wordnik</groupId>
+      <groupId>io.swagger</groupId>
       <artifactId>swagger-annotations</artifactId>
     </dependency>
 
@@ -274,11 +269,6 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>jclouds-shaded</artifactId>
-      <version>${project.version}</version>
-    </dependency>
   </dependencies>
 
   <build>
@@ -361,12 +351,11 @@
                   <springmvc>false</springmvc>
                   <locations>org.apache.pulsar.broker.admin</locations>
                   <schemes>http,https</schemes>
-                  <basePath>/admin</basePath>
+                  <basePath>/admin/v2</basePath>
                   <info>
                     <title>Pulsar Admin REST API</title>
-                    <version>v1</version>
-                    <description>This provides the REST API for admin
-                      operations</description>
+                    <version>v2</version>
+                    <description>This provides the REST API for admin operations</description>
                     <license>
                       <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
                       <name>Apache 2.0</name>

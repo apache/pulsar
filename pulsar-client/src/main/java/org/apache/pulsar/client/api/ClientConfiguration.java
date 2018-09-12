@@ -140,7 +140,7 @@ public class ClientConfiguration implements Serializable {
      * Set the operation timeout <i>(default: 30 seconds)</i>
      * <p>
      * Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the
-     * operation will be maked as failed
+     * operation will be marked as failed
      *
      * @param operationTimeout
      *            operation timeout

@@ -20,13 +20,16 @@
 #include "MessageImpl.h"
 #include "Version.h"
 #include "pulsar/MessageBuilder.h"
+#include "PulsarApi.pb.h"
 #include "LogUtils.h"
+#include "PulsarApi.pb.h"
 #include "Utils.h"
 #include "Url.h"
 #include "checksum/ChecksumProvider.h"
 #include <algorithm>
 #include <boost/thread/mutex.hpp>
 
+using namespace pulsar;
 namespace pulsar {
 
 using namespace pulsar::proto;
@@ -185,7 +188,8 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
 SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string& subscription,
                                     uint64_t consumerId, uint64_t requestId, CommandSubscribe_SubType subType,
                                     const std::string& consumerName, SubscriptionMode subscriptionMode,
-                                    Optional<MessageId> startMessageId, bool readCompacted) {
+                                    Optional<MessageId> startMessageId, bool readCompacted,
+                                    const std::map<std::string, std::string>& metadata) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -206,6 +210,13 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
             messageIdData.set_batch_index(startMessageId.value().batchIndex());
         }
     }
+    for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
+         it++) {
+        proto::KeyValue* keyValue = proto::KeyValue().New();
+        keyValue->set_key(it->first);
+        keyValue->set_value(it->second);
+        subscribe->mutable_metadata()->AddAllocated(keyValue);
+    }
 
     return writeMessageWithSize(cmd);
 }
@@ -221,13 +232,21 @@ SharedBuffer Commands::newUnsubscribe(uint64_t consumerId, uint64_t requestId) {
 }
 
 SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId,
-                                   const std::string& producerName, uint64_t requestId) {
+                                   const std::string& producerName, uint64_t requestId,
+                                   const std::map<std::string, std::string>& metadata) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::PRODUCER);
     CommandProducer* producer = cmd.mutable_producer();
     producer->set_topic(topic);
     producer->set_producer_id(producerId);
     producer->set_request_id(requestId);
+    for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
+         it++) {
+        proto::KeyValue* keyValue = proto::KeyValue().New();
+        keyValue->set_key(it->first);
+        keyValue->set_value(it->second);
+        producer->mutable_metadata()->AddAllocated(keyValue);
+    }
 
     if (!producerName.empty()) {
         producer->set_producer_name(producerName);
@@ -324,6 +343,18 @@ SharedBuffer Commands::newGetLastMessageId(uint64_t consumerId, uint64_t request
     return buffer;
 }
 
+SharedBuffer Commands::newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::GET_TOPICS_OF_NAMESPACE);
+    CommandGetTopicsOfNamespace* getTopics = cmd.mutable_gettopicsofnamespace();
+    getTopics->set_request_id(requestId);
+    getTopics->set_namespace_(nsName);
+
+    const SharedBuffer buffer = writeMessageWithSize(cmd);
+    cmd.clear_gettopicsofnamespace();
+    return buffer;
+}
+
 std::string Commands::messageType(BaseCommand_Type type) {
     switch (type) {
         case BaseCommand::CONNECT:
@@ -415,6 +446,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
             break;
         case BaseCommand::GET_LAST_MESSAGE_ID_RESPONSE:
             return "GET_LAST_MESSAGE_ID_RESPONSE";
+            break;
+        case BaseCommand::GET_TOPICS_OF_NAMESPACE:
+            return "GET_TOPICS_OF_NAMESPACE";
+            break;
+        case BaseCommand::GET_TOPICS_OF_NAMESPACE_RESPONSE:
+            return "GET_TOPICS_OF_NAMESPACE_RESPONSE";
             break;
     };
 }

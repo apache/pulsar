@@ -97,16 +97,10 @@ public class MessageParser {
                                                                  msgId, msgMetadata, uncompressedPayload,
                                                                  null, null);
                 processor.process(msgId, message, uncompressedPayload);
-
-                uncompressedPayload.release();
-
             } else {
                 // handle batch message enqueuing; uncompressed payload has all messages in batch
-                receiveIndividualMessagesFromBatch(topicName.toString(), msgMetadata, uncompressedPayload,
-                                                   messageId, null, -1, processor);
-                uncompressedPayload.release();
+                receiveIndividualMessagesFromBatch(topicName.toString(), msgMetadata, uncompressedPayload, messageId, null, -1, processor);
             }
-
         } finally {
             if (uncompressedPayload != null) {
                 uncompressedPayload.release();

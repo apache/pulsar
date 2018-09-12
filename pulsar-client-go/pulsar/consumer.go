@@ -20,8 +20,8 @@
 package pulsar
 
 import (
-	"time"
 	"context"
+	"time"
 )
 
 // Pair of a Consumer and Message
@@ -49,12 +49,24 @@ const (
 // ConsumerBuilder is used to configure and create instances of Consumer
 type ConsumerOptions struct {
 	// Specify the topic this consumer will subscribe on.
-	// This argument is required when subscribing
+	// Either a topic, a list of topics or a topics pattern are required when subscribing
 	Topic string
+
+	// Specify a list of topics this consumer will subscribe on.
+	// Either a topic, a list of topics or a topics pattern are required when subscribing
+	Topics []string
+
+	// Specify a regular expression to subscribe to multiple topics under the same namespace.
+	// Either a topic, a list of topics or a topics pattern are required when subscribing
+	TopicsPattern string
 
 	// Specify the subscription name for this consumer
 	// This argument is required when subscribing
 	SubscriptionName string
+
+	// Attach a set of application defined properties to the consumer
+	// This properties will be visible in the topic stats
+	Properties map[string]string
 
 	// Set the timeout for unacked messages
 	// Message not acknowledged within the give time, will be replayed by the broker to the same or a different consumer
@@ -84,6 +96,16 @@ type ConsumerOptions struct {
 
 	// Set the consumer name.
 	Name string
+
+	// If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog
+	// of the topic. This means that, if the topic has been compacted, the consumer will only see the latest value for
+	// each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
+	// point, the messages will be sent as normal.
+	//
+	// ReadCompacted can only be enabled subscriptions to persistent topics, which have a single active consumer (i.e.
+	//  failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent topics or on a
+	//  shared subscription, will lead to the subscription call throwing a PulsarClientException.
+	ReadCompacted bool
 }
 
 // An interface that abstracts behavior of Pulsar's consumer

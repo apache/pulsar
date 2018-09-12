@@ -38,6 +38,10 @@ echo "---- Build Pulsar website using image $IMAGE"
 CI_USER=$(id -u)
 CI_GROUP=$(id -g)
 
-DOCKER_CMD="docker run -i -e CI_USER=$CI_USER -e CI_GROUP=$CI_GROUP -v $ROOT_DIR:/pulsar $IMAGE"
+# crowdin keys
+CROWDIN_DOCUSAURUS_PROJECT_ID=${CROWDIN_DOCUSAURUS_PROJECT_ID:-"apache-pulsar"}
+CROWDIN_DOCUSAURUS_API_KEY=${CROWDIN_DOCUSAURUS_API_KEY:-UNSET}
 
-$DOCKER_CMD bash -l -c 'cd /pulsar/site2/website && yarn && yarn build && node ./scripts/replace.js && cp -R ./build/pulsar /pulsar/generated-site/content/staging'
+DOCKER_CMD="docker run -i -e CI_USER=$CI_USER -e CI_GROUP=$CI_GROUP -e CROWDIN_DOCUSAURUS_PROJECT_ID=${CROWDIN_DOCUSAURUS_PROJECT_ID} -e CROWDIN_DOCUSAURUS_API_KEY=${CROWDIN_DOCUSAURUS_API_KEY} -v $ROOT_DIR:/pulsar $IMAGE"
+
+$DOCKER_CMD bash -l -c 'cd /pulsar/site2/website && yarn && yarn write-translations && yarn run crowdin-upload && yarn run crowdin-download && yarn build && node ./scripts/replace.js && cp -R ./build/pulsar/* /pulsar/generated-site/content'

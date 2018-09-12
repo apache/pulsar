@@ -115,26 +115,29 @@ class Footer extends React.Component {
   render() {
     const currentYear = new Date().getFullYear();
 
-    const contactUrl = this.pageUrl('contact')
-    const eventsUrl = this.pageUrl('events')
+    const contactUrl = this.pageUrl('contact', this.props.language)
+    const eventsUrl = this.pageUrl('events', this.props.language)
     const twitterUrl = 'https://twitter.com/Apache_Pulsar'
     const wikiUrl = 'https://github.com/apache/incubator-pulsar/wiki'
     const issuesUrl = 'https://github.com/apache/incubator-pulsar/issues'
-    const resourcesUrl = this.pageUrl('resources')
-    const teamUrl = this.pageUrl('team')
+    const resourcesUrl = this.pageUrl('resources', this.props.language)
+    const teamUrl = this.pageUrl('team', this.props.language)
+    const contributingUrl = this.pageUrl('contributing', this.props.language)
 
     const communityMenuJs = `
       const community = document.querySelector("a[href='#community']").parentNode;
-      const communityMenu = 
+      const communityMenu =
         '<li>' +
-        '<a id="community-menu" href="#">Community</a>' + 
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
         '<div id="community-dropdown" class="hide">' +
           '<ul id="community-dropdown-items">' +
-            '<li><a href="${contactUrl}">Contant</a></li>' +
+            '<li><a href="${contactUrl}">Contact</a></li>' +
+            '<li><a href="${contributingUrl}">Contributing</a></li>' +
             '<li><a href="${eventsUrl}">Events</a></li>' +
-            '<li><a href="${twitterUrl}">Twitter</a></li>' +
-            '<li><a href="${wikiUrl}">Wiki</a></li>' +
-            '<li><a href="${issuesUrl}">Issue tracking</a></li>' +
+            '<li><a href="${twitterUrl}" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="${wikiUrl}" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="${issuesUrl}" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
             '<li><a href="${resourcesUrl}">Resources</a></li>' +
             '<li><a href="${teamUrl}">Team</a></li>' +
           '</ul>' +

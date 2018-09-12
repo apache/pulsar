@@ -10,7 +10,7 @@ sidebar_label: Geo-replication
 
 The diagram below illustrates the process of geo-replication across Pulsar clusters:
 
-![Replication Diagram](/docs/assets/geo-replication.png)
+![Replication Diagram](assets/geo-replication.png)
 
 In this diagram, whenever producers **P1**, **P2**, and **P3** publish messages to the topic **T1** on clusters **Cluster-A**, **Cluster-B**, and **Cluster-C**, respectively, those messages are instantly replicated across clusters. Once replicated, consumers **C1** and **C2** can consume those messages from their respective clusters.
 
@@ -18,7 +18,7 @@ Without geo-replication, consumers **C1** and **C2** wouldn't be able to consume
 
 ## Geo-replication and Pulsar properties
 
-Geo-replication must be enabled on a per-tenant basis in Pulsar. Geo-replication can be enabled between clusters only when a property has been created that allows access to both clusters.
+Geo-replication must be enabled on a per-tenant basis in Pulsar. Geo-replication can be enabled between clusters only when a tenant has been created that allows access to both clusters.
 
 Although geo-replication must be enabled between two clusters, it's actually managed at the namespace level. You must do the following to enable geo-replication for a namespace:
 
@@ -44,21 +44,21 @@ All messages produced in any cluster will be delivered to all subscriptions in a
 
 ## Configuring replication
 
-As stated [above](#geo-replication-and-pulsar-properties), geo-replication in Pulsar is managed at the {% popover property %} level.
+As stated [above](#geo-replication-and-pulsar-properties), geo-replication in Pulsar is managed at the [tenant](reference-terminology.md#tenant) level.
 
 ### Granting permissions to properties
 
-To establish replication to a cluster, the tenant needs permission to use that cluster. This permission can be granted when the property is created or later on.
+To establish replication to a cluster, the tenant needs permission to use that cluster. This permission can be granted when the tenant is created or later on.
 
 At creation time, specify all the intended clusters:
 
 ```shell
-$ bin/pulsar-admin properties create my-property \
+$ bin/pulsar-admin properties create my-tenant \
   --admin-roles my-admin-role \
   --allowed-clusters us-west,us-east,us-cent
 ```
 
-To update permissions of an existing property, use `update` instead of `create`.
+To update permissions of an existing tenant, use `update` instead of `create`.
 
 ### Creating global namespaces
 
@@ -87,7 +87,7 @@ Once you've created a global namespace, any topics that producers or consumers c
 
 By default, messages are replicated to all clusters configured for the namespace. You can restrict replication selectively by specifying a replication list for a message. That message will then be replicated only to the subset in the replication list.
 
-Below is an example for the [Java API](client-libraries-java.md). Note the use of the `setReplicationClusters` method when constructing the {% javadoc Message client org.apache.pulsar.client.api.Message %} object:
+Below is an example for the [Java API](client-libraries-java.md). Note the use of the `setReplicationClusters` method when constructing the {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} object:
 
 ```java
 List<String> restrictReplicationTo = Arrays.asList(
@@ -107,7 +107,7 @@ producer.newMessage()
 
 #### Topic stats
 
-Topic-specific statistics for global topics are available via the [`pulsar-admin`](reference-pulsar-admin.md) tool and [REST API](reference-rest-api.md):
+Topic-specific statistics for global topics are available via the [`pulsar-admin`](reference-pulsar-admin.md) tool and {@inject: rest:REST:/} API:
 
 ```shell
 $ bin/pulsar-admin persistent stats persistent://my-tenant/my-namespace/my-topic
@@ -119,6 +119,8 @@ Each cluster reports its own local stats, including incoming and outgoing replic
 
 Given that global topics exist in multiple regions, it's not possible to directly delete a global topic. Instead, you should rely on automatic topic garbage collection.
 
-In Pulsar, a topic is automatically deleted when it's no longer used, that is to say, when no producers or consumers are connected *and* there are no subscriptions. For global topics, each region will use a fault-tolerant mechanism to decide when it's safe to delete the topic locally.
+In Pulsar, a topic is automatically deleted when it's no longer used, that is to say, when no producers or consumers are connected *and* there are no subscriptions *and* no more messages are kept for retention. For global topics, each region will use a fault-tolerant mechanism to decide when it's safe to delete the topic locally.
+
+You can explicitly disable topic garbage collection by setting `brokerDeleteInactiveTopicsEnabled` to `false` in your [broker configuration](reference-configuration#broker).
 
 To delete a global topic, close all producers and consumers on the topic and delete all its local subscriptions in every replication cluster. When Pulsar determines that no valid subscription for the topic remains across the system, it will garbage collect the topic.

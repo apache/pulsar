@@ -33,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.utils.Utils;
 import static org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime.PYTHON;
@@ -63,8 +64,9 @@ public class RuntimeSpawner implements AutoCloseable {
     }
 
     public void start() throws Exception {
-        log.info("RuntimeSpawner starting function {} - {}", this.instanceConfig.getFunctionDetails().getName(),
-                this.instanceConfig.getInstanceId());
+        FunctionDetails details = this.instanceConfig.getFunctionDetails();
+        log.info("{}/{}/{}-{} RuntimeSpawner starting function", details.getTenant(), details.getNamespace(),
+                details.getName(), this.instanceConfig.getInstanceId());
 
         if (instanceConfig.getFunctionDetails().getRuntime() == PYTHON
                 && instanceConfig.getFunctionDetails().getSource() != null
@@ -82,8 +84,8 @@ public class RuntimeSpawner implements AutoCloseable {
                 @Override
                 public void run() {
                     if (!runtime.isAlive()) {
-                        log.error("Function Container is dead with exception", runtime.getDeathException());
-                        log.error("Restarting...");
+                        log.error("{}/{}/{}-{} Function Container is dead with exception.. restarting", details.getTenant(),
+                                details.getNamespace(), details.getName(), runtime.getDeathException());
                         // Just for the sake of sanity, just destroy the runtime
                         runtime.stop();
                         runtimeDeathException = runtime.getDeathException();
@@ -117,7 +119,8 @@ public class RuntimeSpawner implements AutoCloseable {
             try {
                 return Utils.printJson(msg);
             } catch (IOException e) {
-                throw new RuntimeException("Exception parsing getstatus", e);
+                throw new RuntimeException(
+                        instanceConfig.getFunctionDetails().getName() + " Exception parsing getstatus", e);
             }
         });
     }

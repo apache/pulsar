@@ -1,7 +1,7 @@
 ---
 id: client-libraries-websocket
 title: Pulsar's WebSocket API
-sidebar_label: WebSocket API
+sidebar_label: WebSocket
 ---
 
 Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages that do not have an official [client library](getting-started-clients.md). Through WebSockets you can publish and consume messages and use all the features available in the [Java](client-libraries-java.md), [Python](client-libraries-python.md), and [C++](client-libraries-cpp.md) client libraries.
@@ -28,7 +28,7 @@ webSocketServiceEnabled=true
 
 ### As a separate component
 
-In this mode, the WebSocket service will be run from a Pulsar {% popover broker %} as a separate service. Configuration for this mode is handled in the [`conf/websocket.conf`](reference-configuration.md#websocket) configuration file. You'll need to set *at least* the following parameters:
+In this mode, the WebSocket service will be run from a Pulsar [broker](reference-terminology.md#broker) as a separate service. Configuration for this mode is handled in the [`conf/websocket.conf`](reference-configuration.md#websocket) configuration file. You'll need to set *at least* the following parameters:
 
 * [`globalZookeeperServers`](reference-configuration.md#websocket-globalZookeeperServers)
 * [`webServicePort`](reference-configuration.md#websocket-webServicePort)
@@ -96,7 +96,7 @@ Key | Type | Required? | Explanation
 `properties` | key-value pairs | no | Application-defined properties
 `context` | string | no | Application-defined request identifier
 `key` | string | no | For partitioned topics, decides which partition to use
-`replicationClusters` | array | no | Restrict replication to this list of {% popover clusters %}, specified by name
+`replicationClusters` | array | no | Restrict replication to this list of [clusters](reference-terminology.md#cluster), specified by name
 
 
 ##### Example success response
@@ -250,7 +250,7 @@ Error Code | Error Message
 7 | Invalid payload encoding
 8 | Unknown error
 
-{% include admonition.html type='warning' content='The application is responsible for re-establishing a new WebSocket session after a backoff period.' %}
+> The application is responsible for re-establishing a new WebSocket session after a backoff period.
 
 ## Client examples
 
@@ -268,7 +268,7 @@ You can also download it from [PyPI](https://pypi.python.org/pypi/websocket-clie
 
 #### Python producer
 
-Here's an example Python producer that sends a simple message to a Pulsar {% popover topic %}:
+Here's an example Python producer that sends a simple message to a Pulsar [topic](reference-terminology.md#topic):
 
 ```python
 import websocket, base64, json

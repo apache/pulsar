@@ -35,6 +35,8 @@ struct ConsumerConfigurationImpl {
     CryptoKeyReaderPtr cryptoKeyReader;
     ConsumerCryptoFailureAction cryptoFailureAction;
     bool readCompacted;
+    int patternAutoDiscoveryPeriod;
+    std::map<std::string, std::string> properties;
     ConsumerConfigurationImpl()
         : unAckedMessagesTimeoutMs(0),
           consumerType(ConsumerExclusive),
@@ -45,7 +47,9 @@ struct ConsumerConfigurationImpl {
           maxTotalReceiverQueueSizeAcrossPartitions(50000),
           cryptoKeyReader(),
           cryptoFailureAction(ConsumerCryptoFailureAction::FAIL),
-          readCompacted(false) {}
+          readCompacted(false),
+          patternAutoDiscoveryPeriod(60),
+          properties() {}
 };
 }  // namespace pulsar
 #endif /* LIB_CONSUMERCONFIGURATIONIMPL_H_ */

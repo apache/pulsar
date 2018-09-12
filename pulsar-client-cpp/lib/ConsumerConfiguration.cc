@@ -20,6 +20,8 @@
 
 namespace pulsar {
 
+const static std::string emptyString;
+
 ConsumerConfiguration::ConsumerConfiguration() : impl_(boost::make_shared<ConsumerConfigurationImpl>()) {}
 
 ConsumerConfiguration::~ConsumerConfiguration() {}
@@ -104,5 +106,41 @@ ConsumerConfiguration& ConsumerConfiguration::setCryptoFailureAction(ConsumerCry
 bool ConsumerConfiguration::isReadCompacted() const { return impl_->readCompacted; }
 
 void ConsumerConfiguration::setReadCompacted(bool compacted) { impl_->readCompacted = compacted; }
+
+void ConsumerConfiguration::setPatternAutoDiscoveryPeriod(int periodInSeconds) {
+    impl_->patternAutoDiscoveryPeriod = periodInSeconds;
+}
+
+int ConsumerConfiguration::getPatternAutoDiscoveryPeriod() const { return impl_->patternAutoDiscoveryPeriod; }
+
+bool ConsumerConfiguration::hasProperty(const std::string& name) const {
+    const std::map<std::string, std::string>& m = impl_->properties;
+    return m.find(name) != m.end();
+}
+
+const std::string& ConsumerConfiguration::getProperty(const std::string& name) const {
+    if (hasProperty(name)) {
+        const std::map<std::string, std::string>& m = impl_->properties;
+        return m.at(name);
+    } else {
+        return emptyString;
+    }
+}
+
+std::map<std::string, std::string>& ConsumerConfiguration::getProperties() const { return impl_->properties; }
+
+ConsumerConfiguration& ConsumerConfiguration::setProperty(const std::string& name, const std::string& value) {
+    impl_->properties.insert(std::make_pair(name, value));
+    return *this;
+}
+
+ConsumerConfiguration& ConsumerConfiguration::setProperties(
+    const std::map<std::string, std::string>& properties) {
+    for (std::map<std::string, std::string>::const_iterator it = properties.begin(); it != properties.end();
+         it++) {
+        setProperty(it->first, it->second);
+    }
+    return *this;
+}
 
 }  // namespace pulsar

@@ -69,10 +69,6 @@ groups:
     endpoint: instance
   - title: Pulsar on Kubernetes
     endpoint: Kubernetes
-  - title: Pulsar on Google Kubernetes Engine
-    endpoint: Kubernetes/#pulsar-on-google-kubernetes-engine
-  - title: Pulsar on AWS
-    endpoint: Kubernetes/#pulsar-on-amazon-web-services
   - title: Pulsar on DC/OS
     endpoint: dcos
   - title: Monitoring
@@ -99,7 +95,9 @@ groups:
   docs:
   - title: Overview
     endpoint: overview
-  - title: Encryption and Authentication using TLS
+  - title: Transport Encryption with TLS
+    endpoint: tls-transport
+  - title: Authentication using TLS
     endpoint: tls
   - title: Authentication using Athenz
     endpoint: athenz

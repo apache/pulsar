@@ -29,6 +29,6 @@ import javax.ws.rs.core.MediaType;
 @Path("/properties")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Api(value = "/properties", description = "TenantsBase admin apis", tags = "properties")
+@Api(value = "/properties", description = "TenantsBase admin apis", tags = "properties", hidden = true)
 public class Properties extends TenantsBase {
 }

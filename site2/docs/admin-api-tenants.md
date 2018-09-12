@@ -15,7 +15,7 @@ Tenants, like namespaces, can be managed using the [admin API](admin-api-overvie
 
 #### pulsar-admin
 
-You can list all of the tenants associated with an {% popover instance %} using the [`list`](reference-pulsar-admin.md#tenants-list) subcommand:
+You can list all of the tenants associated with an [instance](reference-terminology.md#instance) using the [`list`](reference-pulsar-admin.md#tenants-list) subcommand:
 
 ```shell
 $ pulsar-admin tenants list
@@ -70,7 +70,7 @@ $ pulsar-admin tenants get my-tenant
 
 ### Delete
 
-#### pulsar-adnin
+#### pulsar-admin
 
 You can delete a tenant using the [`delete`](reference-pulsar-admin.md#tenants-delete) subcommand and specifying the tenant name:
 

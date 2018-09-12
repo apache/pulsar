@@ -7,91 +7,131 @@ const GridBlock = CompLibrary.GridBlock;
 
 const CWD = process.cwd();
 
+const translate = require('../../server/translate.js').translate;
+
 const siteConfig = require(`${CWD}/siteConfig.js`);
-//const versions = require(CWD + '/versions.json');
+// versions post docusaurus
+const versions = require(`${CWD}/versions.json`);
+// versions pre docusaurus
+const oldversions = require(`${CWD}/oldversions.json`);
 
-/*
-class Versions extends React.Component {
-  render() {
-    const latestVersion = versions[0];
+function Versions(props) {
+    const latestStableVersion = versions[0];
+    const repoUrl = `https://github.com/${siteConfig.organizationName}/${
+      siteConfig.projectName
+    }`;
     return (
-      <div className="docMainWrapper wrapper">
-        <Container className="mainContainer versionsContainer">
-          <div className="post">
-            <header className="postHeader">
-              <h2>{siteConfig.title + ' Versions'}</h2>
-            </header>
-            <p>New versions of this project are released every so often.</p>
-            <h3 id="latest">Current version (Stable)</h3>
-            <table className="versions">
-              <tbody>
-                <tr>
-                  <th>{latestVersion}</th>
-                  <td>
-                    <a href={''}>Documentation</a>
-                  </td>
-                  <td>
-                    <a href={''}>Release Notes</a>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <p>
-              This is the version that is configured automatically when you
-              first install this project.
-            </p>
-            <h3 id="rc">Pre-release versions</h3>
-            <table className="versions">
-              <tbody>
-                <tr>
-                  <th>master</th>
-                  <td>
-                    <a href={''}>Documentation</a>
-                  </td>
-                  <td>
-                    <a href={''}>Release Notes</a>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <p>Other text describing this section.</p>
-            <h3 id="archive">Past Versions</h3>
-            <table className="versions">
-              <tbody>
-                {versions.map(
-                  version =>
-                    version !== latestVersion && (
-                      <tr>
-                        <th>{version}</th>
-                        <td>
-                          <a href={''}>Documentation</a>
-                        </td>
-                        <td>
-                          <a href={''}>Release Notes</a>
-                        </td>
-                      </tr>
-                    )
-                )}
-              </tbody>
-            </table>
-            <p>
-              You can find past versions of this project{' '}
-              <a href="https://github.com/"> on GitHub </a>.
-            </p>
-          </div>
-        </Container>
-      </div>
-    );
-  }
+    <div className="pageContainer">
+      <Container className="mainContainer documentContainer postContainer">
+        <div className="post">
+          <header className="postHeader">
+            <h1>{siteConfig.title} <translate>Versions</translate></h1>
+          </header>
+          <h3 id="latest"><translate>Latest Stable Version</translate></h3>
+          <p><translate>Latest stable release of Apache Pulsar.</translate></p>
+          <table className="versions">
+            <tbody>
+              <tr>
+                <th>{latestStableVersion}</th>
+                <td>
+                  <a
+                    href={`${siteConfig.baseUrl}docs/${props.language}/standalone`}>
+                    <translate>
+                    Documentation
+                    </translate>
+                  </a>
+                </td>
+                <td>
+                  <a href={`${siteConfig.baseUrl}release-notes#${latestStableVersion}`}>
+                    <translate>
+                    Release Notes
+                    </translate>
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <h3 id="rc"><translate>Latest Version</translate></h3>
+          <translate>
+          Here you can find the latest documentation and unreleased code.
+          </translate>
+          <table className="versions">
+            <tbody>
+              <tr>
+                <th>master</th>
+                <td>
+                  <a
+                    href={`${siteConfig.baseUrl}docs/${props.language}/next/standalone`}>
+                    <translate>Documentation</translate>
+                  </a>
+                </td>
+                <td>
+                  <a href={repoUrl}><translate>Source Code</translate></a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <h3 id="archive"><translate>Past Versions</translate></h3>
+          <p>
+          <translate>
+            Here you can find documentation for previous versions of Apache Pulsar.
+          </translate>
+          </p>
+          <table className="versions">
+            <tbody>
+              {versions.map(
+                version =>
+                  version !== latestStableVersion && (
+                    <tr key={version}>
+                      <th>{version}</th>
+                      <td>
+                        <a
+                          href={`${siteConfig.baseUrl}docs/${props.language}/${version}/standalone`}>
+                          <translate>Documentation</translate>
+                        </a>
+                      </td>
+                      <td>
+                        <a href={`${siteConfig.baseUrl}release-notes#${version}`}>
+                          <translate>Release Notes</translate>
+                        </a>
+                      </td>
+                    </tr>
+                  )
+              )}
+              {oldversions.map(
+                version =>
+                  version !== latestStableVersion && (
+                    <tr key={version}>
+                      <th>{version}</th>
+                      <td>
+                        <a
+                          href={`${siteConfig.baseUrl}docs/v${version}/getting-started/LocalCluster/`}>
+                          <translate>Documentation</translate>
+                        </a>
+                      </td>
+                      <td>
+                        <a href={`${siteConfig.baseUrl}release-notes#${version}`}>
+                          <translate>Release Notes</translate>
+                        </a>
+                      </td>
+                    </tr>
+                  )
+              )}
+            </tbody>
+          </table>
+          <p>
+          <translate>
+            You can find past versions of this project on{' '}
+            <a href={`${repoUrl}/releases`}>GitHub</a> or download from{' '}
+            <a href={`${siteConfig.baseUrl}download`}>Apache</a>.
+          </translate>
+          </p>
+        </div>
+      </Container>
+    </div>
+  );
 }
-*/
 
-class Versions extends React.Component {
-  render() {
-    return (
-      <h3>versions</h3>
-    );
-  }
-}
+Versions.title = 'Versions';
 
 module.exports = Versions;

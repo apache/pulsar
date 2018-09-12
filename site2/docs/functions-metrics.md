@@ -7,7 +7,7 @@ sidebar_label: Metrics
 Pulsar Functions can publish arbitrary metrics to the metrics interface which can then be queried. This doc contains instructions for publishing metrics using the [Java](#java-sdk) and [Python](#python-sdk) Pulsar Functions SDKs.
 
 > #### Metrics and stats not available through language-native interfaces
-> If a Pulsar Function uses the language-native interface for [Java](functions-api.md#java-native) or [Python](#python-native), that function will not be able to publish metrics and stats to Pulsar.
+> If a Pulsar Function uses the language-native interface for [Java](functions-api.md#java-native-functions) or [Python](#python-native-functions), that function will not be able to publish metrics and stats to Pulsar.
 
 ## Accessing metrics
 
@@ -15,7 +15,7 @@ For a guide to accessing metrics created by Pulsar Functions, see the guide to [
 
 ## Java SDK
 
-If you're creating a Pulsar Function using the [Java SDK](functions-api.md#java-sdk), the {% javadoc Context client org.apache.pulsar.functions.api.Context %} object has a `recordMetric` method that you can use to register both a name for the metric and a value. Here's the signature for that method:
+If you're creating a Pulsar Function using the [Java SDK](functions-api.md#java-sdk-functions), the {@inject: javadoc:Context:/pulsar-functions/org/apache/pulsar/functions/api/Context} object has a `recordMetric` method that you can use to register both a name for the metric and a value. Here's the signature for that method:
 
 ```java
 void recordMetric(String metricName, double value);
@@ -40,4 +40,4 @@ This function counts the length of each incoming message (of type `String`) and 
 
 ## Python SDK
 
-Documentation for the [Python SDK](functions-api.md#python-sdk) is coming soon.
+Documentation for the [Python SDK](functions-api.md#python-sdk-functions) is coming soon.

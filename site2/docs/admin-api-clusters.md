@@ -4,13 +4,14 @@ title: Managing Clusters
 sidebar_label: Clusters
 ---
 
-Pulsar clusters consist of one or more Pulsar {% popover brokers %}, one or more {% popover BookKeeper %} servers (aka {% popover bookies %}), and a {% popover ZooKeeper %} cluster that provides configuration and coordination management.
+Pulsar clusters consist of one or more Pulsar [brokers](reference-terminology.md#broker), one or more [BookKeeper](reference-terminology.md#bookkeeper)
+servers (aka [bookies](reference-terminology.md#bookie)), and a [ZooKeeper](https://zookeeper.apache.org) cluster that provides configuration and coordination management.
 
 Clusters can be managed via:
 
 * The [`clusters`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
-* The `/admin/clusters` endpoint of the admin [REST API](reference-rest-api.md)
-* The `clusters` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](client-libraries-java.md)
+* The `/admin/v2/clusters` endpoint of the admin {@inject: rest:REST:/} API
+* The `clusters` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md)
 
 ## Clusters resources
 
@@ -19,8 +20,6 @@ Clusters can be managed via:
 New clusters can be provisioned using the admin interface.
 
 > Please note that this operation requires superuser privileges.
-
-{% include message.html id="superuser" %}
 
 #### pulsar-admin
 
@@ -34,9 +33,7 @@ $ pulsar-admin clusters create cluster-1 \
 
 #### REST API
 
-{% endpoint PUT /admin/clusters/:cluster %}
-
-[More info](reference-rest-api.md#/admin/clusters/:cluster)
+{@inject: endpoint|PUT|/admin/v2/clusters/:cluster|operation/createCluster}
 
 #### Java
 
@@ -52,19 +49,22 @@ admin.clusters().createCluster(clusterName, clusterData);
 
 ### Initialize cluster metadata
 
-When provision a new cluster, you need to initialize that cluster's [metadata](getting-started-concepts-and-architecture.md#metadata-store). When initializing cluster metadata, you need to specify all of the following:
+When provision a new cluster, you need to initialize that cluster's [metadata](concepts-architecture-overview.md#metadata-store). When initializing cluster metadata, you need to specify all of the following:
 
 * The name of the cluster
 * The local ZooKeeper connection string for the cluster
 * The global ZooKeeper connection string for the entire instance
 * The web service URL for the cluster
-* A broker service URL enabling interaction with the {% popover brokers %} in the cluster
+* A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
 
 You must initialize cluster metadata *before* starting up any [brokers](admin-api-brokers.md) that will belong to the cluster.
 
-{% include admonition.html type="warning" title="No cluster metadata initialization through the REST API or the Java admin API" content='
-Unlike most other admin functions in Pulsar, cluster metadata initialization cannot be performed via the admin REST API or the admin Java client, as metadata initialization involves communicating with ZooKeeper directly. Instead, you can use the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool, in particular the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command.
-' %}
+> #### No cluster metadata initialization through the REST API or the Java admin API
+>
+> Unlike most other admin functions in Pulsar, cluster metadata initialization cannot be performed via the admin REST API
+> or the admin Java client, as metadata initialization involves communicating with ZooKeeper directly.
+> Instead, you can use the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool, in particular
+> the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command.
 
 Here's an example cluster metadata initialization command:
 
@@ -79,7 +79,7 @@ bin/pulsar initialize-cluster-metadata \
   --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
 ```
 
-You'll need to use `--*-tls` flags only if you're using [TLS authentication](administration-auth.md#tls-client-auth) in your instance.
+You'll need to use `--*-tls` flags only if you're using [TLS authentication](security-tls-authentication.md) in your instance.
 
 ### Get configuration
 
@@ -102,9 +102,7 @@ $ pulsar-admin clusters get cluster-1
 
 #### REST API
 
-{% endpoint GET /admin/clusters/:cluster %}
-
-[More info](reference-rest-api.md#/admin/clusters/:cluster)
+{@inject: endpoint|GET|/admin/v2/clusters/:cluster|operation/getCluster}
 
 #### Java
 
@@ -128,9 +126,7 @@ $ pulsar-admin clusters update cluster-1 \
 
 #### REST
 
-{% endpoint POST /admin/clusters/:cluster %}
-
-[More info](reference-rest-api.md#/admin/clusters/:cluster)
+{@inject: endpoint|POST|/admin/v2/clusters/:cluster|operation/updateCluster}
 
 #### Java
 
@@ -146,7 +142,7 @@ admin.clusters().updateCluster(clusterName, clusterData);
 
 ### Delete
 
-Clusters can be deleted from a Pulsar {% popover instance %}.
+Clusters can be deleted from a Pulsar [instance](reference-terminology.md#instance).
 
 #### pulsar-admin
 
@@ -158,9 +154,7 @@ $ pulsar-admin clusters delete cluster-1
 
 #### REST API
 
-{% endpoint DELETE /admin/clusters/:cluster %}
-
-[More info](reference-rest-api.md#/admin/clusters/:cluster)
+{@inject: endpoint|DELETE|/admin/v2/clusters/:cluster|operation/deleteCluster}
 
 #### Java
 
@@ -170,7 +164,7 @@ admin.clusters().deleteCluster(clusterName);
 
 ### List
 
-You can fetch a list of all clusters in a Pulsar {% popover instance %}.
+You can fetch a list of all clusters in a Pulsar [instance](reference-terminology.md#instance).
 
 #### pulsar-admin
 
@@ -184,9 +178,7 @@ cluster-2
 
 #### REST API
 
-{% endpoint GET /admin/clusters %}
-
-[More info](reference-rest-api.md#/admin/clusters)
+{@inject: endpoint|GET|/admin/v2/clusters|operation/getClusters}
 
 ###### Java
 
@@ -196,7 +188,7 @@ admin.clusters().getClusters();
 
 ### Update peer-cluster data
 
-Peer clusters can be configured for a given cluster in a Pulsar {% popover instance %}.
+Peer clusters can be configured for a given cluster in a Pulsar [instance](reference-terminology.md#instance).
 
 #### pulsar-admin
 
@@ -208,9 +200,7 @@ $ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 
 #### REST API
 
-{% endpoint POST /admin/clusters/:cluster/peers %}
-
-[More info](reference-rest-api.md#/admin/clusters/:cluster/peers)
+{@inject: endpoint|POST|/admin/v2/clusters/:cluster/peers|operation/setPeerClusterNames}
 
 #### Java
 

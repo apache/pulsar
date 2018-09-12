@@ -4,13 +4,13 @@ title: Non-persistent messaging
 sidebar_label: Partitioned Topics
 ---
 
-By default, Pulsar topics are served by a single broker. Using only a single broker, however, limits a topic's maximum throughput. *Partitioned topics* are a special type of topic that can span multiple brokers and thus allow for much higher throughput. For an explanation of how partitioned topics work, see the [Concepts](#concepts) section below.
+By default, Pulsar topics are served by a single broker. Using only a single broker, however, limits a topic's maximum throughput. *Partitioned topics* are a special type of topic that can span multiple brokers and thus allow for much higher throughput. For an explanation of how partitioned topics work, see the [Partitioned Topics](concepts-messaging.md#partitioned-topics) concepts.
 
 You can [publish](#publishing-to-partitioned-topics) to partitioned topics using Pulsar's client libraries and you can [create and manage](#managing-partitioned-topics) partitioned topics using Pulsar's [admin API](admin-api-overview.md).
 
 ## Publishing to partitioned topics
 
-When publishing to partitioned topics, the only difference from non-partitioned topics is that you need to specify a [routing mode](getting-started-concepts-and-architecture.md#routing-modes) when you create a new {% popover producer %}. Examples for [Java](#java) are below.
+When publishing to partitioned topics, the only difference from non-partitioned topics is that you need to specify a [routing mode](concepts-messaging.md#routing-modes) when you create a new [producer](reference-terminology.md#producer). Examples for [Java](#java) are below.
 
 ### Java
 
@@ -39,7 +39,7 @@ producer.send("Partitioned topic message".getBytes());
 
 #### Custom message router
 
-To use a custom message router, you need to provide an implementation of the {% javadoc MessageRouter client org.apache.pulsar.client.api.MessageRouter %} interface, which has just one `choosePartition` method:
+To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
 
 ```java
 public interface MessageRouter extends Serializable {
@@ -61,7 +61,7 @@ With that implementation in hand, you can send
 
 ```java
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
-String topic = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
 
 PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
 ProducerConfiguration config = new ProducerConfiguration();
@@ -70,16 +70,6 @@ Producer producer = client.createProducer(topic, config);
 producer.send("Partitioned topic message".getBytes());
 ```
 
-
-## Pulsar admin setup
-
-{% include explanations/admin-setup.md %}
-
 ## Managing partitioned topics
 
-{% include explanations/partitioned-topic-admin.md %}
-
-## Concepts
-
-{% include explanations/partitioned-topics.md %}
-
+You can use Pulsar's [admin API](admin-api-overview.md) to create and manage [partitioned topics](admin-api-partitioned-topics.md).

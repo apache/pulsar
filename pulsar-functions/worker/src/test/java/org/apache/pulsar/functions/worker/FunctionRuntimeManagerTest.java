@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
@@ -86,11 +87,14 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+        
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                pulsarClient,
+                workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class)
@@ -180,11 +184,14 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         // test new assignment delete functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                pulsarClient,
+                workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class)
@@ -278,11 +285,14 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         // test new assignment update functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                pulsarClient,
+                workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class)
@@ -378,12 +388,10 @@ public class FunctionRuntimeManagerTest {
                                         .build()))));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
-
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 2);
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment3);
     }
-
 }

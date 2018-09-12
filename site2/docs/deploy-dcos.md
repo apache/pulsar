@@ -4,6 +4,11 @@ title: Deploying Pulsar on DC/OS
 sidebar_label: DC/OS
 ---
 
+> ### Tips
+>
+> If you want to enable all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
+> `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
+
 [DC/OS](https://dcos.io/) (the <strong>D</strong>ata<strong>C</strong>enter <strong>O</strong>perating <strong>S</strong>ystem) is a distributed operating system used for deploying and managing applications and systems on [Apache Mesos](http://mesos.apache.org/). DC/OS is an open-source tool created and maintained by [Mesosphere](https://mesosphere.com/).
 
 Apache Pulsar is available as a [Marathon Application Group](https://mesosphere.github.io/marathon/docs/application-groups.html), which runs multiple applications as manageable sets.
@@ -39,8 +44,8 @@ $ dcos marathon group add PulsarGroups.json
 
 This command will deploy Docker container instances in three groups, which together comprise a Pulsar cluster:
 
-* 3 bookies (1 {% popover bookie %} on each agent node and 1 [bookie recovery](http://bookkeeper.apache.org/docs/latest/admin/autorecovery/) instance)
-* 3 Pulsar {% popover brokers %} (1 broker on each node and 1 admin instance)
+* 3 bookies (1 [bookie](reference-terminology.md#bookie) on each agent node and 1 [bookie recovery](http://bookkeeper.apache.org/docs/latest/admin/autorecovery/) instance)
+* 3 Pulsar [brokers](reference-terminology.md#broker) (1 broker on each node and 1 admin instance)
 * 1 [Prometheus](http://prometheus.io/) instance and 1 [Grafana](https://grafana.com/) instance
 
 
@@ -48,69 +53,69 @@ This command will deploy Docker container instances in three groups, which toget
 
 After executing the `dcos` command above, click on the **Services** tab in the DC/OS [GUI interface](https://docs.mesosphere.com/latest/gui/), which you can access at [http://m1.dcos](http://m1.dcos) in this example. You should see several applications in the process of deploying.
 
-![DC/OS command executed](/docs/assets/dcos_command_execute.png)
+![DC/OS command executed](assets/dcos_command_execute.png)
 
-![DC/OS command executed2](/docs/assets/dcos_command_execute2.png)
+![DC/OS command executed2](assets/dcos_command_execute2.png)
 
 ## The BookKeeper group
 
 To monitor the status of the BookKeeper cluster deployment, click on the **bookkeeper** group in the parent **pulsar** group.
 
-![DC/OS bookkeeper status](/docs/assets/dcos_bookkeeper_status.png)
+![DC/OS bookkeeper status](assets/dcos_bookkeeper_status.png)
 
-At this point, 3 {% popover bookies %} should be shown as green, which means that they have been deployed successfully and are now running.
+At this point, 3 [bookies](reference-terminology.md#bookie) should be shown as green, which means that they have been deployed successfully and are now running.
  
-![DC/OS bookkeeper running](/docs/assets/dcos_bookkeeper_run.png)
+![DC/OS bookkeeper running](assets/dcos_bookkeeper_run.png)
  
 You can also click into each bookie instance to get more detailed info, such as the bookie running log.
 
-![DC/OS bookie log](/docs/assets/dcos_bookie_log.png)
+![DC/OS bookie log](assets/dcos_bookie_log.png)
 
 To display information about the BookKeeper in ZooKeeper, you can visit [http://m1.dcos/exhibitor](http://m1.dcos/exhibitor). In this example, there are 3 bookies under the `available` directory.
 
-![DC/OS bookkeeper in zk](/docs/assets/dcos_bookkeeper_in_zookeeper.png)
+![DC/OS bookkeeper in zk](assets/dcos_bookkeeper_in_zookeeper.png)
 
 ## The Pulsar broker Group
 
 Similar to the BookKeeper group above, click into the **brokers** to check the status of the Pulsar brokers.
 
-![DC/OS broker status](/docs/assets/dcos_broker_status.png)
+![DC/OS broker status](assets/dcos_broker_status.png)
 
-![DC/OS broker running](/docs/assets/dcos_broker_run.png)
+![DC/OS broker running](assets/dcos_broker_run.png)
 
 You can also click into each broker instance to get more detailed info, such as the broker running log.
 
-![DC/OS broker log](/docs/assets/dcos_broker_log.png)
+![DC/OS broker log](assets/dcos_broker_log.png)
 
 Broker cluster information in Zookeeper is also available through the web UI. In this example, you can see that that the `loadbalance` and `managed-ledgers` directories have been created.
 
-![DC/OS broker in zk](/docs/assets/dcos_broker_in_zookeeper.png)
+![DC/OS broker in zk](assets/dcos_broker_in_zookeeper.png)
 
 ## Monitor Group
 
 The **monitory** group consists of Prometheus and Grafana.
 
-![DC/OS monitor status](/docs/assets/dcos_monitor_status.png)
+![DC/OS monitor status](assets/dcos_monitor_status.png)
 
 ### Prometheus
 
 Click into the instance of `prom` to get the endpoint of Prometheus, which is `192.168.65.121:9090` in this example.
 
-![DC/OS prom endpoint](/docs/assets/dcos_prom_endpoint.png)
+![DC/OS prom endpoint](assets/dcos_prom_endpoint.png)
 
 If you click that endpoint, you'll see the Prometheus dashboard. The [http://192.168.65.121:9090/targets](http://192.168.65.121:9090/targets) URL will display all the bookies and brokers.
 
-![DC/OS prom targets](/docs/assets/dcos_prom_targets.png)
+![DC/OS prom targets](assets/dcos_prom_targets.png)
 
 ### Grafana
 
 Click into `grafana` to get the endpoint for Grafana, which is `192.168.65.121:3000` in this example.
  
-![DC/OS grafana endpoint](/docs/assets/dcos_grafana_endpoint.png)
+![DC/OS grafana endpoint](assets/dcos_grafana_endpoint.png)
 
 If you click that endpoint, you can access the Grafana dashbaord.
 
-![DC/OS grafana targets](/docs/assets/dcos_grafana_dashboard.png)
+![DC/OS grafana targets](assets/dcos_grafana_dashboard.png)
 
 ## Run a simple Pulsar consumer and producer on DC/OS
 
@@ -151,15 +156,15 @@ $ mvn exec:java -Dexec.mainClass="tutorial.ProducerTutorial"
 
 You can see the producer producing messages and the consumer consuming messages through the DC/OS GUI.
 
-![DC/OS pulsar producer](/docs/assets/dcos_producer.png)
+![DC/OS pulsar producer](assets/dcos_producer.png)
 
-![DC/OS pulsar consumer](/docs/assets/dcos_consumer.png)
+![DC/OS pulsar consumer](assets/dcos_consumer.png)
 
 ### View Grafana metric output
 
 While the producer and consumer are running, you can access running metrics information from Grafana.
 
-![DC/OS pulsar dashboard](/docs/assets/dcos_metrics.png)
+![DC/OS pulsar dashboard](assets/dcos_metrics.png)
 
 
 ## Uninstall Pulsar
@@ -168,7 +173,7 @@ You can shut down and uninstall the `pulsar` application from DC/OS at any time 
 
 1. Using the DC/OS GUI, you can choose **Delete** at the right end of Pulsar group.
 
-    ![DC/OS pulsar uninstall](/docs/assets/dcos_uninstall.png)
+    ![DC/OS pulsar uninstall](assets/dcos_uninstall.png)
 
 2. You can use the following command:
 

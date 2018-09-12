@@ -78,7 +78,8 @@ public class FunctionAssignmentTailer
             try {
                 assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(msg.getData());
             } catch (IOException e) {
-                log.error("Received bad assignment update at message {}", msg.getMessageId(), e);
+                log.error("[{}] Received bad assignment update at message {}", reader.getTopic(), msg.getMessageId(),
+                        e);
                 // TODO: find a better way to handle bad request
                 throw new RuntimeException(e);
             }

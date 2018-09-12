@@ -41,7 +41,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LoadData;
-import org.apache.pulsar.broker.stats.metrics.JvmMetrics;
+import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -230,7 +230,7 @@ public class LoadManagerShared {
         systemResourceUsage.memory.limit = (double) maxHeapMemoryInBytes / MIBI;
 
         // Collect JVM direct memory
-        systemResourceUsage.directMemory.usage = (double) (JvmMetrics.getJvmDirectMemoryUsed() / MIBI);
+        systemResourceUsage.directMemory.usage = (double) (getJvmDirectMemoryUsed() / MIBI);
         systemResourceUsage.directMemory.limit = (double) (PlatformDependent.maxDirectMemory() / MIBI);
 
         return systemResourceUsage;

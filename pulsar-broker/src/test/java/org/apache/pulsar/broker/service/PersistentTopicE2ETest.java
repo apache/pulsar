@@ -1211,30 +1211,33 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
      * 1. produce messages 2. consume messages and ack all except 1 msg 3. Verification: should replay only 1 unacked
      * message
      */
-    @Test()
+    @Test
     public void testMessageRedelivery() throws Exception {
         final String topicName = "persistent://prop/ns-abc/topic2";
         final String subName = "sub2";
 
-        Message<byte[]> msg;
+        Message<String> msg;
         int totalMessages = 10;
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // (1) Produce messages
         for (int i = 0; i < totalMessages; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
+            producer.send("my-message-" + i);
         }
 
         // (2) Consume and ack messages except first message
-        Message<byte[]> unAckedMsg = null;
+        Message<String> unAckedMsg = null;
         for (int i = 0; i < totalMessages; i++) {
             msg = consumer.receive();
             if (i == 0) {
@@ -1249,7 +1252,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // Verify: msg [L:0] must be redelivered
         try {
             msg = consumer.receive(1, TimeUnit.SECONDS);
-            assertEquals(new String(msg.getData()), new String(unAckedMsg.getData()));
+            assertEquals(msg.getValue(), unAckedMsg.getValue());
         } catch (Exception e) {
             fail("msg should be redelivered ", e);
         }

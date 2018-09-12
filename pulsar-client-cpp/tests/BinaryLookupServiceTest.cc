@@ -25,8 +25,11 @@
 #include <Future.h>
 #include <Utils.h>
 #include "ConnectionPool.h"
+#include "HttpHelper.h"
 #include <pulsar/Authentication.h>
 #include <boost/exception/all.hpp>
+
+DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
@@ -55,4 +58,68 @@ TEST(BinaryLookupServiceTest, basicLookup) {
     ASSERT_EQ(ResultOk, result);
     ASSERT_TRUE(lookupData != NULL);
     ASSERT_EQ(url, lookupData->getBrokerUrl());
+}
+
+TEST(BinaryLookupServiceTest, basicGetNamespaceTopics) {
+    std::string url = "pulsar://localhost:8885";
+    std::string adminUrl = "http://localhost:8765/";
+    Result result;
+    // 1. create some topics under same namespace
+    Client client(url);
+
+    std::string topicName1 = "persistent://prop/unit/ns4/basicGetNamespaceTopics1";
+    std::string topicName2 = "persistent://prop/unit/ns4/basicGetNamespaceTopics2";
+    std::string topicName3 = "persistent://prop/unit/ns4/basicGetNamespaceTopics3";
+    // This is not in same namespace.
+    std::string topicName4 = "persistent://prop/unit/ns2/basicGetNamespaceTopics4";
+
+    // call admin api to make topics partitioned
+    std::string url1 = adminUrl + "admin/persistent/prop/unit/ns4/basicGetNamespaceTopics1/partitions";
+    std::string url2 = adminUrl + "admin/persistent/prop/unit/ns4/basicGetNamespaceTopics2/partitions";
+    std::string url3 = adminUrl + "admin/persistent/prop/unit/ns4/basicGetNamespaceTopics3/partitions";
+
+    int res = makePutRequest(url1, "2");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url2, "3");
+    ASSERT_FALSE(res != 204 && res != 409);
+    res = makePutRequest(url3, "4");
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer1;
+    result = client.createProducer(topicName1, producer1);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer2;
+    result = client.createProducer(topicName2, producer2);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer3;
+    result = client.createProducer(topicName3, producer3);
+    ASSERT_EQ(ResultOk, result);
+    Producer producer4;
+    result = client.createProducer(topicName4, producer4);
+    ASSERT_EQ(ResultOk, result);
+
+    // 2.  call getTopicsOfNamespaceAsync
+    ExecutorServiceProviderPtr service = boost::make_shared<ExecutorServiceProvider>(1);
+    AuthenticationPtr authData = AuthFactory::Disabled();
+    ClientConfiguration conf;
+    ExecutorServiceProviderPtr ioExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(1));
+    ConnectionPool pool_(conf, ioExecutorProvider_, authData, true);
+    BinaryProtoLookupService lookupService(pool_, url);
+
+    TopicNamePtr topicName = TopicName::get(topicName1);
+    NamespaceNamePtr nsName = topicName->getNamespaceName();
+
+    Future<Result, NamespaceTopicsPtr> getTopicsFuture = lookupService.getTopicsOfNamespaceAsync(nsName);
+    NamespaceTopicsPtr topicsData;
+    result = getTopicsFuture.get(topicsData);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_TRUE(topicsData != NULL);
+
+    // 3. verify result contains first 3 topic
+    ASSERT_EQ(topicsData->size(), 3);
+    ASSERT_TRUE(std::find(topicsData->begin(), topicsData->end(), topicName1) != topicsData->end());
+    ASSERT_TRUE(std::find(topicsData->begin(), topicsData->end(), topicName2) != topicsData->end());
+    ASSERT_TRUE(std::find(topicsData->begin(), topicsData->end(), topicName3) != topicsData->end());
+
+    client.shutdown();
 }

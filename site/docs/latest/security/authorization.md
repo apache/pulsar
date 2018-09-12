@@ -25,15 +25,51 @@ tags: [admin, authentication, authorization, athenz, tls, java, cpp]
 -->
 
 In Pulsar, the [authentication provider](../overview#authentication-providers) is charged with properly identifying clients and
-associating them with [role tokens](../overview#role-tokens). *Authorization* is the process that determines *what* clients are able to do.
+associating them with [role tokens](../overview#role-tokens). If only authentication is enabled, an authenticated role token will have the ability to access all resources in the cluster. *Authorization* is the process that determines *what* clients are able to do.
 
-Authorization in Pulsar is managed at the {% popover tenant %} level, which means that you can have multiple authorization schemes active
-in a single Pulsar instance. You could, for example, create a `shopping` tenant that has one set of [roles](../overview#role-tokens)
-and applies to a shopping application used by your company, while an `inventory` tenant would be used only by an inventory application.
+The role tokens with the most privileges are the *superusers*. The *superusers* can create and destroy tenants, along with having full access to all tenant resources.
 
-{% include message.html id="properties_multiple_clusters" %}
+When a {% popover tenant %} is created by a superuser, that tenant is assigned an admin role. A client with the admin role token can then create, modify and destroy namespaces, and grant and revoke permissions to *other role tokens* on those namespaces.
 
-## Creating a new tenant
+## Broker and Proxy Setup
+
+### Enabling Authorization and Assigning Superusers
+
+Authorization is enabled and superusers are assigned in the broker ([`conf/broker.conf`](../../reference/Configuration#broker)) and proxy ([`conf/proxy.conf`](../../reference/Configuration#proxy)) configuration files.
+
+```properties
+authorizationEnabled=true
+superUserRoles=my-super-user-1,my-super-user-2
+```
+
+{% include message.html id="broker_conf_doc" %}
+
+Typically, superuser roles are used for administrators and clients but also for broker-to-broker authorization. When using [geo-replication](../GeoReplication), every broker needs to be able to publish to all the other clusters' topics.
+
+### Proxy Roles
+
+By default, the broker treats the connection between a proxy and the broker as a normal user connection. The user is authenticated as the role configured in ```proxy.conf``` (see ["Enabling TLS Authentication on Proxies"](../tls#-on-proxies)). However, this is rarely the behaviour that the user desires when connecting to the cluster through a proxy. The user expects to be able to interact with the cluster as the role for which they have authenticated with the proxy.
+
+Pulsar uses *Proxy roles* to enable this. Proxy roles are specified in the broker configuration file, [`conf/broker.conf`](../../reference/Configuration#broker). If a client that is authenticated with a broker is one of its ```proxyRoles```, all requests from that client must also carry information about the role of the client that is authenticated with the proxy. If this information, which we call the *original principal*, is missing, the client will not be able to access anything.
+
+Both the *proxy role* and the *original principle* must be authorized to access a resource for that resource to be accessible via the proxy. Administrators can take two approaches to this.
+
+The more secure approach is to grant access to the proxy roles each time you grant access to a resource. For example, if you have a proxy role ```proxy1```, when a tenant is created by the superuser, ```proxy1``` should be specified as one of the admin roles. When a role is granted permissions to produce or consume from a namespace, if that client wants to produce or consume through a proxy, ```proxy1``` should also be granted the same permissions.
+
+Another approach is to make the proxy role a superuser. This will allow the proxy to access all resources. The client will still need to authenticate with the proxy, and all requests made through the proxy will have their role downgraded to the *original principal* of the authenticated client. However, if the proxy is compromised, a bad actor could get full access to your cluster.
+
+Roles can be specified as proxy roles in [`conf/broker.conf`](../../reference/Configuration#broker).
+
+```properties
+proxyRoles=my-proxy-role
+
+# if you want to allow superusers to use the proxy (see above)
+superUserRoles=my-super-user-1,my-super-user-2,my-proxy-role
+```
+
+## Administering Tenants
+
+### Creating a new tenant
 
 A Pulsar {% popover tenant %} is typically provisioned by Pulsar {% popover instance %} administrators or by some kind of self-service portal.
 
@@ -53,41 +89,24 @@ The structure of topic names in Pulsar reflects the hierarchy between tenants, c
 
 {% include topic.html ten="tenant" n="namespace" t="topic" %}
 
-## Managing permissions
+### Managing permissions
 
 {% include explanations/permissions.md %}
 
-## Superusers
-
-In Pulsar you can assign certain roles to be *superusers* of the system. A superuser is allowed to perform all administrative tasks on all tenants and namespaces, as well as to publish and subscribe to all topics.
-
-Superusers are configured in the broker configuration file in [`conf/broker.conf`](../../reference/Configuration#broker) configuration file, using the [`superUserRoles`](../../reference/Configuration#broker-superUserRoles) parameter:
-
-```tenants
-superUserRoles=my-super-user-1,my-super-user-2
-```
-
-{% include message.html id="broker_conf_doc" %}
-
-Typically, superuser roles are used for administrators and clients but also for broker-to-broker authorization. When using [geo-replication](../GeoReplication), every broker
-needs to be able to publish to other clusters' topics.
-
-## Pulsar admin authentication
+### Pulsar admin authentication
 
 ```java
 String authPluginClassName = "com.org.MyAuthPluginClass";
 String authParams = "param1:value1";
-boolean useTls = false;
 boolean tlsAllowInsecureConnection = false;
 String tlsTrustCertsFilePath = null;
 
 ClientConfiguration config = new ClientConfiguration();
 config.setAuthentication(authPluginClassName, authParams);
-config.setUseTls(useTls);
 config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
 config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
 
-PulsarAdmin admin = new PulsarAdmin(url, config);
+PulsarAdmin admin = new PulsarAdmin("pulsar+ssl://service:6651", config);
 ```
 
 To use TLS:
@@ -95,15 +114,13 @@ To use TLS:
 ```java
 String authPluginClassName = "com.org.MyAuthPluginClass";
 String authParams = "param1:value1";
-boolean useTls = false;
 boolean tlsAllowInsecureConnection = false;
 String tlsTrustCertsFilePath = null;
 
 ClientConfiguration config = new ClientConfiguration();
 config.setAuthentication(authPluginClassName, authParams);
-config.setUseTls(useTls);
 config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
 config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
 
-PulsarAdmin admin = new PulsarAdmin(url, config);
+PulsarAdmin admin = new PulsarAdmin("pulsar+ssl://service:6651", config);
 ```

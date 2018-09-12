@@ -21,11 +21,11 @@ In order to deploy and manage Pulsar Functions, you need to have a Pulsar cluste
 * You can run a [standalone cluster](getting-started-standalone.md) locally on your own machine
 * You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal.md), [DC/OS](deploy-dcos.md), and more
 
-If you're running a non-{% popover standalone %} cluster, you'll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.
+If you're running a non-[standalone](reference-terminology.md#standalone) cluster, you'll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.
 
 ## Command-line interface
 
-Pulsar Functions are deployed and managed using the [`pulsar-admin functions`](reference-pulsar-admin.md#functions) interface, which contains commands such as [`create`](reference-pulsar-admin.md#functions-create) for deploying functions in [cluster mode](#cluster-mode), [`trigger`](reference-pulsar-admin.md#functions-trigger) for [triggering](#triggering) functions, [`list`](reference-pulsar-admin.md#functions-list) for listing deployed functions, and several others.
+Pulsar Functions are deployed and managed using the [`pulsar-admin functions`](reference-pulsar-admin.md#functions) interface, which contains commands such as [`create`](reference-pulsar-admin.md#functions-create) for deploying functions in [cluster mode](#cluster-mode), [`trigger`](reference-pulsar-admin.md#trigger) for [triggering](#triggering-pulsar-functions) functions, [`list`](reference-pulsar-admin.md#list-2) for listing deployed functions, and several others.
 
 ### Fully Qualified Function Name (FQFN)
 
@@ -43,12 +43,12 @@ When managing Pulsar Functions, you'll need to specify a variety of information 
 
 Parameter | Default
 :---------|:-------
-Function name | Whichever value is specified for the class name (minus org, library, etc.). The flag `--className org.example.MyFunction`, for example, would give the function a name of `MyFunction`.
+Function name | Whichever value is specified for the class name (minus org, library, etc.). The flag `--classname org.example.MyFunction`, for example, would give the function a name of `MyFunction`.
 Tenant | Derived from the input topics' names. If the input topics are under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/{namespace}/{topicName}`---then the tenant will be `marketing`.
 Namespace | Derived from the input topics' names. If the input topics are under the `asia` namespace under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace will be `asia`.
 Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation`, for example, would have an output topic of `incoming-exclamation-output`.
-Subscription type | For at-least-once and at-most-once [processing guarantees](functions-gaurantees.md), the [`SHARED`](getting-started-concepts-and-architecture.md#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](getting-started-concepts-and-architecture.md#failover) is applied
-Processing guarantees | [`ATLEAST_ONCE`](functions-gaurantees.md)
+Subscription type | For at-least-once and at-most-once [processing guarantees](functions-guarantees.md), the [`SHARED`](concepts-messaging.md#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](concepts-messaging.md#failover) is applied
+Processing guarantees | [`ATLEAST_ONCE`](functions-guarantees.md)
 Pulsar service URL | `pulsar://localhost:6650`
 
 #### Example use of defaults
@@ -58,7 +58,7 @@ Take this `create` command:
 ```bash
 $ bin/pulsar-admin functions create \
   --jar my-pulsar-functions.jar \
-  --className org.example.MyFunction \
+  --classname org.example.MyFunction \
   --inputs my-function-input-topic1,my-function-input-topic2
 ```
 
@@ -66,51 +66,51 @@ The created function would have default values supplied for the function name (`
 
 ## Local run mode
 
-If you run a Pulsar Function in **local run** mode, it will run on the machine from which the command is run (this could be your laptop, an [AWS EC2](https://aws.amazon.com/ec2/) instance, etc.). Here's an example [`localrun`](reference-pulsar-admin.md#functions-localrun) command:
+If you run a Pulsar Function in **local run** mode, it will run on the machine from which the command is run (this could be your laptop, an [AWS EC2](https://aws.amazon.com/ec2/) instance, etc.). Here's an example [`localrun`](reference-pulsar-admin.md#localrun) command:
 
 ```bash
 $ bin/pulsar-admin functions localrun \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
 
-By default, the function will connect to a Pulsar cluster running on the same machine, via a local {% popover broker %} service URL of `pulsar://localhost:6650`. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the `--brokerServiceUrl` flag. Here's an example:
+By default, the function will connect to a Pulsar cluster running on the same machine, via a local [broker](reference-terminology.md#broker) service URL of `pulsar://localhost:6650`. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the `--brokerServiceUrl` flag. Here's an example:
 
 ```bash
 $ bin/pulsar-admin functions localrun \
-  --brokerServiceUrl pulsar://my-cluster-host:6650 \
+  --broker-service-url pulsar://my-cluster-host:6650 \
   # Other function parameters
 ```
 
 ## Cluster mode
 
-When you run a Pulsar Function in **cluster mode**, the function code will be uploaded to a Pulsar broker and run *alongside the broker* rather than in your [local environment](#local-run). You can run a function in cluster mode using the [`create`](reference-pulsar-admin.md#functions-create) command. Here's an example:
+When you run a Pulsar Function in **cluster mode**, the function code will be uploaded to a Pulsar broker and run *alongside the broker* rather than in your [local environment](#local-run-mode). You can run a function in cluster mode using the [`create`](reference-pulsar-admin.md#create-1) command. Here's an example:
 
 ```bash
 $ bin/pulsar-admin functions create \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
 
 ### Updating cluster mode functions
 
-You can use the [`update`](reference-pulsar-admin.md#functions-update) command to update a Pulsar Function running in cluster mode. This command, for example, would update the function created in the section [above](#cluster-mode):
+You can use the [`update`](reference-pulsar-admin.md#update-1) command to update a Pulsar Function running in cluster mode. This command, for example, would update the function created in the section [above](#cluster-mode):
 
 ```bash
 $ bin/pulsar-admin functions update \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/new-input-topic \
   --output persistent://public/default/new-output-topic
 ```
 
 ### Parallelism
 
-Pulsar Functions run as processes called **instances**. When you run a Pulsar Function, it runs as a single instance by default (and in [local run mode](#local-run) you can *only* run a single instance of a function).
+Pulsar Functions run as processes called **instances**. When you run a Pulsar Function, it runs as a single instance by default (and in [local run mode](#local-run-mode) you can *only* run a single instance of a function).
 
 You can also specify the *parallelism* of a function, i.e. the number of instances to run, when you create the function. You can set the parallelism factor using the `--parallelism` flag of the [`create`](reference-pulsar-admin.md#functions-create) command. Here's an example:
 
@@ -120,7 +120,7 @@ $ bin/pulsar-admin functions create \
   # Other function info
 ```
 
-You can adjust the parallelism of an already created function using the [`update`](reference-pulsar-admin.md#functions-update) interface.
+You can adjust the parallelism of an already created function using the [`update`](reference-pulsar-admin.md#update-1) interface.
 
 ```bash
 $ bin/pulsar-admin functions update \
@@ -143,12 +143,12 @@ And here's the corresponding update command:
 
 ```bash
 $ bin/pulsar-admin functions update \
-  --functionConfigFile function-config.yaml
+  --function-config-file function-config.yaml
 ```
 
 ### Function instance resources
 
-When you run Pulsar Functions in [cluster run](#cluster-run) mode, you can specify the resources that are assigned to each function [instance](#parallelism):
+When you run Pulsar Functions in [cluster run](#cluster-mode) mode, you can specify the resources that are assigned to each function [instance](#parallelism):
 
 Resource | Specified as... | Runtimes
 :--------|:----------------|:--------
@@ -161,7 +161,7 @@ Here's an example function creation command that allocates 8 cores, 8 GB of RAM,
 ```bash
 $ bin/pulsar-admin functions create \
   --jar target/my-functions.jar \
-  --className org.example.functions.MyFunction \
+  --classname org.example.functions.MyFunction \
   --cpu 8 \
   --ram 8589934592 \
   --disk 10737418240
@@ -174,9 +174,9 @@ $ bin/pulsar-admin functions create \
 
 If a Pulsar Function is running in [cluster mode](#cluster-mode), you can **trigger** it at any time using the command line. Triggering a function means that you send a message with a specific value to the function and get the function's output (if any) via the command line.
 
-> Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. The [`pulsar-admin functions trigger`](reference-pulsar-admin.md#functions-trigger) command is essentially a convenient mechanism for sending messages to functions without needing to use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool or a language-specific client library.
+> Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. The [`pulsar-admin functions trigger`](reference-pulsar-admin.md#trigger) command is essentially a convenient mechanism for sending messages to functions without needing to use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool or a language-specific client library.
 
-To show an example of function triggering, let's start with a simple [Python function](functions-api.md#python) that returns a simple string based on the input:
+To show an example of function triggering, let's start with a simple [Python function](functions-api.md#functions-for-python) that returns a simple string based on the input:
 
 ```python
 # myfunc.py
@@ -184,7 +184,7 @@ def process(input):
     return "This function has been triggered with a value of {0}".format(input)
 ```
 
-Let's run that function in [local run mode](functions-deploying.md#local-run):
+Let's run that function in [local run mode](functions-deploying.md#local-run-mode):
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -192,12 +192,12 @@ $ bin/pulsar-admin functions create \
   --namespace default \
   --name myfunc \
   --py myfunc.py \
-  --className myfunc \
+  --classname myfunc \
   --inputs persistent://public/default/in \
   --output persistent://public/default/out
 ```
 
-Now let's make a consumer listen on the output topic for messages coming from the `myfunc` function using the [`pulsar-client consume`](reference-cli-tools.md#pulsar-client-consume) command:
+Now let's make a consumer listen on the output topic for messages coming from the `myfunc` function using the [`pulsar-client consume`](reference-cli-tools.md#consume) command:
 
 ```bash
 $ bin/pulsar-client consume persistent://public/default/out \
@@ -212,7 +212,7 @@ $ bin/pulsar-admin functions trigger \
   --tenant public \
   --namespace default \
   --name myfunc \
-  --triggerValue "hello world"
+  --trigger-value "hello world"
 ```
 
 The consumer listening on the output topic should then produce this in its logs:
@@ -224,15 +224,3 @@ This function has been triggered with a value of hello world
 
 > #### Topic info not required
 > In the `trigger` command above, you may have noticed that you only need to specify basic information about the function (tenant, namespace, and name). To trigger the function, you didn't need to know the function's input topic(s).
-
-<!--
-## Subscription types
-
-Pulsar supports three different [subscription types](getting-started-concepts-and-architecture.md#subscription-modes) (or subscription modes) for Pulsar clients:
-
-* With [exclusive](getting-started-concepts-and-architecture.md#exclusive) subscriptions, only a single {% popover consumer %} is allowed to attach to the subscription.
-* With [shared](getting-started-concepts-and-architecture.md#shared) . Please note that strict message ordering is *not* guaranteed with shared subscriptions.
-* With [failover](getting-started-concepts-and-architecture.md#failover) subscriptions
-
-Pulsar Functions can also be assigned a subscription type when you [create](#cluster-mode) them or run them [locally](#local-run). In cluster mode, the subscription can also be [updated](#updating) after the function has been created.
--->

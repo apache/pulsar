@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -92,7 +93,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the configuration policies of a namspace")
+    @Parameters(commandDescription = "Get the configuration policies of a namespace")
     private class GetPolicies extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -161,7 +162,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Grant permissions on a namspace")
+    @Parameters(commandDescription = "Grant permissions on a namespace")
     private class GrantPermissions extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -179,7 +180,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Revoke permissions on a namspace")
+    @Parameters(commandDescription = "Revoke permissions on a namespace")
     private class RevokePermissions extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -194,7 +195,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the permissions on a namspace")
+    @Parameters(commandDescription = "Get the permissions on a namespace")
     private class Permissions extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -206,7 +207,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set replication clusters for a namspace")
+    @Parameters(commandDescription = "Set replication clusters for a namespace")
     private class SetReplicationClusters extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -223,7 +224,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get replication clusters for a namspace")
+    @Parameters(commandDescription = "Get replication clusters for a namespace")
     private class GetReplicationClusters extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -235,7 +236,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set Message TTL for a namspace")
+    @Parameters(commandDescription = "Set Message TTL for a namespace")
     private class SetMessageTTL extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -250,7 +251,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set Anti-affinity group name for a namspace")
+    @Parameters(commandDescription = "Set Anti-affinity group name for a namespace")
     private class SetAntiAffinityGroup extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -265,7 +266,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get Anti-affinity group name for a namspace")
+    @Parameters(commandDescription = "Get Anti-affinity group name for a namespace")
     private class GetAntiAffinityGroup extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -296,7 +297,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Remove Anti-affinity group name for a namspace")
+    @Parameters(commandDescription = "Remove Anti-affinity group name for a namespace")
     private class DeleteAntiAffinityGroup extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -342,7 +343,7 @@ public class CmdNamespaces extends CmdBase {
         private String retentionTimeStr;
 
         @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
-                + "0 means no retention and -1 means infinite size retention", required = true)
+                + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 
         @Override
@@ -351,8 +352,12 @@ public class CmdNamespaces extends CmdBase {
             long sizeLimit = validateSizeString(limitStr);
             int retentionTimeInMin = validateTimeString(retentionTimeStr);
 
-            sizeLimit = sizeLimit / (1024 * 1024);
-            int retentionSizeInMB = (int) sizeLimit;
+            int retentionSizeInMB;
+            if (sizeLimit != -1) {
+                retentionSizeInMB = (int) (sizeLimit / (1024 * 1024));
+            } else {
+                retentionSizeInMB = -1;
+            }
             admin.namespaces().setRetention(namespace, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
         }
     }
@@ -369,7 +374,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get message TTL for a namspace")
+    @Parameters(commandDescription = "Get message TTL for a namespace")
     private class GetMessageTTL extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
@@ -828,6 +833,53 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get offloadDeletionLag, in minutes, for a namespace")
+    private class GetOffloadDeletionLag extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            Long lag = admin.namespaces().getOffloadDeleteLagMs(namespace);
+            if (lag != null) {
+                System.out.println(TimeUnit.MINUTES.convert(lag, TimeUnit.MILLISECONDS) + " minute(s)");
+            } else {
+                System.out.println("Unset for namespace. Defaulting to broker setting.");
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Set offloadDeletionLag for a namespace")
+    private class SetOffloadDeletionLag extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--lag", "-l" },
+                   description = "Duration to wait after offloading a ledger segment, before deleting the copy of that"
+                                  + " segment from cluster local storage. (eg: 10m, 5h, 3d, 2w).",
+                   required = true)
+        private String lag = "-1";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setOffloadDeleteLag(namespace, validateTimeString(lag), TimeUnit.MINUTES);
+        }
+    }
+
+    @Parameters(commandDescription = "Clear offloadDeletionLag for a namespace")
+    private class ClearOffloadDeletionLag extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().clearOffloadDeleteLag(namespace);
+        }
+    }
+
     public CmdNamespaces(PulsarAdmin admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -892,6 +944,10 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-offload-threshold", new GetOffloadThreshold());
         jcommander.addCommand("set-offload-threshold", new SetOffloadThreshold());
+
+        jcommander.addCommand("get-offload-deletion-lag", new GetOffloadDeletionLag());
+        jcommander.addCommand("set-offload-deletion-lag", new SetOffloadDeletionLag());
+        jcommander.addCommand("clear-offload-deletion-lag", new ClearOffloadDeletionLag());
 
     }
 }

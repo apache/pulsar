@@ -1,7 +1,7 @@
 ---
 id: adaptors-kafka
 title: Pulsar adaptor for Apache Kafka
-sidebar_label: Kafka client wrappter
+sidebar_label: Kafka client wrapper
 ---
 
 
@@ -25,7 +25,7 @@ Then include this dependency for the Pulsar Kafka wrapper:
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client-kafka</artifactId>
-  <version>pulsar:version</version>
+  <version>{{pulsar:version}}</version>
 </dependency>
 ```
 
@@ -44,7 +44,7 @@ unshaded pulsar kafka client wrapper.
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client-kafka-original</artifactId>
-  <version>pulsar:version</version>
+  <version>{{pulsar:version}}</version>
 </dependency>
 ```
 
@@ -224,7 +224,9 @@ You can configure Pulsar authentication provider directly from the Kafka propert
 
 | Config property                        | Default | Notes                                                                                  |
 |:---------------------------------------|:--------|:---------------------------------------------------------------------------------------|
-| `pulsar.authentication.class`          |         | Configure to auth provider. Eg. `org.apache.pulsar.client.impl.auth.AuthenticationTls` |
+| [`pulsar.authentication.class`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-org.apache.pulsar.client.api.Authentication-)          |         | Configure to auth provider. Eg. `org.apache.pulsar.client.impl.auth.AuthenticationTls` |
+| [`pulsar.authentication.params.map`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.util.Map-)          |         | Map which represents parameters for the Authentication-Plugin |
+| [`pulsar.authentication.params.string`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.lang.String-)          |         | String which represents parameters for the Authentication-Plugin, Eg. `key1:val1,key2:val2` |
 | [`pulsar.use.tls`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setUseTls-boolean-)                       | `false` | Enable TLS transport encryption                                                        |
 | [`pulsar.tls.trust.certs.file.path`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setTlsTrustCertsFilePath-java.lang.String-)   |         | Path for the TLS trust certificate store                                               |
 | [`pulsar.tls.allow.insecure.connection`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setTlsAllowInsecureConnection-boolean-) | `false` | Accept self-signed certificates from brokers                                           |
