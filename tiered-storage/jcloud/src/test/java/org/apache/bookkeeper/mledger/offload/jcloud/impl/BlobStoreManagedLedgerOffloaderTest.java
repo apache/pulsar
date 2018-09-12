@@ -43,7 +43,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.LedgerMetadata;
-import org.apache.bookkeeper.client.MockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -83,11 +83,11 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     private static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     private static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
     final OrderedScheduler scheduler;
-    final MockBookKeeper bk;
+    final PulsarMockBookKeeper bk;
 
     BlobStoreManagedLedgerOffloaderTest() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
-        bk = new MockBookKeeper(createMockZooKeeper());
+        bk = new PulsarMockBookKeeper(createMockZooKeeper(), scheduler.chooseThread(this));
     }
 
     private ReadHandle buildReadHandle() throws Exception {
