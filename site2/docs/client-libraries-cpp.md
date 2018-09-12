@@ -19,9 +19,9 @@ The Pulsar C++ client has been successfully tested on **MacOS** and **Linux**.
 
 | Link | Crypto files |
 |------|--------------|
-| [client]({{pulsar:rpm:client}}) | [asc]({{pulsar:rpm:client}}.asc), [sha1]({{pulsar:rpm:client}}.sha1), [sha512]({{pulsar:rpm:client}}.sha512) |
-| [client-debuginfo]({{pulsar:rpm:client-debuginfo}}) | [asc]({{pulsar:rpm:client-debuginfo}}.asc), [sha1]({{pulsar:rpm:client-debuginfo}}.sha1), [sha512]({{pulsar:rpm:client-debuginfo}}.sha512) |
-| [client-devel]({{pulsar:rpm:client-devel}}) | [asc]({{pulsar:rpm:client-devel}}.asc), [sha1]({{pulsar:rpm:client-devel}}.sha1), [sha512]({{pulsar:rpm:client-devel}}.sha512) |
+| [client]({{pulsar:rpm:client}}) | [asc]({{pulsar:rpm:client}}.asc), [sha512]({{pulsar:rpm:client}}.sha512) |
+| [client-debuginfo]({{pulsar:rpm:client-debuginfo}}) | [asc]({{pulsar:rpm:client-debuginfo}}.asc),  [sha512]({{pulsar:rpm:client-debuginfo}}.sha512) |
+| [client-devel]({{pulsar:rpm:client-devel}}) | [asc]({{pulsar:rpm:client-devel}}.asc),  [sha512]({{pulsar:rpm:client-devel}}.sha512) |
 
 To install a RPM package, download the RPM packages and install them using the following command:
 
@@ -33,8 +33,8 @@ $ rpm -ivh apache-pulsar-client*.rpm
 
 | Link | Crypto files |
 |------|--------------|
-| [client]({{pulsar:deb:client}}) | [asc]({{pulsar:deb:client}}.asc), [sha1]({{pulsar:deb:client}}.sha1), [sha512]({{pulsar:deb:client}}.sha512) |
-| [client-devel]({{pulsar:deb:client-devel}}) | [asc]({{pulsar:deb:client-devel}}.asc), [sha1]({{pulsar:deb:client-devel}}.sha1), [sha512]({{pulsar:deb:client-devel}}.sha512) |
+| [client]({{pulsar:deb:client}}) | [asc]({{pulsar:deb:client}}.asc), [sha512]({{pulsar:deb:client}}.sha512) |
+| [client-devel]({{pulsar:deb:client-devel}}) | [asc]({{pulsar:deb:client-devel}}.asc),  [sha512]({{pulsar:deb:client-devel}}.sha512) |
 
 To install a DEB package, download the DEB packages and install them using the following command:
 
