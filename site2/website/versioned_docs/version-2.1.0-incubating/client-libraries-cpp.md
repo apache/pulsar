@@ -20,9 +20,9 @@ The Pulsar C++ client has been successfully tested on **MacOS** and **Linux**.
 
 | Link | Crypto files |
 |------|--------------|
-| [client]({{pulsar:rpm:client}}) | [asc]({{pulsar:rpm:client}}.asc), [sha1]({{pulsar:rpm:client}}.sha1), [sha512]({{pulsar:rpm:client}}.sha512) |
-| [client-debuginfo]({{pulsar:rpm:client-debuginfo}}) | [asc]({{pulsar:rpm:client-debuginfo}}.asc), [sha1]({{pulsar:rpm:client-debuginfo}}.sha1), [sha512]({{pulsar:rpm:client-debuginfo}}.sha512) |
-| [client-devel]({{pulsar:rpm:client-devel}}) | [asc]({{pulsar:rpm:client-devel}}.asc), [sha1]({{pulsar:rpm:client-devel}}.sha1), [sha512]({{pulsar:rpm:client-devel}}.sha512) |
+| [client]({{pulsar:rpm:client}}) | [asc]({{pulsar:rpm:client}}.asc), [sha512]({{pulsar:rpm:client}}.sha512) |
+| [client-debuginfo]({{pulsar:rpm:client-debuginfo}}) | [asc]({{pulsar:rpm:client-debuginfo}}.asc),  [sha512]({{pulsar:rpm:client-debuginfo}}.sha512) |
+| [client-devel]({{pulsar:rpm:client-devel}}) | [asc]({{pulsar:rpm:client-devel}}.asc),  [sha512]({{pulsar:rpm:client-devel}}.sha512) |
 
 To install a RPM package, down the RPM packages and install them using following command:
 
