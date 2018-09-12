@@ -53,6 +53,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response.Status;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -786,6 +787,26 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/ns1/ds2").partitions,
                 0);
+
+        try {
+            admin.topics().getPartitionedStats(partitionedTopicName, false);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // ok
+            assertEquals(e.getStatusCode(), Status.NOT_FOUND.getStatusCode());
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
+
+        try {
+            admin.topics().getSubscriptions(partitionedTopicName);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // ok
+            assertEquals(e.getStatusCode(), Status.NOT_FOUND.getStatusCode());
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
 
         // create consumer and subscription
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);

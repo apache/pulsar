@@ -45,3 +45,7 @@ set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${
 target_link_libraries(pulsarStatic ${COMMON_LIBS})
 target_link_libraries(pulsarShared ${COMMON_LIBS})
 
+install(TARGETS pulsarStatic DESTINATION lib)
+install(TARGETS pulsarShared DESTINATION lib)
+
+install(DIRECTORY "../include/pulsar" DESTINATION include)

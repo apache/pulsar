@@ -56,7 +56,7 @@ def home(request):
             throughputOut = Sum('namespace__topic__msgThroughputOut'),
         )
 
-    print properties.query
+    print(properties.query)
 
     properties = Table(request, properties, default_sort='name')
 

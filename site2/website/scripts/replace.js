@@ -87,7 +87,7 @@ const options = {
     `${latestVersion}`, 
     binaryReleaseUrl(`${latestVersion}`), 
     connectorReleaseUrl(`${latestVersion}`),
-    prestoPulsarReleaseUrl(`${latestVersion}`)
+    prestoPulsarReleaseUrl(`${latestVersion}`),
     downloadPageUrl(),
     rpmReleaseUrl(`${latestVersion}`, ""),
     rpmReleaseUrl(`${latestVersion}`, "-debuginfo"),

@@ -340,4 +340,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @param mode Pattern subscription mode
      */
     ConsumerBuilder<T> subscriptionTopicsMode(Mode mode);
+
+    /**
+     * Intercept {@link Consumer}.
+     *
+     * @param interceptors the list of interceptors to intercept the consumer created by this builder.
+     * @return consumer builder.
+     */
+    ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
 }

@@ -18,55 +18,21 @@
  */
 package org.apache.pulsar.client.schema;
 
+import static org.apache.pulsar.client.schema.SchemaTestUtils.FOO_FIELDS;
+import static org.apache.pulsar.client.schema.SchemaTestUtils.SCHEMA_JSON;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.schema.AutoSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.apache.pulsar.client.impl.schema.GenericAvroSchema;
+import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
+import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
 public class AvroSchemaTest {
-
-    @Data
-    @ToString
-    @EqualsAndHashCode
-    private static class Foo {
-        private String field1;
-        private String field2;
-        private int field3;
-        private Bar field4;
-    }
-
-    @Data
-    @ToString
-    @EqualsAndHashCode
-    private static class Bar {
-        private boolean field1;
-    }
-
-    private static final String SCHEMA_JSON = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.apache" +
-            ".pulsar.client" +
-            ".schema.AvroSchemaTest$\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\",\"string\"]," +
-            "\"default\":null},{\"name\":\"field2\",\"type\":[\"null\",\"string\"],\"default\":null}," +
-            "{\"name\":\"field3\",\"type\":\"int\"},{\"name\":\"field4\",\"type\":[\"null\",{\"type\":\"record\"," +
-            "\"name\":\"Bar\",\"fields\":[{\"name\":\"field1\",\"type\":\"boolean\"}]}],\"default\":null}]}";
-
-    private static String[] FOO_FIELDS = {
-            "field1",
-            "field2",
-            "field3",
-            "field4"
-    };
 
     @Test
     public void testSchema() {
@@ -113,55 +79,4 @@ public class AvroSchemaTest {
         assertEquals(object2, foo2);
     }
 
-    @Test
-    public void testEncodeAndDecodeGenericRecord() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, null);
-        GenericAvroSchema genericAvroSchema = new GenericAvroSchema(avroSchema.getSchemaInfo());
-
-        log.info("Avro Schema : {}", genericAvroSchema.getAvroSchema());
-
-        testGenericSchema(avroSchema, genericAvroSchema);
-    }
-
-    @Test
-    public void testAutoSchema() {
-        AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class, null);
-
-        GenericAvroSchema genericAvroSchema = new GenericAvroSchema(avroSchema.getSchemaInfo());
-
-        log.info("Avro Schema : {}", genericAvroSchema.getAvroSchema());
-
-        AutoSchema schema = new AutoSchema();
-        schema.setSchema(genericAvroSchema);
-
-        testGenericSchema(avroSchema, schema);
-    }
-
-    private void testGenericSchema(AvroSchema<Foo> avroSchema,
-                                   org.apache.pulsar.client.api.Schema<GenericRecord> genericRecordSchema) {
-        int numRecords = 10;
-        for (int i = 0; i < numRecords; i++) {
-            Foo foo = new Foo();
-            foo.setField1("field-1-" + i);
-            foo.setField2("field-2-" + i);
-            foo.setField3(i);
-            Bar bar = new Bar();
-            bar.setField1(i % 2 == 0);
-            foo.setField4(bar);
-
-            byte[] data = avroSchema.encode(foo);
-
-            GenericRecord record = genericRecordSchema.decode(data);
-            Object field1 = record.getField("field1");
-            assertEquals("field-1-" + i, field1, "Field 1 is " + field1.getClass());
-            Object field2 = record.getField("field2");
-            assertEquals("field-2-" + i, field2, "Field 2 is " + field2.getClass());
-            Object field3 = record.getField("field3");
-            assertEquals(i, field3, "Field 3 is " + field3.getClass());
-            Object field4 = record.getField("field4");
-            assertTrue(field4 instanceof GenericRecord);
-            GenericRecord field4Record = (GenericRecord) field4;
-            assertEquals(i % 2 == 0, field4Record.getField("field1"));
-        }
-    }
 }
