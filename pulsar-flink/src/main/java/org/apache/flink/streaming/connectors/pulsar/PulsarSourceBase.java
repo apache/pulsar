@@ -16,23 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.flink.streaming.connectors.pulsar.partitioner;
+package org.apache.flink.streaming.connectors.pulsar;
 
-import java.io.Serializable;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 
 /**
- * Extract key from a value.
+ * Base class for pulsar sources.
+ * @param <T>
  */
-public interface PulsarKeyExtractor<IN> extends Serializable {
-
-    PulsarKeyExtractor NULL = in -> null;
-
-    /**
-     * Retrieve a key from the value.
-     *
-     * @param in the value to extract a key.
-     * @return key.
-     */
-    String getKey(IN in);
-
+@PublicEvolving
+interface PulsarSourceBase<T> extends ParallelSourceFunction<T>, ResultTypeQueryable<T> {
 }
