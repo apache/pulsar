@@ -44,6 +44,14 @@ public class SchemaTestUtils {
         private boolean field1;
     }
 
+    @Data
+    @ToString
+    @EqualsAndHashCode
+    public static class DerivedFoo extends Foo {
+        private String field5;
+        private int field6;
+    }
+
     public static final String SCHEMA_JSON = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.apache" +
             ".pulsar.client" +
             ".schema.SchemaTestUtils$\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\",\"string\"]," +

@@ -18,16 +18,17 @@
  */
 package org.apache.pulsar.client.schema;
 
-import static org.apache.pulsar.client.schema.SchemaTestUtils.FOO_FIELDS;
-import static org.apache.pulsar.client.schema.SchemaTestUtils.SCHEMA_JSON;
-
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
+import org.apache.pulsar.client.schema.SchemaTestUtils.DerivedFoo;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static org.apache.pulsar.client.schema.SchemaTestUtils.FOO_FIELDS;
+import static org.apache.pulsar.client.schema.SchemaTestUtils.SCHEMA_JSON;
 
 public class JSONSchemaTest {
 
@@ -74,5 +75,24 @@ public class JSONSchemaTest {
 
         Assert.assertEquals(object1, foo1);
         Assert.assertEquals(object2, foo2);
+    }
+
+    @Test
+    public void testCorrectPolymorphism() {
+        JSONSchema<Foo> jsonSchema = JSONSchema.of(Foo.class);
+
+        DerivedFoo derivedFoo = new DerivedFoo();
+        derivedFoo.setField1("foo1");
+        derivedFoo.setField2("bar2");
+        derivedFoo.setField3(4);
+        derivedFoo.setField5("derived1");
+        derivedFoo.setField6(2);
+
+        Foo foo = new Foo();
+        foo.setField1("foo1");
+        foo.setField2("bar2");
+        foo.setField3(4);
+
+        Assert.assertEquals(jsonSchema.decode(jsonSchema.encode(derivedFoo)), foo);
     }
 }
