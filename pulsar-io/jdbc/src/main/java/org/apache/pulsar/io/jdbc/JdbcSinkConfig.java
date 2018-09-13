@@ -44,9 +44,6 @@ public class JdbcSinkConfig implements Serializable {
     private String jdbcUrl;
     private String tableName;
 
-    // schema for input topic
-    private String schema;
-
     // Optional
     private int timeoutMs = 500;
     private int batchSize = 200;
