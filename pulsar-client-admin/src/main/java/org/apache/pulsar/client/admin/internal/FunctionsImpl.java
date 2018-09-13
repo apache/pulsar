@@ -110,9 +110,8 @@ public class FunctionsImpl extends BaseResource implements Functions {
         }
     }
 
-    @Override
-    public FunctionStatus getFunctionStatus(String tenant, String namespace, String function, int id)
-            throws PulsarAdminException {
+    public FunctionStatus getFunctionStatus(
+            String tenant, String namespace, String function, int id) throws PulsarAdminException {
         try {
             Response response = request(
                     functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("status"))
