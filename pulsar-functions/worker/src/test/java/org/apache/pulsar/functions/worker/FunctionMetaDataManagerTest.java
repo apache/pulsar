@@ -26,6 +26,10 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +41,10 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Request;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -56,6 +64,39 @@ public class FunctionMetaDataManagerTest {
         when(client.newProducer()).thenReturn(builder);
 
         return client;
+    }
+
+    @Test
+    public void testNormalizeFunctionMetadata() throws Exception {
+        FunctionMetaData fmd = FunctionMetaData.newBuilder()
+            .setFunctionDetails(FunctionDetails.newBuilder()
+                .setSource(SourceSpec.newBuilder()
+                    .setTopicsPattern("test-pattern")
+                    .putTopicsToSerDeClassName("test-pattern", "class-pattern")
+                    .putTopicsToSerDeClassName("test-topic-1", "class1")
+                    .putTopicsToSerDeClassName("test-topic-2", "class2")
+                    .build())
+                .build())
+            .build();
+
+        FunctionMetaData normalizedFmd = FunctionMetaDataManager.normalizeFunctionMetaData(fmd);
+        SourceSpec ss = normalizedFmd.getFunctionDetails().getSource();
+        assertEquals(0, ss.getTopicsToSerDeClassNameCount());
+        assertEquals(3, ss.getInputSpecsCount());
+        ConsumerSpec cs = ss.getInputSpecsOrThrow("test-pattern");
+        assertNotNull(cs);
+        assertEquals("class-pattern", cs.getSerdeClassName());
+        assertTrue(cs.getIsRegexPattern());
+
+        cs = ss.getInputSpecsOrThrow("test-topic-1");
+        assertNotNull(cs);
+        assertEquals("class1", cs.getSerdeClassName());
+        assertFalse(cs.getIsRegexPattern());
+
+        cs = ss.getInputSpecsOrThrow("test-topic-2");
+        assertNotNull(cs);
+        assertEquals("class2", cs.getSerdeClassName());
+        assertFalse(cs.getIsRegexPattern());
     }
 
     @Test
@@ -81,15 +122,15 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager.functionMetaDataMap.get("tenant-1").put("namespace-1", functionMetaDataMap1);
         functionMetaDataManager.functionMetaDataMap.get("tenant-1").put("namespace-2", functionMetaDataInfoMap2);
 
-        Assert.assertEquals(0, functionMetaDataManager.listFunctions(
+        assertEquals(0, functionMetaDataManager.listFunctions(
                 "tenant", "namespace").size());
-        Assert.assertEquals(2, functionMetaDataManager.listFunctions(
+        assertEquals(2, functionMetaDataManager.listFunctions(
                 "tenant-1", "namespace-1").size());
         Assert.assertTrue(functionMetaDataManager.listFunctions(
                 "tenant-1", "namespace-1").contains("func-1"));
         Assert.assertTrue(functionMetaDataManager.listFunctions(
                 "tenant-1", "namespace-1").contains("func-2"));
-        Assert.assertEquals(1, functionMetaDataManager.listFunctions(
+        assertEquals(1, functionMetaDataManager.listFunctions(
                 "tenant-1", "namespace-2").size());
         Assert.assertTrue(functionMetaDataManager.listFunctions(
                 "tenant-1", "namespace-2").contains("func-3"));
@@ -279,9 +320,9 @@ public class FunctionMetaDataManagerTest {
         verify(functionMetaDataManager, times(1))
                 .setFunctionMetaData(any(Function.FunctionMetaData.class));
         verify(schedulerManager, times(1)).schedule();
-        Assert.assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-1"));
-        Assert.assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").size());
 
         // worker has record of function
@@ -308,7 +349,7 @@ public class FunctionMetaDataManagerTest {
                 .build();
         functionMetaDataManager.processUpdate(serviceRequest);
 
-        Assert.assertEquals(m3, functionMetaDataManager.getFunctionMetaData(
+        assertEquals(m3, functionMetaDataManager.getFunctionMetaData(
                 "tenant-1", "namespace-1", "func-1"));
         verify(functionMetaDataManager, times(1))
                 .setFunctionMetaData(any(Function.FunctionMetaData.class));
@@ -324,15 +365,15 @@ public class FunctionMetaDataManagerTest {
                 .setWorkerId("worker-2")
                 .build();
         functionMetaDataManager.processUpdate(serviceRequest);
-        Assert.assertEquals(m3, functionMetaDataManager.getFunctionMetaData(
+        assertEquals(m3, functionMetaDataManager.getFunctionMetaData(
                 "tenant-1", "namespace-1", "func-1"));
         verify(functionMetaDataManager, times(1))
                 .setFunctionMetaData(any(Function.FunctionMetaData.class));
         verify(schedulerManager, times(0)).schedule();
 
-        Assert.assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-1"));
-        Assert.assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").size());
 
         // schedule
@@ -361,10 +402,10 @@ public class FunctionMetaDataManagerTest {
                 .setFunctionMetaData(any(Function.FunctionMetaData.class));
         verify(schedulerManager, times(1)).schedule();
 
-        Assert.assertEquals(m1.toBuilder().setVersion(version + 1).build(),
+        assertEquals(m1.toBuilder().setVersion(version + 1).build(),
                 functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-1"));
-        Assert.assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").size());
     }
 
@@ -394,9 +435,9 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager.proccessDeregister(serviceRequest);
 
         verify(schedulerManager, times(0)).schedule();
-        Assert.assertEquals(test, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(test, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-2"));
-        Assert.assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").size());
 
         // function exists but request outdated
@@ -419,11 +460,11 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager.proccessDeregister(serviceRequest);
         verify(schedulerManager, times(0)).schedule();
 
-        Assert.assertEquals(test, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(test, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-2"));
-        Assert.assertEquals(m2, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(m2, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-1"));
-        Assert.assertEquals(2, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(2, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").size());
 
         // function deleted
@@ -451,9 +492,9 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager.proccessDeregister(serviceRequest);
         verify(schedulerManager, times(1)).schedule();
 
-        Assert.assertEquals(test, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(test, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-2"));
-        Assert.assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
+        assertEquals(1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").size());
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Request;
 import org.apache.pulsar.functions.worker.request.RequestResult;
@@ -111,6 +114,26 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
     }
 
+    static FunctionMetaData normalizeFunctionMetaData(FunctionMetaData fmd) {
+        if (!fmd.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().isEmpty()) {
+            FunctionDetails.Builder fdb = FunctionDetails.newBuilder(fmd.getFunctionDetails());
+            for (Map.Entry<String, String> topicEntry : fmd.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().entrySet()) {
+                fdb.getSourceBuilder().putInputSpecs(
+                    topicEntry.getKey(),
+                    ConsumerSpec.newBuilder()
+                        .setSerdeClassName(topicEntry.getValue())
+                        .setIsRegexPattern(topicEntry.getKey() == fmd.getFunctionDetails().getSource().getTopicsPattern())
+                        .build());
+            }
+            fdb.getSourceBuilder().clearTopicsToSerDeClassName();
+            return FunctionMetaData.newBuilder(fmd)
+                .setFunctionDetails(fdb)
+                .build();
+        } else {
+            return fmd;
+        }
+    }
+
     /**
      * Get the function metadata for a function
      * @param tenant the tenant the function belongs to
@@ -119,7 +142,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * @return FunctionMetaData that contains the function metadata
      */
     public synchronized FunctionMetaData getFunctionMetaData(String tenant, String namespace, String functionName) {
-        return this.functionMetaDataMap.get(tenant).get(namespace).get(functionName);
+        return normalizeFunctionMetaData(this.functionMetaDataMap.get(tenant).get(namespace).get(functionName));
     }
 
     /**
@@ -130,7 +153,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         List<FunctionMetaData> ret = new LinkedList<>();
         for (Map<String, Map<String, FunctionMetaData>> i : this.functionMetaDataMap.values()) {
             for (Map<String, FunctionMetaData> j : i.values()) {
-                ret.addAll(j.values());
+                ret.addAll(j.values().stream().map(FunctionMetaDataManager::normalizeFunctionMetaData).collect(Collectors.toList()));
             }
         }
         return ret;

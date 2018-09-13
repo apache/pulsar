@@ -590,16 +590,14 @@ public class FunctionsImpl {
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
 
+        // function metadata will be normalized by function metadata manager to ensure validation logic
+        // only handle with latest format.
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace,
                 functionName);
 
         String inputTopicToWrite;
         if (topic != null) {
             inputTopicToWrite = topic;
-        } else if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
-            // the function was submitted by an old CLI which only have topics-to-serde-class-name map.
-            inputTopicToWrite = functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()
-                    .keySet().iterator().next();
         } else if (functionMetaData.getFunctionDetails().getSource().getInputSpecsCount() == 1) {
             // the function was submitted by a newer CLI which is using input specs
             inputTopicToWrite = functionMetaData.getFunctionDetails().getSource().getInputSpecsMap()
@@ -609,9 +607,8 @@ public class FunctionsImpl {
             return Response.status(Status.BAD_REQUEST).build();
         }
         boolean topicIdentified =
-            (functionMetaData.getFunctionDetails().getSource().getInputSpecsCount() > 0
-                && functionMetaData.getFunctionDetails().getSource().getInputSpecsMap().containsKey(inputTopicToWrite))
-            || functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().containsKey(inputTopicToWrite);
+            functionMetaData.getFunctionDetails().getSource().getInputSpecsCount() > 0
+                && functionMetaData.getFunctionDetails().getSource().getInputSpecsMap().containsKey(inputTopicToWrite);
         if (!topicIdentified) {
             log.error("Function in trigger function has unidentified topic @ /{}/{}/{} {}", tenant, namespace, functionName, inputTopicToWrite);
 
