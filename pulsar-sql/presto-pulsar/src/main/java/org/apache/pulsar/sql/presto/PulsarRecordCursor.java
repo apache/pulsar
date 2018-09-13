@@ -270,7 +270,7 @@ public class PulsarRecordCursor implements RecordCursor {
         }
 
         public boolean hashFinished() {
-            return messageQueue.isEmpty() && isDone.get() && outstandingReadsRequests.get() >=1;
+            return messageQueue.isEmpty() && entryQueue.isEmpty() && isDone.get() && outstandingReadsRequests.get() >=1;
         }
 
 
