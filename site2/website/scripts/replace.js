@@ -118,7 +118,7 @@ for (v of versions) {
       `${v}`, 
       binaryReleaseUrl(`${v}`),
       connectorReleaseUrl(`${v}`),
-      prestoPulsarReleaseUrl(`${latestVersion}`)
+      prestoPulsarReleaseUrl(`${latestVersion}`),
       downloadPageUrl(),
       rpmReleaseUrl(`${v}`, ""),
       rpmReleaseUrl(`${v}`, "-debuginfo"),
