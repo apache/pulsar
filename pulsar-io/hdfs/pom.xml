@@ -26,6 +26,7 @@
     <version>2.2.0-incubating-SNAPSHOT</version>
   </parent>
   <artifactId>pulsar-io-hdfs</artifactId>
+  <name>Pulsar IO :: Hdfs</name>
   
   <dependencies>
      <dependency>
