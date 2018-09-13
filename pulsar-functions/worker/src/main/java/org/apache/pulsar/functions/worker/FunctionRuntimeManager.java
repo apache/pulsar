@@ -389,6 +389,25 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return Response.status(Status.OK).build();
     }
 
+    /**
+     * It stops all functions instances owned by current worker
+     * @throws Exception
+     */
+    public void stopAllOwnedFunctions() throws Exception {
+        final String workerId = this.workerConfig.getWorkerId();
+        Map<String, Assignment> assignments = workerIdToAssignments.get(workerId);
+        if (assignments != null) {
+            assignments.values().forEach(assignment -> {
+                String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+                try {
+                    stopFunction(fullyQualifiedInstanceId, false);
+                } catch (Exception e) {
+                    log.warn("Failed to stop function {} - {}", fullyQualifiedInstanceId, e.getMessage());
+                }
+            });
+        }
+    }
+
     private void stopFunction(String fullyQualifiedInstanceId, boolean restart) throws Exception {
         log.info("[{}] {}..", restart ? "restarting" : "stopping", fullyQualifiedInstanceId);
         FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(fullyQualifiedInstanceId);
@@ -647,6 +666,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     @Override
     public void close() throws Exception {
+        stopAllOwnedFunctions();
         this.functionActioner.close();
         this.functionAssignmentTailer.close();
         if (runtimeFactory != null) {
