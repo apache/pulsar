@@ -54,8 +54,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     private JdbcUtils.TableId tableId;
     private PreparedStatement insertStatement;
 
-    // TODO: turn to getSchema from SinkContext.getTopicSchema.getSchema(inputTopic)
-    protected String schema;
     protected JdbcUtils.TableDefinition tableDefinition;
 
     // for flush
@@ -89,7 +87,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         connection.setAutoCommit(false);
         log.info("Opened jdbc connection: {}, autoCommit: {}", jdbcUrl, connection.getAutoCommit());
 
-        schema = jdbcSinkConfig.getSchema();
         tableName = jdbcSinkConfig.getTableName();
         tableId = JdbcUtils.getTableId(connection, tableName);
         tableDefinition = JdbcUtils.getTableDefinition(connection, tableId);
