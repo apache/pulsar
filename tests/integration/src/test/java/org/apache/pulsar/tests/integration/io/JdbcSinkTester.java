@@ -31,6 +31,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.MySQLContainer;
@@ -69,11 +70,12 @@ public class JdbcSinkTester extends SinkTester {
         sinkConfig.put("userName", "test");
         sinkConfig.put("password", "test");
         sinkConfig.put("tableName", tableName);
-
-        // prepare schema
-        sinkConfig.put("schema",  new String(schema.getSchemaInfo().getSchema()));
-        log.info("schema: {}", new String(schema.getSchemaInfo().getSchema()));
         sinkConfig.put("batchSize", 1);
+    }
+
+    @Override
+    public Schema<?> getInputTopicSchema() {
+        return schema;
     }
 
     @Override
