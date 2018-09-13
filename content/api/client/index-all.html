@@ -182,6 +182,18 @@
 <dd>
 <div class="block">Notified when the consumer group is changed, and the consumer is still inactive or becomes inactive.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerInterceptor.html#beforeConsume-org.apache.pulsar.client.api.Consumer-org.apache.pulsar.client.api.Message-">beforeConsume(Consumer&lt;T&gt;, Message&lt;T&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerInterceptor.html" title="interface in org.apache.pulsar.client.api">ConsumerInterceptor</a></dt>
+<dd>
+<div class="block">This is called just before the message is returned by
+ <a href="org/apache/pulsar/client/api/Consumer.html#receive--"><code>Consumer.receive()</code></a>, <a href="org/apache/pulsar/client/api/MessageListener.html#received-org.apache.pulsar.client.api.Consumer-org.apache.pulsar.client.api.Message-"><code>MessageListener.received(Consumer,
+ Message)</code></a> or the <code>CompletableFuture</code> returned by
+ <a href="org/apache/pulsar/client/api/Consumer.html#receiveAsync--"><code>Consumer.receiveAsync()</code></a> completes.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerInterceptor.html#beforeSend-org.apache.pulsar.client.api.Producer-org.apache.pulsar.client.api.Message-">beforeSend(Producer&lt;T&gt;, Message&lt;T&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerInterceptor.html" title="interface in org.apache.pulsar.client.api">ProducerInterceptor</a></dt>
+<dd>
+<div class="block">This is called from <a href="org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(Object)</code></a> and <a href="org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(Object)</code></a> methods, before
+ send the message to the brokers.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#blockIfQueueFull-boolean-">blockIfQueueFull(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
 <dd>
 <div class="block">Set whether the <a href="org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> operations should block when the outgoing
@@ -254,9 +266,17 @@
 <dd>
 <div class="block">Close the consumer and stop the broker to push more messages.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerInterceptor.html#close--">close()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerInterceptor.html" title="interface in org.apache.pulsar.client.api">ConsumerInterceptor</a></dt>
+<dd>
+<div class="block">Close the interceptor.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Producer.html#close--">close()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a></dt>
 <dd>
 <div class="block">Close the producer and releases resources allocated.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerInterceptor.html#close--">close()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerInterceptor.html" title="interface in org.apache.pulsar.client.api">ProducerInterceptor</a></dt>
+<dd>
+<div class="block">Close the interceptor.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#close--">close()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
@@ -335,6 +355,11 @@
 <dt><a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerEventListener</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">Listener on the consumer state changes.</div>
+</dd>
+<dt><a href="org/apache/pulsar/client/api/ConsumerInterceptor.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerInterceptor</span></a>&lt;<a href="org/apache/pulsar/client/api/ConsumerInterceptor.html" title="type parameter in ConsumerInterceptor">T</a>&gt; - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block">A plugin interface that allows you to intercept (and possibly mutate)
+ messages received by the consumer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#consumerName-java.lang.String-">consumerName(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
 <dd>
@@ -592,6 +617,10 @@
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 &nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Consumer.html#getConsumerName--">getConsumerName()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></dt>
+<dd>
+<div class="block">Get the name of consumer.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getConsumerName--">getConsumerName()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
@@ -975,6 +1004,14 @@
 <dd>
 <div class="block">Set the baseline for the sequence ids for messages published by the producer.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#intercept-org.apache.pulsar.client.api.ConsumerInterceptor...-">intercept(ConsumerInterceptor&lt;T&gt;...)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Intercept <a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a>.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#intercept-org.apache.pulsar.client.api.ProducerInterceptor...-">intercept(ProducerInterceptor&lt;T&gt;...)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Intercept <a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a>.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.InvalidConfigurationException.html#InvalidConfigurationException-java.lang.String-">InvalidConfigurationException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.InvalidConfigurationException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.InvalidConfigurationException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.InvalidConfigurationException.html#InvalidConfigurationException-java.lang.Throwable-">InvalidConfigurationException(Throwable)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.InvalidConfigurationException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.InvalidConfigurationException</a></dt>
@@ -1186,6 +1223,19 @@
 </a>
 <h2 class="title">O</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerInterceptor.html#onAcknowledge-org.apache.pulsar.client.api.Consumer-org.apache.pulsar.client.api.MessageId-java.lang.Throwable-">onAcknowledge(Consumer&lt;T&gt;, MessageId, Throwable)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerInterceptor.html" title="interface in org.apache.pulsar.client.api">ConsumerInterceptor</a></dt>
+<dd>
+<div class="block">This is called consumer sends the acknowledgment to the broker.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerInterceptor.html#onAcknowledgeCumulative-org.apache.pulsar.client.api.Consumer-org.apache.pulsar.client.api.MessageId-java.lang.Throwable-">onAcknowledgeCumulative(Consumer&lt;T&gt;, MessageId, Throwable)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerInterceptor.html" title="interface in org.apache.pulsar.client.api">ConsumerInterceptor</a></dt>
+<dd>
+<div class="block">This is called consumer send the cumulative acknowledgment to the broker.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerInterceptor.html#onSendAcknowledgement-org.apache.pulsar.client.api.Producer-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.MessageId-java.lang.Throwable-">onSendAcknowledgement(Producer&lt;T&gt;, Message&lt;T&gt;, MessageId, Throwable)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerInterceptor.html" title="interface in org.apache.pulsar.client.api">ProducerInterceptor</a></dt>
+<dd>
+<div class="block">This method is called when the message sent to the broker has been
+ acknowledged, or when sending the message fails.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/url/DataURLStreamHandler.html#openConnection-java.net.URL-">openConnection(URL)</a></span> - Method in class org.apache.pulsar.client.api.url.<a href="org/apache/pulsar/client/api/url/DataURLStreamHandler.html" title="class in org.apache.pulsar.client.api.url">DataURLStreamHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/url/URL.html#openConnection--">openConnection()</a></span> - Method in class org.apache.pulsar.client.api.url.<a href="org/apache/pulsar/client/api/url/URL.html" title="class in org.apache.pulsar.client.api.url">URL</a></dt>
@@ -1247,6 +1297,12 @@
 </dd>
 <dt><a href="org/apache/pulsar/client/api/ProducerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerCryptoFailureAction</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/api/ProducerInterceptor.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerInterceptor</span></a>&lt;<a href="org/apache/pulsar/client/api/ProducerInterceptor.html" title="type parameter in ProducerInterceptor">T</a>&gt; - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block">A plugin interface that allows you to intercept (and possibly mutate) the
+ messages received by the producer before they are published to the Pulsar
+ brokers.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#producerName-java.lang.String-">producerName(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
 <dd>
 <div class="block">Specify a name for the producer</div>
