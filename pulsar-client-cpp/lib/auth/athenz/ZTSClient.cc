@@ -272,7 +272,7 @@ const std::string ZTSClient::getRoleToken() const {
     curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L);
 
     // Timer
-    curl_easy_setopt(handle, CURLOPT_TIMEOUT, REQUEST_TIMEOUT);
+    curl_easy_setopt(handle, CURLOPT_TIMEOUT_MS, REQUEST_TIMEOUT);
 
     // Redirects
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
