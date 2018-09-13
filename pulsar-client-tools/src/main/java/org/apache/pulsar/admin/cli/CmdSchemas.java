@@ -22,6 +22,10 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
+
+import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.schema.PostSchemaPayload;
 
@@ -34,6 +38,7 @@ public class CmdSchemas extends CmdBase {
         jcommander.addCommand("get", new GetSchema());
         jcommander.addCommand("delete", new DeleteSchema());
         jcommander.addCommand("upload", new UploadSchema());
+        jcommander.addCommand("pojo", new PojoSchema());
     }
 
     @Parameters(commandDescription = "Get the schema for a topic")
@@ -79,6 +84,46 @@ public class CmdSchemas extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             PostSchemaPayload input = MAPPER.readValue(new File(schemaFileName), PostSchemaPayload.class);
+            admin.schemas().createSchema(topic, input);
+        }
+    }
+
+    @Parameters(commandDescription = "Provide the schema via a topic")
+    private class PojoSchema extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-j", "--jar" }, description = "jar filepath", required = true)
+        private String jarFilePath;
+
+        @Parameter(names = { "-t", "--type" }, description = "type avro or json", required = true)
+        private String type;
+
+        @Parameter(names = { "-c", "--class-name" }, description = "class name of pojo", required = true)
+        private String className;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+
+            File file  = new File(jarFilePath);
+            ClassLoader cl = new URLClassLoader(new URL[]{ file.toURL() });
+
+            Class cls = cl.loadClass(className);
+
+            PostSchemaPayload input = new PostSchemaPayload();
+
+            if (type.toLowerCase().equals("avro")) {
+                input.setType("avro");
+                input.setSchema(SchemaExtractor.getAvroSchema(cls));
+            } else if (type.toLowerCase().equals("json")){
+                input.setType("json");
+                input.setSchema(SchemaExtractor.getJsonSchema(cls));
+            }
+            else {
+                throw new Exception("Unknown schema type");
+            }
+
             admin.schemas().createSchema(topic, input);
         }
     }
