@@ -160,7 +160,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                               final @PathParam("functionName") String functionName,
                                               final @PathParam("instanceId") String instanceId) throws IOException {
         return functions.getFunctionInstanceStatus(
-            tenant, namespace, functionName, instanceId);
+            tenant, namespace, functionName, instanceId, uri.getRequestUri());
     }
 
     @GET
