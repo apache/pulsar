@@ -25,6 +25,8 @@
 import os
 import inspect
 import sys
+import pip
+from subprocess import Popen,PIPE,STDOUT
 
 import log
 
@@ -68,3 +70,13 @@ def import_class_from_path(from_path, full_class_name):
 
 def getFullyQualifiedFunctionName(tenant, namespace, name):
   return "%s/%s/%s" % (tenant, namespace, name)
+
+def install_wheel(wheel_file):
+  try:
+    pip.main(['install', wheel_file])
+  except AttributeError as e:
+    Log.info("main method of pip not found while installing %s, probably due to MacOS. Trying pip install" % wheel_file)
+    out = Popen(["pip", "install", wheel_file, "--user"],stderr=STDOUT,stdout=PIPE)
+    if out.returncode != 0:
+      Log.info("Failed to pip install %s with errror %s" % (wheel_file, out.communicate()[0]))
+      raise Exception("Failed to pip install")

@@ -61,7 +61,8 @@ public class FunctionConfig {
 
     public enum Runtime {
         JAVA,
-        PYTHON
+        PYTHON,
+        PYTHON_WHEEL
     }
 
 
@@ -121,4 +122,6 @@ public class FunctionConfig {
     private String jar;
     @isFileExists
     private String py;
+    @isFileExists
+    private String pyWheel;
 }

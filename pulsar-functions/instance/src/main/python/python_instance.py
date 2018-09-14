@@ -49,6 +49,11 @@ InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
 InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
 DEFAULT_SERIALIZER = "serde.IdentitySerDe"
 
+def die(message):
+  Log.critical(message)
+  os.kill(os.getpid(), signal.SIGKILL)
+  sys.exit(1)
+
 # We keep track of the following metrics
 class Stats(object):
   def __init__(self):
@@ -147,9 +152,7 @@ class PythonInstance(object):
 
   def process_spawner_health_check_timer(self):
     if time.time() - self.last_health_check_ts > 90:
-      Log.critical("Haven't received health check from spawner in a while. Stopping instance...")
-      os.kill(os.getpid(), signal.SIGKILL)
-      sys.exit(1)
+      die("Haven't received health check from spawner in a while. Stopping instance...")
 
     Timer(30, self.process_spawner_health_check_timer).start()
 
@@ -158,6 +161,12 @@ class PythonInstance(object):
     mode = pulsar._pulsar.ConsumerType.Shared
     if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
       mode = pulsar._pulsar.ConsumerType.Failover
+
+    if self.instance_config.function_details.runtime == Function_pb2.FunctionDetails.Runtime.Value("PYTHON_WHEEL"):
+      try:
+        util.install_wheel(self.user_code)
+      except:
+        die("Could not install wheel file")
 
     subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
                         str(self.instance_config.function_details.namespace) + "/" + \

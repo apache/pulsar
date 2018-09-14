@@ -66,6 +66,7 @@ class ProcessRuntime implements Runtime {
     private InstanceControlGrpc.InstanceControlFutureStub stub;
     private ScheduledExecutorService timer;
     private InstanceConfig instanceConfig;
+    private String codeFile;
 
     ProcessRuntime(InstanceConfig instanceConfig,
                    String instanceFile,
@@ -76,6 +77,7 @@ class ProcessRuntime implements Runtime {
                    AuthenticationConfig authConfig) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
+        this.codeFile = codeFile;
         this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig);
     }
@@ -108,7 +110,8 @@ class ProcessRuntime implements Runtime {
             args.add(JavaInstanceMain.class.getName());
             args.add("--jar");
             args.add(codeFile);
-        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
+        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON
+                || instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON_WHEEL) {
             args.add("python");
             args.add(instanceFile);
             args.add("--py");
@@ -207,6 +210,9 @@ class ProcessRuntime implements Runtime {
         }
         if (process != null) {
             process.destroy();
+        }
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON_WHEEL) {
+
         }
         if (channel != null) {
             channel.shutdown();

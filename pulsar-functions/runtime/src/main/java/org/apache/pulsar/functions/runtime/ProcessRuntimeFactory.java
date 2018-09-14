@@ -100,6 +100,9 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             case PYTHON:
                 instanceFile = pythonInstanceFile;
                 break;
+            case PYTHON_WHEEL:
+                instanceFile = pythonInstanceFile;
+                break;
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
