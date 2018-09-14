@@ -42,7 +42,7 @@ Configuration:
     # Rolling file appender configuration
     RollingFile:
       name: RollingFile
-      fileName: "${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}"
+      fileName: "${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.log"
       filePattern: "${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
       immediateFlush: true
       PatternLayout:
