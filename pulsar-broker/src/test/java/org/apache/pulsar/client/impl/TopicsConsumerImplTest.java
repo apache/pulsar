@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -615,4 +616,61 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
     }
 
+    /**
+     * Test Listener for github issue #2547
+     */
+    @Test(timeOut = 30000)
+    public void testMultiTopicsMessageListener() throws Exception {
+        String key = "MultiTopicsMessageListenerTest";
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final String messagePredicate = "my-message-" + key + "-";
+        final int totalMessages = 6;
+
+        // set latch larger than totalMessages, so timeout message get resend
+        CountDownLatch latch = new CountDownLatch(totalMessages * 3);
+
+        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
+        List<String> topicNames = Lists.newArrayList(topicName1);
+
+        admin.tenants().createTenant("prop", new TenantInfo());
+        admin.topics().createPartitionedTopic(topicName1, 2);
+
+        // 1. producer connect
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+
+        // 2. Create consumer, set not ack in message listener, so time-out message will resend
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            .topics(topicNames)
+            .subscriptionName(subscriptionName)
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(1000, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(100)
+            .messageListener((c1, msg) -> {
+                assertNotNull(msg, "Message cannot be null");
+                String receivedMessage = new String(msg.getData());
+                latch.countDown();
+
+                log.info("Received message [{}] in the listener, latch: {}",
+                    receivedMessage, latch.getCount());
+                // since not acked, it should retry another time
+                //c1.acknowledgeAsync(msg);
+            })
+            .subscribe();
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+
+        MultiTopicsConsumerImpl topicsConsumer = (MultiTopicsConsumerImpl) consumer;
+
+        // 3. producer publish messages
+        for (int i = 0; i < totalMessages; i++) {
+            producer1.send((messagePredicate + "producer1-" + i).getBytes());
+        }
+
+        // verify should not time out, because of message redelivered several times.
+        latch.await();
+
+        consumer.close();
+    }
 }
