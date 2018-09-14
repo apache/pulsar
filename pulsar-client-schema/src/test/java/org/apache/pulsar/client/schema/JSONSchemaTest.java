@@ -88,10 +88,14 @@ public class JSONSchemaTest {
     public void testCorrectPolymorphism() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(Foo.class);
 
+        Bar bar = new Bar();
+        bar.setField1(true);
+
         DerivedFoo derivedFoo = new DerivedFoo();
         derivedFoo.setField1("foo1");
         derivedFoo.setField2("bar2");
         derivedFoo.setField3(4);
+        derivedFoo.setField4(bar);
         derivedFoo.setField5("derived1");
         derivedFoo.setField6(2);
 
@@ -99,6 +103,7 @@ public class JSONSchemaTest {
         foo.setField1("foo1");
         foo.setField2("bar2");
         foo.setField3(4);
+        foo.setField4(bar);
 
         Assert.assertEquals(jsonSchema.decode(jsonSchema.encode(derivedFoo)), foo);
     }
