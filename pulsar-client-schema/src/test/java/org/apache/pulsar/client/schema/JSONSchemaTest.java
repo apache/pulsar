@@ -78,8 +78,6 @@ public class JSONSchemaTest {
         Foo object1 = jsonSchema.decode(bytes1);
         Foo object2 = jsonSchema.decode(bytes2);
 
-        log.info("object1: {}", object1);
-
         Assert.assertEquals(object1, foo1);
         Assert.assertEquals(object2, foo2);
     }
