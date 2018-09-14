@@ -2228,7 +2228,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     
     @Test
     public void testManagedLedgerWithCreateLedgerTimeOut() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig().setOpTimeoutSec(3);
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMetadataOperationsTimeoutSeconds(3);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_ledger_test", config);
         
         BookKeeper bk = mock(BookKeeper.class);
@@ -2243,7 +2243,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         }, Collections.emptyMap());
 
-        latch.await(config.getOpTimeoutSec() + 2, TimeUnit.SECONDS);
+        latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
         assertEquals(response.get(), BKException.Code.TimeoutException);
         
         ledger.close();

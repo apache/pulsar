@@ -2823,7 +2823,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 ledgerCreated.set(true);
                 cb.createComplete(BKException.Code.TimeoutException, null, null);
             }
-        }, config.getOpTimeoutSec(), TimeUnit.SECONDS);
+        }, config.getMetadataOperationsTimeoutSeconds(), TimeUnit.SECONDS);
     }
 
     /**
