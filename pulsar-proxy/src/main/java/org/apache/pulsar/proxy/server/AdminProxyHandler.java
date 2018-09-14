@@ -49,12 +49,15 @@ class AdminProxyHandler extends AsyncProxyServlet {
     private final ProxyConfiguration config;
     private final BrokerDiscoveryProvider discoveryProvider;
     private final String brokerWebServiceUrl;
+    private final String functionWorkerWebServiceUrl;
 
     AdminProxyHandler(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider) {
         this.config = config;
         this.discoveryProvider = discoveryProvider;
         this.brokerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getBrokerWebServiceURLTLS()
                 : config.getBrokerWebServiceURL();
+        this.functionWorkerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getFunctionWorkerWebServiceURLTLS()
+                : config.getFunctionWorkerWebServiceURL();
     }
 
     @Override
@@ -122,7 +125,16 @@ class AdminProxyHandler extends AsyncProxyServlet {
     protected String rewriteTarget(HttpServletRequest request) {
         StringBuilder url = new StringBuilder();
 
-        if (isBlank(brokerWebServiceUrl)) {
+        boolean isFunctionsRestRequest = false;
+        String requestUri = request.getRequestURI();
+        if (requestUri.startsWith("/admin/v2/functions")
+            || requestUri.startsWith("/admin/functions")) {
+            isFunctionsRestRequest = true;
+        }
+
+        if (isFunctionsRestRequest && !isBlank(functionWorkerWebServiceUrl)) {
+            url.append(functionWorkerWebServiceUrl);
+        } else if (isBlank(brokerWebServiceUrl)) {
             try {
                 ServiceLookupData availableBroker = discoveryProvider.nextBroker();
 
@@ -148,7 +160,7 @@ class AdminProxyHandler extends AsyncProxyServlet {
         if (url.lastIndexOf("/") == url.length() - 1) {
             url.deleteCharAt(url.lastIndexOf("/"));
         }
-        url.append(request.getRequestURI());
+        url.append(requestUri);
 
         String query = request.getQueryString();
         if (query != null) {
