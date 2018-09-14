@@ -31,6 +31,8 @@ import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.RedeliveryTracker;
+import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
@@ -54,6 +56,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     private volatile int totalAvailablePermits = 0;
 
     private final ServiceConfiguration serviceConfig;
+    private final RedeliveryTracker redeliveryTracker;
 
     public NonPersistentDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription) {
         this.topic = topic;
@@ -61,6 +64,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         this.name = topic.getName() + " / " + subscription.getName();
         this.msgDrop = new Rate();
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
+        this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
     }
 
     @Override
@@ -176,6 +180,11 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     @Override
     public SubType getType() {
         return SubType.Shared;
+    }
+
+    @Override
+    public RedeliveryTracker getRedeliveryTracker() {
+        return redeliveryTracker;
     }
 
     @Override
