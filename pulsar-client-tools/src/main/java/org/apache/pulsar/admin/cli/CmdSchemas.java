@@ -107,7 +107,7 @@ public class CmdSchemas extends CmdBase {
             String topic = validateTopicName(params);
 
             File file  = new File(jarFilePath);
-            ClassLoader cl = new URLClassLoader(new URL[]{ file.toURL() });
+            ClassLoader cl = new URLClassLoader(new URL[]{ file.toURI().toURL() });
 
             Class cls = cl.loadClass(className);
 
@@ -115,13 +115,13 @@ public class CmdSchemas extends CmdBase {
 
             if (type.toLowerCase().equals("avro")) {
                 input.setType("avro");
-                input.setSchema(SchemaExtractor.getAvroSchema(cls));
+                input.setSchema(SchemaExtractor.getAvroSchemaInfo(cls).toString());
             } else if (type.toLowerCase().equals("json")){
                 input.setType("json");
-                input.setSchema(SchemaExtractor.getJsonSchema(cls));
+                input.setSchema(SchemaExtractor.getJsonSchemaInfo(cls).toString());
             }
             else {
-                throw new Exception("Unknown schema type");
+                throw new Exception("Unknown schema type specified as type");
             }
 
             admin.schemas().createSchema(topic, input);
