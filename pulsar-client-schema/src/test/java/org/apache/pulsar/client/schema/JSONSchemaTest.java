@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.schema;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
@@ -30,6 +31,7 @@ import org.testng.annotations.Test;
 import static org.apache.pulsar.client.schema.SchemaTestUtils.FOO_FIELDS;
 import static org.apache.pulsar.client.schema.SchemaTestUtils.SCHEMA_JSON;
 
+@Slf4j
 public class JSONSchemaTest {
 
     @Test
@@ -55,10 +57,13 @@ public class JSONSchemaTest {
     public void testEncodeAndDecode() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(Foo.class, null);
 
+        Bar bar = new Bar();
+        bar.setField1(true);
+
         Foo foo1 = new Foo();
         foo1.setField1("foo1");
         foo1.setField2("bar1");
-        foo1.setField4(new Bar());
+        foo1.setField4(bar);
 
         Foo foo2 = new Foo();
         foo2.setField1("foo2");
@@ -72,6 +77,8 @@ public class JSONSchemaTest {
 
         Foo object1 = jsonSchema.decode(bytes1);
         Foo object2 = jsonSchema.decode(bytes2);
+
+        log.info("object1: {}", object1);
 
         Assert.assertEquals(object1, foo1);
         Assert.assertEquals(object2, foo2);

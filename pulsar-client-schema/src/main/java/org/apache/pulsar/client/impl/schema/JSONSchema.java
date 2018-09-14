@@ -26,6 +26,7 @@ import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -33,8 +34,11 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
+@Slf4j
 public class JSONSchema<T> implements Schema<T>{
 
     private final org.apache.avro.Schema schema;
@@ -47,9 +51,17 @@ public class JSONSchema<T> implements Schema<T>{
         this.pojo = pojo;
         this.properties = properties;
         this.gson = new GsonBuilder().addSerializationExclusionStrategy(new ExclusionStrategy() {
+            Set<String> classes = new HashSet<>();
+
             @Override
             public boolean shouldSkipField(FieldAttributes f) {
-                return !f.getDeclaringClass().equals(pojo);
+                boolean skip = !(f.getDeclaringClass().equals(pojo)
+                        || classes.contains(f.getDeclaringClass().getName())
+                        || f.getDeclaringClass().isAssignableFrom(pojo));
+                if (!skip) {
+                    classes.add(f.getDeclaredClass().getName());
+                }
+                return skip;
             }
 
             @Override
