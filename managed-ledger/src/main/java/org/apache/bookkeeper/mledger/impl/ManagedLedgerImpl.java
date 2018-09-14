@@ -1277,7 +1277,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     synchronized void ledgerClosed(final LedgerHandle lh) {
         final State state = STATE_UPDATER.get(this);
-        if (state == State.ClosingLedger || state == State.LedgerOpened) {
+        LedgerHandle currentLedger = this.currentLedger;
+        if (currentLedger == lh && (state == State.ClosingLedger || state == State.LedgerOpened)) {
             STATE_UPDATER.set(this, State.ClosedLedger);
         } else if (state == State.Closed) {
             // The managed ledger was closed during the write operation
