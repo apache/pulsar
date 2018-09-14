@@ -21,18 +21,14 @@ package org.apache.pulsar.tests.integration.io;
 import java.util.Map;
 
 import org.apache.pulsar.tests.integration.containers.HdfsContainer;
-import org.testcontainers.containers.GenericContainer;
+import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
-import static com.google.common.base.Preconditions.checkState;
-
-public class HdfsSinkTester extends SinkTester {
+public class HdfsSinkTester extends SinkTester<HdfsContainer> {
 	
 	private static final String NAME = "HDFS";
 	
-	private HdfsContainer hdfsCluster;
-	
 	public HdfsSinkTester() {
-		super(SinkType.HDFS);
+		super(NAME, SinkType.HDFS);
 		
 		// TODO How do I get the core-site.xml, and hdfs-site.xml files from the container?
 		sinkConfig.put("hdfsConfigResources", "");
@@ -40,20 +36,18 @@ public class HdfsSinkTester extends SinkTester {
 	}
 
 	@Override
-	public void findSinkServiceContainer(Map<String, GenericContainer<?>> containers) {
-		GenericContainer<?> container = containers.get(NAME);	
-		checkState(container instanceof HdfsContainer, "No HDFS service found in the cluster");
-	    this.hdfsCluster = (HdfsContainer) container;
+	protected HdfsContainer createSinkService(PulsarCluster cluster) {
+		return new HdfsContainer(cluster.getClusterName());
 	}
 
 	@Override
 	public void prepareSink() throws Exception {
 		// Create the test directory
-		hdfsCluster.execInContainer("/hadoop/bin/hdfs","dfs", "-mkdir", "/tmp/testing");
-		hdfsCluster.execInContainer("/hadoop/bin/hdfs", "-chown", "tester:testing", "/tmp/testing");
+		serviceContainer.execInContainer("/hadoop/bin/hdfs","dfs", "-mkdir", "/tmp/testing");
+		serviceContainer.execInContainer("/hadoop/bin/hdfs", "-chown", "tester:testing", "/tmp/testing");
 		
 		// Execute all future commands as the "tester" user
-		hdfsCluster.execInContainer("export HADOOP_USER_NAME=tester");
+		serviceContainer.execInContainer("export HADOOP_USER_NAME=tester");
 	}
 
 	@Override
