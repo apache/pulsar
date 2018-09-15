@@ -75,6 +75,6 @@ def getFullyQualifiedFunctionName(tenant, namespace, name):
 def install_wheel(wheel_file):
   try:
     from pip import main as pipmain
-   except ImportError:
+  except ImportError:
     from pip._internal import main as pipmain
   pipmain(["install", wheel_file, "--user"])
