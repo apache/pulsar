@@ -26,7 +26,6 @@ import os
 import inspect
 import sys
 import signal
-import pip
 from subprocess import Popen,PIPE,STDOUT
 
 import log
@@ -81,9 +80,8 @@ def getFullyQualifiedFunctionName(tenant, namespace, name):
 
 def install_wheel(wheel_file):
   out = Popen(["pip", "install", wheel_file, "--user"],stderr=STDOUT,stdout=PIPE)
-  if out.returncode != 0:
-    error = out.communicate()[0]
-    if error.find("Requirement already satisfied") >= 0:
-      return
+  error = out.communicate()[0]
+  errorcode = out.wait()
+  if errorcode != 0:
     print("Failed to pip install %s with errror %s" % (wheel_file, error))
     raise Exception("Failed to pip install")
