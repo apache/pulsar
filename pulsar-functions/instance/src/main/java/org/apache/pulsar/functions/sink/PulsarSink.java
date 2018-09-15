@@ -205,6 +205,8 @@ public class PulsarSink<T> implements Sink<T> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
+        log.info("Opening pulsar sink with config: {}", pulsarSinkConfig);
+
         Schema<T> schema = initializeSchema();
 
         FunctionConfig.ProcessingGuarantees processingGuarantees = this.pulsarSinkConfig.getProcessingGuarantees();
