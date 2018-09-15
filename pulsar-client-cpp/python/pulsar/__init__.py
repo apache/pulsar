@@ -415,7 +415,8 @@ class Client:
                   unacked_messages_timeout_ms=None,
                   broker_consumer_stats_cache_time_ms=30000,
                   is_read_compacted=False,
-                  properties=None
+                  properties=None,
+                  pattern_auto_discovery_period=60
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -475,6 +476,8 @@ class Client:
         * `properties`:
           Sets the properties for the consumer. The properties associated with a consumer
           can be used for identify a consumer at broker side.
+        * `pattern_auto_discovery_period`:
+          Periods of seconds for consumer to auto discover match topics.
         """
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
