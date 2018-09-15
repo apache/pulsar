@@ -78,5 +78,8 @@ def install_wheel(wheel_file):
     Log.info("main method of pip not found while installing %s, probably due to MacOS. Trying pip install" % wheel_file)
     out = Popen(["pip", "install", wheel_file, "--user"],stderr=STDOUT,stdout=PIPE)
     if out.returncode != 0:
-      Log.info("Failed to pip install %s with errror %s" % (wheel_file, out.communicate()[0]))
+      error = out.communicate()[0]
+      if error.find("Requirement already satisfied") >= 0:
+        return
+      Log.info("Failed to pip install %s with errror %s" % (wheel_file, error))
       raise Exception("Failed to pip install")
