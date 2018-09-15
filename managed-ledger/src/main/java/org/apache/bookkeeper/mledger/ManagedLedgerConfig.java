@@ -56,7 +56,7 @@ public class ManagedLedgerConfig {
     private boolean autoSkipNonRecoverableData;
     private long offloadLedgerDeletionLagMs = TimeUnit.HOURS.toMillis(4);
     private long offloadAutoTriggerSizeThresholdBytes = -1;
-    private long metadataOperationsTimeoutSeconds = 60; //1 minutes
+    private long metadataOperationsTimeoutSeconds = 60;
 
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
