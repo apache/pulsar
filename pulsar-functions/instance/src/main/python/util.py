@@ -25,19 +25,12 @@
 import os
 import inspect
 import sys
-import signal
-from subprocess import Popen,PIPE,STDOUT
 
 import log
 
 Log = log.Log
 PULSAR_API_ROOT = 'pulsar'
 PULSAR_FUNCTIONS_API_ROOT = 'functions'
-
-def die(message):
-  Log.critical(message)
-  os.kill(os.getpid(), signal.SIGKILL)
-  sys.exit(1)
 
 def import_class(from_path, full_class_name):
   from_path = str(from_path)
@@ -77,11 +70,3 @@ def import_class_from_path(from_path, full_class_name):
 
 def getFullyQualifiedFunctionName(tenant, namespace, name):
   return "%s/%s/%s" % (tenant, namespace, name)
-
-def install_wheel(wheel_file):
-  out = Popen(["pip", "install", wheel_file, "--user"],stderr=STDOUT,stdout=PIPE)
-  error = out.communicate()[0]
-  errorcode = out.wait()
-  if errorcode != 0:
-    print("Failed to pip install %s with errror %s" % (wheel_file, error))
-    raise Exception("Failed to pip install")

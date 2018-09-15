@@ -74,14 +74,6 @@ def main():
   function_details = Function_pb2.FunctionDetails()
   json_format.Parse(args.function_details, function_details)
 
-  if function_details.runtime == Function_pb2.FunctionDetails.Runtime.Value("PYTHON_WHEEL"):
-    try:
-      util.install_wheel(str(args.py))
-    except:
-      print("Could not install wheel")
-      os.kill(os.getpid(), signal.SIGKILL)
-      sys.exit(1)
-
   log_file = os.path.join(args.logging_directory,
                           util.getFullyQualifiedFunctionName(function_details.tenant, function_details.namespace, function_details.name),
                           "%s-%s.log" % (args.logging_file, args.instance_id))

@@ -112,6 +112,13 @@ class ProcessRuntime implements Runtime {
             args.add(codeFile);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON
                 || instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON_WHEEL) {
+            if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON_WHEEL) {
+                args.add("pip");
+                args.add("install");
+                args.add(codeFile);
+                args.add("--user");
+                args.add("&&");
+            }
             args.add("python");
             args.add(instanceFile);
             args.add("--py");
