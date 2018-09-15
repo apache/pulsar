@@ -25,6 +25,7 @@
 import os
 import inspect
 import sys
+import signal
 import pip
 from subprocess import Popen,PIPE,STDOUT
 
@@ -34,7 +35,14 @@ Log = log.Log
 PULSAR_API_ROOT = 'pulsar'
 PULSAR_FUNCTIONS_API_ROOT = 'functions'
 
+def die(message):
+  Log.critical(message)
+  os.kill(os.getpid(), signal.SIGKILL)
+  sys.exit(1)
+
 def import_class(from_path, full_class_name):
+  from_path = str(from_path)
+  full_class_name = str(full_class_name)
   kclass = import_class_from_path(from_path, full_class_name)
   if kclass is None:
     our_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -72,14 +80,10 @@ def getFullyQualifiedFunctionName(tenant, namespace, name):
   return "%s/%s/%s" % (tenant, namespace, name)
 
 def install_wheel(wheel_file):
-  try:
-    pip.main(['install', wheel_file])
-  except AttributeError as e:
-    Log.info("main method of pip not found while installing %s, probably due to MacOS. Trying pip install" % wheel_file)
-    out = Popen(["pip", "install", wheel_file, "--user"],stderr=STDOUT,stdout=PIPE)
-    if out.returncode != 0:
-      error = out.communicate()[0]
-      if error.find("Requirement already satisfied") >= 0:
-        return
-      Log.info("Failed to pip install %s with errror %s" % (wheel_file, error))
-      raise Exception("Failed to pip install")
+  out = Popen(["pip", "install", wheel_file, "--user"],stderr=STDOUT,stdout=PIPE)
+  if out.returncode != 0:
+    error = out.communicate()[0]
+    if error.find("Requirement already satisfied") >= 0:
+      return
+    print("Failed to pip install %s with errror %s" % (wheel_file, error))
+    raise Exception("Failed to pip install")
