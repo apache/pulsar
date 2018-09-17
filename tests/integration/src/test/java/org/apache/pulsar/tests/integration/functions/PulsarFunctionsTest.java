@@ -45,6 +45,7 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.io.*;
+import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
@@ -102,6 +103,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // prepare the testing environment for sink
         prepareSink(tester);
+
+        ensureSubscriptionCreated(
+            inputTopicName,
+            String.format("public/default/%s", sinkName),
+            tester.getInputTopicSchema());
 
         // submit the sink connector
         submitSinkConnector(tester, tenant, namespace, sinkName, inputTopicName);
@@ -251,13 +257,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     // This for JdbcSinkTester
     protected Map<String, String> produceSchemaMessagesToInputTopic(String inputTopicName,
-                                                              int numMessages,  Schema schema) throws Exception {
+                                                                    int numMessages,
+                                                                    Schema<Foo> schema) throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
         @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
+        Producer<Foo> producer = client.newProducer(schema)
             .topic(inputTopicName)
             .create();
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
@@ -273,7 +280,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             kvs.put(key, value);
             producer.newMessage()
                 .key(key)
-                .value(value)
+                .value(obj)
                 .send();
         }
         return kvs;
@@ -635,7 +642,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             commands);
         assertTrue(result.getStdout().contains("\"Created successfully\""));
 
+        ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+    }
 
+    private static <T> void ensureSubscriptionCreated(String inputTopicName,
+                                                      String subscriptionName,
+                                                      Schema<T> inputTopicSchema)
+            throws Exception {
         // ensure the function subscription exists before we start producing messages
         try (PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -643,7 +656,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             try (Consumer<T> ignored = client.newConsumer(inputTopicSchema)
                 .topic(inputTopicName)
                 .subscriptionType(SubscriptionType.Shared)
-                .subscriptionName(String.format("public/default/%s", functionName))
+                .subscriptionName(subscriptionName)
                 .subscribe()) {
             }
         }

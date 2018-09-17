@@ -156,7 +156,7 @@ public class FunctionActioner implements AutoCloseable {
 
             pkgFile = new File(
                     pkgDir,
-                    new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails())).getName());
+                    new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
             downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
         }
 

@@ -485,6 +485,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         ConsumerConfigurationData<T> internalConsumerConfig = conf.clone();
         internalConsumerConfig.setSubscriptionName(subscription);
         internalConsumerConfig.setConsumerName(consumerName);
+        internalConsumerConfig.setMessageListener(null);
         return internalConsumerConfig;
     }
 

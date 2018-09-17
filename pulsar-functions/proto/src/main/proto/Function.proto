@@ -116,6 +116,7 @@ message SinkSpec {
 
 message PackageLocationMetaData {
     string packagePath = 1;
+    string originalFileName = 2;
 }
 
 message FunctionMetaData {

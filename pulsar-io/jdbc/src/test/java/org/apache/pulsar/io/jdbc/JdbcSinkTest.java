@@ -28,9 +28,11 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.schema.AutoSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericSchema;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.testng.Assert;
@@ -69,7 +71,7 @@ public class JdbcSinkTest {
 
     @Test
     public void TestOpenAndWriteSink() throws Exception {
-        JdbcAvroSchemaSink jdbcSink;
+        JdbcAutoSchemaSink jdbcSink;
         Map<String, Object> conf;
         String tableName = "TestOpenAndWriteSink";
 
@@ -78,7 +80,7 @@ public class JdbcSinkTest {
         conf.put("jdbcUrl", jdbcUrl);
         conf.put("tableName", tableName);
 
-        jdbcSink = new JdbcAvroSchemaSink();
+        jdbcSink = new JdbcAutoSchemaSink();
 
         sqliteUtils.createTable(
             "CREATE TABLE " + tableName + "(" +
@@ -94,13 +96,14 @@ public class JdbcSinkTest {
         obj.setField2("ValueOfField1");
         obj.setField3(3);
         AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
-        conf.put("schema",  new String(schema.getSchemaInfo().getSchema()));
-        log.info("schema: {}", new String(schema.getSchemaInfo().getSchema()));
 
         byte[] bytes = schema.encode(obj);
         ByteBuf payload = Unpooled.copiedBuffer(bytes);
-        Message<byte[]> message = new MessageImpl("77:777", conf, payload, Schema.BYTES);
-        Record<byte[]> record = PulsarRecord.<byte[]>builder()
+        AutoSchema autoSchema = new AutoSchema();
+        autoSchema.setSchema(GenericSchema.of(schema.getSchemaInfo()));
+
+        Message<GenericRecord> message = new MessageImpl("77:777", conf, payload, autoSchema);
+        Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
             .message(message)
             .topicName("fake_topic_name")
             .build();

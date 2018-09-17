@@ -26,6 +26,7 @@ import java.net.URISyntaxException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
@@ -248,7 +249,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * @return the function status
      */
     public InstanceCommunication.FunctionStatus getFunctionInstanceStatus(String tenant, String namespace,
-                                                                          String functionName, int instanceId) {
+            String functionName, int instanceId, URI uri) {
         Assignment assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
         final String assignedWorkerId = assignment.getWorkerId();
         final String workerId = this.workerConfig.getWorkerId();
@@ -306,23 +307,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 return functionStatusBuilder.build();
             }
 
-            Client client = ClientBuilder.newClient();
-
-            // TODO: implement authentication/authorization
-            String jsonResponse = client.target(String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/status",
-                    workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName, instanceId))
-                    .request(MediaType.TEXT_PLAIN)
-                    .get(String.class);
-
-            InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
-            try {
-                org.apache.pulsar.functions.utils.Utils.mergeJson(jsonResponse, functionStatusBuilder);
-            } catch (IOException e) {
-                log.warn("Got invalid function status response from {}", workerInfo, e);
-                throw new RuntimeException(e);
-            }
-            functionStatusBuilder.setWorkerId(assignedWorkerId);
-            functionStatus = functionStatusBuilder.build();
+            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }
 
         return functionStatus;
@@ -403,6 +389,25 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return Response.status(Status.OK).build();
     }
 
+    /**
+     * It stops all functions instances owned by current worker
+     * @throws Exception
+     */
+    public void stopAllOwnedFunctions() throws Exception {
+        final String workerId = this.workerConfig.getWorkerId();
+        Map<String, Assignment> assignments = workerIdToAssignments.get(workerId);
+        if (assignments != null) {
+            assignments.values().forEach(assignment -> {
+                String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+                try {
+                    stopFunction(fullyQualifiedInstanceId, false);
+                } catch (Exception e) {
+                    log.warn("Failed to stop function {} - {}", fullyQualifiedInstanceId, e.getMessage());
+                }
+            });
+        }
+    }
+
     private void stopFunction(String fullyQualifiedInstanceId, boolean restart) throws Exception {
         log.info("[{}] {}..", restart ? "restarting" : "stopping", fullyQualifiedInstanceId);
         FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(fullyQualifiedInstanceId);
@@ -426,9 +431,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * @param namespace the namespace the function belongs to
      * @param functionName the function name
      * @return a list of function statuses
+     * @throws PulsarAdminException 
      */
     public InstanceCommunication.FunctionStatusList getAllFunctionStatus(
-            String tenant, String namespace, String functionName) {
+            String tenant, String namespace, String functionName) throws PulsarAdminException {
 
         Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);
 
@@ -438,13 +444,15 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
 
         for (Assignment assignment : assignments) {
-
-            InstanceCommunication.FunctionStatus functionStatus = this.getFunctionInstanceStatus(
-                    assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
-                    assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
-                    assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
-                    assignment.getInstance().getInstanceId());
-
+            boolean isOwner = this.workerConfig.getWorkerId().equals(assignment.getWorkerId());
+            InstanceCommunication.FunctionStatus functionStatus = isOwner
+                    ? (getFunctionInstanceStatus(tenant, namespace, functionName,
+                            assignment.getInstance().getInstanceId(), null))
+                    : this.functionAdmin.functions().getFunctionStatus(
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
+                            assignment.getInstance().getInstanceId());
             functionStatusListBuilder.addFunctionStatusList(functionStatus);
         }
         return functionStatusListBuilder.build();
@@ -658,6 +666,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     @Override
     public void close() throws Exception {
+        stopAllOwnedFunctions();
         this.functionActioner.close();
         this.functionAssignmentTailer.close();
         if (runtimeFactory != null) {

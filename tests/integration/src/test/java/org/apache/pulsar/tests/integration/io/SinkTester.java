@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.io;
 
 import java.util.Map;
 import lombok.Getter;
+import org.apache.pulsar.client.api.Schema;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.collections.Maps;
 
@@ -55,6 +56,10 @@ public abstract class SinkTester {
         this.sinkArchive = sinkArchive;
         this.sinkClassName = sinkClassName;
         this.sinkConfig = Maps.newHashMap();
+    }
+
+    public Schema<?> getInputTopicSchema() {
+        return Schema.STRING;
     }
 
     public abstract void findSinkServiceContainer(Map<String, GenericContainer<?>> externalServices);
