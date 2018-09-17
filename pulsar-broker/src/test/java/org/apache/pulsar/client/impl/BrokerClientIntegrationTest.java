@@ -336,13 +336,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // verification
         consumer1.setClientCnx(null);
         // (2) send batch-message which should not be able to consume: as broker will disconnect the consumer
-        CompletableFuture<MessageId> lastSendFuture = null;
         for (int i = 0; i < numMessagesPerBatch; i++) {
             String message = "my-message-" + i;
-            lastSendFuture = batchProducer.sendAsync(message.getBytes());
+            batchProducer.sendAsync(message.getBytes());
         }
-
-        lastSendFuture.get();
+        batchProducer.flush();
 
         // consumer should have not received any message as it should have been disconnected
         msg = consumer1.receive(2, TimeUnit.SECONDS);
