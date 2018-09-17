@@ -25,7 +25,6 @@ import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 
-import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -40,8 +39,6 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.Op;
-import org.apache.zookeeper.OpResult;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
@@ -204,22 +201,22 @@ public class ZookeeperCacheTest {
             // correct
         }
 
-        List<OpResult> results = zkClient.multi(Lists.newArrayList(
-            Op.create("/test", new byte[0], null, null),
-            Op.create("/test/z1", new byte[0], null, null)
-        ));
+        zkClient.create("/test", new byte[0], null, null);
+        zkClient.create("/test/z1", new byte[0], null, null);
 
         // Wait for cache to be updated in background
         while (notificationCount.get() < 1) {
             Thread.sleep(1);
         }
 
+        final int recvNotifications = notificationCount.get();
+
         assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1")));
         assertEquals(cache.get("/test"), new TreeSet<String>(Lists.newArrayList("z1")));
-        assertEquals(notificationCount.get(), 1);
+        assertTrue(recvNotifications == 1 || recvNotifications == 2);
 
         zkClient.delete("/test/z1", -1);
-        while (notificationCount.get() < 2) {
+        while (notificationCount.get() < (recvNotifications + 1)) {
             Thread.sleep(1);
         }
 
@@ -235,7 +232,7 @@ public class ZookeeperCacheTest {
             // Ok
         }
 
-        assertEquals(notificationCount.get(), 2);
+        assertEquals(notificationCount.get(), (recvNotifications + 1));
     }
 
     @Test(timeOut = 10000)
