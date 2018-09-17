@@ -373,6 +373,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // corrupted at bookkeeper and managed-cursor is stuck at that ledger.
     @FieldContext(dynamic = true)
     private boolean autoSkipNonRecoverableData = false;
+    // operation timeout while updating managed-ledger metadata.
+    private long managedLedgerMetadataOperationsTimeoutSeconds = 60;
 
     /*** --- Load balancer --- ****/
     // Enable load balancer
@@ -1312,6 +1314,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setAutoSkipNonRecoverableData(boolean skipNonRecoverableLedger) {
         this.autoSkipNonRecoverableData = skipNonRecoverableLedger;
+    }
+
+    public long getManagedLedgerMetadataOperationsTimeoutSeconds() {
+        return managedLedgerMetadataOperationsTimeoutSeconds;
+    }
+
+    public void setManagedLedgerMetadataOperationsTimeoutSeconds(long managedLedgerMetadataOperationsTimeoutSeconds) {
+        this.managedLedgerMetadataOperationsTimeoutSeconds = managedLedgerMetadataOperationsTimeoutSeconds;
     }
 
     public boolean isLoadBalancerEnabled() {
