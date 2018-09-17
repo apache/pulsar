@@ -19,54 +19,47 @@
 package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-
 /**
- * Schema definition for Strings encoded in UTF-8 format.
+ * A schema for 'Byte'.
  */
-public class StringSchema implements Schema<String> {
+public class ByteSchema implements Schema<Byte> {
 
-    public static StringSchema utf8() {
-        return UTF8;
+    public static ByteSchema of() {
+        return INSTANCE;
     }
 
-    private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);
+    private static final ByteSchema INSTANCE = new ByteSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("String")
-        .setType(SchemaType.STRING)
+        .setName("INT8")
+        .setType(SchemaType.INT8)
         .setSchema(new byte[0]);
 
-    private final Charset charset;
-    private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
-    public StringSchema() {
-        this.charset = DEFAULT_CHARSET;
-    }
-
-    public StringSchema(Charset charset) {
-        this.charset = charset;
-    }
-
-    public byte[] encode(String message) {
+    @Override
+    public byte[] encode(Byte message) {
         if (null == message) {
             return null;
         } else {
-            return message.getBytes(charset);
+            return new byte[]{message};
         }
     }
 
-    public String decode(byte[] bytes) {
+    @Override
+    public Byte decode(byte[] bytes) {
         if (null == bytes) {
             return null;
-        } else {
-            return new String(bytes, charset);
         }
+        if (bytes.length != 1) {
+            throw new SchemaSerializationException("Size of data received by ByteSchema is not 1");
+        }
+        return bytes[0];
     }
 
+    @Override
     public SchemaInfo getSchemaInfo() {
         return SCHEMA_INFO;
     }
