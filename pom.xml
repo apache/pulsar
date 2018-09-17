@@ -132,6 +132,7 @@ flexible messaging model and an intuitive client API.</description>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
+    <docker.organization>apachepulsar</docker.organization>
 
     <!-- pin the protobuf-shaded version to make the pulsar build friendly to intellij -->
     <pulsar.protobuf.shaded.version>2.1.0-incubating</pulsar.protobuf.shaded.version>
