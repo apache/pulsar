@@ -56,6 +56,7 @@ public class ManagedLedgerConfig {
     private boolean autoSkipNonRecoverableData;
     private long offloadLedgerDeletionLagMs = TimeUnit.HOURS.toMillis(4);
     private long offloadAutoTriggerSizeThresholdBytes = -1;
+    private long metadataOperationsTimeoutSeconds = 60;
 
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
@@ -509,6 +510,26 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setClock(Clock clock) {
         this.clock = clock;
+        return this;
+    }
+
+    /**
+     * 
+     * Ledger-Op (Create/Delete) timeout
+     * 
+     * @return
+     */
+    public long getMetadataOperationsTimeoutSeconds() {
+        return metadataOperationsTimeoutSeconds;
+    }
+
+    /**
+     * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure
+     * 
+     * @param metadataOperationsTimeoutSeconds
+     */
+    public ManagedLedgerConfig setMetadataOperationsTimeoutSeconds(long metadataOperationsTimeoutSeconds) {
+        this.metadataOperationsTimeoutSeconds = metadataOperationsTimeoutSeconds;
         return this;
     }
 }
