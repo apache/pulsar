@@ -170,6 +170,9 @@ public class FunctionsImpl {
         } else {
             packageLocationMetaDataBuilder.setPackagePath(isPkgUrlProvided ? functionPkgUrl
                     : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
+            if (!isPkgUrlProvided) {
+                packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
+            }
         }
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
@@ -234,6 +237,9 @@ public class FunctionsImpl {
         } else {
             packageLocationMetaDataBuilder.setPackagePath(isPkgUrlProvided ? functionPkgUrl
                     : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
+            if (!isPkgUrlProvided) {
+                packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
+            }
         }
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
