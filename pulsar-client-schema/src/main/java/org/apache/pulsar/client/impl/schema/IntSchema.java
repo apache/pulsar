@@ -19,54 +19,56 @@
 package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-
 /**
- * Schema definition for Strings encoded in UTF-8 format.
+ * A schema for `Integer`.
  */
-public class StringSchema implements Schema<String> {
+public class IntSchema implements Schema<Integer> {
 
-    public static StringSchema utf8() {
-        return UTF8;
+    public static IntSchema of() {
+        return INSTANCE;
     }
 
-    private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);
+    private static final IntSchema INSTANCE = new IntSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("String")
-        .setType(SchemaType.STRING)
+        .setName("INT32")
+        .setType(SchemaType.INT32)
         .setSchema(new byte[0]);
 
-    private final Charset charset;
-    private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
-
-    public StringSchema() {
-        this.charset = DEFAULT_CHARSET;
-    }
-
-    public StringSchema(Charset charset) {
-        this.charset = charset;
-    }
-
-    public byte[] encode(String message) {
+    @Override
+    public byte[] encode(Integer message) {
         if (null == message) {
             return null;
         } else {
-            return message.getBytes(charset);
+            return new byte[] {
+                (byte) (message >>> 24),
+                (byte) (message >>> 16),
+                (byte) (message >>> 8),
+                message.byteValue()
+            };
         }
     }
 
-    public String decode(byte[] bytes) {
+    @Override
+    public Integer decode(byte[] bytes) {
         if (null == bytes) {
             return null;
-        } else {
-            return new String(bytes, charset);
         }
+        if (bytes.length != 4) {
+            throw new SchemaSerializationException("Size of data received by IntSchema is not 4");
+        }
+        int value = 0;
+        for (byte b : bytes) {
+            value <<= 8;
+            value |= b & 0xFF;
+        }
+        return value;
     }
 
+    @Override
     public SchemaInfo getSchemaInfo() {
         return SCHEMA_INFO;
     }
