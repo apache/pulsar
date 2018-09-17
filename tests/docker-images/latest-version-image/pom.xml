@@ -68,13 +68,13 @@
                   <goal>tag</goal>
                 </goals>
                 <configuration>
-                  <repository>apachepulsar/pulsar-test-latest-version</repository>
+                  <repository>${docker.organization}/pulsar-test-latest-version</repository>
                   <tag>latest</tag>
                 </configuration>
               </execution>
             </executions>
             <configuration>
-              <repository>apachepulsar/pulsar-test-latest-version</repository>
+              <repository>${docker.organization}/pulsar-test-latest-version</repository>
               <tag>${project.version}</tag>
               <pullNewerImage>false</pullNewerImage>
               <noCache>true</noCache>
