@@ -900,6 +900,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         JSONSchema jsonSchema = (JSONSchema) schema;
                         schemaInfo = jsonSchema.getBackwardsCompatibleJsonSchemaInfo();
                     }
+                } else if (schema.getSchemaInfo().getType() == SchemaType.BYTES) {
+                    // don't set schema info for Schema.BYTES
+                    schemaInfo = null;
                 } else {
                     schemaInfo = schema.getSchemaInfo();
                 }

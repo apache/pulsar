@@ -19,54 +19,61 @@
 package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-
 /**
- * Schema definition for Strings encoded in UTF-8 format.
+ * A schema for `Double`.
  */
-public class StringSchema implements Schema<String> {
+public class DoubleSchema implements Schema<Double> {
 
-    public static StringSchema utf8() {
-        return UTF8;
+    public static DoubleSchema of() {
+        return INSTANCE;
     }
 
-    private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);
+    private static final DoubleSchema INSTANCE = new DoubleSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("String")
-        .setType(SchemaType.STRING)
+        .setName("Double")
+        .setType(SchemaType.DOUBLE)
         .setSchema(new byte[0]);
 
-    private final Charset charset;
-    private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
-
-    public StringSchema() {
-        this.charset = DEFAULT_CHARSET;
-    }
-
-    public StringSchema(Charset charset) {
-        this.charset = charset;
-    }
-
-    public byte[] encode(String message) {
+    @Override
+    public byte[] encode(Double message) {
         if (null == message) {
             return null;
         } else {
-            return message.getBytes(charset);
+            long bits = Double.doubleToLongBits(message);
+            return new byte[] {
+                (byte) (bits >>> 56),
+                (byte) (bits >>> 48),
+                (byte) (bits >>> 40),
+                (byte) (bits >>> 32),
+                (byte) (bits >>> 24),
+                (byte) (bits >>> 16),
+                (byte) (bits >>> 8),
+                (byte) bits
+            };
         }
     }
 
-    public String decode(byte[] bytes) {
+    @Override
+    public Double decode(byte[] bytes) {
         if (null == bytes) {
             return null;
-        } else {
-            return new String(bytes, charset);
         }
+        if (bytes.length != 8) {
+            throw new SchemaSerializationException("Size of data received by DoubleSchema is not 8");
+        }
+        long value = 0;
+        for (byte b : bytes) {
+            value <<= 8;
+            value |= b & 0xFF;
+        }
+        return Double.longBitsToDouble(value);
     }
 
+    @Override
     public SchemaInfo getSchemaInfo() {
         return SCHEMA_INFO;
     }
