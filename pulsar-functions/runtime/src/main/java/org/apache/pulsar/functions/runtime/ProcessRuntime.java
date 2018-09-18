@@ -395,7 +395,7 @@ class ProcessRuntime implements Runtime {
             virtualEnvPath = Files.createTempDirectory("pulsarfunctionwheel", new FileAttribute<?>[0]);
             java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> cleanSetup()));
             String[] commands = {
-                    "virtualenv --system-site-packages" + virtualEnvPath,
+                    "virtualenv --system-site-packages " + virtualEnvPath,
                     virtualEnvPath + "/bin/pip install --ignore-installed " + userCodeFile
             };
             executeSeries(commands);
