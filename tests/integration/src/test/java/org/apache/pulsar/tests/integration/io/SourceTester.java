@@ -27,7 +27,7 @@ import org.testng.collections.Maps;
  * A tester used for testing a specific source.
  */
 @Getter
-public abstract class SourceTester {
+public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
     protected final String sourceType;
     protected final Map<String, Object> sourceConfig;
@@ -37,7 +37,7 @@ public abstract class SourceTester {
         this.sourceConfig = Maps.newHashMap();
     }
 
-    public abstract void findSourceServiceContainer(Map<String, GenericContainer<?>> externalServices);
+    public abstract void setServiceContainer(ServiceContainerT serviceContainer);
 
     public String sourceType() {
         return sourceType;

@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.io;
 import java.util.Map;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.collections.Maps;
 
@@ -28,7 +29,7 @@ import org.testng.collections.Maps;
  * A tester used for testing a specific sink.
  */
 @Getter
-public abstract class SinkTester {
+public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
 
     public enum SinkType {
         UNDEFINED,
@@ -39,19 +40,23 @@ public abstract class SinkTester {
         ELASTIC_SEARCH
     }
 
+    protected final String networkAlias;
     protected final SinkType sinkType;
     protected final String sinkArchive;
     protected final String sinkClassName;
     protected final Map<String, Object> sinkConfig;
+    protected ServiceContainerT serviceContainer;
 
-    public SinkTester(SinkType sinkType) {
+    public SinkTester(String networkAlias, SinkType sinkType) {
+        this.networkAlias = networkAlias;
         this.sinkType = sinkType;
         this.sinkArchive = null;
         this.sinkClassName = null;
         this.sinkConfig = Maps.newHashMap();
     }
 
-    public SinkTester(String sinkArchive, String sinkClassName) {
+    public SinkTester(String networkAlias, String sinkArchive, String sinkClassName) {
+        this.networkAlias = networkAlias;
         this.sinkType = SinkType.UNDEFINED;
         this.sinkArchive = sinkArchive;
         this.sinkClassName = sinkClassName;
@@ -62,7 +67,19 @@ public abstract class SinkTester {
         return Schema.STRING;
     }
 
-    public abstract void findSinkServiceContainer(Map<String, GenericContainer<?>> externalServices);
+    protected abstract ServiceContainerT createSinkService(PulsarCluster cluster);
+
+    public ServiceContainerT startServiceContainer(PulsarCluster cluster) {
+        this.serviceContainer = createSinkService(cluster);
+        cluster.startService(networkAlias, serviceContainer);
+        return serviceContainer;
+    }
+
+    public void stopServiceContainer(PulsarCluster cluster) {
+        if (null != serviceContainer) {
+            cluster.stopService(networkAlias, serviceContainer);
+        }
+    }
 
     public SinkType sinkType() {
         return sinkType;
