@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -75,6 +76,14 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentQueueE2ETest.class);
+
+    private void deleteTopic(String topicName) {
+        try {
+            admin.topics().delete(topicName);
+        } catch (PulsarAdminException pae) {
+            // it is okay to get exception if it is cleaning up.
+        }
+    }
 
     @Test
     public void testSimpleConsumerEvents() throws Exception {
@@ -172,7 +181,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         producer.close();
         consumer2.close();
 
-        admin.topics().delete(topicName);
+        deleteTopic(topicName);
     }
 
     @Test
@@ -220,7 +229,8 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         assertTrue(CollectionUtils.subtract(messagesProduced, messagesConsumed).isEmpty());
 
         consumer1.close();
-        admin.topics().delete(topicName);
+
+        deleteTopic(topicName);
     }
 
     @Test
@@ -279,7 +289,8 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         consumer1.close();
         consumer2.close();
-        admin.topics().delete(topicName);
+
+        deleteTopic(topicName);
     }
 
     // this test is good to have to see the distribution, but every now and then it gets slightly different than the
@@ -352,7 +363,8 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         consumer1.close();
         consumer2.close();
         consumer3.close();
-        admin.topics().delete(topicName);
+
+        deleteTopic(topicName);
     }
 
     @Test(timeOut = 300000)
@@ -550,6 +562,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         producer.close();
         consumer1.close();
         consumer2.close();
-        admin.topics().delete(topicName);
+
+        deleteTopic(topicName);
     }
 }

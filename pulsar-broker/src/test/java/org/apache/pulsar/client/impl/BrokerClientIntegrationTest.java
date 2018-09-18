@@ -583,7 +583,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             ClientCnx cnx = producer.cnx();
             assertTrue(cnx.channel().isActive());
             ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
-            List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
+            final List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
             final int totalProducers = 10;
             CountDownLatch latch = new CountDownLatch(totalProducers);
             for (int i = 0; i < totalProducers; i++) {
@@ -591,14 +591,18 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                     final String randomTopicName1 = topicName + randomUUID().toString();
                     final String randomTopicName2 = topicName + randomUUID().toString();
                     // pass producer-name to avoid exception: producer is already connected to topic
-                    futures.add(pulsarClient2.newProducer().topic(randomTopicName1).createAsync());
-                    futures.add(pulsarClient.newProducer().topic(randomTopicName2).createAsync());
+                    synchronized (futures) {
+                        futures.add(pulsarClient2.newProducer().topic(randomTopicName1).createAsync());
+                        futures.add(pulsarClient.newProducer().topic(randomTopicName2).createAsync());
+                    }
                     latch.countDown();
                 });
             }
 
             latch.await();
-            FutureUtil.waitForAll(futures).get();
+            synchronized (futures) {
+                FutureUtil.waitForAll(futures).get();
+            }
             pulsarClient.close();
             pulsarClient2.close();
         } finally {
