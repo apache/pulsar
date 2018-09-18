@@ -29,6 +29,9 @@
   <groupId>org.apache.pulsar.tests</groupId>
   <artifactId>latest-version-image</artifactId>
   <name>Apache Pulsar :: Tests :: Docker Images :: Latest Version Testing</name>
+  <properties>
+    <docker.organization>apachepulsar</docker.organization>
+  </properties>
   <packaging>pom</packaging>
 
   <profiles>
