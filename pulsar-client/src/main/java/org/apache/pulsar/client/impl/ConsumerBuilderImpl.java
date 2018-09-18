@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;
@@ -253,6 +254,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             interceptorList = new ArrayList<>();
         }
         interceptorList.addAll(Arrays.asList(interceptors));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy) {
+        conf.setDeadLetterPolicy(deadLetterPolicy);
         return this;
     }
 

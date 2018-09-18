@@ -31,9 +31,6 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>docker-images</artifactId>
   <name>Apache Pulsar :: Docker Images</name>
-  <properties>
-    <docker.organization>apachepulsar</docker.organization>
-  </properties>
   <modules>
     <module>pulsar</module>
     <module>grafana</module>

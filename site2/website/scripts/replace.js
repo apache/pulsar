@@ -87,7 +87,7 @@ const options = {
     `${latestVersion}`, 
     binaryReleaseUrl(`${latestVersion}`), 
     connectorReleaseUrl(`${latestVersion}`),
-    prestoPulsarReleaseUrl(`${latestVersion}`)
+    prestoPulsarReleaseUrl(`${latestVersion}`),
     downloadPageUrl(),
     rpmReleaseUrl(`${latestVersion}`, ""),
     rpmReleaseUrl(`${latestVersion}`, "-debuginfo"),
@@ -118,7 +118,7 @@ for (v of versions) {
       `${v}`, 
       binaryReleaseUrl(`${v}`),
       connectorReleaseUrl(`${v}`),
-      prestoPulsarReleaseUrl(`${latestVersion}`)
+      prestoPulsarReleaseUrl(`${latestVersion}`),
       downloadPageUrl(),
       rpmReleaseUrl(`${v}`, ""),
       rpmReleaseUrl(`${v}`, "-debuginfo"),

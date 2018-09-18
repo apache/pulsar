@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.functions.utils;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
 public class FunctionDetailsUtils {
@@ -43,7 +45,11 @@ public class FunctionDetailsUtils {
         return fullyQualifiedName.split("/")[2];
     }
 
-    public static String getDownloadFileName(FunctionDetails FunctionDetails) {
+    public static String getDownloadFileName(FunctionDetails FunctionDetails,
+                                             Function.PackageLocationMetaData packageLocation) {
+        if (!StringUtils.isEmpty(packageLocation.getOriginalFileName())) {
+            return packageLocation.getOriginalFileName();
+        }
         String[] hierarchy = FunctionDetails.getClassName().split("\\.");
         String fileName;
         if (hierarchy.length <= 0) {
