@@ -24,12 +24,11 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.CassandraContainer;
-import org.testcontainers.containers.GenericContainer;
+import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 import java.util.List;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -38,7 +37,15 @@ import static org.junit.Assert.assertNotNull;
  * A tester for testing cassandra sink.
  */
 @Slf4j
-public class CassandraSinkTester extends SinkTester {
+public class CassandraSinkTester extends SinkTester<CassandraContainer> {
+
+    public static CassandraSinkTester createTester(boolean builtin) {
+        if (builtin) {
+            return new CassandraSinkTester(builtin);
+        } else {
+            return new CassandraSinkTester();
+        }
+    }
 
     private static final String NAME = "cassandra";
 
@@ -49,13 +56,25 @@ public class CassandraSinkTester extends SinkTester {
     private final String keySpace;
     private final String tableName;
 
-    private CassandraContainer cassandraCluster;
-
     private Cluster cluster;
     private Session session;
 
-    public CassandraSinkTester() {
-        super(SinkType.CASSANDRA);
+    private CassandraSinkTester() {
+        super(NAME, "/pulsar/connectors/pulsar-io-cassandra-2.2.0-incubating-SNAPSHOT.nar", "org.apache.pulsar.io.cassandra.CassandraStringSink");
+
+        String suffix = randomName(8) + "_" + System.currentTimeMillis();
+        this.keySpace = "keySpace_" + suffix;
+        this.tableName = "tableName_" + suffix;
+
+        sinkConfig.put("roots", ROOTS);
+        sinkConfig.put("keyspace", keySpace);
+        sinkConfig.put("columnFamily", tableName);
+        sinkConfig.put("keyname", KEY);
+        sinkConfig.put("columnName", COLUMN);
+    }
+
+    private CassandraSinkTester(boolean builtin) {
+        super(NAME, SinkType.CASSANDRA);
 
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.keySpace = "keySpace_" + suffix;
@@ -69,12 +88,8 @@ public class CassandraSinkTester extends SinkTester {
     }
 
     @Override
-    public void findSinkServiceContainer(Map<String, GenericContainer<?>> containers) {
-        GenericContainer<?> container = containers.get(NAME);
-        checkState(container instanceof CassandraContainer,
-            "No kafka service found in the cluster");
-
-        this.cassandraCluster = (CassandraContainer) container;
+    protected CassandraContainer createSinkService(PulsarCluster cluster) {
+        return new CassandraContainer(cluster.getClusterName());
     }
 
     @Override
@@ -82,12 +97,12 @@ public class CassandraSinkTester extends SinkTester {
         // build the sink
         cluster = Cluster.builder()
             .addContactPoint("localhost")
-            .withPort(cassandraCluster.getCassandraPort())
+            .withPort(serviceContainer.getCassandraPort())
             .build();
 
         // connect to the cluster
         session = cluster.connect();
-        log.info("Connecting to cassandra cluster at localhost:{}", cassandraCluster.getCassandraPort());
+        log.info("Connecting to cassandra cluster at localhost:{}", serviceContainer.getCassandraPort());
 
         String createKeySpace =
             "CREATE KEYSPACE " + keySpace

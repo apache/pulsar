@@ -161,7 +161,7 @@ public class CommandGenerator {
     }
 
     public String generateUpdateFunctionCommand(String codeFile) {
-        StringBuilder commandBuilder = new StringBuilder("PULSAR_MEM=-Xmx1024m ");
+        StringBuilder commandBuilder = new StringBuilder();
         if (adminUrl == null) {
             commandBuilder.append("/pulsar/bin/pulsar-admin functions update");
         } else {
