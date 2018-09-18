@@ -19,16 +19,31 @@
 
 package org.apache.pulsar.io.kafka;
 
+import java.util.Properties;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 
 /**
- * Kafka sink that treats incoming messages on the input topic as Strings
- * and write identical key/value pairs.
+ * Kafka sink should treats incoming messages as pure bytes. So we don't
+ * apply schema into it.
  */
-public class KafkaStringSink extends KafkaAbstractSink<String, String> {
+@Slf4j
+public class KafkaBytesSink extends KafkaAbstractSink<String, byte[]> {
+
     @Override
-    public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {
-        return new KeyValue<>(record.getKey().orElse(null), new String(record.getValue()));
+    protected Properties beforeCreateProducer(Properties props) {
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+        log.info("Created kafka producer config : {}", props);
+        return props;
+    }
+
+    @Override
+    public KeyValue<String, byte[]> extractKeyValue(Record<byte[]> record) {
+        return new KeyValue<>(record.getKey().orElse(null), record.getValue());
     }
 }
