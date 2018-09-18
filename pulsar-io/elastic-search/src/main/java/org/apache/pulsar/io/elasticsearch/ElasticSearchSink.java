@@ -51,7 +51,7 @@ import org.elasticsearch.common.xcontent.XContentType;
  * Users need to implement extractKeyValue function to use this sink.
  * This class assumes that the input will be JSON documents
  */
-public abstract class ElasticSearchAbstractSink<K, V> implements Sink<byte[]> {
+public class ElasticSearchSink implements Sink<byte[]> {
 
     protected static final String DOCUMENT = "doc";
 
@@ -74,7 +74,7 @@ public abstract class ElasticSearchAbstractSink<K, V> implements Sink<byte[]> {
 
     @Override
     public void write(Record<byte[]> record) {
-        KeyValue<K, V> keyValue = extractKeyValue(record);
+        KeyValue<String, byte[]> keyValue = extractKeyValue(record);
         IndexRequest indexRequest = Requests.indexRequest(elasticSearchConfig.getIndexName());
         indexRequest.type(DOCUMENT);
         indexRequest.source(keyValue.getValue(), XContentType.JSON);
@@ -91,7 +91,10 @@ public abstract class ElasticSearchAbstractSink<K, V> implements Sink<byte[]> {
         }
     }
 
-    public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> record);
+    public KeyValue<String, byte[]> extractKeyValue(Record<byte[]> record) {
+        String key = record.getKey().orElseGet(null);
+        return new KeyValue<>(key, record.getValue());
+    }
 
     private void createIndexIfNeeded() throws IOException {
         GetIndexRequest request = new GetIndexRequest();
