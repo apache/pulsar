@@ -19,34 +19,36 @@
 package org.apache.pulsar.functions.sink;
 
 import com.google.common.annotations.VisibleForTesting;
-
-import java.util.Base64;
-import java.util.Map;
-import java.util.Optional;
-
-import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.instance.FunctionResultRouter;
 import org.apache.pulsar.functions.instance.SinkRecord;
-import org.apache.pulsar.functions.instance.producers.AbstractOneOuputTopicProducers;
-import org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers;
-import org.apache.pulsar.functions.instance.producers.Producers;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class PulsarSink<T> implements Sink<T> {
@@ -60,139 +62,165 @@ public class PulsarSink<T> implements Sink<T> {
     private final String fqfn;
 
     private interface PulsarSinkProcessor<T> {
-        void initializeOutputProducer(String outputTopic, Schema<T> schema, String fqfn) throws Exception;
 
         TypedMessageBuilder<T> newMessage(Record<T> record) throws Exception;
 
         void sendOutputMessage(TypedMessageBuilder<T> msg, Record<T> record) throws Exception;
 
-        abstract void close() throws Exception;
+        void close() throws Exception;
     }
 
-    private class PulsarSinkAtMostOnceProcessor implements PulsarSinkProcessor<T> {
-        private Producer<T> producer;
+    private abstract class PulsarSinkProcessorBase implements PulsarSinkProcessor<T> {
+        protected Map<String, Producer<T>> publishProducers = new ConcurrentHashMap<>();
+        protected Schema schema;
+
+        protected PulsarSinkProcessorBase(Schema schema) {
+            this.schema = schema;
+        }
+
+        public <T> Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema, String fqfn)
+                throws PulsarClientException {
+            ProducerBuilder<T> builder = client.newProducer(schema)
+                    .blockIfQueueFull(true)
+                    .enableBatching(true)
+                    .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
+                    .compressionType(CompressionType.LZ4)
+                    .hashingScheme(HashingScheme.Murmur3_32Hash) //
+                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                    .messageRouter(FunctionResultRouter.of())
+                    .topic(topic);
+            if (producerName != null) {
+                builder.producerName(producerName);
+            }
+
+            return builder
+                    .property("application", "pulsarfunction")
+                    .property("fqfn", fqfn).create();
+        }
+
+        protected Producer<T> getProducer(String destinationTopic) {
+            return getProducer(destinationTopic, null, destinationTopic);
+        }
+
+        protected Producer<T> getProducer(String producerId, String producerName, String topicName) {
+
+            Producer<T> producer = publishProducers.get(producerId);
+
+            if (producer == null) {
+                try {
+                    Producer<T> newProducer = createProducer(
+                            client,
+                            topicName,
+                            producerName,
+                            schema,
+                            fqfn);
+
+                    Producer<T> existingProducer = publishProducers.putIfAbsent(producerId, newProducer);
+
+                    if (existingProducer != null) {
+                        // The value in the map was not updated after the concurrent put
+                        newProducer.close();
+                        producer = existingProducer;
+                    } else {
+                        producer = newProducer;
+                    }
+
+                } catch (PulsarClientException e) {
+                    log.error("Failed to create Producer while doing user publish", e);
+                    throw new RuntimeException(e);
+                }
+            }
+            return producer;
+        }
 
         @Override
-        public void initializeOutputProducer(String outputTopic, Schema<T> schema, String fqfn) throws Exception {
-            this.producer = AbstractOneOuputTopicProducers.createProducer(
-                    client, pulsarSinkConfig.getTopic(), null, schema, fqfn);
+        public void close() throws Exception {
+            List<CompletableFuture<Void>> closeFutures = new ArrayList<>(publishProducers.size());
+            for (Map.Entry<String, Producer<T>> entry: publishProducers.entrySet()) {
+                String topicId = entry.getKey();
+                Producer<T> producer = entry.getValue();
+                closeFutures.add(producer.closeAsync().exceptionally(throwable -> {
+                    log.warn("Fail to close producer for output topic {}", topicId, throwable);
+                    return null;
+                }));
+            }
+            try {
+                FutureUtils.result(FutureUtils.collect(closeFutures));
+            } catch (Exception e) {
+                log.warn("Fail to close all the producers", e);
+            }
+        }
+    }
+
+    private class PulsarSinkAtMostOnceProcessor extends PulsarSinkProcessorBase {
+        public PulsarSinkAtMostOnceProcessor(Schema schema) {
+            super(schema);
         }
 
         @Override
         public TypedMessageBuilder<T> newMessage(Record<T> record) {
-            return producer.newMessage();
+            if (record.getDestinationTopic().isPresent()) {
+                return getProducer(record.getDestinationTopic().get()).newMessage();
+            }
+            return getProducer(pulsarSinkConfig.getTopic()).newMessage();
         }
 
         @Override
         public void sendOutputMessage(TypedMessageBuilder<T> msg, Record<T> record) throws Exception {
             msg.sendAsync();
         }
-
-        @Override
-        public void close() throws Exception {
-            if (null != producer) {
-                try {
-                    producer.close();
-                } catch (PulsarClientException e) {
-                    log.warn("Fail to close producer for processor {}", pulsarSinkConfig.getTopic(), e);
-                }
-            }
-        }
     }
 
-    private class PulsarSinkAtLeastOnceProcessor implements PulsarSinkProcessor<T> {
-        private Producer<T> producer;
-
-        @Override
-        public void initializeOutputProducer(String outputTopic, Schema<T> schema, String fqfn) throws Exception {
-            this.producer = AbstractOneOuputTopicProducers.createProducer(
-                    client, pulsarSinkConfig.getTopic(), null, schema, fqfn);
-        }
-
-        @Override
-        public TypedMessageBuilder<T> newMessage(Record<T> record) {
-            return producer.newMessage();
+    private class PulsarSinkAtLeastOnceProcessor extends PulsarSinkAtMostOnceProcessor {
+        public PulsarSinkAtLeastOnceProcessor(Schema schema) {
+            super(schema);
         }
 
         @Override
         public void sendOutputMessage(TypedMessageBuilder<T> msg, Record<T> record) throws Exception {
             msg.sendAsync().thenAccept(messageId -> record.ack());
         }
-
-        @Override
-        public void close() throws Exception {
-            if (null != producer) {
-                try {
-                    producer.close();
-                } catch (PulsarClientException e) {
-                    log.warn("Fail to close producer for processor {}", pulsarSinkConfig.getTopic(), e);
-                }
-            }
-        }
     }
 
-    private class PulsarSinkEffectivelyOnceProcessor implements PulsarSinkProcessor<T>, ConsumerEventListener {
+    private class PulsarSinkEffectivelyOnceProcessor extends PulsarSinkProcessorBase {
 
-        @Getter(AccessLevel.PACKAGE)
-        protected Producers<T> outputProducer;
 
-        @Override
-        public void initializeOutputProducer(String outputTopic, Schema<T> schema, String fqfn) throws Exception {
-            outputProducer = new MultiConsumersOneOuputTopicProducers<T>(client, outputTopic, schema, fqfn);
-            outputProducer.initialize();
+        public PulsarSinkEffectivelyOnceProcessor(Schema schema) {
+            super(schema);
         }
 
         @Override
         public TypedMessageBuilder<T> newMessage(Record<T> record) throws Exception {
-            // Route message to appropriate partition producer
-            return outputProducer.getProducer(record.getPartitionId().get()).newMessage();
+            if (!record.getPartitionId().isPresent()) {
+                throw new RuntimeException("PartitionId needs to be specified for every record while in Effectively-once mode");
+            }
+            if (record.getDestinationTopic().isPresent()) {
+                return getProducer(
+                        String.format("%s-%s",record.getDestinationTopic().get(), record.getPartitionId().get()),
+                        record.getPartitionId().get(),
+                        record.getDestinationTopic().get()
+                ).newMessage();
+            }
+            return getProducer(
+                    String.format("%s-%s", pulsarSinkConfig.getTopic(), record.getPartitionId().get()),
+                    record.getPartitionId().get(),
+                    pulsarSinkConfig.getTopic()
+            ).newMessage();
         }
 
         @Override
         public void sendOutputMessage(TypedMessageBuilder<T> msg, Record<T> record)
                 throws Exception {
 
-            // assign sequence id to output message for idempotent producing
-            if (record.getRecordSequence().isPresent()) {
-                msg.sequenceId(record.getRecordSequence().get());
+            if (!record.getRecordSequence().isPresent()) {
+                throw new RuntimeException("RecordSequence needs to be specified for every record while in Effectively-once mode");
             }
 
+            // assign sequence id to output message for idempotent producing
+            msg.sequenceId(record.getRecordSequence().get());
             msg.sendAsync()
                     .thenAccept(messageId -> record.ack())
                     .join();
-        }
-
-        @Override
-        public void close() throws Exception {
-            // kill the result producer
-            if (null != outputProducer) {
-                outputProducer.close();
-                outputProducer = null;
-            }
-        }
-
-        @Override
-        public void becameActive(Consumer<?> consumer, int partitionId) {
-            // if the instance becomes active for a given topic partition,
-            // open a producer for the results computed from this topic partition.
-            if (null != outputProducer) {
-                try {
-                    this.outputProducer.getProducer(String.format("%s-%d", consumer.getTopic(), partitionId));
-                } catch (PulsarClientException e) {
-                    // this can be ignored, because producer can be lazily created when accessing it.
-                    log.warn("Fail to create a producer for results computed from messages of topic: {}, partition: {}",
-                            consumer.getTopic(), partitionId);
-                }
-            }
-        }
-
-        @Override
-        public void becameInactive(Consumer<?> consumer, int partitionId) {
-            if (null != outputProducer) {
-                // if I lost the ownership of a partition, close its corresponding topic partition.
-                // this is to allow the new active consumer be able to produce to the result topic.
-                this.outputProducer.closeProducer(String.format("%s-%d", consumer.getTopic(), partitionId));
-            }
         }
     }
 
@@ -212,16 +240,15 @@ public class PulsarSink<T> implements Sink<T> {
         FunctionConfig.ProcessingGuarantees processingGuarantees = this.pulsarSinkConfig.getProcessingGuarantees();
         switch (processingGuarantees) {
             case ATMOST_ONCE:
-                this.pulsarSinkProcessor = new PulsarSinkAtMostOnceProcessor();
+                this.pulsarSinkProcessor = new PulsarSinkAtMostOnceProcessor(schema);
                 break;
             case ATLEAST_ONCE:
-                this.pulsarSinkProcessor = new PulsarSinkAtLeastOnceProcessor();
+                this.pulsarSinkProcessor = new PulsarSinkAtLeastOnceProcessor(schema);
                 break;
             case EFFECTIVELY_ONCE:
-                this.pulsarSinkProcessor = new PulsarSinkEffectivelyOnceProcessor();
+                this.pulsarSinkProcessor = new PulsarSinkEffectivelyOnceProcessor(schema);
                 break;
         }
-        this.pulsarSinkProcessor.initializeOutputProducer(this.pulsarSinkConfig.getTopic(), schema, fqfn);
     }
 
     @Override
