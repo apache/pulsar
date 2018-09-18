@@ -733,6 +733,7 @@ public class CmdFunctions extends CmdBase {
                 if (isNotEmpty(functionConfig.getDeadLetterTopic())) {
                     retryBuilder.setDeadLetterTopic(functionConfig.getDeadLetterTopic());
                 }
+                functionDetailsBuilder.setRetryDetails(retryBuilder);
             }
 
             Map<String, Object> configs = new HashMap<>();
