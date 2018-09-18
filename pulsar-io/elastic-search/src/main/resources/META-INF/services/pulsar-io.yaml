@@ -17,6 +17,6 @@
 # under the License.
 #
 
-name: Elastic Search
+name: elastic_search
 description: Writes data into Elastic Search
-sinkClass: org.apache.pulsar.io.elasticsearch.ElasticSearchStringSink
+sinkClass: org.apache.pulsar.io.elasticsearch.ElasticSearchSink
