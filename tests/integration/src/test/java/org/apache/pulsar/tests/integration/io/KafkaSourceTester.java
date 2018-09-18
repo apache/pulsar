@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.testng.Assert.assertTrue;
 
@@ -35,7 +34,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.testcontainers.containers.Container.ExecResult;
-import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
@@ -43,7 +41,7 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
  * A tester for testing kafka source.
  */
 @Slf4j
-public class KafkaSourceTester extends SourceTester {
+public class KafkaSourceTester extends SourceTester<KafkaContainer> {
 
     private static final String NAME = "kafka";
 
@@ -68,12 +66,8 @@ public class KafkaSourceTester extends SourceTester {
     }
 
     @Override
-    public void findSourceServiceContainer(Map<String, GenericContainer<?>> containers) {
-        GenericContainer<?> container = containers.get(NAME);
-        checkState(container instanceof KafkaContainer,
-            "No kafka service found in the cluster");
-
-        this.kafkaContainer = (KafkaContainer) container;
+    public void setServiceContainer(KafkaContainer container) {
+        this.kafkaContainer = container;
     }
 
     @Override
