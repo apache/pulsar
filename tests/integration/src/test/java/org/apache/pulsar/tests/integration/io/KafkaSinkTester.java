@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -32,8 +31,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.Container.ExecResult;
-import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
@@ -41,18 +40,15 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
  * A tester for testing kafka sink.
  */
 @Slf4j
-public class KafkaSinkTester extends SinkTester {
+public class KafkaSinkTester extends SinkTester<KafkaContainer> {
 
     private static final String NAME = "kafka";
 
     private final String kafkaTopicName;
-
-    private KafkaContainer kafkaContainer;
-
     private KafkaConsumer<String, String> kafkaConsumer;
 
     public KafkaSinkTester() {
-        super(SinkType.KAFKA);
+        super(NAME, SinkType.KAFKA);
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.kafkaTopicName = "kafka_sink_topic_" + suffix;
 
@@ -64,17 +60,19 @@ public class KafkaSinkTester extends SinkTester {
     }
 
     @Override
-    public void findSinkServiceContainer(Map<String, GenericContainer<?>> containers) {
-        GenericContainer<?> container = containers.get(NAME);
-        checkState(container instanceof KafkaContainer,
-            "No kafka service found in the cluster");
-
-        this.kafkaContainer = (KafkaContainer) container;
+    protected KafkaContainer createSinkService(PulsarCluster cluster) {
+        final String kafkaServiceName = NAME;
+        return new KafkaContainer()
+                .withEmbeddedZookeeper()
+                .withNetworkAliases(kafkaServiceName)
+                .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
+                    .withName(kafkaServiceName)
+                    .withHostName(cluster.getClusterName() + "-" + kafkaServiceName));
     }
 
     @Override
     public void prepareSink() throws Exception {
-        ExecResult execResult = kafkaContainer.execInContainer(
+        ExecResult execResult = serviceContainer.execInContainer(
             "/usr/bin/kafka-topics",
             "--create",
             "--zookeeper",
@@ -91,7 +89,7 @@ public class KafkaSinkTester extends SinkTester {
 
         kafkaConsumer = new KafkaConsumer<>(
             ImmutableMap.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, serviceContainer.getBootstrapServers(),
                 ConsumerConfig.GROUP_ID_CONFIG, "sink-test-" + randomName(8),
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"
             ),
