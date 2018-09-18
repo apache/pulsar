@@ -74,6 +74,9 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private long instanceLivenessCheckFreqMs;
     private String clientAuthenticationPlugin;
     private String clientAuthenticationParameters;
+    // Frequency how often worker performs compaction on function-topics
+    private long topicCompactionFrequencySec = 30 * 60; // 30 minutes
+    private int metricsSamplingPeriodSec = 60;
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
@@ -88,8 +91,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean tlsRequireTrustedClientCertOnConnect = false;
     private boolean useTls = false;
     private boolean tlsHostnameVerificationEnable = false;
-    
-    private int metricsSamplingPeriodSec = 60;
     // Enforce authentication
     private boolean authenticationEnabled = false;
     // Autentication provider name list, which is a list of class names

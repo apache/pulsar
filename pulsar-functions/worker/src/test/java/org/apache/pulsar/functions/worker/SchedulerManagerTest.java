@@ -28,15 +28,19 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -46,6 +50,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Request;
@@ -53,9 +58,14 @@ import org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler;
 import org.mockito.Mockito;
 import org.mockito.invocation.Invocation;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Sets;
+import com.google.protobuf.InvalidProtocolBufferException;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -67,6 +77,8 @@ public class SchedulerManagerTest {
     private MembershipManager membershipManager;
     private CompletableFuture<MessageId> completableFuture;
     private Producer producer;
+    private TypedMessageBuilder<byte[]> message;
+    private ScheduledExecutorService executor;
 
     private static PulsarClient mockPulsarClient() throws PulsarClientException {
         ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
@@ -94,8 +106,12 @@ public class SchedulerManagerTest {
         producer = mock(Producer.class);
         completableFuture = spy(new CompletableFuture<>());
         completableFuture.complete(MessageId.earliest);
-        byte[] bytes = any();
-        when(producer.sendAsync(bytes)).thenReturn(completableFuture);
+        //byte[] bytes = any();
+        message = mock(TypedMessageBuilder.class);
+        when(producer.newMessage()).thenReturn(message);
+        when(message.key(anyString())).thenReturn(message);
+        when(message.value(any())).thenReturn(message);
+        when(message.sendAsync()).thenReturn(completableFuture);
 
         ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
         when(builder.topic(anyString())).thenReturn(builder);
@@ -109,7 +125,9 @@ public class SchedulerManagerTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
         when(pulsarClient.newProducer()).thenReturn(builder);
 
-        schedulerManager = spy(new SchedulerManager(workerConfig, pulsarClient));
+        this.executor = Executors
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-test"));
+        schedulerManager = spy(new SchedulerManager(workerConfig, pulsarClient, null, executor));
         functionRuntimeManager = mock(FunctionRuntimeManager.class);
         functionMetaDataManager = mock(FunctionMetaDataManager.class);
         membershipManager = mock(MembershipManager.class);
@@ -118,6 +136,11 @@ public class SchedulerManagerTest {
         schedulerManager.setMembershipManager(membershipManager);
     }
 
+    @AfterMethod
+    public void stop() {
+        this.executor.shutdown();
+    }
+    
     @Test
     public void testSchedule() throws Exception {
 
@@ -143,9 +166,6 @@ public class SchedulerManagerTest {
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
 
-        //set version
-        doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
-
         // single node
         List<WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
@@ -159,7 +179,9 @@ public class SchedulerManagerTest {
         // i am leader
         doReturn(true).when(membershipManager).isLeader();
         callSchedule();
-        verify(producer, times(1)).sendAsync(any(byte[].class));
+        List<Invocation> invocations = getMethodInvocationDetails(schedulerManager,
+                SchedulerManager.class.getMethod("invokeScheduler"));
+        Assert.assertEquals(invocations.size(), 1);
     }
 
     @Test
@@ -187,9 +209,6 @@ public class SchedulerManagerTest {
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
 
-        //set version
-        doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
-
         // single node
         List<WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
@@ -200,17 +219,8 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        List<Invocation> invocations = getMethodInvocationDetails(producer, Producer.class.getMethod("sendAsync",
-                Object.class));
-        Assert.assertEquals(invocations.size(), 1);
-
-        byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
-        log.info("assignmentsUpdate: {}", assignmentsUpdate);
-        Assert.assertEquals(
-                Request.AssignmentsUpdate.newBuilder().setVersion(version + 1)
-                        .addAssignments(assignment1).build(),
-                assignmentsUpdate);
+        List<Invocation> invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
+        Assert.assertEquals(invocations.size(), 0);
     }
 
     @Test
@@ -243,9 +253,6 @@ public class SchedulerManagerTest {
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
 
-        //set version
-        doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
-
         // single node
         List<WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
@@ -256,23 +263,20 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        List<Invocation> invocations = getMethodInvocationDetails(producer, Producer.class.getMethod("sendAsync",
-                Object.class));
+        List<Invocation> invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
         Assert.assertEquals(invocations.size(), 1);
-
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
+                Object.class));
         byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
+        Assignment assignments = Assignment.parseFrom(send);
 
-        log.info("assignmentsUpdate: {}", assignmentsUpdate);
+        log.info("assignments: {}", assignments);
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(0).build())
                 .build();
-        Assert.assertEquals(
-                Request.AssignmentsUpdate.newBuilder().setVersion(version + 1)
-                        .addAssignments(assignment1).addAssignments(assignment2).build(),
-                assignmentsUpdate);
+        Assert.assertEquals(assignment2, assignments);
 
     }
 
@@ -288,7 +292,7 @@ public class SchedulerManagerTest {
         // simulate function2 got removed
         Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
+                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1))
                 .build();
         functionMetaDataList.add(function1);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
@@ -300,6 +304,7 @@ public class SchedulerManagerTest {
                         .setFunctionMetaData(function1).setInstanceId(0).build())
                 .build();
 
+        // Delete this assignment
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
@@ -309,13 +314,11 @@ public class SchedulerManagerTest {
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
         Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
         assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
+        //TODO: delete this assignment
         assignmentEntry1.put(Utils.getFullyQualifiedInstanceId(assignment2.getInstance()), assignment2);
 
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
-
-        //set version
-        doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
 
         // single node
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -327,19 +330,16 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        List<Invocation> invocations = getMethodInvocationDetails(producer, Producer.class.getMethod("sendAsync",
-                Object.class));
+        List<Invocation> invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
         Assert.assertEquals(invocations.size(), 1);
-
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
+                Object.class));
         byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
+        Assignment assignments = Assignment.parseFrom(send);
 
-        log.info("assignmentsUpdate: {}", assignmentsUpdate);
+        log.info("assignments: {}", assignments);
 
-        Assert.assertEquals(
-                Request.AssignmentsUpdate.newBuilder().setVersion(version + 1)
-                        .addAssignments(assignment1).build(),
-                assignmentsUpdate);
+        Assert.assertEquals(0, send.length);
     }
 
     @Test
@@ -373,9 +373,6 @@ public class SchedulerManagerTest {
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
 
-        //set version
-        doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
-
         // single node
         List<WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
@@ -386,25 +383,21 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        List<Invocation> invocations = getMethodInvocationDetails(producer, Producer.class.getMethod("sendAsync",
-                Object.class));
+        List<Invocation> invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
         Assert.assertEquals(invocations.size(), 1);
-
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
+                Object.class));
         byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
+        Assignment assignments = Assignment.parseFrom(send);
 
-        log.info("assignmentsUpdate: {}", assignmentsUpdate);
+        log.info("assignments: {}", assignments);
 
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(0).build())
                 .build();
-        Assert.assertEquals(
-                assignmentsUpdate,
-                Request.AssignmentsUpdate.newBuilder().setVersion(version + 1)
-                        .addAssignments(assignment1).addAssignments(assignment2).build()
-                );
+        Assert.assertEquals(assignments, assignment2);
 
         // scale up
 
@@ -435,17 +428,23 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        invocations = getMethodInvocationDetails(producer, Producer.class.getMethod("sendAsync",
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
+        Assert.assertEquals(invocations.size(), 4);
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
-        Assert.assertEquals(invocations.size(), 2);
+        
+        Set<Assignment> allAssignments = Sets.newHashSet();
+        invocations.forEach(invocation -> {
+            try {
+                allAssignments.add(Assignment.parseFrom((byte[])invocation.getRawArguments()[0]));
+            } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+            }
+        });
 
-        send = (byte[]) invocations.get(1).getRawArguments()[0];
-        assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
-        Assert.assertEquals(assignmentsUpdate,
-                Request.AssignmentsUpdate.newBuilder().setVersion(version + 1 + 1)
-                        .addAssignments(assignment1).addAssignments(assignment2Scaled1)
-                        .addAssignments(assignment2Scaled2).addAssignments(assignment2Scaled3).build()
-                );
+        assertTrue(allAssignments.contains(assignment2Scaled1));
+        assertTrue(allAssignments.contains(assignment2Scaled2));
+        assertTrue(allAssignments.contains(assignment2Scaled3));
     }
 
     @Test
@@ -479,9 +478,6 @@ public class SchedulerManagerTest {
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
 
-        //set version
-        doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
-
         // single node
         List<WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
@@ -492,14 +488,24 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        List<Invocation> invocations = getMethodInvocationDetails(producer, Producer.class.getMethod("sendAsync",
+        List<Invocation> invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
+        Assert.assertEquals(invocations.size(), 3);
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
-        Assert.assertEquals(invocations.size(), 1);
-
         byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
+        Assignment assignments = Assignment.parseFrom(send);
 
-        log.info("assignmentsUpdate: {}", assignmentsUpdate);
+        log.info("assignments: {}", assignments);
+        
+        Set<Assignment> allAssignments = Sets.newHashSet();
+        invocations.forEach(invocation -> {
+            try {
+                allAssignments.add(Assignment.parseFrom((byte[])invocation.getRawArguments()[0]));
+            } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
 
         Function.Assignment assignment2_1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
@@ -516,13 +522,11 @@ public class SchedulerManagerTest {
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(2).build())
                 .build();
-        Assert.assertEquals(
-                assignmentsUpdate,
-                Request.AssignmentsUpdate.newBuilder().setVersion(version + 1)
-                        .addAssignments(assignment1).addAssignments(assignment2_1)
-                        .addAssignments(assignment2_2).addAssignments(assignment2_3).build()
-        );
-
+        
+        assertTrue(allAssignments.contains(assignment2_1));
+        assertTrue(allAssignments.contains(assignment2_2));
+        assertTrue(allAssignments.contains(assignment2_3));
+        
         // scale down
 
         Function.FunctionMetaData function2Scaled = Function.FunctionMetaData.newBuilder()
@@ -542,17 +546,23 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        invocations = getMethodInvocationDetails(producer, Producer.class.getMethod("sendAsync",
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
+        Assert.assertEquals(invocations.size(), 4);
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
-        Assert.assertEquals(invocations.size(), 2);
+        send = (byte[]) invocations.get(0).getRawArguments()[0];
+        assignments = Assignment.parseFrom(send);
+        
+        Set<Assignment> allAssignments2 = Sets.newHashSet();
+        invocations.forEach(invocation -> {
+            try {
+                allAssignments2.add(Assignment.parseFrom((byte[])invocation.getRawArguments()[0]));
+            } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+            }
+        });
 
-        send = (byte[]) invocations.get(1).getRawArguments()[0];
-        assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
-        Assert.assertEquals(assignmentsUpdate,
-                Request.AssignmentsUpdate.newBuilder().setVersion(version + 1 + 1)
-                        .addAssignments(assignment1).addAssignments(assignment2Scaled)
-                        .build()
-        );
+        assertTrue(allAssignments2.contains(assignment2Scaled));
     }
 
     @Test
@@ -582,9 +592,6 @@ public class SchedulerManagerTest {
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
 
-        // set version
-        doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
-
         List<WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(WorkerInfo.of(workerId1, "workerHostname-1", 5000));
         workerInfoList.add(WorkerInfo.of(workerId2, "workerHostname-1", 6000));
@@ -595,20 +602,20 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        List<Invocation> invocations = getMethodInvocationDetails(producer,
-                Producer.class.getMethod("sendAsync", Object.class));
-        Assert.assertEquals(invocations.size(), 1);
-
-        byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
-
-        List<Assignment> assignmentList = assignmentsUpdate.getAssignmentsList();
-        Assert.assertEquals(assignmentList.size(), 2);
-        for (Assignment assignment : assignmentList) {
-            String functionName = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName();
-            String assignedWorkerId = assignment.getWorkerId();
-            Assert.assertEquals(functionName, assignedWorkerId);
-        }
+        List<Invocation> invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
+        Assert.assertEquals(invocations.size(), 2);
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
+                Object.class));
+        invocations.forEach(invocation -> {
+            try {
+                Assignment assignment = Assignment.parseFrom((byte[])invocation.getRawArguments()[0]);
+                String functionName = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName();
+                String assignedWorkerId = assignment.getWorkerId();
+                Assert.assertEquals(functionName, assignedWorkerId);
+            } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
     
     @Test
@@ -644,9 +651,6 @@ public class SchedulerManagerTest {
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
 
-        //set version
-        doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
-
         // single node
         List<WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
@@ -657,14 +661,14 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        List<Invocation> invocations = getMethodInvocationDetails(producer, Producer.class.getMethod("sendAsync",
+        List<Invocation> invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
+        Assert.assertEquals(invocations.size(), 3);
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
-        Assert.assertEquals(invocations.size(), 1);
-
         byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
+        Assignment assignments = Assignment.parseFrom(send);
 
-        log.info("assignmentsUpdate: {}", assignmentsUpdate);
+        log.info("assignmentsUpdate: {}", assignments);
 
         Function.Assignment assignment2_1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
@@ -681,13 +685,27 @@ public class SchedulerManagerTest {
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(2).build())
                 .build();
-        Assert.assertEquals(
-                assignmentsUpdate,
-                Request.AssignmentsUpdate.newBuilder().setVersion(version + 1)
-                        .addAssignments(assignment1).addAssignments(assignment2_1)
-                        .addAssignments(assignment2_2).addAssignments(assignment2_3).build()
-        );
-
+        
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
+        Assert.assertEquals(invocations.size(), 3);
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
+                Object.class));
+        send = (byte[]) invocations.get(0).getRawArguments()[0];
+        assignments = Assignment.parseFrom(send);
+        
+        Set<Assignment> allAssignments = Sets.newHashSet();
+        invocations.forEach(invocation -> {
+            try {
+                allAssignments.add(Assignment.parseFrom((byte[])invocation.getRawArguments()[0]));
+            } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        
+        assertTrue(allAssignments.contains(assignment2_1));
+        assertTrue(allAssignments.contains(assignment2_2));
+        assertTrue(allAssignments.contains(assignment2_3));
+        
         // scale down
 
         Function.FunctionMetaData function2Updated = Function.FunctionMetaData.newBuilder()
@@ -718,28 +736,32 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        invocations = getMethodInvocationDetails(producer, Producer.class.getMethod("sendAsync",
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
+        Assert.assertEquals(invocations.size(), 6);
+        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
-        Assert.assertEquals(invocations.size(), 2);
-
-        send = (byte[]) invocations.get(1).getRawArguments()[0];
-        assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(send);
-        Assert.assertEquals(assignmentsUpdate,
-                Request.AssignmentsUpdate.newBuilder().setVersion(version + 1 + 1)
-                        .addAssignments(assignment1).addAssignments(assignment2Updated1)
-                        .addAssignments(assignment2Updated2)
-                        .addAssignments(assignment2Updated3)
-                        .build()
-        );
+        send = (byte[]) invocations.get(0).getRawArguments()[0];
+        assignments = Assignment.parseFrom(send);
+        
+        Set<Assignment> allAssignments2 = Sets.newHashSet();
+        invocations.forEach(invocation -> {
+            try {
+                allAssignments2.add(Assignment.parseFrom((byte[])invocation.getRawArguments()[0]));
+            } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        
+        assertTrue(allAssignments2.contains(assignment2Updated1));
+        assertTrue(allAssignments2.contains(assignment2Updated2));
+        assertTrue(allAssignments2.contains(assignment2Updated3));
     }
 
     private void callSchedule() throws NoSuchMethodException, InterruptedException,
             TimeoutException, ExecutionException {
-        long intialVersion = functionRuntimeManager.getCurrentAssignmentVersion();
         Future<?> complete = schedulerManager.schedule();
 
         complete.get(30, TimeUnit.SECONDS);
-        doReturn(intialVersion + 1).when(functionRuntimeManager).getCurrentAssignmentVersion();
     }
 
     private List<Invocation> getMethodInvocationDetails(Object o, Method method) throws NoSuchMethodException {
