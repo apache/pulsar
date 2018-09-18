@@ -81,6 +81,8 @@ class ProducerImpl : public HandlerBase,
 
     int64_t getLastSequenceId() const;
 
+    const std::string& getSchemaVersion() const;
+
     uint64_t getProducerId() const;
 
     virtual void start();
@@ -147,6 +149,7 @@ class ProducerImpl : public HandlerBase,
     BatchMessageContainerPtr batchMessageContainer;
 
     volatile int64_t lastSequenceIdPublished_;
+    std::string schemaVersion_;
 
     typedef boost::shared_ptr<boost::asio::deadline_timer> TimerPtr;
     TimerPtr sendTimer_;

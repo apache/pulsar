@@ -110,6 +110,16 @@ class Producer {
     int64_t getLastSequenceId() const;
 
     /**
+     * Return an identifier for the schema version that this producer was created with.
+     *
+     * When the producer is created, if a schema info was passed, the broker will
+     * determine the version of the passed schema. This identifier should be treated
+     * as an opaque identifier. In particular, even though this is represented as a string, the
+     * version might not be ascii printable.
+     */
+    const std::string& getSchemaVersion() const;
+
+    /**
      * Close the producer and release resources allocated.
      *
      * No more writes will be accepted from this producer. Waits until

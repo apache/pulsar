@@ -26,6 +26,7 @@
 #include <pulsar/Message.h>
 #include <pulsar/MessageBuilder.h>
 #include <pulsar/ClientConfiguration.h>
+#include <pulsar/Schema.h>
 #include <string>
 
 #pragma GCC visibility push(default)

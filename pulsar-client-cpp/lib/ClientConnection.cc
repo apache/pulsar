@@ -688,7 +688,7 @@ void ClientConnection::handleIncomingCommand() {
                         pendingRequests_.erase(it);
                         lock.unlock();
 
-                        requestData.promise.setValue({"", -1});
+                        requestData.promise.setValue(ResponseData());
                         requestData.timer->cancel();
                     }
                     break;
@@ -853,8 +853,13 @@ void ClientConnection::handleIncomingCommand() {
                         pendingRequests_.erase(it);
                         lock.unlock();
 
-                        requestData.promise.setValue(
-                            {producerSuccess.producer_name(), producerSuccess.last_sequence_id()});
+                        ResponseData data;
+                        data.producerName = producerSuccess.producer_name();
+                        data.lastSequenceId = producerSuccess.last_sequence_id();
+                        if (producerSuccess.has_schema_version()) {
+                            data.schemaVersion = producerSuccess.schema_version();
+                        }
+                        requestData.promise.setValue(data);
                         requestData.timer->cancel();
                     }
                     break;
