@@ -137,17 +137,13 @@ public class PulsarSink<T> implements Sink<T> {
         public void close() throws Exception {
             List<CompletableFuture<Void>> closeFutures = new ArrayList<>(publishProducers.size());
             for (Map.Entry<String, Producer<T>> entry: publishProducers.entrySet()) {
-                String topicId = entry.getKey();
                 Producer<T> producer = entry.getValue();
-                closeFutures.add(producer.closeAsync().exceptionally(throwable -> {
-                    log.warn("Fail to close producer for output topic {}", topicId, throwable);
-                    return null;
-                }));
+                closeFutures.add(producer.closeAsync());
             }
             try {
-                FutureUtils.result(FutureUtils.collect(closeFutures));
+                org.apache.pulsar.common.util.FutureUtil.waitForAll(closeFutures);
             } catch (Exception e) {
-                log.warn("Fail to close all the producers", e);
+                log.warn("Failed to close all the producers", e);
             }
         }
     }
@@ -159,10 +155,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         @Override
         public TypedMessageBuilder<T> newMessage(Record<T> record) {
-            if (record.getDestinationTopic().isPresent()) {
-                return getProducer(record.getDestinationTopic().get()).newMessage();
-            }
-            return getProducer(pulsarSinkConfig.getTopic()).newMessage();
+            return getProducer(record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())).newMessage();
         }
 
         @Override
@@ -194,17 +187,11 @@ public class PulsarSink<T> implements Sink<T> {
             if (!record.getPartitionId().isPresent()) {
                 throw new RuntimeException("PartitionId needs to be specified for every record while in Effectively-once mode");
             }
-            if (record.getDestinationTopic().isPresent()) {
-                return getProducer(
-                        String.format("%s-%s",record.getDestinationTopic().get(), record.getPartitionId().get()),
-                        record.getPartitionId().get(),
-                        record.getDestinationTopic().get()
-                ).newMessage();
-            }
+
             return getProducer(
-                    String.format("%s-%s", pulsarSinkConfig.getTopic(), record.getPartitionId().get()),
+                    String.format("%s-%s",record.getDestinationTopic().get(), record.getPartitionId().get()),
                     record.getPartitionId().get(),
-                    pulsarSinkConfig.getTopic()
+                    record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())
             ).newMessage();
         }
 
