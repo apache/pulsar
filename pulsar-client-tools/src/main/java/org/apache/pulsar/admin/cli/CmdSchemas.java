@@ -113,12 +113,12 @@ public class CmdSchemas extends CmdBase {
 
             PostSchemaPayload input = new PostSchemaPayload();
 
-            if (type.toLowerCase().equals("avro")) {
-                input.setType("avro");
-                input.setSchema(SchemaExtractor.getAvroSchemaInfo(cls).toString());
-            } else if (type.toLowerCase().equals("json")){
-                input.setType("json");
-                input.setSchema(SchemaExtractor.getJsonSchemaInfo(cls).toString());
+            if (type.toLowerCase().equalsIgnoreCase("avro")) {
+                input.setType("AVRO");
+                input.setSchema(SchemaExtractor.getAvroSchemaInfo(cls));
+            } else if (type.toLowerCase().equalsIgnoreCase("json")){
+                input.setType("JSON");
+                input.setSchema(SchemaExtractor.getJsonSchemaInfo(cls));
             }
             else {
                 throw new Exception("Unknown schema type specified as type");

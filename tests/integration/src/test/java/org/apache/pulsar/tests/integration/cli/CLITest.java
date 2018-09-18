@@ -232,4 +232,25 @@ public class CLITest extends PulsarTestSuite {
         }
     }
 
+    @Test
+    public void cliJarSchemaUploadTest() throws Exception {
+        ContainerExecResult result;
+
+        String namespace = "grant-permissions-" + randomName(8);
+        result = pulsarCluster.createNamespace(namespace);
+        assertEquals(0, result.getExitCode());
+
+        String[] grantCommand = {
+                "namespaces", "grant-permission", "public/" + namespace,
+                "--actions", "produce",
+                "--role", "test-role"
+        };
+        try {
+            pulsarCluster.runAdminCommandOnAnyBroker(grantCommand);
+        } catch (ContainerExecException cee) {
+            result = cee.getResult();
+            assertTrue(result.getStderr().contains("HTTP 501 Not Implemented"), result.getStderr());
+        }
+    }
+
 }
