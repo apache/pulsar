@@ -22,7 +22,6 @@ package org.apache.pulsar.functions.runtime;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.gson.Gson;
 import com.google.protobuf.Empty;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
@@ -32,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -42,6 +40,9 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -66,6 +67,8 @@ class ProcessRuntime implements Runtime {
     private InstanceControlGrpc.InstanceControlFutureStub stub;
     private ScheduledExecutorService timer;
     private InstanceConfig instanceConfig;
+    private Path virtualEnvPath;
+    private final String userCodeFile;
 
     ProcessRuntime(InstanceConfig instanceConfig,
                    String instanceFile,
@@ -76,6 +79,8 @@ class ProcessRuntime implements Runtime {
                    AuthenticationConfig authConfig) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
+        this.userCodeFile = codeFile;
+        createSetup();
         this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig);
     }
@@ -110,7 +115,11 @@ class ProcessRuntime implements Runtime {
             args.add(codeFile);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON
                 || instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON_WHEEL) {
-            args.add("python");
+            if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON_WHEEL) {
+                args.add(virtualEnvPath.toString() + "/bin/python");
+            } else {
+                args.add("python");
+            }
             args.add(instanceFile);
             args.add("--py");
             args.add(codeFile);
@@ -209,9 +218,7 @@ class ProcessRuntime implements Runtime {
         if (process != null) {
             process.destroy();
         }
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON_WHEEL) {
-
-        }
+        cleanSetup();
         if (channel != null) {
             channel.shutdown();
         }
@@ -380,6 +387,39 @@ class ProcessRuntime implements Runtime {
         } catch (Exception ex) {
             deathException = ex;
             log.error("Error extracting Process death exception", deathException);
+        }
+    }
+
+    private void createSetup() throws Exception {
+        if (virtualEnvPath == null && instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON_WHEEL) {
+            virtualEnvPath = Files.createTempDirectory("pulsarfunctionwheel", new FileAttribute<?>[0]);
+            java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> cleanSetup()));
+            String[] commands = {
+                    "virtualenv --system-site-packages" + virtualEnvPath,
+                    virtualEnvPath + "/bin/pip install --ignore-installed " + userCodeFile
+            };
+            executeSeries(commands);
+        }
+    }
+
+    private void cleanSetup() {
+        if (virtualEnvPath != null && instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON_WHEEL) {
+            String[] commands = {
+                    "rm -rf " + virtualEnvPath
+            };
+            try {
+                executeSeries(commands);
+            } catch (Exception e) {
+                log.error("Error cleaning up", e);
+            }
+            virtualEnvPath = null;
+        }
+    }
+
+    private void executeSeries(String[] commands) throws Exception {
+        for (String command : commands) {
+            Process p = java.lang.Runtime.getRuntime().exec(command);
+            p.waitFor();
         }
     }
 }

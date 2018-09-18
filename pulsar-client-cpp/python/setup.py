@@ -70,6 +70,6 @@ setup(
     license="Apache License v2.0",
     url="http://pulsar.incubator.apache.org/",
     install_requires=[
-        'grpcio', 'protobuf', 'pip'
+        'grpcio', 'protobuf', 'pip', 'virtualenv'
     ],
 )
