@@ -46,7 +46,12 @@ endif()
 
 # Try all possible boost-python variable namings
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY}
-                        ${Boost_PYTHON27-MT_LIBRARY} ${Boost_PYTHON37-MT_LIBRARY})
+                        ${Boost_PYTHON27-MT_LIBRARY} ${Boost_PYTHON37-MT_LIBRARY}
+                        ${Boost_PYTHON27-MT_LIBRARY_RELEASE} ${Boost_PYTHON37-MT_LIBRARY_RELEASE})
+
+if (NOT PYTHON_WRAPPER_LIBS)
+    MESSAGE(FATAL_ERROR "Could not find Boost Python library")
+endif ()
 
 message(STATUS "Using Boost Python libs: ${PYTHON_WRAPPER_LIBS}")
 
