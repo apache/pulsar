@@ -265,7 +265,8 @@ public class Consumer {
                 if (i == (entries.size() - 1)) {
                     promise = writePromise;
                 }
-                ctx.write(Commands.newMessage(consumerId, messageId, metadataAndPayload), promise);
+                int redeliveryCount = subscription.getDispatcher().getRedeliveryTracker().getRedeliveryCount(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()));
+                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), promise);
                 messageId.recycle();
                 messageIdBuilder.recycle();
                 entry.release();
