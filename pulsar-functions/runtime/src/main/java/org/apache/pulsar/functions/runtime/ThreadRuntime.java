@@ -72,7 +72,9 @@ class ThreadRuntime implements Runtime {
     public void start() {
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
-                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+                String.format("%s-%s",
+                        FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
+                        instanceConfig.getInstanceId()));
         this.fnThread.start();
     }
 

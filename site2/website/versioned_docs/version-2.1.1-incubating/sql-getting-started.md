@@ -1,7 +1,8 @@
 ---
-id: sql-getting-started
+id: version-2.1.1-incubating-sql-getting-started
 title: Pulsar SQL Overview
 sidebar_label: Overview
+original_id: sql-getting-started
 ---
 
 It is super easy to start query data in Pulsar.  

@@ -70,6 +70,10 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
         }
     }
 
+    protected Properties beforeCreateProducer(Properties props) {
+        return props;
+    }
+
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         kafkaSinkConfig = KafkaSinkConfig.load(config);
@@ -89,7 +93,7 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, kafkaSinkConfig.getKeySerializerClass());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, kafkaSinkConfig.getValueSerializerClass());
 
-        producer = new KafkaProducer<>(props);
+        producer = new KafkaProducer<>(beforeCreateProducer(props));
 
         log.info("Kafka sink started.");
     }
