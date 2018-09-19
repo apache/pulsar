@@ -16,7 +16,7 @@ func NewClient() admin.Client {
 func PrintJson(w io.Writer, obj interface{}) {
   b, err := json.MarshalIndent(obj, "", "  ")
   if err != nil {
-    fmt.Fprintf(w, "expected response type: %v\n", err)
+    fmt.Fprintf(w, "unexpected response type: %v\n", err)
     return
   }
   fmt.Fprintln(w, string(b))
