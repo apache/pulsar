@@ -1,7 +1,7 @@
 ---
 id: version-2.1.1-incubating-sql-getting-started
-title: Pulsar SQL Overview
-sidebar_label: Overview
+title: Pulsar SQL Getting Started
+sidebar_label: Getting Started
 original_id: sql-getting-started
 ---
 
