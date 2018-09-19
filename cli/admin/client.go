@@ -26,7 +26,7 @@ type Config struct {
 // DefaultConfig returns a default configuration for the pulsar admin client
 func DefaultConfig() *Config {
   config := &Config{
-	  Address: DefaultServiceURL,
+    Address: DefaultServiceURL,
     httpClient: http.DefaultClient,
   }
   return config
@@ -257,7 +257,7 @@ func respIsOk(resp *http.Response) bool {
 func checkSuccessful(resp *http.Response, err error) (*http.Response, error) {
   if err != nil {
     safeRespClose(resp)
-		return nil, err
+    return nil, err
   }
 
   if !respIsOk(resp) {
