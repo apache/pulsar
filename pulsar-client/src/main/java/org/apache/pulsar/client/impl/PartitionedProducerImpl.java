@@ -237,6 +237,10 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerImpl.class);
 
+    protected List<ProducerImpl<T>> getProducers() {
+        return producers.stream().collect(Collectors.toList());
+    }
+
     @Override
     String getHandlerName() {
         return "partition-producer";
