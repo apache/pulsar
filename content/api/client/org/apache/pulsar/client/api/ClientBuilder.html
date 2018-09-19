@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":38,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":38,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -250,13 +250,19 @@ extends Cloneable</pre>
 </tr>
 <tr id="i19" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#serviceUrlProvider-org.apache.pulsar.client.api.ServiceUrlProvider-">serviceUrlProvider</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ServiceUrlProvider.html" title="interface in org.apache.pulsar.client.api">ServiceUrlProvider</a>&nbsp;serviceUrlProvider)</code>
+<div class="block">Configure the service URL provider for Pulsar service</div>
+</td>
+</tr>
+<tr id="i20" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#statsInterval-long-java.util.concurrent.TimeUnit-">statsInterval</a></span>(long&nbsp;statsInterval,
              TimeUnit&nbsp;unit)</code>
 <div class="block">Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
  statsIntervalSeconds It should be set to at least 1 second</div>
 </td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#tlsTrustCertsFilePath-java.lang.String-">tlsTrustCertsFilePath</a></span>(String&nbsp;tlsTrustCertsFilePath)</code>
 <div class="block">Set the path to the trusted TLS certificate file</div>
@@ -354,6 +360,21 @@ extends Cloneable</pre>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>serviceUrl</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+</dl>
+</li>
+</ul>
+<a name="serviceUrlProvider-org.apache.pulsar.client.api.ServiceUrlProvider-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>serviceUrlProvider</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a>&nbsp;serviceUrlProvider(<a href="../../../../../org/apache/pulsar/client/api/ServiceUrlProvider.html" title="interface in org.apache.pulsar.client.api">ServiceUrlProvider</a>&nbsp;serviceUrlProvider)</pre>
+<div class="block">Configure the service URL provider for Pulsar service</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>serviceUrlProvider</code> - </dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 </dl>
 </li>
