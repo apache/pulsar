@@ -1,7 +1,8 @@
 ---
-id: sql-overview
+id: version-2.1.1-incubating-sql-overview
 title: Pulsar SQL Overview
 sidebar_label: Overview
+original_id: sql-overview
 ---
 
 One of the common use cases of Pulsar is storing streams of event data. Often the event data is structured which predefined fields.  There is tremendous value for users to be able to query the existing data that is already stored in Pulsar topics.  With the implementation of the [Schema Registry](concepts-schema-registry.md), structured data can be stored in Pulsar and allows for the potential to query that data via SQL language.
