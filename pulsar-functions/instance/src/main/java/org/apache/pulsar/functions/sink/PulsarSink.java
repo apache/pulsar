@@ -56,7 +56,8 @@ public class PulsarSink<T> implements Sink<T> {
     private final PulsarClient client;
     private final PulsarSinkConfig pulsarSinkConfig;
 
-    private PulsarSinkProcessor<T> pulsarSinkProcessor;
+    @VisibleForTesting
+    PulsarSinkProcessor<T> pulsarSinkProcessor;
 
     private final TopicSchema topicSchema;
     private final String fqfn;
@@ -148,7 +149,8 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    private class PulsarSinkAtMostOnceProcessor extends PulsarSinkProcessorBase {
+    @VisibleForTesting
+    class PulsarSinkAtMostOnceProcessor extends PulsarSinkProcessorBase {
         public PulsarSinkAtMostOnceProcessor(Schema schema) {
             super(schema);
         }
@@ -164,7 +166,8 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    private class PulsarSinkAtLeastOnceProcessor extends PulsarSinkAtMostOnceProcessor {
+    @VisibleForTesting
+    class PulsarSinkAtLeastOnceProcessor extends PulsarSinkAtMostOnceProcessor {
         public PulsarSinkAtLeastOnceProcessor(Schema schema) {
             super(schema);
         }
@@ -175,7 +178,8 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    private class PulsarSinkEffectivelyOnceProcessor extends PulsarSinkProcessorBase {
+    @VisibleForTesting
+    class PulsarSinkEffectivelyOnceProcessor extends PulsarSinkProcessorBase {
 
 
         public PulsarSinkEffectivelyOnceProcessor(Schema schema) {
@@ -189,7 +193,7 @@ public class PulsarSink<T> implements Sink<T> {
             }
 
             return getProducer(
-                    String.format("%s-%s",record.getDestinationTopic().get(), record.getPartitionId().get()),
+                    String.format("%s-%s",record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()), record.getPartitionId().get()),
                     record.getPartitionId().get(),
                     record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())
             ).newMessage();
