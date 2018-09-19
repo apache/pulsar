@@ -165,12 +165,16 @@ public class DockerUtils {
         throw new IllegalArgumentException("Container " + containerId + " has no networks");
     }
 
-    public static ContainerExecResult runCommand(DockerClient docker,
+    public static ContainerExecResult runCommand(DockerClient dockerClient,
                                                  String containerId,
                                                  String... cmd)
             throws ContainerExecException {
+        InspectContainerResponse inspectContainerResponse = dockerClient.inspectContainerCmd(containerId).exec();
+        // docker api returns names prefixed with "/", it's part of it's legacy design,
+        // this removes it to be consistent with what docker ps shows.
+        final String containerName = inspectContainerResponse.getName().replace("/","");
         CompletableFuture<Boolean> future = new CompletableFuture<>();
-        String execid = docker.execCreateCmd(containerId)
+        String execid = dockerClient.execCreateCmd(containerId)
             .withCmd(cmd)
             .withAttachStderr(true)
             .withAttachStdout(true)
@@ -179,19 +183,19 @@ public class DockerUtils {
         String cmdString = Arrays.stream(cmd).collect(Collectors.joining(" "));
         StringBuilder stdout = new StringBuilder();
         StringBuilder stderr = new StringBuilder();
-        docker.execStartCmd(execid).withDetach(false)
+        dockerClient.execStartCmd(execid).withDetach(false)
             .exec(new ResultCallback<Frame>() {
                 @Override
                 public void close() {}
 
                 @Override
                 public void onStart(Closeable closeable) {
-                    LOG.info("DOCKER.exec({}:{}): Executing...", containerId, cmdString);
+                    LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
                 }
 
                 @Override
                 public void onNext(Frame object) {
-                    LOG.info("DOCKER.exec({}:{}): {}", containerId, cmdString, object);
+                    LOG.info("DOCKER.exec({}:{}): {}", containerName, cmdString, object);
                     if (StreamType.STDOUT == object.getStreamType()) {
                         stdout.append(new String(object.getPayload(), UTF_8));
                     } else if (StreamType.STDERR == object.getStreamType()) {
@@ -206,13 +210,13 @@ public class DockerUtils {
 
                 @Override
                 public void onComplete() {
-                    LOG.info("DOCKER.exec({}:{}): Done", containerId, cmdString);
+                    LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
                     future.complete(true);
                 }
             });
         future.join();
 
-        InspectExecResponse resp = docker.inspectExecCmd(execid).exec();
+        InspectExecResponse resp = dockerClient.inspectExecCmd(execid).exec();
         while (resp.isRunning()) {
             try {
                 Thread.sleep(200);
@@ -220,7 +224,7 @@ public class DockerUtils {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(ie);
             }
-            resp = docker.inspectExecCmd(execid).exec();
+            resp = dockerClient.inspectExecCmd(execid).exec();
         }
         int retCode = resp.getExitCode();
         ContainerExecResult result = ContainerExecResult.of(
@@ -228,7 +232,7 @@ public class DockerUtils {
             stdout.toString(),
             stderr.toString()
         );
-        LOG.info("DOCKER.exec({}:{}): completed with {}", containerId, cmdString, retCode);
+        LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
 
         if (retCode != 0) {
             throw new ContainerExecException(cmdString, containerId, result);
