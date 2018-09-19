@@ -70,6 +70,12 @@
             <artifactId>jackson-module-jsonSchema</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>${gson.version}</version>
+        </dependency>
+
         <!-- Testing dependencies -->
         <dependency>
             <groupId>org.apache.pulsar</groupId>
