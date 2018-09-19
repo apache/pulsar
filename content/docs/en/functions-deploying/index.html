@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploying and managing Pulsar Functions · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="At the moment, there are two deployment modes available for Pulsar Functions:"/><meta name="docsearch:version" content="2.1.0-incubating"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Deploying and managing Pulsar Functions · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/index.html"/><meta property="og:description" content="At the moment, there are two deployment modes available for Pulsar Functions:"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploying and managing Pulsar Functions · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="At the moment, there are two deployment modes available for Pulsar Functions:"/><meta name="docsearch:version" content="2.1.1-incubating"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Deploying and managing Pulsar Functions · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/index.html"/><meta property="og:description" content="At the moment, there are two deployment modes available for Pulsar Functions:"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.1.0-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/functions-deploying">日本語</a></li><li><a href="/docs/fr/functions-deploying">Français</a></li><li><a href="/docs/zh-CN/functions-deploying">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>2.1.1-incubating</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/client-libraries" target="_self">Clients</a></li><li class=""><a href="/en/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/functions-deploying">日本語</a></li><li><a href="/docs/fr/functions-deploying">Français</a></li><li><a href="/docs/zh-CN/functions-deploying">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -80,7 +80,7 @@
 <tr><th style="text-align:left">Parameter</th><th style="text-align:left">Default</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">Function name</td><td style="text-align:left">Whichever value is specified for the class name (minus org, library, etc.). The flag <code>--className org.example.MyFunction</code>, for example, would give the function a name of <code>MyFunction</code>.</td></tr>
+<tr><td style="text-align:left">Function name</td><td style="text-align:left">Whichever value is specified for the class name (minus org, library, etc.). The flag <code>--classname org.example.MyFunction</code>, for example, would give the function a name of <code>MyFunction</code>.</td></tr>
 <tr><td style="text-align:left">Tenant</td><td style="text-align:left">Derived from the input topics' names. If the input topics are under the <code>marketing</code> tenant---i.e. the topic names have the form <code>persistent://marketing/{namespace}/{topicName}</code>---then the tenant will be <code>marketing</code>.</td></tr>
 <tr><td style="text-align:left">Namespace</td><td style="text-align:left">Derived from the input topics' names. If the input topics are under the <code>asia</code> namespace under the <code>marketing</code> tenant---i.e. the topic names have the form <code>persistent://marketing/asia/{topicName}</code>, then the namespace will be <code>asia</code>.</td></tr>
 <tr><td style="text-align:left">Output topic</td><td style="text-align:left"><code>{input topic}-{function name}-output</code>. A function with an input topic name of <code>incoming</code> and a function name of <code>exclamation</code>, for example, would have an output topic of <code>incoming-exclamation-output</code>.</td></tr>
@@ -93,7 +93,7 @@
 <p>Take this <code>create</code> command:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar my-pulsar-functions.jar \
-  --className org.example.MyFunction \
+  --classname org.example.MyFunction \
   --inputs my-function-input-topic1,my-function-input-topic2
 </code></pre>
 <p>The created function would have default values supplied for the function name (<code>MyFunction</code>), tenant (<code>public</code>), namespace (<code>default</code>), subscription type (<code>SHARED</code>), processing guarantees (<code>ATLEAST_ONCE</code>), and Pulsar service URL (<code>pulsar://localhost:6650</code>).</p>
@@ -101,20 +101,20 @@
 <p>If you run a Pulsar Function in <strong>local run</strong> mode, it will run on the machine from which the command is run (this could be your laptop, an <a href="https://aws.amazon.com/ec2/">AWS EC2</a> instance, etc.). Here's an example <a href="/docs/en/pulsar-admin#localrun"><code>localrun</code></a> command:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 </code></pre>
 <p>By default, the function will connect to a Pulsar cluster running on the same machine, via a local <a href="/docs/en/reference-terminology#broker">broker</a> service URL of <code>pulsar://localhost:6650</code>. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the <code>--brokerServiceUrl</code> flag. Here's an example:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
-  --brokerServiceUrl pulsar://my-cluster-host:6650 \
+  --broker-service-url pulsar://my-cluster-host:6650 \
   <span class="hljs-comment"># Other function parameters</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="cluster-mode"></a><a href="#cluster-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cluster mode</h2>
 <p>When you run a Pulsar Function in <strong>cluster mode</strong>, the function code will be uploaded to a Pulsar broker and run <em>alongside the broker</em> rather than in your <a href="#local-run-mode">local environment</a>. You can run a function in cluster mode using the <a href="/docs/en/pulsar-admin#create-1"><code>create</code></a> command. Here's an example:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 </code></pre>
@@ -122,7 +122,7 @@
 <p>You can use the <a href="/docs/en/pulsar-admin#update-1"><code>update</code></a> command to update a Pulsar Function running in cluster mode. This command, for example, would update the function created in the section <a href="#cluster-mode">above</a>:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> update \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/new-input-topic \
   --output persistent://public/default/new-output-topic
 </code></pre>
@@ -148,7 +148,7 @@
 </code></pre>
 <p>And here's the corresponding update command:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> update \
-  --functionConfigFile <span class="hljs-keyword">function</span>-config.yaml
+  --<span class="hljs-keyword">function</span>-config-file <span class="hljs-keyword">function</span>-config.yaml
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="function-instance-resources"></a><a href="#function-instance-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function instance resources</h3>
 <p>When you run Pulsar Functions in <a href="#cluster-mode">cluster run</a> mode, you can specify the resources that are assigned to each function <a href="#parallelism">instance</a>:</p>
@@ -165,7 +165,7 @@
 <p>Here's an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar target/my-functions.jar \
-  --className org.example.functions.MyFunction \
+  --classname org.example.functions.MyFunction \
   --cpu 8 \
   --ram 8589934592 \
   --disk 10737418240
@@ -190,7 +190,7 @@
   --namespace default \
   --name myfunc \
   --py myfunc.py \
-  --className myfunc \
+  --classname myfunc \
   --inputs persistent://public/default/<span class="hljs-keyword">in</span> \
   --output persistent://public/default/out
 </code></pre>
@@ -204,7 +204,7 @@
   --tenant public \
   --namespace default \
   --name myfunc \
-  --triggerValue <span class="hljs-string">"hello world"</span>
+  --trigger-value <span class="hljs-string">"hello world"</span>
 </code></pre>
 <p>The consumer listening on the output topic should then produce this in its logs:</p>
 <pre><code class="hljs"><span class="hljs-comment">----- got message -----</span>
@@ -265,6 +265,6 @@ This <span class="hljs-keyword">function</span> <span class="hljs-title">has</sp
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:en","version:2.1.0-incubating"]}
+                algoliaOptions: {"facetFilters":["language:en","version:2.1.1-incubating"]}
               });
             </script></body></html>
