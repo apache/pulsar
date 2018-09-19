@@ -78,6 +78,9 @@ public class SinkConfig {
     private boolean retainOrdering;
     @isValidResources
     private Resources resources;
+    private boolean autoAck;
+    @isPositiveNumber
+    private Long timeoutMs;
 
     @isFileExists
     private String archive;
