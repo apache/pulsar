@@ -34,6 +34,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -82,7 +83,7 @@ public class PulsarClientImpl implements PulsarClient {
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
 
     private final ClientConfigurationData conf;
-    private final LookupService lookup;
+    private LookupService lookup;
     private final ConnectionPool cnxPool;
     private final Timer timer;
     private final ExecutorProvider externalExecutorProvider;
@@ -706,6 +707,19 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
+    @Override
+    public void forceCloseConnection() {
+        for (ConcurrentMap<Integer, CompletableFuture<ClientCnx>> cnxMap : cnxPool.pool.values()) {
+            for (CompletableFuture<ClientCnx> clientCnxCompletableFuture : cnxMap.values()) {
+                try {
+                    clientCnxCompletableFuture.get().close();
+                } catch (Exception e) {
+                    log.error("Force close connection exception ", e);
+                }
+            }
+        }
+    }
+
     protected CompletableFuture<ClientCnx> getConnection(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return lookup.getBroker(topicName)
@@ -743,6 +757,19 @@ public class PulsarClientImpl implements PulsarClient {
 
     public LookupService getLookup() {
         return lookup;
+    }
+
+    public void reloadLookUp() throws PulsarClientException {
+        if (conf.getServiceUrl().startsWith("http")) {
+            lookup = new HttpLookupService(conf, eventLoopGroup);
+        } else {
+            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.isUseTls(), externalExecutorProvider.getExecutor());
+        }
+    }
+
+    @Override
+    public ClientConfigurationData getConf() {
+        return conf;
     }
 
     public CompletableFuture<Integer> getNumberOfPartitions(String topic) {

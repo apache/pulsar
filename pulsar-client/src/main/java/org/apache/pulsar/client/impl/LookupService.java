@@ -40,7 +40,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  * </ul>
  *
  */
-interface LookupService extends AutoCloseable {
+public interface LookupService extends AutoCloseable {
 
     /**
      * Calls broker lookup-api to get broker {@link InetSocketAddress} which serves namespace bundle that contains given
