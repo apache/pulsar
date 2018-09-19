@@ -42,6 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 
@@ -50,8 +51,8 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class DockerUtils {
-    private static final Logger LOG = LoggerFactory.getLogger(DockerUtils.class);
 
     private static File getTargetDirectory(String containerId) {
         String base = System.getProperty("maven.buildDirectory");
@@ -60,7 +61,7 @@ public class DockerUtils {
         }
         File directory = new File(base + "/container-logs/" + containerId);
         if (!directory.exists() && !directory.mkdirs()) {
-            LOG.error("Error creating directory for container logs.");
+            log.error("Error creating directory for container logs.");
         }
         return directory;
     }
@@ -102,10 +103,10 @@ public class DockerUtils {
                     });
             future.get();
         } catch (RuntimeException|ExecutionException|IOException e) {
-            LOG.error("Error dumping log for {}", containerName, e);
+            log.error("Error dumping log for {}", containerName, e);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            LOG.info("Interrupted dumping log from container {}", containerName, ie);
+            log.info("Interrupted dumping log from container {}", containerName, ie);
         }
     }
 
@@ -127,7 +128,7 @@ public class DockerUtils {
                 read = dockerStream.read(block, 0, READ_BLOCK_SIZE);
             }
         } catch (RuntimeException|IOException e) {
-            LOG.error("Error reading dir from container {}", containerName, e);
+            log.error("Error reading dir from container {}", containerName, e);
         }
     }
 
@@ -153,7 +154,7 @@ public class DockerUtils {
                 entry = stream.getNextTarEntry();
             }
         } catch (RuntimeException|IOException e) {
-            LOG.error("Error reading logs from container {}", containerId, e);
+            log.error("Error reading logs from container {}", containerId, e);
         }
     }
 
@@ -190,12 +191,12 @@ public class DockerUtils {
 
                 @Override
                 public void onStart(Closeable closeable) {
-                    LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
+                    log.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
                 }
 
                 @Override
                 public void onNext(Frame object) {
-                    LOG.info("DOCKER.exec({}:{}): {}", containerName, cmdString, object);
+                    log.info("DOCKER.exec({}:{}): {}", containerName, cmdString, object);
                     if (StreamType.STDOUT == object.getStreamType()) {
                         stdout.append(new String(object.getPayload(), UTF_8));
                     } else if (StreamType.STDERR == object.getStreamType()) {
@@ -210,7 +211,7 @@ public class DockerUtils {
 
                 @Override
                 public void onComplete() {
-                    LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
+                    log.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
                     future.complete(true);
                 }
             });
@@ -232,7 +233,7 @@ public class DockerUtils {
             stdout.toString(),
             stderr.toString()
         );
-        LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
+        log.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
 
         if (retCode != 0) {
             throw new ContainerExecException(cmdString, containerId, result);
