@@ -514,6 +514,10 @@ public class ValidatorImpls {
             if (functionConfig.getWindowConfig() != null) {
                 throw new IllegalArgumentException("There is currently no support windowing in python");
             }
+
+            if (functionConfig.getMaxMessageRetries() >= 0) {
+                throw new IllegalArgumentException("Message retries not yet supported in python");
+            }
         }
 
         private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic) throws IllegalArgumentException {
@@ -548,6 +552,14 @@ public class ValidatorImpls {
                     && functionConfig.getProcessingGuarantees() != FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
                 throw new IllegalArgumentException("Message timeout can only be specified with processing guarantee is "
                         + FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE.name());
+            }
+
+            if (functionConfig.getMaxMessageRetries() >= 0
+                    && functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                throw new IllegalArgumentException("MaxMessageRetries and Effectively once don't gel well");
+            }
+            if (functionConfig.getMaxMessageRetries() < 0 && !StringUtils.isEmpty(functionConfig.getDeadLetterTopic())) {
+                throw new IllegalArgumentException("Dead Letter Topic specified, however max retries is set to infinity");
             }
         }
 
