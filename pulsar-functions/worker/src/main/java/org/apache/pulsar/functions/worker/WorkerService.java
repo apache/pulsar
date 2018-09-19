@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -68,11 +69,15 @@ public class WorkerService {
     private PulsarAdmin brokerAdmin;
     private PulsarAdmin functionAdmin;
     private final MetricsGenerator metricsGenerator;
+    private final ScheduledExecutorService executor;
+    @VisibleForTesting
+    private URI dlogUri;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
+        this.executor = Executors.newScheduledThreadPool(10, new DefaultThreadFactory("pulsar-worker"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater);
     }
 
@@ -98,12 +103,13 @@ public class WorkerService {
         }
 
         // create the dlog namespace for storing function packages
+        this.dlogUri = dlogUri;
         DistributedLogConfiguration dlogConf = Utils.getDlogConf(workerConfig);
         try {
             this.dlogNamespace = NamespaceBuilder.newBuilder()
                     .conf(dlogConf)
                     .clientId("function-worker-" + workerConfig.getWorkerId())
-                    .uri(dlogUri)
+                    .uri(this.dlogUri)
                     .build();
         } catch (Exception e) {
             log.error("Failed to initialize dlog namespace {} for storing function packages",
@@ -128,7 +134,8 @@ public class WorkerService {
             log.info("Created Pulsar client");
 
             //create scheduler manager
-            this.schedulerManager = new SchedulerManager(this.workerConfig, this.client);
+            this.schedulerManager = new SchedulerManager(this.workerConfig, this.client, this.brokerAdmin,
+                    this.executor);
 
             //create function meta data manager
             this.functionMetaDataManager = new FunctionMetaDataManager(
@@ -231,6 +238,10 @@ public class WorkerService {
         
         if (null != this.functionAdmin) {
             this.functionAdmin.close();
+        }
+        
+        if(this.executor != null) {
+            this.executor.shutdown();
         }
     }
 
