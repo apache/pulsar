@@ -1041,7 +1041,8 @@ public class Commands {
         PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
                 .newBuilder();
         if (msgBuilder.hasPartitionKey()) {
-            singleMessageMetadataBuilder = singleMessageMetadataBuilder.setPartitionKey(msgBuilder.getPartitionKey());
+            singleMessageMetadataBuilder = singleMessageMetadataBuilder.setPartitionKey(msgBuilder.getPartitionKey())
+                .setPartitionKeyB64Encoded(msgBuilder.getPartitionKeyB64Encoded());
         }
         if (!msgBuilder.getPropertiesList().isEmpty()) {
             singleMessageMetadataBuilder = singleMessageMetadataBuilder
