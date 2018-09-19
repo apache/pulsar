@@ -108,6 +108,8 @@ public class FunctionConfig {
     private Map<String, Object> userConfig;
     private Runtime runtime;
     private boolean autoAck;
+    private int maxMessageRetries;
+    private String deadLetterTopic;
     private String subName;
     @isPositiveNumber
     private int parallelism;
