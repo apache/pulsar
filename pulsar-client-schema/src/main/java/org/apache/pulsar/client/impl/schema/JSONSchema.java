@@ -22,28 +22,53 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.io.IOException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
+@Slf4j
 public class JSONSchema<T> implements Schema<T>{
 
     private final org.apache.avro.Schema schema;
     private final SchemaInfo schemaInfo;
-    private final ObjectMapper objectMapper;
+    private final Gson gson;
     private final Class<T> pojo;
     private Map<String, String> properties;
 
     private JSONSchema(Class<T> pojo, Map<String, String> properties) {
         this.pojo = pojo;
         this.properties = properties;
-        this.objectMapper = new ObjectMapper();
+        this.gson = new GsonBuilder().addSerializationExclusionStrategy(new ExclusionStrategy() {
+            Set<String> classes = new HashSet<>();
+
+            @Override
+            public boolean shouldSkipField(FieldAttributes f) {
+                boolean skip = !(f.getDeclaringClass().equals(pojo)
+                        || classes.contains(f.getDeclaringClass().getName())
+                        || f.getDeclaringClass().isAssignableFrom(pojo));
+                if (!skip) {
+                    classes.add(f.getDeclaredClass().getName());
+                }
+                return skip;
+            }
+
+            @Override
+            public boolean shouldSkipClass(Class<?> clazz) {
+                return false;
+            }
+        }).create();
 
         this.schema = ReflectData.AllowNull.get().getSchema(pojo);
         this.schemaInfo = new SchemaInfo();
@@ -55,9 +80,10 @@ public class JSONSchema<T> implements Schema<T>{
 
     @Override
     public byte[] encode(T message) throws SchemaSerializationException {
+
         try {
-            return objectMapper.writeValueAsBytes(message);
-        } catch (JsonProcessingException e) {
+            return this.gson.toJson(message).getBytes();
+        } catch (RuntimeException e) {
             throw new SchemaSerializationException(e);
         }
     }
@@ -65,8 +91,8 @@ public class JSONSchema<T> implements Schema<T>{
     @Override
     public T decode(byte[] bytes) {
         try {
-            return objectMapper.readValue(new String(bytes), pojo);
-        } catch (IOException e) {
+            return this.gson.fromJson(new String(bytes), this.pojo);
+        } catch (RuntimeException e) {
             throw new RuntimeException(new SchemaSerializationException(e));
         }
     }
@@ -85,6 +111,7 @@ public class JSONSchema<T> implements Schema<T>{
     public SchemaInfo getBackwardsCompatibleJsonSchemaInfo() {
         SchemaInfo backwardsCompatibleSchemaInfo;
         try {
+            ObjectMapper objectMapper = new ObjectMapper();
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectMapper);
             JsonSchema jsonBackwardsCompatibileSchema = schemaGen.generateSchema(pojo);
             backwardsCompatibleSchemaInfo = new SchemaInfo();

@@ -1,7 +1,8 @@
 ---
-id: pulsar-admin
+id: version-2.1.1-incubating-pulsar-admin
 title: Pulsar admin CLI
 sidebar_label: Pulsar Admin CLI
+original_id: pulsar-admin
 ---
 
 The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.
@@ -1014,8 +1015,6 @@ Options
 |`--sink-type`|The built-in sinks's connector provider||
 |`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern.||
 |`--tenant`|The sink’s tenant||
-|`--auto-ack`|Let the functions framework manage acking||
-|`--timeout-ms`|The message timeout in milliseconds||
 
 
 ### `update`
@@ -1093,8 +1092,6 @@ Options
 |`--sink-type`|The built-in sinks's connector provider||
 |`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern.||
 |`--tenant`|The sink’s tenant||
-|`--auto-ack`|Let the functions framework manage acking||
-|`--timeout-ms`|The message timeout in milliseconds||
 
 
 ### `available-sinks`

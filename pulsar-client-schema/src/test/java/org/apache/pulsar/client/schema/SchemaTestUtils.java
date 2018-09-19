@@ -35,6 +35,7 @@ public class SchemaTestUtils {
         private String field2;
         private int field3;
         private Bar field4;
+        private Color color;
     }
 
     @Data
@@ -44,18 +45,45 @@ public class SchemaTestUtils {
         private boolean field1;
     }
 
-    public static final String SCHEMA_JSON = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.apache" +
-            ".pulsar.client" +
-            ".schema.SchemaTestUtils$\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\",\"string\"]," +
-            "\"default\":null},{\"name\":\"field2\",\"type\":[\"null\",\"string\"],\"default\":null}," +
-            "{\"name\":\"field3\",\"type\":\"int\"},{\"name\":\"field4\",\"type\":[\"null\",{\"type\":\"record\"," +
-            "\"name\":\"Bar\",\"fields\":[{\"name\":\"field1\",\"type\":\"boolean\"}]}],\"default\":null}]}";
+    @Data
+    @ToString
+    @EqualsAndHashCode
+    public static class DerivedFoo extends Foo {
+        private String field5;
+        private int field6;
+        private Foo foo;
+    }
+
+    public enum  Color {
+        RED,
+        BLUE
+    }
+
+    @Data
+    @ToString
+    @EqualsAndHashCode
+    public static class DerivedDerivedFoo extends DerivedFoo {
+        private String field7;
+        private int field8;
+        private DerivedFoo derivedFoo;
+        private Foo foo2;
+    }
+
+    public static final String SCHEMA_JSON
+            = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.apache.pulsar.client.schema" +
+            ".SchemaTestUtils$\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\",\"string\"],\"default\":null}," +
+            "{\"name\":\"field2\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"field3\"," +
+            "\"type\":\"int\"},{\"name\":\"field4\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"Bar\"," +
+            "\"fields\":[{\"name\":\"field1\",\"type\":\"boolean\"}]}],\"default\":null},{\"name\":\"color\"," +
+            "\"type\":[\"null\",{\"type\":\"enum\",\"name\":\"Color\",\"symbols\":[\"RED\",\"BLUE\"]}]," +
+            "\"default\":null}]}";
 
     public static String[] FOO_FIELDS = {
             "field1",
             "field2",
             "field3",
-            "field4"
+            "field4",
+            "color"
     };
 
 }
