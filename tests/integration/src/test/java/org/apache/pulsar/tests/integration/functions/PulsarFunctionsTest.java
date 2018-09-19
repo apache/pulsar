@@ -48,6 +48,7 @@ import org.apache.pulsar.tests.integration.io.*;
 import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.Test;
 
 /**
@@ -62,17 +63,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test
     public void testKafkaSink() throws Exception {
-        testSink(new KafkaSinkTester(), true);
+        testSink(new KafkaSinkTester(), true, new KafkaSourceTester());
     }
 
     @Test
     public void testCassandraSink() throws Exception {
-        testSink(new CassandraSinkTester(), true);
+        testSink(CassandraSinkTester.createTester(true), true);
     }
 
     @Test
     public void testCassandraArchiveSink() throws Exception {
-        testSink(new CassandraSinkArchiveTester(), false);
+        testSink(CassandraSinkTester.createTester(false), false);
     }
     
     @Test(enabled = false)
@@ -91,8 +92,31 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
     
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
-        tester.findSinkServiceContainer(pulsarCluster.getExternalServices());
+        tester.startServiceContainer(pulsarCluster);
+        try {
+            runSinkTester(tester, builtin);
+        } finally {
+            tester.stopServiceContainer(pulsarCluster);
+        }
+    }
 
+
+    private <ServiceContainerT extends GenericContainer>  void testSink(SinkTester<ServiceContainerT> sinkTester,
+                                                                        boolean builtinSink,
+                                                                        SourceTester<ServiceContainerT> sourceTester)
+            throws Exception {
+        ServiceContainerT serviceContainer = sinkTester.startServiceContainer(pulsarCluster);
+        try {
+            runSinkTester(sinkTester, builtinSink);
+            if (null != sourceTester) {
+                sourceTester.setServiceContainer(serviceContainer);
+                testSource(sourceTester);
+            }
+        } finally {
+            sinkTester.stopServiceContainer(pulsarCluster);
+        }
+    }
+    private void runSinkTester(SinkTester tester, boolean builtin) throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String inputTopicName = "test-sink-connector-"
@@ -357,14 +381,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     // Source Test
     //
 
-    @Test
-    public void testKafkaSource() throws Exception {
-        testSource(new KafkaSourceTester());
-    }
-
     private void testSource(SourceTester tester)  throws Exception {
-        tester.findSourceServiceContainer(pulsarCluster.getExternalServices());
-
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "test-source-connector-"

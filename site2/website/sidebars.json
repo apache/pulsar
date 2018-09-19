@@ -34,11 +34,6 @@
       "io-connectors",
       "io-develop"
     ],
-    "Pulsar SQL": [
-      "sql-overview",
-      "sql-getting-started",
-      "sql-deployment-configurations"
-    ],
     "Deployment": [
       "deploy-aws",
       "deploy-kubernetes",

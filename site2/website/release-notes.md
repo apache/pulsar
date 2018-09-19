@@ -1,6 +1,23 @@
 
 ## Apache incubator
 
+### 2.1.1-incubating &mdash; 2018-09-17 <a id="2.1.1-incubating"></a>
+
+This release fixes issues reported for 2.1.0-incubating.
+
+ * [#2473](https://github.com/apache/incubator-pulsar/pull/2473) - Downgrading ZK to stable version 3.4.13
+ * [#2219](https://github.com/apache/incubator-pulsar/pull/2219) - Cpp client: add PatternMultiTopicsConsumerImpl to support regex subscribe
+ * [#2387](https://github.com/apache/incubator-pulsar/pull/2387) - Fixed race condition during expansion of concurrent open hash maps
+ * [#2348](https://github.com/apache/incubator-pulsar/pull/2348) - Fix NPE when splitting and unloading bundle
+ * [#2223](https://github.com/apache/incubator-pulsar/pull/2223) - fix bug in FunctionRuntimeManager involving not cleaning up old invalid assignments
+ * [#2367](https://github.com/apache/incubator-pulsar/pull/2367) - [compaction] make topic compaction works with partitioned topic
+ * [#2203](https://github.com/apache/incubator-pulsar/pull/2203) - Make sure schema is initialized before the topic is loaded
+
+The complete list of changes can be found at:
+https://github.com/apache/incubator-pulsar/milestone/17?closed=1
+
+https://github.com/apache/incubator-pulsar/releases/tag/v2.1.1-incubating
+
 ### 2.1.0-incubating &mdash; 2018-08-02 <a id="2.1.0-incubating"></a>
 
 This is the seventh release of Apache Pulsar since entering the ASF incubator.
