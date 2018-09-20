@@ -177,6 +177,7 @@ flexible messaging model and an intuitive client API.</description>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
+    <debezium-core.version>0.8.2</debezium-core.version>
 
     <!-- test dependencies -->
     <arquillian-cube.version>1.15.1</arquillian-cube.version>
@@ -1348,7 +1349,7 @@ flexible messaging model and an intuitive client API.</description>
     <profile>
       <id>docker</id>
     </profile>
-    
+
     <profile>
       <!-- Checks style and licensing requirements. This is a good
            idea to run for contributions and for the release process. While it would
