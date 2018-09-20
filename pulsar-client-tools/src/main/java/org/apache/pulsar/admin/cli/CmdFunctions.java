@@ -226,13 +226,9 @@ public class CmdFunctions extends CmdBase {
         protected String jarFile;
         @Parameter(
                 names = "--py",
-                description = "Path to the main Python file for the function (if the function is written in Python)",
+                description = "Path to the main Python file/Python Wheel file for the function (if the function is written in Python)",
                 listConverter = StringConverter.class)
         protected String pyFile;
-        @Parameter(
-                names = "--pywheel",
-                description = "Path to the Python wheel file for the function (if the function is submitted as Python Wheel)")
-        protected String pyWheelFile;
         @Parameter(names = { "-i",
                 "--inputs" }, description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
@@ -486,16 +482,10 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setPy(pyFile);
             }
 
-            if (null != pyWheelFile) {
-                functionConfig.setPyWheel(pyWheelFile);
-            }
-
             if (functionConfig.getJar() != null) {
                 userCodeFile = functionConfig.getJar();
             } else if (functionConfig.getPy() != null) {
                 userCodeFile = functionConfig.getPy();
-            } else if (functionConfig.getPyWheel() != null) {
-                userCodeFile = functionConfig.getPyWheel();
             }
 
             // infer default vaues
@@ -503,24 +493,14 @@ public class CmdFunctions extends CmdBase {
         }
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
-            int numSourceFiles = 0;
-            if (isNotBlank(functionConfig.getJar())) {
-                numSourceFiles++;
-            }
-            if (isNotBlank(functionConfig.getPy())) {
-                numSourceFiles++;
-            }
-            if (isNotBlank(functionConfig.getPyWheel())) {
-                numSourceFiles++;
+
+            if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
+                throw new ParameterException("Either a Java jar or a Python file needs to"
+                        + " be specified for the function. Cannot specify both.");
             }
 
-            if (numSourceFiles > 1) {
-                throw new ParameterException("Can specify either a Java jar or a Python file or a Python wheel file needs to"
-                        + " be specified for the function. Cannot specify multiple.");
-            }
-
-            if (numSourceFiles == 0) {
-                throw new ParameterException("Either a Java jar or a Python file or a Python wheel file needs to"
+            if (isBlank(functionConfig.getJar()) && isBlank(functionConfig.getPy())) {
+                throw new ParameterException("Either a Java jar or a Python file needs to"
                         + " be specified for the function. Please specify one.");
             }
 
@@ -594,8 +574,6 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
             } else if (functionConfig.getPy() != null) {
                 functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
-            } else if (functionConfig.getPyWheel() != null) {
-                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON_WHEEL);
             }
 
             WindowConfig windowConfig = functionConfig.getWindowConfig();

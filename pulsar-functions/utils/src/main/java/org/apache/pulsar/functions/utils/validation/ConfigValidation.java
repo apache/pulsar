@@ -41,8 +41,7 @@ public class ConfigValidation {
     public enum Runtime {
         ALL,
         JAVA,
-        PYTHON,
-        PYTHON_WHEEL
+        PYTHON
     }
 
     public static void validateConfig(Object config, String runtimeType) {

@@ -74,7 +74,7 @@ def main():
   function_details = Function_pb2.FunctionDetails()
   json_format.Parse(args.function_details, function_details)
 
-  if function_details.runtime == Function_pb2.FunctionDetails.Runtime.Value("PYTHON_WHEEL"):
+  if os.path.splitext(str(args.py))[1] == '.whl':
     os.system("unzip -d %s -o %s" % (os.path.dirname(str(args.py)), str(args.py)))
     sys.path.insert(0, os.path.dirname(str(args.py)))
 

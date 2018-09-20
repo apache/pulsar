@@ -49,7 +49,6 @@ message FunctionDetails {
     enum Runtime {
         JAVA = 0;
         PYTHON = 1;
-        PYTHON_WHEEL = 2;
     }
     string tenant = 1;
     string namespace = 2;

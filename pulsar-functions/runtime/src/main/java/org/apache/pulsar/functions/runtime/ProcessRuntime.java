@@ -38,7 +38,9 @@ import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.io.InputStream;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -112,8 +114,7 @@ class ProcessRuntime implements Runtime {
             args.add(JavaInstanceMain.class.getName());
             args.add("--jar");
             args.add(codeFile);
-        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON
-                || instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON_WHEEL) {
+        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python");
             args.add(instanceFile);
             args.add("--py");

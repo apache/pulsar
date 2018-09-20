@@ -64,8 +64,6 @@ public class FunctionDetailsUtils {
                 return fileName + ".jar";
             case PYTHON:
                 return fileName + ".py";
-            case PYTHON_WHEEL:
-                return fileName + ".whl";
             default:
                 throw new RuntimeException("Unknown runtime " + FunctionDetails.getRuntime());
         }
