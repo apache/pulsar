@@ -21,9 +21,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 
 /**
- *
  * The Index Entry in OffloadIndexBlock.
- *
  */
 public class OffloadIndexEntryImpl implements OffloadIndexEntry {
     public static OffloadIndexEntryImpl of(long entryId, int partId, long offset, long blockHeaderSize) {

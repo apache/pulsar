@@ -45,7 +45,6 @@ import org.testng.annotations.Test;
 
 @Slf4j
 class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedInputStreamTest.class);
 
     class RandomInputStream extends InputStream {
         final Random r;

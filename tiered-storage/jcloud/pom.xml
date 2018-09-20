@@ -32,6 +32,15 @@
   <artifactId>tiered-storage-jcloud</artifactId>
   <name>Apache Pulsar :: Tiered Storage :: JCloud</name>
 
+  <properties>
+  	<testRealAzure>false</testRealAzure>
+  	<AzureStorageID>XXXXX</AzureStorageID>
+  	<AzureStorageKey>XXXXX</AzureStorageKey>
+  	<testRealGCS>false</testRealGCS>
+  	<GCSID>5XXXXXXXXXX6-compute@developer.gserviceaccount.com</GCSID>
+  	<GCSKey>XXXXX</GCSKey>
+  </properties>
+  
   <dependencies>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
@@ -132,6 +141,50 @@
       <plugin>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-nar-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine> -Xmx2G -XX:MaxDirectMemorySize=8G
+            -Dio.netty.leakDetectionLevel=advanced
+            -Dlog4j.configurationFile=log4j2.xml
+          </argLine>
+          <reuseForks>false</reuseForks>
+          <forkCount>1</forkCount>
+          <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
+          <trimStackTrace>false</trimStackTrace>
+          <properties>
+            <property>
+              <name>testRealAzure</name>
+              <value>${testRealAzure}</value>
+            </property>
+            <property>
+              <name>AzureStorageID</name>
+              <value>${AzureStorageID}</value>
+            </property>
+            <property>
+              <name>AzureStorageKey</name>
+              <value>${AzureStorageKey}</value>
+            </property>
+            <property>
+              <name>testRealGCS</name>
+              <value>${testRealGCS}</value>
+            </property>
+            <property>
+              <name>GCSID</name>
+              <value>${GCSID}</value>
+            </property>
+            <property>
+              <name>GCSKey</name>
+              <value>${GCSKey}</value>
+            </property>
+            <property>
+              <name>listener</name>
+              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
+            </property>
+          </properties>
+        </configuration>
       </plugin>
     </plugins>
   </build>
