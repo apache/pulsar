@@ -45,7 +45,7 @@ namespace pulsar {
 
 const static std::string DEFAULT_PRINCIPAL_HEADER = "Athenz-Principal-Auth";
 const static std::string DEFAULT_ROLE_HEADER = "Athenz-Role-Auth";
-const static int REQUEST_TIMEOUT = 10000;
+const static int REQUEST_TIMEOUT = 30000;
 const static int DEFAULT_TOKEN_EXPIRATION_TIME_SEC = 3600;
 const static int MIN_TOKEN_EXPIRATION_TIME_SEC = 900;
 const static int MAX_HTTP_REDIRECTS = 20;
@@ -272,7 +272,7 @@ const std::string ZTSClient::getRoleToken() const {
     curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L);
 
     // Timer
-    curl_easy_setopt(handle, CURLOPT_TIMEOUT, REQUEST_TIMEOUT);
+    curl_easy_setopt(handle, CURLOPT_TIMEOUT_MS, REQUEST_TIMEOUT);
 
     // Redirects
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);

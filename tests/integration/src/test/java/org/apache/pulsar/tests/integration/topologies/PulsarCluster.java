@@ -209,6 +209,23 @@ public class PulsarCluster {
         }
     }
 
+    public void startService(String networkAlias,
+                             GenericContainer<?> serviceContainer) {
+        log.info("Starting external service {} ...", networkAlias);
+        serviceContainer.withNetwork(network);
+        serviceContainer.withNetworkAliases(networkAlias);
+        serviceContainer.start();
+        log.info("Successfully start external service {}", networkAlias);
+    }
+
+    public void stopService(String networkAlias,
+                            GenericContainer<?> serviceContainer) {
+        log.info("Stopping external service {} ...", networkAlias);
+        serviceContainer.stop();
+        log.info("Successfully stop external service {}", networkAlias);
+    }
+
+
     private static <T extends PulsarContainer> Map<String, T> runNumContainers(String serviceName,
                                                                                int numContainers,
                                                                                Function<String, T> containerCreator) {

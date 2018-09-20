@@ -1,7 +1,8 @@
 ---
-id: sql-deployment-configurations
+id: version-2.1.1-incubating-sql-deployment-configurations
 title: Pulsar SQl Deployment and Configuration
 sidebar_label: Deployment and Configuration
+original_id: sql-deployment-configurations
 ---
 
 ## Presto Pulsar Connector Configurations

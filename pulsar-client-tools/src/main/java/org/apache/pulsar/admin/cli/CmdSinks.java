@@ -291,6 +291,10 @@ public class CmdSinks extends CmdBase {
         protected String DEPRECATED_sinkConfigString;
         @Parameter(names = "--sink-config", description = "User defined configs key/values")
         protected String sinkConfigString;
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
+        protected boolean autoAck = true;
+        @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
+        protected Long timeoutMs;
 
         protected SinkConfig sinkConfig;
 
@@ -399,6 +403,15 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setConfigs(parseConfigs(sinkConfigString));
             }
 
+            sinkConfig.setAutoAck(autoAck);
+            if (timeoutMs != null) {
+                sinkConfig.setTimeoutMs(timeoutMs);
+            }
+            
+            if (null != sinkConfigString) {
+                sinkConfig.setConfigs(parseConfigs(sinkConfigString));
+            }
+            
             inferMissingArguments(sinkConfig);
         }
 
@@ -585,7 +598,11 @@ public class CmdSinks extends CmdBase {
                             : SubscriptionType.SHARED;
             sourceSpecBuilder.setSubscriptionType(subType);
 
-            functionDetailsBuilder.setAutoAck(true);
+            functionDetailsBuilder.setAutoAck(sinkConfig.isAutoAck());
+            if (sinkConfig.getTimeoutMs() != null) {
+                sourceSpecBuilder.setTimeoutMs(sinkConfig.getTimeoutMs());
+            }
+            
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
             // set up sink spec

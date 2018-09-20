@@ -16,19 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package org.apache.pulsar.io.kafka;
-
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
+package org.apache.pulsar.client.api;
 
 /**
- * Kafka sink that treats incoming messages on the input topic as Strings
- * and write identical key/value pairs.
+ * The provider to provide the service url
+ * It used by {@link ClientBuilder#serviceUrlProvider(ServiceUrlProvider)}
  */
-public class KafkaStringSink extends KafkaAbstractSink<String, String> {
-    @Override
-    public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {
-        return new KeyValue<>(record.getKey().orElse(null), new String(record.getValue()));
-    }
+public interface ServiceUrlProvider {
+
+    /**
+     * Get pulsar service url from ServiceUrlProvider.
+     *
+     * @return pulsar service url.
+     */
+    String getServiceUrl();
+
+    /**
+     * Set pulsar client to the provider for provider can control the pulsar client,
+     * such as {@link PulsarClient#forceCloseConnection()} or {@link PulsarClient#close()}.
+     *
+     * @param client created pulsar client.
+     */
+    void setClient(PulsarClient client);
+
 }

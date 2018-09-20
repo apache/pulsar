@@ -18,22 +18,23 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
+import com.github.dockerjava.api.command.CreateContainerCmd;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Map;
+import java.util.function.Consumer;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.testcontainers.containers.GenericContainer;
+import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.MySQLContainer;
 
 /**
@@ -41,7 +42,7 @@ import org.testcontainers.containers.MySQLContainer;
  * This will use MySql as DB server
  */
 @Slf4j
-public class JdbcSinkTester extends SinkTester {
+public class JdbcSinkTester extends SinkTester<MySQLContainer> {
 
     /**
      * A Simple class to test jdbc class，
@@ -57,14 +58,14 @@ public class JdbcSinkTester extends SinkTester {
     }
 
     private static final String NAME = "jdbc";
+    private static final String MYSQL = "mysql";
 
-    private MySQLContainer mySQLContainer;
     private AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
     private String tableName = "test";
     private Connection connection;
 
     public JdbcSinkTester() {
-        super(SinkType.JDBC);
+        super(NAME, SinkType.JDBC);
 
         // container default value is test
         sinkConfig.put("userName", "test");
@@ -79,21 +80,28 @@ public class JdbcSinkTester extends SinkTester {
     }
 
     @Override
-    public void findSinkServiceContainer(Map<String, GenericContainer<?>> containers) {
-        GenericContainer<?> container = containers.get("mysql");
-        checkState(container instanceof MySQLContainer,
-            "No MySQL service found in the cluster");
-
-        this.mySQLContainer = (MySQLContainer) container;
-        log.info("find sink service container: {}", mySQLContainer.getContainerName());
+    protected MySQLContainer createSinkService(PulsarCluster cluster) {
+        return (MySQLContainer) new MySQLContainer()
+            .withUsername("test")
+            .withPassword("test")
+            .withDatabaseName("test")
+            .withNetworkAliases(MYSQL)
+            .withCreateContainerCmdModifier(new Consumer<CreateContainerCmd>() {
+                @Override
+                public void accept(CreateContainerCmd createContainerCmd) {
+                    createContainerCmd
+                        .withName(MYSQL)
+                        .withHostName(cluster.getClusterName() + "-" + MYSQL);
+                }
+            });
     }
 
     @Override
     public void prepareSink() throws Exception {
-        String jdbcUrl = mySQLContainer.getJdbcUrl();
+        String jdbcUrl = serviceContainer.getJdbcUrl();
         // we need set mysql server address in cluster network.
-        sinkConfig.put("jdbcUrl", "jdbc:mysql://mysql:3306/test");
-        String driver = mySQLContainer.getDriverClassName();
+        sinkConfig.put("jdbcUrl", "jdbc:mysql://" + MYSQL + ":3306/test");
+        String driver = serviceContainer.getDriverClassName();
         Class.forName(driver);
 
         connection = DriverManager.getConnection(jdbcUrl, "test", "test");
