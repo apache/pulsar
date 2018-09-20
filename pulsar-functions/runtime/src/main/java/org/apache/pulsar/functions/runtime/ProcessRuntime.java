@@ -64,7 +64,6 @@ class ProcessRuntime implements Runtime {
     private InstanceControlGrpc.InstanceControlFutureStub stub;
     private ScheduledExecutorService timer;
     private InstanceConfig instanceConfig;
-    private final String userCodeFile;
 
     ProcessRuntime(InstanceConfig instanceConfig,
                    String instanceFile,
@@ -75,7 +74,6 @@ class ProcessRuntime implements Runtime {
                    AuthenticationConfig authConfig) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
-        this.userCodeFile = codeFile;
         this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig);
     }
