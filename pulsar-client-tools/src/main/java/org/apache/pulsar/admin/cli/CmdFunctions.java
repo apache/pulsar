@@ -48,7 +48,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -86,7 +85,6 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.WindowConfig;
@@ -102,8 +100,6 @@ public class CmdFunctions extends CmdBase {
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
 
     private final LocalRunner localRunner;
-    private final K8Runner k8Runner;
-    private final K8Killer k8Killer;
     private final CreateFunction creater;
     private final DeleteFunction deleter;
     private final UpdateFunction updater;
@@ -1136,68 +1132,9 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Run the Pulsar Function on a Kubernetes cluster")
-    class K8Runner extends FunctionDetailsCommand {
-
-        @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
-        protected String brokerServiceUrl;
-
-        @Parameter(names = "--k8-config", description = "Kubernetes config file")
-        protected String k8ConfigFile;
-
-        @Override
-        void runCmd() throws Exception {
-            String serviceUrl = admin.getServiceUrl();
-            if (brokerServiceUrl != null) {
-                serviceUrl = brokerServiceUrl;
-            }
-            if (serviceUrl == null) {
-                serviceUrl = "pulsar://localhost:6650";
-            }
-            KubernetesController k8Controller = new KubernetesController(k8ConfigFile);
-            // Let's first upload user code to bk.
-            String userCodeFile;
-            if (jarFile != null) {
-                userCodeFile = jarFile;
-            } else {
-                userCodeFile = pyFile;
-            }
-            String bkPath = "pulsar-function-k8-" + FunctionDetailsUtils.getFullyQualifiedName(functionConfig.getTenant(),
-                    functionConfig.getNamespace(), functionConfig.getName());
-
-            admin.functions().uploadFunction(userCodeFile, bkPath);
-
-            k8Controller.create(functionConfig, functionConfig.getParallelism(), bkPath, Paths.get(userCodeFile).getFileName().toString());
-        }
-    }
-
-    @Parameters(commandDescription = "Kill Pulsar Function running in Kubernetes cluster")
-    class K8Killer extends FunctionCommand {
-        @Parameter(names = "--k8-config", description = "Kubernetes config file")
-        protected String k8ConfigFile;
-
-        @Override
-        void runCmd() throws Exception {
-            KubernetesController k8Controller = new KubernetesController(k8ConfigFile);
-            k8Controller.delete(tenant, namespace, functionName);
-        }
-    }
-
-    @Parameters(commandDescription = "Get list of workers registered in cluster")
-    class GetCluster extends BaseCommand {
-        @Override
-        void runCmd() throws Exception {
-            String json = (new Gson()).toJson(admin.functions().getCluster());
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
-        }
-    }
-    
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
-        k8Runner = new K8Runner();
-        k8Killer = new K8Killer();
         creater = new CreateFunction();
         deleter = new DeleteFunction();
         updater = new UpdateFunction();
@@ -1211,8 +1148,6 @@ public class CmdFunctions extends CmdBase {
         restart = new RestartFunction();
         stop = new StopFunction();
         jcommander.addCommand("localrun", getLocalRunner());
-        jcommander.addCommand("k8run", getK8Runner());
-        jcommander.addCommand("k8kill", getK8Killer());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
         jcommander.addCommand("update", getUpdater());
@@ -1230,16 +1165,6 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     LocalRunner getLocalRunner() {
         return localRunner;
-    }
-
-    @VisibleForTesting
-    K8Runner getK8Runner() {
-        return k8Runner;
-    }
-
-    @VisibleForTesting
-    K8Killer getK8Killer() {
-        return k8Killer;
     }
 
     @VisibleForTesting

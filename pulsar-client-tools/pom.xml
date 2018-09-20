@@ -74,6 +74,7 @@
       <artifactId>pulsar-functions-worker</artifactId>
       <version>${project.version}</version>
     </dependency>
+
     <dependency>
       <groupId>net.jodah</groupId>
       <artifactId>typetools</artifactId>
