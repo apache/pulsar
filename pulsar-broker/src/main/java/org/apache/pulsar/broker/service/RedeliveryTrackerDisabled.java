@@ -16,19 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.broker.service;
 
-package org.apache.pulsar.io.kafka;
+import org.apache.bookkeeper.mledger.Position;
 
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
+import java.util.List;
 
-/**
- * Kafka sink that treats incoming messages on the input topic as Strings
- * and write identical key/value pairs.
- */
-public class KafkaStringSink extends KafkaAbstractSink<String, String> {
+public class RedeliveryTrackerDisabled implements RedeliveryTracker {
+
+    public static final RedeliveryTrackerDisabled REDELIVERY_TRACKER_DISABLED = new RedeliveryTrackerDisabled();
+
+    private RedeliveryTrackerDisabled() {}
+
     @Override
-    public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {
-        return new KeyValue<>(record.getKey().orElse(null), new String(record.getValue()));
+    public int incrementAndGetRedeliveryCount(Position position) {
+        return 0;
+    }
+
+    @Override
+    public int getRedeliveryCount(Position position) {
+        return 0;
+    }
+
+    @Override
+    public void remove(Position position) {
+        // no-op
+    }
+
+    @Override
+    public void removeBatch(List<Position> positions) {
+        // no-op
+    }
+
+    @Override
+    public void clear() {
+        // no-op
     }
 }

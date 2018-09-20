@@ -29,6 +29,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.RedeliveryTracker;
+import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -40,6 +42,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     private final Rate msgDrop;
     private final Subscription subscription;
     private final ServiceConfiguration serviceConfig;
+    private final RedeliveryTracker redeliveryTracker;
 
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
             NonPersistentTopic topic, Subscription subscription) {
@@ -48,6 +51,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         this.subscription = subscription;
         this.msgDrop = new Rate();
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
+        this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
     }
 
     @Override
@@ -115,6 +119,11 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
         // No-op
+    }
+
+    @Override
+    public RedeliveryTracker getRedeliveryTracker() {
+        return redeliveryTracker;
     }
 
     @Override

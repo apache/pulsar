@@ -22,6 +22,8 @@ import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Instance;
 
+import com.google.common.collect.Lists;
+
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -47,19 +49,17 @@ public class RoundRobinScheduler implements IScheduler {
             workerIdToAssignment.get(existingAssignment.getWorkerId()).add(existingAssignment);
         }
 
+        List<Assignment> newAssignments = Lists.newArrayList();
         for (Instance unassignedFunctionInstance : unassignedFunctionInstances) {
             String heartBeatWorkerId = checkHeartBeatFunction(unassignedFunctionInstance);
             String workerId = heartBeatWorkerId != null ? heartBeatWorkerId : findNextWorker(workerIdToAssignment);
             Assignment newAssignment = Assignment.newBuilder().setInstance(unassignedFunctionInstance)
                     .setWorkerId(workerId).build();
             workerIdToAssignment.get(workerId).add(newAssignment);
+            newAssignments.add(newAssignment);
         }
 
-        List<Assignment> assignments
-                = workerIdToAssignment.entrySet().stream()
-                .flatMap(entry -> entry.getValue().stream()).collect(Collectors.toList());
-
-        return assignments;
+        return newAssignments;
     }
 
     private static String checkHeartBeatFunction(Instance funInstance) {

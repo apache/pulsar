@@ -16,20 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.elasticsearch;
+package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
+import org.apache.bookkeeper.mledger.Position;
 
-/**
- * Concrete ElasticSearch sink.
- * This class assumes that the input will be JSON documents
- */
-public class ElasticSearchStringSink extends ElasticSearchAbstractSink<String, String> {
+import java.util.List;
 
-    @Override
-    public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {
-        String key = record.getKey().orElseGet(() -> new String(record.getValue()));
-        return new KeyValue<>(key, new String(record.getValue()));
-    }
+public interface RedeliveryTracker {
+
+    int incrementAndGetRedeliveryCount(Position position);
+
+    int getRedeliveryCount(Position position);
+
+    void remove(Position position);
+
+    void removeBatch(List<Position> positions);
+
+    void clear();
 }

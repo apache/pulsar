@@ -146,7 +146,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
         ThreadContext.put("instance", instanceConfig.getInstanceId());
 
-        log.info("Starting Java Instance {}", instanceConfig.getFunctionDetails().getName());
+        log.info("Starting Java Instance {} : \n Details = {}",
+            instanceConfig.getFunctionDetails().getName(), instanceConfig.getFunctionDetails());
 
         // start the function thread
         loadJars();
@@ -545,6 +546,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
             if (sourceSpec.getTimeoutMs() > 0 ) {
                 pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
+            }
+
+            if (this.instanceConfig.getFunctionDetails().hasRetryDetails()) {
+                pulsarSourceConfig.setMaxMessageRetries(this.instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
+                pulsarSourceConfig.setDeadLetterTopic(this.instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
             }
             object = new PulsarSource(this.client, pulsarSourceConfig,
                     FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));

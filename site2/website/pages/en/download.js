@@ -28,16 +28,13 @@ function archiveUrl(version, type) {
 
 class Download extends React.Component {
   render() {
-    const latestRelease = releases[0];
-
-    const latestVersion = `${latestRelease}-incubating`
+    const latestVersion = releases[0];
     const latestArchiveMirrorUrl = getLatestArchiveMirrorUrl(latestVersion, 'bin');
     const latestSrcArchiveMirrorUrl = getLatestArchiveMirrorUrl(latestVersion, 'src');
     const latestArchiveUrl = distUrl(latestVersion, 'bin');
     const latestSrcArchiveUrl = distUrl(latestVersion, 'src')
 
-    const releaseInfo = releases.map(r => {
-      const version = `${r}-incubating`;
+    const releaseInfo = releases.map(version => {
       return {
         version: version,
         binArchiveUrl: archiveUrl(version, 'bin'),

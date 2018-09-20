@@ -48,6 +48,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String brokerWebServiceURL;
     private String brokerWebServiceURLTLS;
 
+    // function worker web services
+    private String functionWorkerWebServiceURL;
+    private String functionWorkerWebServiceURLTLS;
+
     // Port to use to server binary-proto request
     private int servicePort = 6650;
     // Port to use to server binary-proto-tls request
@@ -156,6 +160,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setBrokerWebServiceURLTLS(String brokerWebServiceURLTLS) {
         this.brokerWebServiceURLTLS = brokerWebServiceURLTLS;
+    }
+
+    public String getFunctionWorkerWebServiceURL() {
+        return functionWorkerWebServiceURL;
+    }
+
+    public String getFunctionWorkerWebServiceURLTLS() {
+        return functionWorkerWebServiceURLTLS;
     }
 
     public String getZookeeperServers() {

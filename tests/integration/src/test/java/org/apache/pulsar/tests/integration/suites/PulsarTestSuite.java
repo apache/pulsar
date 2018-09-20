@@ -18,19 +18,10 @@
  */
 package org.apache.pulsar.tests.integration.suites;
 
-import java.util.Map;
-import org.apache.pulsar.tests.integration.containers.CassandraContainer;
-import org.apache.pulsar.tests.integration.containers.ElasticSearchContainer;
-import org.apache.pulsar.tests.integration.containers.HdfsContainer;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec.PulsarClusterSpecBuilder;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.containers.MySQLContainer;
 import org.testng.ITest;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
-import org.testng.collections.Maps;
 
 public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
 
@@ -44,47 +35,6 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
     @Override
     public void tearDownCluster() {
         super.tearDownCluster();
-    }
-
-    @Override
-    protected PulsarClusterSpecBuilder beforeSetupCluster(String clusterName, PulsarClusterSpecBuilder specBuilder) {
-        PulsarClusterSpecBuilder builder = super.beforeSetupCluster(clusterName, specBuilder);
-
-        // start functions
-
-        // register external services
-        Map<String, GenericContainer<?>> externalServices = Maps.newHashMap();
-
-        final String kafkaServiceName = "kafka";
-        externalServices.put(
-            kafkaServiceName,
-            new KafkaContainer()
-                .withEmbeddedZookeeper()
-                .withNetworkAliases(kafkaServiceName)
-                .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
-                    .withName(kafkaServiceName)
-                    .withHostName(clusterName + "-" + kafkaServiceName)));
-
-        final String cassandraServiceName = "cassandra";
-        externalServices.put(
-            cassandraServiceName,
-            new CassandraContainer(clusterName));
-
-        // use mySQL for jdbc test
-        final String jdbcServiceName = "mysql";
-        externalServices.put(
-            jdbcServiceName,
-            new MySQLContainer()
-                .withExposedPorts(3306));
-        
-        externalServices.put(
-                ElasticSearchContainer.NAME, 
-                new ElasticSearchContainer(ElasticSearchContainer.NAME)
-                .withExposedPorts(9200));
-
-        builder = builder.externalServices(externalServices);
-
-        return builder;
     }
 
     @Override

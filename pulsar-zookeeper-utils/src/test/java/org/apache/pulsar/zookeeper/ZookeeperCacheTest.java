@@ -209,12 +209,14 @@ public class ZookeeperCacheTest {
             Thread.sleep(1);
         }
 
+        final int recvNotifications = notificationCount.get();
+
         assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1")));
         assertEquals(cache.get("/test"), new TreeSet<String>(Lists.newArrayList("z1")));
-        assertEquals(notificationCount.get(), 1);
+        assertTrue(recvNotifications == 1 || recvNotifications == 2);
 
         zkClient.delete("/test/z1", -1);
-        while (notificationCount.get() < 2) {
+        while (notificationCount.get() < (recvNotifications + 1)) {
             Thread.sleep(1);
         }
 
@@ -230,7 +232,7 @@ public class ZookeeperCacheTest {
             // Ok
         }
 
-        assertEquals(notificationCount.get(), 2);
+        assertEquals(notificationCount.get(), (recvNotifications + 1));
     }
 
     @Test(timeOut = 10000)

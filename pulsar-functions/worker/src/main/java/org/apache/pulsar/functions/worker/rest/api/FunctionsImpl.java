@@ -170,6 +170,9 @@ public class FunctionsImpl {
         } else {
             packageLocationMetaDataBuilder.setPackagePath(isPkgUrlProvided ? functionPkgUrl
                     : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
+            if (!isPkgUrlProvided) {
+                packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
+            }
         }
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
@@ -234,6 +237,9 @@ public class FunctionsImpl {
         } else {
             packageLocationMetaDataBuilder.setPackagePath(isPkgUrlProvided ? functionPkgUrl
                     : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
+            if (!isPkgUrlProvided) {
+                packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
+            }
         }
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
@@ -332,7 +338,7 @@ public class FunctionsImpl {
     }
 
     public Response getFunctionInstanceStatus(final String tenant, final String namespace, final String functionName,
-            final String instanceId) throws IOException {
+            final String instanceId, URI uri) throws IOException {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -358,7 +364,9 @@ public class FunctionsImpl {
         FunctionStatus functionStatus = null;
         try {
             functionStatus = functionRuntimeManager.getFunctionInstanceStatus(tenant, namespace, functionName,
-                    Integer.parseInt(instanceId));
+                    Integer.parseInt(instanceId), uri);
+        } catch (WebApplicationException we) {
+            throw we;
         } catch (Exception e) {
             log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, functionName, e);
             return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();

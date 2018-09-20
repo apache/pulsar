@@ -62,7 +62,7 @@ def home(request):
 
     return render(request, 'stats/home.html', {
         'properties': properties,
-        'title' : 'Properties',
+        'title' : 'Tenants',
     })
 
 def property(request, property_name):

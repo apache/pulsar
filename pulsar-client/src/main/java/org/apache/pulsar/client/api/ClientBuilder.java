@@ -81,6 +81,13 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder serviceUrl(String serviceUrl);
 
     /**
+     * Configure the service URL provider for Pulsar service
+     * @param serviceUrlProvider
+     * @return
+     */
+    ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
+
+    /**
      * Set the authentication provider to use in the Pulsar client instance.
      * <p>
      * Example:

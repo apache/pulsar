@@ -45,8 +45,10 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.io.*;
+import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.Test;
 
 /**
@@ -61,17 +63,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test
     public void testKafkaSink() throws Exception {
-        testSink(new KafkaSinkTester(), true);
+        testSink(new KafkaSinkTester(), true, new KafkaSourceTester());
     }
 
     @Test
     public void testCassandraSink() throws Exception {
-        testSink(new CassandraSinkTester(), true);
+        testSink(CassandraSinkTester.createTester(true), true);
     }
 
     @Test
     public void testCassandraArchiveSink() throws Exception {
-        testSink(new CassandraSinkArchiveTester(), false);
+        testSink(CassandraSinkTester.createTester(false), false);
     }
     
     @Test(enabled = false)
@@ -90,8 +92,31 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
     
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
-        tester.findSinkServiceContainer(pulsarCluster.getExternalServices());
+        tester.startServiceContainer(pulsarCluster);
+        try {
+            runSinkTester(tester, builtin);
+        } finally {
+            tester.stopServiceContainer(pulsarCluster);
+        }
+    }
 
+
+    private <ServiceContainerT extends GenericContainer>  void testSink(SinkTester<ServiceContainerT> sinkTester,
+                                                                        boolean builtinSink,
+                                                                        SourceTester<ServiceContainerT> sourceTester)
+            throws Exception {
+        ServiceContainerT serviceContainer = sinkTester.startServiceContainer(pulsarCluster);
+        try {
+            runSinkTester(sinkTester, builtinSink);
+            if (null != sourceTester) {
+                sourceTester.setServiceContainer(serviceContainer);
+                testSource(sourceTester);
+            }
+        } finally {
+            sinkTester.stopServiceContainer(pulsarCluster);
+        }
+    }
+    private void runSinkTester(SinkTester tester, boolean builtin) throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String inputTopicName = "test-sink-connector-"
@@ -102,6 +127,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // prepare the testing environment for sink
         prepareSink(tester);
+
+        ensureSubscriptionCreated(
+            inputTopicName,
+            String.format("public/default/%s", sinkName),
+            tester.getInputTopicSchema());
 
         // submit the sink connector
         submitSinkConnector(tester, tenant, namespace, sinkName, inputTopicName);
@@ -251,13 +281,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     // This for JdbcSinkTester
     protected Map<String, String> produceSchemaMessagesToInputTopic(String inputTopicName,
-                                                              int numMessages,  Schema schema) throws Exception {
+                                                                    int numMessages,
+                                                                    Schema<Foo> schema) throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
         @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
+        Producer<Foo> producer = client.newProducer(schema)
             .topic(inputTopicName)
             .create();
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
@@ -273,7 +304,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             kvs.put(key, value);
             producer.newMessage()
                 .key(key)
-                .value(value)
+                .value(obj)
                 .send();
         }
         return kvs;
@@ -350,14 +381,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     // Source Test
     //
 
-    @Test
-    public void testKafkaSource() throws Exception {
-        testSource(new KafkaSourceTester());
-    }
-
     private void testSource(SourceTester tester)  throws Exception {
-        tester.findSourceServiceContainer(pulsarCluster.getExternalServices());
-
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "test-source-connector-"
@@ -635,7 +659,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             commands);
         assertTrue(result.getStdout().contains("\"Created successfully\""));
 
+        ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+    }
 
+    private static <T> void ensureSubscriptionCreated(String inputTopicName,
+                                                      String subscriptionName,
+                                                      Schema<T> inputTopicSchema)
+            throws Exception {
         // ensure the function subscription exists before we start producing messages
         try (PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -643,7 +673,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             try (Consumer<T> ignored = client.newConsumer(inputTopicSchema)
                 .topic(inputTopicName)
                 .subscriptionType(SubscriptionType.Shared)
-                .subscriptionName(String.format("public/default/%s", functionName))
+                .subscriptionName(subscriptionName)
                 .subscribe()) {
             }
         }

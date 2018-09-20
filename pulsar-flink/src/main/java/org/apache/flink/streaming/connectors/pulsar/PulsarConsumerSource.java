@@ -127,7 +127,6 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
         while (isRunning) {
             message = consumer.receive(messageReceiveTimeoutMs, TimeUnit.MILLISECONDS);
             if (message == null) {
-                LOG.info("unexpected null message");
                 continue;
             }
 

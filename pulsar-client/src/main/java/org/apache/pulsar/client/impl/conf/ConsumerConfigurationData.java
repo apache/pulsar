@@ -35,6 +35,7 @@ import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -84,6 +85,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private int patternAutoDiscoveryPeriod = 1;
 
     private Mode subscriptionTopicsMode = Mode.PERSISTENT;
+
+    private DeadLetterPolicy deadLetterPolicy;
 
     @JsonIgnore
     public String getSingleTopic() {

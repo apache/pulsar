@@ -18,10 +18,12 @@
  */
 package org.apache.flink.streaming.connectors.pulsar.partitioner;
 
+import java.io.Serializable;
+
 /**
  * Extract key from a value.
  */
-public interface PulsarKeyExtractor<IN> {
+public interface PulsarKeyExtractor<IN> extends Serializable {
 
     PulsarKeyExtractor NULL = in -> null;
 
