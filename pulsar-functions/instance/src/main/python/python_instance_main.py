@@ -28,6 +28,7 @@ import os
 import sys
 import signal
 import time
+import zipfile
 
 import pulsar
 
@@ -75,7 +76,8 @@ def main():
   json_format.Parse(args.function_details, function_details)
 
   if os.path.splitext(str(args.py))[1] == '.whl':
-    os.system("unzip -d %s -o %s" % (os.path.dirname(str(args.py)), str(args.py)))
+    zpfile = zipfile.ZipFile(str(args.py), 'r')
+    zpfile.extractall(os.path.dirname(str(args.py)))
     sys.path.insert(0, os.path.dirname(str(args.py)))
 
   log_file = os.path.join(args.logging_directory,
