@@ -137,6 +137,13 @@ public class PulsarSink<T> implements Sink<T> {
     class PulsarSinkAtMostOnceProcessor extends PulsarSinkProcessorBase {
         public PulsarSinkAtMostOnceProcessor(Schema schema) {
             super(schema);
+            // initialize default topic
+            try {
+                publishProducers.put(pulsarSinkConfig.getTopic(),
+                        createProducer(client, pulsarSinkConfig.getTopic(), null, schema, fqfn));
+            } catch (PulsarClientException e) {
+                log.error("Failed to create Producer while doing user publish", e);
+                throw new RuntimeException(e);            }
         }
 
         @Override
