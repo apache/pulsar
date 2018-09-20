@@ -100,8 +100,4 @@ extern "C" Authentication* create(const std::string& authParamsString) {
     return new AuthAthenz(authDataAthenz);
 }
 
-extern "C" Authentication* createFromMap(ParamMap& params) {
-    AuthenticationDataPtr authDataAthenz = AuthenticationDataPtr(new AuthDataAthenz(params));
-    return new AuthAthenz(authDataAthenz);
-}
 }  // namespace pulsar

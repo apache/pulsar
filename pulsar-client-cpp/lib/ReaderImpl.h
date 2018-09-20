@@ -49,6 +49,8 @@ class ReaderImpl : public boost::enable_shared_from_this<ReaderImpl> {
 
     ConsumerImplPtr getConsumer();
 
+    void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
+
    private:
     void handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumer);
 

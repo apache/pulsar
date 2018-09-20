@@ -18,15 +18,14 @@
 # under the License.
 #
 
+set -e
+
 FILES=$*
 
 for FILE in $FILES
 do
    echo "Signing $FILE"
    gpg --armor --output $FILE.asc --detach-sig $FILE
-
-   # SHA-1 signature
-   shasum -a 1 $FILE > $FILE.sha1
 
    # SHA-512 signature
    shasum -a 512 $FILE > $FILE.sha512

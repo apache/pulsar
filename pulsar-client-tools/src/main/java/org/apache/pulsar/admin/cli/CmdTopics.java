@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -32,6 +32,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -44,7 +45,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 
 @Parameters(commandDescription = "Operations on persistent topics")
 public class CmdTopics extends CmdBase {
@@ -89,6 +90,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("terminate", new Terminate());
         jcommander.addCommand("compact", new Compact());
         jcommander.addCommand("compaction-status", new CompactionStatusCmd());
+        jcommander.addCommand("offload", new Offload());
+        jcommander.addCommand("offload-status", new OffloadStatusCmd());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -614,39 +617,94 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    private static int validateTimeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        switch (last) {
-        case 'm':
-        case 'M':
-            return Integer.parseInt(subStr);
+    static MessageId findFirstLedgerWithinThreshold(List<PersistentTopicInternalStats.LedgerInfo> ledgers,
+                                                    long sizeThreshold) {
+        long suffixSize = 0L;
 
-        case 'h':
-        case 'H':
-            return Integer.parseInt(subStr) * 60;
+        ledgers = Lists.reverse(ledgers);
+        long previousLedger = ledgers.get(0).ledgerId;
+        for (PersistentTopicInternalStats.LedgerInfo l : ledgers) {
+            suffixSize += l.size;
+            if (suffixSize > sizeThreshold) {
+                return new MessageIdImpl(previousLedger, 0L, -1);
+            }
+            previousLedger = l.ledgerId;
+        }
+        return null;
+    }
 
-        case 'd':
-        case 'D':
-            return Integer.parseInt(subStr) * 24 * 60;
+    @Parameters(commandDescription = "Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)")
+    private class Offload extends CliCommand {
+        @Parameter(names = { "-s", "--size-threshold" },
+                   description = "Maximum amount of data to keep in BookKeeper for the specified topic (e.g. 10M, 5G).",
+                   required = true)
+        private String sizeThresholdStr;
 
-        case 'w':
-        case 'W':
-            return Integer.parseInt(subStr) * 7 * 24 * 60;
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
 
-        default:
-            return Integer.parseInt(s);
+        @Override
+        void run() throws PulsarAdminException {
+            long sizeThreshold = validateSizeString(sizeThresholdStr);
+            String persistentTopic = validatePersistentTopic(params);
+
+            PersistentTopicInternalStats stats = topics.getInternalStats(persistentTopic);
+            if (stats.ledgers.size() < 1) {
+                throw new PulsarAdminException("Topic doesn't have any data");
+            }
+
+            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList(stats.ledgers);
+            ledgers.get(ledgers.size()-1).size = stats.currentLedgerSize; // doesn't get filled in now it seems
+            MessageId messageId = findFirstLedgerWithinThreshold(ledgers, sizeThreshold);
+
+            if (messageId == null) {
+                System.out.println("Nothing to offload");
+                return;
+            }
+
+            topics.triggerOffload(persistentTopic, messageId);
+            System.out.println("Offload triggered for " + persistentTopic + " for messages before " + messageId);
         }
     }
 
-    private MessageId validateMessageIdString(String resetMessageIdStr) throws PulsarAdminException {
-        String[] messageId = resetMessageIdStr.split(":");
-        try {
-            checkArgument(messageId.length == 2);
-            return new MessageIdImpl(Long.parseLong(messageId[0]), Long.parseLong(messageId[1]), -1);
-        } catch (Exception e) {
-            throw new PulsarAdminException(
-                    "Invalid reset-position (must be in format: ledgerId:entryId) value " + resetMessageIdStr);
+    @Parameters(commandDescription = "Check the status of data offloading from a topic to long-term storage")
+    private class OffloadStatusCmd extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-w", "--wait-complete" },
+                   description = "Wait for offloading to complete", required = false)
+        private boolean wait = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            try {
+                LongRunningProcessStatus status = topics.offloadStatus(persistentTopic);
+                while (wait && status.status == LongRunningProcessStatus.Status.RUNNING) {
+                    Thread.sleep(1000);
+                    status = topics.offloadStatus(persistentTopic);
+                }
+
+                switch (status.status) {
+                case NOT_RUN:
+                    System.out.println("Offload has not been run for " + persistentTopic
+                                       + " since broker startup");
+                    break;
+                case RUNNING:
+                    System.out.println("Offload is currently running");
+                    break;
+                case SUCCESS:
+                    System.out.println("Offload was a success");
+                    break;
+                case ERROR:
+                    System.out.println("Error in offload");
+                    throw new PulsarAdminException("Error offloading: " + status.lastError);
+                }
+            } catch (InterruptedException e) {
+                throw new PulsarAdminException(e);
+            }
         }
     }
 }

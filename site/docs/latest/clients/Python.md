@@ -93,7 +93,7 @@ consumer = client.subscribe('my-topic', 'my-subscription')
 
 while True:
     msg = consumer.receive()
-    print("Received message '%s' id='%s'", msg.data(), msg.message_id())
+    print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
     consumer.acknowledge(msg)
 
 client.close()
@@ -111,6 +111,6 @@ reader = client.create_reader('my-topic', msg_id)
 
 while True:
     msg = reader.receive()
-    print("Received message '%s' id='%s'", msg.data(), msg.message_id())
+    print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
     # No acknowledgment
 ```

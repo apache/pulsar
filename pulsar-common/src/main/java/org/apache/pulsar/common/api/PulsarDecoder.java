@@ -20,6 +20,10 @@ package org.apache.pulsar.common.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -32,6 +36,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
@@ -55,9 +61,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
@@ -288,6 +291,18 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleGetTopicsOfNamespaceSuccess(cmd.getGetTopicsOfNamespaceResponse());
                 cmd.getGetTopicsOfNamespaceResponse().recycle();
                 break;
+
+            case GET_SCHEMA:
+                checkArgument(cmd.hasGetSchema());
+                handleGetSchema(cmd.getGetSchema());
+                cmd.getGetSchema().recycle();
+                break;
+
+            case GET_SCHEMA_RESPONSE:
+                checkArgument(cmd.hasGetSchemaResponse());
+                handleGetSchemaResponse(cmd.getGetSchemaResponse());
+                cmd.getGetSchemaResponse().recycle();
+                break;
             }
         } finally {
             if (cmdBuilder != null) {
@@ -428,6 +443,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleGetTopicsOfNamespaceSuccess(CommandGetTopicsOfNamespaceResponse response) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetSchema(CommandGetSchema commandGetSchema) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetSchemaResponse(CommandGetSchemaResponse commandGetSchemaResponse) {
         throw new UnsupportedOperationException();
     }
 

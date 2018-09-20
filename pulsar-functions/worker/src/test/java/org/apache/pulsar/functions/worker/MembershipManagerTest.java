@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.worker;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -34,10 +33,10 @@ import static org.testng.Assert.assertTrue;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -46,6 +45,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.proto.Function;
 import org.mockito.ArgumentMatcher;
@@ -69,7 +69,7 @@ public class MembershipManagerTest {
     public void testConsumerEventListener() throws Exception {
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
 
-        Consumer<byte[]> mockConsumer = mock(Consumer.class);
+        ConsumerImpl<byte[]> mockConsumer = mock(ConsumerImpl.class);
         ConsumerBuilder<byte[]> mockConsumerBuilder = mock(ConsumerBuilder.class);
 
         when(mockConsumerBuilder.topic(anyString())).thenReturn(mockConsumerBuilder);
@@ -78,6 +78,8 @@ public class MembershipManagerTest {
         when(mockConsumerBuilder.property(anyString(), anyString())).thenReturn(mockConsumerBuilder);
 
         when(mockConsumerBuilder.subscribe()).thenReturn(mockConsumer);
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(workerConfig).when(workerService).getWorkerConfig();
 
         AtomicReference<ConsumerEventListener> listenerHolder = new AtomicReference<>();
         when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class))).thenAnswer(invocationOnMock -> {
@@ -90,7 +92,7 @@ public class MembershipManagerTest {
 
         when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
 
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockClient));
+        MembershipManager membershipManager = spy(new MembershipManager(workerService, mockClient));
         assertFalse(membershipManager.isLeader());
         verify(mockClient, times(1))
             .newConsumer();
@@ -105,7 +107,7 @@ public class MembershipManagerTest {
     private static PulsarClient mockPulsarClient() throws PulsarClientException {
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
 
-        Consumer<byte[]> mockConsumer = mock(Consumer.class);
+        ConsumerImpl<byte[]> mockConsumer = mock(ConsumerImpl.class);
         ConsumerBuilder<byte[]> mockConsumerBuilder = mock(ConsumerBuilder.class);
 
         when(mockConsumerBuilder.topic(anyString())).thenReturn(mockConsumerBuilder);
@@ -125,24 +127,31 @@ public class MembershipManagerTest {
     @Test
     public void testCheckFailuresNoFailures() throws Exception {
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
-        PulsarClient pulsarClient = mock(PulsarClient.class);
+        PulsarClient pulsarClient = mockPulsarClient();
         ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(workerConfig).when(workerService).getWorkerConfig();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+        
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                pulsarClient,
+                workerService,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
+        MembershipManager membershipManager = spy(new MembershipManager(workerService, pulsarClient));
 
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-2", "host-2", 8001));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "host-1", 8000));
+        workerInfoList.add(WorkerInfo.of("worker-2", "host-2", 8001));
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
@@ -189,24 +198,31 @@ public class MembershipManagerTest {
     public void testCheckFailuresSomeFailures() throws Exception {
         workerConfig.setRescheduleTimeoutMs(30000);
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
-        PulsarClient pulsarClient = mock(PulsarClient.class);
+        PulsarClient pulsarClient = mockPulsarClient();
         ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
         doReturn(mock(Reader.class)).when(readerBuilder).create();
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(workerConfig).when(workerService).getWorkerConfig();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+        
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                pulsarClient,
+                workerService,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
 
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
+        MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient()));
 
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "host-1", 8000));
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
@@ -278,24 +294,31 @@ public class MembershipManagerTest {
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setRescheduleTimeoutMs(30000);
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
-        PulsarClient pulsarClient = mock(PulsarClient.class);
+        PulsarClient pulsarClient = mockPulsarClient();
         ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(workerConfig).when(workerService).getWorkerConfig();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+        
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                pulsarClient,
+                workerService,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
+        MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient()));
 
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-2", "host-2", 8001));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "host-1", 8000));
+        workerInfoList.add(WorkerInfo.of("worker-2", "host-2", 8001));
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 

@@ -120,6 +120,12 @@ commands:
   - name: localrun
     description: Run a Pulsar Function locally
     options:
+    - flags: --cpu
+      description: The CPU to allocate to each function instance (in number of cores)
+    - flags: --ram
+      description: The RAM to allocate to each function instance (in bytes)
+    - flags: --disk
+      description: The disk space to allocate to each function instance (in bytes)
     - flags: --brokerServiceUrl
       description: The URL of the Pulsar broker
     - flags: --className
@@ -163,6 +169,12 @@ commands:
   - name: create
     description: Creates a new Pulsar Function on the target infrastructure
     options:
+    - flags: --cpu
+      description: The CPU to allocate to each function instance (in number of cores)
+    - flags: --ram
+      description: The RAM to allocate to each function instance (in bytes)
+    - flags: --disk
+      description: The disk space to allocate to each function instance (in bytes)
     - flags: --className
       description: The name of the function's class
     - flags: --customSerdeInputs
@@ -419,7 +431,7 @@ commands:
     argument: tenant/cluster/namespace
     options:
     - flags: -s, --size
-      description: The retention size limits (for example `10M`, `16G` or `3T`). 0 means no retention and -1 means infinite size retention
+      description: The retention size limits (for example `10M`, `16G` or `3T`). 0 or less than 1MB means no retention and -1 means infinite size retention
     - flags: -t, --time
       description: "The retention time in minutes, hours, days, or weeks. Examples: `100m`, `13h`, `2d`, `5w`. 0 means no retention and -1 means infinite time retention"
   - name: unload
@@ -447,6 +459,27 @@ commands:
       description: # `{start_boundary}_{end_boundary}`
     - flags: -s, --sub
       description: The subscription name
+  - name: get-compaction-threshold
+    description: Get compactionThreshold for a namespace
+    argument: tenant/namespace
+  - name: set-compaction-threshold
+    description: Set compactionThreshold for a namespace
+    argument: tenant/namespace
+    options:
+      - flags: -t, --threshold
+        description: "Maximum number of bytes in a topic backlog before compaction is triggered (eg: 10M, 16G, 3T). 0 disables automatic compaction"
+        default: '0'
+  - name: get-offload-threshold
+    description: Get offloadThreshold for a namespace
+    argument: tenant/namespace
+  - name: set-offload-threshold
+    description: Set offloadThreshold for a namespace
+    argument: tenant/namespace
+    options:
+      - flags: -s, --size
+        description: "Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible."
+        default: '-1'
+
 - name: ns-isolation-policy
   description: Operations for managing namespace isolation policies.
   subcommands:
@@ -477,6 +510,164 @@ commands:
     argument: cluster-name
   - name: delete
     description: Delete namespace isolation policy of a cluster. This operation requires superuser privileges.
+- name: sink
+  description: An interface for managing Pulsar IO sinks (egress data from Pulsar)
+  subcommands:
+  - name: create
+    description: Submit a Pulsar IO sink connector to run in a Pulsar cluster
+    options:
+    - flags: --className
+      description: The sink's Java class name
+    - flags: --cpu
+      description: The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)
+    - flags: --customSerdeInputs
+      description: The map of input topics to SerDe class names (as a JSON string)
+    - flags: --disk
+      description: The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)
+    - flags: --inputs
+      description: The sink's input topic(s) (multiple topics can be specified as a comma-separated list)
+    - flags: --jar
+      description: Path to the Java jar file for the sink
+    - flags: --name
+      description: The sink's name
+    - flags: --namespace
+      description: The sink's namespace
+    - flags: --parallelism
+      description: |
+        "The sink's parallelism factor (i.e. the number of sink instances to run)."
+    - flags: --processingGuarantees
+      description: |
+        "The processing guarantees (aka delivery semantics) applied to the sink. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
+    - flags: --ram
+      description: The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)
+    - flags: --sinkConfig
+      description: Sink config key/values
+    - flags: --sinkConfigFile
+      description: The path to a YAML config file specifying the sink's configuration
+    - flags: --tenant
+      description: The sink's tenant
+  - name: delete
+    description: Stops a Pulsar IO sink
+    options:
+    - flags: --name
+      description: The name of the sink
+    - flags: --namespace
+      description: The namespace of the sink
+    - flags: --tenant
+      description: The tenant of the sink
+  - name: localrun
+    description: Run the Pulsar sink locally (rather than in the Pulsar cluster)
+    options:
+    - flags: --brokerServiceUrl
+      description: The URL for the Pulsar broker
+    - flags: --className
+      description: The sink's Java class name
+    - flags: --cpu
+      description: The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)
+    - flags: --customSerdeInputs
+      description: The map of input topics to SerDe class names (as a JSON string)
+    - flags: --disk
+      description: The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)
+    - flags: --inputs
+      description: The sink's input topic(s) (multiple topics can be specified as a comma-separated list)
+    - flags: --jar
+      description: Path to the Java jar file for the sink
+    - flags: --name
+      description: The sink's name
+    - flags: --namespace
+      description: The sink's namespace
+    - flags: --parallelism
+      description: |
+        "The sink's parallelism factor (i.e. the number of sink instances to run)."
+    - flags: --processingGuarantees
+      description: |
+        "The processing guarantees (aka delivery semantics) applied to the sink. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
+    - flags: --ram
+      description: The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)
+    - flags: --sinkConfig
+      description: Sink config key/values
+    - flags: --sinkConfigFile
+      description: The path to a YAML config file specifying the sink's configuration
+    - flags: --tenant
+      description: The sink's tenant
+- name: source
+  description: An interface for managing Pulsar IO sources (ingress data into Pulsar)
+  subcommands:
+  - name: create
+    description: Submit a Pulsar IO source connector to run in a Pulsar cluster
+    options:
+    - flags: --className
+      description: The source's Java class name
+    - flags: --cpu
+      description: The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)
+    - flags: --deserializationClassName
+      description: The SerDe classname for the source
+    - flags: --destinationTopicName
+      description: The Pulsar topic to which data is sent
+    - flags: --disk
+      description: The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)
+    - flags: --jar
+      description: Path to the Java jar file for the source
+    - flags: --name
+      description: The source's name
+    - flags: --namespace
+      description: The source's namespace
+    - flags: --parallelism
+      description: |
+        The source's parallelism factor (i.e. the number of source instances to run).
+    - flags: --processingGuarantees
+      description: |
+        "The processing guarantees (aka delivery semantics) applied to the source. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
+    - flags: --ram
+      description: The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)
+    - flags: --sourceConfig
+      description: Source config key/values
+    - flags: --sourceConfigFile
+      description: The path to a YAML config file specifying the source's configuration
+    - flags: --tenant
+      description: The source's tenant
+  - name: delete
+    description: Stops a Pulsar IO source
+    options:
+    - flags: --name
+      description: The name of the source
+    - flags: --namespace
+      description: The namespace of the source
+    - flags: --tenant
+      description: The tenant of the source
+  - name: localrun
+    description: Run the Pulsar source locally (rather than in the Pulsar cluster)
+    options:
+    - flags: --className
+      description: The source's Java class name
+    - flags: --cpu
+      description: The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)
+    - flags: --deserializationClassName
+      description: The SerDe classname for the source
+    - flags: --destinationTopicName
+      description: The Pulsar topic to which data is sent
+    - flags: --disk
+      description: The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)
+    - flags: --jar
+      description: Path to the Java jar file for the source
+    - flags: --name
+      description: The source's name
+    - flags: --namespace
+      description: The source's namespace
+    - flags: --parallelism
+      description: |
+        The source's parallelism factor (i.e. the number of source instances to run).
+    - flags: --processingGuarantees
+      description: |
+        "The processing guarantees (aka delivery semantics) applied to the source. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
+    - flags: --ram
+      description: The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)
+    - flags: --sourceConfig
+      description: Source config key/values
+    - flags: --sourceConfigFile
+      description: The path to a YAML config file specifying the source's configuration
+    - flags: --tenant
+      description: The source's tenant
 - name: topics
   description: Operations for managing Pulsar topics (both persistent and non persistent)
   subcommands:
@@ -490,6 +681,19 @@ commands:
     - flags: -w, --wait-complete
       description: Wait for compaction to complete
       default: 'false'
+  - name: offload
+    description: Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)
+    argument: "persistent://tenant/namespace/topic"
+    options:
+    - flags: -s, --size-threshold
+      description: The maximum amount of data to keep in BookKeeper for the specific topic
+  - name: offload-status
+    description: Check the status of data offloading from a topic to long-term storage
+    argument: "persistent://tenant/namespace/topic"
+    options:
+    - flags: -w, --wait-complete
+      description: Wait for offloading to complete
+      default: false
   - name: create-partitioned-topic
     description: Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
     argument: "{persistent|non-persistent}://tenant/namespace/topic"
@@ -683,4 +887,23 @@ commands:
     - flags: -b, --bundle
       description: A bundle of the form `{start-boundary}_{end_boundary}`.
     - flags: -n, --namespace
-      description: The namespace as `tenant/namespace`, for example `my-tenant/my-ns`.
+      description: The namespace as `property/cluster/namespace`, for example `my-prop/my-cluster/my-ns`.
+- name: schemas
+  description: Operations related to Schemas associated with Pulsar topics.
+  subcommands:
+  - name: upload
+    description: Upload the schema definition for a topic
+    argument: persistent://tenant/namespace/topic
+    options:
+    - flags: --filename
+      description: The path to the schema definition file. An example schema file is available under `conf` directory.
+  - name: delete
+    description: Delete the schema definition associated with a topic
+    argument: persistent://tenant/namespace/topic
+  - name: get
+    description: Retrieve the schema definition assoicated with a topic (at a given version if version is supplied).
+    argument: persistent://tenant/namespace/topic
+    options:
+    - flags: --version
+      description: The version of the schema definition to retrive for a topic.
+

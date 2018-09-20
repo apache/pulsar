@@ -29,6 +29,7 @@ import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 import java.util.List;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -105,15 +106,23 @@ public class ProxyServiceStarter {
         if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
                 || config.isAuthorizationEnabled()) {
             checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-            checkArgument(!isEmpty(config.getConfigurationStoreServers()), "configurationStoreServers must be provided");
+            checkArgument(!isEmpty(config.getConfigurationStoreServers()),
+                    "configurationStoreServers must be provided");
+        }
+
+        if ((!config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURL()))
+                || (config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURLTLS()))) {
+            checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
         }
 
         java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
+        AuthenticationService authenticationService = new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(config));
         // create proxy service
-        ProxyService proxyService = new ProxyService(config);
+        ProxyService proxyService = new ProxyService(config, authenticationService);
         // create a web-service
-        final WebServer server = new WebServer(config);
+        final WebServer server = new WebServer(config, authenticationService);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
@@ -132,12 +141,11 @@ public class ProxyServiceStarter {
         server.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
 
-        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config);
+        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, proxyService.getDiscoveryProvider());
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         servletHolder.setInitParameter("preserveHost", "true");
-        servletHolder.setInitParameter("proxyTo", config.getBrokerServiceURL());
-        server.addServlet("/admin/*", servletHolder);
-        server.addServlet("/lookup/*", servletHolder);
+        server.addServlet("/admin", servletHolder);
+        server.addServlet("/lookup", servletHolder);
 
         // start web-service
         server.start();

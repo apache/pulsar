@@ -102,13 +102,35 @@ public class FunctionStats {
                 return totalLatencyMs / totalSuccessfullyProcessed;
             }
         }
+        
+        public void update(Stats stats) {
+            if (stats == null) {
+                return;
+            }
+            this.totalProcessed = stats.totalProcessed;
+            this.totalSuccessfullyProcessed = stats.totalSuccessfullyProcessed;
+            this.totalUserExceptions = stats.totalUserExceptions;
+            this.latestUserExceptions.clear();
+            this.latestSystemExceptions.clear();
+            this.totalDeserializationExceptions.clear();
+            this.latestUserExceptions.addAll(stats.latestUserExceptions);
+            this.latestSystemExceptions.addAll(stats.latestSystemExceptions);
+            this.totalDeserializationExceptions.putAll(stats.totalDeserializationExceptions);
+            this.totalSystemExceptions = stats.totalSystemExceptions;
+            this.latestSystemExceptions = stats.latestSystemExceptions;
+            this.totalSerializationExceptions = stats.totalSerializationExceptions;
+            this.totalLatencyMs = stats.totalLatencyMs;
+            this.lastInvocationTime = stats.lastInvocationTime;
+        }
     }
 
     private Stats currentStats;
     private Stats totalStats;
-
+    private Stats stats;
+    
     public FunctionStats() {
         currentStats = new Stats();
+        stats = new Stats();
         totalStats = new Stats();
     }
 
@@ -138,6 +160,7 @@ public class FunctionStats {
         totalStats.incrementSerializationExceptions();
     }
     public void resetCurrent() {
+        stats.update(currentStats);
         currentStats.reset();
     }
 }

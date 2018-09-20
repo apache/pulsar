@@ -86,7 +86,7 @@
             "// Notice": "add PULSAR_MEM, PULSAR_GC, according to your environment.",
             "zkServers":  "master.mesos:2181",
             "ledgerManagerType": "hierarchical",
-            "statsProviderClass": "org.apache.bookkeeper.stats.PrometheusMetricsProvider",
+            "statsProviderClass": "org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider",
             "journalDirectory": "/bookkeeper/data/journal",
             "ledgerDirectories": "/bookkeeper/data/ledgers",
             "indexDirectories": "/bookkeeper/data/index"
@@ -348,4 +348,3 @@
     }
   ]
 }
-

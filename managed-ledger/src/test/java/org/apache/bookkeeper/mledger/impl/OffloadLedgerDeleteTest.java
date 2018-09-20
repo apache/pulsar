@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -144,5 +145,59 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         // ensure it gets deleted from both bookkeeper and offloader
         assertEventuallyTrue(() -> !bkc.getLedgers().contains(firstLedgerId));
         assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedgerId));
+    }
+
+    @Test
+    public void testLaggedDeleteSlowConsumer() throws Exception {
+        OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        MockClock clock = new MockClock();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setOffloadLedgerDeletionLag(5, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+        config.setClock(clock);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+        ManagedCursor cursor = ledger.openCursor("sub1");
+
+        for (int i = 0; i < 15; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        long firstLedgerId = ledger.getLedgersInfoAsList().get(0).getLedgerId();
+
+        ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
+                            .filter(e -> e.getOffloadContext().getComplete())
+                            .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
+                            offloader.offloadedLedgers());
+        Assert.assertTrue(bkc.getLedgers().contains(firstLedgerId));
+
+        clock.advance(2, TimeUnit.MINUTES);
+
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        ledger.internalTrimConsumedLedgers(promise);
+        promise.join();
+        Assert.assertTrue(bkc.getLedgers().contains(firstLedgerId));
+
+        clock.advance(5, TimeUnit.MINUTES);
+        CompletableFuture<Void> promise2 = new CompletableFuture<>();
+        ledger.internalTrimConsumedLedgers(promise2);
+        promise2.join();
+
+        // assert bk ledger is deleted
+        assertEventuallyTrue(() -> !bkc.getLedgers().contains(firstLedgerId));
+
+        // ledger still exists in list
+        Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
+                            .filter(e -> e.getOffloadContext().getComplete())
+                            .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
+                            offloader.offloadedLedgers());
     }
 }

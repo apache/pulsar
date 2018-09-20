@@ -30,7 +30,7 @@ import com.google.common.collect.Lists;
 
 /**
  * Map from long to an Object.
- * 
+ *
  * Provides similar methods as a ConcurrentMap<long,Object> with 2 differences:
  * <ol>
  * <li>No boxing/unboxing from long -> Long
@@ -187,10 +187,10 @@ public class ConcurrentLongHashMap<V> {
     // A section is a portion of the hash map that is covered by a single
     @SuppressWarnings("serial")
     private static final class Section<V> extends StampedLock {
-        private long[] keys;
-        private V[] values;
+        private volatile long[] keys;
+        private volatile V[] values;
 
-        private int capacity;
+        private volatile int capacity;
         private volatile int size;
         private int usedBuckets;
         private int resizeThreshold;

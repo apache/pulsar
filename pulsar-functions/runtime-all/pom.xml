@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-functions</artifactId>
-    <version>2.1.0-incubating-SNAPSHOT</version>
+    <version>2.2.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -36,62 +36,8 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-runtime-shaded</artifactId>
+      <artifactId>pulsar-functions-runtime</artifactId>
       <version>${project.parent.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-all</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-lite</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.protobuf.nano</groupId>
-          <artifactId>protobuf-javanano</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java-util</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-protobuf</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-protobuf-lite</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-protobuf-nano</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-functions-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-functions-utils</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-functions-metrics</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-functions-runtime</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-functions-instance</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <!-- logging -->
@@ -128,11 +74,11 @@
             </goals>
             <configuration>
               <finalName>java-instance</finalName>
+              <minimizeJar>false</minimizeJar>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
               <transformers>
-                <transformer
-                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>org.openjdk.jmh.Main</mainClass>
-                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
               </transformers>
               <artifactSet>
                 <excludes>
@@ -160,6 +106,119 @@
                   </excludes>
                 </filter>
               </filters>
+              <relocations>
+                <relocation>
+                  <pattern>com.google</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.google</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.netty</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.netty</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.grpc</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.grpc</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.bookkeeper</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.bookkeeper</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.squareup</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.squareup</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>okio</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.okio</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.inferred</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.inferred</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.jboss</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.jboss</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.fasterxml.jackson</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.fasterxml.jackson</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.beust</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.beust</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>net.jodah</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.jodah</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.yaml</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.yaml</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.glassfish</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.glassfish</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.scurrilous.circe</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.scurrilous.circe</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>net.jpountz</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.jpountz</shadedPattern>
+                </relocation>
+                  <relocation>
+                  <pattern>com.yahoo</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.yahoo</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.http</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.http</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.commons</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.commons</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.jvnet</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.jvnet</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.opencensus</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.opencensus</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.eclipse</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.eclipse</shadedPattern>
+                </relocation>
+                <!-- 
+                    asynchttpclient can only be shaded to be under `org.apache.pulsar.shade`
+                    see {@link https://github.com/apache/incubator-pulsar/pull/390}
+                    and {@link https://github.com/apache/incubator-pulsar/blob/master/pulsar-client/src/main/resources/ahc.properties}
+                -->
+                <relocation>
+                  <pattern>org.asynchttpclient</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.bouncycastle</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.bouncycastle</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>jersey</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.jersey</shadedPattern>
+                </relocation>
+                <!-- DONT ever shade log4j, otherwise logging won't work anymore in running functions in process mode
+                <relocation>
+                  <pattern>org.apache.logging</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.logging</shadedPattern>
+                </relocation>
+                -->
+                <relocation>
+                  <pattern>javassist</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javassist</shadedPattern>
+                </relocation>
+              </relocations>
             </configuration>
           </execution>
         </executions>

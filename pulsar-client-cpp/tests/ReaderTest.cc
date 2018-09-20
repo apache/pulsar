@@ -23,6 +23,9 @@
 
 #include <string>
 
+#include <lib/LogUtils.h>
+DECLARE_LOG_OBJECT()
+
 using namespace pulsar;
 
 static std::string serviceUrl = "pulsar://localhost:8885";
@@ -54,6 +57,8 @@ TEST(ReaderTest, testSimpleReader) {
         ASSERT_EQ(expected, content);
     }
 
+    producer.close();
+    reader.close();
     client.close();
 }
 
@@ -84,6 +89,8 @@ TEST(ReaderTest, testReaderAfterMessagesWerePublished) {
         ASSERT_EQ(expected, content);
     }
 
+    producer.close();
+    reader.close();
     client.close();
 }
 
@@ -126,6 +133,9 @@ TEST(ReaderTest, testMultipleReaders) {
         ASSERT_EQ(expected, content);
     }
 
+    producer.close();
+    reader1.close();
+    reader2.close();
     client.close();
 }
 
@@ -162,6 +172,8 @@ TEST(ReaderTest, testReaderOnLastMessage) {
         ASSERT_EQ(expected, content);
     }
 
+    producer.close();
+    reader.close();
     client.close();
 }
 
@@ -208,6 +220,8 @@ TEST(ReaderTest, testReaderOnSpecificMessage) {
         ASSERT_EQ(expected, content);
     }
 
+    producer.close();
+    reader.close();
     client.close();
 }
 
@@ -268,7 +282,137 @@ TEST(ReaderTest, testReaderOnSpecificMessageWithBatches) {
         ASSERT_EQ(expected, content);
     }
 
+    producer.close();
     reader.close();
     reader2.close();
+    client.close();
+}
+
+TEST(ReaderTest, testReaderReachEndOfTopic) {
+    Client client(serviceUrl);
+
+    std::string topicName = "persistent://property/cluster/namespace/testReaderReachEndOfTopic";
+
+    // 1. create producer
+    Producer producer;
+    // Enable batching
+    ProducerConfiguration producerConf;
+    producerConf.setBatchingEnabled(true);
+    producerConf.setBatchingMaxPublishDelayMs(1000);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConf, producer));
+
+    // 2. create reader, and expect hasMessageAvailable return false since no message produced.
+    ReaderConfiguration readerConf;
+    Reader reader;
+    ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::latest(), readerConf, reader));
+
+    bool hasMessageAvailable;
+    ASSERT_EQ(ResultOk, reader.hasMessageAvailable(hasMessageAvailable));
+    ASSERT_FALSE(hasMessageAvailable);
+
+    // 3. produce 10 messages.
+    for (int i = 0; i < 10; i++) {
+        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder().setContent(content).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    // 4. expect hasMessageAvailable return true, and after read 10 messages out, it return false.
+    ASSERT_EQ(ResultOk, reader.hasMessageAvailable(hasMessageAvailable));
+    ASSERT_TRUE(hasMessageAvailable);
+
+    int readMessageCount = 0;
+    for (; hasMessageAvailable; readMessageCount++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, reader.readNext(msg));
+
+        std::string content = msg.getDataAsString();
+        std::string expected = "my-message-" + boost::lexical_cast<std::string>(readMessageCount);
+        ASSERT_EQ(expected, content);
+        reader.hasMessageAvailable(hasMessageAvailable);
+    }
+
+    ASSERT_EQ(readMessageCount, 10);
+    ASSERT_FALSE(hasMessageAvailable);
+
+    // 5. produce another 10 messages, expect hasMessageAvailable return true,
+    //    and after read these 10 messages out, it return false.
+    for (int i = 10; i < 20; i++) {
+        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder().setContent(content).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    ASSERT_EQ(ResultOk, reader.hasMessageAvailable(hasMessageAvailable));
+    ASSERT_TRUE(hasMessageAvailable);
+
+    for (; hasMessageAvailable; readMessageCount++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, reader.readNext(msg));
+
+        std::string content = msg.getDataAsString();
+        std::string expected = "my-message-" + boost::lexical_cast<std::string>(readMessageCount);
+        ASSERT_EQ(expected, content);
+        reader.hasMessageAvailable(hasMessageAvailable);
+    }
+    ASSERT_EQ(readMessageCount, 20);
+    ASSERT_FALSE(hasMessageAvailable);
+
+    producer.close();
+    reader.close();
+    client.close();
+}
+
+TEST(ReaderTest, testReaderReachEndOfTopicMessageWithBatches) {
+    Client client(serviceUrl);
+
+    std::string topicName =
+        "persistent://property/cluster/namespace/testReaderReachEndOfTopicMessageWithBatches";
+
+    // 1. create producer
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
+
+    // 2. create reader, and expect hasMessageAvailable return false since no message produced.
+    ReaderConfiguration readerConf;
+    Reader reader;
+    ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::latest(), readerConf, reader));
+
+    bool hasMessageAvailable;
+    ASSERT_EQ(ResultOk, reader.hasMessageAvailable(hasMessageAvailable));
+    ASSERT_FALSE(hasMessageAvailable);
+
+    // 3. produce 10 messages in batches way.
+    for (int i = 0; i < 10; i++) {
+        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder().setContent(content).build();
+        producer.sendAsync(msg, NULL);
+    }
+    // Send one sync message, to wait for everything before to be persisted as well
+    std::string content = "my-message-10";
+    Message msg = MessageBuilder().setContent(content).build();
+    ASSERT_EQ(ResultOk, producer.send(msg));
+
+    // 4. expect hasMessageAvailable return true, and after read 11 messages out, it return false.
+    ASSERT_EQ(ResultOk, reader.hasMessageAvailable(hasMessageAvailable));
+    ASSERT_TRUE(hasMessageAvailable);
+
+    std::string lastMessageId;
+    int readMessageCount = 0;
+    for (; hasMessageAvailable; readMessageCount++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, reader.readNext(msg));
+
+        std::string content = msg.getDataAsString();
+        std::string expected = "my-message-" + boost::lexical_cast<std::string>(readMessageCount);
+        ASSERT_EQ(expected, content);
+        reader.hasMessageAvailable(hasMessageAvailable);
+        msg.getMessageId().serialize(lastMessageId);
+    }
+    ASSERT_FALSE(hasMessageAvailable);
+    ASSERT_EQ(readMessageCount, 11);
+
+    producer.close();
+    reader.close();
     client.close();
 }

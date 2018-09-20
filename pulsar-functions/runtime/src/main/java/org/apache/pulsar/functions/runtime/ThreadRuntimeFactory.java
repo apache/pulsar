@@ -23,8 +23,13 @@ import com.google.common.annotations.VisibleForTesting;
 
 import lombok.extern.slf4j.Slf4j;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
@@ -41,26 +46,40 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private final String storageServiceUrl;
     private volatile boolean closed;
 
-    public ThreadRuntimeFactory(String threadGroupName,
-                                String pulsarServiceUrl,
-                                String storageServiceUrl)
-            throws Exception {
-        this(
-            threadGroupName,
-            pulsarServiceUrl != null ? PulsarClient.builder().serviceUrl(pulsarServiceUrl).build() : null,
-            storageServiceUrl);
+    public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
+            AuthenticationConfig authConfig) throws Exception {
+        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig), storageServiceUrl);
     }
 
     @VisibleForTesting
-    ThreadRuntimeFactory(String threadGroupName,
-                         PulsarClient pulsarClient,
-                         String storageServiceUrl) {
+    ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl) {
         this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
         this.storageServiceUrl = storageServiceUrl;
     }
 
+    private static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
+            throws PulsarClientException {
+        ClientBuilder clientBuilder = null;
+        if (isNotBlank(pulsarServiceUrl)) {
+            clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
+            if (authConfig != null) {
+                if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                        && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                    clientBuilder.authentication(authConfig.getClientAuthenticationPlugin(),
+                            authConfig.getClientAuthenticationParameters());
+                }
+                clientBuilder.enableTls(authConfig.isUseTls());
+                clientBuilder.allowTlsInsecureConnection(authConfig.isTlsAllowInsecureConnection());
+                clientBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
+                clientBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
+            }
+            return clientBuilder.build();
+        }
+        return null;
+    }
+    
     @Override
     public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile) {
         return new ThreadRuntime(

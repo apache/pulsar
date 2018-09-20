@@ -19,11 +19,11 @@
 
 -->
 
-Each of Pulsar's three admin interfaces---the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, the [Java admin API](/api/admin), and the [REST API](../../reference/RestApi)---requires some special setup if you have [authentication](../../admin/Authz#authentication-providers) enabled in your Pulsar {% popover instance %}.
+Each of Pulsar's three admin interfaces---the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, the [Java admin API](/api/admin), and the [REST API](../../reference/RestApi)---requires some special setup if you have [authentication](../../security/overview#authentication-providers) enabled in your Pulsar {% popover instance %}.
 
 ### pulsar-admin
 
-If you have [authentication](../../admin/Authz#authentication-providers) enabled, you will need to provide an auth configuration to use the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool. By default, the configuration for the `pulsar-admin` tool is found in the [`conf/client.conf`](../../reference/Configuration#client) file. Here are the available parameters:
+If you have [authentication](../../security/overview#authentication-providers) enabled, you will need to provide an auth configuration to use the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool. By default, the configuration for the `pulsar-admin` tool is found in the [`conf/client.conf`](../../reference/Configuration#client) file. Here are the available parameters:
 
 {% include config.html id="client" %}
 

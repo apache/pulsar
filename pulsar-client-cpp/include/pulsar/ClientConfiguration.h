@@ -20,6 +20,8 @@
 #define PULSAR_CLIENTCONFIGURATION_H_
 
 #include <pulsar/Authentication.h>
+#include <pulsar/Logger.h>
+
 #pragma GCC visibility push(default)
 namespace pulsar {
 class PulsarWrapper;
@@ -105,6 +107,7 @@ class ClientConfiguration {
      * Initialize the log configuration
      *
      * @param logConfFilePath  path of the configuration file
+     * @deprecated
      */
     ClientConfiguration& setLogConfFilePath(const std::string& logConfFilePath);
 
@@ -112,6 +115,16 @@ class ClientConfiguration {
      * Get the path of log configuration file (log4cpp)
      */
     const std::string& getLogConfFilePath() const;
+
+    /**
+     * Configure a custom logger backend to route of Pulsar client library
+     * to a different logger implementation.
+     *
+     * By default, log messages are printed on standard output.
+     */
+    ClientConfiguration& setLogger(LoggerFactoryPtr loggerFactory);
+
+    LoggerFactoryPtr getLogger() const;
 
     ClientConfiguration& setUseTls(bool useTls);
     bool isUseTls() const;

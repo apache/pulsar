@@ -25,7 +25,7 @@ Pulsar was designed from the ground up to be a {% popover multi-tenant %} system
 
 To each property in a Pulsar instance you can assign:
 
-* An [authorization](../../admin/Authz#authorization) scheme
+* An [authorization](../../security/authorization) scheme
 * The set of {% popover clusters %} to which the tenant's configuration applies
 
 ### Namespaces

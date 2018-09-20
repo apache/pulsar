@@ -37,6 +37,7 @@ import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -48,6 +49,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -237,7 +239,9 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		providers.add(BasicAuthenticationProvider.class.getName());
 		proxyConfig.setAuthenticationProviders(providers);
 		proxyConfig.setForwardAuthorizationCredentials(true);
-		ProxyService proxyService = new ProxyService(proxyConfig);
+                AuthenticationService authenticationService = new AuthenticationService(
+                        PulsarConfigurationLoader.convertFrom(proxyConfig));
+		ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
 
 		proxyService.start();
 

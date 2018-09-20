@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -32,7 +31,7 @@ import java.util.regex.Pattern;
  *
  * @since 2.0.0
  */
-public interface ConsumerBuilder<T> extends Serializable, Cloneable {
+public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Create a copy of the current consumer builder.
@@ -51,6 +50,26 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      * </pre>
      */
     ConsumerBuilder<T> clone();
+
+    /**
+     * Load the configuration from provided <tt>config</tt> map.
+     *
+     * <p>Example:
+     * <pre>
+     * Map&lt;String, Object&gt; config = new HashMap&lt;&gt;();
+     * config.put("ackTimeoutMillis", 1000);
+     * config.put("receiverQueueSize", 2000);
+     *
+     * ConsumerBuilder&lt;byte[]&gt; builder = ...;
+     * builder = builder.loadConf(config);
+     *
+     * Consumer&lt;byte[]&gt; consumer = builder.subscribe();
+     * </pre>
+     *
+     * @param config configuration to load
+     * @return consumer builder instance
+     */
+    ConsumerBuilder<T> loadConf(Map<String, Object> config);
 
     /**
      * Finalize the {@link Consumer} creation by subscribing to the topic.
@@ -263,7 +282,8 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      * The period is in minute, and default and minimum value is 1 minute.
      *
      * @param periodInMinutes
-     *            whether to read from the compacted topic
+     *            number of minutes between checks for
+     *            new topics matching pattern set with {@link #topicsPattern(String)}
      */
     ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes);
 
@@ -310,4 +330,36 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      * Set subscriptionInitialPosition for the consumer
     */
     ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition);
+
+    /**
+     * Intercept {@link Consumer}.
+     *
+     * @param interceptors the list of interceptors to intercept the consumer created by this builder.
+     * @return consumer builder.
+     */
+    ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
+
+    /**
+     * Set dead letter policy for consumer
+     *
+     * By default some message will redelivery so many times possible, even to the extent that it can be never stop.
+     * By using dead letter mechanism messages will has the max redelivery count, when message exceeding the maximum
+     * number of redeliveries, message will send to the Dead Letter Topic and acknowledged automatic.
+     *
+     * You can enable the dead letter mechanism by setting dead letter policy.
+     * example:
+     * <pre>
+     * client.newConsumer()
+     *          .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())
+     *          .subscribe();
+     * </pre>
+     * Default dead letter topic name is {TopicName}-{Subscription}-DLQ.
+     * To setting a custom dead letter topic name
+     * <pre>
+     * client.newConsumer()
+     *          .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).deadLetterTopic("your-topic-name").build())
+     *          .subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 }

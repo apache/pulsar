@@ -75,7 +75,7 @@ deploy:
     api_key:
       secure: cmjsJ43FwlwWUVh+4TJ/V+yKu/bd78ov0Olm0BFao0tco5ZYNfbRB5jxWD9X4AxpRN4Rfn+u/17oRavUSfv1M/CKMj6mTzXl8gQ6gieIWrgGYfdZrpBxEY0mccaEbaXSGNEWFj/e8oJixdeBeFCp3AkUSTO9DS5f+yoKeF1XibeJIhDLY0xWgeLMkUimzizsiplQBhrPmHExM8DRwSEojs4np56QgcJHdpU9snxkKzjCW5kKcQ6vPXzWpRLBRxLNU0MzYf6HRSqsGE5M3oG8PXNi+WuMS+4pKfxhcw7vS7642/8dWV28Flvet9E+rXutaM7I+jd5ZQG+/jTo2IOTUJ164ZaxYl6rjsf94d8u51AxDPLer+/C19DfrjiYGOLX8Cad+dLWT+otVISie76oNTeThqyG/5W+PpX9cTP/yBeZs5j/mgYJI4mVU4z0fACgyh+Gc3SyBwPvc3eePsFoVS4CvksgoMJJzgtN6to5hh8Pl4dM3FtpWnhjS3Zm2ieu8CUiC3HKCB1DzeNXXRkgcL+D8CXrxcfeOtBs34MEwua7C3fmSagyt1e1/PeYPE4F9Oi6Tiu59jGA5mnx27TDiPCEsf0a5UBHIY95ducB/BBKsXrACmnzAgPSP321fDNKBWMveTw3h2dKLC6PIf78LJ3Rln/i4okCQ8PkgEOz1A0=
     file_glob: true
-    file: "all/target/pulsar-*.tar.gz"
+    file: "distribution/server/target/pulsar-*.tar.gz"
     on:
       repo: apache/incubator-pulsar
       tags: true

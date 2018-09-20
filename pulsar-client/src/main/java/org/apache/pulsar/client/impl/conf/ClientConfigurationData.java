@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.conf;
 import java.io.Serializable;
 
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -35,6 +36,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private String serviceUrl;
+    private ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
     private Authentication authentication = new AuthenticationDisabled();
@@ -55,7 +57,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int maxLookupRequest = 50000;
     private int maxNumberOfRejectedRequestPerConnection = 50;
     private int keepAliveIntervalSeconds = 30;
-
+    
     public ClientConfigurationData clone() {
         try {
             return (ClientConfigurationData) super.clone();
@@ -63,4 +65,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             throw new RuntimeException("Failed to clone ClientConfigurationData");
         }
     }
+
+
 }

@@ -158,7 +158,7 @@ public class DiscoveryService implements Closeable {
 
     public String serviceUrlTls() {
         if (config.isTlsEnabled()) {
-            return new StringBuilder("pulsar://").append(host()).append(":").append(config.getServicePortTls())
+            return new StringBuilder("pulsar+ssl://").append(host()).append(":").append(config.getServicePortTls())
                     .toString();
         } else {
             return "";

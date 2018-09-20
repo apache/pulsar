@@ -237,8 +237,6 @@ void startPerfConsumer(const Arguments& args) {
 }
 
 int main(int argc, char** argv) {
-    LogUtils::init("conf/log4cxx.conf");
-
     // First try to read default values from config file if present
     const std::string confFile = "conf/client.conf";
     std::string defaultServiceUrl;

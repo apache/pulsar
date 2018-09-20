@@ -37,9 +37,9 @@ This website is built using a wide range of tools. The most important among them
 
 ## Requirements and setup
 
-> **Note**: at the moment, running the site locally *may* work on Linux but the site setup has been built with MacOS in mind. We will provide better cross-platform support in the near future.
+### MacOS
 
-To build and run the site locally, you need to have Ruby 2.4.1 installed and set as the Ruby version here in the `site` directory. You can install and set the Ruby version using [rvm](https://rvm.io):
+To build and run the site locally, you need to have Ruby 2.3.1 installed and set as the Ruby version here in the `site` directory. You can install and set the Ruby version using [rvm](https://rvm.io):
 
 ```bash
 $ cd site
@@ -51,6 +51,45 @@ Then you can install all Ruby dependencies, as well as [Doxygen](http://www.stac
 
 ```bash
 $ make setup
+```
+
+### Linux
+
+**NOTE**: These instruction have been tested with Ubuntu 16.04 and Debian Stretch. YMMV with other distributions.
+
+The site is built using Ruby 2.3.1. Neither Ubuntu nor Debian have this in their repositories, so it must be installed via RVM. Instructions for RVM installation are available [here](https://rvm.io/rvm/install). When RVM is installed, it will ask you to "source" a script. You can either add this to your .bashrc, or source it every time you build the the site. Once you have done so, install ruby-2.3.1.
+
+```bash
+$ source /usr/share/rvm/scripts/rvm
+$ rvm install ruby-2.4.1
+```
+
+Doxygen, pdoc and pygments are required to build the C++ and python documentation. Pdoc and pygments are not in the Ubuntu/Debian repos. The best way to install them is in a virtualenv to avoid polluting your system packages.
+
+```bash
+$ sudo apt-get install doxygen python-virtualenv
+$ virtualenv ~/pulsar-site-venv
+$ source ~/pulsar-site-venv/bin/activate
+(pulsar-site-venv) $ pip install pdoc pygments
+```
+
+Once all the dependencies are installed, change into the site directory and run setup to install all the required ruby gems.
+
+```bash
+(pulsar-site-venv) $ cd site
+(pulsar-site-venv) $ rvm use .
+(pulsar-site-venv) $ make setup
+```
+
+## Building the site
+
+To build the site, run the build make target. If you are running in linux, you should do this on a terminal which has both the venv and rvm activated.
+
+```bash
+$ source ~/pulsar-site-venv/bin/activate # linux only
+$ source /usr/share/rvm/scripts/rvm #linux only
+$ cd site
+$ make build
 ```
 
 ## Running the site locally

@@ -80,6 +80,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
      * Returns true if encryption keys are added
      *
      */
+    @JsonIgnore
     public boolean isEncryptionEnabled() {
         return (this.encryptionKeys != null) && !this.encryptionKeys.isEmpty() && (this.cryptoKeyReader != null);
     }

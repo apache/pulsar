@@ -22,7 +22,7 @@ groups:
   dir: getting-started
   docs:
   - title: Pulsar 2.0
-    endpoint: pulsar-2.0
+    endpoint: Pulsar-2.0
   - title: Run Pulsar locally
     endpoint: LocalCluster
   - title: Pulsar in Docker
@@ -49,6 +49,15 @@ groups:
   - title: Metrics for Pulsar Functions
     endpoint: metrics
 
+- title: Pulsar IO
+  dir: io
+  new: true
+  docs:
+  - title: Pulsar IO overview
+    endpoint: overview
+  - title: Getting started with Pulsar IO
+    endpoint: quickstart
+
 - title: Deployment
   dir: deployment
   docs:
@@ -60,24 +69,18 @@ groups:
     endpoint: instance
   - title: Pulsar on Kubernetes
     endpoint: Kubernetes
-  - title: Pulsar on Google Kubernetes Engine
-    endpoint: Kubernetes/#pulsar-on-google-kubernetes-engine
-  - title: Pulsar on AWS
-    endpoint: Kubernetes/#pulsar-on-amazon-web-services
   - title: Pulsar on DC/OS
     endpoint: dcos
   - title: Monitoring
     endpoint: Monitoring
 
-- title: Pulsar administration
+- title: Administration
   dir: admin
   docs:
   - title: ZooKeeper and BookKeeper
     endpoint: ZooKeeperBookKeeper
   - title: Geo-replication
     endpoint: GeoReplication
-  - title: Authentication and authorization
-    endpoint: Authz
   - title: Dashboard
     endpoint: Dashboard
   - title: Pulsar statistics
@@ -87,15 +90,35 @@ groups:
   - title: Pulsar proxy
     endpoint: Proxy
 
+- title: Security
+  dir: security
+  docs:
+  - title: Overview
+    endpoint: overview
+  - title: Transport Encryption with TLS
+    endpoint: tls-transport
+  - title: Authentication using TLS
+    endpoint: tls
+  - title: Authentication using Athenz
+    endpoint: athenz
+  - title: Authorization and ACLs
+    endpoint: authorization
+  - title: End-to-End Encryption
+    endpoint: encryption
+  - title: Extending Authentication and Authorization
+    endpoint: extending
+
 - title: Client libraries
   dir: clients
   docs:
   - title: Java client
     endpoint: Java
-  - title: C++ client
-    endpoint: Cpp
+  - title: Go client
+    endpoint: go
   - title: Python client
     endpoint: Python
+  - title: C++ client
+    endpoint: Cpp
   - title: WebSocket API
     endpoint: WebSocket
 
@@ -134,7 +157,11 @@ groups:
 - title: Cookbooks
   dir: cookbooks
   docs:
-  - title: Message deduplication
+  - title: Tiered Storage
+    endpoint: tiered-storage
+  - title: Topic compaction
+    endpoint: compaction
+  - title: Managing message deduplication
     endpoint: message-deduplication
   - title: Non-persistent messaging
     endpoint: non-persistent-messaging
@@ -156,8 +183,12 @@ groups:
     endpoint: BinaryProtocol
   - title: Codebase
     endpoint: Codebase
+  - title: Custom schema storage
+    endpoint: schema-storage
   - title: Modular load manager
     endpoint: ModularLoadManager
+  - title: Building Pulsar C++ client
+    endpoint: CompileCpp
 
 - title: Reference
   dir: reference

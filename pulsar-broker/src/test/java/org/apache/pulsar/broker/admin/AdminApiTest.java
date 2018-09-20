@@ -53,6 +53,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response.Status;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -620,11 +621,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // Ok, got the non authorized exception since usc cluster is not in the allowed clusters list.
         }
 
+        // test with url style role.
+        admin.namespaces().grantPermissionOnNamespace("prop-xyz/ns1",
+            "spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         admin.namespaces().grantPermissionOnNamespace("prop-xyz/ns1", "my-role", EnumSet.allOf(AuthAction.class));
 
         Policies policies = new Policies();
         policies.replication_clusters = Sets.newHashSet("test");
         policies.bundles = Policies.defaultBundle();
+        policies.auth_policies.namespace_auth.put("spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.allOf(AuthAction.class));
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
@@ -632,7 +637,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.namespaces().getTopics("prop-xyz/ns1"), Lists.newArrayList());
 
+        admin.namespaces().revokePermissionsOnNamespace("prop-xyz/ns1", "spiffe://developer/passport-role");
         admin.namespaces().revokePermissionsOnNamespace("prop-xyz/ns1", "my-role");
+        policies.auth_policies.namespace_auth.remove("spiffe://developer/passport-role");
         policies.auth_policies.namespace_auth.remove("my-role");
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
 
@@ -780,6 +787,26 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/ns1/ds2").partitions,
                 0);
+
+        try {
+            admin.topics().getPartitionedStats(partitionedTopicName, false);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // ok
+            assertEquals(e.getStatusCode(), Status.NOT_FOUND.getStatusCode());
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
+
+        try {
+            admin.topics().getSubscriptions(partitionedTopicName);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // ok
+            assertEquals(e.getStatusCode(), Status.NOT_FOUND.getStatusCode());
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
 
         // create consumer and subscription
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);

@@ -1,0 +1,167 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+version: '2.1'
+networks:
+  pulsar:
+    driver: bridge
+
+services:
+  conf-eu:
+    hostname: conf-eu
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-global-zk.sh
+    environment:
+      ZOOKEEPER_SERVERS: conf-eu,conf-us
+    networks:
+      pulsar:
+
+  zk-eu:
+    hostname: zk-eu
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-local-zk.sh
+    environment:
+      ZOOKEEPER_SERVERS: zk-eu
+    networks:
+      pulsar:
+
+  init-eu:
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/init-cluster.sh
+    environment:
+      clusterName: eu
+      zkServers: zk-eu
+      configurationStore: conf-eu:2184,conf-us:2184
+      pulsarNode: pulsar1-eu
+    networks:
+      pulsar:
+
+  bk1-eu:
+    hostname: bk1-eu
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-bookie.sh
+    environment:
+      clusterName: eu
+      zkServers: zk-eu
+    networks:
+      pulsar:
+
+  bk2-eu:
+    hostname: bk2-eu
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-bookie.sh
+    environment:
+      clusterName: eu
+      zkServers: zk-eu
+    networks:
+      pulsar:
+
+  pulsar1-eu:
+    hostname: pulsar1-eu
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-broker.sh
+    environment:
+      clusterName: eu
+      zookeeperServers: zk-eu
+      configurationStoreServers: conf-eu:2184
+    networks:
+      pulsar:
+
+  proxy-eu:
+    hostname: proxy-eu
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-proxy.sh
+    environment:
+      clusterName: eu
+      zookeeperServers: zk-eu
+      configurationStoreServers: conf-eu:2184
+    networks:
+      pulsar:
+
+  conf-us:
+    hostname: conf-us
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-global-zk.sh
+    environment:
+      ZOOKEEPER_SERVERS: conf-eu,conf-us
+    networks:
+      pulsar:
+
+  zk-us:
+    hostname: zk-us
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-local-zk.sh
+    environment:
+      ZOOKEEPER_SERVERS: zk-us
+    networks:
+      pulsar:
+
+  init-us:
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/init-cluster.sh
+    environment:
+      clusterName: us
+      zkServers: zk-us
+      configurationStore: conf-eu:2184,conf-us:2184
+      pulsarNode: pulsar1-us
+    networks:
+      pulsar:
+
+  bk1-us:
+    hostname: bk1-us
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-bookie.sh
+    environment:
+      clusterName: us
+      zkServers: zk-us
+    networks:
+      pulsar:
+
+  bk2-us:
+    hostname: bk2-us
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-bookie.sh
+    environment:
+      clusterName: us
+      zkServers: zk-us
+    networks:
+      pulsar:
+
+  pulsar1-us:
+    hostname: pulsar1-us
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-broker.sh
+    environment:
+      clusterName: us
+      zookeeperServers: zk-us
+      configurationStoreServers: conf-us:2184
+    networks:
+      pulsar:
+
+  proxy-us:
+    hostname: proxy-us
+    image: apachepulsar/pulsar-test-latest-version:latest
+    command: bin/run-proxy.sh
+    environment:
+      clusterName: us
+      zookeeperServers: zk-us
+      configurationStoreServers: conf-us:2184
+    networks:
+      pulsar:
+

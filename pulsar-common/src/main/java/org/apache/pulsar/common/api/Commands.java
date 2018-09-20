@@ -18,21 +18,24 @@
  */
 package org.apache.pulsar.common.api;
 
-import static com.google.protobuf.ByteString.copyFrom;
-import static com.google.protobuf.ByteString.copyFromUtf8;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
+import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFrom;
+import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
@@ -82,6 +85,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 public class Commands {
 
@@ -278,10 +282,13 @@ public class Commands {
         }
     }
 
-    public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, ByteBuf metadataAndPayload) {
+    public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, int redeliveryCount, ByteBuf metadataAndPayload) {
         CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
         msgBuilder.setConsumerId(consumerId);
         msgBuilder.setMessageId(messageId);
+        if (redeliveryCount > 0) {
+            msgBuilder.setRedeliveryCount(redeliveryCount);
+        }
         CommandMessage msg = msgBuilder.build();
         BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
         BaseCommand cmd = cmdBuilder.setType(Type.MESSAGE).setMessage(msg).build();
@@ -450,10 +457,32 @@ public class Commands {
                 return PulsarApi.Schema.Type.String;
             case JSON:
                 return PulsarApi.Schema.Type.Json;
+            case PROTOBUF:
+                return PulsarApi.Schema.Type.Protobuf;
+            case AVRO:
+                return PulsarApi.Schema.Type.Avro;
             default:
                 return PulsarApi.Schema.Type.None;
         }
     }
+
+    public static SchemaType getSchemaType(PulsarApi.Schema.Type type) {
+        switch (type) {
+            case None:
+                return SchemaType.NONE;
+            case String:
+                return SchemaType.STRING;
+            case Json:
+                return SchemaType.JSON;
+            case Protobuf:
+                return SchemaType.PROTOBUF;
+            case Avro:
+                return SchemaType.AVRO;
+            default:
+                return SchemaType.NONE;
+        }
+    }
+
 
     private static PulsarApi.Schema getSchema(SchemaInfo schemaInfo) {
         PulsarApi.Schema.Builder builder = PulsarApi.Schema.newBuilder()
@@ -790,6 +819,47 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newGetSchema(long requestId, String topic, Optional<SchemaVersion> version) {
+        PulsarApi.CommandGetSchema.Builder schema = PulsarApi.CommandGetSchema.newBuilder()
+            .setRequestId(requestId);
+        schema.setTopic(topic);
+        if (version.isPresent()) {
+            schema.setSchemaVersion(ByteString.copyFrom(version.get().bytes()));
+        }
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+            .setType(Type.GET_SCHEMA)
+            .setGetSchema(schema.build()));
+        schema.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version) {
+        PulsarApi.CommandGetSchemaResponse.Builder schemaResponse = PulsarApi.CommandGetSchemaResponse.newBuilder()
+            .setRequestId(requestId)
+            .setSchemaVersion(ByteString.copyFrom(version.bytes()))
+            .setSchema(getSchema(schema));
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+            .setType(Type.GET_SCHEMA_RESPONSE)
+            .setGetSchemaResponse(schemaResponse.build()));
+        schemaResponse.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetSchemaResponseError(long requestId, ServerError error, String errorMessage) {
+        PulsarApi.CommandGetSchemaResponse.Builder schemaResponse = PulsarApi.CommandGetSchemaResponse.newBuilder()
+            .setRequestId(requestId)
+            .setErrorCode(error)
+            .setErrorMessage(errorMessage);
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+            .setType(Type.GET_SCHEMA_RESPONSE)
+            .setGetSchemaResponse(schemaResponse.build()));
+        schemaResponse.recycle();
+        return res;
+    }
+
     @VisibleForTesting
     public static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
         // / Wire format
@@ -977,6 +1047,11 @@ public class Commands {
             singleMessageMetadataBuilder = singleMessageMetadataBuilder
                     .addAllProperties(msgBuilder.getPropertiesList());
         }
+
+        if (msgBuilder.hasEventTime()) {
+            singleMessageMetadataBuilder.setEventTime(msgBuilder.getEventTime());
+        }
+
         try {
             return serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder, payload, batchBuffer);
         } finally {
@@ -994,6 +1069,7 @@ public class Commands {
         ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(uncompressedPayload);
         PulsarApi.SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.mergeFrom(stream, null)
                 .build();
+
         int singleMessagePayloadSize = singleMessageMetadata.getPayloadSize();
 
         uncompressedPayload.markReaderIndex();
@@ -1061,4 +1137,7 @@ public class Commands {
         return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 
+    public static boolean peerSupportJsonSchemaAvroFormat(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v13.getNumber();
+    }
 }

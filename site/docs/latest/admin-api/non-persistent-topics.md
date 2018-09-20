@@ -29,7 +29,7 @@ persisting messages.
 
 In all of the instructions and commands below, the topic name structure is:
 
-`non-persistent://property/cluster/namespace/topic`
+{% include topic.html ten="tenant" n="namespace" t="topic" %}
 
 ## Non-persistent topics resources
 
@@ -136,19 +136,19 @@ Topic stats can be fetched using [`stats`](../../reference/CliTools#stats) comma
 
 ```shell
 $ pulsar-admin non-persistent stats \
-  non-persistent://test-property/cl1/ns1/tp1 \
+  non-persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{% endpoint GET /admin/non-persistent/:property/:cluster/:namespace/:destination/stats %}
+{% endpoint GET /admin/v2/non-persistent/:tenant/:namespace/:topic/stats %}
 
 
 #### Java
 
 ```java
-String destination = "non-persistent://my-property/my-cluster-my-namespace/my-topic";
-admin.nonPersistentTopics().getStats(destination);
+String topic = "non-persistent://my-tenant/my-namespace/my-topic";
+admin.nonPersistentTopics().getStats(topic);
 ```
 
 ### Get internal stats
@@ -161,7 +161,7 @@ Topic internal-stats can be fetched using [`stats-internal`](../../reference/Cli
 
 ```shell
 $ pulsar-admin non-persistent stats-internal \
-  non-persistent://test-property/cl1/ns1/tp1 \
+  non-persistent://test-tenant/ns1/tp1 \
 
 {
   "entriesAddedCounter" : 48834,
@@ -182,14 +182,14 @@ $ pulsar-admin non-persistent stats-internal \
 
 #### REST API
 
-{% endpoint GET /admin/non-persistent/:property/:cluster/:namespace/:destination/internalStats %}
+{% endpoint GET /admin/v2/non-persistent/:tenant/:namespace/:topic/internalStats %}
 
 
 #### Java
 
 ```java
-String destination = "non-persistent://my-property/my-cluster-my-namespace/my-topic";
-admin.nonPersistentTopics().getInternalStats(destination);
+String topic = "non-persistent://my-tenant/my-namespace/my-topic";
+admin.nonPersistentTopics().getInternalStats(topic);
 ```
 
 ### Create partitioned topic
@@ -200,18 +200,18 @@ Partitioned topics in Pulsar must be explicitly created. When creating a new par
 
 ```shell
 $ bin/pulsar-admin non-persistent create-partitioned-topic \
-  non-persistent://my-property/my-cluster-my-namespace/my-topic \
+  non-persistent://my-tenant/my-namespace/my-topic \
   --partitions 4
 ```
 
 #### REST API
 
-{% endpoint PUT /admin/non-persistent/:property/:cluster/:namespace/:destination/partitions %}
+{% endpoint PUT /admin/v2/non-persistent/:tenant/:namespace/:topic/partitions %}
 
 #### Java
 
 ```java
-String topicName = "non-persistent://my-property/my-cluster-my-namespace/my-topic";
+String topicName = "non-persistent://my-tenant/my-namespace/my-topic";
 int numPartitions = 4;
 admin.nonPersistentTopics().createPartitionedTopic(topicName, numPartitions);
 ```
@@ -228,7 +228,7 @@ Field | Meaning
 
 ```shell
 $ pulsar-admin non-persistent get-partitioned-topic-metadata \
-  non-persistent://my-property/my-cluster-my-namespace/my-topic
+  non-persistent://my-tenant/my-namespace/my-topic
 {
   "partitions": 4
 }
@@ -236,13 +236,13 @@ $ pulsar-admin non-persistent get-partitioned-topic-metadata \
 
 #### REST API
 
-{% endpoint GET /admin/non-persistent/:property/:cluster:/:namespace/:destination/partitions %}
+{% endpoint GET /admin/v2/non-persistent/:tenant/:namespace/:topic/partitions %}
 
 
 #### Java
 
 ```java
-String topicName = "non-persistent://my-property/my-cluster-my-namespace/my-topic";
+String topicName = "non-persistent://my-tenant/my-namespace/my-topic";
 admin.nonPersistentTopics().getPartitionedTopicMetadata(topicName);
 ```
 
@@ -256,18 +256,18 @@ Topic can be unloaded using [`unload`](../../reference/CliTools#unload) command.
 
 ```shell
 $ pulsar-admin non-persistent unload \
-  non-persistent://test-property/cl1/ns1/tp1 \
+  non-persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{% endpoint PUT /admin/non-persistent/:property/:cluster/:namespace/:destination/unload %}
+{% endpoint PUT /admin/v2/non-persistent/:tenant/:namespace/:topic/unload %}
 
-[More info](../../reference/RestApi#/admin/non-persistent/:property/:cluster/:namespace/:destination/unload)
+[More info](../../reference/RestApi#/admin/non-persistent/:tenant/:namespace/:topic/unload)
 
 #### Java
 
 ```java
-String destination = "non-persistent://my-property/my-cluster-my-namespace/my-topic";
-admin.nonPersistentTopics().unload(destination);
+String topic = "non-persistent://my-tenant/my-namespace/my-topic";
+admin.nonPersistentTopics().unload(topic);
 ```

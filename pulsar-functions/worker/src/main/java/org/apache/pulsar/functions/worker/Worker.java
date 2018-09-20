@@ -31,13 +31,14 @@ import org.apache.pulsar.functions.worker.rest.WorkerServer;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashSet;
 
 @Slf4j
 public class Worker extends AbstractService {
 
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
-    private Thread serverThread;
+    private WorkerServer server;
 
     public Worker(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
@@ -56,21 +57,21 @@ public class Worker extends AbstractService {
         }
     }
 
-    protected void doStartImpl() throws InterruptedException, IOException, PulsarAdminException {
+    protected void doStartImpl() throws Exception {
         URI dlogUri = initialize(this.workerConfig);
 
         workerService.start(dlogUri);
-        WorkerServer server = new WorkerServer(workerService);
-        this.serverThread = new Thread(server, server.getThreadName());
-
+        this.server = new WorkerServer(workerService);
+        this.server.start();
         log.info("Start worker server on port {}...", this.workerConfig.getWorkerPort());
-        this.serverThread.start();
     }
 
     private static URI initialize(WorkerConfig workerConfig)
             throws InterruptedException, PulsarAdminException, IOException {
         // initializing pulsar functions namespace
-        PulsarAdmin admin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl());
+        PulsarAdmin admin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
+                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
         InternalConfigurationData internalConf;
         // make sure pulsar broker is up
         log.info("Checking if pulsar service at {} is up...", workerConfig.getPulsarWebServiceUrl());
@@ -104,6 +105,8 @@ public class Worker extends AbstractService {
                     try {
                         Policies policies = new Policies();
                         policies.retention_policies = new RetentionPolicies(-1, -1);
+                        policies.replication_clusters = new HashSet<>();
+                        policies.replication_clusters.add(workerConfig.getPulsarFunctionsCluster());
                         admin.namespaces().createNamespace(workerConfig.getPulsarFunctionsNamespace(),
                                 policies);
                     } catch (PulsarAdminException e1) {
@@ -145,13 +148,8 @@ public class Worker extends AbstractService {
 
     @Override
     protected void doStop() {
-        if (null != serverThread) {
-            serverThread.interrupt();
-            try {
-                serverThread.join();
-            } catch (InterruptedException e) {
-                log.warn("Worker server thread is interrupted", e);
-            }
+        if (null != this.server) {
+            this.server.stop();
         }
         workerService.stop();
     }

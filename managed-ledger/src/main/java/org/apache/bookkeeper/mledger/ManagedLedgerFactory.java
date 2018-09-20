@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger;
 import com.google.common.annotations.Beta;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -80,6 +81,31 @@ public interface ManagedLedgerFactory {
      *            opaque context
      */
     void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback, Object ctx);
+
+    /**
+     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
+     *
+     * @param managedLedgerName
+     * @param startPosition
+     *            set the cursor on that particular position. If setting to `PositionImpl.earliest` it will be
+     *            positioned on the first available entry.
+     * @return
+     */
+    ReadOnlyCursor openReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config)
+            throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
+     *
+     * @param name
+     * @param startPosition
+     *            set the cursor on that particular position. If setting to `PositionImpl.earliest` it will be
+     *            positioned on the first available entry.
+     * @param callback
+     * @param ctx
+     */
+    void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
+            OpenReadOnlyCursorCallback callback, Object ctx);
 
     /**
      * Get the current metadata info for a managed ledger.

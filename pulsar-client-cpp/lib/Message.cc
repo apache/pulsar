@@ -79,6 +79,14 @@ Message::Message(const MessageId& messageID, proto::MessageMetadata& metadata, S
     impl_->metadata = metadata;
     impl_->payload = payload;
     impl_->metadata.mutable_properties()->CopyFrom(singleMetadata.properties());
+
+    if (singleMetadata.has_partition_key()) {
+        impl_->metadata.set_partition_key(singleMetadata.partition_key());
+    }
+
+    if (singleMetadata.has_event_time()) {
+        impl_->metadata.set_event_time(singleMetadata.event_time());
+    }
 }
 
 const MessageId& Message::getMessageId() const {

@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
+
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -58,6 +65,7 @@ import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -76,14 +84,6 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.protobuf.ByteString;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
-
 public class MessageCrypto {
 
     private static final String ECDSA = "ECDSA";
@@ -97,7 +97,7 @@ public class MessageCrypto {
 
     private static KeyGenerator keyGenerator;
     private static final int tagLen = 16 * 8;
-    private static final int ivLen = 12;
+    public static final int ivLen = 12;
     private byte[] iv = new byte[ivLen];
     private Cipher cipher;
     MessageDigest digest;

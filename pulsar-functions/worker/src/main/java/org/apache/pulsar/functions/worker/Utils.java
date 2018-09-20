@@ -20,16 +20,22 @@ package org.apache.pulsar.functions.worker;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.util.UUID;
-
 import lombok.extern.slf4j.Slf4j;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -38,13 +44,14 @@ import org.apache.distributedlog.exceptions.ZKException;
 import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
-
-import dlshade.org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.KeeperException.Code;
+import org.apache.pulsar.functions.proto.Function;
+import static org.apache.pulsar.functions.utils.Utils.FILE;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 @Slf4j
 public final class Utils {
@@ -126,6 +133,41 @@ public final class Utils {
         }
     }
 
+    public static void validateFileUrl(String destPkgUrl, String downloadPkgDir) throws IOException, URISyntaxException {
+        if (destPkgUrl.startsWith(FILE)) {
+            URL url = new URL(destPkgUrl);
+            File file = new File(url.toURI());
+            if (!file.exists()) {
+                throw new IOException(destPkgUrl + " does not exists locally");
+            }
+        } else if (destPkgUrl.startsWith("http")) {
+            URL website = new URL(destPkgUrl);
+            File tempFile = new File(downloadPkgDir, website.getHost() + UUID.randomUUID().toString());
+            ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                fos.getChannel().transferFrom(rbc, 0, 10);
+            }
+            if (tempFile.exists()) {
+                tempFile.delete();
+            }
+        } else {
+            throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
+        }
+    }
+    
+    public static void downloadFromHttpUrl(String destPkgUrl, FileOutputStream outputStream) throws IOException {
+        URL website = new URL(destPkgUrl);
+        ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+        outputStream.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+    }
+
+    public static File downloadFromHttpUrl(String destPkgUrl, String fileName) throws IOException {
+        File tempPkgFile = File.createTempFile(fileName, "function");
+        tempPkgFile.deleteOnExit();
+        downloadFromHttpUrl(destPkgUrl, new FileOutputStream(tempPkgFile));
+        return tempPkgFile;
+    }
+
     public static void downloadFromBookkeeper(Namespace namespace,
                                                  OutputStream outputStream,
                                                  String packagePath) throws IOException {
@@ -177,9 +219,17 @@ public final class Utils {
         return dlogUri;
     }
 
-    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl) {
+    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl, String authPlugin, String authParams, String tlsTrustCertsFilePath, boolean allowTlsInsecureConnection) {
         try {
-            return PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl).build();
+            PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
+            if (isNotBlank(authPlugin) && isNotBlank(authParams)) {
+                adminBuilder.authentication(authPlugin, authParams);
+            }
+            if (isNotBlank(tlsTrustCertsFilePath)) {
+                adminBuilder.tlsTrustCertsFilePath(tlsTrustCertsFilePath);
+            }
+            adminBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
+            return adminBuilder.build();
         } catch (PulsarClientException e) {
             log.error("Error creating pulsar admin client", e);
             throw new RuntimeException(e);
@@ -198,4 +248,5 @@ public final class Utils {
                                                      String functionName, int instanceId) {
         return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
     }
+    
 }

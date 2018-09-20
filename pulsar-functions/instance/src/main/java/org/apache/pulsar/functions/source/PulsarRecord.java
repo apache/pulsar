@@ -18,28 +18,84 @@
  */
 package org.apache.pulsar.functions.source;
 
+import java.util.Map;
+import java.util.Optional;
+
 import lombok.Builder;
-import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.connect.core.Record;
 
-@Data
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.EncryptionContext;
+import org.apache.pulsar.functions.utils.Utils;
+
 @Builder
 @Getter
 @ToString
 @EqualsAndHashCode
-public class PulsarRecord<T> implements Record<T> {
+public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
 
-    private String partitionId;
-    private Long sequenceId;
-    private T value;
-    private MessageId messageId;
-    private String topicName;
-    private Runnable failFunction;
-    private Runnable ackFunction;
+    private final String topicName;
+    private final int partition;
+
+    private final Message<T> message;
+
+    private final Runnable failFunction;
+    private final Runnable ackFunction;
+
+    @Override
+    public Optional<String> getKey() {
+        if (message.hasKey()) {
+            return Optional.of(message.getKey());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<String> getTopicName() {
+        return Optional.of(topicName);
+    }
+
+    @Override
+    public Optional<String> getPartitionId() {
+        return Optional.of(String.format("%s-%s", topicName, partition));
+    }
+
+    @Override
+    public Optional<Long> getRecordSequence() {
+        return Optional.of(Utils.getSequenceId(message.getMessageId()));
+    }
+
+    @Override
+    public T getValue() {
+        return message.getValue();
+    }
+
+    @Override
+    public Optional<Long> getEventTime() {
+        if (message.getEventTime() != 0) {
+            return Optional.of(message.getEventTime());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<EncryptionContext> getEncryptionCtx() {
+        return message.getEncryptionCtx();
+    }
+
+    @Override
+    public Map<String, String> getProperties() {
+        return message.getProperties();
+    }
+
+    public MessageId getMessageId() {
+        return message.getMessageId();
+    }
 
     @Override
     public void ack() {

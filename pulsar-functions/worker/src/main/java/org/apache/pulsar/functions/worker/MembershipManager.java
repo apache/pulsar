@@ -32,10 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -45,6 +41,7 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.proto.Function;
@@ -57,7 +54,7 @@ import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
     private final String consumerName;
-    private final Consumer<byte[]> consumer;
+    private final ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private PulsarAdmin pulsarAdminClient;
     private final CompletableFuture<Void> firstConsumerEventFuture;
@@ -72,9 +69,9 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     @VisibleForTesting
     Map<Function.Instance, Long> unsignedFunctionDurations = new HashMap<>();
 
-    MembershipManager(WorkerConfig workerConfig, PulsarClient client)
+    MembershipManager(WorkerService service, PulsarClient client)
             throws PulsarClientException {
-        this.workerConfig = workerConfig;
+        this.workerConfig = service.getWorkerConfig();
         consumerName = String.format(
             "%s:%s:%d",
             workerConfig.getWorkerId(),
@@ -86,13 +83,15 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         // we don't produce any messages into this topic, we only use the `failover` subscription
         // to elect an active consumer as the leader worker. The leader worker will be responsible
         // for scheduling snapshots for FMT and doing task assignment.
-        consumer = client.newConsumer()
+        consumer = (ConsumerImpl<byte[]>) client.newConsumer()
                 .topic(workerConfig.getClusterCoordinationTopic())
                 .subscriptionName(COORDINATION_TOPIC_SUBSCRIPTION)
                 .subscriptionType(SubscriptionType.Failover)
                 .consumerEventListener(this)
                 .property(WORKER_IDENTIFIER, consumerName)
                 .subscribe();
+        
+        isLeader.set(checkLeader(service, consumer.getConsumerName()));
     }
 
     @Override
@@ -136,37 +135,36 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         return workerIds;
     }
 
+    public WorkerInfo getLeader() {
+        TopicStats topicStats = null;
+        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
+        try {
+            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
+        } catch (PulsarAdminException e) {
+            log.error("Failed to get status of coordinate topic {}",
+                    this.workerConfig.getClusterCoordinationTopic(), e);
+            throw new RuntimeException(e);
+        }
+
+        String activeConsumerName = topicStats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION).activeConsumerName;
+        WorkerInfo leader = null;
+        for (ConsumerStats consumerStats : topicStats.subscriptions
+                .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
+            if (consumerStats.consumerName.equals(activeConsumerName)) {
+                leader = WorkerInfo.parseFrom(consumerStats.metadata.get(WORKER_IDENTIFIER));
+            }
+        }
+        if (leader == null) {
+            log.warn("Failed to determine leader in functions cluster");
+        }
+        return leader;
+    }
+
     @Override
     public void close() throws PulsarClientException {
         consumer.close();
         if (this.pulsarAdminClient != null) {
             this.pulsarAdminClient.close();
-        }
-    }
-
-    @Getter
-    @AllArgsConstructor(access = AccessLevel.PRIVATE)
-    @ToString
-    public static class WorkerInfo {
-        private String workerId;
-        private String workerHostname;
-        private int port;
-
-        public static WorkerInfo of (String workerId, String workerHostname, int port) {
-            return new WorkerInfo(workerId, workerHostname, port);
-        }
-
-        public static WorkerInfo parseFrom(String str) {
-            String[] tokens = str.split(":");
-            if (tokens.length != 3) {
-                throw new IllegalArgumentException("Invalid string to parse WorkerInfo : " + str);
-            }
-
-            String workerId = tokens[0];
-            String workerHostname = tokens[1];
-            int port = Integer.parseInt(tokens[2]);
-
-            return new WorkerInfo(workerId, workerHostname, port);
         }
     }
 
@@ -280,9 +278,26 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
     private PulsarAdmin getPulsarAdminClient() {
         if (this.pulsarAdminClient == null) {
-            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
+            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl(),
+                    workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                    workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
         }
         return this.pulsarAdminClient;
     }
 
+    private boolean checkLeader(WorkerService service, String consumerName) {
+        try {
+            TopicStats stats = service.getBrokerAdmin().topics()
+                    .getStats(service.getWorkerConfig().getClusterCoordinationTopic());
+            String activeConsumerName = stats != null
+                    && stats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION) != null
+                            ? stats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION).activeConsumerName
+                            : null;
+            return consumerName != null && consumerName.equalsIgnoreCase(activeConsumerName);
+        } catch (Exception e) {
+            log.warn("Failed to check leader {}", e.getMessage());
+        }
+        return false;
+    }
+    
 }

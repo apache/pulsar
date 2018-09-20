@@ -27,8 +27,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Functions.newSchemaEntry;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.google.protobuf.ByteString;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -36,7 +36,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
 import javax.validation.constraints.NotNull;
+
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -63,6 +67,11 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private final ZooKeeperCache localZkCache;
     private final ServiceConfiguration config;
     private BookKeeper bookKeeper;
+
+
+    private final ConcurrentMap<String, CompletableFuture<LocatorEntry>> locatorEntries = new ConcurrentHashMap<>();
+
+    private final ConcurrentMap<String, CompletableFuture<StoredSchema>> readSchemaOperations = new ConcurrentHashMap<>();
 
     @VisibleForTesting
     BookkeeperSchemaStorage(PulsarService pulsar) {
@@ -113,20 +122,31 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NotNull
     private CompletableFuture<StoredSchema> getSchema(String schemaId) {
-        return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
+        // There's already a schema read operation in progress. Just piggyback on that
+        return readSchemaOperations.computeIfAbsent(schemaId, key -> {
+            CompletableFuture<StoredSchema> future = new CompletableFuture<>();
 
-            if (!locator.isPresent()) {
-                return completedFuture(null);
-            }
+            getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
+                if (!locator.isPresent()) {
+                    return completedFuture(null);
+                }
 
-            SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
-            return readSchemaEntry(schemaLocator.getInfo().getPosition())
-                .thenApply(entry ->
-                    new StoredSchema(
-                        entry.getSchemaData().toByteArray(),
-                        new LongSchemaVersion(schemaLocator.getInfo().getVersion())
-                    )
-                );
+                SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
+                return readSchemaEntry(schemaLocator.getInfo().getPosition())
+                        .thenApply(entry -> new StoredSchema(entry.getSchemaData().toByteArray(),
+                                new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
+            }).handleAsync((res, ex) -> {
+                // Cleanup the pending ops from the map
+                readSchemaOperations.remove(schemaId, future);
+                if (ex != null) {
+                    future.completeExceptionally(ex);
+                } else {
+                    future.complete(res);
+                }
+                return null;
+            });
+
+            return future;
         });
     }
 
@@ -331,34 +351,46 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NotNull
     private CompletableFuture<LocatorEntry> getOrCreateSchemaLocator(String schema) {
-        return getSchemaLocator(schema).thenCompose(schemaLocatorStatEntry -> {
-            if (schemaLocatorStatEntry.isPresent()) {
-                return completedFuture(schemaLocatorStatEntry.get());
-            } else {
-                SchemaStorageFormat.SchemaLocator locator = SchemaStorageFormat.SchemaLocator.newBuilder()
-                    .setInfo(SchemaStorageFormat.IndexEntry.newBuilder()
-                        .setVersion(-1L)
-                        .setHash(ByteString.EMPTY)
-                        .setPosition(SchemaStorageFormat.PositionInfo.newBuilder()
-                            .setEntryId(-1L)
-                            .setLedgerId(-1L)
-                        )
-                    ).build();
+        // Protect from concurrent schema locator creation
+        return locatorEntries.computeIfAbsent(schema, key -> {
+            CompletableFuture<LocatorEntry> future = new CompletableFuture<>();
 
-                CompletableFuture<LocatorEntry> future = new CompletableFuture<>();
+            getSchemaLocator(schema).thenCompose(schemaLocatorStatEntry -> {
+                if (schemaLocatorStatEntry.isPresent()) {
+                    return completedFuture(schemaLocatorStatEntry.get());
+                } else {
+                    SchemaStorageFormat.SchemaLocator locator = SchemaStorageFormat.SchemaLocator.newBuilder()
+                            .setInfo(SchemaStorageFormat.IndexEntry.newBuilder().setVersion(-1L)
+                                    .setHash(ByteString.EMPTY).setPosition(SchemaStorageFormat.PositionInfo.newBuilder()
+                                            .setEntryId(-1L).setLedgerId(-1L)))
+                            .build();
 
-                ZkUtils.asyncCreateFullPathOptimistic(zooKeeper, schema, locator.toByteArray(), Acl, CreateMode.PERSISTENT,
-                    (rc, path, ctx, name) -> {
-                        Code code = Code.get(rc);
-                        if (code != Code.OK) {
-                            future.completeExceptionally(KeeperException.create(code));
-                        } else {
-                            future.complete(new LocatorEntry(locator, -1));
-                        }
-                    }, null);
+                    CompletableFuture<LocatorEntry> zkFuture = new CompletableFuture<>();
 
-                return future;
-            }
+                    ZkUtils.asyncCreateFullPathOptimistic(zooKeeper, schema, locator.toByteArray(), Acl,
+                            CreateMode.PERSISTENT, (rc, path, ctx, name) -> {
+                                Code code = Code.get(rc);
+                                if (code != Code.OK) {
+                                    zkFuture.completeExceptionally(KeeperException.create(code));
+                                } else {
+                                    zkFuture.complete(new LocatorEntry(locator, -1));
+                                }
+                            }, null);
+
+                    return zkFuture;
+                }
+            }).handleAsync((res, ex) -> {
+                // Cleanup the pending ops from the map
+                locatorEntries.remove(schema, future);
+                if (ex != null) {
+                    future.completeExceptionally(ex);
+                } else {
+                    future.complete(res);
+                }
+                return null;
+            });
+
+            return future;
         });
     }
 

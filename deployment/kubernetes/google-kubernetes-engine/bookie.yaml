@@ -49,7 +49,7 @@ data:
   dbStorage_writeCacheMaxSizeMb: "1024"
   dbStorage_readAheadCacheMaxSizeMb: "1024"
   zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-  statsProviderClass: org.apache.bookkeeper.stats.PrometheusMetricsProvider
+  statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
   useHostNameAsBookieID: "true"
 ---
 apiVersion: apps/v1beta1
@@ -109,7 +109,7 @@ spec:
               hostPort: 3181
               name: client
           envFrom:
-            - configMapRef: 
+            - configMapRef:
                 name: bookie-config
           volumeMounts:
             - name: journal-disk

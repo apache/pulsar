@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +29,7 @@ import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullErr
  *
  * @see PulsarClient#newProducer()
  */
-public interface ProducerBuilder<T> extends Serializable, Cloneable {
+public interface ProducerBuilder<T> extends Cloneable {
 
     /**
      * Finalize the creation of the {@link Producer} instance.
@@ -57,6 +56,26 @@ public interface ProducerBuilder<T> extends Serializable, Cloneable {
      *             if the producer creation fails
      */
     CompletableFuture<Producer<T>> createAsync();
+
+    /**
+     * Load the configuration from provided <tt>config</tt> map.
+     *
+     * <p>Example:
+     * <pre>
+     * Map&lt;String, Object&gt; config = new HashMap&lt;&gt;();
+     * config.put("producerName", "test-producer");
+     * config.put("sendTimeoutMs", 2000);
+     *
+     * ProducerBuilder&lt;byte[]&gt; builder = ...;
+     * builder = builder.loadConf(config);
+     *
+     * Producer&lt;byte[]&gt; producer = builder.create();
+     * </pre>
+     *
+     * @param config configuration to load
+     * @return producer builder instance
+     */
+    ProducerBuilder<T> loadConf(Map<String, Object> config);
 
     /**
      * Create a copy of the current {@link ProducerBuilder}.
@@ -299,4 +318,12 @@ public interface ProducerBuilder<T> extends Serializable, Cloneable {
      * @return
      */
     ProducerBuilder<T> properties(Map<String, String> properties);
+
+    /**
+     * Intercept {@link Producer}.
+     *
+     * @param interceptors the list of interceptors to intercept the producer created by this builder.
+     * @return producer builder.
+     */
+    ProducerBuilder<T> intercept(ProducerInterceptor<T> ... interceptors);
 }

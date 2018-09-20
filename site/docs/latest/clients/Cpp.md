@@ -24,94 +24,64 @@ tags: [client, cpp]
 
 -->
 
-<!-- source: https://github.com/apache/incubator-Âpulsar/tree/master/pulsar-client-cpp -->
-
-{% include admonition.html type='info' content="
-We welcome contributions from the open source community, kindly make sure your changes are backward compatible with gcc-4.4.7 and Boost 1.41.
-" %}
-
 ## Supported platforms
 
 The Pulsar C++ client has been successfully tested on **MacOS** and **Linux**.
 
-## System requirements
+## Linux
 
-You need to have the following installed to use the C++ client:
+There are recipes that build RPM and Debian packages containing a
+statically linked `libpulsar.so` / `libpulsar.a` with all the required
+dependencies.
 
-* [CMake](https://cmake.org/)
-* [Boost](http://www.boost.org/)
-* [Protocol Buffers](https://developers.google.com/protocol-buffers/) 2.6
-* [Log4CXX](https://logging.apache.org/log4cxx)
-* [libcurl](https://curl.haxx.se/libcurl/)
-* [Google Test](https://github.com/google/googletest)
-* [JsonCpp](https://github.com/open-source-parsers/jsoncpp)
-
-## Compilation
-
-There are separate compilation instructions for [MacOS](#macos) and [Linux](#linux). For both systems, start by cloning the Pulsar repository:
+To build the C++ library packages, first build the Java packages:
 
 ```shell
-$ git clone {{ site.pulsar_repo }}
+mvn install -DskipTests
 ```
 
-### Linux
-
-First, install all of the necessary dependencies:
+#### RPM
 
 ```shell
-$ apt-get install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
-  libprotobuf-dev libboost-all-dev libgtest-dev libjsoncpp-dev
+pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
 ```
 
-Then compile and install [Google Test](https://github.com/google/googletest):
+This will build the RPM inside a Docker container and it will leave the RPMs
+in `pulsar-client-cpp/pkg/rpm/RPMS/x86_64/`.
+
+| Package name | Content |
+|-----|-----|
+| pulsar-client | Shared library `libpulsar.so` |
+| pulsar-client-devel | Static library `libpulsar.a` and C++ and C headers |
+| pulsar-client-debuginfo | Debug symbols for `libpulsar.so` |
+
+#### Deb
+
+To build Debian packages:
 
 ```shell
-$ git clone https://github.com/google/googletest.git && cd googletest
-$ sudo cmake .
-$ sudo make
-$ sudo cp *.a /usr/lib
+pulsar-client-cpp/pkg/deb/docker-build-deb.sh
 ```
 
-Finally, compile the Pulsar client library for C++ inside the Pulsar repo:
+Debian packages will be created at `pulsar-client-cpp/pkg/deb/BUILD/DEB/`
+
+| Package name | Content |
+|-----|-----|
+| pulsar-client | Shared library `libpulsar.so` |
+| pulsar-client-dev | Static library `libpulsar.a` and C++ and C headers |
+
+## MacOS
+
+Use the [Homebrew](https://brew.sh/) supplied recipe to build the Pulsar
+client lib on MacOS.
 
 ```shell
-$ cd pulsar-client-cpp
-$ cmake .
-$ make
+brew install https://raw.githubusercontent.com/apache/incubator-pulsar/master/pulsar-client-cpp/homebrew/libpulsar.rb
 ```
 
-The resulting files, `libpulsar.so` and `libpulsar.a`, will be placed in the `lib` folder of the repo while two tools, `perfProducer` and `perfConsumer`, will be placed in the `perf` directory.
+If using Python 3 on MacOS, add the flag `--with-python3` to the above command.
 
-### MacOS
-
-First, install all of the necessary dependencies:
-
-```shell
-# OpenSSL installation
-$ brew install openssl
-$ export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include/
-$ export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
-
-# Protocol Buffers installation
-$ brew tap homebrew/versions
-$ brew install protobuf260
-$ brew install boost
-$ brew install log4cxx
-
-# Google Test installation
-$ git clone https://github.com/google/googletest.git
-$ cd googletest
-$ cmake .
-$ make install
-```
-
-Then compile the Pulsar client library in the repo that you cloned:
-
-```shell
-$ cd pulsar-client-cpp
-$ cmake .
-$ make
-```
+This will install the package with the library and headers.
 
 ## Connection URLs
 
@@ -123,7 +93,7 @@ $ make
 Client client("pulsar://localhost:6650");
 
 Consumer consumer;
-Result result = client.subscribe("persistent://sample/standalone/ns1/my-topic", "my-subscribtion-name", consumer);
+Result result = client.subscribe("my-topic", "my-subscribtion-name", consumer);
 if (result != ResultOk) {
     LOG_ERROR("Failed to subscribe: " << result);
     return -1;
@@ -133,7 +103,8 @@ Message msg;
 
 while (true) {
     consumer.receive(msg);
-    LOG_INFO("Received: " << msg << "  with payload '" << msg.getDataAsString() << "'");
+    LOG_INFO("Received: " << msg
+            << "  with payload '" << msg.getDataAsString() << "'");
 
     consumer.acknowledge(msg);
 }
@@ -144,18 +115,18 @@ client.close();
 
 ## Producer
 
-```cpp
+```c++
 Client client("pulsar://localhost:6650");
 
 Producer producer;
-Result result = client.createProducer("persistent://sample/standalone/ns1/my-topic", producer);
+Result result = client.createProducer("my-topic", producer);
 if (result != ResultOk) {
     LOG_ERROR("Error creating producer: " << result);
     return -1;
 }
 
 // Publish 10 messages to the topic
-for(int i=0;i<10;i++){
+for (int i = 0; i < 10; i++){
     Message msg = MessageBuilder().setContent("my-message").build();
     Result res = producer.send(msg);
     LOG_INFO("Message sent: " << res);
@@ -167,16 +138,10 @@ client.close();
 
 ```cpp
 ClientConfiguration config = ClientConfiguration();
-config.setUseTls(true);
-std::string certfile = "/path/to/cacert.pem";
-
-ParamMap params;
-params["tlsCertFile"] = "/path/to/client-cert.pem";
-params["tlsKeyFile"]  = "/path/to/client-key.pem";
-config.setTlsTrustCertsFilePath(certfile);
+config.setTlsTrustCertsFilePath("/path/to/cacert.pem");
 config.setTlsAllowInsecureConnection(false);
-AuthenticationPtr auth = pulsar::AuthFactory::create("/path/to/libauthtls.so", params);
-config.setAuth(auth);
+config.setAuth(pulsar::AuthTls::create(
+            "/path/to/client-cert.pem", "/path/to/client-key.pem"););
 
-Client client("pulsar+ssl://my-broker.com:6651",config);
+Client client("pulsar+ssl://my-broker.com:6651", config);
 ```

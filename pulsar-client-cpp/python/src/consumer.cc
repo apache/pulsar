@@ -119,6 +119,15 @@ void Consumer_resumeMessageListener(Consumer& consumer) {
     CHECK_RESULT(consumer.resumeMessageListener());
 }
 
+void Consumer_seek(Consumer& consumer, const MessageId& msgId) {
+    Result res;
+    Py_BEGIN_ALLOW_THREADS
+    res = consumer.seek(msgId);
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
+}
+
 void export_consumer() {
     using namespace boost::python;
 
@@ -137,5 +146,6 @@ void export_consumer() {
             .def("pause_message_listener", &Consumer_pauseMessageListener)
             .def("resume_message_listener", &Consumer_resumeMessageListener)
             .def("redeliver_unacknowledged_messages", &Consumer::redeliverUnacknowledgedMessages)
+            .def("seek", &Consumer_seek)
             ;
 }

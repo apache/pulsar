@@ -36,10 +36,14 @@ public interface Runtime {
 
     boolean isAlive();
 
-    Exception getDeathException();
+    Throwable getDeathException();
 
     CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus();
 
     CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
+    
+    CompletableFuture<Void> resetMetrics();
+    
+    CompletableFuture<InstanceCommunication.MetricsData> getMetrics();
 
 }

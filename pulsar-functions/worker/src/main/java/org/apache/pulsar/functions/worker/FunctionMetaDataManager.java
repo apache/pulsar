@@ -290,6 +290,10 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 completeRequest(deregisterRequest, true);
                 needsScheduling = true;
             } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("{}/{}/{} Ignoring outdated request version: {}", tenant, namespace, functionName,
+                            deregisterRequest.getFunctionMetaData().getVersion());
+                }
                 completeRequest(deregisterRequest, false,
                         "Request ignored because it is out of date. Please try again.");
             }

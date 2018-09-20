@@ -38,9 +38,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.WebApplicationException;
@@ -486,7 +488,7 @@ public class PersistentTopicsBase extends AdminResource {
             internalDeleteTopic(authoritative);
         }
     }
-    
+
     protected void internalDeleteTopic(boolean authoritative) {
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
@@ -527,6 +529,12 @@ public class PersistentTopicsBase extends AdminResource {
                 // subscriptions
                 subscriptions.addAll(pulsar().getAdminClient().topics()
                         .getSubscriptions(topicName.getPartition(0).toString()));
+            } catch (PulsarAdminException e) {
+                if (e.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
+                    throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+                } else {
+                    throw new RestException(e);
+                }
             } catch (Exception e) {
                 throw new RestException(e);
             }
@@ -601,6 +609,12 @@ public class PersistentTopicsBase extends AdminResource {
                         .getStats(topicName.getPartition(i).toString());
                 stats.add(partitionStats);
                 stats.partitions.put(topicName.getPartition(i).toString(), partitionStats);
+            }
+        } catch (PulsarAdminException e) {
+            if (e.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
+                throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+            } else {
+                throw new RestException(e);
             }
         } catch (Exception e) {
             throw new RestException(e);
@@ -829,15 +843,34 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             if (partitionMetadata.partitions > 0) {
                 // Create the subscription on each partition
-                List<CompletableFuture<Void>> futures = Lists.newArrayList();
                 PulsarAdmin admin = pulsar().getAdminClient();
 
+                CountDownLatch latch = new CountDownLatch(partitionMetadata.partitions);
+                AtomicReference<Throwable> exception = new AtomicReference<>();
+                AtomicInteger failureCount = new AtomicInteger(0);
+
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
-                    futures.add(admin.topics().createSubscriptionAsync(topicName.getPartition(i).toString(),
-                            subscriptionName, messageId));
+                    admin.persistentTopics()
+                            .createSubscriptionAsync(topicName.getPartition(i).toString(), subscriptionName, messageId)
+                            .handle((result, ex) -> {
+                                if (ex != null) {
+                                    int c = failureCount.incrementAndGet();
+                                    // fail the operation on unknown exception or if all the partitioned failed due to
+                                    // subscription-already-exist
+                                    if (c == partitionMetadata.partitions
+                                            || !(ex instanceof PulsarAdminException.ConflictException)) {
+                                        exception.set(ex);
+                                    }
+                                }
+                                latch.countDown();
+                                return null;
+                            });
                 }
 
-                FutureUtil.waitForAll(futures).join();
+                latch.await();
+                if (exception.get() != null) {
+                    throw exception.get();
+                }
             } else {
                 validateAdminOperationOnTopic(authoritative);
 
@@ -850,10 +883,10 @@ public class PersistentTopicsBase extends AdminResource {
                 PersistentSubscription subscription = (PersistentSubscription) topic
                         .createSubscription(subscriptionName, InitialPosition.Latest).get();
                 subscription.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
-                log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
-                        topicName, subscriptionName, messageId);
+                log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(), topicName,
+                        subscriptionName, messageId);
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             Throwable t = e.getCause();
             log.warn("[{}] [{}] Failed to create subscription {} at message id {}", clientAppId(),
                     topicName, subscriptionName, messageId, e);
@@ -1137,7 +1170,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(PulsarService pulsar,
-            String clientAppId, AuthenticationDataSource authenticationData, TopicName topicName) {
+            String clientAppId, String originalPrincipal, AuthenticationDataSource authenticationData, TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
             // (1) authorize client
@@ -1145,7 +1178,7 @@ public class PersistentTopicsBase extends AdminResource {
                 checkAuthorization(pulsar, topicName, clientAppId, authenticationData);
             } catch (RestException e) {
                 try {
-                    validateAdminAccessForTenant(pulsar, clientAppId, topicName.getTenant());
+                    validateAdminAccessForTenant(pulsar, clientAppId, originalPrincipal, topicName.getTenant());
                 } catch (RestException authException) {
                     log.warn("Failed to authorize {} on cluster {}", clientAppId, topicName.toString());
                     throw new PulsarClientException(String.format("Authorization failed %s on topic %s with error %s",
@@ -1191,7 +1224,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
-        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString()).join();
+        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString(), null).join();
     }
 
     /**

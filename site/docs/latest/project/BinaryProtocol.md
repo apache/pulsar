@@ -424,8 +424,9 @@ A consumer can ask the broker to redeliver some or all of the pending messages
 that were pushed to that particular consumer and not yet acknowledged.
 
 The protobuf object accepts a list of message ids that the consumer wants to
-be redelivered. If the list is empty, the broker will redeliver all the
-pending messages.
+be redelivered. The message ids will be honored by the broker only if the
+subscription type is shared. For other subscription types or if the list
+is empty, the broker will redeliver all the pending messages.
 
 On redelivery, messages can be sent to the same consumer or, in the case of a
 shared subscription, spread across all available consumers.
@@ -442,16 +443,16 @@ messages are coming from the consumer.
 
 ##### Command ConsumerStats
 
-This command is sent by the client to retreive Subscriber and Consumer level 
+This command is sent by the client to retrieve Subscriber and Consumer level
 stats from the broker.
 Parameters:
- * `request_id` → Id of the request, used to correlate the request 
+ * `request_id` → Id of the request, used to correlate the request
  		  and the response.
  * `consumer_id` → Id of an already established consumer.
 
 ##### Command ConsumerStatsResponse
 
-This is the broker's response to ConsumerStats request by the client. 
+This is the broker's response to ConsumerStats request by the client.
 It contains the Subscriber and Consumer level stats of the `consumer_id` sent in the request.
 If the `error_code` or the `error_message` field is set it indicates that the request has failed.
 

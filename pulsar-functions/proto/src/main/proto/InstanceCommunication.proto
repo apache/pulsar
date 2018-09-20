@@ -49,6 +49,9 @@ message FunctionStatus {
     // expressed in ms since epoch
     int64 lastInvocationTime = 13;
     string instanceId = 14;
+    MetricsData metrics = 15;
+    // owner of function-instance
+    string workerId = 16;
 }
 
 message FunctionStatusList {
@@ -65,7 +68,23 @@ message MetricsData {
     map<string, DataDigest> metrics = 1;
 }
 
+message HealthCheckResult {
+    bool success = 1;
+}
+
 service InstanceControl {
     rpc GetFunctionStatus(google.protobuf.Empty) returns (FunctionStatus) {}
     rpc GetAndResetMetrics(google.protobuf.Empty) returns (MetricsData) {}
+    rpc ResetMetrics(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    rpc GetMetrics(google.protobuf.Empty) returns (MetricsData) {}
+    rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResult) {}
+}
+
+message Metrics {
+	message InstanceMetrics {
+		string name = 1;
+		int32 instanceId = 2;
+		MetricsData metricsData = 3;
+	}
+	repeated InstanceMetrics metrics = 1;
 }

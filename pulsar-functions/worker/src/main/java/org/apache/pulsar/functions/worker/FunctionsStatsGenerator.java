@@ -49,7 +49,9 @@ public class FunctionsStatsGenerator {
                     Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
                     if (functionRuntime != null) {
                         try {
-                            InstanceCommunication.MetricsData metrics = functionRuntime.getAndResetMetrics().get();
+                            InstanceCommunication.MetricsData metrics = workerService.getWorkerConfig()
+                                    .getMetricsSamplingPeriodSec() > 0 ? functionRuntime.getMetrics().get()
+                                            : functionRuntime.getAndResetMetrics().get();
                             for (Map.Entry<String, InstanceCommunication.MetricsData.DataDigest> metricsEntry
                                     : metrics.getMetricsMap().entrySet()) {
                                 String metricName = metricsEntry.getKey();

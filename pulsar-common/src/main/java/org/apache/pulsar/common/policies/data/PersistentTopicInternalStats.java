@@ -45,6 +45,7 @@ public class PersistentTopicInternalStats {
         public long ledgerId;
         public long entries;
         public long size;
+        public boolean offloaded;
     }
 
     public static class CursorStats {

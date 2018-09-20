@@ -39,6 +39,7 @@ import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
+import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
@@ -96,18 +97,11 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
         Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
 
-        BookieInfo bookieInfo0 = new BookieInfo();
-        bookieInfo0.setRack("rack0");
-        mainBookieGroup.put(BOOKIE1, bookieInfo0);
-
-        BookieInfo bookieInfo1 = new BookieInfo();
-        bookieInfo1.setRack("rack1");
-        mainBookieGroup.put(BOOKIE2, bookieInfo1);
+        mainBookieGroup.put(BOOKIE1, new BookieInfo("rack0", null));
+        mainBookieGroup.put(BOOKIE2, new BookieInfo("rack1", null));
 
         Map<String, BookieInfo> secondaryBookieGroup = new HashMap<>();
-        BookieInfo bookieInfo2 = new BookieInfo();
-        bookieInfo2.setRack("rack0");
-        secondaryBookieGroup.put(BOOKIE3, bookieInfo2);
+        secondaryBookieGroup.put(BOOKIE3, new BookieInfo("rack0", null));
 
         bookieMapping.put("group1", mainBookieGroup);
         bookieMapping.put("group2", secondaryBookieGroup);
@@ -146,9 +140,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4)));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
 
-        BookieInfo bookieInfo3 = new BookieInfo();
-        bookieInfo3.setRack("rack0");
-        secondaryBookieGroup.put(BOOKIE4, bookieInfo3);
+        secondaryBookieGroup.put(BOOKIE4, new BookieInfo("rack0", null));
         bookieMapping.put("group2", secondaryBookieGroup);
 
         localZkc.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
@@ -229,21 +221,10 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
         Map<String, BookieInfo> secondaryBookieGroup = new HashMap<>();
 
-        BookieInfo bookieInfo0 = new BookieInfo();
-        bookieInfo0.setRack("rack0");
-        mainBookieGroup.put(BOOKIE1, bookieInfo0);
-
-        BookieInfo bookieInfo1 = new BookieInfo();
-        bookieInfo1.setRack("rack1");
-        mainBookieGroup.put(BOOKIE2, bookieInfo1);
-
-        BookieInfo bookieInfo2 = new BookieInfo();
-        bookieInfo2.setRack("rack0");
-        secondaryBookieGroup.put(BOOKIE3, bookieInfo2);
-
-        BookieInfo bookieInfo3 = new BookieInfo();
-        bookieInfo3.setRack("rack2");
-        secondaryBookieGroup.put(BOOKIE4, bookieInfo3);
+        mainBookieGroup.put(BOOKIE1, new BookieInfo("rack0", null));
+        mainBookieGroup.put(BOOKIE2, new BookieInfo("rack1", null));
+        secondaryBookieGroup.put(BOOKIE3, new BookieInfo("rack0", null));
+        secondaryBookieGroup.put(BOOKIE4, new BookieInfo("rack2", null));
 
         bookieMapping.put("group1", mainBookieGroup);
         bookieMapping.put("group2", secondaryBookieGroup);
@@ -272,7 +253,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
             // ok
         }
 
-        mainBookieGroup.put(BOOKIE3, bookieInfo2);
+        mainBookieGroup.put(BOOKIE3, new BookieInfo("rack1", null));
         secondaryBookieGroup.remove(BOOKIE3);
         bookieMapping.put("group1", mainBookieGroup);
         bookieMapping.put("group2", secondaryBookieGroup);

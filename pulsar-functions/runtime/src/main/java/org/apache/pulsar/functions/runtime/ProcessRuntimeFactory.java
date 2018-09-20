@@ -21,7 +21,10 @@ package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
 
@@ -31,25 +34,30 @@ import java.nio.file.Paths;
 @Slf4j
 public class ProcessRuntimeFactory implements RuntimeFactory {
 
-    private String pulsarServiceUrl;
+    private final String pulsarServiceUrl;
+    private final String stateStorageServiceUrl;
+    private AuthenticationConfig authConfig;
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
     private String logDirectory;
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
+                                 String stateStorageServiceUrl,
+                                 AuthenticationConfig authConfig,
                                  String javaInstanceJarFile,
                                  String pythonInstanceFile,
                                  String logDirectory) {
-
         this.pulsarServiceUrl = pulsarServiceUrl;
+        this.stateStorageServiceUrl = stateStorageServiceUrl;
+        this.authConfig = authConfig;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
         this.logDirectory = logDirectory;
 
         // if things are not specified, try to figure out by env properties
         if (this.javaInstanceJarFile == null) {
-            String envJavaInstanceJarLocation = System.getProperty("pulsar.functions.java.instance.jar");
+            String envJavaInstanceJarLocation = System.getProperty(FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY);
             if (null != envJavaInstanceJarLocation) {
                 log.info("Java instance jar location is not defined,"
                         + " using the location defined in system environment : {}", envJavaInstanceJarLocation);
@@ -83,7 +91,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile) {
+    public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile) throws Exception {
         String instanceFile;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
@@ -100,7 +108,9 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             instanceFile,
             logDirectory,
             codeFile,
-            pulsarServiceUrl);
+            pulsarServiceUrl,
+            stateStorageServiceUrl,
+            authConfig);
     }
 
     @Override

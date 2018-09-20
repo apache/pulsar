@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -31,8 +36,10 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
+import org.apache.pulsar.client.api.ProducerInterceptor;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -40,13 +47,13 @@ import lombok.NonNull;
 
 public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
-    private static final long serialVersionUID = 1L;
-
     private final PulsarClientImpl client;
-    private final ProducerConfigurationData conf;
-    private final Schema<T> schema;
+    private ProducerConfigurationData conf;
+    private Schema<T> schema;
+    private List<ProducerInterceptor<T>> interceptorList;
 
-    ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+    @VisibleForTesting
+    public ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ProducerConfigurationData(), schema);
     }
 
@@ -54,6 +61,16 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         this.client = client;
         this.conf = conf;
         this.schema = schema;
+    }
+
+
+    /**
+     * Allow to override schema in builder implementation
+     * @return
+     */
+    public ProducerBuilder<T> schema(Schema<T> schema) {
+        this.schema = schema;
+        return this;
     }
 
     @Override
@@ -85,7 +102,16 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
         }
 
-        return client.createProducerAsync(conf, schema);
+        return interceptorList == null || interceptorList.size() == 0 ?
+                client.createProducerAsync(conf, schema, null) :
+                client.createProducerAsync(conf, schema, new ProducerInterceptors<>(interceptorList));
+    }
+
+    @Override
+    public ProducerBuilder<T> loadConf(Map<String, Object> config) {
+        conf = ConfigurationDataUtils.loadData(
+            config, conf, ProducerConfigurationData.class);
+        return this;
     }
 
     @Override
@@ -205,6 +231,15 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> properties(@NonNull Map<String, String> properties) {
         conf.getProperties().putAll(properties);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> intercept(ProducerInterceptor<T>... interceptors) {
+        if (interceptorList == null) {
+            interceptorList = new ArrayList<>();
+        }
+        interceptorList.addAll(Arrays.asList(interceptors));
         return this;
     }
 }

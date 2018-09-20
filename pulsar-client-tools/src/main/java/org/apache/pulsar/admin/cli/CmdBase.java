@@ -63,7 +63,6 @@ public abstract class CmdBase {
             } catch (ParameterException e) {
                 System.err.println(e.getMessage());
                 System.err.println();
-                jcommander.usage();
                 return false;
             } catch (ConnectException e) {
                 System.err.println(e.getMessage());

@@ -73,6 +73,7 @@ public class Consumer {
     private final String appId;
     private AuthenticationDataSource authenticationData;
     private final String topicName;
+    private final int partitionIdx;
     private final InitialPosition subscriptionInitialPosition;
 
     private final long consumerId;
@@ -119,6 +120,7 @@ public class Consumer {
         this.subscription = subscription;
         this.subType = subType;
         this.topicName = topicName;
+        this.partitionIdx = TopicName.getPartitionIndex(topicName);
         this.consumerId = consumerId;
         this.priorityLevel = priorityLevel;
         this.readCompacted = readCompacted;
@@ -239,8 +241,11 @@ public class Consumer {
                 Entry entry = entries.get(i);
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
-                MessageIdData messageId = messageIdBuilder.setLedgerId(pos.getLedgerId()).setEntryId(pos.getEntryId())
-                        .build();
+                MessageIdData messageId = messageIdBuilder
+                    .setLedgerId(pos.getLedgerId())
+                    .setEntryId(pos.getEntryId())
+                    .setPartition(partitionIdx)
+                    .build();
 
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
                 // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
@@ -260,7 +265,8 @@ public class Consumer {
                 if (i == (entries.size() - 1)) {
                     promise = writePromise;
                 }
-                ctx.write(Commands.newMessage(consumerId, messageId, metadataAndPayload), promise);
+                int redeliveryCount = subscription.getDispatcher().getRedeliveryTracker().getRedeliveryCount(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()));
+                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), promise);
                 messageId.recycle();
                 messageIdBuilder.recycle();
                 entry.release();
@@ -444,7 +450,7 @@ public class Consumer {
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] Added more flow control message permits {} (old was: {}), blocked = ", topicName,
+            log.debug("[{}-{}] Added more flow control message permits {} (old was: {}), blocked = {} ", topicName,
                     subscription, additionalNumberOfMessages, oldPermits, blockedConsumerOnUnackedMsgs);
         }
 

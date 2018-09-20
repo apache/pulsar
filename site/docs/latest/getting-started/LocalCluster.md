@@ -52,11 +52,11 @@ If Pulsar has been successfully started, you should see `INFO`-level log message
 ```
 
 {% include admonition.html type="success" title='Automatically created namespace' content='
-When you start a local standalone cluster, Pulsar will automatically create a `sample/standalone/ns1` [namespace](../ConceptsAndArchitecture#namespace) that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see [Topics](../ConceptsAndArchitecture#topics).' %}
+When you start a local standalone cluster, Pulsar will automatically create a `public/default` [namespace](../ConceptsAndArchitecture#namespace) that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see [Topics](../ConceptsAndArchitecture#topics).' %}
 
 ## Testing your cluster setup
 
-Pulsar provides a CLI tool called [`pulsar-client`](../../reference/CliTools#pulsar-client) that enables you to do things like send messages to a Pulsar {% popover topic %} in a running cluster. This command will send a simple message saying `hello-pulsar` to the `persistent://sample/standalone/ns1/my-topic` topic:
+Pulsar provides a CLI tool called [`pulsar-client`](../../reference/CliTools#pulsar-client) that enables you to do things like send messages to a Pulsar {% popover topic %} in a running cluster. This command will send a simple message saying `hello-pulsar` to the `my-topic` topic:
 
 ```bash
 $ bin/pulsar-client produce my-topic \
@@ -84,8 +84,8 @@ Here's an example producer for a Pulsar {% popover topic %} using the [Java](../
 ```java
 String localClusterUrl = "pulsar://localhost:6650";
 
-PulsarClient client = PulsarClient.create(localClusterUrl);
-Producer producer = client.createProducer("my-topic");
+PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
+Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
 ```
 
 Here's an example [Python](../../clients/Python) producer:

@@ -563,9 +563,13 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
             @Override
             public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
+                log.warn("[{}] Failed to create subscription for {}: {}", topic, subscriptionName, exception.getMessage());
                 USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
                 subscriptionFuture.completeExceptionally(new PersistenceException(exception));
+                if (exception instanceof ManagedLedgerFencedException) {
+                    // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
+                    close();
+                }
             }
         }, null);
         return subscriptionFuture;
@@ -675,14 +679,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      * Forcefully close all producers/consumers/replicators and deletes the topic. this function is used when local
      * cluster is removed from global-namespace replication list. Because broker doesn't allow lookup if local cluster
      * is not part of replication cluster list.
-     * 
+     *
      * @return
      */
     @Override
     public CompletableFuture<Void> deleteForcefully() {
         return delete(false, true);
     }
-    
+
     /**
      * Delete the managed ledger associated with this topic
      *
@@ -693,7 +697,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      * @param closeIfClientsConnected
      *            Flag indicate whether explicitly close connected producers/consumers/replicators before trying to delete topic. If
      *            any client is connected to a topic and if this flag is disable then this operation fails.
-     * 
+     *
      * @return Completable future indicating completion of delete operation Completed exceptionally with:
      *         IllegalStateException if topic is still active ManagedLedgerException if ledger delete operation fails
      */
@@ -707,7 +711,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 deleteFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
                 return deleteFuture;
             }
-            
+
             CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
@@ -908,7 +912,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-        
+
         // if local cluster is removed from global namespace cluster-list : then delete topic forcefully because pulsar
         // doesn't serve global topic without local repl-cluster configured.
         if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
@@ -940,7 +944,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     futures.add(removeReplicator(cluster));
                 }
             }
-            
+
         });
 
         return FutureUtil.waitForAll(futures);
@@ -968,6 +972,42 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public void checkMessageDeduplicationInfo() {
         messageDeduplication.purgeInactiveProducers();
+    }
+
+    public void checkCompaction() {
+        TopicName name = TopicName.get(topic);
+        try {
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, name.getNamespace()))
+                .orElseThrow(() -> new KeeperException.NoNodeException());
+
+
+            if (policies.compaction_threshold != 0
+                && currentCompaction.isDone()) {
+
+                long backlogEstimate = 0;
+
+                PersistentSubscription compactionSub = subscriptions.get(Compactor.COMPACTION_SUBSCRIPTION);
+                if (compactionSub != null) {
+                    backlogEstimate = compactionSub.estimateBacklogSize();
+                } else {
+                    // compaction has never run, so take full backlog size
+                    backlogEstimate = ledger.getEstimatedBacklogSize();
+                }
+
+                if (backlogEstimate > policies.compaction_threshold) {
+                    try {
+                        triggerCompaction();
+                    } catch (AlreadyRunningException are) {
+                        log.debug("[{}] Compaction already running, so don't trigger again, "
+                                  + "even though backlog({}) is over threshold({})",
+                                  name, backlogEstimate, policies.compaction_threshold);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("[{}] Error getting policies", topic);
+        }
     }
 
     CompletableFuture<Void> startReplicator(String remoteCluster) {
@@ -1021,7 +1061,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     CompletableFuture<Void> removeReplicator(String remoteCluster) {
         log.info("[{}] Removing replicator to {}", topic, remoteCluster);
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        
+
         String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
 
         replicators.get(remoteCluster).disconnect().thenRun(() -> {
@@ -1143,7 +1183,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             } catch (Exception e) {
                 log.warn("[{}] Failed to update cursro state ", topic, e);
             }
-            
+
 
             // Update replicator stats
             ReplicatorStats rStat = replicator.getStats();
@@ -1369,6 +1409,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             info.ledgerId = li.getLedgerId();
             info.entries = li.getEntries();
             info.size = li.getSize();
+            info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
             stats.ledgers.add(info);
         });
 
@@ -1751,6 +1792,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
+        if (schema == null) {
+            return CompletableFuture.completedFuture(SchemaVersion.Empty);
+        }
+
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()

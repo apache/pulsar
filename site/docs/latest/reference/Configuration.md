@@ -78,6 +78,12 @@ The [`pulsar-client`](../CliTools#pulsar-client) CLI tool can be used to publish
 
 {% include config.html id="websocket" %}
 
+## Pulsar proxy {#proxy}
+
+The [Pulsar proxy](../../getting-started/ConceptsAndArchitecture#pulsar-proxy) can be configured in the `conf/proxy.conf` file.
+
+{% include config.html id="proxy" %}
+
 ## ZooKeeper
 
 {% popover ZooKeeper %} handles a broad range of essential configuration- and coordination-related tasks for Pulsar. The default configuration file for ZooKeeper is in the `conf/zookeeper.conf` file in your Pulsar installation. The following parameters are available:

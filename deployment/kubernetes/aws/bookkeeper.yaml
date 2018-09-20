@@ -60,7 +60,7 @@ data:
   dbStorage_rocksDB_blockCacheSize: "4294967296"
   journalMaxSizeMB: "2048"
   zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-  statsProviderClass: org.apache.bookkeeper.stats.PrometheusMetricsProvider
+  statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
   useHostNameAsBookieID: "true"
 ---
 apiVersion: apps/v1beta1

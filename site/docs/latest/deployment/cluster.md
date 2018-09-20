@@ -157,9 +157,9 @@ Flag | Description
 `--zookeeper` | A "local" ZooKeeper connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--configuration-store` | The {% popover configuration store %} connection string for the entire instance. As with the `--zookeeper` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--web-service-url` | The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (we don't recommend using a different port).
-`--web-service-url-tls` | If you're using [TLS](../../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster. The default port is 8443 (we don't recommend using a different port).
+`--web-service-url-tls` | If you're using [TLS](../../../security/tls), you'll also need to specify a TLS web service URL for the cluster. The default port is 8443 (we don't recommend using a different port).
 `--broker-service-url` | A broker service URL enabling interaction with the {% popover brokers %} in the cluster. This URL should use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (we don't recommend using a different port).
-`--broker-service-url-tls` | If you're using [TLS](../../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (we don't recommend using a different port).
+`--broker-service-url-tls` | If you're using [TLS](../../../security/tls), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (we don't recommend using a different port).
 
 ## Deploying a BookKeeper cluster
 
@@ -194,6 +194,10 @@ $ bin/bookkeeper shell bookiesanity
 ```
 
 This will create an ephemeral BookKeeper {% popover ledger %} on the local bookie, write a few entries, read them back, and finally delete the ledger.
+
+Starting from Pulsar 2.1 release, Bookies start [AutoRecovery](http://bookkeeper.apache.org/docs/latest/admin/autorecovery/) daemons by default. Those AutoRecovery daemons will monitor the healthy of the bookkeeper cluster and automatically re-replicate entries for those under-replicated ledgers.
+Since `AutoRecovery` deamons are stateless processes, if you would like to run `AutoRecovery` as a separate service, you can also disable `AutoRecovery` on bookies by setting `autoRecoveryDaemonEnabled` to `false` in your `bookkeeper.conf` file. And you can follow the instructions in
+[bookkeeper documentation](http://bookkeeper.apache.org/docs/latest/admin/autorecovery/) to run `AutoRecovery` as separate processes.
 
 ## Deploying Pulsar brokers
 
@@ -243,7 +247,7 @@ Once you've done that, you can publish a message to Pulsar topic:
 
 ```bash
 $ bin/pulsar-client produce \
-  persistent://sample/pulsar-cluster-1/ns1/test \
+  persistent://public/default/test \
   -n 1 \
   -m "Hello, Pulsar"
 ```

@@ -24,10 +24,15 @@ import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.Example;
+import io.swagger.annotations.ExampleProperty;
 import java.nio.ByteBuffer;
 import java.time.Clock;
-import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.Encoded;
@@ -42,6 +47,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.DeleteSchemaResponse;
@@ -51,9 +57,18 @@ import org.apache.pulsar.common.schema.PostSchemaResponse;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Path("/schemas")
+@Api(
+    value = "/schemas",
+    description = "Schemas related admin APIs",
+    tags = "schemas"
+)
 public class SchemasResource extends AdminResource {
+
+    private static final Logger log = LoggerFactory.getLogger(SchemasResource.class);
 
     private final Clock clock;
 
@@ -67,10 +82,25 @@ public class SchemasResource extends AdminResource {
         this.clock = clock;
     }
 
+    private long getLongSchemaVersion(SchemaVersion schemaVersion) {
+        if (schemaVersion instanceof LongSchemaVersion) {
+            return ((LongSchemaVersion) schemaVersion).getVersion();
+        } else {
+            return -1L;
+        }
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Get topic schema", response = GetSchemaResponse.class)
+    @ApiOperation(value = "Get the schema of a topic", response = GetSchemaResponse.class)
+    @ApiResponses(value = {
+        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+        @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+        @ApiResponse(code = 403, message = "Client is not authenticated"),
+        @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+        @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+    })
     public void getSchema(
         @PathParam("tenant") String tenant,
         @PathParam("namespace") String namespace,
@@ -86,13 +116,13 @@ public class SchemasResource extends AdminResource {
                     if (isNull(schema)) {
                         response.resume(Response.status(Response.Status.NOT_FOUND).build());
                     } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.noContent());
+                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
                     } else {
                         response.resume(
                             Response.ok()
                                 .encoding(MediaType.APPLICATION_JSON)
                                 .entity(GetSchemaResponse.builder()
-                                    .version(schema.version)
+                                    .version(getLongSchemaVersion(schema.version))
                                     .type(schema.schema.getType())
                                     .timestamp(schema.schema.getTimestamp())
                                     .data(new String(schema.schema.getData()))
@@ -112,7 +142,14 @@ public class SchemasResource extends AdminResource {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/schema/{version}")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Get topic schema")
+    @ApiOperation(value = "Get the schema of a topic at a given version", response = GetSchemaResponse.class)
+    @ApiResponses(value = {
+        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+        @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+        @ApiResponse(code = 403, message = "Client is not authenticated"),
+        @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+        @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+    })
     public void getSchema(
         @PathParam("tenant") String tenant,
         @PathParam("namespace") String namespace,
@@ -132,13 +169,13 @@ public class SchemasResource extends AdminResource {
                     if (isNull(schema)) {
                         response.resume(Response.status(Response.Status.NOT_FOUND).build());
                     } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.noContent());
+                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
                     } else {
                         response.resume(
                             Response.ok()
                                 .encoding(MediaType.APPLICATION_JSON)
                                 .entity(GetSchemaResponse.builder()
-                                    .version(schema.version)
+                                    .version(getLongSchemaVersion(schema.version))
                                     .type(schema.schema.getType())
                                     .timestamp(schema.schema.getTimestamp())
                                     .data(new String(schema.schema.getData()))
@@ -157,7 +194,14 @@ public class SchemasResource extends AdminResource {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Delete topic schema")
+    @ApiOperation(value = "Delete the schema of a topic", response = DeleteSchemaResponse.class)
+    @ApiResponses(value = {
+        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+        @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+        @ApiResponse(code = 403, message = "Client is not authenticated"),
+        @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
+        @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+    })
     public void deleteSchema(
         @PathParam("tenant") String tenant,
         @PathParam("namespace") String namespace,
@@ -173,7 +217,7 @@ public class SchemasResource extends AdminResource {
                     response.resume(
                         Response.ok().entity(
                             DeleteSchemaResponse.builder()
-                                .version(version)
+                                .version(getLongSchemaVersion(version))
                                 .build()
                         ).build()
                     );
@@ -188,11 +232,28 @@ public class SchemasResource extends AdminResource {
     @Path("/{tenant}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Post topic schema")
+    @ApiOperation(value = "Update the schema of a topic", response = PostSchemaResponse.class)
+    @ApiResponses(value = {
+        @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+        @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+        @ApiResponse(code = 403, message = "Client is not authenticated"),
+        @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
+        @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+    })
     public void postSchema(
         @PathParam("tenant") String tenant,
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
+        @ApiParam(
+            value = "A JSON value presenting a schema playload. An example of the expected schema can be found down"
+                + " here.",
+            examples = @Example(
+                value = @ExampleProperty(
+                    mediaType = MediaType.APPLICATION_JSON,
+                    value = "{\"type\": \"STRING\", \"schema\": \"\", \"properties\": { \"key1\" : \"value1\" + } }"
+                )
+            )
+        )
         PostSchemaPayload payload,
         @Suspended final AsyncResponse response
     ) {

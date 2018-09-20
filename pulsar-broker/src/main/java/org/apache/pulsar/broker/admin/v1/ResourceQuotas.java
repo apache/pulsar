@@ -38,7 +38,7 @@ import io.swagger.annotations.ApiResponses;
 @Path("/resource-quotas")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Api(value = "/resource-quotas", description = "Quota admin APIs", tags = "resource-quotas")
+@Api(value = "/resource-quotas", description = "Quota admin APIs", tags = "resource-quotas", hidden = true)
 public class ResourceQuotas extends ResourceQuotasBase {
 
     @GET

@@ -50,9 +50,6 @@ A few things to note about this command:
  * `-v $PWD/data:/pulsar/data`: This will make the process inside the container to store the
    data and metadata in the filesystem outside the container, in order to not start "fresh" every
    time the container is restarted.
- * `--advertised-address 127.0.0.1`: This is needed so that the Pulsar broker can advertise an IP
-   address that is reachable from outside the Docker container. You can also use the host machine IP,
-   if you want to make Pulsar standalone accessible from other machines.
 
 If Pulsar has been successfully started, you should see `INFO`-level log messages like this:
 
@@ -63,7 +60,7 @@ If Pulsar has been successfully started, you should see `INFO`-level log message
 ```
 
 {% include admonition.html type="success" title='Automatically created namespace' content='
-When you start a local standalone cluster, Pulsar will automatically create a `sample/standalone/ns1`
+When you start a local standalone cluster, Pulsar will automatically create a `public/default`
 namespace that you can use for development purposes. All Pulsar topics are managed within namespaces.
 For more info, see [Topics](../ConceptsAndArchitecture#Topics).' %}
 
@@ -126,7 +123,7 @@ You can find detailed documentation of all the APIs in the [Admin API Overview](
 In the simplest example, you can use curl to probe the stats for a particular topic:
 
 ```shell
-$ curl http://localhost:8080/admin/persistent/public/default/my-topic/stats | python -m json.tool
+$ curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool
 ```
 
 The output will be something like this:

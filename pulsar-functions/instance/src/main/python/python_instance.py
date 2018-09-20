@@ -24,12 +24,15 @@
 """
 import base64
 import os
+import signal
 import time
 import Queue
 import threading
 from functools import partial
 from collections import namedtuple
+from threading import Timer
 import traceback
+import sys
 
 import pulsar
 import contextimpl
@@ -94,14 +97,30 @@ class Stats(object):
     else:
       return self.latency / self.nsuccessfullyprocessed
 
+  def update(self, object):
+    self.nprocessed = object.nprocessed
+    self.nsuccessfullyprocessed = object.nsuccessfullyprocessed
+    self.nuserexceptions = object.nuserexceptions
+    self.nsystemexceptions = object.nsystemexceptions
+    self.nserialization_exceptions = object.nserialization_exceptions
+    self.latency = object.latency
+    self.lastinvocationtime = object.lastinvocationtime
+    self.latestuserexceptions = []
+    self.latestsystemexceptions = []
+    self.ndeserialization_exceptions.clear()
+    self.latestuserexceptions.append(object.latestuserexceptions)
+    self.latestsystemexceptions.append(object.latestsystemexceptions)
+    self.ndeserialization_exceptions.update(object.ndeserialization_exceptions)
+    
+
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, user_code, log_topic, pulsar_client):
+  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, user_code, pulsar_client):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     self.queue = Queue.Queue(max_buffered_tuples)
     self.log_topic_handler = None
-    if log_topic is not None:
-      self.log_topic_handler = log.LogTopicHandler(str(log_topic), pulsar_client)
+    if function_details.logTopic is not None and function_details.logTopic != "":
+      self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
     self.pulsar_client = pulsar_client
     self.input_serdes = {}
     self.consumers = {}
@@ -116,6 +135,23 @@ class PythonInstance(object):
     self.contextimpl = None
     self.total_stats = Stats()
     self.current_stats = Stats()
+    self.stats = Stats()
+    self.last_health_check_ts = time.time()
+    self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
+
+  def health_check(self):
+    self.last_health_check_ts = time.time()
+    health_check_result = InstanceCommunication_pb2.HealthCheckResult()
+    health_check_result.success = True
+    return health_check_result
+
+  def process_spawner_health_check_timer(self):
+    if time.time() - self.last_health_check_ts > 90:
+      Log.critical("Haven't received health check from spawner in a while. Stopping instance...")
+      os.kill(os.getpid(), signal.SIGKILL)
+      sys.exit(1)
+
+    Timer(30, self.process_spawner_health_check_timer).start()
 
   def run(self):
     # Setup consumers and input deserializers
@@ -136,8 +172,31 @@ class PythonInstance(object):
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
-        message_listener=partial(self.message_listener, topic, self.input_serdes[topic])
+        message_listener=partial(self.message_listener, self.input_serdes[topic]),
+        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
       )
+
+    for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
+      if not consumer_conf.serdeClassName:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
+      else:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
+      self.input_serdes[topic] = serde_kclass()
+      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      if consumer_conf.isRegexPattern:
+        self.consumers[topic] = self.pulsar_client.subscribe_pattern(
+          str(topic), subscription_name,
+          consumer_type=mode,
+          message_listener=partial(self.message_listener, self.input_serdes[topic]),
+          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+        )
+      else:
+        self.consumers[topic] = self.pulsar_client.subscribe(
+          str(topic), subscription_name,
+          consumer_type=mode,
+          message_listener=partial(self.message_listener, self.input_serdes[topic]),
+          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+        )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
     if function_kclass is None:
@@ -152,6 +211,10 @@ class PythonInstance(object):
     # Now launch a thread that does execution
     self.exeuction_thread = threading.Thread(target=self.actual_execution)
     self.exeuction_thread.start()
+
+    # start proccess spawner health check timer
+    self.last_health_check_ts = time.time()
+    Timer(30, self.process_spawner_health_check_timer).start()
 
   def actual_execution(self):
     Log.info("Started Thread for executing the function")
@@ -211,7 +274,7 @@ class PythonInstance(object):
       if self.producer is None:
         self.setup_producer()
       try:
-        output_bytes = self.output_serde.serialize(output)
+        output_bytes = bytes(self.output_serde.serialize(output))
       except:
         self.current_stats.nserialization_exceptions += 1
         self.total_stats.nserialization_exceptions += 1
@@ -246,26 +309,37 @@ class PythonInstance(object):
         batching_max_publish_delay_ms=1,
         max_pending_messages=100000)
 
-  def message_listener(self, topic, serde, consumer, message):
-    item = InternalMessage(message, topic, serde, consumer)
+  def message_listener(self, serde, consumer, message):
+    item = InternalMessage(message, consumer.topic(), serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
       consumer.acknowledge(message)
 
   def get_and_reset_metrics(self):
     # First get any user metrics
-    metrics = self.contextimpl.get_and_reset_metrics()
-    # Now add system metrics as well
-    self.add_system_metrics("__total_processed__", self.current_stats.nprocessed, metrics)
-    self.add_system_metrics("__total_successfully_processed__", self.current_stats.nsuccessfullyprocessed, metrics)
-    self.add_system_metrics("__total_system_exceptions__", self.current_stats.nsystemexceptions, metrics)
-    self.add_system_metrics("__total_user_exceptions__", self.current_stats.nuserexceptions, metrics)
-    for (topic, metric) in self.current_stats.ndeserialization_exceptions.items():
-      self.add_system_metrics("__total_deserialization_exceptions__" + topic, metric, metrics)
-    self.add_system_metrics("__total_serialization_exceptions__", self.current_stats.nserialization_exceptions, metrics)
-    self.add_system_metrics("__avg_latency_ms__", self.current_stats.compute_latency(), metrics)
-    self.current_stats.reset()
+    metrics = self.get_metrics()
+    self.reset_metrics()
     return metrics
+
+  def reset_metrics(self):
+    self.stats.update(self.current_stats)
+    self.current_stats.reset()
+    self.contextimpl.reset_metrics()
+
+  def get_metrics(self):
+    # First get any user metrics
+    metrics = self.contextimpl.get_metrics()
+    # Now add system metrics as well
+    self.add_system_metrics("__total_processed__", self.stats.nprocessed, metrics)
+    self.add_system_metrics("__total_successfully_processed__", self.stats.nsuccessfullyprocessed, metrics)
+    self.add_system_metrics("__total_system_exceptions__", self.stats.nsystemexceptions, metrics)
+    self.add_system_metrics("__total_user_exceptions__", self.stats.nuserexceptions, metrics)
+    for (topic, metric) in self.stats.ndeserialization_exceptions.items():
+      self.add_system_metrics("__total_deserialization_exceptions__" + topic, metric, metrics)
+    self.add_system_metrics("__total_serialization_exceptions__", self.stats.nserialization_exceptions, metrics)
+    self.add_system_metrics("__avg_latency_ms__", self.stats.compute_latency(), metrics)
+    return metrics
+
 
   def add_system_metrics(self, metric_name, value, metrics):
     metrics.metrics[metric_name].count = value
@@ -294,6 +368,7 @@ class PythonInstance(object):
     status.serializationExceptions = self.total_stats.nserialization_exceptions
     status.averageLatency = self.total_stats.compute_latency()
     status.lastInvocationTime = self.total_stats.lastinvocationtime
+    status.metrics.CopyFrom(self.get_metrics())
     return status
 
   def join(self):

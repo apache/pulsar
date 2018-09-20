@@ -57,6 +57,10 @@ public class Policies {
     public int max_consumers_per_topic = 0;
     public int max_consumers_per_subscription = 0;
 
+    public long compaction_threshold = 0;
+    public long offload_threshold = -1;
+    public Long offload_deletion_lag_ms = null;
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Policies) {
@@ -75,7 +79,10 @@ public class Policies {
                     && Objects.equals(antiAffinityGroup, other.antiAffinityGroup)
                     && max_producers_per_topic == other.max_producers_per_topic
                     && max_consumers_per_topic == other.max_consumers_per_topic
-                    && max_consumers_per_subscription == other.max_consumers_per_subscription;
+                    && max_consumers_per_subscription == other.max_consumers_per_subscription
+                    && compaction_threshold == other.compaction_threshold
+                    && offload_threshold == other.offload_threshold
+                    && offload_deletion_lag_ms == other.offload_deletion_lag_ms;
         }
 
         return false;
@@ -105,6 +112,9 @@ public class Policies {
                 .add("subscription_auth_mode", subscription_auth_mode)
                 .add("max_producers_per_topic", max_producers_per_topic)
                 .add("max_consumers_per_topic", max_consumers_per_topic)
-                .add("max_consumers_per_subscription", max_consumers_per_topic).toString();
+                .add("max_consumers_per_subscription", max_consumers_per_topic)
+                .add("compaction_threshold", compaction_threshold)
+                .add("offload_threshold", offload_threshold)
+                .add("offload_deletion_lag_ms", offload_deletion_lag_ms).toString();
     }
 }

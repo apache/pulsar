@@ -21,8 +21,14 @@ cmake_minimum_required(VERSION 2.8)
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
+option(BUILD_TESTS "Build tests" ON)
+MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
+
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
+
+option(USE_LOG4CXX "Build with Log4cxx support" OFF)
+MESSAGE(STATUS "USE_LOG4CXX:  " ${USE_LOG4CXX})
 
 IF (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
@@ -37,6 +43,7 @@ if (NOT CXX_STANDARD)
 endif(NOT CXX_STANDARD)
 
 set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
+
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -57,17 +64,20 @@ if (LINK_STATIC)
     find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a)
     find_library(CURL_LIBRARY_PATH NAMES libcurl.a curl)
     find_library(LIB_JSON NAMES libjsoncpp.a libjsoncpp_static.a)
-    find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
 
-    # Libraries needed by log4cxx to link statically with
-    find_library(APR_LIBRARY_PATH NAMES libapr-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr/libexec/lib/)
-    find_library(APR_UTIL_LIBRARY_PATH NAMES libaprutil-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr-util/libexec/lib/)
-    find_library(EXPAT_LIBRARY_PATH NAMES libexpat.a expat)
-    if (APPLE)
-        find_library(ICONV_LIBRARY_PATH NAMES libiconv.a iconv)
-    else ()
-        set(ICONV_LIBRARY_PATH )
-    endif ()
+    if (USE_LOG4CXX)
+        find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
+
+        # Libraries needed by log4cxx to link statically with
+        find_library(APR_LIBRARY_PATH NAMES libapr-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr/libexec/lib/)
+        find_library(APR_UTIL_LIBRARY_PATH NAMES libaprutil-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr-util/libexec/lib/)
+        find_library(EXPAT_LIBRARY_PATH NAMES libexpat.a expat)
+        if (APPLE)
+            find_library(ICONV_LIBRARY_PATH NAMES libiconv.a iconv)
+        else ()
+            set(ICONV_LIBRARY_PATH )
+        endif (APPLE)
+    endif (USE_LOG4CXX)
 else()
     # Link to shared libraries
     find_package(ZLIB REQUIRED)
@@ -80,9 +90,11 @@ else()
     endif (NOT PROTOBUF_LIBRARIES)
 
     find_library(LIB_JSON jsoncpp)
-    find_library(LOG4CXX_LIBRARY_PATH log4cxx)
     find_library(CURL_LIBRARY_PATH curl)
-    find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
+    if (USE_LOG4CXX)
+        find_library(LOG4CXX_LIBRARY_PATH log4cxx)
+        find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
+    endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
 
@@ -98,10 +110,10 @@ if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
     list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
     set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
     # For python3 the lib name is boost_python3
-    set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX})
+    set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
 else ()
     # Regular boost_python
-    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27)
+    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt)
 endif ()
 
 foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
@@ -119,12 +131,24 @@ endif ()
 find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
                                        thread system ${BOOST_PYTHON_NAME_FOUND})
 
+if (APPLE)
+    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
+    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
+endif ()
 
 find_package(OpenSSL REQUIRED)
-find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
-find_path(GMOCK_INCLUDE_PATH gmock/gmock.h)
+
+if (BUILD_TESTS)
+    find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
+    find_path(GMOCK_INCLUDE_PATH gmock/gmock.h)
+endif ()
+
 find_path(JSON_INCLUDE_PATH jsoncpp)
-find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
+
+if (USE_LOG4CXX)
+    set(CMAKE_CXX_FLAGS " -DUSE_LOG4CXX ${CMAKE_CXX_FLAGS}")
+    find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
+endif (USE_LOG4CXX)
 
 if (NOT LIB_JSON)
     find_library(LIB_JSON json_cpp)
@@ -135,6 +159,14 @@ if (NOT JSON_INCLUDE_PATH)
 else (NOT JSON_INCLUDE_PATH)
     set(JSON_INCLUDE_PATH ${JSON_INCLUDE_PATH}/jsoncpp/)
 endif (NOT JSON_INCLUDE_PATH)
+
+if (NOT APPLE)
+    # we don't set options below to build _pulsar.so
+    set(CMAKE_CXX_FLAGS_PYTHON "${CMAKE_CXX_FLAGS}")
+    # Hide all non-exported symbols to avoid conflicts
+    set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
+endif ()
+
 
 set(ADDITIONAL_LIBRARIES $ENV{PULSAR_ADDITIONAL_LIBRARIES})
 link_directories( $ENV{PULSAR_ADDITIONAL_LIBRARY_PATH} )
@@ -165,17 +197,23 @@ set(COMMON_LIBS
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARY_PATH}
   ${PROTOBUF_LIBRARIES}
-  ${LOG4CXX_LIBRARY_PATH}
-  ${APR_LIBRARY_PATH}
-  ${APR_UTIL_LIBRARY_PATH}
-  ${EXPAT_LIBRARY_PATH}
-  ${ICONV_LIBRARY_PATH}
   ${CURL_LIBRARY_PATH}
   ${ADDITIONAL_LIBRARIES}
   ${LIB_JSON}
   dl
   pthread
 )
+
+if (USE_LOG4CXX)
+    set(COMMON_LIBS
+      ${COMMON_LIBS}
+      ${LOG4CXX_LIBRARY_PATH}
+      ${APR_LIBRARY_PATH}
+      ${APR_UTIL_LIBRARY_PATH}
+      ${EXPAT_LIBRARY_PATH}
+      ${ICONV_LIBRARY_PATH}
+    )
+endif ()
 
 if(NOT APPLE)
     set(COMMON_LIBS ${COMMON_LIBS} rt)
@@ -196,7 +234,11 @@ set(CLIENT_LIBS
 add_subdirectory(lib)
 add_subdirectory(perf)
 add_subdirectory(examples)
-add_subdirectory(tests)
+
+if (BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
+
 add_subdirectory(python)
 
 # `make format` option

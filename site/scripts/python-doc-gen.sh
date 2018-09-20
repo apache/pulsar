@@ -18,6 +18,7 @@
 # under the License.
 #
 
+set -xe
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
 
@@ -25,9 +26,10 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 # so that Pdoc can import the module
 pip install pulsar-client
 
-INPUT=$ROOT_DIR/pulsar-client-cpp/python/pulsar.py
 DESTINATION=$ROOT_DIR/site/api/python
-PYTHONPATH=$ROOT_DIR/pulsar-client-cpp/python pdoc $INPUT \
+rm -fr $DESTINATION/{index.html,functions,pulsar}
+PYTHONPATH=$ROOT_DIR/pulsar-client-cpp/python pdoc pulsar \
   --html \
   --html-dir $DESTINATION
-mv $DESTINATION/pulsar.m.html $DESTINATION/index.html
+mv -f $DESTINATION/pulsar/* $DESTINATION/
+rmdir $DESTINATION/pulsar

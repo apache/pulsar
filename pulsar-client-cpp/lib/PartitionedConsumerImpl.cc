@@ -407,4 +407,9 @@ void PartitionedConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerS
         callback(ResultOk, BrokerConsumerStats(statsPtr));
     }
 }
+
+void PartitionedConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
+    callback(ResultOperationNotSupported);
+}
+
 }  // namespace pulsar

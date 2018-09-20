@@ -28,8 +28,6 @@ Parameter | Description | Default
 `brokerDeduplicationEntriesInterval` | The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). | `1000`
 `brokerDeduplicationProducerInactivityTimeoutMinutes` | The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. | `360` (6 hours)
 
-Any configuration changes you make won't take effect until you re-start the broker.
-
 ### Setting the broker-level default {#default}
 
 By default, message deduplication is *disabled* on all Pulsar namespaces. To enable it by default on all namespaces, set the `brokerDeduplicationEnabled` parameter to `true` and re-start the broker.
@@ -38,21 +36,21 @@ Regardless of the value of `brokerDeduplicationEnabled`, [enabling](#enabling) a
 
 ### Enabling message deduplication {#enabling}
 
-You can enable message deduplication on specific namespaces, regardless of the the [default](#default) for the broker, using the [`pulsar-admin namespace set-deduplication`](../../CliTools#pulsar-admin-namespace-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace. Here's an example:
+You can enable message deduplication on specific namespaces, regardless of the the [default](#default) for the broker, using the [`pulsar-admin namespace set-deduplication`](../../CliTools#pulsar-admin-namespace-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace. Here's an example with <tenant>/<namespace>:
 
 ```bash
 $ bin/pulsar-admin namespaces set-deduplication \
-  persistent://sample/standalone/ns1/topic-1 \
+  public/default \
   --enable # or just -e
 ```
 
 ### Disabling message deduplication {#disabling}
 
-You can disable message deduplication on a specific namespace using the same method shown [above](#enabling), except using the `--disable`/`-d` flag instead. Here's an example:
+You can disable message deduplication on a specific namespace using the same method shown [above](#enabling), except using the `--disable`/`-d` flag instead. Here's an example with <tenant>/<namespace>:
 
 ```bash
 $ bin/pulsar-admin namespaces set-deduplication \
-  persistent://sample/standalone/ns1/topic-1 \
+  public/default \
   --disable # or just -d
 ```
 
@@ -79,7 +77,7 @@ PulsarClient pulsarClient = PulsarClient.builder()
         .build();
 Producer producer = pulsarClient.newProducer()
         .producerName("producer-1")
-        .topic("persistent://sample/standalone/ns1/topic-1")
+        .topic("persistent://public/default/topic-1")
         .sendTimeout(0, TimeUnit.SECONDS)
         .create();
 ```
@@ -93,12 +91,12 @@ import pulsar
 
 client = pulsar.Client("pulsar://localhost:6650")
 producer = client.create_producer(
-    "persistent://sample/standalone/ns1/topic-1",
+    "persistent://public/default/topic-1",
     producer_name="producer-1",
     send_timeout_millis=0)
 ```
 
-## C++ clients {#cpp}
+### C++ clients {#cpp}
 
 To enable message deduplication on a [C++ producer](../../clients/Cpp#producer), set the producer name using `producer_name` and the timeout to 0 using `send_timeout_millis`. Here's an example:
 
@@ -106,7 +104,7 @@ To enable message deduplication on a [C++ producer](../../clients/Cpp#producer),
 #include <pulsar/Client.h>
 
 std::string serviceUrl = "pulsar://localhost:6650";
-std::string topic = "persistent://prop/unit/ns1/topic-1";
+std::string topic = "persistent://some-tenant/ns1/topic-1";
 std::string producerName = "producer-1";
 
 Client client(serviceUrl);
@@ -117,5 +115,5 @@ producerConfig.setProducerName(producerName);
 
 Producer producer;
 
-Result result = client.createProducer("persistent://sample/standalone/ns1/my-topic", producerConfig, producer);
+Result result = client.createProducer(topic, producerConfig, producer);
 ```

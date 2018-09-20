@@ -20,47 +20,22 @@ package org.apache.pulsar.common.compression;
 
 import java.util.EnumMap;
 
+import lombok.experimental.UtilityClass;
+
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 
+@UtilityClass
 public class CompressionCodecProvider {
-    private static final EnumMap<CompressionType, Class<? extends CompressionCodec>> codecs;
-
-    private final static CompressionCodec compressionCodecNone = new CompressionCodecNone();
+    private static final EnumMap<CompressionType, CompressionCodec> codecs;
 
     static {
         codecs = new EnumMap<>(CompressionType.class);
-        codecs.put(CompressionType.NONE, CompressionCodecNone.class);
-        codecs.put(CompressionType.LZ4, CompressionCodecLZ4.class);
-        codecs.put(CompressionType.ZLIB, CompressionCodecZLib.class);
+        codecs.put(CompressionType.NONE, new CompressionCodecNone());
+        codecs.put(CompressionType.LZ4, new CompressionCodecLZ4());
+        codecs.put(CompressionType.ZLIB, new CompressionCodecZLib());
     }
 
     public static CompressionCodec getCompressionCodec(CompressionType type) {
-        if (type == CompressionType.NONE) {
-            // Always use the same instance for the none-codec
-            return compressionCodecNone;
-        }
-
-        try {
-            return codecs.get(type).newInstance();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private final EnumMap<CompressionType, CompressionCodec> codecInstances;
-
-    public CompressionCodecProvider() {
-        codecInstances = new EnumMap<>(CompressionType.class);
-        try {
-            for (CompressionType type : CompressionType.values()) {
-                codecInstances.put(type, codecs.get(type).newInstance());
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public CompressionCodec getCodec(CompressionType type) {
-        return codecInstances.get(type);
+        return codecs.get(type);
     }
 }

@@ -20,14 +20,17 @@ package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 
+/**
+ * Example function that uses the built in publish function in the context
+ * to publish to a desired topic based on config
+ */
 public class PublishFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) {
-        String publishTopic = context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
+        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
         String output = String.format("%s!", input);
-        context.publish(publishTopic, output, DefaultSerDe.class.getName());
+        context.publish(publishTopic, output);
         return null;
     }
 }

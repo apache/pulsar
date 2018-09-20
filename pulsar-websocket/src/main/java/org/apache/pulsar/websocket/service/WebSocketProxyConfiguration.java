@@ -92,6 +92,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private int numIoThreads = Runtime.getRuntime().availableProcessors();
     // Number of connections per Broker in Pulsar Client used in WebSocket proxy
     private int connectionsPerBroker = Runtime.getRuntime().availableProcessors();
+    // Time in milliseconds that idle WebSocket session times out
+    private int webSocketSessionIdleTimeoutMillis = 300000;
 
     // When this parameter is not empty, unauthenticated users perform as anonymousUserRole
     private String anonymousUserRole = null;
@@ -297,6 +299,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setConnectionsPerBroker(int connectionsPerBroker) {
         this.connectionsPerBroker = connectionsPerBroker;
+    }
+
+    public int getWebSocketSessionIdleTimeoutMillis() {
+        return webSocketSessionIdleTimeoutMillis;
+    }
+
+    public void setWebSocketSessionIdleTimeoutMillis(int webSocketSessionIdleTimeoutMillis) {
+        this.webSocketSessionIdleTimeoutMillis = webSocketSessionIdleTimeoutMillis;
     }
 
     public String getAnonymousUserRole() {

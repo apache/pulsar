@@ -77,9 +77,9 @@ All exchanges via the WebSocket API use JSON.
 
 ### Producer endpoint
 
-The producer endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %} in the URL:
+The producer endpoint requires you to specify a {% popover tenant %}, {% popover namespace %}, and {% popover topic %} in the URL:
 
-{% endpoint ws://broker-service-url:8080/ws/producer/persistent/:property/:cluster/:namespace/:topic %}
+{% endpoint ws://broker-service-url:8080/ws/v2/producer/persistent/:tenant/:namespace/:topic %}
 
 ##### Query param
 
@@ -144,9 +144,9 @@ Key | Type | Required? | Explanation
 
 ### Consumer endpoint
 
-The consumer endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %}, as well as a {% popover subscription %}, in the URL:
+The consumer endpoint requires you to specify a {% popover tenant %}, {% popover namespace %}, and {% popover topic %}, as well as a {% popover subscription %}, in the URL:
 
-{% endpoint ws://broker-service-url:8080/ws/consumer/persistent/:property/:cluster/:namespace/:topic/:subscription %}
+{% endpoint ws://broker-service-url:8080/ws/v2/consumer/persistent/:tenant/:namespace/:topic/:subscription %}
 
 ##### Query param
 
@@ -197,9 +197,9 @@ Key | Type | Required? | Explanation
 
 ### Reader endpoint
 
-The reader endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %} in the URL:
+The reader endpoint requires you to specify a {% popover tenant %}, {% popover namespace %}, and {% popover topic %} in the URL:
 
-{% endpoint ws://broker-service-url:8080/ws/reader/persistent/:property/:cluster/:namespace/:topic %}
+{% endpoint ws://broker-service-url:8080/ws/v2/reader/persistent/:tenant/:namespace/:topic %}
 
 ##### Query param
 
@@ -286,7 +286,7 @@ Here's an example Python {% popover producer %} that sends a simple message to a
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/producer/persistent/sample/standalone/ns1/my-topic'
+TOPIC = 'ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'
 
 ws = websocket.create_connection(TOPIC)
 
@@ -315,7 +315,7 @@ Here's an example Python {% popover consumer %} that listens on a Pulsar {% popo
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/consumer/persistent/sample/standalone/ns1/my-topic/my-sub'
+TOPIC = 'ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub'
 
 ws = websocket.create_connection(TOPIC)
 
@@ -338,7 +338,7 @@ Here's an example Python reader that listens on a Pulsar {% popover topic %} and
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/reader/persistent/sample/standalone/ns1/my-topic'
+TOPIC = 'ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic'
 
 ws = websocket.create_connection(TOPIC)
 
@@ -368,7 +368,7 @@ Here's an example Node.js {% popover producer %} that sends a simple message to 
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/v2/producer/persistent/my-tenant/my-ns/my-topic1",
     ws = new WebSocket(topic);
 
 var message = {
@@ -396,7 +396,7 @@ Here's an example Node.js {% popover consumer %} that listens on the same topic 
 
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub",
+    topic = "ws://localhost:8080/ws/v2/consumer/persistent/my-tenant/my-ns/my-topic1/my-sub",
     ws = new WebSocket(topic);
 
 ws.on('message', function(message) {
@@ -410,7 +410,7 @@ ws.on('message', function(message) {
 #### NodeJS reader
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/reader/persistent/my-property/us-west/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/v2/reader/persistent/my-tenant/my-ns/my-topic1",
     ws = new WebSocket(topic);
 
 ws.on('message', function(message) {

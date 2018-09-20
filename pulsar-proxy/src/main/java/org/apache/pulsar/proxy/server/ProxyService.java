@@ -24,6 +24,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
@@ -55,7 +56,7 @@ public class ProxyService implements Closeable {
     private final String serviceUrl;
     private final String serviceUrlTls;
     private ConfigurationCacheService configurationCacheService;
-    private AuthenticationService authenticationService;
+    private final AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
     private ZooKeeperClientFactory zkClientFactory = null;
 
@@ -71,7 +72,8 @@ public class ProxyService implements Closeable {
 
     private static final int numThreads = Runtime.getRuntime().availableProcessors();
 
-    public ProxyService(ProxyConfiguration proxyConfig) throws IOException {
+    public ProxyService(ProxyConfiguration proxyConfig,
+                        AuthenticationService authenticationService) throws IOException {
         checkNotNull(proxyConfig);
         this.proxyConfig = proxyConfig;
 
@@ -89,16 +91,15 @@ public class ProxyService implements Closeable {
 
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
+        this.authenticationService = authenticationService;
     }
 
     public void start() throws Exception {
-        ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(proxyConfig);
-        authenticationService = new AuthenticationService(serviceConfiguration);
-
         if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getConfigurationStoreServers())) {
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
             this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
-            authorizationService = new AuthorizationService(serviceConfiguration, configurationCacheService);
+            authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(proxyConfig),
+                                                            configurationCacheService);
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
@@ -113,7 +114,11 @@ public class ProxyService implements Closeable {
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
         // Bind and start to accept incoming connections.
-        bootstrap.bind(proxyConfig.getServicePort()).sync();
+        try {
+            bootstrap.bind(proxyConfig.getServicePort()).sync();
+        } catch (Exception e) {
+            throw new IOException("Failed to bind Pulsar Proxy on port " + proxyConfig.getServicePort(), e);
+        }
         LOG.info("Started Pulsar Proxy at {}", serviceUrl);
 
         if (proxyConfig.isTlsEnabledInProxy()) {
@@ -175,7 +180,7 @@ public class ProxyService implements Closeable {
     public Semaphore getLookupRequestSemaphore() {
         return lookupRequestSemaphore.get();
     }
-    
+
     public EventLoopGroup getWorkerGroup() {
         return workerGroup;
     }

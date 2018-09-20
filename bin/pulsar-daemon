@@ -28,6 +28,7 @@ where command is one of:
     configuration-store Run a configuration-store server
     discovery           Run a discovery server
     websocket           Run a websocket proxy server
+    functions-worker    Run a functions worker server
     standalone          Run a standalone Pulsar service
 
 where argument is one of:
@@ -80,6 +81,9 @@ case $command in
         echo "doing $startStop $command ..."
         ;;
     (websocket)
+        echo "doing $startStop $command ..."
+        ;;
+    (functions-worker)
         echo "doing $startStop $command ..."
         ;;
     (standalone)

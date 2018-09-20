@@ -18,29 +18,46 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 import java.io.IOException;
+import java.net.URI;
 import java.security.cert.X509Certificate;
 import java.util.Objects;
+
 import javax.net.ssl.SSLContext;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.proxy.AsyncProxyServlet;
+import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class AdminProxyHandler extends AsyncProxyServlet.Transparent {
+class AdminProxyHandler extends AsyncProxyServlet {
     private static final Logger LOG = LoggerFactory.getLogger(AdminProxyHandler.class);
 
     private final ProxyConfiguration config;
+    private final BrokerDiscoveryProvider discoveryProvider;
+    private final String brokerWebServiceUrl;
+    private final String functionWorkerWebServiceUrl;
 
-    AdminProxyHandler(ProxyConfiguration config) {
+    AdminProxyHandler(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider) {
         this.config = config;
+        this.discoveryProvider = discoveryProvider;
+        this.brokerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getBrokerWebServiceURLTLS()
+                : config.getBrokerWebServiceURL();
+        this.functionWorkerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getFunctionWorkerWebServiceURLTLS()
+                : config.getFunctionWorkerWebServiceURL();
     }
 
     @Override
@@ -102,5 +119,69 @@ class AdminProxyHandler extends AsyncProxyServlet.Transparent {
 
         // return an unauthenticated client, every request will fail.
         return new HttpClient();
+    }
+
+    @Override
+    protected String rewriteTarget(HttpServletRequest request) {
+        StringBuilder url = new StringBuilder();
+
+        boolean isFunctionsRestRequest = false;
+        String requestUri = request.getRequestURI();
+        if (requestUri.startsWith("/admin/v2/functions")
+            || requestUri.startsWith("/admin/functions")) {
+            isFunctionsRestRequest = true;
+        }
+
+        if (isFunctionsRestRequest && !isBlank(functionWorkerWebServiceUrl)) {
+            url.append(functionWorkerWebServiceUrl);
+        } else if (isBlank(brokerWebServiceUrl)) {
+            try {
+                ServiceLookupData availableBroker = discoveryProvider.nextBroker();
+
+                if (config.isTlsEnabledWithBroker()) {
+                    url.append(availableBroker.getWebServiceUrlTls());
+                } else {
+                    url.append(availableBroker.getWebServiceUrl());
+                }
+
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("[{}:{}] Selected active broker is {}", request.getRemoteAddr(), request.getRemotePort(),
+                            url.toString());
+                }
+            } catch (Exception e) {
+                LOG.warn("[{}:{}] Failed to get next active broker {}", request.getRemoteAddr(),
+                        request.getRemotePort(), e.getMessage(), e);
+                return null;
+            }
+        } else {
+            url.append(brokerWebServiceUrl);
+        }
+
+        if (url.lastIndexOf("/") == url.length() - 1) {
+            url.deleteCharAt(url.lastIndexOf("/"));
+        }
+        url.append(requestUri);
+
+        String query = request.getQueryString();
+        if (query != null) {
+            url.append("?").append(query);
+        }
+
+        URI rewrittenUrl = URI.create(url.toString()).normalize();
+
+        if (!validateDestination(rewrittenUrl.getHost(), rewrittenUrl.getPort())) {
+            return null;
+        }
+
+        return rewrittenUrl.toString();
+    }
+
+    @Override
+    protected void addProxyHeaders(HttpServletRequest clientRequest, Request proxyRequest) {
+        super.addProxyHeaders(clientRequest, proxyRequest);
+        String user = (String) clientRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName);
+        if (user != null) {
+            proxyRequest.header("X-Original-Principal", user);
+        }
     }
 }

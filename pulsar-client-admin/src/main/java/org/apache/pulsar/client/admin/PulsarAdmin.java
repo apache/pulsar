@@ -32,6 +32,7 @@ import javax.ws.rs.client.WebTarget;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.pulsar.client.admin.internal.BookiesImpl;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
 import org.apache.pulsar.client.admin.internal.ClustersImpl;
@@ -40,7 +41,9 @@ import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
+import org.apache.pulsar.client.admin.internal.SchemasImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
+import org.apache.pulsar.client.admin.internal.WorkerImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
@@ -73,6 +76,7 @@ public class PulsarAdmin implements Closeable {
     private final Tenants tenants;
     private final Properties properties;
     private final Namespaces namespaces;
+    private final Bookies bookies;
     private final TopicsImpl topics;
     private final NonPersistentTopics nonPersistentTopics;
     private final ResourceQuotas resourceQuotas;
@@ -81,6 +85,8 @@ public class PulsarAdmin implements Closeable {
     private final String serviceUrl;
     private final Lookup lookups;
     private final Functions functions;
+    private final Worker worker;
+    private final Schemas schemas;
     protected final WebTarget root;
     protected final Authentication auth;
 
@@ -183,6 +189,9 @@ public class PulsarAdmin implements Closeable {
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, useTls);
         this.functions = new FunctionsImpl(root, auth);
+        this.worker = new WorkerImpl(root, auth);
+        this.schemas = new SchemasImpl(root, auth);
+        this.bookies = new BookiesImpl(root, auth);
     }
 
     /**
@@ -302,6 +311,13 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
+     * @return the bookies management object
+     */
+    public Bookies bookies() {
+        return bookies;
+    }
+
+    /**
      * @return the persistentTopics management object
      * @deprecated Since 2.0. See {@link #topics()}
      */
@@ -342,6 +358,14 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
+    *
+    * @return the Worker stats
+    */
+   public Worker worker() {
+       return worker;
+   }
+    
+    /**
      * @return the broker statics
      */
     public BrokerStats brokerStats() {
@@ -360,6 +384,13 @@ public class PulsarAdmin implements Closeable {
      */
     public ClientConfigurationData getClientConfigData() {
         return clientConfigData;
+    }
+
+    /**
+     * @return the schemas
+     */
+    public Schemas schemas() {
+        return schemas;
     }
 
     /**

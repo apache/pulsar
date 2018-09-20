@@ -21,15 +21,10 @@ package org.apache.pulsar.functions.instance;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.connect.core.Source;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
 
-import org.apache.pulsar.functions.source.PulsarSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
@@ -44,19 +39,9 @@ public class JavaInstance implements AutoCloseable {
     private Function function;
     private java.util.function.Function javaUtilFunction;
 
-    public JavaInstance(InstanceConfig config, Object userClassObject,
-                 ClassLoader clsLoader,
-                 PulsarClient pulsarClient,
-                 Source source) {
-        // TODO: cache logger instances by functions?
-        Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionDetails().getName());
+    public JavaInstance(ContextImpl contextImpl, Object userClassObject) {
 
-        if (source instanceof PulsarSource) {
-            this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader,
-                    ((PulsarSource) source).getInputConsumer());
-        } else {
-            this.context = null;
-        }
+        this.context = contextImpl;
 
         // create the functions
         if (userClassObject instanceof Function) {
@@ -66,8 +51,10 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
-        context.setCurrentMessageContext(messageId, topicName);
+    public JavaExecutionResult handleMessage(Record<?> record, Object input) {
+        if (context != null) {
+            context.setCurrentMessageContext(record);
+        }
         JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
             Object output;
@@ -89,5 +76,13 @@ public class JavaInstance implements AutoCloseable {
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
         return context.getAndResetMetrics();
+    }
+
+    public void resetMetrics() {
+        context.resetMetrics();
+    }
+
+    public InstanceCommunication.MetricsData getMetrics() {
+        return context.getMetrics();
     }
 }

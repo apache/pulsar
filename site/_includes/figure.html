@@ -18,4 +18,11 @@
     under the License.
 
 -->
-<img src="{{ include.src }}"{{ if include.width }} width="{{ include.width }}%"{{ endif }}{{ if include.alt }} alt="{{ include.alt }}"{{ endif }}>
+<figure>
+    <img src="{{ include.src }}"{% if include.width %} width="{{ include.width }}%"{% endif %}{% if include.alt %} alt="{{ include.alt }}"{% endif %}>
+    {% if include.caption %}
+    <figcaption>
+        {{ include.caption }}
+    </figcaption>
+    {% endif %}
+</figure>

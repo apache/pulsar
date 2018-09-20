@@ -164,4 +164,35 @@ public class ReflectionsTest {
         assertTrue(Reflections.classExists(String.class.getName()));
         assertTrue(!Reflections.classExists("com.fake.class"));
     }
+
+    @Test
+    public void testLoadClass() throws Exception {
+        ClassLoader clsLoader = ClassLoader.getSystemClassLoader();
+        Class[] classes = new Class[] {
+            Integer.class,
+            int.class,
+            Byte.class,
+            byte.class,
+            Double.class,
+            double.class,
+            Float.class,
+            float.class,
+            Character.class,
+            char.class,
+            Long.class,
+            long.class,
+            Short.class,
+            short.class,
+            Boolean.class,
+            boolean.class,
+            Void.class,
+            Reflections.class,
+            Integer[].class,
+            int[].class
+        };
+
+        for (Class cls : classes) {
+            assertEquals(cls, Reflections.loadClass(cls.getName(), clsLoader));
+        }
+    }
 }

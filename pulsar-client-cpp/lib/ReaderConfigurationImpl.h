@@ -29,8 +29,13 @@ struct ReaderConfigurationImpl {
     int receiverQueueSize;
     std::string readerName;
     std::string subscriptionRolePrefix;
+    bool readCompacted;
     ReaderConfigurationImpl()
-        : hasReaderListener(false), receiverQueueSize(1000), readerName(), subscriptionRolePrefix() {}
+        : hasReaderListener(false),
+          receiverQueueSize(1000),
+          readerName(),
+          subscriptionRolePrefix(),
+          readCompacted(false) {}
 };
 }  // namespace pulsar
 #endif /* LIB_READERCONFIGURATIONIMPL_H_ */

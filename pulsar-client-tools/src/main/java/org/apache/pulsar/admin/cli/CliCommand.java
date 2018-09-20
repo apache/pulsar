@@ -21,6 +21,9 @@ package org.apache.pulsar.admin.cli;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -30,25 +33,26 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 
 abstract class CliCommand {
 
-    String[] validatePropertyCluster(List<String> params) {
+    static String[] validatePropertyCluster(List<String> params) {
         return splitParameter(params, 2);
     }
 
-    String validateNamespace(List<String> params) {
+    static String validateNamespace(List<String> params) {
         String namespace = checkArgument(params);
         return NamespaceName.get(namespace).toString();
     }
 
-    String validateTopicName(List<String> params) {
+    static String validateTopicName(List<String> params) {
         String topic = checkArgument(params);
         return TopicName.get(topic).toString();
     }
 
-    String validatePersistentTopic(List<String> params) {
+    static String validatePersistentTopic(List<String> params) {
         String topic = checkArgument(params);
         TopicName topicName = TopicName.get(topic);
         if (topicName.getDomain() != TopicDomain.persistent) {
@@ -56,8 +60,8 @@ abstract class CliCommand {
         }
         return topicName.toString();
     }
-    
-    String validateNonPersistentTopic(List<String> params) {
+
+    static String validateNonPersistentTopic(List<String> params) {
         String topic = checkArgument(params);
         TopicName topicName = TopicName.get(topic);
         if (topicName.getDomain() != TopicDomain.non_persistent) {
@@ -66,14 +70,75 @@ abstract class CliCommand {
         return topicName.toString();
     }
 
-    void validateLatencySampleRate(int sampleRate) {
+    static void validateLatencySampleRate(int sampleRate) {
         if (sampleRate < 0) {
             throw new ParameterException(
                     "Latency sample rate should be positive and non-zero (found " + sampleRate + ")");
         }
     }
 
-    String checkArgument(List<String> arguments) {
+    static long validateSizeString(String s) {
+        char last = s.charAt(s.length() - 1);
+        String subStr = s.substring(0, s.length() - 1);
+        switch (last) {
+        case 'k':
+        case 'K':
+            return Long.parseLong(subStr) * 1024;
+
+        case 'm':
+        case 'M':
+            return Long.parseLong(subStr) * 1024 * 1024;
+
+        case 'g':
+        case 'G':
+            return Long.parseLong(subStr) * 1024 * 1024 * 1024;
+
+        case 't':
+        case 'T':
+            return Long.parseLong(subStr) * 1024 * 1024 * 1024 * 1024;
+
+        default:
+            return Long.parseLong(s);
+        }
+    }
+
+    static int validateTimeString(String s) {
+        char last = s.charAt(s.length() - 1);
+        String subStr = s.substring(0, s.length() - 1);
+        switch (last) {
+        case 'm':
+        case 'M':
+            return Integer.parseInt(subStr);
+
+        case 'h':
+        case 'H':
+            return Integer.parseInt(subStr) * 60;
+
+        case 'd':
+        case 'D':
+            return Integer.parseInt(subStr) * 24 * 60;
+
+        case 'w':
+        case 'W':
+            return Integer.parseInt(subStr) * 7 * 24 * 60;
+
+        default:
+            return Integer.parseInt(s);
+        }
+    }
+
+    static MessageId validateMessageIdString(String resetMessageIdStr) throws PulsarAdminException {
+        String[] messageId = resetMessageIdStr.split(":");
+        try {
+            Preconditions.checkArgument(messageId.length == 2);
+            return new MessageIdImpl(Long.parseLong(messageId[0]), Long.parseLong(messageId[1]), -1);
+        } catch (Exception e) {
+            throw new PulsarAdminException(
+                    "Invalid reset-position (must be in format: ledgerId:entryId) value " + resetMessageIdStr);
+        }
+    }
+
+    static String checkArgument(List<String> arguments) {
         if (arguments.size() != 1) {
             throw new ParameterException("Need to provide just 1 parameter");
         }
@@ -81,7 +146,7 @@ abstract class CliCommand {
         return arguments.get(0);
     }
 
-    private String[] splitParameter(List<String> params, int n) {
+    static private String[] splitParameter(List<String> params, int n) {
         if (params.size() != 1) {
             throw new ParameterException("Need to provide just 1 parameter");
         }
@@ -94,7 +159,7 @@ abstract class CliCommand {
         return parts;
     }
 
-    String getOneArgument(List<String> params) {
+    static String getOneArgument(List<String> params) {
         if (params.size() != 1) {
             throw new ParameterException("Need to provide just 1 parameter");
         }
@@ -112,7 +177,7 @@ abstract class CliCommand {
      *            Validate against max arguments
      * @return
      */
-    String getOneArgument(List<String> params, int pos, int maxArguments) {
+    static String getOneArgument(List<String> params, int pos, int maxArguments) {
         if (params.size() != maxArguments) {
             throw new ParameterException(String.format("Need to provide %s parameters", maxArguments));
         }
@@ -120,7 +185,7 @@ abstract class CliCommand {
         return params.get(pos);
     }
 
-    Set<AuthAction> getAuthActions(List<String> actions) {
+    static Set<AuthAction> getAuthActions(List<String> actions) {
         Set<AuthAction> res = Sets.newTreeSet();
         for (String action : actions) {
             res.add(AuthAction.valueOf(action));

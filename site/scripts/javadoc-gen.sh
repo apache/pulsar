@@ -30,7 +30,7 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -quiet \
     -windowtitle "Pulsar Client Java API" \
     -doctitle "Pulsar Client Java API" \
-    -overview site/scripts/javadoc-client.html \
+    -overview site/javadoc/client.html \
     -d site/api/client \
     -subpackages org.apache.pulsar.client.api \
     -noqualifier $JDK_COMMON_PKGS \
@@ -43,13 +43,26 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -quiet \
     -windowtitle "Pulsar Admin Java API" \
     -doctitle "Pulsar Admin Java API" \
-    -overview site/scripts/javadoc-admin.html \
+    -overview site/javadoc/admin.html \
     -d site/api/admin \
     -noqualifier $JDK_COMMON_PKGS \
     -notimestamp \
     -Xdoclint:none \
     `find pulsar-client-admin -name *.java | grep -v /internal/` \
     `find pulsar-common/src/main/java/org/apache/pulsar/common/policies -name *.java`
+
+  # Pulsar Functions Java SDK
+  javadoc \
+    -quiet \
+    -windowtitle "Pulsar Functions Java SDK" \
+    -doctitle "Pulsar Functions Java SDK" \
+    -overview site/javadoc/pulsar-functions.html \
+    -d site/api/pulsar-functions \
+    -noqualifier $JDK_COMMON_PKGS \
+    -notimestamp \
+    -Xdoclint:none \
+    -exclude lombok.extern.slf4j.Slf4j \
+    `find pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api -name *.java`
 
   # Broker
   #javadoc \

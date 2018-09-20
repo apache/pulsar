@@ -117,4 +117,50 @@ public class MessageIdCompareToTest  {
         assertTrue(batchMessageId3.compareTo(messageIdImpl) == 0, "Expected to be equal");
     }
 
+    @Test
+    public void testMessageIdImplCompareToTopicMessageId() {
+        MessageIdImpl messageIdImpl = new MessageIdImpl(123L, 345L, 567);
+        TopicMessageIdImpl topicMessageId1 = new TopicMessageIdImpl(
+            "test-topic-partition-0",
+            "test-topic",
+            new BatchMessageIdImpl(123L, 345L, 566, 789));
+        TopicMessageIdImpl topicMessageId2 = new TopicMessageIdImpl(
+            "test-topic-partition-0",
+            "test-topic",
+            new BatchMessageIdImpl(123L, 345L, 567, 789));
+        TopicMessageIdImpl topicMessageId3 = new TopicMessageIdImpl(
+            "test-topic-partition-0",
+            "test-topic",
+            new BatchMessageIdImpl(messageIdImpl));
+        assertTrue(messageIdImpl.compareTo(topicMessageId1) > 0, "Expected to be greater than");
+        assertTrue(messageIdImpl.compareTo(topicMessageId2) == 0, "Expected to be equal");
+        assertTrue(messageIdImpl.compareTo(topicMessageId3) == 0, "Expected to be equal");
+        assertTrue(topicMessageId1.compareTo(messageIdImpl) < 0, "Expected to be less than");
+        assertTrue(topicMessageId2.compareTo(messageIdImpl) > 0, "Expected to be greater than");
+        assertTrue(topicMessageId3.compareTo(messageIdImpl) == 0, "Expected to be equal");
+    }
+
+    @Test
+    public void testBatchMessageIdImplCompareToTopicMessageId() {
+        BatchMessageIdImpl messageIdImpl1 = new BatchMessageIdImpl(123L, 345L, 567, 789);
+        BatchMessageIdImpl messageIdImpl2 = new BatchMessageIdImpl(123L, 345L, 567, 0);
+        BatchMessageIdImpl messageIdImpl3 = new BatchMessageIdImpl(123L, 345L, 567, -1);
+        TopicMessageIdImpl topicMessageId1 = new TopicMessageIdImpl(
+            "test-topic-partition-0",
+            "test-topic",
+            new MessageIdImpl(123L, 345L, 566));
+        TopicMessageIdImpl topicMessageId2 = new TopicMessageIdImpl(
+            "test-topic-partition-0",
+            "test-topic",
+            new MessageIdImpl(123L, 345L, 567));
+        assertTrue(messageIdImpl1.compareTo(topicMessageId1) > 0, "Expected to be greater than");
+        assertTrue(messageIdImpl1.compareTo(topicMessageId2) > 0, "Expected to be greater than");
+        assertTrue(messageIdImpl2.compareTo(topicMessageId2) > 0, "Expected to be greater than");
+        assertTrue(messageIdImpl3.compareTo(topicMessageId2) == 0, "Expected to be equal");
+        assertTrue(topicMessageId1.compareTo(messageIdImpl1) < 0, "Expected to be less than");
+        assertTrue(topicMessageId2.compareTo(messageIdImpl1) == 0, "Expected to be equal");
+        assertTrue(topicMessageId2.compareTo(messageIdImpl2) == 0, "Expected to be equal");
+        assertTrue(topicMessageId2.compareTo(messageIdImpl2) == 0, "Expected to be equal");
+    }
+
 }

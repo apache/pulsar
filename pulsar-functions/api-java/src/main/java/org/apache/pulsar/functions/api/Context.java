@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.api;
 
+import java.nio.ByteBuffer;
 import org.slf4j.Logger;
 
 import java.util.Collection;
@@ -33,17 +34,10 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface Context {
     /**
-     * Returns the messageId of the message that we are processing
-     * This messageId is a stringified version of the actual MessageId
-     * @return the messageId
+     * Access the record associated with the current input value
+     * @return
      */
-    byte[] getMessageId();
-
-    /**
-     * The input topic that the message currently being processed belongs to
-     * @return The input topic name
-     */
-    String getCurrentMessageTopicName();
+    Record<?> getCurrentRecord();
 
     /**
      * Get a list of all input topics
@@ -58,10 +52,10 @@ public interface Context {
     String getOutputTopic();
 
     /**
-     * Get output Serde class
-     * @return output serde class
+     * Get output schema builtin type or custom class name
+     * @return output schema builtin type or custom class name
      */
-    String getOutputSerdeClassName();
+    String getOutputSchemaType();
 
     /**
      * The tenant this function belongs to
@@ -114,17 +108,41 @@ public interface Context {
     void incrCounter(String key, long amount);
 
     /**
+     * Retrieve the counter value for the key.
+     *
+     * @param key name of the key
+     * @return the amount of the counter value for this key
+     */
+    long getCounter(String key);
+
+    /**
+     * Updare the state value for the key.
+     *
+     * @param key name of the key
+     * @param value state value of the key
+     */
+    void putState(String key, ByteBuffer value);
+
+    /**
+     * Retrieve the state value for the key.
+     *
+     * @param key name of the key
+     * @return the state value for the key.
+     */
+    ByteBuffer getState(String key);
+
+    /**
      * Get a map of all user-defined key/value configs for the function
      * @return The full map of user-defined config values
      */
-    Map<String, String> getUserConfigMap();
+    Map<String, Object> getUserConfigMap();
 
     /**
      * Get any user-defined key/value
      * @param key The key
      * @return The Optional value specified by the user for that key.
      */
-    Optional<String> getUserConfigValue(String key);
+    Optional<Object> getUserConfigValue(String key);
 
     /**
      * Get any user-defined key/value or a default value if none is present
@@ -132,7 +150,7 @@ public interface Context {
      * @param defaultValue
      * @return Either the user config value associated with a given key or a supplied default value
      */
-    String getUserConfigValueOrDefault(String key, String defaultValue);
+    Object getUserConfigValueOrDefault(String key, Object defaultValue);
 
     /**
      * Record a user defined metric
@@ -143,26 +161,23 @@ public interface Context {
 
     /**
      * Publish an object using serDe for serializing to the topic
-     * @param topicName The name of the topic for publishing
-     * @param object The object that needs to be published
-     * @param serDeClassName The class name of the class that needs to be used to serialize the object before publishing
+     *
+     * @param topicName
+     *            The name of the topic for publishing
+     * @param object
+     *            The object that needs to be published
+     * @param schemaOrSerdeClassName
+     *            Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name of the custom schema class
      * @return A future that completes when the framework is done publishing the message
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName);
+    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
 
     /**
-     * Publish an object using DefaultSerDe for serializing to the topic
+     * Publish an object to the topic using default schemas
      * @param topicName The name of the topic for publishing
      * @param object The object that needs to be published
      * @return A future that completes when the framework is done publishing the message
      */
     <O> CompletableFuture<Void> publish(String topicName, O object);
 
-    /**
-     * By default acknowledgement management is done transparently by Pulsar Functions framework.
-     * However users can disable that and do ack management by themselves by using this API.
-     * @param messageId The messageId that needs to be acknowledged
-     * @return A future that completes when the framework is done acking the message
-     */
-    CompletableFuture<Void> ack(byte[] messageId);
 }

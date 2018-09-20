@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.zookeeper;
 
+import io.prometheus.client.Gauge;
+
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
-
-import io.prometheus.client.Gauge;
 
 /**
  * Instruments ZooKeeperServer to enable stats reporting on data set and z-node sizess

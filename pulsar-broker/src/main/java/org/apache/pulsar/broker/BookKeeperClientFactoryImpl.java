@@ -20,6 +20,7 @@ package org.apache.pulsar.broker;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -33,8 +34,8 @@ import org.apache.zookeeper.ZooKeeper;
 
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
-    private ZooKeeperCache rackawarePolicyZkCache;
-    private ZooKeeperCache clientIsolationZkCache;
+    private final AtomicReference<ZooKeeperCache> rackawarePolicyZkCache = new AtomicReference<>();
+    private final AtomicReference<ZooKeeperCache> clientIsolationZkCache = new AtomicReference<>();
 
     @Override
     public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException {
@@ -67,9 +68,14 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
             bkConf.setProperty(RackawareEnsemblePlacementPolicy.REPP_DNS_RESOLVER_CLASS,
                     ZkBookieRackAffinityMapping.class.getName());
-            this.rackawarePolicyZkCache = new ZooKeeperCache(zkClient) {
+
+            ZooKeeperCache zkc = new ZooKeeperCache(zkClient) {
             };
-            bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.rackawarePolicyZkCache);
+            if (!rackawarePolicyZkCache.compareAndSet(null, zkc)) {
+                zkc.stop();
+            }
+
+            bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.rackawarePolicyZkCache.get());
         }
 
         if (conf.getBookkeeperClientIsolationGroups() != null && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
@@ -77,8 +83,12 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
                     conf.getBookkeeperClientIsolationGroups());
             if (bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE) == null) {
-                this.clientIsolationZkCache = new ZooKeeperCache(zkClient) {
+                ZooKeeperCache zkc = new ZooKeeperCache(zkClient) {
                 };
+
+                if (!clientIsolationZkCache.compareAndSet(null, zkc)) {
+                    zkc.stop();
+                }
                 bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.clientIsolationZkCache);
             }
         }
@@ -91,11 +101,11 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     }
 
     public void close() {
-        if (this.rackawarePolicyZkCache != null) {
-            this.rackawarePolicyZkCache.stop();
+        if (this.rackawarePolicyZkCache.get() != null) {
+            this.rackawarePolicyZkCache.get().stop();
         }
-        if (this.clientIsolationZkCache != null) {
-            this.clientIsolationZkCache.stop();
+        if (this.clientIsolationZkCache.get() != null) {
+            this.clientIsolationZkCache.get().stop();
         }
     }
 }

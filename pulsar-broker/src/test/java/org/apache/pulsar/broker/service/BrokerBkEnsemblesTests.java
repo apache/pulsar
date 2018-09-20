@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.testng.Assert.assertEquals;
+
+import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -54,28 +57,37 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-
 /**
  */
 public class BrokerBkEnsemblesTests {
     protected static int BROKER_SERVICE_PORT = 16650;
-    PulsarService pulsar;
+    protected PulsarService pulsar;
     ServiceConfiguration config;
 
     URL adminUrl;
-    PulsarAdmin admin;
+    protected PulsarAdmin admin;
 
     LocalBookkeeperEnsemble bkEnsemble;
 
     private final int ZOOKEEPER_PORT = 12759;
     protected final int BROKER_WEBSERVICE_PORT = 15782;
 
+    protected final int bkBasePort = 5001;
+    private final int numberOfBookies;
+
+    public BrokerBkEnsemblesTests() {
+        this(3);
+    }
+
+    public BrokerBkEnsemblesTests(int numberOfBookies) {
+        this.numberOfBookies = numberOfBookies;
+    }
+
     @BeforeMethod
-    void setup() throws Exception {
+    protected void setup() throws Exception {
         try {
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, 5001);
+            bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, ZOOKEEPER_PORT, 5001);
             bkEnsemble.start();
 
             // start pulsar service
@@ -107,7 +119,7 @@ public class BrokerBkEnsemblesTests {
     }
 
     @AfterMethod
-    void shutdown() throws Exception {
+    protected void shutdown() throws Exception {
         try {
             admin.close();
             pulsar.close();
@@ -160,7 +172,7 @@ public class BrokerBkEnsemblesTests {
             consumer.acknowledge(msg);
         }
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1, null).get();
         ManagedCursorImpl cursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
         retryStrategically((test) -> cursor.getState().equals("Open"), 5, 100);
 
@@ -195,7 +207,7 @@ public class BrokerBkEnsemblesTests {
         }
 
         // (5) Broker should create new cursor-ledger and remove old cursor-ledger
-        topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1, null).get();
         final ManagedCursorImpl cursor1 = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
         retryStrategically((test) -> cursor1.getState().equals("Open"), 5, 100);
         long newCursorLedgerId = cursor1.getCursorLedger();
@@ -225,8 +237,11 @@ public class BrokerBkEnsemblesTests {
      *
      * @throws Exception
      */
-    @Test(timeOut = 6000)
+    @Test
     public void testSkipCorruptDataLedger() throws Exception {
+        // Ensure intended state for autoSkipNonRecoverableData
+        admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "false");
+
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -235,15 +250,19 @@ public class BrokerBkEnsemblesTests {
         final int totalDataLedgers = 5;
         final int entriesPerLedger = totalMessages / totalDataLedgers;
 
-        admin.namespaces().createNamespace(ns1);
+        try {
+            admin.namespaces().createNamespace(ns1);
+        } catch (Exception e) {
 
-        final String topic1 = "persistent://" + ns1 + "/my-topic";
+        }
+
+        final String topic1 = "persistent://" + ns1 + "/my-topic-" + System.currentTimeMillis();
 
         // Create subscription
         Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
                 .receiverQueueSize(5).subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1, null).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
         Field configField = ManagedCursorImpl.class.getDeclaredField("config");
@@ -276,6 +295,7 @@ public class BrokerBkEnsemblesTests {
         // (2) delete first 4 data-ledgers
         ledgerInfo.entrySet().forEach(entry -> {
             if (!entry.equals(lastLedger)) {
+                assertEquals(entry.getValue().getEntries(), entriesPerLedger);
                 try {
                     bookKeeper.deleteLedger(entry.getKey());
                 } catch (Exception e) {
@@ -311,7 +331,7 @@ public class BrokerBkEnsemblesTests {
         // (5) consumer will be able to consume 20 messages from last non-deleted ledger
         consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
         for (int i = 0; i < entriesPerLedger; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = consumer.receive();
             System.out.println(i);
             consumer.acknowledge(msg);
         }
@@ -319,7 +339,6 @@ public class BrokerBkEnsemblesTests {
         producer.close();
         consumer.close();
         client.close();
-
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BrokerBkEnsemblesTests.class);

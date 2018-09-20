@@ -136,6 +136,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     private CompletableFuture<Boolean> checkCompatibilityWithLatest(String schemaId, SchemaData schema) {
+
         return getSchema(schemaId).thenApply(storedSchema ->
             (storedSchema == null) ||
                 compatibilityChecks.getOrDefault(
@@ -154,6 +155,10 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 return SchemaType.STRING;
             case JSON:
                 return SchemaType.JSON;
+            case PROTOBUF:
+                return SchemaType.PROTOBUF;
+            case AVRO:
+                return SchemaType.AVRO;
             default:
                 return SchemaType.NONE;
             }
@@ -167,6 +172,10 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     return SchemaRegistryFormat.SchemaInfo.SchemaType.STRING;
                 case JSON:
                     return SchemaRegistryFormat.SchemaInfo.SchemaType.JSON;
+                case PROTOBUF:
+                    return SchemaRegistryFormat.SchemaInfo.SchemaType.PROTOBUF;
+                case AVRO:
+                    return SchemaRegistryFormat.SchemaInfo.SchemaType.AVRO;
                 default:
                     return SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
             }

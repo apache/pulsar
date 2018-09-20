@@ -96,7 +96,7 @@ class BatchMessageContainer {
         }
 
         if (previousCallback != null) {
-            previousCallback.addCallback(callback);
+            previousCallback.addCallback(msg, callback);
         }
         previousCallback = callback;
 

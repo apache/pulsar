@@ -160,7 +160,8 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Grant a new permission to a role on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Concurrent modification") })
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 501, message = "Authorization is not enabled")})
     public void grantPermissionOnNamespace(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("role") String role, Set<AuthAction> actions) {
         validateNamespaceName(tenant, namespace);
@@ -655,6 +656,108 @@ public class Namespaces extends NamespacesBase {
         }
 
         return policies;
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/compactionThreshold")
+    @ApiOperation(value = "Maximum number of uncompacted bytes in topics before compaction is triggered.",
+                  notes = "The backlog size is compared to the threshold periodically. "
+                          + "A threshold of 0 disabled automatic compaction")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public long getCompactionThreshold(@PathParam("tenant") String tenant,
+                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetCompactionThreshold();
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/compactionThreshold")
+    @ApiOperation(value = "Set maximum number of uncompacted bytes in a topic before compaction is triggered.",
+                  notes = "The backlog size is compared to the threshold periodically. "
+                          + "A threshold of 0 disabled automatic compaction")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification"),
+                            @ApiResponse(code = 412, message = "compactionThreshold value is not valid") })
+    public void setCompactionThreshold(@PathParam("tenant") String tenant,
+                                       @PathParam("namespace") String namespace,
+                                       long newThreshold) {
+        validateNamespaceName(tenant, namespace);
+        internalSetCompactionThreshold(newThreshold);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/offloadThreshold")
+    @ApiOperation(value = "Maximum number of bytes stored on the pulsar cluster for a topic,"
+                          + " before the broker will start offloading to longterm storage",
+                  notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public long getOffloadThreshold(@PathParam("tenant") String tenant,
+                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetOffloadThreshold();
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/offloadThreshold")
+    @ApiOperation(value = "Set maximum number of bytes stored on the pulsar cluster for a topic,"
+                          + " before the broker will start offloading to longterm storage",
+                  notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification"),
+                            @ApiResponse(code = 412, message = "offloadThreshold value is not valid") })
+    public void setOffloadThreshold(@PathParam("tenant") String tenant,
+                                    @PathParam("namespace") String namespace,
+                                    long newThreshold) {
+        validateNamespaceName(tenant, namespace);
+        internalSetOffloadThreshold(newThreshold);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/offloadDeletionLagMs")
+    @ApiOperation(value = "Number of milliseconds to wait before deleting a ledger segment which has been offloaded"
+                          + " from the Pulsar cluster's local storage (i.e. BookKeeper)",
+                  notes = "A negative value denotes that deletion has been completely disabled."
+                          + " 'null' denotes that the topics in the namespace will fall back to the"
+                          + " broker default for deletion lag.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public Long getOffloadDeletionLag(@PathParam("tenant") String tenant,
+                                      @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetOffloadDeletionLag();
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/offloadDeletionLagMs")
+    @ApiOperation(value = "Set number of milliseconds to wait before deleting a ledger segment which has been offloaded"
+                          + " from the Pulsar cluster's local storage (i.e. BookKeeper)",
+                  notes = "A negative value disables the deletion completely.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification"),
+                            @ApiResponse(code = 412, message = "offloadDeletionLagMs value is not valid") })
+    public void setOffloadDeletionLag(@PathParam("tenant") String tenant,
+                                      @PathParam("namespace") String namespace,
+                                      long newDeletionLagMs) {
+        validateNamespaceName(tenant, namespace);
+        internalSetOffloadDeletionLag(newDeletionLagMs);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/offloadDeletionLagMs")
+    @ApiOperation(value = "Clear the namespace configured offload deletion lag. The topics in the namespace"
+                          + " will fallback to using the default configured deletion lag for the broker")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void clearOffloadDeletionLag(@PathParam("tenant") String tenant,
+                                        @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetOffloadDeletionLag(null);
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);

@@ -144,11 +144,19 @@ public class PulsarBrokerStarter {
                     workerConfig = WorkerConfig.load(starterArguments.fnWorkerConfigFile);
                 }
                 // worker talks to local broker
-                workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + brokerConfig.getBrokerServicePort());
-                workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + brokerConfig.getWebServicePort());
+                boolean useTls = workerConfig.isUseTls();
+                String pulsarServiceUrl = useTls && isNotBlank(PulsarService.brokerUrlTls(brokerConfig))
+                        ? PulsarService.brokerUrlTls(brokerConfig)
+                        : PulsarService.brokerUrl(brokerConfig);
+                String webServiceUrl = useTls && isNotBlank(PulsarService.webAddressTls(brokerConfig))
+                        ? PulsarService.webAddressTls(brokerConfig)
+                        : PulsarService.webAddress(brokerConfig);
+                workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
+                workerConfig.setPulsarWebServiceUrl(webServiceUrl);
                 String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                     brokerConfig.getAdvertisedAddress());
                 workerConfig.setWorkerHostname(hostname);
+                workerConfig.setWorkerPort(brokerConfig.getWebServicePort());
                 workerConfig.setWorkerId(
                     "c-" + brokerConfig.getClusterName()
                         + "-fw-" + hostname

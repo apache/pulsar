@@ -28,7 +28,7 @@ RUN apt-get -y install postgresql python sudo nginx supervisor
 RUN pip install uwsgi 'Django<2.0' psycopg2 pytz requests
 
 # Postgres configuration
-COPY conf/postgresql.conf /etc/postgresql/9.4/main/
+COPY conf/postgresql.conf /etc/postgresql/9.6/main/
 
 # Configure nginx and supervisor
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf

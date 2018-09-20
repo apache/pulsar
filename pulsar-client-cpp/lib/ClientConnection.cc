@@ -141,7 +141,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
         using namespace boost::filesystem;
 
 #if BOOST_VERSION >= 105400
-        boost::asio::ssl::context ctx(executor_->io_service_, boost::asio::ssl::context::tlsv12_client);
+        boost::asio::ssl::context ctx(boost::asio::ssl::context::tlsv12_client);
 #else
         boost::asio::ssl::context ctx(executor_->io_service_, boost::asio::ssl::context::tlsv1_client);
 #endif
@@ -158,6 +158,12 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
                 close();
                 return;
             }
+        }
+
+        if (!authentication_) {
+            LOG_ERROR("Invalid authentication plugin");
+            close();
+            return;
         }
 
         AuthenticationDataPtr authData;
@@ -213,7 +219,7 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
 }
 
 void ClientConnection::startConsumerStatsTimer(std::vector<uint64_t> consumerStatsRequests) {
-    std::vector<Promise<Result, BrokerConsumerStatsImpl> > consumerStatsPromises;
+    std::vector<Promise<Result, BrokerConsumerStatsImpl>> consumerStatsPromises;
     Lock lock(mutex_);
 
     for (int i = 0; i < consumerStatsRequests.size(); i++) {
@@ -354,6 +360,10 @@ void ClientConnection::handleSentPulsarConnect(const boost::system::error_code& 
  *
  */
 void ClientConnection::tcpConnectAsync() {
+    if (isClosed()) {
+        return;
+    }
+
     boost::system::error_code err;
     Url service_url;
     if (!Url::parse(physicalAddress_, service_url)) {
@@ -803,7 +813,7 @@ void ClientConnection::handleIncomingCommand() {
                                 lookupResultPtr->setBrokerUrl(lookupTopicResponse.brokerserviceurl());
                             }
 
-                            lookupResultPtr->setBrokerUrlSsl(lookupTopicResponse.brokerserviceurltls());
+                            lookupResultPtr->setBrokerUrlTls(lookupTopicResponse.brokerserviceurltls());
                             lookupResultPtr->setAuthoritative(lookupTopicResponse.authoritative());
                             lookupResultPtr->setRedirect(lookupTopicResponse.response() ==
                                                          CommandLookupTopicResponse::Redirect);
@@ -846,6 +856,7 @@ void ClientConnection::handleIncomingCommand() {
                                         << " -- req_id: " << error.request_id());
 
                     Lock lock(mutex_);
+
                     PendingRequestsMap::iterator it = pendingRequests_.find(error.request_id());
                     if (it != pendingRequests_.end()) {
                         PendingRequestData requestData = it->second;
@@ -855,7 +866,27 @@ void ClientConnection::handleIncomingCommand() {
                         requestData.promise.setFailed(getResult(error.error()));
                         requestData.timer->cancel();
                     } else {
-                        lock.unlock();
+                        PendingGetLastMessageIdRequestsMap::iterator it =
+                            pendingGetLastMessageIdRequests_.find(error.request_id());
+                        if (it != pendingGetLastMessageIdRequests_.end()) {
+                            Promise<Result, MessageId> getLastMessageIdPromise = it->second;
+                            pendingGetLastMessageIdRequests_.erase(it);
+                            lock.unlock();
+
+                            getLastMessageIdPromise.setFailed(getResult(error.error()));
+                        } else {
+                            PendingGetNamespaceTopicsMap::iterator it =
+                                pendingGetNamespaceTopicsRequests_.find(error.request_id());
+                            if (it != pendingGetNamespaceTopicsRequests_.end()) {
+                                Promise<Result, NamespaceTopicsPtr> getNamespaceTopicsPromise = it->second;
+                                pendingGetNamespaceTopicsRequests_.erase(it);
+                                lock.unlock();
+
+                                getNamespaceTopicsPromise.setFailed(getResult(error.error()));
+                            } else {
+                                lock.unlock();
+                            }
+                        }
                     }
                     break;
                 }
@@ -925,6 +956,80 @@ void ClientConnection::handleIncomingCommand() {
                     LOG_DEBUG(cnxString_ << "Received notification about active consumer changes");
                     // ignore this message for now.
                     // TODO: @link{https://github.com/apache/incubator-pulsar/issues/1240}
+                    break;
+                }
+
+                case BaseCommand::GET_LAST_MESSAGE_ID_RESPONSE: {
+                    const CommandGetLastMessageIdResponse& getLastMessageIdResponse =
+                        incomingCmd_.getlastmessageidresponse();
+                    LOG_DEBUG(cnxString_ << "Received getLastMessageIdResponse from server. req_id: "
+                                         << getLastMessageIdResponse.request_id());
+
+                    Lock lock(mutex_);
+                    PendingGetLastMessageIdRequestsMap::iterator it =
+                        pendingGetLastMessageIdRequests_.find(getLastMessageIdResponse.request_id());
+
+                    if (it != pendingGetLastMessageIdRequests_.end()) {
+                        Promise<Result, MessageId> getLastMessageIdPromise = it->second;
+                        pendingGetLastMessageIdRequests_.erase(it);
+                        lock.unlock();
+
+                        MessageIdData messageIdData = getLastMessageIdResponse.last_message_id();
+                        MessageId messageId = MessageId(messageIdData.partition(), messageIdData.ledgerid(),
+                                                        messageIdData.entryid(), messageIdData.batch_index());
+
+                        getLastMessageIdPromise.setValue(messageId);
+                    } else {
+                        lock.unlock();
+                        LOG_WARN(
+                            "getLastMessageIdResponse command - Received unknown request id from server: "
+                            << getLastMessageIdResponse.request_id());
+                    }
+                    break;
+                }
+
+                case BaseCommand::GET_TOPICS_OF_NAMESPACE_RESPONSE: {
+                    const CommandGetTopicsOfNamespaceResponse& response =
+                        incomingCmd_.gettopicsofnamespaceresponse();
+
+                    LOG_DEBUG(cnxString_ << "Received GetTopicsOfNamespaceResponse from server. req_id: "
+                                         << response.request_id() << " topicsSize" << response.topics_size());
+
+                    Lock lock(mutex_);
+                    PendingGetNamespaceTopicsMap::iterator it =
+                        pendingGetNamespaceTopicsRequests_.find(response.request_id());
+
+                    if (it != pendingGetNamespaceTopicsRequests_.end()) {
+                        Promise<Result, NamespaceTopicsPtr> getTopicsPromise = it->second;
+                        pendingGetNamespaceTopicsRequests_.erase(it);
+                        lock.unlock();
+
+                        int numTopics = response.topics_size();
+                        std::set<std::string> topicSet;
+                        // get all topics
+                        for (int i = 0; i < numTopics; i++) {
+                            // remove partition part
+                            const std::string& topicName = response.topics(i);
+                            int pos = topicName.find("-partition-");
+                            std::string filteredName = topicName.substr(0, pos);
+
+                            // filter duped topic name
+                            if (topicSet.find(filteredName) == topicSet.end()) {
+                                topicSet.insert(filteredName);
+                            }
+                        }
+
+                        NamespaceTopicsPtr topicsPtr =
+                            boost::make_shared<std::vector<std::string>>(topicSet.begin(), topicSet.end());
+
+                        getTopicsPromise.setValue(topicsPtr);
+                    } else {
+                        lock.unlock();
+                        LOG_WARN(
+                            "GetTopicsOfNamespaceResponse command - Received unknown request id from "
+                            "server: "
+                            << response.request_id());
+                    }
                     break;
                 }
 
@@ -1214,4 +1319,38 @@ int ClientConnection::getServerProtocolVersion() const { return serverProtocolVe
 Commands::ChecksumType ClientConnection::getChecksumType() const {
     return getServerProtocolVersion() >= proto::v6 ? Commands::Crc32c : Commands::None;
 }
+
+Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consumerId, uint64_t requestId) {
+    Lock lock(mutex_);
+    Promise<Result, MessageId> promise;
+    if (isClosed()) {
+        lock.unlock();
+        LOG_ERROR(cnxString_ << " Client is not connected to the broker");
+        promise.setFailed(ResultNotConnected);
+        return promise.getFuture();
+    }
+
+    pendingGetLastMessageIdRequests_.insert(std::make_pair(requestId, promise));
+    lock.unlock();
+    sendCommand(Commands::newGetLastMessageId(consumerId, requestId));
+    return promise.getFuture();
+}
+
+Future<Result, NamespaceTopicsPtr> ClientConnection::newGetTopicsOfNamespace(const std::string& nsName,
+                                                                             uint64_t requestId) {
+    Lock lock(mutex_);
+    Promise<Result, NamespaceTopicsPtr> promise;
+    if (isClosed()) {
+        lock.unlock();
+        LOG_ERROR(cnxString_ << "Client is not connected to the broker");
+        promise.setFailed(ResultNotConnected);
+        return promise.getFuture();
+    }
+
+    pendingGetNamespaceTopicsRequests_.insert(std::make_pair(requestId, promise));
+    lock.unlock();
+    sendCommand(Commands::newGetTopicsOfNamespace(nsName, requestId));
+    return promise.getFuture();
+}
+
 }  // namespace pulsar

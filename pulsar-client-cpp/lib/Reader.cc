@@ -66,4 +66,25 @@ void Reader::closeAsync(ResultCallback callback) {
 
     impl_->closeAsync(callback);
 }
+
+void Reader::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
+    if (!impl_) {
+        callback(ResultConsumerNotInitialized, false);
+        return;
+    }
+
+    impl_->hasMessageAvailableAsync(callback);
+}
+
+Result Reader::hasMessageAvailable(bool& hasMessageAvailable) {
+    if (!impl_) {
+        return ResultConsumerNotInitialized;
+    }
+
+    Promise<Result, bool> promise;
+
+    impl_->hasMessageAvailableAsync(WaitForCallbackValue<bool>(promise));
+    return promise.getFuture().get(hasMessageAvailable);
+}
+
 }  // namespace pulsar

@@ -49,6 +49,7 @@ class ConsumerImplBase {
     virtual const std::string& getName() const = 0;
     virtual int getNumOfPrefetchedMessages() const = 0;
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) = 0;
+    virtual void seekAsync(const MessageId& msgId, ResultCallback callback) = 0;
 };
 }  // namespace pulsar
 #endif  // PULSAR_CONSUMER_IMPL_BASE_HEADER

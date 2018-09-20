@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.broker.admin.v1;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import javax.ws.rs.Consumes;
@@ -40,10 +37,8 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -54,7 +49,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +62,7 @@ import io.swagger.annotations.ApiResponses;
 @Path("/namespaces")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Api(value = "/namespaces", description = "Namespaces admin apis", tags = "namespaces")
+@Api(value = "/namespaces", description = "Namespaces admin apis", tags = "namespaces", hidden = true)
 @SuppressWarnings("deprecation")
 public class Namespaces extends NamespacesBase {
 
@@ -224,7 +218,8 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Grant a new permission to a role on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Concurrent modification") })
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 501, message = "Authorization is not enabled")})
     public void grantPermissionOnNamespace(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("role") String role, Set<AuthAction> actions) {
         validateNamespaceName(property, cluster, namespace);
@@ -715,6 +710,67 @@ public class Namespaces extends NamespacesBase {
         internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription);
     }
 
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/compactionThreshold")
+    @ApiOperation(value = "Maximum number of uncompacted bytes in topics before compaction is triggered.",
+                  notes = "The backlog size is compared to the threshold periodically. "
+                          + "A threshold of 0 disabled automatic compaction")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public long getCompactionThreshold(@PathParam("property") String property,
+                                       @PathParam("cluster") String cluster,
+                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetCompactionThreshold();
+    }
+
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/compactionThreshold")
+    @ApiOperation(value = "Set maximum number of uncompacted bytes in a topic before compaction is triggered.",
+                  notes = "The backlog size is compared to the threshold periodically. "
+                          + "A threshold of 0 disabled automatic compaction")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification"),
+                            @ApiResponse(code = 412, message = "compactionThreshold value is not valid") })
+    public void setCompactionThreshold(@PathParam("property") String property,
+                                       @PathParam("cluster") String cluster,
+                                       @PathParam("namespace") String namespace,
+                                       long newThreshold) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetCompactionThreshold(newThreshold);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/offloadThreshold")
+    @ApiOperation(value = "Maximum number of bytes stored on the pulsar cluster for a topic,"
+                          + " before the broker will start offloading to longterm storage",
+                  notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public long getOffloadThreshold(@PathParam("property") String property,
+                                    @PathParam("cluster") String cluster,
+                                    @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetOffloadThreshold();
+    }
+
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/offloadThreshold")
+    @ApiOperation(value = "Set maximum number of bytes stored on the pulsar cluster for a topic,"
+                          + " before the broker will start offloading to longterm storage",
+                  notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification"),
+                            @ApiResponse(code = 412, message = "offloadThreshold value is not valid") })
+    public void setOffloadThreshold(@PathParam("property") String property,
+                                    @PathParam("cluster") String cluster,
+                                    @PathParam("namespace") String namespace,
+                                    long newThreshold) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetOffloadThreshold(newThreshold);
+    }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

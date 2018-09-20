@@ -24,18 +24,11 @@ tags: [apache, kafka, wrapper]
 
 -->
 
-Pulsar provides an easy option for applications that are currently written using the
-[Apache Kafka](http://kafka.apache.org) Java client API.
-
-
+Pulsar provides an easy option for applications that are currently written using the [Apache Kafka](http://kafka.apache.org) Java client API.
 
 ## Using the Pulsar Kafka compatibility wrapper
 
-In an existing application, change the regular Kafka client dependency and replace it with
-the Pulsar Kafka wrapper:
-
-
-Remove:
+In an existing application, change the regular Kafka client dependency and replace it with the Pulsar Kafka wrapper. Remove:
 
 ```xml
 <dependency>
@@ -45,7 +38,7 @@ Remove:
 </dependency>
 ```
 
-Include dependency for Pulsar Kafka wrapper:
+Then include this dependency for the Pulsar Kafka wrapper:
 
 ```xml
 <dependency>
@@ -81,7 +74,7 @@ instead of `org.apache.kafka.clients.producer.KafkaProducer` and `org.apache.kaf
 
 ```java
 // Topic needs to be a regular Pulsar topic
-String topic = "persistent://sample/standalone/ns/my-topic";
+String topic = "persistent://public/default/my-topic";
 
 Properties props = new Properties();
 // Point to a Pulsar service
@@ -103,7 +96,7 @@ producer.close();
 ## Consumer example
 
 ```java
-String topic = "persistent://sample/standalone/ns/my-topic";
+String topic = "persistent://public/default/my-topic";
 
 Properties props = new Properties();
 // Point to a Pulsar service

@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.util.concurrent.MoreExecutors;
+
+import io.netty.channel.EventLoopGroup;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.ssl.SslContext;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,6 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.asynchttpclient.AsyncCompletionHandler;
@@ -45,13 +53,6 @@ import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.util.concurrent.MoreExecutors;
-
-import io.netty.channel.EventLoopGroup;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.ssl.SslContext;
 
 public class HttpClient implements Closeable {
 
@@ -158,8 +159,13 @@ public class HttpClient implements Closeable {
                     Response response = responseFuture.get();
                     if (response.getStatusCode() != HttpURLConnection.HTTP_OK) {
                         log.warn("[{}] HTTP get request failed: {}", requestUrl, response.getStatusText());
-                        future.completeExceptionally(
-                                new PulsarClientException("HTTP get request failed: " + response.getStatusText()));
+                        Exception e;
+                        if (response.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                            e = new NotFoundException("Not found: " + response.getStatusText());
+                        } else {
+                            e = new PulsarClientException("HTTP get request failed: " + response.getStatusText());
+                        }
+                        future.completeExceptionally(e);
                         return;
                     }
 

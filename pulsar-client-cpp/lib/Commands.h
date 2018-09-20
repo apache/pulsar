@@ -77,12 +77,14 @@ class Commands {
     static SharedBuffer newSubscribe(const std::string& topic, const std::string& subscription,
                                      uint64_t consumerId, uint64_t requestId,
                                      proto::CommandSubscribe_SubType subType, const std::string& consumerName,
-                                     SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId);
+                                     SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId,
+                                     bool readCompacted, const std::map<std::string, std::string>& metadata);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 
     static SharedBuffer newProducer(const std::string& topic, uint64_t producerId,
-                                    const std::string& producerName, uint64_t requestId);
+                                    const std::string& producerName, uint64_t requestId,
+                                    const std::map<std::string, std::string>& metadata);
 
     static SharedBuffer newAck(uint64_t consumerId, const proto::MessageIdData& messageId,
                                proto::CommandAck_AckType ackType, int validationError);
@@ -108,6 +110,10 @@ class Commands {
     static Message deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex);
 
     static SharedBuffer newConsumerStats(uint64_t consumerId, uint64_t requestId);
+
+    static SharedBuffer newSeek(uint64_t consumerId, uint64_t requestId, const MessageId& messageId);
+    static SharedBuffer newGetLastMessageId(uint64_t consumerId, uint64_t requestId);
+    static SharedBuffer newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId);
 
    private:
     Commands();

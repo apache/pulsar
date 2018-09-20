@@ -20,7 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import com.google.common.collect.Lists;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -119,6 +123,50 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
             assertEquals(new String(message.getData()), messagePredicate + i);
             assertEquals(consumer.numMessagesInQueue(), 0);
             log.info("Consumer received : " + new String(message.getData()));
+        }
+    }
+
+    @Test()
+    public void zeroQueueSizeConsumerListener() throws Exception {
+        String key = "zeroQueueSizeConsumerListener";
+
+        // 1. Config
+        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final String messagePredicate = "my-message-" + key + "-";
+
+        // 2. Create Producer
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+
+        // 3. Create Consumer
+        List<Message<byte[]>> messages = Lists.newArrayList();
+        CountDownLatch latch = new CountDownLatch(totalMessages);
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).receiverQueueSize(0).messageListener((cons, msg) -> {
+                    assertEquals(((ConsumerImpl) cons).numMessagesInQueue(), 0);
+                    synchronized(messages) {
+                        messages.add(msg);
+                    }
+                    log.info("Consumer received: " + new String(msg.getData()));
+                    latch.countDown();
+                }).subscribe();
+
+        // 3. producer publish messages
+        for (int i = 0; i < totalMessages; i++) {
+            String message = messagePredicate + i;
+            log.info("Producer produced: " + message);
+            producer.send(message.getBytes());
+        }
+
+        // 4. Receiver receives the message
+        latch.await();
+        assertEquals(consumer.numMessagesInQueue(), 0);
+        assertEquals(messages.size(), totalMessages);
+        for (int i = 0; i < messages.size(); i++) {
+            assertEquals(new String(messages.get(i).getData()), messagePredicate + i);
         }
     }
 

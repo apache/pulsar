@@ -20,12 +20,14 @@ package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * Provides lookup service to find broker which serves given topic. It helps to
@@ -38,7 +40,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
  * </ul>
  *
  */
-interface LookupService extends AutoCloseable {
+public interface LookupService extends AutoCloseable {
 
     /**
      * Calls broker lookup-api to get broker {@link InetSocketAddress} which serves namespace bundle that contains given
@@ -57,6 +59,8 @@ interface LookupService extends AutoCloseable {
 	 * @return
 	 */
 	public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName);
+
+	public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName);
 
 	/**
 	 * Returns broker-service lookup api url.

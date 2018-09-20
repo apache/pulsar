@@ -33,7 +33,7 @@ A URL for a production Pulsar cluster may look something like this:
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you're using [TLS](../../admin/Authz#tls-client-auth) authentication, the URL will look like something like this:
+If you're using [TLS](../../security/tls) authentication, the URL will look like something like this:
 
 ```
 pulsar+ssl://pulsar.us-west.example.com:6651

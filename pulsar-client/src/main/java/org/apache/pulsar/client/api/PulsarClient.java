@@ -19,10 +19,13 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
 /**
  * Class that provides a client interface to Pulsar.
@@ -365,4 +368,26 @@ public interface PulsarClient extends Closeable {
      *             if the forceful shutdown fails
      */
     void shutdown() throws PulsarClientException;
+
+    /**
+     * Force close connection of pulsar client.
+     *
+     * close all producer connection and close all consumer producer.
+     *
+     */
+    void forceCloseConnection();
+
+    /**
+     * Reload lookup service in pulsar client.
+     *
+     * @throws PulsarClientException
+     */
+    void reloadLookUp() throws PulsarClientException;
+
+    /**
+     * Get client config data.
+     *
+     * @return
+     */
+    ClientConfigurationData getConf();
 }

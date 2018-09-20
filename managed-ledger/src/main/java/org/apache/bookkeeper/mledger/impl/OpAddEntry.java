@@ -96,6 +96,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
     public void failed(ManagedLedgerException e) {
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
+        data.release();
         if (cb != null) {
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();

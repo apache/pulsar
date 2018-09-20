@@ -58,13 +58,13 @@ import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.Future;
 
 public class ConnectionPool implements Closeable {
-    private final ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> pool;
+    protected final ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> pool;
 
     private final Bootstrap bootstrap;
     private final EventLoopGroup eventLoopGroup;
     private final int maxConnectionsPerHosts;
 
-    private final DnsNameResolver dnsResolver;
+    protected final DnsNameResolver dnsResolver;
 
     private static final int MaxMessageSize = 5 * 1024 * 1024;
     public static final String TLS_HANDLER = "tls";
@@ -100,9 +100,10 @@ public class ConnectionPool implements Closeable {
                                 conf.getTlsTrustCertsFilePath());
                     }
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
+                    ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
+                } else {
+                    ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
                 }
-
-                ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4));
                 ch.pipeline().addLast("handler", clientCnxSupplier.get());
             }

@@ -43,7 +43,11 @@ public class HashTest {
         Hash h = Murmur3_32Hash.getInstance();
 
         // Same value as C++ client
+        assertEquals(2110152746, h.makeHash("k1"));
+        assertEquals(1479966664, h.makeHash("k2"));
         assertEquals(462881061, h.makeHash("key1"));
         assertEquals(1936800180, h.makeHash("key2"));
+        assertEquals(39696932, h.makeHash("key01"));
+        assertEquals(751761803, h.makeHash("key02"));
     }
 }

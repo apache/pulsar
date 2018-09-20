@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
+
 /**
  * Listener on the consumer state changes.
  */
-public interface ConsumerEventListener {
+public interface ConsumerEventListener extends Serializable {
 
     /**
      * Notified when the consumer group is changed, and the consumer becomes the active consumer.

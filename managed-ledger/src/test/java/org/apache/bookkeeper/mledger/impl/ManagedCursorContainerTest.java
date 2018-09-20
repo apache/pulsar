@@ -198,6 +198,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
+            return null;
+        }
+
+        @Override
         public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
                 AsyncCallbacks.FindEntryCallback callback, Object ctx) {
         }
@@ -275,6 +280,11 @@ public class ManagedCursorContainerTest {
         @Override
         public int getTotalNonContiguousDeletedMessagesRange() {
             return 0;
+        }
+
+        @Override
+        public long getEstimatedSizeSinceMarkDeletePosition() {
+            return 0L;
         }
 
         @Override

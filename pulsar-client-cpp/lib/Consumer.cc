@@ -189,4 +189,25 @@ void Consumer::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback)
     }
     impl_->getBrokerConsumerStatsAsync(callback);
 }
+
+void Consumer::seekAsync(const MessageId& msgId, ResultCallback callback) {
+    if (!impl_) {
+        callback(ResultConsumerNotInitialized);
+        return;
+    }
+    impl_->seekAsync(msgId, callback);
+}
+
+Result Consumer::seek(const MessageId& msgId) {
+    if (!impl_) {
+        return ResultConsumerNotInitialized;
+    }
+
+    Promise<bool, Result> promise;
+    impl_->seekAsync(msgId, WaitForCallback(promise));
+    Result result;
+    promise.getFuture().get(result);
+    return result;
+}
+
 }  // namespace pulsar

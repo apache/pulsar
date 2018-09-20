@@ -98,11 +98,11 @@ public class WordCountFunction implements Function<String, Void> {
 $ bin/pulsar-admin functions create \
   --jar target/my-jar-with-dependencies.jar \
   --className org.example.functions.WordCountFunction \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --name word-count \
-  --inputs persistent://sample/standalone/ns1/sentences \
-  --output persistent://sample/standalone/ns1/count
+  --inputs persistent://public/default/sentences \
+  --output persistent://public/default/count
 ```
 
 ### Content-based routing example {#content}
@@ -120,8 +120,8 @@ from pulsar import Function
 
 class RoutingFunction(Function):
     def __init__(self):
-        self.fruits_topic = "persistent://sample/standalone/ns1/fruits"
-        self.vegetables_topic = "persistent://sample/standalone/ns1/vegetables"
+        self.fruits_topic = "persistent://public/default/fruits"
+        self.vegetables_topic = "persistent://public/default/vegetables"
 
     def is_fruit(item):
         return item in ["apple", "orange", "pear", "other fruits..."]
@@ -144,9 +144,9 @@ class RoutingFunction(Function):
 Pulsar Functions are managed using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool (in particular the [`functions`](../../reference/CliTools#pulsar-admin-functions) command). Here's an example command that would run a function in [local run mode](#local-run):
 
 ```bash
-$ bin/pulsar-functions localrun \
-  --inputs persistent://sample/standalone/ns1/test_src \
-  --output persistent://sample/standalone/ns1/test_result \
+$ bin/pulsar-admin functions localrun \
+  --inputs persistent://public/default/test_src \
+  --output persistent://public/default/test_result \
   --jar examples/api-examples.jar \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction
 ```
@@ -177,13 +177,13 @@ And here's an example `my-function.yaml` file:
 
 ```yaml
 name: my-function
-tenant: sample
-namespace: ns1
+tenant: public
+namespace: default
 jar: ./target/my-functions.jar
 className: org.example.pulsar.functions.MyFunction
 inputs:
-- persistent://sample/standalone/ns1/test_src
-output: persistent://sample/standalone/ns1/test_result
+- persistent://public/default/test_src
+output: persistent://public/default/test_result
 ```
 
 You can also mix and match configuration methods by specifying some function attributes via the CLI and others via YAML configuration.
@@ -194,9 +194,10 @@ Pulsar Functions can currently be written in [Java](../../functions/api#java) an
 
 ## The Pulsar Functions API {#api}
 
-* Type safe (bytes versus specific types)
-* SerDe (built-in vs. custom)
-* Pulsar messages are always just bytes, but Pulsar Functions handles data types for you *unless* you need custom types
+The Pulsar Functions API enables you to create processing logic that is:
+
+* Type safe. Pulsar Functions can process raw bytes or more complex, application-specific types.
+* Based on SerDe (**Ser**ialization/**De**serialization). A variety of types are supported "out of the box" but you can also create your own custom SerDe logic.
 
 ### Function context {#context}
 
@@ -275,8 +276,8 @@ If you run a Pulsar Function in **local run** mode, it will run on the machine f
 $ bin/pulsar-admin functions localrun \
   --py myfunc.py \
   --className myfunc.SomeFunction \
-  --inputs persistent://sample/standalone/ns1/input-1 \
-  --output persistent://sample/standalone/ns1/output-1
+  --inputs persistent://public/default/input-1 \
+  --output persistent://public/default/output-1
 ```
 
 By default, the function will connect to a Pulsar cluster running on the same machine, via a local {% popover broker %} service URL of `pulsar://localhost:6650`. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the `--brokerServiceUrl` flag. Here's an example:
@@ -295,8 +296,8 @@ When you run a Pulsar Function in **cluster mode**, the function code will be up
 $ bin/pulsar-admin functions create \
   --py myfunc.py \
   --className myfunc.SomeFunction \
-  --inputs persistent://sample/standalone/ns1/input-1 \
-  --output persistent://sample/standalone/ns1/output-1
+  --inputs persistent://public/default/input-1 \
+  --output persistent://public/default/output-1
 ```
 
 This command will upload `myfunc.py` to Pulsar, which will use the code to start one [or more](#parallelism) instances of the function.
@@ -310,21 +311,44 @@ This command, for example, would create and run a function with a parallelism of
 ```bash
 $ bin/pulsar-admin functions create \
   --name parallel-fun \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --py func.py \
   --className func.ParallelFunction \
   --parallelism 5
 ```
 
+### Function instance resources {#resources}
+
+When you run Pulsar Functions in [cluster run](#cluster-run) mode, you can specify the resources that are assigned to each function [instance](#parallelism):
+
+Resource | Specified as... | Runtimes
+:--------|:----------------|:--------
+CPU | The number of cores | Docker (coming soon)
+RAM | The number of bytes | Process, Docker
+Disk space | The number of bytes | Docker
+
+Here's an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar target/my-functions.jar \
+  --className org.example.functions.MyFunction \
+  --cpu 8 \
+  --ram 8589934592 \
+  --disk 10737418240
+```
+
+For more information on resources, see the [Deploying and Managing Pulsar Functions](../deployment#resources) documentation.
+
 ### Logging
 
-Pulsar Functions created using the [Pulsar Functions SDK(#sdk) can send logs to a log topic that you specify as part of the function's configuration. The function created using the command below, for example, would produce all logs on the `persistent://sample/standalone/ns1/my-func-1-log` topic:
+Pulsar Functions created using the [Pulsar Functions SDK(#sdk) can send logs to a log topic that you specify as part of the function's configuration. The function created using the command below, for example, would produce all logs on the `persistent://public/default/my-func-1-log` topic:
 
 ```bash
 $ bin/pulsar-admin functions create \
   --name my-func-1 \
-  --logTopic persistent://sample/standalone/ns1/my-func-1-log \
+  --logTopic persistent://public/default/my-func-1-log \
   # Other configs
 ```
 
@@ -387,8 +411,8 @@ If that function were running in a Pulsar cluster, it could be triggered like th
 
 ```bash
 $ bin/pulsar-admin functions trigger \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --name reverse-func \
   --triggerValue "snoitcnuf raslup ot emoclew"
 ```

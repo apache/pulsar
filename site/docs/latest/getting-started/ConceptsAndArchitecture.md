@@ -38,6 +38,22 @@ Pulsar's key features include:
 * Multiple [subscription modes](#subscription-modes) for {% popover topics %} ([exclusive](#exclusive), [shared](#shared), and [failover](#failover))
 * Guaranteed message delivery with [persistent message storage](#persistent-storage) provided by [Apache BookKeeper](http://bookkeeper.apache.org/)
 
+## Messages
+
+Messages are the basic "unit" of Pulsar. They're what {% popover producers %} publish to {% popover topics %} and what {% popover consumers %} then consume from topics (and {% popover acknowledge %} when the message has been processed). Messages are the analogue of letters in a postal service system.
+
+Component | Purpose
+:---------|:-------
+Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](#schema-registry)
+Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](#compaction)
+Properties | An optional key/value map of user-defined properties
+Producer name | The name of the {% popover producer %} that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)
+Sequence ID | Each Pulsar message belongs to an ordered sequence on its {% popover topic %}. A message's sequence ID is its ordering in that sequence.
+Publish time | The timestamp of when the message was published (automatically applied by the {% popover producer %})
+Event time | An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.
+
+{% include admonition.html type="info" content="For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's [binary protocol](../../project/BinaryProtocol)." %}
+
 ## Producers, consumers, topics, and subscriptions
 
 Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern, aka {% popover pub-sub %}. In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) can then [subscribe](#subscription-modes) to those topics, process incoming messages, and send an {% popover acknowledgement %} when processing is complete.
@@ -151,9 +167,9 @@ In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 wou
 
 ### Multi-topic subscriptions
 
-When a {% popover consumer %} subscribes to a Pulsar {% popover topic %}, by default it subscribes to one specific topic, such as `persistent://sample/ns1/standalone/my-topic`. As of Pulsar version 1.23.0-incubating, however, Pulsar consumers can simultaneously subscribe to multiple topics. You can define a list of topics in two ways:
+When a {% popover consumer %} subscribes to a Pulsar {% popover topic %}, by default it subscribes to one specific topic, such as `persistent://public/default/my-topic`. As of Pulsar version 1.23.0-incubating, however, Pulsar consumers can simultaneously subscribe to multiple topics. You can define a list of topics in two ways:
 
-* On the basis of a [**reg**ular **ex**pression](https://en.wikipedia.org/wiki/Regular_expression) (regex), for example `persistent://sample/standalone/ns1/finance-.*`
+* On the basis of a [**reg**ular **ex**pression](https://en.wikipedia.org/wiki/Regular_expression) (regex), for example `persistent://public/default/finance-.*`
 * By explicitly defining a list of topics
 
 {% include admonition.html type="info" content="When subscribing to multiple topics by regex, all topics must be in the same [namespace](#namespaces)." %}
@@ -174,11 +190,11 @@ import org.apache.pulsar.client.api.PulsarClient;
 PulsarClient pulsarClient = // Instantiate Pulsar client object
 
 // Subscribe to all topics in a namespace
-Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
+Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default/.*");
 Consumer allTopicsConsumer = pulsarClient.subscribe(allTopicsInNamespace, "subscription-1");
 
 // Subscribe to a subsets of topics in a namespace, based on regex
-Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo.*");
+Pattern someTopicsInNamespace = Pattern.compile("persistent://public/default/foo.*");
 Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, "subscription-1");
 ```
 
@@ -214,7 +230,7 @@ Here's an example [Java consumer](../../clients/Java#consumer) for a non-persist
 
 ```java
 PulsarClient client = PulsarClient.create("pulsar://localhost:6650");
-String npTopic = "non-persistent://sample/standalone/ns1/my-topic";
+String npTopic = "non-persistent://public/default/my-topic";
 String subscriptionName = "my-subscription-name";
 
 Consumer consumer = client.subscribe(npTopic, subscriptionName);
@@ -225,20 +241,6 @@ Here's an example [Java producer](../../clients/Java#producer) for the same non-
 ```java
 Producer producer = client.createProducer(npTopic);
 ```
-
-#### Broker configuration
-
-Sometimes, there would be a need to configure few dedicated brokers in a cluster, to just serve non-persistent topics.
-
-Broker configuration for enabling broker to own only configured type of topics  
-
-```
-# It disables broker to load persistent topics
-enablePersistentTopics=false
-# It enables broker to load non-persistent topics
-enableNonPersistentTopics=true
-```
-
 
 ## Architecture overview
 
@@ -261,7 +263,7 @@ At the broader {% popover instance %} level, an instance-wide ZooKeeper cluster 
 The Pulsar message {% popover broker %} is a stateless component that's primarily responsible for running two other components:
 
 * An HTTP server that exposes a REST API for both [administrative tasks](../../reference/RestApi) and [topic lookup](#client-setup-phase) for producers and consumers
-* A {% popover dispatcher %}, which is an asynchronous TCP server over a custom [binary protocol](../../reference/BinaryProtocol) used for all data transfers
+* A {% popover dispatcher %}, which is an asynchronous TCP server over a custom [binary protocol](../../project/BinaryProtocol) used for all data transfers
 
 Messages are typically dispatched out of a [managed ledger](#managed-ledger) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from {% popover BookKeeper %}.
 
@@ -404,7 +406,7 @@ More in-depth information can be found in [this post](https://blog.streaml.io/pu
 
 ## Multi-tenancy
 
-Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover tenants %}. Tenants can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
+Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover tenants %}. Tenants can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../security/overview) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
 
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 
@@ -418,7 +420,7 @@ As you can see, the tenant is the most basic unit of categorization for topics (
 
 ## Authentication and Authorization
 
-Pulsar supports a pluggable [authentication](../../admin/Authz) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
+Pulsar supports a pluggable [authentication](../../security/overview) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
 
 ## Client interface
 
@@ -462,7 +464,7 @@ For documentation on using the Pulsar proxy, see the [Pulsar proxy admin documen
 Some important things to know about the Pulsar proxy:
 
 * Connecting clients don't need to provide *any* specific configuration to use the Pulsar proxy. You won't need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you're running a load balancer over the Pulsar proxy).
-* [TLS encryption and authentication](../../admin/Authz/#tls-client-auth) is supported by the Pulsar proxy
+* [TLS encryption and authentication](../../security/tls) is supported by the Pulsar proxy
 
 ## Service discovery
 
@@ -506,11 +508,11 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 
-String topic = "persistent://sample/standalone/ns1/reader-api-test";
-MessageId id = MessageId.earliest;
-
 // Create a reader on a topic and for a specific message (and onward)
-Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+Reader<byte[]> reader = pulsarClient.newReader()
+    .topic("reader-api-test")
+    .startMessageId(MessageId.earliest)
+    .create();
 
 while (true) {
     Message message = reader.readNext();
@@ -522,8 +524,10 @@ while (true) {
 To create a reader that will read from the latest available message:
 
 ```java
-MessageId id = MessageId.latest;
-Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+Reader<byte[]> reader = pulsarClient.newReader()
+    .topic(topic)
+    .startMessageId(MessageId.latest)
+    .create();
 ```
 
 To create a reader that will read from some message between earliest and latest:
@@ -531,5 +535,123 @@ To create a reader that will read from some message between earliest and latest:
 ```java
 byte[] msgIdBytes = // Some byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
-Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+Reader<byte[]> reader = pulsarClient.newReader()
+    .topic(topic)
+    .startMessageId(id)
+    .create();
 ```
+
+## Topic compaction {#compaction}
+
+Pulsar was built with highly scalable [persistent storage](#persistent-storage) of message data as a primary objective. Pulsar {% popover topics %} enable you to persistently store as many unacknowledged messages as you need while preserving message ordering. By default, Pulsar stores *all* unacknowledged/unprocessed messages produced on a topic. Accumulating many unacknowledged messages on a topic is necessary for many Pulsar use cases but it can also be very time intensive for Pulsar {% popover consumers %} to "rewind" through the entire log of messages.
+
+{% include admonition.html type="success" content="For a more practical guide to topic compaction, see the [Topic compaction cookbook](../../cookbooks/compaction)." %}
+
+For some use cases consumers don't need a complete "image" of the topic log. They may only need a few values to construct a more "shallow" image of the log, perhaps even just the most recent value. For these kinds of use cases Pulsar offers **topic compaction**. When you run compaction on a topic, Pulsar goes through a topic's backlog and removes messages that are *obscured* by later messages, i.e. it goes through the topic on a per-key basis and leaves only the most recent message associated with that key.
+
+Pulsar's topic compaction feature:
+
+* Allows for faster "rewind" through topic logs
+* Applies only to [persistent topics](#persistent-storage)
+* Triggered automatically when the backlog reaches a certain size or can be triggered manually via the command line. See the [Topic compaction cookbook](../../cookbooks/compaction)
+* Is conceptually and operationally distinct from [retention and expiry](#message-retention-and-expiry). Topic compaction *does*, however, respect retention. If retention has removed a message from the message backlog of a topic, the message will also not be readable from the compacted topic ledger.
+
+{% include admonition.html type="info" title="Topic compaction example: the stock ticker"
+   content="An example use case for a compacted Pulsar topic would be a stock ticker topic. On a stock ticker topic, each message bears a timestamped dollar value for stocks for purchase (with the message key holding the stock symbol, e.g. `AAPL` or `GOOG`). With a stock ticker you may care only about the most recent value(s) of the stock and have no interest in historical data (i.e. you don't need to construct a complete image of the topic's sequence of messages per key). Compaction would be highly beneficial in this case because it would keep consumers from needing to rewind through obscured messages." %}
+
+### How topic compaction works
+
+When topic compaction is triggered [via the CLI](../../cookbooks/compaction), Pulsar will iterate over the entire topic from beginning to end. For each key that it encounters the compaction routine will keep a record of the latest occurrence of that key.
+
+After that, the broker will create a new [BookKeeper ledger](#ledgers) and make a second iteration through each message on the topic. For each message, if the key matches the latest occurrence of that key, then the key's data payload, message ID, and metadata will be written to the newly created ledger. If the key doesn't match the latest then the message will be skipped and left alone. If any given message has an empty payload, it will be skipped and considered deleted (akin to the concept of [tombstones](https://en.wikipedia.org/wiki/Tombstone_(data_store)) in key-value databases). At the end of this second iteration through the topic, the newly created BookKeeper ledger is closed and two things are written to the topic's metadata: the ID of the BookKeeper ledger and the message ID of the last compacted message (this is known as the **compaction horizon** of the topic). Once this metadata is written compaction is complete.
+
+After the initial compaction operation, the Pulsar {% popover broker %} that owns the topic is notified whenever any future changes are made to the compaction horizon and compacted backlog. When such changes occur:
+
+* Clients (consumers and readers) that have read compacted enabled will attempt to read messages from a topic and either:
+  * Read from the topic like normal (if the message ID is greater than or equal to the compaction horizon) or
+  * Read beginning at the compaction horizon (if the message ID is lower than the compaction horizon)
+
+## Tiered Storage
+
+Pulsar's segment oriented architecture allows for topic backlogs to grow very large, effectively without limit. However, this can become expensive over time.
+
+One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from bookkeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed.
+
+{% include figure.html src="/img/pulsar-tiered-storage.png" alt="Tiered Storage" width="80" %}
+
+{% include admonition.html type="info" content="Data written to bookkeeper is replicated to 3 physical machines by default. However, once a segment is sealed in bookkeeper is becomes immutable and can be copied to long term storage. Long term storage can achieve cost savings by using mechanisms such as [Reed-Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction) to require fewer physical copies of data." %}
+
+Pulsar currently supports S3 as a long term store. Offloading to S3 triggered via a Rest API or command line interface. The user passes in the amount of topic data they wish to retain on bookkeeper, and the broker will copy the backlog data to S3. The original data will then be deleted from bookkeeper after a configured delay (4 hours by default).
+
+{% include admonition.html type="info" content="For a guide for setting up tiered storage, see the [Tiered storage cookbook](../../cookbooks/tiered-storage)." %}
+
+## Schema registry
+
+Type safety is extremely important in any application built around a message bus like Pulsar. {% popover Producers %} and {% popover consumers %} need some kind of mechanism for coordinating types at the {% popover topic %} level lest a wide variety of potential problems arise (for example serialization and deserialization issues). Applications typically adopt one of two basic approaches to type safety in messaging:
+
+1. A "client-side" approach in which message producers and consumers are responsible for not only serializing and deserializing messages (which consist of raw bytes) but also "knowing" which types are being transmitted via which topics. If a producer is sending temperature sensor data on the topic `topic-1`, consumers of that topic will run into trouble if they attempt to parse that data as, say, moisture sensor readings.
+1. A "server-side" approach in which producers and consumers inform the system which data types can be transmitted via the topic. With this approach, the messaging system enforces type safety and ensures that producers and consumers remain synced.
+
+Both approaches are available in Pulsar, and you're free to adopt one or the other or to mix and match on a per-topic basis.
+
+1. For the "client-side" approach, producers and consumers can send and receive messages consisting of raw byte arrays and leave all type safety enforcement to the application on an "out-of-band" basis.
+1. For the "server-side" approach, Pulsar has a built-in **schema registry** that enables clients to upload data schemas on a per-topic basis. Those schemas dictate which data types are recognized as valid for that topic.
+
+{% include admonition.html type="info" content="The Pulsar schema registry is currently available only for the [Java client](../../clients/Java)." %}
+
+### Basic architecture
+
+In Pulsar, schemas are uploaded to, fetched from, and update via Pulsar's [REST API](../../reference/RestApi).
+
+{% include admonition.html type="success" title="Other schema registry backends"
+  content="Out of the box, Pulsar uses the [Apache BookKeeper](#persistent-storage) log storage system for schema storage. You can, however, use different backends if you wish. Documentation for custom schema storage logic is coming soon." %}
+
+### How schemas work
+
+Pulsar schemas are applied and enforced *at the topic level* (schemas cannot be applied at the {% popover namespace %} or {% popover tenant %} level). Producers and consumers upload schemas to Pulsar {% popover brokers %}.
+
+Pulsar schemas are fairly simple data structures that consist of:
+
+* A **name**. In Pulsar, a schema's name is the {% popover topic %} to which the schema is applied.
+* A **payload**, which is a binary representation of the schema
+* A schema [**type**](#schema-types)
+* User-defined **properties** as a string/string map. Usage of properties is wholly application specific. Possible properties might be the Git hash associated with a schema, an environment like `dev` or `prod`, etc.
+
+### Schema versions
+
+In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](../../clients/Java) created using the code below attempts to connect to Pulsar and begin sending messages:
+
+```java
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar://localhost:6650")
+        .build();
+
+Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-data")
+        .sendTimeout(3, TimeUnit.SECONDS)
+        .create();
+```
+
+The table below lists the possible scenarios when this connection attempt occurs and what will happen in light of each scenario:
+
+Scenario | What happens
+:--------|:------------
+No schema exists for the topic | The {% popover producer %} is created using the given schema. The schema is transmitted to the {% popover broker %} and stored (since no existing schema is "compatible" with the `SensorReading` schema). Any {% popover consumer %} created using the same schema/topic can consume messages from the `sensor-data` topic.
+A schema already exists; the producer connects using the same schema that's already stored | The schema is transmitted to the Pulsar broker. The broker determines that the schema is compatible. The broker attempts to store the schema in [BookKeeper](#persistent-storage) but then determines that it's already stored, so it's then used to tag produced messages.
+A schema already exists; the producer connects using a new schema that is compatible | The producer transmits the schema to the broker. The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).
+
+{% include admonition.html type="info" content="Schemas are versioned in succession. Schema storage happens in the broker that handles the associated topic so that version assignments can be made. Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version." %}
+
+### Supported schema formats {#schema-types}
+
+The following formats are supported by the Pulsar schema registry:
+
+* None. If no schema is specified for a topic, producers and consumers will handle raw bytes.
+* `String` (used for UTF-8-encoded strings)
+* [JSON](https://www.json.org/)
+
+For usage instructions, see the documentation for your preferred client library:
+
+* [Java](../../clients/Java#schemas)
+
+{% include admonition.html type="success" content="Support for other schema formats will be added in future releases of Pulsar." %}

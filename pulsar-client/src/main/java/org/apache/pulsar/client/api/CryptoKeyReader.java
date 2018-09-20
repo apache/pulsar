@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
 import java.util.Map;
 
-public interface CryptoKeyReader {
+public interface CryptoKeyReader extends Serializable {
 
     /**
      * Return the encryption key corresponding to the key name in the argument

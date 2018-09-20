@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import java.util.HashSet;
 import java.util.Set;
-
-import com.google.common.base.Objects;
 
 public class FailureDomain {
 
@@ -47,6 +47,6 @@ public class FailureDomain {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("brokers", brokers).toString();
+        return MoreObjects.toStringHelper(this).add("brokers", brokers).toString();
     }
 }

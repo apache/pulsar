@@ -32,6 +32,7 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     ConsumerConfiguration consumerConf;
     consumerConf.setConsumerType(ConsumerExclusive);
     consumerConf.setReceiverQueueSize(readerConf_.getReceiverQueueSize());
+    consumerConf.setReadCompacted(readerConf_.isReadCompacted());
 
     if (readerConf_.getReaderName().length() > 0) {
         consumerConf.setConsumerName(readerConf_.getReaderName());
@@ -96,4 +97,9 @@ void ReaderImpl::acknowledgeIfNecessary(Result result, const Message& msg) {
 }
 
 void ReaderImpl::closeAsync(ResultCallback callback) { consumer_->closeAsync(callback); }
+
+void ReaderImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
+    consumer_->hasMessageAvailableAsync(callback);
+}
+
 }  // namespace pulsar

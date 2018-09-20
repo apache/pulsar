@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -242,7 +243,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Thread.sleep(3000);
 
         Mockito.verify(pulsarClient, Mockito.times(1)).createProducerAsync(Mockito.any(ProducerConfigurationData.class),
-                Mockito.any(Schema.class));
+                Mockito.any(Schema.class), eq(null));
 
         client1.shutdown();
     }
@@ -796,7 +797,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
      */
     @Test(timeOut = 15000)
     public void testCloseReplicatorStartProducer() throws Exception {
-
         TopicName dest = TopicName.get("persistent://pulsar/ns1/closeCursor");
         // Producer on r1
         MessageProducer producer1 = new MessageProducer(url1, dest);
@@ -815,27 +815,20 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ManagedCursor cursor = (ManagedCursor) cursorField.get(replicator);
         cursor.close();
         // try to read entries
-        CountDownLatch latch = new CountDownLatch(1);
         producer1.produce(10);
-        cursor.asyncReadEntriesOrWait(10, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                latch.countDown();
-                fail("it should have been failed");
-            }
 
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                latch.countDown();
-                assertTrue(exception instanceof CursorAlreadyClosedException);
-            }
-        }, null);
+        try {
+            cursor.readEntriesOrWait(10);
+            fail("It should have failed");
+        } catch (Exception e) {
+            assertEquals(e.getClass(), CursorAlreadyClosedException.class);
+        }
 
         // replicator-readException: cursorAlreadyClosed
         replicator.readEntriesFailed(new CursorAlreadyClosedException("Cursor already closed exception"), null);
 
         // wait replicator producer to be closed
-        Thread.sleep(1000);
+        Thread.sleep(100);
 
         // Replicator producer must be closed
         Field producerField = AbstractReplicator.class.getDeclaredField("producer");

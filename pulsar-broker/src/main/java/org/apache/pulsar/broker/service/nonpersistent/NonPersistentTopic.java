@@ -188,32 +188,24 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public void publishMessage(ByteBuf data, PublishContext callback) {
-        AtomicInteger msgDeliveryCount = new AtomicInteger(2);
+        callback.completed(null, 0L, 0L);
         ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this);
 
-        // retain data for sub/replication because io-thread will release actual payload
-        data.retain(2);
-        this.executor.executeOrdered(topic, SafeRun.safeRun(() -> {
-            subscriptions.forEach((name, subscription) -> {
-                ByteBuf duplicateBuffer = data.retainedDuplicate();
-                Entry entry = create(0L, 0L, duplicateBuffer);
-                // entry internally retains data so, duplicateBuffer should be release here
-                duplicateBuffer.release();
-                if (subscription.getDispatcher() != null) {
-                    subscription.getDispatcher().sendMessages(Lists.newArrayList(entry));
-                } else {
-                    // it happens when subscription is created but dispatcher is not created as consumer is not added
-                    // yet
-                    entry.release();
-                }
-            });
-            data.release();
-            if (msgDeliveryCount.decrementAndGet() == 0) {
-                callback.completed(null, 0L, 0L);
+        subscriptions.forEach((name, subscription) -> {
+            ByteBuf duplicateBuffer = data.retainedDuplicate();
+            Entry entry = create(0L, 0L, duplicateBuffer);
+            // entry internally retains data so, duplicateBuffer should be release here
+            duplicateBuffer.release();
+            if (subscription.getDispatcher() != null) {
+                subscription.getDispatcher().sendMessages(Collections.singletonList(entry));
+            } else {
+                // it happens when subscription is created but dispatcher is not created as consumer is not added
+                // yet
+                entry.release();
             }
-        }));
+        });
 
-        this.executor.executeOrdered(topic, SafeRun.safeRun(() -> {
+        if (!replicators.isEmpty()) {
             replicators.forEach((name, replicator) -> {
                 ByteBuf duplicateBuffer = data.retainedDuplicate();
                 Entry entry = create(0L, 0L, duplicateBuffer);
@@ -221,11 +213,7 @@ public class NonPersistentTopic implements Topic {
                 duplicateBuffer.release();
                 ((NonPersistentReplicator) replicator).sendMessage(entry);
             });
-            data.release();
-            if (msgDeliveryCount.decrementAndGet() == 0) {
-                callback.completed(null, 0L, 0L);
-            }
-        }));
+        }
     }
 
     @Override
@@ -415,14 +403,14 @@ public class NonPersistentTopic implements Topic {
 
     /**
      * Forcefully close all producers/consumers/replicators and deletes the topic.
-     * 
+     *
      * @return
      */
     @Override
     public CompletableFuture<Void> deleteForcefully() {
         return delete(false, true);
     }
-    
+
     private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean closeIfClientsConnected) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
@@ -1016,6 +1004,10 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
+        if (schema == null) {
+            return CompletableFuture.completedFuture(SchemaVersion.Empty);
+        }
+
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()

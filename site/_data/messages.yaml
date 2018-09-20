@@ -54,7 +54,7 @@ shared_mode_limitations:
     2. You cannot use [cumulative acknowledgment](#acknowledgement) with shared mode.
 superuser:
   type: warning
-  content: Please note that this operation requires [superuser](../../admin/Authz#superusers) privileges.
+  content: Please note that this operation requires [superuser](../../security/authorization#superusers) privileges.
 mark_delete:
   type: info
   content: TODO

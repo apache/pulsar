@@ -20,28 +20,43 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.Map;
+import java.util.Optional;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.common.api.EncryptionContext;
 
-public class TopicMessageImpl<T> extends MessageRecordImpl<T, TopicMessageIdImpl> {
+public class TopicMessageImpl<T> implements Message<T> {
 
+    /** This topicPartitionName is get from ConsumerImpl, it contains partition part. */
+    private final String topicPartitionName;
     private final String topicName;
     private final Message<T> msg;
+    private final TopicMessageIdImpl messageId;
 
-    TopicMessageImpl(String topicName,
+    TopicMessageImpl(String topicPartitionName,
+                     String topicName,
                      Message<T> msg) {
+        this.topicPartitionName = topicPartitionName;
         this.topicName = topicName;
+
         this.msg = msg;
-        this.messageId = new TopicMessageIdImpl(topicName, msg.getMessageId());
+        this.messageId = new TopicMessageIdImpl(topicPartitionName, topicName, msg.getMessageId());
     }
 
     /**
-     * Get the topic name of this message.
+     * Get the topic name without partition part of this message.
      * @return the name of the topic on which this message was published
      */
     public String getTopicName() {
         return topicName;
+    }
+
+    /**
+     * Get the topic name which contains partition part for this message.
+     * @return the topic name which contains Partition part
+     */
+    public String getTopicPartitionName() {
+        return topicPartitionName;
     }
 
     @Override
@@ -106,5 +121,14 @@ public class TopicMessageImpl<T> extends MessageRecordImpl<T, TopicMessageIdImpl
     @Override
     public T getValue() {
         return msg.getValue();
+    }
+
+    @Override
+    public Optional<EncryptionContext> getEncryptionCtx() {
+        return msg.getEncryptionCtx();
+    }
+
+    public Message<T> getMessage() {
+        return msg;
     }
 }

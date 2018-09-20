@@ -16,7 +16,7 @@ print "Requirements: %s" % requirements
 
 long_description = "The pulsarfunctin package enables you to write Pulsar Functions in Python. " \
                    "Pulsar Functions can be run under different deployment models, either alongside " \
-                   "brokers, seperate compute workers or locally"
+                   "brokers, separate compute workers or locally"
 
 setup(
   name=package_name,

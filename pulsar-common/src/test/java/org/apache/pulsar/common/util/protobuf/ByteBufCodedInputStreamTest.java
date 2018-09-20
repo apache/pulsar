@@ -18,22 +18,19 @@
  */
 package org.apache.pulsar.common.util.protobuf;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import static org.testng.Assert.assertEquals;
-
-import java.io.IOException;
-
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
-import org.testng.annotations.Test;
-
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.WireFormat;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+
+import java.io.IOException;
+
+import org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.WireFormat;
+import org.testng.annotations.Test;
 
 public class ByteBufCodedInputStreamTest {
 

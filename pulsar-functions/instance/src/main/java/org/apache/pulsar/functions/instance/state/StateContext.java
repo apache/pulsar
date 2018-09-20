@@ -18,15 +18,53 @@
  */
 package org.apache.pulsar.functions.instance.state;
 
-import java.util.concurrent.CompletableFuture;
+import java.nio.ByteBuffer;
 
 /**
  * A state context per function.
  */
 public interface StateContext {
 
-    void incr(String key, long amount);
+    /**
+     * Increment the given <i>key</i> by the given <i>amount</i>.
+     *
+     * @param key key to increment
+     * @param amount the amount incremented
+     */
+    void incr(String key, long amount) throws Exception;
 
-    CompletableFuture<Void> flush();
+    /**
+     * Update the given <i>key</i> to the provide <i>value</i>.
+     *
+     * <p>NOTE: the put operation might or might not be applied directly to the global state until
+     * the state is flushed via {@link #flush()} at the completion of function execution.
+     *
+     * <p>The behavior of `PUT` is non-deterministic, if two function instances attempt to update
+     * same key around the same time, there is no guarantee which update will be the final result.
+     * That says, if you attempt to get amount via {@link #getAmount(String)}, increment the amount
+     * based on the function computation logic, and update the computed amount back. one update will
+     * overwrite the other update. For this case, you are encouraged to use {@link #incr(String, long)}
+     * instead.
+     *
+     * @param key key to update.
+     * @param value value to update
+     */
+    void put(String key, ByteBuffer value) throws Exception;
+
+    /**
+     * Get the value of a given <i>key</i>.
+     *
+     * @param key key to retrieve
+     * @return a completable future representing the retrieve result.
+     */
+    ByteBuffer getValue(String key) throws Exception;
+
+    /**
+     * Get the amount of a given <i>key</i>.
+     *
+     * @param key key to retrieve
+     * @return a completable future representing the retrieve result.
+     */
+    long getAmount(String key) throws Exception;
 
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.doReturn;
@@ -85,14 +87,20 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
-
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+        
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                pulsarClient,
+                workerService,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
@@ -118,12 +126,8 @@ public class FunctionRuntimeManagerTest {
         assignments.add(assignment1);
         assignments.add(assignment2);
 
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.newBuilder()
-                .addAllAssignments(assignments)
-                .setVersion(1)
-                .build();
-
-        functionRuntimeManager.processAssignmentUpdate(MessageId.earliest, assignmentsUpdate);
+        functionRuntimeManager.processAssignment(assignment1);
+        functionRuntimeManager.processAssignment(assignment2);
 
         verify(functionRuntimeManager, times(2)).setAssignment(any(Function.Assignment.class));
         verify(functionRuntimeManager, times(0)).deleteAssignment(any(Function.Assignment.class));
@@ -178,14 +182,19 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         // test new assignment delete functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                pulsarClient,
+                workerService,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
@@ -196,6 +205,7 @@ public class FunctionRuntimeManagerTest {
                 Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
+        // Delete this assignment
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
@@ -212,23 +222,18 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.setAssignment(assignment2);
         reset(functionRuntimeManager);
 
-        List<Function.Assignment> assignments = new LinkedList<>();
-        assignments.add(assignment2);
-
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.newBuilder()
-                .addAllAssignments(assignments)
-                .setVersion(1)
-                .build();
-
         functionRuntimeManager.functionRuntimeInfoMap.put(
                 "test-tenant/test-namespace/func-1:0", new FunctionRuntimeInfo().setFunctionInstance(
                         Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                 .build()));
 
-        functionRuntimeManager.processAssignmentUpdate(MessageId.earliest, assignmentsUpdate);
+        functionRuntimeManager.processAssignment(assignment1);
+        functionRuntimeManager.processAssignment(assignment2);
 
+        functionRuntimeManager.deleteAssignment(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()));
+        
         verify(functionRuntimeManager, times(0)).setAssignment(any(Function.Assignment.class));
-        verify(functionRuntimeManager, times(1)).deleteAssignment(any(Function.Assignment.class));
+        verify(functionRuntimeManager, times(1)).deleteAssignment(any(String.class));
 
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
@@ -275,14 +280,19 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         // test new assignment update functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                pulsarClient,
+                workerService,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
@@ -314,14 +324,6 @@ public class FunctionRuntimeManagerTest {
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function2).setInstanceId(0).build())
                 .build();
-        List<Function.Assignment> assignments = new LinkedList<>();
-        assignments.add(assignment1);
-        assignments.add(assignment3);
-
-        Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.newBuilder()
-                .addAllAssignments(assignments)
-                .setVersion(1)
-                .build();
 
         functionRuntimeManager.functionRuntimeInfoMap.put(
                 "test-tenant/test-namespace/func-1:0", new FunctionRuntimeInfo().setFunctionInstance(
@@ -332,7 +334,8 @@ public class FunctionRuntimeManagerTest {
                         Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0)
                                 .build()));
 
-        functionRuntimeManager.processAssignmentUpdate(MessageId.earliest, assignmentsUpdate);
+        functionRuntimeManager.processAssignment(assignment1);
+        functionRuntimeManager.processAssignment(assignment3);
 
         verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
         verify(functionRuntimeManager).insertStopAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
@@ -375,12 +378,10 @@ public class FunctionRuntimeManagerTest {
                                         .build()))));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
-
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 2);
+        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment3);
     }
-
 }

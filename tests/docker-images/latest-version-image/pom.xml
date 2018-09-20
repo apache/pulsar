@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.1.0-incubating-SNAPSHOT</version>
+    <version>2.2.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.pulsar.tests</groupId>
@@ -42,7 +42,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-docker-image</artifactId>
+          <artifactId>pulsar-all-docker-image</artifactId>
           <version>${project.parent.version}</version>
           <classifier>docker-info</classifier>
         </dependency>
@@ -56,23 +56,25 @@
             <executions>
               <execution>
                 <id>default</id>
+                <phase>package</phase>
                 <goals>
                   <goal>build</goal>
                 </goals>
               </execution>
               <execution>
                 <id>add-latest-tag</id>
+                <phase>package</phase>
                 <goals>
                   <goal>tag</goal>
                 </goals>
                 <configuration>
-                  <repository>apachepulsar/pulsar-test-latest-version</repository>
+                  <repository>${docker.organization}/pulsar-test-latest-version</repository>
                   <tag>latest</tag>
                 </configuration>
               </execution>
             </executions>
             <configuration>
-              <repository>apachepulsar/pulsar-test-latest-version</repository>
+              <repository>${docker.organization}/pulsar-test-latest-version</repository>
               <tag>${project.version}</tag>
               <pullNewerImage>false</pullNewerImage>
               <noCache>true</noCache>

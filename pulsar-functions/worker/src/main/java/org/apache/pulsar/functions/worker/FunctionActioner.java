@@ -18,28 +18,51 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.functions.utils.Utils.FILE;
+import static org.apache.pulsar.functions.utils.Utils.HTTP;
+import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.utils.Utils.getSinkType;
+import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.io.MoreFiles;
+import com.google.common.io.RecursiveDeleteOption;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
-import lombok.*;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.runtime.RuntimeFactory;
-import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-
-import java.io.File;
-import java.io.FileOutputStream;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.Instance;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 @Data
 @Setter
@@ -55,15 +78,18 @@ public class FunctionActioner implements AutoCloseable {
     private LinkedBlockingQueue<FunctionAction> actionQueue;
     private volatile boolean running;
     private Thread actioner;
+    private final ConnectorsManager connectorsManager;
 
     public FunctionActioner(WorkerConfig workerConfig,
                             RuntimeFactory runtimeFactory,
                             Namespace dlogNamespace,
-                            LinkedBlockingQueue<FunctionAction> actionQueue) {
+                            LinkedBlockingQueue<FunctionAction> actionQueue,
+                            ConnectorsManager connectorsManager) {
         this.workerConfig = workerConfig;
         this.runtimeFactory = runtimeFactory;
         this.dlogNamespace = dlogNamespace;
         this.actionQueue = actionQueue;
+        this.connectorsManager = connectorsManager;
         actioner = new Thread(() -> {
             log.info("Starting Actioner Thread...");
             while(running) {
@@ -74,7 +100,10 @@ public class FunctionActioner implements AutoCloseable {
                         try {
                             startFunction(action.getFunctionRuntimeInfo());
                         } catch (Exception ex) {
-                            log.info("Error starting function", ex);
+                            FunctionDetails details = action.getFunctionRuntimeInfo().getFunctionInstance()
+                                    .getFunctionMetaData().getFunctionDetails();
+                            log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
+                                    details.getName(), ex);
                             action.getFunctionRuntimeInfo().setStartupException(ex);
                         }
                     } else {
@@ -101,21 +130,59 @@ public class FunctionActioner implements AutoCloseable {
         actioner.join();
     }
 
-    private void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
-        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
-        FunctionMetaData functionMetaData = instance.getFunctionMetaData();
-        log.info("Starting function {} - {} ...",
-                functionMetaData.getFunctionDetails().getName(), instance.getInstanceId());
-        File pkgDir = new File(
-                workerConfig.getDownloadDirectory(),
-                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
-        pkgDir.mkdirs();
-
+    @VisibleForTesting
+    public void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
+        FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData();
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
 
-        File pkgFile = new File(
-            pkgDir,
-            new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails())).getName());
+        FunctionDetails.Builder functionDetails = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
+        log.info("{}/{}/{}-{} Starting function ...", functionDetails.getTenant(), functionDetails.getNamespace(),
+                functionDetails.getName(), instanceId);
+        File pkgFile = null;
+
+        String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
+        boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
+
+        if (isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
+            URL url = new URL(pkgLocation);
+            pkgFile = new File(url.toURI());
+        } else if (isFunctionCodeBuiltin(functionDetails)) {
+            pkgFile = getBuiltinArchive(functionDetails);
+        } else {
+            File pkgDir = new File(
+                    workerConfig.getDownloadDirectory(),
+                    getDownloadPackagePath(functionMetaData, instanceId));
+            pkgDir.mkdirs();
+
+            pkgFile = new File(
+                    pkgDir,
+                    new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
+            downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
+        }
+
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setFunctionDetails(functionDetails.build());
+        // TODO: set correct function id and version when features implemented
+        instanceConfig.setFunctionId(UUID.randomUUID().toString());
+        instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+        instanceConfig.setInstanceId(String.valueOf(instanceId));
+        instanceConfig.setMaxBufferedTuples(1024);
+        instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
+
+        log.info("{}/{}/{}-{} start process with instance config {}", functionDetails.getTenant(), functionDetails.getNamespace(),
+                functionDetails.getName(), instanceId, instanceConfig);
+
+        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
+                runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
+
+        functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
+        runtimeSpawner.start();
+    }
+
+    private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData, int instanceId) throws FileNotFoundException, IOException {
+
+        FunctionDetails details = functionMetaData.getFunctionDetails();
+        File pkgDir = pkgFile.getParentFile();
 
         if (pkgFile.exists()) {
             log.warn("Function package exists already {} deleting it",
@@ -132,14 +199,22 @@ public class FunctionActioner implements AutoCloseable {
                 break;
             }
         }
-        try {
-            log.info("Function package file {} will be downloaded from {}",
-                    tempPkgFile, functionMetaData.getPackageLocation());
+        String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
+        boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
+        log.info("{}/{}/{} Function package file {} will be downloaded from {}", tempPkgFile, details.getTenant(),
+                details.getNamespace(), details.getName(),
+                downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());
+
+        if(downloadFromHttp) {
+            Utils.downloadFromHttpUrl(pkgLocationPath, new FileOutputStream(tempPkgFile));
+        } else {
             Utils.downloadFromBookkeeper(
                     dlogNamespace,
                     new FileOutputStream(tempPkgFile),
-                    functionMetaData.getPackageLocation().getPackagePath());
+                    pkgLocationPath);
+        }
 
+        try {
             // create a hardlink, if there are two concurrent createLink operations, one will fail.
             // this ensures one instance will successfully download the package.
             try {
@@ -156,27 +231,14 @@ public class FunctionActioner implements AutoCloseable {
         } finally {
             tempPkgFile.delete();
         }
-
-        InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionDetails(functionMetaData.getFunctionDetails());
-        // TODO: set correct function id and version when features implemented
-        instanceConfig.setFunctionId(UUID.randomUUID().toString());
-        instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-        instanceConfig.setInstanceId(String.valueOf(instanceId));
-        instanceConfig.setMaxBufferedTuples(1024);
-        instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
-        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
-                runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
-
-        functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
-        runtimeSpawner.start();
     }
 
-    private void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+    public void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
-        log.info("Stopping function {} - {}...",
-                functionMetaData.getFunctionDetails().getName(), instance.getInstanceId());
+        FunctionDetails details = functionMetaData.getFunctionDetails();
+        log.info("{}/{}/{}-{} Stopping function...", details.getTenant(), details.getNamespace(), details.getName(),
+                instance.getInstanceId());
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
             functionRuntimeInfo.setRuntimeSpawner(null);
@@ -189,7 +251,8 @@ public class FunctionActioner implements AutoCloseable {
 
         if (pkgDir.exists()) {
             try {
-                FileUtils.deleteDirectory(pkgDir);
+                MoreFiles.deleteRecursively(
+                    Paths.get(pkgDir.toURI()), RecursiveDeleteOption.ALLOW_INSECURE);
             } catch (IOException e) {
                 log.warn("Failed to delete package for function: {}",
                         FunctionDetailsUtils.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
@@ -207,4 +270,91 @@ public class FunctionActioner implements AutoCloseable {
                 },
                 File.separatorChar);
     }
+
+    public static boolean isFunctionCodeBuiltin(FunctionDetailsOrBuilder functionDetails) {
+        if (functionDetails.hasSource()) {
+            SourceSpec sourceSpec = functionDetails.getSource();
+            if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        if (functionDetails.hasSink()) {
+            SinkSpec sinkSpec = functionDetails.getSink();
+            if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private File getBuiltinArchive(FunctionDetails.Builder functionDetails) throws IOException {
+        if (functionDetails.hasSource()) {
+            SourceSpec sourceSpec = functionDetails.getSource();
+            if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
+                File archive = connectorsManager.getSourceArchive(sourceSpec.getBuiltin()).toFile();
+                String sourceClass = ConnectorUtils.getConnectorDefinition(archive.toString()).getSourceClass();
+                SourceSpec.Builder builder = SourceSpec.newBuilder(functionDetails.getSource());
+                builder.setClassName(sourceClass);
+                functionDetails.setSource(builder);
+
+                fillSourceTypeClass(functionDetails, archive, sourceClass);
+                return archive;
+            }
+        }
+
+        if (functionDetails.hasSink()) {
+            SinkSpec sinkSpec = functionDetails.getSink();
+            if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
+                File archive = connectorsManager.getSinkArchive(sinkSpec.getBuiltin()).toFile();
+                String sinkClass = ConnectorUtils.getConnectorDefinition(archive.toString()).getSinkClass();
+                SinkSpec.Builder builder = SinkSpec.newBuilder(functionDetails.getSink());
+                builder.setClassName(sinkClass);
+                functionDetails.setSink(builder);
+
+                fillSinkTypeClass(functionDetails, archive, sinkClass);
+                return archive;
+            }
+        }
+
+        throw new IOException("Could not find built in archive definition");
+    }
+
+    private void fillSourceTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
+            throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
+            String typeArg = getSourceType(className, ncl).getName();
+
+            SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(functionDetails.getSource());
+            sourceBuilder.setTypeClassName(typeArg);
+            functionDetails.setSource(sourceBuilder);
+
+            SinkSpec sinkSpec = functionDetails.getSink();
+            if (null == sinkSpec || StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
+                SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(sinkSpec);
+                sinkBuilder.setTypeClassName(typeArg);
+                functionDetails.setSink(sinkBuilder);
+            }
+        }
+    }
+
+    private void fillSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
+            throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
+            String typeArg = getSinkType(className, ncl).getName();
+
+            SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(functionDetails.getSink());
+            sinkBuilder.setTypeClassName(typeArg);
+            functionDetails.setSink(sinkBuilder);
+
+            SourceSpec sourceSpec = functionDetails.getSource();
+            if (null == sourceSpec || StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
+                SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(sourceSpec);
+                sourceBuilder.setTypeClassName(typeArg);
+                functionDetails.setSource(sourceBuilder);
+            }
+        }
+    }
+
 }

@@ -1,6 +1,6 @@
 ---
 title: The Pulsar Java client
-tags: [client, java]
+tags: [client, java, schema, schema registry]
 ---
 
 <!--
@@ -76,9 +76,8 @@ dependencies {
 You can instantiate a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object using just a URL for the target Pulsar {% popover cluster %}, like this:
 
 ```java
-String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 PulsarClient client = PulsarClient.builder()
-        .serviceUrl(pulsarBrokerRootUrl)
+        .serviceUrl("pulsar://localhost:6650")
         .build();
 ```
 
@@ -96,40 +95,21 @@ In addition to client-level configuration, you can also apply [producer](#config
 In Pulsar, {% popover producers %} write {% popover messages %} to {% popover topics %}. Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object (as in the section [above](#client-configuration)), you can create a {% javadoc Producer client org.apache.pulsar.client.api.Producer %} for a specific Pulsar {% popover topic %}.
 
 ```java
-String topic = "persistent://sample/standalone/ns1/my-topic";
-
-Producer producer<byte[]> = client.newProducer()
-        .topic(topic)
+Producer<byte[]> producer = client.newProducer()
+        .topic("my-topic")
         .create();
-```
 
-You can then send messages to the broker and topic you specified:
-
-```java
-import org.apache.pulsar.client.api.MessageBuilder;
-
-import java.util.stream.IntStream;
-
-MessageBuilder<byte[]> msgBuilder = MessageBuilder.create();
-
-// Publish 10 messages to the topic
-IntStream.range(1, 11).forEach(i -> {
-    msgBuilder.setContent(String.format("Message number %d", i).getBytes());
-
-    try {
-        producer.send(msgBuilder);
-    } catch (PulsarClientException e) {
-        e.printStackTrace();
-    }
-});
+// You can then send messages to the broker and topic you specified:
+producer.send("My message".getBytes());
 ```
 
 By default, producers produce messages that consist of byte arrays. You can produce different types, however, by specifying a message [schema](#schemas).
 
 ```java
-Producer<String> stringProducer = client.newProducer(new StringSchema())
-        .topic(topic)
+Producer<String> stringProducer = client.newProducer(Schema.STRING)
+        .topic("my-topic")
         .create();
+stringProducer.send("My message");
 ```
 
 {% include admonition.html type='warning' content='
@@ -144,7 +124,12 @@ client.close();
 Close operations can also be asynchronous:
 
 ```java
-producer.closeAsync().thenRun(() -> System.out.println("Producer closed"));
+producer.closeAsync()
+    .thenRun(() -> System.out.println("Producer closed"));
+    .exceptionally((ex) -> {
+        System.err.println("Failed to close producer: " + ex);
+        return ex;
+    });
 ```
 ' %}
 
@@ -154,11 +139,11 @@ If you instantiate a `Producer` object specifying only a topic name, as in the e
 
 ```java
 Producer<byte[]> producer = client.newProducer()
-        .topic(topic)
-        .enableBatching(true)
-        .sendTimeout(10, TimeUnit.SECONDS)
-        .producerName("my-producer")
-        .create();
+    .topic("my-topic")
+    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+    .sendTimeout(10, TimeUnit.SECONDS)
+    .blockIfQueueFull(true)
+    .create();
 ```
 
 ### Message routing
@@ -172,13 +157,28 @@ You can also publish messages [asynchronously](../../getting-started/ConceptsAnd
 Here's an example async send operation:
 
 ```java
-CompletableFuture<MessageId> future = producer.sendAsync("my-async-message".getBytes());
-future.thenAccept(msgId -> {
-        System.out.printf("Message with ID %s successfully sent", new String(msgId.toByteArray());
+producer.sendAsync("my-async-message".getBytes()).thenAccept(msgId -> {
+    System.out.printf("Message with ID %s successfully sent", msgId);
 });
 ```
 
 As you can see from the example above, async send operations return a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+
+### Configuring messages
+
+In addition to a value, it's possible to set additional items on a given message:
+
+```java
+producer.newMessage()
+    .key("my-message-key")
+    .value("my-async-message".getBytes())
+    .property("my-key", "my-value")
+    .property("my-other-key", "my-other-value")
+    .send();
+```
+
+As for the previous case, it's also possible to terminate the builder chain with `sendAsync()` and
+get a future returned.
 
 ## Consumers
 
@@ -252,13 +252,13 @@ ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
         .subscriptionName(subscription);
 
 // Subscribe to all topics in a namespace
-Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
+Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default/.*");
 Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(allTopicsInNamespace)
         .subscribe();
 
 // Subscribe to a subsets of topics in a namespace, based on regex
-Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo.*");
+Pattern someTopicsInNamespace = Pattern.compile("persistent://public/default/foo.*");
 Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(someTopicsInNamespace)
         .subscribe();
@@ -268,9 +268,9 @@ You can also subscribe to an explicit list of topics (across namespaces if you w
 
 ```java
 List<String> topics = Arrays.asList(
-        "persistent://sample/standalone/ns1/topic-1",
-        "persistent://sample/standalone/ns2/topic-2",
-        "persistent://sample/standalone/ns3/topic-3"
+        "topic-1",
+        "topic-2",
+        "topic-3"
 );
 
 Consumer multiTopicConsumer = consumerBuilder
@@ -280,9 +280,9 @@ Consumer multiTopicConsumer = consumerBuilder
 // Alternatively:
 Consumer multiTopicConsumer = consumerBuilder
         .topics(
-            "persistent://sample/standalone/ns1/topic-1",
-            "persistent://sample/standalone/ns2/topic-2",
-            "persistent://sample/standalone/ns3/topic-3"
+            "topic-1",
+            "topic-2",
+            "topic-3"
         )
         .subscribe();
 ```
@@ -290,7 +290,7 @@ Consumer multiTopicConsumer = consumerBuilder
 You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. Here's an example:
 
 ```java
-Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
+Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default.*");
 consumerBuilder
         .topics(topics)
         .subscribeAsync()
@@ -305,22 +305,6 @@ consumerBuilder
             } while (true);
         });
 ```
-
-## Message schemas {#schemas}
-
-In Pulsar, all message data consists of byte arrays. Message **schemas** enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
-
-```java
-Producer producer = client.newProducer()
-        .topic(topic)
-        .create();
-```
-
-The producer above is equivalent to a `Producer<byte[]>` (in fact, you should always explicitly specify the type). If you'd like
-
-
-
-The same schema-based logic applies to [consumers](#consumers) and [readers](#readers).
 
 ## Reader interface {#readers}
 
@@ -347,13 +331,93 @@ In the example above, a `Reader` object is instantiated for a specific topic and
 
 The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
 
+## Schemas
+
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](../../getting-started/ConceptsAndArchitecture#schema-registry) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
+
+```java
+Producer<byte[]> producer = client.newProducer()
+        .topic(topic)
+        .create();
+```
+
+The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the {% popover topic %}.
+
+### Schema example
+
+Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
+
+```java
+public class SensorReading {
+    public float temperature;
+
+    public SensorReading(float temperature) {
+        this.temperature = temperature;
+    }
+
+    // A no-arg constructor is required
+    public SensorReading() {
+    }
+
+    public float getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(float temperature) {
+        this.temperature = temperature;
+    }
+}
+```
+
+You could then create a `Producer<SensorReading>` (or `Consumer<SensorReading>`) like so:
+
+```java
+Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-readings")
+        .create();
+```
+
+The following schema formats are currently available for Java:
+
+* No schema or the byte array schema (which can be applied using `Schema.BYTES`):
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
+        .topic("some-raw-bytes-topic")
+        .create();
+  ```
+
+  Or, equivalently:
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer()
+        .topic("some-raw-bytes-topic")
+        .create();
+  ```
+
+* `String` for normal UTF-8-encoded string data. This schema can be applied using `Schema.STRING`:
+
+  ```java
+  Producer<String> stringProducer = client.newProducer(Schema.STRING)
+        .topic("some-string-topic")
+        .create();
+  ```
+* JSON schemas can be created for POJOs using the `JSONSchema` class. Here's an example:
+
+  ```java
+  Schema<MyPojo> pojoSchema = JSONSchema.of(MyPojo.class);
+  Producer<MyPojo> pojoProducer = client.newProducer(pojoSchema)
+        .topic("some-pojo-topic")
+        .create();
+  ```
+
 ## Authentication
 
-Pulsar currently supports two authentication schemes: [TLS](../../admin/Authz#tls-client-auth) and [Athenz](../../admin/Authz#athenz). The Pulsar Java client can be used with both.
+Pulsar currently supports two authentication schemes: [TLS](../../security/tls) and [Athenz](../../security/athenz). The Pulsar Java client can be used with both.
 
 ### TLS Authentication
 
-To use [TLS](../../admin/Authz#tls-client-auth), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](../../security/tls), point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 Here's an example configuration:
 
@@ -367,7 +431,6 @@ Authentication tlsAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(tlsAuth)
         .build();
@@ -375,7 +438,7 @@ PulsarClient client = PulsarClient.builder()
 
 ### Athenz
 
-To use [Athenz](../../admin/Authz#athenz) as an authentication provider, you need to [use TLS](#tls-authentication) and provide values for four parameters in a hash:
+To use [Athenz](../../security/athenz) as an authentication provider, you need to [use TLS transport](../../security/tls-transport) and provide values for four parameters in a hash:
 
 * `tenantDomain`
 * `tenantService`
@@ -397,7 +460,6 @@ Authentication athenzAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(athenzAuth)
         .build();
@@ -410,4 +472,3 @@ The `privateKey` parameter supports the following three pattern formats:
 * `file:///path/to/file`
 * `file:/path/to/file`
 * `data:application/x-pem-file;base64,<base64-encoded value>`' %}
-

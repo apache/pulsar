@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.1.0-incubating-SNAPSHOT</version>
+    <version>2.2.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.pulsar</groupId>
@@ -34,7 +34,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>distribution</artifactId>
+      <artifactId>pulsar-server-distribution</artifactId>
       <version>${project.parent.version}</version>
       <classifier>bin</classifier>
       <type>tar.gz</type>
@@ -47,6 +47,50 @@
       <id>docker</id>
       <build>
         <plugins>
+          <!-- build cpp client, copy the wheel file and then build docker image -->
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>${exec-maven-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>build-pulsar-clients</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <skip>${skipBuildPythonClient}</skip>
+                  <workingDirectory>${project.basedir}/target</workingDirectory>
+                  <executable>${project.basedir}/../../pulsar-client-cpp/docker/build-wheels.sh</executable>
+                  <arguments>
+                    <!-- build python 2.7 -->
+                    <argument>2.7 cp27-cp27mu</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <phase>compile</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <skip>${skipBuildPythonClient}</skip>
+                  <tasks>
+                    <echo>copy python wheel file</echo>
+                    <mkdir dir="${basedir}/target/python-client"/>
+                    <copydir src="${basedir}/../../pulsar-client-cpp/python/wheelhouse" dest="${basedir}/target/python-client"/>
+                  </tasks>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
           <plugin>
             <groupId>com.spotify</groupId>
             <artifactId>dockerfile-maven-plugin</artifactId>
@@ -95,7 +139,7 @@
               <pullNewerImage>false</pullNewerImage>
               <tag>${project.version}</tag>
               <buildArgs>
-                <PULSAR_TARBALL>target/distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
+                <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
               </buildArgs>
             </configuration>
           </plugin>
@@ -111,7 +155,7 @@
                 <phase>generate-resources</phase>
                 <configuration>
                   <outputDirectory>${project.build.directory}/</outputDirectory>
-                  <includeArtifactIds>distribution</includeArtifactIds>
+                  <includeArtifactIds>pulsar-server-distribution</includeArtifactIds>
                   <excludeTransitive>true</excludeTransitive>
                 </configuration>
               </execution>

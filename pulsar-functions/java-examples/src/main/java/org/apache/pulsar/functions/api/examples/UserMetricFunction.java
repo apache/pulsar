@@ -21,10 +21,14 @@ package org.apache.pulsar.functions.api.examples;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
+/**
+ * Example function that wants to keep track of the rate of letters
+ * seen in input.
+ */
 public class UserMetricFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) {
-        context.recordMetric("MyMetricName", 1);
+        context.recordMetric("LetterCount", input.length());
         return null;
     }
 }

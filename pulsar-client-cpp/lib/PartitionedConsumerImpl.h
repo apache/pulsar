@@ -68,6 +68,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
     void handleGetConsumerStats(Result, BrokerConsumerStats, LatchPtr, PartitionedBrokerConsumerStatsPtr,
                                 size_t, BrokerConsumerStatsCallback);
+    virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
 
    private:
     const ClientImplPtr client_;

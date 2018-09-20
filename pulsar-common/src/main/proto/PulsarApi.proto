@@ -27,6 +27,8 @@ message Schema {
 		None = 0;
 		String = 1;
 		Json = 2;
+		Protobuf = 3;
+		Avro = 4;
 	}
 
     required string name = 1;
@@ -103,7 +105,11 @@ message SingleMessageMetadata {
 	repeated KeyValue properties    = 1;
 	optional string partition_key   = 2;
 	required int32 payload_size	= 3;
-        optional bool compacted_out     = 4 [default = false];
+	optional bool compacted_out     = 4 [default = false];
+
+	// the timestamp that this event occurs. it is typically set by applications.
+	// if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
+	optional uint64 event_time = 5 [default = 0];
 }
 
 enum ServerError {
@@ -154,6 +160,7 @@ enum ProtocolVersion {
 	v12 = 12;// Added get topic's last messageId from broker
 			 // Added CommandActiveConsumerChange
 			 // Added CommandGetTopicsOfNamespace
+	v13 = 13; // Schema-registry : added avro schema format for json
 }
 
 message CommandConnect {
@@ -227,7 +234,7 @@ message CommandSubscribe {
 message CommandPartitionedTopicMetadata {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
-	// TODO - Remove original_principal, original_auth_data, original_auth_method 
+	// TODO - Remove original_principal, original_auth_data, original_auth_method
 	// Original principal that was verified by
 	// a Pulsar proxy.
 	optional string original_principal = 3;
@@ -255,7 +262,7 @@ message CommandLookupTopic {
 	required uint64 request_id       = 2;
 	optional bool authoritative      = 3 [default = false];
 
-	// TODO - Remove original_principal, original_auth_data, original_auth_method 
+	// TODO - Remove original_principal, original_auth_data, original_auth_method
 	// Original principal that was verified by
 	// a Pulsar proxy.
 	optional string original_principal = 4;
@@ -328,6 +335,7 @@ message CommandSendError {
 message CommandMessage {
 	required uint64 consumer_id       = 1;
 	required MessageIdData message_id = 2;
+	optional uint32 redelivery_count  = 3 [default = 0];
 }
 
 message CommandAck {
@@ -505,6 +513,22 @@ message CommandGetTopicsOfNamespaceResponse {
 	repeated string topics 		= 2;
 }
 
+message CommandGetSchema {
+	required uint64 request_id = 1;
+	required string topic      = 2;
+
+	optional bytes schema_version = 3;
+}
+
+message CommandGetSchemaResponse {
+	required uint64 request_id      = 1;
+	optional ServerError error_code = 2;
+    optional string error_message   = 3;
+
+	optional Schema schema          = 4;
+	optional bytes schema_version   = 5;
+}
+
 message BaseCommand {
 	enum Type {
 		CONNECT     = 2;
@@ -557,6 +581,9 @@ message BaseCommand {
 
 		GET_TOPICS_OF_NAMESPACE 			= 32;
 		GET_TOPICS_OF_NAMESPACE_RESPONSE 	= 33;
+
+		GET_SCHEMA = 34;
+		GET_SCHEMA_RESPONSE = 35;
 	}
 
 
@@ -607,4 +634,6 @@ message BaseCommand {
 	optional CommandGetTopicsOfNamespace getTopicsOfNamespace = 32;
 	optional CommandGetTopicsOfNamespaceResponse getTopicsOfNamespaceResponse = 33;
 
+	optional CommandGetSchema getSchema = 34;
+	optional CommandGetSchemaResponse getSchemaResponse = 35;
 }

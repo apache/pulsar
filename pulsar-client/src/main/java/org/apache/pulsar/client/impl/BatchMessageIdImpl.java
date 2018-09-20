@@ -72,6 +72,8 @@ public class BatchMessageIdImpl extends MessageIdImpl {
             } else {
                 return res;
             }
+        } else if (o instanceof TopicMessageIdImpl) {
+            return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {
             throw new IllegalArgumentException(
                     "expected BatchMessageIdImpl object. Got instance of " + o.getClass().getName());
@@ -90,7 +92,9 @@ public class BatchMessageIdImpl extends MessageIdImpl {
             return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex
                     && batchIndex == other.batchIndex;
         } else if (obj instanceof MessageIdImpl) {
-            return batchIndex == NO_BATCH && obj.equals(this);
+            MessageIdImpl other = (MessageIdImpl) obj;
+            return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex
+                    && batchIndex == NO_BATCH;
         }
         return false;
     }

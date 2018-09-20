@@ -21,6 +21,7 @@
 
 #include <pulsar/TopicMetadata.h>
 
+#pragma GCC visibility push(default)
 namespace pulsar {
 class TopicMetadataImpl : public TopicMetadata {
    public:
@@ -31,5 +32,6 @@ class TopicMetadataImpl : public TopicMetadata {
     int numPartitions_;
 };
 }  // namespace pulsar
+#pragma GCC visibility pop
 
 #endif /* TOPIC_METADATA_IMPL_HPP_ */

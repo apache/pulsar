@@ -80,7 +80,11 @@ bool TopicName::init(const std::string& topicName) {
         LOG_ERROR("Topic name is not valid, topic name is empty - " << topicName_);
         return false;
     }
-    namespaceName_ = NamespaceName::get(property_, cluster_, namespacePortion_);
+    if (isV2Topic_ && cluster_.empty()) {
+        namespaceName_ = NamespaceName::get(property_, namespacePortion_);
+    } else {
+        namespaceName_ = NamespaceName::get(property_, cluster_, namespacePortion_);
+    }
     return true;
 }
 bool TopicName::parse(const std::string& topicName, std::string& domain, std::string& property,
@@ -161,7 +165,7 @@ bool TopicName::operator==(const TopicName& other) {
 
 bool TopicName::validate() {
     // check domain matches to "persistent", in future check "memory" when server is ready
-    if (domain_.compare("persistent") != 0) {
+    if (domain_.compare("persistent") != 0 && domain_.compare("non-persistent") != 0) {
         return false;
     }
     // cluster_ can be empty
@@ -224,4 +228,7 @@ const std::string TopicName::getTopicPartitionName(unsigned int partition) {
     topicPartitionName << toString() << PartitionedProducerImpl::PARTITION_NAME_SUFFIX << partition;
     return topicPartitionName.str();
 }
+
+NamespaceNamePtr TopicName::getNamespaceName() { return namespaceName_; }
+
 }  // namespace pulsar

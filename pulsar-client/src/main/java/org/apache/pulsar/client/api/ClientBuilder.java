@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -29,12 +28,32 @@ import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticat
  *
  * @since 2.0.0
  */
-public interface ClientBuilder extends Serializable, Cloneable {
+public interface ClientBuilder extends Cloneable {
 
     /**
      * @return the new {@link PulsarClient} instance
      */
     PulsarClient build() throws PulsarClientException;
+
+    /**
+     * Load the configuration from provided <tt>config</tt> map.
+     *
+     * <p>Example:
+     * <pre>
+     * Map&lt;String, Object&gt; config = new HashMap&lt;&gt;();
+     * config.put("serviceUrl", "pulsar://localhost:5550");
+     * config.put("numIoThreads", 20);
+     *
+     * ClientBuilder builder = ...;
+     * builder = builder.loadConf(config);
+     *
+     * PulsarClient client = builder.build();
+     * </pre>
+     *
+     * @param config configuration to load
+     * @return client builder instance
+     */
+    ClientBuilder loadConf(Map<String, Object> config);
 
     /**
      * Create a copy of the current client builder.
@@ -60,6 +79,13 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return
      */
     ClientBuilder serviceUrl(String serviceUrl);
+
+    /**
+     * Configure the service URL provider for Pulsar service
+     * @param serviceUrlProvider
+     * @return
+     */
+    ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
@@ -154,7 +180,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * Set the operation timeout <i>(default: 30 seconds)</i>
      * <p>
      * Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the
-     * operation will be maked as failed
+     * operation will be marked as failed
      *
      * @param operationTimeout
      *            operation timeout
@@ -203,10 +229,13 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder enableTcpNoDelay(boolean enableTcpNoDelay);
 
     /**
-     * Configure whether to use TLS encryption on the connection <i>(default: false)</i>
+     * Configure whether to use TLS encryption on the connection
+     * <i>(default: true if serviceUrl starts with "pulsar+ssl://", false otherwise)</i>
      *
      * @param enableTls
+     * @deprecated use "pulsar+ssl://" in serviceUrl to enable
      */
+    @Deprecated
     ClientBuilder enableTls(boolean enableTls);
 
     /**

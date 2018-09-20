@@ -22,25 +22,31 @@ package org.apache.pulsar.functions.runtime;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.gson.Gson;
 import com.google.protobuf.Empty;
+import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import java.util.concurrent.ExecutionException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.net.ServerSocket;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.functions.proto.InstanceControlGrpc.InstanceControlFutureStub;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * A function container implemented using java thread.
@@ -55,32 +61,56 @@ public class ProcessRuntime implements Runtime {
     private List<String> processArgs;
     private int instancePort;
     @Getter
-    private Exception deathException;
+    private Throwable deathException;
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
+    private ScheduledExecutorService timer;
+    private InstanceConfig instanceConfig;
 
     ProcessRuntime(InstanceConfig instanceConfig,
                    String instanceFile,
                    String logDirectory,
                    String codeFile,
-                   String pulsarServiceUrl) {
+                   String pulsarServiceUrl,
+                   String stateStorageServiceUrl,
+                   AuthenticationConfig authConfig) throws Exception {
+        this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
-        this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl);
+        this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
+                authConfig);
     }
 
     public static List<String> composeArgs(InstanceConfig instanceConfig,
                                      String instanceFile,
                                      String logDirectory,
                                      String codeFile,
-                                     String pulsarServiceUrl) {
+                                     String pulsarServiceUrl,
+                                     String stateStorageServiceUrl,
+                                     AuthenticationConfig authConfig) throws Exception {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
             args.add("-cp");
             args.add(instanceFile);
+
+            // Keep the same env property pointing to the Java instance file so that it can be picked up
+            // by the child process and manually added to classpath
+            args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
             args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
-            args.add("-Dpulsar.log.dir=" + logDirectory);
-            args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionDetails().getName());
+            args.add("-Dpulsar.function.log.dir=" + String.format(
+                    "%s/%s",
+                    logDirectory,
+                    FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails())));
+            args.add("-Dpulsar.function.log.file=" + String.format(
+                    "%s-%s",
+                    instanceConfig.getFunctionDetails().getName(),
+                    instanceConfig.getInstanceId()));
+            if (instanceConfig.getFunctionDetails().getResources() != null) {
+                Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
+                if (resources.getRam() != 0) {
+                    args.add("-Xmx" + String.valueOf(resources.getRam()));
+                }
+            }
             args.add(JavaInstanceMain.class.getName());
             args.add("--jar");
             args.add(codeFile);
@@ -93,6 +123,7 @@ public class ProcessRuntime implements Runtime {
             args.add(logDirectory);
             args.add("--logging_file");
             args.add(instanceConfig.getFunctionDetails().getName());
+            // TODO:- Find a platform independent way of controlling memory for a python application
         }
         args.add("--instance_id");
         args.add(instanceConfig.getInstanceId());
@@ -100,79 +131,41 @@ public class ProcessRuntime implements Runtime {
         args.add(instanceConfig.getFunctionId());
         args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
-        args.add("--tenant");
-        args.add(instanceConfig.getFunctionDetails().getTenant());
-        args.add("--namespace");
-        args.add(instanceConfig.getFunctionDetails().getNamespace());
-        args.add("--name");
-        args.add(instanceConfig.getFunctionDetails().getName());
-        args.add("--function_classname");
-        args.add(instanceConfig.getFunctionDetails().getClassName());
-        if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
-                !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
-            args.add("--log_topic");
-            args.add(instanceConfig.getFunctionDetails().getLogTopic());
-        }
-        args.add("--auto_ack");
-        if (instanceConfig.getFunctionDetails().getAutoAck()) {
-            args.add("true");
-        } else {
-            args.add("false");
-        }
+        args.add("--function_details");
+        args.add(JsonFormat.printer().print(instanceConfig.getFunctionDetails()));
 
-        args.add("--processing_guarantees");
-        args.add(String.valueOf(instanceConfig.getFunctionDetails().getProcessingGuarantees()));
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
+        if (authConfig != null) {
+            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                args.add("--client_auth_plugin");
+                args.add(authConfig.getClientAuthenticationPlugin());
+                args.add("--client_auth_params");
+                args.add(authConfig.getClientAuthenticationParameters());
+            }
+            args.add("--use_tls");
+            args.add(Boolean.toString(authConfig.isUseTls()));
+            args.add("--tls_allow_insecure");
+            args.add(Boolean.toString(authConfig.isTlsAllowInsecureConnection()));
+            args.add("--hostname_verification_enabled");
+            args.add(Boolean.toString(authConfig.isTlsHostnameVerificationEnable()));
+            if(isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
+                args.add("--tls_trust_cert_path");
+                args.add(authConfig.getTlsTrustCertsFilePath());
+            }
+        }
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-        Map<String, String> userConfig = instanceConfig.getFunctionDetails().getUserConfigMap();
-        if (userConfig != null && !userConfig.isEmpty()) {
-            args.add("--user_config");
-            args.add(new Gson().toJson(userConfig));
-        }
+
         args.add("--port");
         args.add(String.valueOf(instanceConfig.getPort()));
 
-        // source related configs
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            if (!instanceConfig.getFunctionDetails().getSource().getClassName().isEmpty()) {
-                args.add("--source_classname");
-                args.add(instanceConfig.getFunctionDetails().getSource().getClassName());
-            }
-            String sourceConfigs = instanceConfig.getFunctionDetails().getSource().getConfigs();
-            if (sourceConfigs != null && !sourceConfigs.isEmpty()) {
-                args.add("--source_configs");
-                args.add(sourceConfigs);
-            }
-        }
-        args.add("--source_subscription_type");
-        args.add(instanceConfig.getFunctionDetails().getSource().getSubscriptionType().toString());
-
-        args.add("--source_topics_serde_classname");
-        args.add(new Gson().toJson(instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()));
-
-        // sink related configs
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            if (!instanceConfig.getFunctionDetails().getSink().getClassName().isEmpty()) {
-                args.add("--sink_classname");
-                args.add(instanceConfig.getFunctionDetails().getSink().getClassName());
-            }
-            String sinkConfigs = instanceConfig.getFunctionDetails().getSink().getConfigs();
-            if (sinkConfigs != null && !sinkConfigs.isEmpty()) {
-                args.add("--sink_configs");
-                args.add(sinkConfigs);
-            }
-        }
-        if (instanceConfig.getFunctionDetails().getSink().getTopic() != null
-                && !instanceConfig.getFunctionDetails().getSink().getTopic().isEmpty()) {
-            args.add("--sink_topic");
-            args.add(instanceConfig.getFunctionDetails().getSink().getTopic());
-        }
-        if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() != null
-                && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {
-            args.add("--sink_serde_classname");
-            args.add(instanceConfig.getFunctionDetails().getSink().getSerDeClassName());
+        // state storage configs
+        if (null != stateStorageServiceUrl
+            && instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            args.add("--state_storage_serviceurl");
+            args.add(stateStorageServiceUrl);
         }
         return args;
     }
@@ -189,6 +182,22 @@ public class ProcessRuntime implements Runtime {
                     .usePlaintext(true)
                     .build();
             stub = InstanceControlGrpc.newFutureStub(channel);
+
+            timer = Executors.newSingleThreadScheduledExecutor();
+            timer.scheduleAtFixedRate(new TimerTask() {
+
+                @Override
+                public void run() {
+                    CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
+                    try {
+                        result.get();
+                    } catch (Exception e) {
+                        log.error("Health check failed for {}-{}",
+                                instanceConfig.getFunctionDetails().getName(),
+                                instanceConfig.getInstanceId(), e);
+                    }
+                }
+            }, 30000, 30000, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -199,8 +208,15 @@ public class ProcessRuntime implements Runtime {
 
     @Override
     public void stop() {
-        process.destroy();
-        channel.shutdown();
+        if (timer != null) {
+            timer.shutdown();
+        }
+        if (process != null) {
+            process.destroy();
+        }
+        if (channel != null) {
+            channel.shutdown();
+        }
         channel = null;
         stub = null;
     }
@@ -256,10 +272,75 @@ public class ProcessRuntime implements Runtime {
         return retval;
     }
 
+    @Override
+    public CompletableFuture<Void> resetMetrics() {
+        CompletableFuture<Void> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
+        ListenableFuture<Empty> response = stub.resetMetrics(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<Empty>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                retval.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(Empty t) {
+                retval.complete(null);
+            }
+        });
+        return retval;
+    }
+
+    @Override
+    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
+        CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
+        ListenableFuture<InstanceCommunication.MetricsData> response = stub.getMetrics(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                retval.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(InstanceCommunication.MetricsData t) {
+                retval.complete(t);
+            }
+        });
+        return retval;
+    }
+
+    public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
+        CompletableFuture<InstanceCommunication.HealthCheckResult> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
+        ListenableFuture<InstanceCommunication.HealthCheckResult> response = stub.healthCheck(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<InstanceCommunication.HealthCheckResult>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                retval.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(InstanceCommunication.HealthCheckResult t) {
+                retval.complete(t);
+            }
+        });
+        return retval;
+    }
+
     private void startProcess() {
         deathException = null;
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder(processArgs);
+            ProcessBuilder processBuilder = new ProcessBuilder(processArgs).inheritIO();
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();
         } catch (Exception ex) {

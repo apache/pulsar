@@ -17,7 +17,7 @@
 # under the License.
 #
 
-file(GLOB PULSAR_SOURCES *.cc lz4/*.c checksum/*.cc stats/*.cc)
+file(GLOB PULSAR_SOURCES *.cc lz4/*.c checksum/*.cc stats/*.cc c/*.cc auth/*.cc auth/athenz/*.cc)
 
 execute_process(COMMAND cat ../pom.xml COMMAND xmllint --format - COMMAND sed "s/xmlns=\".*\"//g" COMMAND xmllint --stream --pattern /project/version --debug - COMMAND grep -A 2 "matches pattern" COMMAND grep text COMMAND sed "s/.* [0-9] //g" OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PV)
 set (CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -D_PULSAR_VERSION_=\\\"${PV}\\\"")
@@ -45,4 +45,7 @@ set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${
 target_link_libraries(pulsarStatic ${COMMON_LIBS})
 target_link_libraries(pulsarShared ${COMMON_LIBS})
 
-add_subdirectory(auth)
+install(TARGETS pulsarStatic DESTINATION lib)
+install(TARGETS pulsarShared DESTINATION lib)
+
+install(DIRECTORY "../include/pulsar" DESTINATION include)

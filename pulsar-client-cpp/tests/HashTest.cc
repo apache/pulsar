@@ -58,10 +58,18 @@ TEST(HashTest, testJavaStringHash) {
 
 TEST(HashTest, testMurmur3_32Hash) {
     Murmur3_32Hash hash;
+    std::string k1 = "k1";
+    std::string k2 = "k2";
     std::string key1 = "key1";
     std::string key2 = "key2";
+    std::string key01 = "key01";
+    std::string key02 = "key02";
 
     // Same value as Java client
+    ASSERT_EQ(2110152746, hash.makeHash(k1));
+    ASSERT_EQ(1479966664, hash.makeHash(k2));
     ASSERT_EQ(462881061, hash.makeHash(key1));
     ASSERT_EQ(1936800180, hash.makeHash(key2));
+    ASSERT_EQ(39696932, hash.makeHash(key01));
+    ASSERT_EQ(751761803, hash.makeHash(key02));
 }

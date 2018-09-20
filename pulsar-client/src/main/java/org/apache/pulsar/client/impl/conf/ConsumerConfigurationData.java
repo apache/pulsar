@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 
 @Data
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
@@ -81,6 +82,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
     private int patternAutoDiscoveryPeriod = 1;
+
+    private DeadLetterPolicy deadLetterPolicy;
 
     @JsonIgnore
     public String getSingleTopic() {

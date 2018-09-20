@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import java.io.IOException;
 
+import java.io.Serializable;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 
 /**
@@ -30,7 +31,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
  *
  *
  */
-public interface MessageId extends Comparable<MessageId>{
+public interface MessageId extends Comparable<MessageId>, Serializable {
 
     /**
      * Serialize the message ID into a byte array

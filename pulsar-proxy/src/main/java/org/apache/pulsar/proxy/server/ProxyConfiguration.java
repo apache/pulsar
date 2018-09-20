@@ -44,6 +44,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String brokerServiceURL;
     private String brokerServiceURLTLS;
 
+    // These settings are unnecessary if `zookeeperServers` is specified
+    private String brokerWebServiceURL;
+    private String brokerWebServiceURLTLS;
+
+    // function worker web services
+    private String functionWorkerWebServiceURL;
+    private String functionWorkerWebServiceURLTLS;
+
     // Port to use to server binary-proto request
     private int servicePort = 6650;
     // Port to use to server binary-proto-tls request
@@ -78,7 +86,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int maxConcurrentInboundConnections = 10000;
 
     // Max concurrent outbound Connections
-    private int maxConcurrentLookupRequests = 10000;
+    private int maxConcurrentLookupRequests = 50000;
 
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
@@ -136,6 +144,30 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setBrokerServiceURL(String discoveryServiceURL) {
         this.brokerServiceURL = discoveryServiceURL;
+    }
+
+    public String getBrokerWebServiceURL() {
+        return brokerWebServiceURL;
+    }
+
+    public void setBrokerWebServiceURL(String brokerWebServiceURL) {
+        this.brokerWebServiceURL = brokerWebServiceURL;
+    }
+
+    public String getBrokerWebServiceURLTLS() {
+        return brokerWebServiceURLTLS;
+    }
+
+    public void setBrokerWebServiceURLTLS(String brokerWebServiceURLTLS) {
+        this.brokerWebServiceURLTLS = brokerWebServiceURLTLS;
+    }
+
+    public String getFunctionWorkerWebServiceURL() {
+        return functionWorkerWebServiceURL;
+    }
+
+    public String getFunctionWorkerWebServiceURLTLS() {
+        return functionWorkerWebServiceURLTLS;
     }
 
     public String getZookeeperServers() {

@@ -493,9 +493,10 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 }
 
                 @Override
-                public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid) {
+                public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid,
+                                                               Map<String, String> offloadDriverMetadata) {
                     deleted.add(Pair.of(ledgerId, uuid));
-                    return super.deleteOffloaded(ledgerId, uuid);
+                    return super.deleteOffloaded(ledgerId, uuid, offloadDriverMetadata);
                 }
             };
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -676,6 +677,226 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(offloader.offloadedLedgers(), ImmutableSet.of(firstLedgerId, thirdLedgerId));
     }
 
+    private static byte[] buildEntry(int size, String pattern) {
+        byte[] entry = new byte[size];
+        byte[] patternBytes = pattern.getBytes();
+
+        for (int i = 0; i < entry.length; i++) {
+            entry[i] = patternBytes[i % patternBytes.length];
+        }
+        return entry;
+    }
+
+    @Test
+    public void testAutoTriggerOffload() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setOffloadAutoTriggerSizeThresholdBytes(100);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        // Ledger will roll twice, offload will run on first ledger after second closed
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 3);
+
+        // offload should eventually be triggered
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 1);
+        Assert.assertEquals(offloader.offloadedLedgers(),
+                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
+    }
+
+    @Test
+    public void manualTriggerWhileAutoInProgress() throws Exception {
+        CompletableFuture<Void> slowOffload = new CompletableFuture<>();
+        CountDownLatch offloadRunning = new CountDownLatch(1);
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
+                    offloadRunning.countDown();
+                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
+                }
+            };
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setOffloadAutoTriggerSizeThresholdBytes(100);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        // Ledger will roll twice, offload will run on first ledger after second closed
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        offloadRunning.await();
+
+        for (int i = 0; i < 20; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        Position p = ledger.addEntry(buildEntry(10, "last-entry"));
+
+        try {
+            ledger.offloadPrefix(p);
+            Assert.fail("Shouldn't have succeeded");
+        } catch (ManagedLedgerException.OffloadInProgressException e) {
+            // expected
+        }
+
+        slowOffload.complete(null);
+
+        // eventually all over threshold will be offloaded
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 3);
+        Assert.assertEquals(offloader.offloadedLedgers(),
+                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                                            ledger.getLedgersInfoAsList().get(1).getLedgerId(),
+                                            ledger.getLedgersInfoAsList().get(2).getLedgerId()));
+
+        // then a manual offload can run and offload the one ledger under the threshold
+        ledger.offloadPrefix(p);
+
+        Assert.assertEquals(offloader.offloadedLedgers().size(), 4);
+        Assert.assertEquals(offloader.offloadedLedgers(),
+                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                                            ledger.getLedgersInfoAsList().get(1).getLedgerId(),
+                                            ledger.getLedgersInfoAsList().get(2).getLedgerId(),
+                                            ledger.getLedgersInfoAsList().get(3).getLedgerId()));
+    }
+
+    @Test
+    public void autoTriggerWhileManualInProgress() throws Exception {
+        CompletableFuture<Void> slowOffload = new CompletableFuture<>();
+        CountDownLatch offloadRunning = new CountDownLatch(1);
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
+                    offloadRunning.countDown();
+                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
+                }
+            };
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setOffloadAutoTriggerSizeThresholdBytes(100);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        // Ledger rolls once, threshold not hit so auto shouldn't run
+        for (int i = 0; i < 14; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        Position p = ledger.addEntry(buildEntry(10, "trigger-entry"));
+
+        OffloadCallbackPromise cbPromise = new OffloadCallbackPromise();
+        ledger.asyncOffloadPrefix(p, cbPromise, null);
+        offloadRunning.await();
+
+        // add enough entries to roll the ledger a couple of times and trigger some offloads
+        for (int i = 0; i < 20; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        // allow the manual offload to complete
+        slowOffload.complete(null);
+
+        Assert.assertEquals(cbPromise.join(),
+                            PositionImpl.get(ledger.getLedgersInfoAsList().get(1).getLedgerId(), 0));
+
+        // auto trigger should eventually offload everything else over threshold
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
+        Assert.assertEquals(offloader.offloadedLedgers(),
+                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                                            ledger.getLedgersInfoAsList().get(1).getLedgerId()));
+    }
+
+    @Test
+    public void multipleAutoTriggers() throws Exception {
+        CompletableFuture<Void> slowOffload = new CompletableFuture<>();
+        CountDownLatch offloadRunning = new CountDownLatch(1);
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
+                    offloadRunning.countDown();
+                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
+                }
+            };
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setOffloadAutoTriggerSizeThresholdBytes(100);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        // Ledger will roll twice, offload will run on first ledger after second closed
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        offloadRunning.await();
+
+        // trigger a bunch more rolls. Eventually there will be 5 ledgers.
+        // first 3 should be offloaded, 4th is 100bytes, 5th is 0 bytes.
+        // 4th and 5th sum to 100 bytes so they're just at edge of threshold
+        for (int i = 0; i < 20; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        // allow the first offload to continue
+        slowOffload.complete(null);
+
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 3);
+        Assert.assertEquals(offloader.offloadedLedgers(),
+                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                                            ledger.getLedgersInfoAsList().get(1).getLedgerId(),
+                                            ledger.getLedgersInfoAsList().get(2).getLedgerId()));
+    }
+
+    @Test
+    public void offloadAsSoonAsClosed() throws Exception {
+
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setOffloadAutoTriggerSizeThresholdBytes(0);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        for (int i = 0; i < 11; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 1);
+        Assert.assertEquals(offloader.offloadedLedgers(),
+                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
+
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
+        Assert.assertEquals(offloader.offloadedLedgers(),
+                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                                            ledger.getLedgersInfoAsList().get(1).getLedgerId()));
+    }
+
+
     static void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
         // wait up to 3 seconds
         for (int i = 0; i < 30 && !predicate.getAsBoolean(); i++) {
@@ -709,6 +930,11 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
 
         @Override
+        public String getOffloadDriverName() {
+            return "mock";
+        }
+
+        @Override
         public CompletableFuture<Void> offload(ReadHandle ledger,
                                                UUID uuid,
                                                Map<String, String> extraMetadata) {
@@ -722,14 +948,16 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid) {
+        public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid,
+                                                           Map<String, String> offloadDriverMetadata) {
             CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
             promise.completeExceptionally(new UnsupportedOperationException());
             return promise;
         }
 
         @Override
-        public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid) {
+        public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid,
+                                                       Map<String, String> offloadDriverMetadata) {
             CompletableFuture<Void> promise = new CompletableFuture<>();
             if (offloads.remove(ledgerId, uuid)) {
                 deletes.put(ledgerId, uuid);

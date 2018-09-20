@@ -24,6 +24,10 @@
 #include "ReaderImpl.h"
 #include "PartitionedProducerImpl.h"
 #include "PartitionedConsumerImpl.h"
+#include "MultiTopicsConsumerImpl.h"
+#include "PatternMultiTopicsConsumerImpl.h"
+#include "SimpleLoggerImpl.h"
+#include "Log4CxxLogger.h"
 #include <boost/bind.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
@@ -31,6 +35,8 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
+#include <algorithm>
+#include <regex>
 
 DECLARE_LOG_OBJECT()
 
@@ -58,27 +64,58 @@ const std::string generateRandomName() {
 }
 typedef boost::unique_lock<boost::mutex> Lock;
 
+static const std::string https("https");
+static const std::string pulsarSsl("pulsar+ssl");
+
+static const ClientConfiguration detectTls(const std::string& serviceUrl,
+                                           const ClientConfiguration& clientConfiguration) {
+    ClientConfiguration conf(clientConfiguration);
+    if (serviceUrl.compare(0, https.size(), https) == 0 ||
+        serviceUrl.compare(0, pulsarSsl.size(), pulsarSsl) == 0) {
+        conf.setUseTls(true);
+    }
+    return conf;
+}
+
 ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
                        bool poolConnections)
     : mutex_(),
       state_(Open),
       serviceUrl_(serviceUrl),
-      clientConfiguration_(clientConfiguration),
-      ioExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(clientConfiguration.getIOThreads())),
+      clientConfiguration_(detectTls(serviceUrl, clientConfiguration)),
+      ioExecutorProvider_(boost::make_shared<ExecutorServiceProvider>(clientConfiguration_.getIOThreads())),
       listenerExecutorProvider_(
-          boost::make_shared<ExecutorServiceProvider>(clientConfiguration.getMessageListenerThreads())),
+          boost::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
       partitionListenerExecutorProvider_(
-          boost::make_shared<ExecutorServiceProvider>(clientConfiguration.getMessageListenerThreads())),
-      pool_(clientConfiguration, ioExecutorProvider_, clientConfiguration.getAuthPtr(), poolConnections),
+          boost::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
+      pool_(clientConfiguration_, ioExecutorProvider_, clientConfiguration_.getAuthPtr(), poolConnections),
       producerIdGenerator_(0),
       consumerIdGenerator_(0),
       requestIdGenerator_(0) {
-    LogUtils::init(clientConfiguration.getLogConfFilePath());
+    if (clientConfiguration_.getLogger()) {
+        // A logger factory was explicitely configured. Let's just use that
+        LogUtils::setLoggerFactory(clientConfiguration_.getLogger());
+    } else {
+#ifdef USE_LOG4CXX
+        if (!clientConfiguration_.getLogConfFilePath().empty()) {
+            // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
+            LogUtils::setLoggerFactory(
+                Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath()));
+        } else {
+            // Use default simple console logger
+            LogUtils::setLoggerFactory(SimpleLoggerFactory::create());
+        }
+#else
+        // Use default simple console logger
+        LogUtils::setLoggerFactory(SimpleLoggerFactory::create());
+#endif
+    }
+
     if (serviceUrl_.compare(0, 4, "http") == 0) {
         LOG_DEBUG("Using HTTP Lookup");
         lookupServicePtr_ =
             boost::make_shared<HTTPLookupService>(boost::cref(serviceUrl_), boost::cref(clientConfiguration_),
-                                                  boost::cref(clientConfiguration.getAuthPtr()));
+                                                  boost::cref(clientConfiguration_.getAuthPtr()));
     } else {
         LOG_DEBUG("Using Binary Lookup");
         lookupServicePtr_ =
@@ -97,6 +134,9 @@ ExecutorServiceProviderPtr ClientImpl::getListenerExecutorProvider() { return li
 ExecutorServiceProviderPtr ClientImpl::getPartitionListenerExecutorProvider() {
     return partitionListenerExecutorProvider_;
 }
+
+LookupServicePtr ClientImpl::getLookup() { return lookupServicePtr_; }
+
 void ClientImpl::createProducerAsync(const std::string& topic, ProducerConfiguration conf,
                                      CreateProducerCallback callback) {
     TopicNamePtr topicName;
@@ -190,6 +230,93 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
     consumers_.push_back(reader->getConsumer());
 }
 
+void ClientImpl::subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+                                         const ConsumerConfiguration& conf, SubscribeCallback callback) {
+    TopicNamePtr topicNamePtr = TopicName::get(regexPattern);
+
+    Lock lock(mutex_);
+    if (state_ != Open) {
+        lock.unlock();
+        callback(ResultAlreadyClosed, Consumer());
+        return;
+    } else {
+        lock.unlock();
+        if (!topicNamePtr) {
+            LOG_ERROR("Topic pattern not valid: " << regexPattern);
+            callback(ResultInvalidTopicName, Consumer());
+            return;
+        }
+    }
+
+    NamespaceNamePtr nsName = topicNamePtr->getNamespaceName();
+
+    lookupServicePtr_->getTopicsOfNamespaceAsync(nsName).addListener(
+        boost::bind(&ClientImpl::createPatternMultiTopicsConsumer, shared_from_this(), _1, _2, regexPattern,
+                    consumerName, conf, callback));
+}
+
+void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const NamespaceTopicsPtr topics,
+                                                  const std::string& regexPattern,
+                                                  const std::string& consumerName,
+                                                  const ConsumerConfiguration& conf,
+                                                  SubscribeCallback callback) {
+    if (result == ResultOk) {
+        ConsumerImplBasePtr consumer;
+
+        std::regex pattern(regexPattern);
+
+        NamespaceTopicsPtr matchTopics =
+            PatternMultiTopicsConsumerImpl::topicsPatternFilter(*topics, pattern);
+
+        consumer = boost::make_shared<PatternMultiTopicsConsumerImpl>(
+            shared_from_this(), regexPattern, *matchTopics, consumerName, conf, lookupServicePtr_);
+
+        consumer->getConsumerCreatedFuture().addListener(
+            boost::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), _1, _2, callback, consumer));
+        Lock lock(mutex_);
+        consumers_.push_back(consumer);
+        lock.unlock();
+        consumer->start();
+    } else {
+        LOG_ERROR("Error Getting topicsOfNameSpace while createPatternMultiTopicsConsumer:  " << result);
+        callback(result, Consumer());
+    }
+}
+
+void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+                                const ConsumerConfiguration& conf, SubscribeCallback callback) {
+    TopicNamePtr topicNamePtr;
+
+    Lock lock(mutex_);
+    if (state_ != Open) {
+        lock.unlock();
+        callback(ResultAlreadyClosed, Consumer());
+        return;
+    } else {
+        if (!topics.empty() && !(topicNamePtr = MultiTopicsConsumerImpl::topicNamesValid(topics))) {
+            lock.unlock();
+            callback(ResultInvalidTopicName, Consumer());
+            return;
+        }
+    }
+
+    if (topicNamePtr) {
+        std::string randomName = generateRandomName();
+        std::stringstream consumerTopicNameStream;
+        consumerTopicNameStream << topicNamePtr->toString() << "-TopicsConsumerFakeName-" << randomName;
+        topicNamePtr = TopicName::get(consumerTopicNameStream.str());
+    }
+
+    ConsumerImplBasePtr consumer = boost::make_shared<MultiTopicsConsumerImpl>(
+        shared_from_this(), topics, consumerName, topicNamePtr, conf, lookupServicePtr_);
+
+    consumer->getConsumerCreatedFuture().addListener(
+        boost::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), _1, _2, callback, consumer));
+    consumers_.push_back(consumer);
+    lock.unlock();
+    consumer->start();
+}
+
 void ClientImpl::subscribeAsync(const std::string& topic, const std::string& consumerName,
                                 const ConsumerConfiguration& conf, SubscribeCallback callback) {
     TopicNamePtr topicName;
@@ -202,6 +329,12 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
         } else if (!(topicName = TopicName::get(topic))) {
             lock.unlock();
             callback(ResultInvalidTopicName, Consumer());
+            return;
+        } else if (conf.isReadCompacted() && (topicName->getDomain().compare("persistent") != 0 ||
+                                              (conf.getConsumerType() != ConsumerExclusive &&
+                                               conf.getConsumerType() != ConsumerFailover))) {
+            lock.unlock();
+            callback(ResultInvalidConfiguration, Consumer());
             return;
         }
     }
@@ -258,8 +391,9 @@ Future<Result, ClientConnectionWeakPtr> ClientImpl::getConnection(const std::str
 void ClientImpl::handleLookup(Result result, LookupDataResultPtr data,
                               Promise<Result, ClientConnectionWeakPtr> promise) {
     if (data) {
-        LOG_DEBUG("Getting connection to broker: " << data->getBrokerUrl());
-        const std::string& logicalAddress = data->getBrokerUrl();
+        const std::string& logicalAddress =
+            clientConfiguration_.isUseTls() ? data->getBrokerUrlTls() : data->getBrokerUrl();
+        LOG_DEBUG("Getting connection to broker: " << logicalAddress);
         const std::string& physicalAddress =
             data->shouldProxyThroughServiceUrl() ? serviceUrl_ : logicalAddress;
         Future<Result, ClientConnectionWeakPtr> future =

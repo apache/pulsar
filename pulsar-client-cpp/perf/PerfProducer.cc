@@ -30,6 +30,7 @@ DECLARE_LOG_OBJECT()
 #include <boost/accumulators/statistics/p_square_quantile.hpp>
 #include <boost/program_options/variables_map.hpp>
 #include <boost/program_options.hpp>
+#include <boost/thread.hpp>
 namespace po = boost::program_options;
 
 #include <iostream>
@@ -144,14 +145,14 @@ void runProducer(const Arguments& args, std::string topicName, int threadIndex,
     try {
         while (true) {
             if (args.rate != -1) {
-                limiter->aquire();
+                limiter->acquire();
             }
             pulsar::Message msg = builder.create().setAllocatedContent(payload.get(), args.msgSize).build();
 
             producer.sendAsync(msg, boost::bind(sendCallback, _1, _2, Clock::now()));
             boost::this_thread::interruption_point();
         }
-    } catch(const boost::thread_interrupted&) {
+    } catch(const boost::thread_interrupted& e) {
         // Thread interruption request received, break the loop
         LOG_INFO("Thread interrupted. Exiting thread.");
     }
@@ -187,8 +188,6 @@ void startPerfProducer(const Arguments& args, pulsar::ProducerConfiguration &pro
 }
 
 int main(int argc, char** argv) {
-    LogUtils::init("conf/log4cxx.conf");
-
     std::string defaultServiceUrl;
 
     // First try to read default values from config file if present
@@ -305,6 +304,8 @@ int main(int argc, char** argv) {
     for (po::variables_map::iterator it = map.begin(); it != map.end(); ++it) {
         if (it->second.value().type() == typeid(std::string)) {
             LOG_INFO(it->first << ": " << it->second.as<std::string>());
+        } else if (it->second.value().type() == typeid(bool)) {
+            LOG_INFO(it->first << ": " << it->second.as<bool>());
         } else if (it->second.value().type() == typeid(int)) {
             LOG_INFO(it->first << ": " << it->second.as<int>());
         } else if (it->second.value().type() == typeid(double)) {
@@ -355,7 +356,8 @@ int main(int argc, char** argv) {
 
     Clock::time_point oldTime = Clock::now();
     unsigned long totalMessagesProduced = 0;
-    while (args.numberOfSamples--) {
+    long messagesToSend = args.numberOfSamples;
+    while (args.numberOfSamples == 0 || --messagesToSend > 0) {
         std::this_thread::sleep_for(std::chrono::seconds(args.samplingPeriod));
 
         Clock::time_point now = Clock::now();

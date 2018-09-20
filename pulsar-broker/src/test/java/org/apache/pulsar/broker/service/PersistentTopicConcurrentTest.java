@@ -98,7 +98,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
-        serverCnx = spy(new ServerCnx(brokerService));
+        serverCnx = spy(new ServerCnx(pulsar));
         doReturn(true).when(serverCnx).isActive();
 
         NamespaceService nsSvc = mock(NamespaceService.class);

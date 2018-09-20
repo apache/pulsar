@@ -34,6 +34,17 @@ enum SubscriptionType {
     FAILOVER = 1;
 }
 
+message Resources {
+    double cpu = 1;
+    int64 ram = 2;
+    int64 disk = 3;
+}
+
+message RetryDetails {
+    int32 maxMessageRetries = 1;
+    string deadLetterTopic = 2;
+}
+
 message FunctionDetails {
     enum Runtime {
         JAVA = 0;
@@ -45,36 +56,73 @@ message FunctionDetails {
     string className = 4;
     string logTopic = 5;
     ProcessingGuarantees processingGuarantees = 6;
-    map<string,string> userConfig = 7;
+    string userConfig = 7;
     Runtime runtime = 8;
     bool autoAck = 9;
     int32 parallelism = 10;
     SourceSpec source = 11;
     SinkSpec sink = 12;
+    Resources resources = 13;
+    string packageUrl = 14; //present only if function submitted with package-url
+    RetryDetails retryDetails = 15;
+}
+
+message ConsumerSpec {
+	string schemaType   = 1;
+    string serdeClassName = 2;
+	bool isRegexPattern = 3;
 }
 
 message SourceSpec {
     string className = 1;
     // map in json format
     string configs = 2;
+    string typeClassName = 5;
 
     // configs used only when source feeds into functions
     SubscriptionType subscriptionType = 3;
-    map<string,string> topicsToSerDeClassName = 4;
+
+	// @deprecated -- use topicsToSchema
+    map<string,string> topicsToSerDeClassName = 4 [deprecated = true];
+
+	/**
+	 *
+	 */
+    map<string, ConsumerSpec> inputSpecs = 10;
+
+    uint64 timeoutMs = 6;
+    string topicsPattern = 7 [deprecated = true];
+
+    /* If specified, this will refer to an archive that is
+     * already present in the server */
+    string builtin = 8;
+    string subscriptionName = 9;
 }
 
 message SinkSpec {
     string className = 1;
     // map in json format
     string configs = 2;
+    string typeClassName = 5;
 
     // configs used only when functions output to sink
     string topic = 3;
+
     string serDeClassName = 4;
+
+    /* If specified, this will refer to an archive that is
+     * already present in the server */
+    string builtin = 6;
+
+	/**
+	 * Builtin schema type or custom schema class name
+	 */
+    string schemaType = 7;
 }
 
 message PackageLocationMetaData {
     string packagePath = 1;
+    string originalFileName = 2;
 }
 
 message FunctionMetaData {

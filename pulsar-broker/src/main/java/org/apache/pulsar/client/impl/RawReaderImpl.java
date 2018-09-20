@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,8 +103,15 @@ public class RawReaderImpl implements RawReader {
 
         RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> conf,
                 CompletableFuture<Consumer<byte[]>> consumerFuture) {
-            super(client, conf.getSingleTopic(), conf, client.externalExecutorProvider().getExecutor(), -1,
-                    consumerFuture, SubscriptionMode.Durable, MessageId.earliest, Schema.BYTES);
+            super(client,
+                conf.getSingleTopic(),
+                conf,
+                client.externalExecutorProvider().getExecutor(),
+                TopicName.getPartitionIndex(conf.getSingleTopic()),
+                consumerFuture,
+                SubscriptionMode.Durable,
+                MessageId.earliest,
+                Schema.BYTES, null);
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
         }
@@ -170,10 +178,10 @@ public class RawReaderImpl implements RawReader {
         }
 
         @Override
-        void messageReceived(MessageIdData messageId, ByteBuf headersAndPayload, ClientCnx cnx) {
+        void messageReceived(MessageIdData messageId, int redeliveryCount, ByteBuf headersAndPayload, ClientCnx cnx) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Received raw message: {}/{}", topic, subscription,
-                          messageId.getLedgerId(), messageId.getEntryId());
+                log.debug("[{}][{}] Received raw message: {}/{}/{}", topic, subscription,
+                          messageId.getEntryId(), messageId.getLedgerId(), messageId.getPartition());
             }
             incomingRawMessages.add(
                     new RawMessageAndCnx(new RawMessageImpl(messageId, headersAndPayload), cnx));
