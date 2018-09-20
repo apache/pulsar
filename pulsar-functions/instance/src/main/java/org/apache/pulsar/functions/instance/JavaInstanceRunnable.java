@@ -548,7 +548,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
             }
 
-            if (this.instanceConfig.getFunctionDetails().getRetryDetails() != null) {
+            if (this.instanceConfig.getFunctionDetails().hasRetryDetails()) {
                 pulsarSourceConfig.setMaxMessageRetries(this.instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
                 pulsarSourceConfig.setDeadLetterTopic(this.instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
             }
