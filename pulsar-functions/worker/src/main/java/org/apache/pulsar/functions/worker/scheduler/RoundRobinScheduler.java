@@ -52,6 +52,10 @@ public class RoundRobinScheduler implements IScheduler {
         List<Assignment> newAssignments = Lists.newArrayList();
         for (Instance unassignedFunctionInstance : unassignedFunctionInstances) {
             String heartBeatWorkerId = checkHeartBeatFunction(unassignedFunctionInstance);
+            if (heartBeatWorkerId != null && workerIdToAssignment.get(heartBeatWorkerId) == null) {
+                // ignore if heartbeat-function owner worker is not available
+                continue;
+            }
             String workerId = heartBeatWorkerId != null ? heartBeatWorkerId : findNextWorker(workerIdToAssignment);
             Assignment newAssignment = Assignment.newBuilder().setInstance(unassignedFunctionInstance)
                     .setWorkerId(workerId).build();
@@ -62,7 +66,7 @@ public class RoundRobinScheduler implements IScheduler {
         return newAssignments;
     }
 
-    private static String checkHeartBeatFunction(Instance funInstance) {
+    public static String checkHeartBeatFunction(Instance funInstance) {
         if (funInstance.getFunctionMetaData() != null
                 && funInstance.getFunctionMetaData().getFunctionDetails() != null) {
             FunctionDetails funDetails = funInstance.getFunctionMetaData().getFunctionDetails();
