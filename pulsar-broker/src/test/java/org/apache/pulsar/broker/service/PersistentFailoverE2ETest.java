@@ -100,14 +100,14 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
     }
 
     private void verifyConsumerActive(TestConsumerStateEventListener listener, int partitionId) throws Exception {
-        Integer pid = listener.activeQueue.poll(10, TimeUnit.SECONDS);
+        Integer pid = listener.activeQueue.take();
         assertNotNull(pid);
         assertEquals(partitionId, pid.intValue());
         assertNull(listener.inActiveQueue.poll());
     }
 
     private void verifyConsumerInactive(TestConsumerStateEventListener listener, int partitionId) throws Exception {
-        Integer pid = listener.inActiveQueue.poll(10, TimeUnit.SECONDS);
+        Integer pid = listener.inActiveQueue.take();
         assertNotNull(pid);
         assertEquals(partitionId, pid.intValue());
         assertNull(listener.activeQueue.poll());
