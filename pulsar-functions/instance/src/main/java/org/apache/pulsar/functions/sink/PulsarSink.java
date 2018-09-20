@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.sink;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -104,34 +103,19 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         protected Producer<T> getProducer(String producerId, String producerName, String topicName) {
-
-            Producer<T> producer = publishProducers.get(producerId);
-
-            if (producer == null) {
+            return publishProducers.computeIfAbsent(producerId, s -> {
                 try {
-                    Producer<T> newProducer = createProducer(
+                    return createProducer(
                             client,
                             topicName,
                             producerName,
                             schema,
                             fqfn);
-
-                    Producer<T> existingProducer = publishProducers.putIfAbsent(producerId, newProducer);
-
-                    if (existingProducer != null) {
-                        // The value in the map was not updated after the concurrent put
-                        newProducer.close();
-                        producer = existingProducer;
-                    } else {
-                        producer = newProducer;
-                    }
-
                 } catch (PulsarClientException e) {
                     log.error("Failed to create Producer while doing user publish", e);
                     throw new RuntimeException(e);
                 }
-            }
-            return producer;
+            });
         }
 
         @Override
