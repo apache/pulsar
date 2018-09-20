@@ -102,7 +102,7 @@ public class JdbcSinkTest {
         AutoSchema autoSchema = new AutoSchema();
         autoSchema.setSchema(GenericSchema.of(schema.getSchemaInfo()));
 
-        Message<GenericRecord> message = new MessageImpl("77:777", conf, payload, autoSchema);
+        Message<GenericRecord> message = new MessageImpl("fake_topic_name", "77:777", conf, payload, autoSchema);
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
             .message(message)
             .topicName("fake_topic_name")
