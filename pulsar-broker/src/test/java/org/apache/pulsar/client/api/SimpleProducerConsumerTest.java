@@ -2624,7 +2624,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    // Issue 1452: https://github.com/apache/incubator-pulsar/issues/1452
+    // Issue 1452: https://github.com/apache/pulsar/issues/1452
     // reachedEndOfTopic should be called only once if a topic has been terminated before subscription
     @Test
     public void testReachedEndOfTopic() throws Exception

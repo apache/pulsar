@@ -12,7 +12,7 @@ Local run mode | The function runs in your local environment, for example on you
 Cluster mode | The function runs *inside of* your Pulsar cluster, on the same machines as your Pulsar brokers
 
 > #### Contributing new deployment modes
-> The Pulsar Functions feature was designed, however, with extensibility in mind. Other deployment options will be available in the future. If you'd like to add a new deployment option, we recommend getting in touch with the Pulsar developer community at [dev@pulsar.incubator.apache.org](mailto:dev@pulsar.incubator.apache.org).
+> The Pulsar Functions feature was designed, however, with extensibility in mind. Other deployment options will be available in the future. If you'd like to add a new deployment option, we recommend getting in touch with the Pulsar developer community at [dev@pulsar.apache.org](mailto:dev@pulsar.apache.org).
 
 ## Requirements
 

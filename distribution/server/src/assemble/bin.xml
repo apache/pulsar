@@ -58,11 +58,6 @@
   </fileSets>
   <files>
     <file>
-      <source>${basedir}/../../DISCLAIMER</source>
-      <outputDirectory>.</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
-    <file>
       <source>${basedir}/src/assemble/README.bin.txt</source>
       <destName>README</destName>
       <outputDirectory>.</outputDirectory>

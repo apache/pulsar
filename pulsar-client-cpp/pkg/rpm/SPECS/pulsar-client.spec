@@ -18,12 +18,12 @@
 #
 
 %define name        apache-pulsar-client
-%define release     1_incubating
+%define release     1
 %define buildroot   %{_topdir}/%{name}-%{version}-root
 
 BuildRoot:      %{buildroot}
 Summary:        Apache Pulsar client library
-URL:            https://pulsar.incubator.apache.org/
+URL:            https://pulsar.apache.org/
 License:        Apache License v2
 Name:           %{name}
 Version:        %{version}
@@ -68,7 +68,6 @@ cp lib/libpulsar.a $LIB_DIR
 cp lib/libpulsar.so.%{pom_version} $LIB_DIR
 
 # Copy LICENSE files
-cp ../DISCLAIMER $DOC_DIR
 cp ../NOTICE $DOC_DIR
 cp pkg/licenses/* $DOC_DIR
 

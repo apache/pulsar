@@ -3,7 +3,7 @@
 This page describes how to use the connectors to read and write Pulsar topics with [Apache Flink](https://flink.apache.org/) stream processing applications.
 
 Build end-to-end stream processing pipelines that use Pulsar as the stream storage and message bus, and Apache Flink for computation over the streams.
-See the [Pulsar Concepts](https://pulsar.incubator.apache.org/docs/en/concepts-overview/) page for more information.
+See the [Pulsar Concepts](https://pulsar.apache.org/docs/en/concepts-overview/) page for more information.
 
 ## Example
 
@@ -16,7 +16,7 @@ The steps to run the example:
 
 1. Start Pulsar Standalone.
 
-    You can follow the [instructions](https://pulsar.incubator.apache.org/docs/en/standalone/) to start a Pulsar standalone locally.
+    You can follow the [instructions](https://pulsar.apache.org/docs/en/standalone/) to start a Pulsar standalone locally.
 
     ```shell
     $ bin/pulsar standalone
