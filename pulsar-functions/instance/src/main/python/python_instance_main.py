@@ -74,6 +74,10 @@ def main():
   function_details = Function_pb2.FunctionDetails()
   json_format.Parse(args.function_details, function_details)
 
+  if function_details.runtime == Function_pb2.FunctionDetails.Runtime.Value("PYTHON_WHEEL"):
+    os.system("unzip -d %s -o %s" % (os.path.dirname(str(args.py)), str(args.py)))
+    sys.path.insert(0, os.path.dirname(str(args.py)))
+
   log_file = os.path.join(args.logging_directory,
                           util.getFullyQualifiedFunctionName(function_details.tenant, function_details.namespace, function_details.name),
                           "%s-%s.log" % (args.logging_file, args.instance_id))

@@ -231,8 +231,7 @@ public class CmdFunctions extends CmdBase {
         protected String pyFile;
         @Parameter(
                 names = "--pywheel",
-                description = "Path to the Python wheel file for the function (if the function is submitted as Python Wheel)",
-                listConverter = StringConverter.class)
+                description = "Path to the Python wheel file for the function (if the function is submitted as Python Wheel)")
         protected String pyWheelFile;
         @Parameter(names = { "-i",
                 "--inputs" }, description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
