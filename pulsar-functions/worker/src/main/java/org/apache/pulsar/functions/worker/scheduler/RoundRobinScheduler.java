@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker.scheduler;
 
 import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Instance;
 
 import com.google.common.collect.Lists;
@@ -28,13 +27,10 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
 
 public class RoundRobinScheduler implements IScheduler {
 
-    public static final String HEARTBEAT_TENANT = "pulsar-function";
-    public static final String HEARTBEAT_NAMESPACE = "heartbeat";
-    
     @Override
     public List<Assignment> schedule(List<Instance> unassignedFunctionInstances, List<Assignment>
             currentAssignments, List<String> workers) {
@@ -64,16 +60,6 @@ public class RoundRobinScheduler implements IScheduler {
         }
 
         return newAssignments;
-    }
-
-    public static String checkHeartBeatFunction(Instance funInstance) {
-        if (funInstance.getFunctionMetaData() != null
-                && funInstance.getFunctionMetaData().getFunctionDetails() != null) {
-            FunctionDetails funDetails = funInstance.getFunctionMetaData().getFunctionDetails();
-            return HEARTBEAT_TENANT.equals(funDetails.getTenant())
-                    && HEARTBEAT_NAMESPACE.equals(funDetails.getNamespace()) ? funDetails.getName() : null;
-        }
-        return null;
     }
 
     private String findNextWorker(Map<String, List<Assignment>> workerIdToAssignment) {

@@ -405,8 +405,8 @@ public class MembershipManagerTest {
 
         Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setParallelism(1)
-                        .setTenant(RoundRobinScheduler.HEARTBEAT_TENANT)
-                        .setNamespace(RoundRobinScheduler.HEARTBEAT_NAMESPACE).setName("worker-2"))
+                        .setTenant(SchedulerManager.HEARTBEAT_TENANT)
+                        .setNamespace(SchedulerManager.HEARTBEAT_NAMESPACE).setName("worker-2"))
                 .build();
 
         List<Function.FunctionMetaData> metaDataList = new LinkedList<>();

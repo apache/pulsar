@@ -37,7 +37,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.Instance;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
@@ -70,6 +72,8 @@ public class SchedulerManager implements AutoCloseable {
     
     AtomicBoolean isCompactionNeeded = new AtomicBoolean(false);
     private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60; 
+    public static final String HEARTBEAT_TENANT = "pulsar-function";
+    public static final String HEARTBEAT_NAMESPACE = "heartbeat";
 
     public SchedulerManager(WorkerConfig workerConfig, PulsarClient pulsarClient, PulsarAdmin admin, ScheduledExecutorService executor) {
         this.workerConfig = workerConfig;
@@ -255,5 +259,15 @@ public class SchedulerManager implements AutoCloseable {
         } catch (PulsarClientException e) {
             log.warn("Failed to shutdown scheduler manager assignment producer", e);
         }
+    }
+    
+    public static String checkHeartBeatFunction(Instance funInstance) {
+        if (funInstance.getFunctionMetaData() != null
+                && funInstance.getFunctionMetaData().getFunctionDetails() != null) {
+            FunctionDetails funDetails = funInstance.getFunctionMetaData().getFunctionDetails();
+            return HEARTBEAT_TENANT.equals(funDetails.getTenant())
+                    && HEARTBEAT_NAMESPACE.equals(funDetails.getNamespace()) ? funDetails.getName() : null;
+        }
+        return null;
     }
 }
