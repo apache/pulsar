@@ -86,6 +86,7 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.WindowConfig;
@@ -1138,24 +1139,14 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Run the Pulsar Function on a Kubernetes cluster")
     class K8Runner extends FunctionDetailsCommand {
 
-        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
+        @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
 
-        @Parameter(names = "--k8Config", description = "Kubernetes config file", required = true)
-        protected String k8ConfgiFile;
-
-        @Parameter(names = "--cpu", description = "Container CPU Allocation", required = true)
-        protected String cpu;
-
-        @Parameter(names = "--ram", description = "Container RAM Allocation", required = true)
-        protected String ram;
+        @Parameter(names = "--k8-config", description = "Kubernetes config file")
+        protected String k8ConfigFile;
 
         @Override
         void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresent(functionConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
-
             String serviceUrl = admin.getServiceUrl();
             if (brokerServiceUrl != null) {
                 serviceUrl = brokerServiceUrl;
@@ -1163,7 +1154,7 @@ public class CmdFunctions extends CmdBase {
             if (serviceUrl == null) {
                 serviceUrl = "pulsar://localhost:6650";
             }
-            KubernetesController k8Controller = new KubernetesController(k8ConfgiFile);
+            KubernetesController k8Controller = new KubernetesController(k8ConfigFile);
             // Let's first upload user code to bk.
             String userCodeFile;
             if (jarFile != null) {
@@ -1173,31 +1164,35 @@ public class CmdFunctions extends CmdBase {
             }
             String bkPath = "pulsar-function-k8-" + FunctionDetailsUtils.getFullyQualifiedName(functionConfig.getTenant(),
                     functionConfig.getNamespace(), functionConfig.getName());
+
             admin.functions().uploadFunction(userCodeFile, bkPath);
 
-            // Now that we have uploaded, launch it via kubernetes
-            InstanceConfig instanceConfig = new InstanceConfig();
-            instanceConfig.setFunctionDetails(convertProto2(functionConfig));
-            // TODO: correctly implement function version and id
-            instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-            instanceConfig.setFunctionId(UUID.randomUUID().toString());
-            instanceConfig.setMaxBufferedTuples(1024);
-            k8Controller.create(instanceConfig, bkPath, Paths.get(userCodeFile).getFileName().toString(),serviceUrl, new Resource(cpu, ram));
+            k8Controller.create(functionConfig, functionConfig.getParallelism(), bkPath, Paths.get(userCodeFile).getFileName().toString());
         }
     }
 
     @Parameters(commandDescription = "Kill Pulsar Function running in Kubernetes cluster")
     class K8Killer extends FunctionCommand {
-        @Parameter(names = "--k8Config", description = "Kubernetes config file", required = true)
-        protected String k8ConfgiFile;
+        @Parameter(names = "--k8-config", description = "Kubernetes config file")
+        protected String k8ConfigFile;
 
         @Override
         void runCmd() throws Exception {
-            KubernetesController k8Controller = new KubernetesController(k8ConfgiFile);
+            KubernetesController k8Controller = new KubernetesController(k8ConfigFile);
             k8Controller.delete(tenant, namespace, functionName);
         }
     }
 
+    @Parameters(commandDescription = "Get list of workers registered in cluster")
+    class GetCluster extends BaseCommand {
+        @Override
+        void runCmd() throws Exception {
+            String json = (new Gson()).toJson(admin.functions().getCluster());
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(new JsonParser().parse(json)));
+        }
+    }
+    
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();

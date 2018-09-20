@@ -52,7 +52,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
  * A function container implemented using java thread.
  */
 @Slf4j
-public class ProcessRuntime implements Runtime {
+class ProcessRuntime implements Runtime {
 
     // The thread that invokes the function
     @Getter
@@ -80,7 +80,7 @@ public class ProcessRuntime implements Runtime {
                 authConfig);
     }
 
-    public static List<String> composeArgs(InstanceConfig instanceConfig,
+    private List<String> composeArgs(InstanceConfig instanceConfig,
                                      String instanceFile,
                                      String logDirectory,
                                      String codeFile,
