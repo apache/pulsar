@@ -1,0 +1,24 @@
+version: '2'
+
+services:
+
+  standalone:
+    image: apachepulsar/pulsar
+    expose:
+      - 8080
+      - 6650 
+    environment:
+      - PULSAR_MEM=" -Xms512m -Xmx512m -XX:MaxDirectMemorySize=1g"
+    command: >
+      /bin/bash -c
+      "bin/apply-config-from-env.py conf/standalone.conf
+      && bin/pulsar standalone"
+
+  dashboard:
+    image: apachepulsar/pulsar-dashboard
+    depends_on:
+      - standalone
+    ports:
+      - "80:80"
+    environment:
+      - SERVICE_URL=http://standalone:8080
