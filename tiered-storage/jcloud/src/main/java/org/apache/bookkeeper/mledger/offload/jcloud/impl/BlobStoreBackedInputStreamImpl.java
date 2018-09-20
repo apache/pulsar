@@ -119,7 +119,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
         log.debug("Seeking to {} on {}/{}, current position {}", position, bucket, key, cursor);
         if (position >= bufferOffsetStart && position <= bufferOffsetEnd) {
             long newIndex = position - bufferOffsetStart;
-            buffer.readerIndex((int)newIndex);
+            buffer.readerIndex((int) newIndex);
         } else {
             this.cursor = position;
             buffer.clear();

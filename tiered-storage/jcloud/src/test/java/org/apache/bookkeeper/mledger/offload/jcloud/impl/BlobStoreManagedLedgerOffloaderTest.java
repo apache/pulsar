@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -51,7 +52,10 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlobStoreTestBase;
-import org.apache.bookkeeper.mledger.offload.jcloud.TieredStorageConfigurationData;
+import org.apache.bookkeeper.mledger.offload.jcloud.config.GcsTieredStorageConfiguration;
+import org.apache.bookkeeper.mledger.offload.jcloud.config.JCloudBlobStoreConfiguration;
+import org.apache.bookkeeper.mledger.offload.jcloud.config.JCloudBlobStoreConfigurationFactory;
+import org.apache.bookkeeper.mledger.offload.jcloud.config.AWSTieredStorageConfiguration;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
@@ -149,99 +153,6 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         } catch (ExecutionException e) {
             log.error("Exception: ", e);
             Assert.assertTrue(e.getMessage().toLowerCase().contains("not found"));
-        }
-    }
-
-    @Test
-    public void testNoRegionConfigured() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
-        conf.setManagedLedgerOffloadDriver("s3");
-        conf.setS3ManagedLedgerOffloadBucket(BUCKET);
-
-        try {
-            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
-            Assert.fail("Should have thrown exception");
-        } catch (IOException pse) {
-            // correct
-        }
-    }
-
-    @Test
-    public void testNoBucketConfigured() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
-        conf.setManagedLedgerOffloadDriver("s3");
-        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
-
-        try {
-            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
-            Assert.fail("Should have thrown exception");
-        } catch (IOException pse) {
-            // correct
-        }
-    }
-
-    @Test
-    public void testSmallBlockSizeConfigured() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
-        conf.setManagedLedgerOffloadDriver("s3");
-        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
-        conf.setS3ManagedLedgerOffloadBucket(BUCKET);
-        conf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(1024);
-
-        try {
-            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
-            Assert.fail("Should have thrown exception");
-        } catch (IOException pse) {
-            // correct
-        }
-    }
-
-    @Test
-    public void testGcsNoKeyPath() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
-        conf.setManagedLedgerOffloadDriver("google-cloud-storage");
-        conf.setGcsManagedLedgerOffloadBucket(BUCKET);
-
-        try {
-            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
-            Assert.fail("Should have thrown exception");
-        } catch (IOException pse) {
-            // correct
-            log.error("Expected pse", pse);
-        }
-    }
-
-    @Test
-    public void testGcsNoBucketConfigured() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
-        conf.setManagedLedgerOffloadDriver("google-cloud-storage");
-        File tmpKeyFile = File.createTempFile("gcsOffload", "json");
-        conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
-
-        try {
-            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
-            Assert.fail("Should have thrown exception");
-        } catch (IOException pse) {
-            // correct
-            log.error("Expected pse", pse);
-        }
-    }
-
-    @Test
-    public void testGcsSmallBlockSizeConfigured() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
-        conf.setManagedLedgerOffloadDriver("google-cloud-storage");
-        File tmpKeyFile = File.createTempFile("gcsOffload", "json");
-        conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
-        conf.setGcsManagedLedgerOffloadBucket(BUCKET);
-        conf.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(1024);
-
-        try {
-            BlobStoreManagedLedgerOffloader.create(conf, scheduler);
-            Assert.fail("Should have thrown exception");
-        } catch (IOException pse) {
-            // correct
-            log.error("Expected pse", pse);
         }
     }
 
