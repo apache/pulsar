@@ -38,7 +38,6 @@ import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
-import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -46,8 +45,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -290,7 +287,7 @@ public abstract class MockedPulsarServiceBaseTest {
             if (predicate.test(null) || i == (retryCount - 1)) {
                 break;
             }
-            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
+            Thread.sleep(intSleepTimeInMillis);
         }
     }
 
