@@ -26,7 +26,7 @@ import com.google.protobuf.Empty;
 import com.squareup.okhttp.Response;
 import io.grpc.ManagedChannel;
 import io.kubernetes.client.ApiException;
-import io.kubernetes.client.apis.AppsV1beta2Api;
+import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.models.*;
 import lombok.Getter;
@@ -56,7 +56,7 @@ class KubernetesRuntime implements Runtime {
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                     Pattern.CASE_INSENSITIVE);
 
-    private final AppsV1beta2Api client;
+    private final AppsV1Api client;
     static final List<String> TOLERATIONS = Collections.unmodifiableList(
             Arrays.asList(
                     "node.kubernetes.io/not-ready",
@@ -81,7 +81,7 @@ class KubernetesRuntime implements Runtime {
     private boolean running;
 
 
-    KubernetesRuntime(AppsV1beta2Api client,
+    KubernetesRuntime(AppsV1Api client,
                       String jobNamespace,
                       String pulsarDockerImageName,
                       String pulsarRootDir,
@@ -251,7 +251,7 @@ class KubernetesRuntime implements Runtime {
             throw new RuntimeException("K8S scheduler only admits lower case and numbers.");
         }
 
-        final V1beta2StatefulSet statefulSet = createStatefulSet();
+        final V1StatefulSet statefulSet = createStatefulSet();
 
         log.info("Submitting the following spec to k8 " + client.getApiClient().getJSON().serialize(statefulSet));
 
@@ -324,10 +324,10 @@ class KubernetesRuntime implements Runtime {
     }
 
 
-    private V1beta2StatefulSet createStatefulSet() {
+    private V1StatefulSet createStatefulSet() {
         final String jobName = createJobName(instanceConfig.getFunctionDetails());
 
-        final V1beta2StatefulSet statefulSet = new V1beta2StatefulSet();
+        final V1StatefulSet statefulSet = new V1StatefulSet();
 
         // setup stateful set metadata
         final V1ObjectMeta objectMeta = new V1ObjectMeta();
@@ -335,7 +335,7 @@ class KubernetesRuntime implements Runtime {
         statefulSet.metadata(objectMeta);
 
         // create the stateful set spec
-        final V1beta2StatefulSetSpec statefulSetSpec = new V1beta2StatefulSetSpec();
+        final V1StatefulSetSpec statefulSetSpec = new V1StatefulSetSpec();
         statefulSetSpec.serviceName(jobName);
         statefulSetSpec.setReplicas(instanceConfig.getFunctionDetails().getParallelism());
 

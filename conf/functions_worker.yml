@@ -34,8 +34,10 @@ numFunctionPackageReplicas: 1
 downloadDirectory: /tmp/pulsar_functions
 #threadContainerFactory:
 #  threadGroupName: "Thread Function Container Group"
-processContainerFactory:
-  logDirectory:
+#processContainerFactory:
+#  logDirectory:
+kubernetesContainerFactory:
+  k8Uri:
 
 schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler"
 functionAssignmentTopicName: "assignments"

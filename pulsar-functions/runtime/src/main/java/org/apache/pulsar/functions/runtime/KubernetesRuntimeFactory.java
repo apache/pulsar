@@ -22,14 +22,11 @@ package org.apache.pulsar.functions.runtime;
 import com.google.common.annotations.VisibleForTesting;
 import io.kubernetes.client.ApiClient;
 import io.kubernetes.client.Configuration;
-import io.kubernetes.client.apis.AppsV1beta2Api;
+import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.util.Config;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
-
-import java.nio.file.Paths;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
@@ -50,7 +47,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String logDirectory = "logs/functions";
-    private AppsV1beta2Api k8Client;
+    private AppsV1Api k8Client;
 
     @VisibleForTesting
     public KubernetesRuntimeFactory(String k8Uri,
@@ -131,10 +128,10 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (k8Uri == null) {
                 ApiClient cli = Config.defaultClient();
                 Configuration.setDefaultApiClient(cli);
-                k8Client = new AppsV1beta2Api();
+                k8Client = new AppsV1Api();
             } else {
                 final ApiClient apiClient = new ApiClient().setBasePath(k8Uri);
-                k8Client = new AppsV1beta2Api(apiClient);
+                k8Client = new AppsV1Api(apiClient);
             }
         }
     }
