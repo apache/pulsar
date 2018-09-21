@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.offload.jcloud.config;
+package org.apache.bookkeeper.mledger.offload.jclouds.provider.factory;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -27,6 +27,8 @@ import java.util.Properties;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader;
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlobStoreFactory;
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlobStoreFactoryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -51,13 +53,13 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     @Test
     public final void testAWSS3AllProperties() throws Exception {
         props.put("managedLedgerOffloadDriver", "AWS_S3");
-        props.put("s3ManagedLedgerOffloadRegion", "eu-west-1");
-        props.put("s3ManagedLedgerOffloadBucket", BUCKET);
+        props.put("region", "eu-west-1");
+        props.put("bucket", BUCKET);
         props.put("maxBlockSizeInBytes", "9999999");
         props.put("readBufferSizeInBytes", "4");
         props.put("managedLedgerOffloadMaxThreads", "6");
         
-        JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+        JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
         assertNotNull(conf);
         assertEquals(conf.getRegion(), "eu-west-1");
         assertEquals(conf.getBucket(), BUCKET);
@@ -74,7 +76,7 @@ public class JCloudBlobStoreConfigurationFactoryTests {
         props.put("s3ManagedLedgerOffloadBucket", BUCKET);
         
         try {
-            JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
             BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
             Assert.fail("Should have thrown exception");
         } catch (IOException pse) {
@@ -86,10 +88,10 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     public void testAWSS3NoBucketConfigured() throws Exception {
         Properties props = new Properties();
         props.put("managedLedgerOffloadDriver", "AWS_S3");
-        props.put("s3ManagedLedgerOffloadRegion", "eu-west-1");
+        props.put("region", "eu-west-1");
         
         try {
-            JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
             BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
             Assert.fail("Should have thrown exception");
         } catch (IOException pse) {
@@ -101,12 +103,12 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     public void testAWSS3SmallBlockSizeConfigured() throws Exception {
         Properties props = new Properties();
         props.put("managedLedgerOffloadDriver", "AWS_S3");
-        props.put("s3ManagedLedgerOffloadRegion", "eu-west-1");
-        props.put("s3ManagedLedgerOffloadBucket", BUCKET);
+        props.put("region", "eu-west-1");
+        props.put("bucket", BUCKET);
         props.put("maxBlockSizeInBytes", "1024");
        
         try {
-            JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
             BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
             Assert.fail("Should have thrown exception");
         } catch (IOException pse) {
@@ -117,15 +119,15 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     @Test
     public final void testAzureAllProperties() throws Exception {
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
-        props.put("azureManagedLedgerOffloadRegion", "eu-west-1");
-        props.put("azureManagedLedgerOffloadContainer", BUCKET);
+        props.put("region", "eu-west-1");
+        props.put("bucket", BUCKET);
         props.put("azureStorageAccountName", "value");
         props.put("azureStorageAccountKey", "value");
         props.put("maxBlockSizeInBytes", "9999999");
         props.put("readBufferSizeInBytes", "4");
         props.put("managedLedgerOffloadMaxThreads", "6");
         
-        JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+        JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
         assertNotNull(conf);
         assertEquals(conf.getRegion(), "eu-west-1");
         assertEquals(conf.getBucket(), BUCKET);
@@ -141,10 +143,10 @@ public class JCloudBlobStoreConfigurationFactoryTests {
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
         props.put("azureStorageAccountName", "value");
         props.put("azureStorageAccountKey", "value");
-        props.put("s3ManagedLedgerOffloadBucket", BUCKET);
+        props.put("bucket", BUCKET);
         
         try {
-            JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
             BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
             Assert.fail("Should have thrown exception");
         } catch (IOException pse) {
@@ -158,10 +160,10 @@ public class JCloudBlobStoreConfigurationFactoryTests {
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
         props.put("azureStorageAccountName", "value");
         props.put("azureStorageAccountKey", "value");
-        props.put("s3ManagedLedgerOffloadRegion", "eu-west-1");
+        props.put("region", "eu-west-1");
         
         try {
-            JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
             BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
             Assert.fail("Should have thrown exception");
         } catch (IOException pse) {
@@ -173,11 +175,11 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     public void testAzureNoCredentialsConfigured() throws Exception {
         Properties props = new Properties();
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
-        props.put("s3ManagedLedgerOffloadBucket", BUCKET);
-        props.put("s3ManagedLedgerOffloadRegion", "eu-west-1");
+        props.put("bucket", BUCKET);
+        props.put("region", "eu-west-1");
         
         try {
-            JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
             BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
             Assert.fail("Should have thrown exception");
         } catch (IOException pse) {
@@ -189,10 +191,10 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     public void testGcsNoKeyPath() throws Exception {
         Properties props = new Properties();
         props.put("managedLedgerOffloadDriver", "GOOGLE");
-        props.put("gcsManagedLedgerOffloadBucket", BUCKET);
+        props.put("bucket", BUCKET);
        
         try {
-            JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
             BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
             Assert.fail("Should have thrown exception");
         } catch (IOException pse) {
@@ -210,7 +212,7 @@ public class JCloudBlobStoreConfigurationFactoryTests {
         props.put("gcsManagedLedgerOffloadServiceAccountKeyFile", tmpKeyFile.getAbsolutePath());
 
         try { 
-            JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
             BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
             Assert.fail("Should have thrown exception");
         } catch (IOException pse) {
@@ -225,11 +227,11 @@ public class JCloudBlobStoreConfigurationFactoryTests {
         props.put("managedLedgerOffloadDriver", "GOOGLE");
         File tmpKeyFile = File.createTempFile("gcsOffload", "json");
         props.put("gcsManagedLedgerOffloadServiceAccountKeyFile", tmpKeyFile.getAbsolutePath());
-        props.put("gcsManagedLedgerOffloadBucket", BUCKET);
+        props.put("bucket", BUCKET);
         props.put("maxBlockSizeInBytes", 1024);
 
         try {
-            JCloudBlobStoreConfiguration conf = JCloudBlobStoreConfigurationFactory.create(props);
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
             BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
             Assert.fail("Should have thrown exception");
         } catch (IOException pse) {

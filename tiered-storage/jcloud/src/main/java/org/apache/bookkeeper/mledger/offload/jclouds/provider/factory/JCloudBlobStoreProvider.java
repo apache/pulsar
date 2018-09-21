@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.offload.jcloud.config;
+package org.apache.bookkeeper.mledger.offload.jclouds.provider.factory;
 
 import java.io.Serializable;
 
@@ -25,15 +25,25 @@ import java.io.Serializable;
  */
 public enum JCloudBlobStoreProvider implements Serializable {
 
-    AWS_S3("aws-s3", AWSTieredStorageConfiguration.class),
-    AWS_GLACIER("glacier", AWSTieredStorageConfiguration.class),
-    GOOGLE("google-cloud-storage", GcsTieredStorageConfiguration.class),
-    AZURE_BLOB("azureblob", AzureTieredStorageConfiguration.class);
+    AWS_S3("aws-s3", AWSBlogStoreFactory.class),
+    AWS_GLACIER("glacier", AWSBlogStoreFactory.class),
+    GOOGLE("google-cloud-storage", GcsBlobStoreFactory.class),
+    AZURE_BLOB("azureblob", AzureBlobStoreFactory.class),
+    TRANSIENT("transient", TransientBlobStoreFactory.class);
+    
+    public static final boolean driverSupported(String driverName) {
+        for (JCloudBlobStoreProvider provider: JCloudBlobStoreProvider.values()) {
+            if (provider.getDriver().equalsIgnoreCase(driverName)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private String driver;
-    private Class<? extends JCloudBlobStoreConfiguration> clazz;
+    private Class<? extends JCloudBlobStoreFactory> clazz;
 
-    JCloudBlobStoreProvider(String s, Class<? extends JCloudBlobStoreConfiguration> clazz) {
+    JCloudBlobStoreProvider(String s, Class<? extends JCloudBlobStoreFactory> clazz) {
         this.driver = s;
         this.clazz = clazz;
     }
@@ -42,7 +52,7 @@ public enum JCloudBlobStoreProvider implements Serializable {
         return driver;
     }
 
-    public Class<? extends JCloudBlobStoreConfiguration> getClazz() {
+    public Class<? extends JCloudBlobStoreFactory> getClazz() {
         return clazz;
     }
 }

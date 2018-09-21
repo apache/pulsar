@@ -23,9 +23,10 @@ import java.util.Map;
 import java.util.Properties;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
-import org.apache.bookkeeper.mledger.offload.jcloud.config.JCloudBlobStoreConfiguration;
-import org.apache.bookkeeper.mledger.offload.jcloud.config.JCloudBlobStoreConfigurationFactory;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader;
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlobStoreFactory;
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlobStoreFactoryFactory;
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlobStoreProvider;
 
 /**
  * A jcloud based offloader factory.
@@ -40,15 +41,14 @@ public class JCloudLedgerOffloaderFactory implements LedgerOffloaderFactory<Blob
 
     @Override
     public boolean isDriverSupported(String driverName) {
-        return BlobStoreManagedLedgerOffloader.driverSupported(driverName);
+        return JCloudBlobStoreProvider.driverSupported(driverName);
     }
 
     @Override
     public BlobStoreManagedLedgerOffloader create(Properties properties,
                                                   Map<String, String> userMetadata,
                                                   OrderedScheduler scheduler) throws IOException  {
-        // TieredStorageConfigurationData data = TieredStorageConfigurationData.create(properties);
-        JCloudBlobStoreConfiguration data = JCloudBlobStoreConfigurationFactory.create(properties);
-        return BlobStoreManagedLedgerOffloader.create(data, userMetadata, scheduler);
+        JCloudBlobStoreFactory factory = JCloudBlobStoreFactoryFactory.create(properties);
+        return BlobStoreManagedLedgerOffloader.create(factory, userMetadata, scheduler);
     }
 }

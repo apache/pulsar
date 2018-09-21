@@ -18,6 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
+import java.util.Properties;
+
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlobStoreFactoryFactory;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
@@ -35,6 +38,7 @@ public class BlobStoreTestBase {
 
     protected BlobStoreContext context = null;
     protected BlobStore blobStore = null;
+    protected Properties blobStoreProviderProps = new Properties();
 
     @BeforeMethod
     public void start() throws Exception {
@@ -44,6 +48,8 @@ public class BlobStoreTestBase {
             // and "aws_secret_access_key" as S3Key. And bucket should exist in default region. e.g.
             //        props.setProperty("S3ID", "AXXXXXXQ");
             //        props.setProperty("S3Key", "HXXXXXß");
+            blobStoreProviderProps.put(JCloudBlobStoreFactoryFactory.BLOB_STORE_PROVIDER_KEY, "AWS_S3");
+            
             context = ContextBuilder.newBuilder("aws-s3")
                 .credentials(System.getProperty("S3ID"), System.getProperty("S3Key"))
                 .build(BlobStoreContext.class);
@@ -82,9 +88,9 @@ public class BlobStoreTestBase {
     @AfterMethod
     public void tearDown() {
         if (blobStore != null &&
-            (!Boolean.parseBoolean(System.getProperty("testRealAWS", "false")) ||
-             !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")) || 
-             !Boolean.parseBoolean(System.getProperty("testRealAzure", "false")))) {
+            (Boolean.parseBoolean(System.getProperty("testRealAWS", "false")) ||
+             Boolean.parseBoolean(System.getProperty("testRealGCS", "false")) || 
+             Boolean.parseBoolean(System.getProperty("testRealAzure", "false")))) {
             blobStore.deleteContainer(BUCKET);
         }
 

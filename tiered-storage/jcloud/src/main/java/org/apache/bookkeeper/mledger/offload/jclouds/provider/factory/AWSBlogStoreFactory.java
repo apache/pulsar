@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.offload.jcloud.config;
+package org.apache.bookkeeper.mledger.offload.jclouds.provider.factory;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
@@ -25,40 +25,25 @@ import com.google.common.base.Strings;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.util.Properties;
+
+import org.jclouds.ContextBuilder;
+import org.jclouds.aws.s3.AWSS3ProviderMetadata;
 import org.jclouds.domain.Credentials;
+import org.jclouds.providers.ProviderMetadata;
+import org.jclouds.s3.reference.S3Constants;
 
 /**
  * Configuration for AWS Blob storage. Used for both S3 and Glacier.
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class AWSTieredStorageConfiguration extends JCloudBlobStoreConfiguration {
+public class AWSBlogStoreFactory extends JCloudBlobStoreFactory {
 
     private static final long serialVersionUID = 1L;
 
-    // For Amazon S3 ledger off-load, AWS region
-    private String s3ManagedLedgerOffloadRegion = null;
-
-    // For Amazon S3 ledger off-load, Bucket to place offloaded ledger into
-    private String s3ManagedLedgerOffloadBucket = null;
-
     // For Amazon S3 ledger off-load, Alternative endpoint to connect to (useful for testing)
     private String s3ManagedLedgerOffloadServiceEndpoint = null;
-
-    @Override
-    public String getRegion() {
-        return s3ManagedLedgerOffloadRegion;
-    }
-
-    @Override
-    public String getBucket() {
-        return s3ManagedLedgerOffloadBucket;
-    }
-
-    @Override
-    public String getServiceEndpoint() {
-        return s3ManagedLedgerOffloadServiceEndpoint;
-    }
 
     @Override
     public void validate() {
@@ -81,21 +66,49 @@ public class AWSTieredStorageConfiguration extends JCloudBlobStoreConfiguration 
 
     @Override
     public Credentials getCredentials() {
-        AWSCredentials credentials = null;
-        try {
-            DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();
-            credentials = creds.getCredentials();
-        } catch (Exception e) {
-            // allowed, some mock s3 service do not need credential
-            LOG.warn("Exception when get credentials for s3 ", e);
-        }
+        if (credentials == null) {
+            AWSCredentials awsCredentials = null;
+            try {
+                DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();
+                awsCredentials = creds.getCredentials();
+            } catch (Exception e) {
+                // allowed, some mock s3 service do not need credential
+                LOG.warn("Exception when get credentials for s3 ", e);
+            }
 
-        String id = "accesskey";
-        String key = "secretkey";
-        if (credentials != null) {
-            id = credentials.getAWSAccessKeyId();
-            key = credentials.getAWSSecretKey();
+            String id = "accesskey";
+            String key = "secretkey";
+            if (awsCredentials != null) {
+                id = awsCredentials.getAWSAccessKeyId();
+                key = awsCredentials.getAWSSecretKey();
+            }
+            credentials = new Credentials(id, key);
         }
-        return new Credentials(id, key);
+        return credentials;
+    }
+    
+    @Override
+    public ContextBuilder getContextBuilder() {
+        ContextBuilder builder = super.getContextBuilder();
+        
+        if (!Strings.isNullOrEmpty(s3ManagedLedgerOffloadServiceEndpoint)) {
+            builder.endpoint(s3ManagedLedgerOffloadServiceEndpoint);
+        }
+        
+        return builder;
+    }
+
+    @Override
+    protected Properties getOverrides() {
+        Properties overrides = super.getOverrides();
+        if (!Strings.isNullOrEmpty(s3ManagedLedgerOffloadServiceEndpoint)) {
+            overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
+        }
+        return overrides;
+    }
+
+    @Override
+    public ProviderMetadata getProviderMetadata() {
+        return new AWSS3ProviderMetadata();
     }
 }
