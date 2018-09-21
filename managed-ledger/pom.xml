@@ -39,6 +39,18 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.bookkeeper.stats</groupId>
+      <artifactId>prometheus-metrics-provider</artifactId>
+      <version>${bookkeeper.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.bookkeeper.stats</groupId>
+      <artifactId>codahale-metrics-provider</artifactId>
+      <version>${bookkeeper.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
       <version>${protobuf3.version}</version>
