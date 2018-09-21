@@ -21,19 +21,17 @@ package org.apache.pulsar.functions.worker.scheduler;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.Instance;
 
-import com.google.common.collect.Lists;
-
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
+import java.util.Set;
 
 public class RoundRobinScheduler implements IScheduler {
 
     @Override
-    public List<Assignment> schedule(List<Instance> unassignedFunctionInstances, List<Assignment>
-            currentAssignments, List<String> workers) {
+    public List<Assignment> schedule(List<Assignment> resultAssignments, List<Instance> unassignedFunctionInstances,
+            List<Assignment> currentAssignments, Set<String> workers) {
 
         Map<String, List<Assignment>> workerIdToAssignment = new HashMap<>();
 
@@ -45,21 +43,15 @@ public class RoundRobinScheduler implements IScheduler {
             workerIdToAssignment.get(existingAssignment.getWorkerId()).add(existingAssignment);
         }
 
-        List<Assignment> newAssignments = Lists.newArrayList();
         for (Instance unassignedFunctionInstance : unassignedFunctionInstances) {
-            String heartBeatWorkerId = checkHeartBeatFunction(unassignedFunctionInstance);
-            if (heartBeatWorkerId != null && workerIdToAssignment.get(heartBeatWorkerId) == null) {
-                // ignore if heartbeat-function owner worker is not available
-                continue;
-            }
-            String workerId = heartBeatWorkerId != null ? heartBeatWorkerId : findNextWorker(workerIdToAssignment);
+            String workerId = findNextWorker(workerIdToAssignment);
             Assignment newAssignment = Assignment.newBuilder().setInstance(unassignedFunctionInstance)
                     .setWorkerId(workerId).build();
             workerIdToAssignment.get(workerId).add(newAssignment);
-            newAssignments.add(newAssignment);
+            resultAssignments.add(newAssignment);
         }
 
-        return newAssignments;
+        return resultAssignments;
     }
 
     private String findNextWorker(Map<String, List<Assignment>> workerIdToAssignment) {

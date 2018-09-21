@@ -22,9 +22,22 @@ import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.Instance;
 
 import java.util.List;
+import java.util.Set;
 
 public interface IScheduler {
 
-    List<Assignment> schedule(List<Instance> unassignedFunctionInstances,
-                              List<Assignment> currentAssignments, List<String> workers);
+    /**
+     * Scheduler schedules assignments to appropriate workers and adds into #resultAssignments
+     * 
+     * @param resultAssignments
+     *            scheduler adds new assignents into the list
+     * @param unassignedFunctionInstances
+     *            all unassigned instances
+     * @param currentAssignments
+     *            current assignments
+     * @param workers
+     * @return
+     */
+    List<Assignment> schedule(List<Assignment> resultAssignments, List<Instance> unassignedFunctionInstances,
+            List<Assignment> currentAssignments, Set<String> workers);
 }

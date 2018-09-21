@@ -18,15 +18,19 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
+
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -44,6 +48,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -126,8 +131,8 @@ public class SchedulerManager implements AutoCloseable {
     @VisibleForTesting
     public void invokeScheduler() {
         
-        List<String> currentMembership = this.membershipManager.getCurrentMembership()
-                .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toList());
+        Set<String> currentMembership = this.membershipManager.getCurrentMembership()
+                .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toSet());
 
         List<FunctionMetaData> allFunctions = this.functionMetaDataManager.getAllFunctionMetaData();
         Map<String, Function.Instance> allInstances = computeAllInstances(allFunctions);
@@ -168,12 +173,13 @@ public class SchedulerManager implements AutoCloseable {
                 .entrySet().stream()
                 .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream()).collect(Collectors.toList());
 
-        List<Function.Instance> needsAssignment = this.getUnassignedFunctionInstances(workerIdToAssignments,
+        List<Assignment> resultAssignments = Lists.newArrayList();
+        List<Function.Instance> needsAssignment = this.getUnassignedFunctionInstances(resultAssignments, workerIdToAssignments,
                 allInstances);
 
-        List<Assignment> assignments = this.scheduler.schedule(
+        List<Assignment> assignments = this.scheduler.schedule(resultAssignments,
                 needsAssignment, currentAssignments, currentMembership);
-
+        
         if (log.isDebugEnabled()) {
             log.debug("New assignments computed: {}", assignments);
         }
@@ -234,6 +240,7 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     private List<Function.Instance> getUnassignedFunctionInstances(
+            List<Assignment> resultAssignments,
             Map<String, Map<String, Assignment>> currentAssignments, Map<String, Function.Instance> functionInstances) {
 
         List<Function.Instance> unassignedFunctionInstances = new LinkedList<>();
@@ -245,6 +252,12 @@ public class SchedulerManager implements AutoCloseable {
         for (Map.Entry<String, Function.Instance> instanceEntry : functionInstances.entrySet()) {
             String fullyQualifiedInstanceId = instanceEntry.getKey();
             Function.Instance instance = instanceEntry.getValue();
+            String heartBeatWorkerId = checkHeartBeatFunction(instance);
+            if (heartBeatWorkerId != null) {
+                resultAssignments
+                        .add(Assignment.newBuilder().setInstance(instance).setWorkerId(heartBeatWorkerId).build());
+                continue;
+            }
             if (!assignmentMap.containsKey(fullyQualifiedInstanceId)) {
                 unassignedFunctionInstances.add(instance);
             }
