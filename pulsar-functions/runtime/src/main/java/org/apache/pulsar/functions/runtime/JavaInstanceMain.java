@@ -126,6 +126,7 @@ public class JavaInstanceMain implements AutoCloseable {
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
+                null, // we really dont use this in thread container
                 containerFactory,
                 expectedHealthCheckInterval * 1000);
 

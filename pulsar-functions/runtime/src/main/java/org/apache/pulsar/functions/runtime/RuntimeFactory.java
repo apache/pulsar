@@ -33,7 +33,6 @@ public interface RuntimeFactory extends AutoCloseable {
      * @return function container to start/stop instance
      */
     Runtime createContainer(
-            InstanceConfig instanceConfig, String codeFile,
             InstanceConfig instanceConfig, String codeFile, String originalCodeFileName,
             Long expectedHealthCheckInterval) throws Exception;
 
