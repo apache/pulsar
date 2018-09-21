@@ -65,12 +65,12 @@ public class PulsarConnectorConfig implements AutoCloseable {
     }
 
     @NotNull
-    public int getEntryReadBatchSize() {
+    public int getMaxEntryReadBatchSize() {
         return this.entryReadBatchSize;
     }
 
-    @Config("pulsar.entry-read-batch-size")
-    public PulsarConnectorConfig setEntryReadBatchSize(int batchSize) {
+    @Config("pulsar.max-entry-read-batch-size")
+    public PulsarConnectorConfig setMaxEntryReadBatchSize(int batchSize) {
         this.entryReadBatchSize = batchSize;
         return this;
     }

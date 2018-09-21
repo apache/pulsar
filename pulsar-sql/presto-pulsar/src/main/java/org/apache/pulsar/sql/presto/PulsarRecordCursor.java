@@ -118,7 +118,7 @@ public class PulsarRecordCursor implements RecordCursor {
         this.columnHandles = columnHandles;
         this.pulsarSplit = pulsarSplit;
         this.pulsarConnectorConfig = pulsarConnectorConfig;
-        this.maxBatchSize = pulsarConnectorConfig.getEntryReadBatchSize();
+        this.maxBatchSize = pulsarConnectorConfig.getMaxEntryReadBatchSize();
         this.messageQueue = new ArrayBlockingQueue<>(pulsarConnectorConfig.getMaxSplitMessageQueueSize());
         this.entryQueue = new ArrayBlockingQueue<>(pulsarConnectorConfig.getMaxSplitEntryQueueSize());
         this.topicName = TopicName.get("persistent",
