@@ -82,6 +82,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private FunctionActioner functionActioner;
 
+    @Getter
     private RuntimeFactory runtimeFactory;
 
     private MembershipManager membershipManager;

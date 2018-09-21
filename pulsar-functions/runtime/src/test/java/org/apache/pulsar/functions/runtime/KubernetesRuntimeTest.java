@@ -19,15 +19,7 @@
 
 package org.apache.pulsar.functions.runtime;
 
-import static org.testng.Assert.assertEquals;
-
-import com.google.gson.Gson;
 import com.google.protobuf.util.JsonFormat;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
@@ -36,10 +28,16 @@ import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.testng.Assert.assertEquals;
+
 /**
  * Unit test of {@link ThreadRuntime}.
  */
-public class ProcessRuntimeTest {
+public class KubernetesRuntimeTest {
 
     private static final String TEST_TENANT = "test-function-tenant";
     private static final String TEST_NAMESPACE = "test-function-namespace";
@@ -52,23 +50,25 @@ public class ProcessRuntimeTest {
                 ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
     }
 
-    private final ProcessRuntimeFactory factory;
+    private final KubernetesRuntimeFactory factory;
     private final String userJarFile;
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String pulsarServiceUrl;
+    private final String pulsarAdminUrl;
     private final String stateStorageServiceUrl;
     private final String logDirectory;
 
-    public ProcessRuntimeTest() {
+    public KubernetesRuntimeTest() throws Exception {
         this.userJarFile = "/Users/user/UserJar.jar";
-        this.javaInstanceJarFile = "/Users/user/JavaInstance.jar";
-        this.pythonInstanceFile = "/Users/user/PythonInstance.py";
+        this.javaInstanceJarFile = "/pulsar/instances/java-instance.jar";
+        this.pythonInstanceFile = "/pulsar/instances/python-instance/python_instance_main.py";
         this.pulsarServiceUrl = "pulsar://localhost:6670";
+        this.pulsarAdminUrl = "http://localhost:8080";
         this.stateStorageServiceUrl = "bk://localhost:4181";
-        this.logDirectory = "Users/user/logs";
-        this.factory = new ProcessRuntimeFactory(
-            pulsarServiceUrl, stateStorageServiceUrl, null, javaInstanceJarFile, pythonInstanceFile, logDirectory);
+        this.logDirectory = "logs/functions";
+        this.factory = new KubernetesRuntimeFactory(null, null, null, null,
+            pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null);
     }
 
     @AfterMethod
@@ -114,23 +114,23 @@ public class ProcessRuntimeTest {
     public void testJavaConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
-        ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
         assertEquals(args.size(), 28);
         String expectedArgs = "java -cp " + javaInstanceJarFile
                 + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
-                + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
-                + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionDetailsUtils.getFullyQualifiedName(config.getFunctionDetails())
-                + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
+                + " -Dlog4j.configurationFile=conf/log4j2.yaml "
+                + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionDetailsUtils.getFullyQualifiedName(config.getFunctionDetails())
+                + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
-                + config.getInstanceId() + " --function_id " + config.getFunctionId()
+                + "$SHARD_ID" + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
                 + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(23)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
-                + " --expected_healthcheck_interval 30";
+                + " --expected_healthcheck_interval -1";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -138,18 +138,18 @@ public class ProcessRuntimeTest {
     public void testPythonConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
 
-        ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
         assertEquals(args.size(), 24);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
-                + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
-                + config.getInstanceId() + " --function_id " + config.getFunctionId()
+                + logDirectory + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
+                + "$SHARD_ID" + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
                 + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(21)
-                + " --expected_healthcheck_interval 30";
+                + " --expected_healthcheck_interval -1";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

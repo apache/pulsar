@@ -50,7 +50,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String logDirectory = "logs/functions";
-    private final AppsV1beta2Api k8Client;
+    private AppsV1beta2Api k8Client;
 
     @VisibleForTesting
     public KubernetesRuntimeFactory(String k8Uri,
@@ -60,7 +60,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
                                     String stateStorageServiceUri,
-                                    AuthenticationConfig authConfig) throws Exception {
+                                    AuthenticationConfig authConfig) {
         this.k8Uri = k8Uri;
         if (!isEmpty(jobNamespace)) {
             this.jobNamespace = jobNamespace;
@@ -81,17 +81,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.pulsarAdminUri = pulsarAdminUri;
         this.stateStorageServiceUri = stateStorageServiceUri;
         this.authConfig = authConfig;
-        this.javaInstanceJarFile = pulsarRootDir + "/instances/java-instance.jar";
-        this.pythonInstanceFile = pulsarRootDir + "/instances/python-instance/python_instance_main.py";
-
-        if (k8Uri == null) {
-            ApiClient cli = Config.defaultClient();
-            Configuration.setDefaultApiClient(cli);
-            k8Client = new AppsV1beta2Api();
-        } else {
-            final ApiClient apiClient = new ApiClient().setBasePath(k8Uri);
-            k8Client = new AppsV1beta2Api(apiClient);
-        }
+        this.javaInstanceJarFile = this.pulsarRootDir + "/instances/java-instance.jar";
+        this.pythonInstanceFile = this.pulsarRootDir + "/instances/python-instance/python_instance_main.py";
     }
 
     @Override
@@ -103,6 +94,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     public KubernetesRuntime createContainer(InstanceConfig instanceConfig, String codePkgUrl,
                                              String originalCodeFileName,
                                              Long expectedHealthCheckInterval) throws Exception {
+        setupClient();
         String instanceFile;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
@@ -132,5 +124,18 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
     @Override
     public void close() {
+    }
+
+    private void setupClient() throws Exception {
+        if (k8Client == null) {
+            if (k8Uri == null) {
+                ApiClient cli = Config.defaultClient();
+                Configuration.setDefaultApiClient(cli);
+                k8Client = new AppsV1beta2Api();
+            } else {
+                final ApiClient apiClient = new ApiClient().setBasePath(k8Uri);
+                k8Client = new AppsV1beta2Api(apiClient);
+            }
+        }
     }
 }

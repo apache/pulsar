@@ -23,7 +23,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
-import com.google.protobuf.util.JsonFormat;
 import com.squareup.okhttp.Response;
 import io.grpc.ManagedChannel;
 import io.kubernetes.client.ApiException;
@@ -38,16 +37,12 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * A function container implemented using java thread.
@@ -107,101 +102,9 @@ class KubernetesRuntime implements Runtime {
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
-        this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig);
+        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
+                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, "conf/log4j2.yaml");
         running = false;
-    }
-
-    private List<String> composeArgs(InstanceConfig instanceConfig,
-                                     String instanceFile,
-                                     String logDirectory,
-                                     String originalCodeFileName,
-                                     String pulsarServiceUrl,
-                                     String stateStorageServiceUrl,
-                                     AuthenticationConfig authConfig) throws Exception {
-        List<String> args = new LinkedList<>();
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            args.add("java");
-            args.add("-cp");
-            args.add(instanceFile);
-
-            // Keep the same env property pointing to the Java instance file so that it can be picked up
-            // by the child process and manually added to classpath
-            args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
-            args.add("-Dlog4j.configurationFile=conf/log4j2.yaml");
-            args.add("-Dpulsar.function.log.dir=" + String.format(
-                    "%s/%s",
-                    logDirectory,
-                    FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails())));
-            args.add("-Dpulsar.function.log.file=" + String.format(
-                    "%s-$%s",
-                    instanceConfig.getFunctionDetails().getName(),
-                    ENV_SHARD_ID));
-            if (instanceConfig.getFunctionDetails().getResources() != null) {
-                Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
-                if (resources.getRam() != 0) {
-                    args.add("-Xmx" + String.valueOf(resources.getRam()));
-                }
-            }
-            args.add(JavaInstanceMain.class.getName());
-            args.add("--jar");
-            args.add(originalCodeFileName);
-        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
-            args.add("python");
-            args.add(instanceFile);
-            args.add("--py");
-            args.add(originalCodeFileName);
-            args.add("--logging_directory");
-            args.add(logDirectory);
-            args.add("--logging_file");
-            args.add(instanceConfig.getFunctionDetails().getName());
-            // TODO:- Find a platform independent way of controlling memory for a python application
-        }
-        args.add("--instance_id");
-        args.add("$" + ENV_SHARD_ID);
-        args.add("--function_id");
-        args.add(instanceConfig.getFunctionId());
-        args.add("--function_version");
-        args.add(instanceConfig.getFunctionVersion());
-        args.add("--function_details");
-        args.add(JsonFormat.printer().print(instanceConfig.getFunctionDetails()));
-
-        args.add("--pulsar_serviceurl");
-        args.add(pulsarServiceUrl);
-        if (authConfig != null) {
-            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
-                args.add("--client_auth_plugin");
-                args.add(authConfig.getClientAuthenticationPlugin());
-                args.add("--client_auth_params");
-                args.add(authConfig.getClientAuthenticationParameters());
-            }
-            args.add("--use_tls");
-            args.add(Boolean.toString(authConfig.isUseTls()));
-            args.add("--tls_allow_insecure");
-            args.add(Boolean.toString(authConfig.isTlsAllowInsecureConnection()));
-            args.add("--hostname_verification_enabled");
-            args.add(Boolean.toString(authConfig.isTlsHostnameVerificationEnable()));
-            if(isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
-                args.add("--tls_trust_cert_path");
-                args.add(authConfig.getTlsTrustCertsFilePath());
-            }
-        }
-        args.add("--max_buffered_tuples");
-        args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-
-        args.add("--port");
-        args.add(String.valueOf(GRPC_PORT));
-
-        // state storage configs
-        if (null != stateStorageServiceUrl
-            && instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            args.add("--state_storage_serviceurl");
-            args.add(stateStorageServiceUrl);
-        }
-        args.add("--expected_healthcheck_interval");
-        args.add("-1");
-        return args;
     }
 
     /**
