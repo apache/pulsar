@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.client.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -28,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.ByteBufSchema;
 import org.apache.pulsar.client.impl.schema.ByteBufferSchema;
 import org.apache.pulsar.client.impl.schema.ByteSchema;
 import org.apache.pulsar.client.impl.schema.BytesSchema;
@@ -55,8 +58,9 @@ public class PrimitiveSchemaTest {
             put(LongSchema.of(), Arrays.asList(922337203685477580L, -922337203685477581L));
             put(FloatSchema.of(), Arrays.asList(5678567.12312f, -5678567.12341f));
             put(DoubleSchema.of(), Arrays.asList(5678567.12312d, -5678567.12341d));
-            put(BytesSchema.of(), Arrays.asList("my string".getBytes()));
-            put(ByteBufferSchema.of(), Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes())));
+            put(BytesSchema.of(), Arrays.asList("my string".getBytes(UTF_8)));
+            put(ByteBufferSchema.of(), Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
+            put(ByteBufSchema.of(), Arrays.asList(Unpooled.wrappedBuffer("my string".getBytes(UTF_8))));
         }
     };
 
@@ -94,8 +98,8 @@ public class PrimitiveSchemaTest {
         assertEquals(SchemaType.DOUBLE, DoubleSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.STRING, StringSchema.utf8().getSchemaInfo().getType());
         assertEquals(SchemaType.BYTES, BytesSchema.of().getSchemaInfo().getType());
-        assertEquals(SchemaType.BYTEBUFFER, ByteBufferSchema.of().getSchemaInfo().getType());
-
+        assertEquals(SchemaType.BYTES, ByteBufferSchema.of().getSchemaInfo().getType());
+        assertEquals(SchemaType.BYTES, ByteBufSchema.of().getSchemaInfo().getType());
     }
 
 

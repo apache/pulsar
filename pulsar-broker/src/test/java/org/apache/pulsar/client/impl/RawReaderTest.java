@@ -221,7 +221,10 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         for (Future<RawMessage> f : futures) {
             try (RawMessage m = f.get(1, TimeUnit.SECONDS)) {
                 // Assert each key is unique
-                Assert.assertTrue(keys.add(extractKey(m)));
+                String key = extractKey(m);
+                Assert.assertTrue(
+                    keys.add(key),
+                    "Received duplicated key '" + key + "' : already received keys = " + keys);
             } catch (TimeoutException te) {
                 timeouts++;
             }

@@ -112,7 +112,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             codeFile,
             pulsarServiceUrl,
             stateStorageServiceUrl,
-            authConfig);
+            authConfig,
+            expectedHealthCheckInterval);
     }
 
     @Override
