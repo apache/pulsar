@@ -453,7 +453,7 @@ class KubernetesRuntime implements Runtime {
     private List<V1ContainerPort> getContainerPorts() {
         List<V1ContainerPort> ports = new ArrayList<>();
         final V1ContainerPort port = new V1ContainerPort();
-        port.setName("GRPC");
+        port.setName("grpc");
         port.setContainerPort(GRPC_PORT);
         ports.add(port);
         return ports;
