@@ -18,53 +18,43 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import java.nio.ByteBuffer;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
- * A bytebuffer schema is effectively a `BYTES` schema.
+ * A variant `Bytes` schema that takes {@link io.netty.buffer.ByteBuf}.
  */
-public class ByteBufferSchema implements Schema<ByteBuffer> {
+public class ByteBufSchema implements Schema<ByteBuf> {
 
-    public static ByteBufferSchema of() {
+    public static ByteBufSchema of() {
         return INSTANCE;
     }
 
-    private static final ByteBufferSchema INSTANCE = new ByteBufferSchema();
+    private static final ByteBufSchema INSTANCE = new ByteBufSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("ByteBuffer")
+        .setName("ByteBuf")
         .setType(SchemaType.BYTES)
         .setSchema(new byte[0]);
 
     @Override
-    public byte[] encode(ByteBuffer data) {
-        if (data == null) {
+    public byte[] encode(ByteBuf message) {
+        if (message == null) {
             return null;
         }
 
-        data.rewind();
-
-        if (data.hasArray()) {
-            byte[] arr = data.array();
-            if (data.arrayOffset() == 0 && arr.length == data.remaining()) {
-                return arr;
-            }
-        }
-
-        byte[] ret = new byte[data.remaining()];
-        data.get(ret, 0, ret.length);
-        data.rewind();
-        return ret;
+        return ByteBufUtil.getBytes(message);
     }
 
     @Override
-    public ByteBuffer decode(byte[] data) {
-        if (null == data) {
+    public ByteBuf decode(byte[] bytes) {
+        if (null == bytes) {
             return null;
         } else {
-            return ByteBuffer.wrap(data);
+            return Unpooled.wrappedBuffer(bytes);
         }
     }
 
