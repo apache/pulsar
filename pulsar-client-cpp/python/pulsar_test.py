@@ -669,11 +669,11 @@ class PulsarTest(TestCase):
         producer2 = client.create_producer(topic2)
         producer3 = client.create_producer(topic3)
 
-        consumer = client.subscribe_topics(topics,
-                                           'my-topics-consumer-sub',
-                                           consumer_type=ConsumerType.Shared,
-                                           receiver_queue_size=10
-                                           )
+        consumer = client.subscribe(topics,
+                                    'my-topics-consumer-sub',
+                                    consumer_type=ConsumerType.Shared,
+                                    receiver_queue_size=10
+                                    )
 
         for i in range(100):
             producer1.send('hello-1-%d' % i)
@@ -699,17 +699,10 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_topics_pattern_consumer(self):
+        import re
         client = Client(self.serviceUrl)
 
         topics_pattern = 'persistent://sample/standalone/ns/my-python-pattern-consumer.*'
-
-
-        consumer = client.subscribe_pattern(topics_pattern,
-                                            'my-pattern-consumer-sub',
-                                            consumer_type=ConsumerType.Shared,
-                                            receiver_queue_size=10,
-                                            pattern_auto_discovery_period=1
-                                            )
 
         topic1 = 'persistent://sample/standalone/ns/my-python-pattern-consumer-1'
         topic2 = 'persistent://sample/standalone/ns/my-python-pattern-consumer-2'
@@ -726,6 +719,13 @@ class PulsarTest(TestCase):
         producer1 = client.create_producer(topic1)
         producer2 = client.create_producer(topic2)
         producer3 = client.create_producer(topic3)
+
+        consumer = client.subscribe(re.compile(topics_pattern),
+                                    'my-pattern-consumer-sub',
+                                    consumer_type = ConsumerType.Shared,
+                                    receiver_queue_size = 10,
+                                    pattern_auto_discovery_period = 1
+                                   )
 
         # wait enough time to trigger auto discovery
         time.sleep(2)
