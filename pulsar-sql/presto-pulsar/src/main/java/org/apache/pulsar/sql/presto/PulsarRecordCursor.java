@@ -86,14 +86,14 @@ public class PulsarRecordCursor implements RecordCursor {
     private StatsProvider statsProvider;
     private StatsLogger statsLogger;
 
-    // Stats
+    // Stats total execution time of split
     private long startTime;
 
     private static final Logger log = Logger.get(PulsarRecordCursor.class);
 
     public PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit,
                               PulsarConnectorConfig pulsarConnectorConfig) {
-        // stats
+        // Set start time for split
         this.startTime = System.nanoTime();
         PulsarConnectorCache pulsarConnectorCache;
         try {
@@ -228,7 +228,7 @@ public class PulsarRecordCursor implements RecordCursor {
                     statsLogger.getOpStatsLogger("read-bytes")
                             .registerSuccessfulValue(bytes);
 
-                    //stats
+                    // set start time for time deserializing entries for stats
                     long deseralizeEntriesStartTime = System.nanoTime();
                     // filter entries that is not part of my split
                     if (((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) < 0) {
@@ -256,7 +256,7 @@ public class PulsarRecordCursor implements RecordCursor {
                             throw new RuntimeException(e);
                         }
                     }
-                    // stats
+                    // stats for time spend deserializing entries
                     statsLogger.getOpStatsLogger("entry-deserialize-time")
                             .registerSuccessfulEvent(System.nanoTime() - deseralizeEntriesStartTime, TimeUnit.NANOSECONDS);
                 } finally {
@@ -363,7 +363,7 @@ public class PulsarRecordCursor implements RecordCursor {
             } else {
                 try {
                     Thread.sleep(5);
-                    // stats
+                    // stats for time spent wait to read from message queue because its empty
                     statsLogger.getOpStatsLogger("message-queue-read-wait-time")
                             .registerSuccessfulEvent(5, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
@@ -489,6 +489,7 @@ public class PulsarRecordCursor implements RecordCursor {
             }
         }
 
+        // set stat for total execution time of split
         statsLogger.getOpStatsLogger("total-execution-duration")
                 .registerSuccessfulEvent(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     }
