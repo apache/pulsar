@@ -125,6 +125,19 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     }
     private ProcessContainerFactory processContainerFactory;
 
+    @Data
+    @Setter
+    @Getter
+    @EqualsAndHashCode
+    @ToString
+    public static class KubernetesContainerFactory {
+        private String k8Uri;
+        private String jobNamespace;
+        private String pulsarDockerImageName;
+        private String pulsarRootDir;
+    }
+    private KubernetesContainerFactory kubernetesContainerFactory;
+
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
     }

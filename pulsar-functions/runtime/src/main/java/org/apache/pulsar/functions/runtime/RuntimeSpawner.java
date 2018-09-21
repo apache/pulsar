@@ -44,6 +44,7 @@ public class RuntimeSpawner implements AutoCloseable {
     private final InstanceConfig instanceConfig;
     private final RuntimeFactory runtimeFactory;
     private final String codeFile;
+    private final String originalCodeFileName;
 
     @Getter
     private Runtime runtime;
@@ -55,10 +56,12 @@ public class RuntimeSpawner implements AutoCloseable {
 
     public RuntimeSpawner(InstanceConfig instanceConfig,
                           String codeFile,
+                          String originalCodeFileName,
                           RuntimeFactory containerFactory, long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
         this.codeFile = codeFile;
+        this.originalCodeFileName = originalCodeFileName;
         this.numRestarts = 0;
         this.instanceLivenessCheckFreqMs = instanceLivenessCheckFreqMs;
     }
@@ -68,17 +71,12 @@ public class RuntimeSpawner implements AutoCloseable {
         log.info("{}/{}/{}-{} RuntimeSpawner starting function", details.getTenant(), details.getNamespace(),
                 details.getName(), this.instanceConfig.getInstanceId());
 
-        if (instanceConfig.getFunctionDetails().getRuntime() == PYTHON
-                && instanceConfig.getFunctionDetails().getSource() != null
-                && StringUtils.isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {
-            throw new IllegalArgumentException("topics-pattern is not supported for python function");
-        }
-
-        runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile);
+        runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile, originalCodeFileName,
+                instanceLivenessCheckFreqMs * 1000);
         runtime.start();
 
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
-        if (instanceLivenessCheckFreqMs > 0) {
+        if (!runtimeFactory.externallyManaged() && instanceLivenessCheckFreqMs > 0) {
             processLivenessCheckTimer = new Timer();
             processLivenessCheckTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override

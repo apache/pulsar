@@ -47,16 +47,13 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
-import org.apache.pulsar.functions.runtime.Runtime;
-import org.apache.pulsar.functions.runtime.RuntimeFactory;
-import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.*;
 
 import com.google.common.annotations.VisibleForTesting;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.runtime.Runtime;
 
 /**
  * This class managers all aspects of functions assignments and running of function assignments for this worker
@@ -123,8 +120,18 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
                     workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
                     workerConfig.getProcessContainerFactory().getLogDirectory());
+        } else if (workerConfig.getKubernetesContainerFactory() != null){
+            this.runtimeFactory = new KubernetesRuntimeFactory(
+                    workerConfig.getKubernetesContainerFactory().getK8Uri(),
+                    workerConfig.getKubernetesContainerFactory().getJobNamespace(),
+                    workerConfig.getKubernetesContainerFactory().getPulsarDockerImageName(),
+                    workerConfig.getKubernetesContainerFactory().getPulsarRootDir(),
+                    workerConfig.getPulsarServiceUrl(),
+                    workerConfig.getPulsarWebServiceUrl(),
+                    workerConfig.getStateStorageServiceUrl(),
+                    authConfig);
         } else {
-            throw new RuntimeException("Either Thread or Process Container Factory need to be set");
+            throw new RuntimeException("Either Thread, Process or Kubernetes Container Factory need to be set");
         }
 
         this.actionQueue = new LinkedBlockingQueue<>();

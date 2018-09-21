@@ -148,6 +148,9 @@ public class FunctionActioner implements AutoCloseable {
             pkgFile = new File(url.toURI());
         } else if (isFunctionCodeBuiltin(functionDetails)) {
             pkgFile = getBuiltinArchive(functionDetails);
+        } else if (runtimeFactory.externallyManaged()) {
+            URL url = new URL(pkgLocation);
+            pkgFile = new File(url.toURI());
         } else {
             File pkgDir = new File(
                     workerConfig.getDownloadDirectory(),
@@ -173,6 +176,7 @@ public class FunctionActioner implements AutoCloseable {
                 functionDetails.getName(), instanceId, instanceConfig);
 
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
+                functionMetaData.getPackageLocation().getOriginalFileName(),
                 runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 
         functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
