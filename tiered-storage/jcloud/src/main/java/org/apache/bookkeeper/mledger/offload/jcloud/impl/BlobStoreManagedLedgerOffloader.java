@@ -40,7 +40,11 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
-import org.apache.bookkeeper.mledger.offload.jcloud.config.JCloudBlobStoreConfiguration;
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.BlobStoreLocation;
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlobStoreFactory;
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlobStoreFactoryFactory;
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlobStoreProvider;
+import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.OffloadDriverMetadataKeys;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
@@ -68,34 +72,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Tiered Storage Offloader that is backed by a JCloud Blob Store.
  */
-public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
+public class BlobStoreManagedLedgerOffloader implements LedgerOffloader, OffloadDriverMetadataKeys {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloader.class);
-
-    private static final String METADATA_FIELD_BUCKET = "bucket";
-    private static final String METADATA_FIELD_REGION = "region";
-    private static final String METADATA_FIELD_ENDPOINT = "endpoint";
-
-    public static final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage", "azureblob"};
-
-    // use these keys for both s3 and gcs.
-    static final String METADATA_FORMAT_VERSION_KEY = "S3ManagedLedgerOffloaderFormatVersion";
-    static final String CURRENT_VERSION = String.valueOf(1);
-
-    public static boolean driverSupported(String driver) {
-        return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(driver));
-    }
-
-    public static boolean isS3Driver(String driver) {
-        return driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1]);
-    }
-
-    public static boolean isGcsDriver(String driver) {
-        return driver.equalsIgnoreCase(DRIVER_NAMES[2]);
-    }
-
-    public static boolean isAzureDriver(String driver) {
-        return driver.equalsIgnoreCase(DRIVER_NAMES[3]);
-    }
 
     private static void addVersionInfo(BlobBuilder blobBuilder, Map<String, String> userMetadata) {
         ImmutableMap.Builder<String, String> metadataBuilder = ImmutableMap.builder();
@@ -103,55 +81,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         metadataBuilder.put(METADATA_FORMAT_VERSION_KEY.toLowerCase(), CURRENT_VERSION);
         blobBuilder.userMetadata(metadataBuilder.build());
     }
-
-    @Data(staticConstructor = "of")
-    private static class BlobStoreLocation {
-        private final String region;
-        private final String endpoint;
-    }
-
-    private static Pair<BlobStoreLocation, BlobStore> createBlobStore(String driver,
-                                                                      String region,
-                                                                      String endpoint,
-                                                                      Credentials credentials,
-                                                                      int maxBlockSize) {
-        Properties overrides = new Properties();
-        // This property controls the number of parts being uploaded in parallel.
-        overrides.setProperty("jclouds.mpu.parallel.degree", "1");
-        overrides.setProperty("jclouds.mpu.parts.size", Integer.toString(maxBlockSize));
-        overrides.setProperty(Constants.PROPERTY_SO_TIMEOUT, "25000");
-        overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
-
-        ProviderRegistry.registerProvider(new AWSS3ProviderMetadata());
-        ProviderRegistry.registerProvider(new GoogleCloudStorageProviderMetadata());
-        ProviderRegistry.registerProvider(new AzureBlobProviderMetadata());
-
-        ContextBuilder contextBuilder = ContextBuilder.newBuilder(driver);
-        contextBuilder.credentials(credentials.identity, credentials.credential);
-
-        if (isS3Driver(driver) && !Strings.isNullOrEmpty(endpoint)) {
-            contextBuilder.endpoint(endpoint);
-            overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
-        }
-        contextBuilder.overrides(overrides);
-        BlobStoreContext context = contextBuilder.buildView(BlobStoreContext.class);
-        BlobStore blobStore = context.getBlobStore();
-
-        log.info("Connect to blobstore : driver: {}, region: {}, endpoint: {}",
-            driver, region, endpoint);
-        return Pair.of(
-            BlobStoreLocation.of(region, endpoint),
-            blobStore);
-    }
-
-    private final VersionCheck VERSION_CHECK = (key, blob) -> {
-        // NOTE all metadata in jclouds comes out as lowercase, in an effort to normalize the providers
-        String version = blob.getMetadata().getUserMetadata().get(METADATA_FORMAT_VERSION_KEY.toLowerCase());
-        if (version == null || !version.equals(CURRENT_VERSION)) {
-            throw new IOException(String.format("Invalid object version %s for %s, expect %s",
-                version, key, CURRENT_VERSION));
-        }
-    };
 
     private final OrderedScheduler scheduler;
 
@@ -176,27 +105,33 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     // metadata to be stored as part of the offloaded ledger metadata
     private final Map<String, String> userMetadata;
     // offload driver metadata to be stored as part of the original ledger metadata
-    private final String offloadDriverName;
 
-    @VisibleForTesting
-    public static BlobStoreManagedLedgerOffloader create(JCloudBlobStoreConfiguration conf,
+    private final JCloudBlobStoreProvider provider;
+    
+    private static Pair<BlobStoreLocation, BlobStore> createBlobStore(JCloudBlobStoreFactory factory) {
+        ProviderRegistry.registerProvider(factory.getProviderMetadata());
+        return Pair.of(factory.getBlobStoreLocation(), factory.getBlobStore());
+    }
+
+    public static BlobStoreManagedLedgerOffloader create(JCloudBlobStoreFactory factory,
             Map<String, String> userMetadata,
             OrderedScheduler scheduler) throws IOException {
 
-        return new BlobStoreManagedLedgerOffloader(conf, scheduler, userMetadata);
+        return new BlobStoreManagedLedgerOffloader(factory, scheduler, userMetadata);
     }
 
-    BlobStoreManagedLedgerOffloader(JCloudBlobStoreConfiguration conf, OrderedScheduler scheduler,
+    BlobStoreManagedLedgerOffloader(JCloudBlobStoreFactory factory, OrderedScheduler scheduler,
                                     Map<String, String> userMetadata) {
-        this.offloadDriverName = conf.getProvider().getDriver();
+        
+        this.provider = factory.getProvider();
         this.scheduler = scheduler;
-        this.readBufferSize = conf.getReadBufferSizeInBytes();
-        this.writeBucket = conf.getBucket();
-        this.writeRegion = conf.getRegion();
-        this.writeEndpoint = conf.getServiceEndpoint();
-        this.maxBlockSize = conf.getMaxBlockSizeInBytes();
+        this.readBufferSize = factory.getReadBufferSizeInBytes();
+        this.writeBucket = factory.getBucket();
+        this.writeRegion = factory.getRegion();
+        this.writeEndpoint = factory.getServiceEndpoint();
+        this.maxBlockSize = factory.getMaxBlockSizeInBytes();
         this.userMetadata = userMetadata;
-        this.credentials = conf.getCredentials();
+        this.credentials = factory.getCredentials();
 
         if (!Strings.isNullOrEmpty(writeRegion)) {
             this.writeLocation = new LocationBuilder()
@@ -209,16 +144,14 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         }
 
         log.info("Constructor offload driver: {}, host: {}, container: {}, region: {} ",
-                conf.getProvider().getDriver(), conf.getServiceEndpoint(), conf.getBucket(), conf.getRegion());
+                factory.getProvider().getDriver(), factory.getServiceEndpoint(), factory.getBucket(), factory.getRegion());
 
-        Pair<BlobStoreLocation, BlobStore> blobStore = createBlobStore(
-                offloadDriverName, writeRegion, writeEndpoint, credentials, maxBlockSize
-        );
-        this.writeBlobStore = blobStore.getRight();
-        this.readBlobStores.put(blobStore.getLeft(), blobStore.getRight());
+        Pair<BlobStoreLocation, BlobStore> pair = createBlobStore(factory);
+        this.writeBlobStore = pair.getRight();
+        this.readBlobStores.put(pair.getLeft(), pair.getRight());
     }
 
-    // build context for jclouds BlobStoreContext, mostly used in test
+    // build context for jclouds BlobStoreContext, Only used in test
     @VisibleForTesting
     BlobStoreManagedLedgerOffloader(BlobStore blobStore, String container, OrderedScheduler scheduler,
                                     int maxBlockSize, int readBufferSize) {
@@ -229,7 +162,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                     int maxBlockSize, int readBufferSize,
                                     Map<String, String> userMetadata) {
         // TODO Fix this
-        this.offloadDriverName = "azureblob";
+        this.provider = JCloudBlobStoreProvider.AZURE_BLOB;
         this.scheduler = scheduler;
         this.readBufferSize = readBufferSize;
         this.writeBucket = container;
@@ -242,7 +175,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.credentials = null;
 
         readBlobStores.put(
-            BlobStoreLocation.of(writeRegion, writeEndpoint),
+            BlobStoreLocation.of(provider.name(), writeRegion, container, writeEndpoint),
             blobStore
         );
     }
@@ -265,12 +198,13 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     @Override
     public String getOffloadDriverName() {
-        return offloadDriverName;
+        return provider.getDriver();
     }
 
     @Override
     public Map<String, String> getOffloadDriverMetadata() {
         return ImmutableMap.of(
+            METADATA_FIELD_BLOB_STORE_PROVIDER, provider.name(),
             METADATA_FIELD_BUCKET, writeBucket,
             METADATA_FIELD_REGION, writeRegion,
             METADATA_FIELD_ENDPOINT, writeEndpoint
@@ -389,6 +323,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         });
         return promise;
     }
+    
+    String getReadProvider(Map<String, String> offloadDriverMetadata) {
+        return offloadDriverMetadata.getOrDefault(METADATA_FIELD_BLOB_STORE_PROVIDER, "AZURE_BLOB");
+    }
 
     String getReadRegion(Map<String, String> offloadDriverMetadata) {
         return offloadDriverMetadata.getOrDefault(METADATA_FIELD_REGION, writeRegion);
@@ -403,20 +341,32 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     }
 
     BlobStore getReadBlobStore(Map<String, String> offloadDriverMetadata) {
+        
         BlobStoreLocation location = BlobStoreLocation.of(
+            getReadProvider(offloadDriverMetadata),
             getReadRegion(offloadDriverMetadata),
+            getReadBucket(offloadDriverMetadata),
             getReadEndpoint(offloadDriverMetadata)
         );
+        
         BlobStore blobStore = readBlobStores.get(location);
         if (null == blobStore) {
-            blobStore = createBlobStore(
-                offloadDriverName,
-                location.getRegion(),
-                location.getEndpoint(),
-                credentials,
-                maxBlockSize
-            ).getRight();
+            
+            try {
+                JCloudBlobStoreFactory factory = JCloudBlobStoreFactoryFactory.create(offloadDriverMetadata);
+                factory.setRegion(location.getRegion());
+                factory.setServiceEndpoint(location.getEndpoint());
+                factory.setCredentials(credentials);
+                factory.setMaxBlockSizeInBytes(maxBlockSize);
+
+                blobStore = createBlobStore(factory).getRight();
+            } catch (final IOException ioEx) {
+                log.error("Failed getReadBlobStore: ", ioEx);
+                return null;
+            }
+            
             BlobStore existingBlobStore = readBlobStores.putIfAbsent(location, blobStore);
+            
             if (null == existingBlobStore) {
                 return blobStore;
             } else {
@@ -478,6 +428,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public interface VersionCheck {
         void check(String key, Blob blob) throws IOException;
     }
+
+    public BlobStore getWriteBlobStore() {
+        return writeBlobStore;
+    }
 }
-
-

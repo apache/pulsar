@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.offload.jcloud.config;
+package org.apache.bookkeeper.mledger.offload.jclouds.provider.factory;
 
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
@@ -28,44 +28,24 @@ import java.nio.charset.Charset;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import org.jclouds.ContextBuilder;
 import org.jclouds.domain.Credentials;
 import org.jclouds.googlecloud.GoogleCredentialsFromJson;
+import org.jclouds.googlecloudstorage.GoogleCloudStorageProviderMetadata;
+import org.jclouds.providers.ProviderMetadata;
 
 /**
  * Configuration for Google Cloud storage.
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class GcsTieredStorageConfiguration extends JCloudBlobStoreConfiguration {
+public class GcsBlobStoreFactory extends JCloudBlobStoreFactory {
 
     private static final long serialVersionUID = 1L;
-
-    // For Google Cloud Storage ledger offload, region where offload bucket is located.
-    // reference this page for more details: https://cloud.google.com/storage/docs/bucket-locations
-    private String gcsManagedLedgerOffloadRegion = null;
-
-    // For Google Cloud Storage ledger offload, Bucket to place offloaded ledger into
-    private String gcsManagedLedgerOffloadBucket = null;
 
     // For Google Cloud Storage, path to json file containing service account credentials.
     // For more details, see the "Service Accounts" section of https://support.google.com/googleapi/answer/6158849
     private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
-
-
-    @Override
-    public String getRegion() {
-        return gcsManagedLedgerOffloadRegion;
-    }
-
-    @Override
-    public String getBucket() {
-        return gcsManagedLedgerOffloadBucket;
-    }
-
-    @Override
-    public String getServiceEndpoint() {
-        return null;
-    }
 
     @Override
     public void validate() {
@@ -92,15 +72,23 @@ public class GcsTieredStorageConfiguration extends JCloudBlobStoreConfiguration 
 
     @Override
     public Credentials getCredentials() {
-        try {
-            String gcsKeyContent = Files.toString(
-                    new File(gcsManagedLedgerOffloadServiceAccountKeyFile), Charset.defaultCharset());
-            return new GoogleCredentialsFromJson(gcsKeyContent).get();
-        } catch (IOException ioe) {
-            LOG.error("Cannot read GCS service account credentials file: {}",
-                    gcsManagedLedgerOffloadServiceAccountKeyFile);
-            throw new IllegalArgumentException(ioe);
+        if (credentials == null) {
+            try {
+                String gcsKeyContent = Files.toString(
+                        new File(gcsManagedLedgerOffloadServiceAccountKeyFile), Charset.defaultCharset());
+                credentials = new GoogleCredentialsFromJson(gcsKeyContent).get();
+            } catch (IOException ioe) {
+                LOG.error("Cannot read GCS service account credentials file: {}",
+                        gcsManagedLedgerOffloadServiceAccountKeyFile);
+                throw new IllegalArgumentException(ioe);
+            }
         }
+        return credentials;
+    }
+
+    @Override
+    public ProviderMetadata getProviderMetadata() {
+        return new GoogleCloudStorageProviderMetadata();
     }
 
 }
