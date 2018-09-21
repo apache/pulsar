@@ -387,7 +387,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * It stops all functions instances owned by current worker
      * @throws Exception
      */
-    public void stopAllOwnedFunctions() throws Exception {
+    public void stopAllOwnedFunctions() {
+        if (runtimeFactory.externallyManaged()) {
+            log.warn("Will not stop any functions since they are externally managed");
+            return;
+        }
         final String workerId = this.workerConfig.getWorkerId();
         Map<String, Assignment> assignments = workerIdToAssignments.get(workerId);
         if (assignments != null) {
