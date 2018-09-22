@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Request;
 import org.apache.pulsar.functions.worker.request.RequestResult;
@@ -399,6 +400,15 @@ public class FunctionMetaDataManager implements AutoCloseable {
         serviceRequestInfo.setRequestResultCompletableFuture(requestResultCompletableFuture);
 
         this.pendingServiceRequests.put(serviceRequestInfo.getServiceRequest().getRequestId(), serviceRequestInfo);
+        
+        messageIdCompletableFuture.exceptionally(ex -> {
+            FunctionDetails metadata = serviceRequest.getFunctionMetaData().getFunctionDetails();
+            log.warn("Failed to submit function metadata for {}/{}/{}-{}", metadata.getTenant(),
+                    metadata.getNamespace(), metadata.getName(), ex.getMessage());
+            serviceRequestInfo.getRequestResultCompletableFuture()
+                    .completeExceptionally(new RuntimeException("Failed to submit function metadata"));
+            return null;
+        });
 
         return requestResultCompletableFuture;
     }
