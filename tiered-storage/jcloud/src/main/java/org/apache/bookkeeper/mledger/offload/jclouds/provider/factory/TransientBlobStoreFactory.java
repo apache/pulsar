@@ -63,4 +63,19 @@ public class TransientBlobStoreFactory extends JCloudBlobStoreFactory {
         return new AnonymousProviderMetadata(new TransientApiMetadata(), "");
     }
 
+    @Override
+    public String getRegion() {
+        return null;
+    }
+
+    @Override
+    public void setRegion(String s) {
+        // No-op
+    }
+
+    @Override
+    public String getBucket() {
+        return null;
+    }
+
 }

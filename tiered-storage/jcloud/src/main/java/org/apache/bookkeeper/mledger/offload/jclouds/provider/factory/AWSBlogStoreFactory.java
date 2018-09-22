@@ -44,6 +44,35 @@ public class AWSBlogStoreFactory extends JCloudBlobStoreFactory {
 
     // For Amazon S3 ledger off-load, Alternative endpoint to connect to (useful for testing)
     private String s3ManagedLedgerOffloadServiceEndpoint = null;
+    
+    private String s3ManagedLedgerOffloadRegion = null;
+    
+    private String s3ManagedLedgerOffloadBucket = null;
+    
+    @Override
+    public String getRegion() {
+         return s3ManagedLedgerOffloadRegion;
+    }
+
+    @Override
+    public String getBucket() {
+         return s3ManagedLedgerOffloadBucket;
+    }
+
+    @Override
+    public String getServiceEndpoint() {
+        return s3ManagedLedgerOffloadServiceEndpoint;
+    }
+    
+    @Override
+    public void setRegion(String s) {
+        s3ManagedLedgerOffloadRegion = s;
+    }
+
+    @Override
+    public void setServiceEndpoint(String s) {
+        s3ManagedLedgerOffloadServiceEndpoint = s;
+    }
 
     @Override
     public void validate() {
