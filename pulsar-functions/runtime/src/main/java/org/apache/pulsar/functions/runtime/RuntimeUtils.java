@@ -93,7 +93,7 @@ class RuntimeUtils {
         args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
         args.add("--function_details");
-        args.add(JsonFormat.printer().print(instanceConfig.getFunctionDetails()));
+        args.add(JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails()));
 
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
