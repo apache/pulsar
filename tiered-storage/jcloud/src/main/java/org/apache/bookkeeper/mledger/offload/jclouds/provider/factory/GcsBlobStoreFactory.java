@@ -28,7 +28,6 @@ import java.nio.charset.Charset;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import org.jclouds.ContextBuilder;
 import org.jclouds.domain.Credentials;
 import org.jclouds.googlecloud.GoogleCredentialsFromJson;
 import org.jclouds.googlecloudstorage.GoogleCloudStorageProviderMetadata;

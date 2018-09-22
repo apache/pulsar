@@ -25,15 +25,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
-import java.util.Arrays;
+
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
+
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import lombok.Data;
+
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
@@ -46,12 +46,8 @@ import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlob
 import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jclouds.provider.factory.OffloadDriverMetadataKeys;
 import org.apache.commons.lang3.tuple.Pair;
-import org.jclouds.Constants;
-import org.jclouds.ContextBuilder;
-import org.jclouds.aws.s3.AWSS3ProviderMetadata;
-import org.jclouds.azureblob.AzureBlobProviderMetadata;
+
 import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
 import org.jclouds.blobstore.domain.MultipartPart;
@@ -61,11 +57,9 @@ import org.jclouds.domain.Credentials;
 import org.jclouds.domain.Location;
 import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
-import org.jclouds.googlecloudstorage.GoogleCloudStorageProviderMetadata;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
 import org.jclouds.osgi.ProviderRegistry;
-import org.jclouds.s3.reference.S3Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,7 +101,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader, Offload
     // offload driver metadata to be stored as part of the original ledger metadata
 
     private final JCloudBlobStoreProvider provider;
-    
+
     private static Pair<BlobStoreLocation, BlobStore> createBlobStore(JCloudBlobStoreFactory factory) {
         ProviderRegistry.registerProvider(factory.getProviderMetadata());
         return Pair.of(factory.getBlobStoreLocation(), factory.getBlobStore());
@@ -122,7 +116,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader, Offload
 
     BlobStoreManagedLedgerOffloader(JCloudBlobStoreFactory factory, OrderedScheduler scheduler,
                                     Map<String, String> userMetadata) {
-        
+
         this.provider = factory.getProvider();
         this.scheduler = scheduler;
         this.readBufferSize = factory.getReadBufferSizeInBytes();
@@ -144,7 +138,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader, Offload
         }
 
         log.info("Constructor offload driver: {}, host: {}, container: {}, region: {} ",
-                factory.getProvider().getDriver(), factory.getServiceEndpoint(), factory.getBucket(), factory.getRegion());
+                factory.getProvider().getDriver(), factory.getServiceEndpoint(),
+                factory.getBucket(), factory.getRegion());
 
         Pair<BlobStoreLocation, BlobStore> pair = createBlobStore(factory);
         this.writeBlobStore = pair.getRight();
@@ -323,7 +318,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader, Offload
         });
         return promise;
     }
-    
+
     String getReadProvider(Map<String, String> offloadDriverMetadata) {
         return offloadDriverMetadata.getOrDefault(METADATA_FIELD_BLOB_STORE_PROVIDER, "AZURE_BLOB");
     }
@@ -341,17 +336,17 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader, Offload
     }
 
     BlobStore getReadBlobStore(Map<String, String> offloadDriverMetadata) {
-        
+
         BlobStoreLocation location = BlobStoreLocation.of(
             getReadProvider(offloadDriverMetadata),
             getReadRegion(offloadDriverMetadata),
             getReadBucket(offloadDriverMetadata),
             getReadEndpoint(offloadDriverMetadata)
         );
-        
+
         BlobStore blobStore = readBlobStores.get(location);
         if (null == blobStore) {
-            
+
             try {
                 JCloudBlobStoreFactory factory = JCloudBlobStoreFactoryFactory.create(offloadDriverMetadata);
                 factory.setRegion(location.getRegion());
@@ -364,9 +359,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader, Offload
                 log.error("Failed getReadBlobStore: ", ioEx);
                 return null;
             }
-            
+
             BlobStore existingBlobStore = readBlobStores.putIfAbsent(location, blobStore);
-            
+
             if (null == existingBlobStore) {
                 return blobStore;
             } else {

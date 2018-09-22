@@ -26,7 +26,6 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,21 +37,21 @@ public class JCloudBlobStoreFactoryFactory implements OffloadDriverMetadataKeys 
 
     private static final Logger log = LoggerFactory.getLogger(JCloudBlobStoreFactoryFactory.class);
     public static final String BLOB_STORE_PROVIDER_KEY = "managedLedgerOffloadDriver";
-    
-    public static JCloudBlobStoreFactory create(Map<String, String> offloadDriverMetadata) throws IOException {  
-        
+
+    public static JCloudBlobStoreFactory create(Map<String, String> offloadDriverMetadata) throws IOException {
+
         if (offloadDriverMetadata == null || offloadDriverMetadata.isEmpty()) {
             throw new IOException("offloadDriverMetadata must not be empty");
         }
-        
+
         Properties props = new Properties();
         props.putAll(offloadDriverMetadata);
-        props.put(JCloudBlobStoreFactoryFactory.BLOB_STORE_PROVIDER_KEY, 
+        props.put(JCloudBlobStoreFactoryFactory.BLOB_STORE_PROVIDER_KEY,
                 offloadDriverMetadata.get(METADATA_FIELD_BLOB_STORE_PROVIDER));
-        
+
         return JCloudBlobStoreFactoryFactory.create(props);
     }
-    
+
     public static JCloudBlobStoreFactory create(Properties props) throws IOException {
         return create(props, true);
     }
@@ -68,11 +67,11 @@ public class JCloudBlobStoreFactoryFactory implements OffloadDriverMetadataKeys 
            }
            JCloudBlobStoreFactory factory = JCloudBlobStoreFactoryFactory.create(provider.getClazz(), props);
            factory.setProvider(provider);
-           
+
            if (validate) {
               factory.validate();
            }
-           
+
            return factory;
        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException e) {
           log.error("Unable to create storage configuration ", e);
@@ -90,9 +89,9 @@ public class JCloudBlobStoreFactoryFactory implements OffloadDriverMetadataKeys 
      */
     private static JCloudBlobStoreFactory create(Class<? extends JCloudBlobStoreFactory> clazz,
             Properties properties) throws InstantiationException, IllegalAccessException {
-        
+
         JCloudBlobStoreFactory data = clazz.newInstance();
-        
+
         if (properties != null && !properties.isEmpty()) {
             Field[] fields = (Field[]) ArrayUtils.addAll(
                     clazz.getSuperclass().getDeclaredFields(),
@@ -111,7 +110,6 @@ public class JCloudBlobStoreFactoryFactory implements OffloadDriverMetadataKeys 
                 }
             });
         }
-        
         return data;
     }
 }
