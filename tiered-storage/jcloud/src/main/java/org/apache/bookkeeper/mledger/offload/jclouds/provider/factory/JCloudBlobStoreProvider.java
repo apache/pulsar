@@ -27,8 +27,8 @@ public enum JCloudBlobStoreProvider implements Serializable {
 
     AWS_S3("aws-s3", AWSBlogStoreFactory.class),
     AWS_GLACIER("glacier", AWSBlogStoreFactory.class),
-    GOOGLE("google-cloud-storage", GcsBlobStoreFactory.class),
     AZURE_BLOB("azureblob", AzureBlobStoreFactory.class),
+    GOOGLE_CLOUD_STORAGE("google-cloud-storage", GcsBlobStoreFactory.class),
     TRANSIENT("transient", TransientBlobStoreFactory.class);
 
     public static final boolean driverSupported(String driverName) {

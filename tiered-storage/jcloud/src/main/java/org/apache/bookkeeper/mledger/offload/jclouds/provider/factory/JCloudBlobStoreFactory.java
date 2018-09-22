@@ -60,19 +60,13 @@ public abstract class JCloudBlobStoreFactory implements Serializable, Cloneable,
     // Read buffer size in bytes.
     protected int readBufferSizeInBytes = MB; // 1MB
 
-    protected String region;
-
-    protected String bucket;
-
-    protected String serviceEndpoint;
-
     protected Credentials credentials;
 
     protected JCloudBlobStoreProvider provider;
 
     public ContextBuilder getContextBuilder() {
         return ContextBuilder.newBuilder(provider.getDriver())
-                             .credentials(getCredentials().identity, getCredentials().credential)
+                             .credentials(credentials.identity, credentials.credential)
                              .overrides(getOverrides());
     }
 
@@ -87,7 +81,7 @@ public abstract class JCloudBlobStoreFactory implements Serializable, Cloneable,
     }
 
     public BlobStoreLocation getBlobStoreLocation() {
-        return BlobStoreLocation.of(getProvider().name(), getRegion(), getBucket(), getServiceEndpoint());
+        return BlobStoreLocation.of(provider.name(), getRegion(), getBucket(), getServiceEndpoint());
     }
 
     public Map<String, String> getReadConfig() {
@@ -108,7 +102,21 @@ public abstract class JCloudBlobStoreFactory implements Serializable, Cloneable,
         overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
         return overrides;
     }
-
+    
+    public String getServiceEndpoint() {
+        return null;
+    }
+    
+    public void setServiceEndpoint(String s) {
+        // No-op
+    }
+    
+    public abstract String getRegion();
+    
+    public abstract void setRegion(String s);
+    
+    public abstract String getBucket();
+    
     public abstract void validate();
 
     public abstract ProviderMetadata getProviderMetadata();

@@ -53,8 +53,8 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     @Test
     public final void testAWSS3AllProperties() throws Exception {
         props.put("managedLedgerOffloadDriver", "AWS_S3");
-        props.put("region", "eu-west-1");
-        props.put("bucket", BUCKET);
+        props.put("s3ManagedLedgerOffloadRegion", "eu-west-1");
+        props.put("s3ManagedLedgerOffloadBucket", BUCKET);
         props.put("maxBlockSizeInBytes", "9999999");
         props.put("readBufferSizeInBytes", "4");
         props.put("managedLedgerOffloadMaxThreads", "6");
@@ -88,7 +88,7 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     public void testAWSS3NoBucketConfigured() throws Exception {
         Properties props = new Properties();
         props.put("managedLedgerOffloadDriver", "AWS_S3");
-        props.put("region", "eu-west-1");
+        props.put("s3ManagedLedgerOffloadRegion", "eu-west-1");
         
         try {
             JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
@@ -103,8 +103,8 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     public void testAWSS3SmallBlockSizeConfigured() throws Exception {
         Properties props = new Properties();
         props.put("managedLedgerOffloadDriver", "AWS_S3");
-        props.put("region", "eu-west-1");
-        props.put("bucket", BUCKET);
+        props.put("s3ManagedLedgerOffloadRegion", "eu-west-1");
+        props.put("s3ManagedLedgerOffloadBucket", BUCKET);
         props.put("maxBlockSizeInBytes", "1024");
        
         try {
@@ -119,8 +119,8 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     @Test
     public final void testAzureAllProperties() throws Exception {
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
-        props.put("region", "eu-west-1");
-        props.put("bucket", BUCKET);
+        props.put("azureManagedLedgerOffloadRegion", "eu-west-1");
+        props.put("azureManagedLedgerOffloadBucket", BUCKET);
         props.put("azureStorageAccountName", "value");
         props.put("azureStorageAccountKey", "value");
         props.put("maxBlockSizeInBytes", "9999999");
@@ -160,7 +160,7 @@ public class JCloudBlobStoreConfigurationFactoryTests {
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
         props.put("azureStorageAccountName", "value");
         props.put("azureStorageAccountKey", "value");
-        props.put("region", "eu-west-1");
+        props.put("azureManagedLedgerOffloadRegion", "eu-west-1");
         
         try {
             JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
@@ -175,8 +175,8 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     public void testAzureNoCredentialsConfigured() throws Exception {
         Properties props = new Properties();
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
-        props.put("bucket", BUCKET);
-        props.put("region", "eu-west-1");
+        props.put("azureManagedLedgerOffloadBucket", BUCKET);
+        props.put("azureManagedLedgerOffloadRegion", "eu-west-1");
         
         try {
             JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
@@ -190,8 +190,8 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     @Test
     public void testGcsNoKeyPath() throws Exception {
         Properties props = new Properties();
-        props.put("managedLedgerOffloadDriver", "GOOGLE");
-        props.put("bucket", BUCKET);
+        props.put("managedLedgerOffloadDriver", "GOOGLE_CLOUD_STORAGE");
+        props.put("gcsManagedLedgerOffloadBucket", BUCKET);
        
         try {
             JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
@@ -207,7 +207,7 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     public void testGcsNoBucketConfigured() throws Exception {
         
         Properties props = new Properties();
-        props.put("managedLedgerOffloadDriver", "GOOGLE");
+        props.put("managedLedgerOffloadDriver", "GOOGLE_CLOUD_STORAGE");
         File tmpKeyFile = File.createTempFile("gcsOffload", "json");
         props.put("gcsManagedLedgerOffloadServiceAccountKeyFile", tmpKeyFile.getAbsolutePath());
 
@@ -224,10 +224,10 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     @Test
     public void testGcsSmallBlockSizeConfigured() throws Exception {
         Properties props = new Properties();
-        props.put("managedLedgerOffloadDriver", "GOOGLE");
+        props.put("managedLedgerOffloadDriver", "GOOGLE_CLOUD_STORAGE");
         File tmpKeyFile = File.createTempFile("gcsOffload", "json");
         props.put("gcsManagedLedgerOffloadServiceAccountKeyFile", tmpKeyFile.getAbsolutePath());
-        props.put("bucket", BUCKET);
+        props.put("gcsManagedLedgerOffloadBucket", BUCKET);
         props.put("maxBlockSizeInBytes", 1024);
 
         try {
@@ -239,5 +239,4 @@ public class JCloudBlobStoreConfigurationFactoryTests {
             log.error("Expected pse", pse);
         }
     }
-
 }
