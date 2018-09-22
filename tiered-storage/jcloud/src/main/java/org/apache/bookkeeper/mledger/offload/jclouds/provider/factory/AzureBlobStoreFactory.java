@@ -23,7 +23,6 @@ import com.google.common.base.Strings;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import org.jclouds.ContextBuilder;
 import org.jclouds.azureblob.AzureBlobProviderMetadata;
 import org.jclouds.domain.Credentials;
 import org.jclouds.providers.ProviderMetadata;

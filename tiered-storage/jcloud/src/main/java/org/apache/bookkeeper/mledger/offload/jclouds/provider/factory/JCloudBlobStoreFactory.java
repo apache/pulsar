@@ -26,10 +26,10 @@ import java.util.Properties;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
+import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.domain.Credentials;
 import org.jclouds.providers.ProviderMetadata;
 import org.slf4j.Logger;
@@ -59,37 +59,37 @@ public abstract class JCloudBlobStoreFactory implements Serializable, Cloneable,
 
     // Read buffer size in bytes.
     protected int readBufferSizeInBytes = MB; // 1MB
-    
+
     protected String region;
-    
+
     protected String bucket;
-    
+
     protected String serviceEndpoint;
-    
+
     protected Credentials credentials;
 
     protected JCloudBlobStoreProvider provider;
-    
+
     public ContextBuilder getContextBuilder() {
         return ContextBuilder.newBuilder(provider.getDriver())
                              .credentials(getCredentials().identity, getCredentials().credential)
                              .overrides(getOverrides());
     }
-    
+
     public BlobStore getBlobStore() {
-        
+
         LOG.info("Connecting to blobstore : driver: {}, region: {}, bucket: {}, endpoint: {}",
                 getProvider().getDriver(), getRegion(), getBucket(), getServiceEndpoint());
-        
+
         return getContextBuilder()
                 .buildView(BlobStoreContext.class)
                 .getBlobStore();
     }
-    
+
     public BlobStoreLocation getBlobStoreLocation() {
         return BlobStoreLocation.of(getProvider().name(), getRegion(), getBucket(), getServiceEndpoint());
     }
-    
+
     public Map<String, String> getReadConfig() {
         Map<String, String> metaData = new HashMap<String, String> ();
         metaData.put(METADATA_FIELD_BLOB_STORE_PROVIDER, provider.name());
@@ -98,7 +98,7 @@ public abstract class JCloudBlobStoreFactory implements Serializable, Cloneable,
         metaData.put(METADATA_FIELD_ENDPOINT, getServiceEndpoint());
         return metaData;
     }
-    
+
     protected Properties getOverrides() {
         Properties overrides = new Properties();
         // This property controls the number of parts being uploaded in parallel.
@@ -110,7 +110,7 @@ public abstract class JCloudBlobStoreFactory implements Serializable, Cloneable,
     }
 
     public abstract void validate();
-    
+
     public abstract ProviderMetadata getProviderMetadata();
-    
+
 }

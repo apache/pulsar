@@ -30,7 +30,7 @@ public enum JCloudBlobStoreProvider implements Serializable {
     GOOGLE("google-cloud-storage", GcsBlobStoreFactory.class),
     AZURE_BLOB("azureblob", AzureBlobStoreFactory.class),
     TRANSIENT("transient", TransientBlobStoreFactory.class);
-    
+
     public static final boolean driverSupported(String driverName) {
         for (JCloudBlobStoreProvider provider: JCloudBlobStoreProvider.values()) {
             if (provider.getDriver().equalsIgnoreCase(driverName)) {

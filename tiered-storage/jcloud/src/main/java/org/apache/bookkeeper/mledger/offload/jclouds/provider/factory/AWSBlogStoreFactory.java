@@ -22,10 +22,10 @@ import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.google.common.base.Strings;
 
+import java.util.Properties;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-
-import java.util.Properties;
 
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
@@ -86,15 +86,15 @@ public class AWSBlogStoreFactory extends JCloudBlobStoreFactory {
         }
         return credentials;
     }
-    
+
     @Override
     public ContextBuilder getContextBuilder() {
         ContextBuilder builder = super.getContextBuilder();
-        
+
         if (!Strings.isNullOrEmpty(s3ManagedLedgerOffloadServiceEndpoint)) {
             builder.endpoint(s3ManagedLedgerOffloadServiceEndpoint);
         }
-        
+
         return builder;
     }
 
