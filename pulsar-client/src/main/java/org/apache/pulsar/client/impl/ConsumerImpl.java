@@ -693,6 +693,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
+        if (null == cnx) {
+            // no connection already
+            closeFuture.complete(null);
+            return closeFuture;
+        }
         cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
             cnx.removeConsumer(consumerId);
             if (exception == null || !cnx.ctx().channel().isActive()) {
