@@ -25,8 +25,8 @@ import java.io.Serializable;
  */
 public enum JCloudBlobStoreProvider implements Serializable {
 
-    AWS_S3("aws-s3", AWSBlogStoreFactory.class),
-    AWS_GLACIER("glacier", AWSBlogStoreFactory.class),
+    AWS_S3("aws-s3", S3BlobStoreFactory.class),
+    AWS_GLACIER("glacier", GlacierBlobStoreProvider.class),
     AZURE_BLOB("azureblob", AzureBlobStoreFactory.class),
     GOOGLE_CLOUD_STORAGE("google-cloud-storage", GcsBlobStoreFactory.class),
     TRANSIENT("transient", TransientBlobStoreFactory.class);

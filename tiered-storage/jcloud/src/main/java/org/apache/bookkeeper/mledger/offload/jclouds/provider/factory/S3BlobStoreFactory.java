@@ -38,7 +38,7 @@ import org.jclouds.s3.reference.S3Constants;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class AWSBlogStoreFactory extends JCloudBlobStoreFactory {
+public class S3BlobStoreFactory extends AWSBlobStoreFactory {
 
     private static final long serialVersionUID = 1L;
 
@@ -75,48 +75,6 @@ public class AWSBlogStoreFactory extends JCloudBlobStoreFactory {
     }
 
     @Override
-    public void validate() {
-        if (Strings.isNullOrEmpty(getRegion()) && Strings.isNullOrEmpty(getServiceEndpoint())) {
-            throw new IllegalArgumentException(
-                    "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
-                    + " if s3 offload enabled");
-        }
-
-        if (Strings.isNullOrEmpty(getBucket())) {
-            throw new IllegalArgumentException(
-                "ManagedLedgerOffloadBucket cannot be empty for s3 offload");
-        }
-
-        if (maxBlockSizeInBytes < 5 * MB) {
-            throw new IllegalArgumentException(
-                "ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB for s3 offload");
-        }
-    }
-
-    @Override
-    public Credentials getCredentials() {
-        if (credentials == null) {
-            AWSCredentials awsCredentials = null;
-            try {
-                DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();
-                awsCredentials = creds.getCredentials();
-            } catch (Exception e) {
-                // allowed, some mock s3 service do not need credential
-                LOG.warn("Exception when get credentials for s3 ", e);
-            }
-
-            String id = "accesskey";
-            String key = "secretkey";
-            if (awsCredentials != null) {
-                id = awsCredentials.getAWSAccessKeyId();
-                key = awsCredentials.getAWSSecretKey();
-            }
-            credentials = new Credentials(id, key);
-        }
-        return credentials;
-    }
-
-    @Override
     public ContextBuilder getContextBuilder() {
         ContextBuilder builder = super.getContextBuilder();
 
@@ -134,10 +92,5 @@ public class AWSBlogStoreFactory extends JCloudBlobStoreFactory {
             overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
         }
         return overrides;
-    }
-
-    @Override
-    public ProviderMetadata getProviderMetadata() {
-        return new AWSS3ProviderMetadata();
     }
 }
