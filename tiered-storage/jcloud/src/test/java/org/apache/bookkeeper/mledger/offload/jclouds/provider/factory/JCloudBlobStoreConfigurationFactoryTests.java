@@ -117,10 +117,76 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     }
     
     @Test
+    public final void testAWSGlacierAllProperties() throws Exception {
+        props.put("managedLedgerOffloadDriver", "AWS_GLACIER");
+        props.put("glacierManagedLedgerOffloadRegion", "eu-west-1");
+        props.put("glacierManagedLedgerOffloadBucket", BUCKET);
+        props.put("maxBlockSizeInBytes", "9999999");
+        props.put("readBufferSizeInBytes", "4");
+        props.put("managedLedgerOffloadMaxThreads", "6");
+        
+        JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
+        assertNotNull(conf);
+        assertEquals(conf.getRegion(), "eu-west-1");
+        assertEquals(conf.getBucket(), BUCKET);
+        assertEquals(conf.getManagedLedgerOffloadMaxThreads(), 6);
+        assertEquals(conf.getMaxBlockSizeInBytes(), 9999999);
+        assertEquals(conf.getReadBufferSizeInBytes(), 4);
+        assertEquals(conf.getProvider().getDriver(), "glacier");
+    }
+    
+    @Test
+    public void testAWSGlacierNoRegionConfigured() throws Exception {
+        Properties props = new Properties();
+        props.put("managedLedgerOffloadDriver", "AWS_GLACIER");
+        props.put("glacierManagedLedgerOffloadBucket", BUCKET);
+        
+        try {
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
+            BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
+            Assert.fail("Should have thrown exception");
+        } catch (IOException pse) {
+            // correct
+        }
+    }
+
+    @Test
+    public void testAWSGlacierNoBucketConfigured() throws Exception {
+        Properties props = new Properties();
+        props.put("managedLedgerOffloadDriver", "AWS_GLACIER");
+        props.put("glacierManagedLedgerOffloadRegion", "eu-west-1");
+        
+        try {
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
+            BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
+            Assert.fail("Should have thrown exception");
+        } catch (IOException pse) {
+            // correct
+        }
+    }
+
+    @Test
+    public void testAWSGlacierSmallBlockSizeConfigured() throws Exception {
+        Properties props = new Properties();
+        props.put("managedLedgerOffloadDriver", "AWS_GLACIER");
+        props.put("glacierManagedLedgerOffloadRegion", "eu-west-1");
+        props.put("glacierManagedLedgerOffloadBucket", BUCKET);
+        props.put("maxBlockSizeInBytes", "1024");
+       
+        try {
+            JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
+            BlobStoreManagedLedgerOffloader.create(conf, Maps.newHashMap(), scheduler);
+            Assert.fail("Should have thrown exception");
+        } catch (IOException pse) {
+            // correct
+        }
+    }
+    
+    @Test
     public final void testAzureAllProperties() throws Exception {
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
         props.put("azureManagedLedgerOffloadRegion", "eu-west-1");
-        props.put("azureManagedLedgerOffloadBucket", BUCKET);
+        props.put("azureManagedLedgerOffloadContainer", BUCKET);
         props.put("azureStorageAccountName", "value");
         props.put("azureStorageAccountKey", "value");
         props.put("maxBlockSizeInBytes", "9999999");
@@ -143,7 +209,7 @@ public class JCloudBlobStoreConfigurationFactoryTests {
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
         props.put("azureStorageAccountName", "value");
         props.put("azureStorageAccountKey", "value");
-        props.put("bucket", BUCKET);
+        props.put("azureManagedLedgerOffloadContainer", BUCKET);
         
         try {
             JCloudBlobStoreFactory conf = JCloudBlobStoreFactoryFactory.create(props);
@@ -155,7 +221,7 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     }
 
     @Test
-    public void testAzureNoBucketConfigured() throws Exception {
+    public void testAzureNoContainerConfigured() throws Exception {
         Properties props = new Properties();
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
         props.put("azureStorageAccountName", "value");
@@ -175,7 +241,7 @@ public class JCloudBlobStoreConfigurationFactoryTests {
     public void testAzureNoCredentialsConfigured() throws Exception {
         Properties props = new Properties();
         props.put("managedLedgerOffloadDriver", "AZURE_BLOB");
-        props.put("azureManagedLedgerOffloadBucket", BUCKET);
+        props.put("azureManagedLedgerOffloadContainer", BUCKET);
         props.put("azureManagedLedgerOffloadRegion", "eu-west-1");
         
         try {

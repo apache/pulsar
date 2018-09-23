@@ -48,9 +48,6 @@ public abstract class JCloudBlobStoreFactory implements Serializable, Cloneable,
 
     protected static final Logger LOG = LoggerFactory.getLogger(JCloudBlobStoreFactory.class);
 
-    // Driver to use to off-load old data to long term storage
-    protected String managedLedgerOffloadDriver = null;
-
     // Maximum number of thread pool threads for ledger off-loading
     protected int managedLedgerOffloadMaxThreads = 2;
 

@@ -32,8 +32,8 @@ public interface OffloadDriverMetadataKeys {
     String METADATA_FIELD_REGION = "region";
     String METADATA_FIELD_ENDPOINT = "endpoint";
 
-    // use these keys for both s3 and gcs.
-    String METADATA_FORMAT_VERSION_KEY = "S3ManagedLedgerOffloaderFormatVersion";
+    // Use these keys for all Storage Providers
+    String METADATA_FORMAT_VERSION_KEY = "ManagedLedgerOffloaderFormatVersion";
     String CURRENT_VERSION = String.valueOf(1);
 
     VersionCheck VERSION_CHECK = (key, blob) -> {

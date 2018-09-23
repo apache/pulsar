@@ -23,6 +23,8 @@ import static org.apache.pulsar.common.util.FieldParser.value;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -93,9 +95,8 @@ public class JCloudBlobStoreFactoryFactory implements OffloadDriverMetadataKeys 
         JCloudBlobStoreFactory data = clazz.newInstance();
 
         if (properties != null && !properties.isEmpty()) {
-            Field[] fields = (Field[]) ArrayUtils.addAll(
-                    clazz.getSuperclass().getDeclaredFields(),
-                    clazz.getDeclaredFields());
+            Collection<Field> allFields = getFields(clazz);
+            Field[] fields = allFields.toArray(new Field[allFields.size()]);
 
             Arrays.stream(fields).forEach(f -> {
                 if (properties.containsKey(f.getName())) {
@@ -111,5 +112,20 @@ public class JCloudBlobStoreFactoryFactory implements OffloadDriverMetadataKeys 
             });
         }
         return data;
+    }
+    
+    private static Collection<Field> getFields(Class<?> clazz) {
+        Map<String, Field> fields = new HashMap<String, Field>();
+        while (clazz != null) {
+          for (Field field : clazz.getDeclaredFields()) {
+            if (!fields.containsKey(field.getName())) {
+              fields.put(field.getName(), field);
+            }
+          }
+
+          clazz = clazz.getSuperclass();
+        }
+
+        return fields.values();
     }
 }

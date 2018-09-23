@@ -6,10 +6,12 @@ sidebar_label: Tiered Storage
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
-Tiered storage currently uses [Apache Jclouds](https://jclouds.apache.org) to supports
-[Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short)
-for long term storage. With Jclouds, it is easy to add support for more
-[cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
+Tiered storage currently uses [Apache Jclouds](https://jclouds.apache.org) to support the following [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) for long term storage.
+ - [Amazon S3](https://aws.amazon.com/s3/) 
+ - [Amazon Glacier](https://aws.amazon.com/glacier/)
+ - [Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/)
+ - [Google Cloud Storage](https://cloud.google.com/storage/)
+With Jclouds, it is easy to add support for many more
 
 ## When should I use Tiered Storage?
 
@@ -39,18 +41,20 @@ There is also some other knobs to configure, like the bucket region, the max blo
 
 Currently we support driver of types:
 
-- `aws-s3`: [Simple Cloud Storage Service](https://aws.amazon.com/s3/)
-- `google-cloud-storage`: [Google Cloud Storage](https://cloud.google.com/storage/)
+ - `AWS_S3`: [Amazon S3](https://aws.amazon.com/s3/) 
+ - `AWS_GLACIER`: [Amazon Glacier](https://aws.amazon.com/glacier/)
+ - `AZURE_BLOB`: [Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/)
+ - `GOOGLE_CLOUD_STORAGE`: [Google Cloud Storage](https://cloud.google.com/storage/)
 
 > Driver names are case-insensitive for driver's name. There is a third driver type, `s3`, which is identical to `aws-s3`,
 > though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if
 > using a S3 compatible data store, other than AWS.
 
 ```conf
-managedLedgerOffloadDriver=aws-s3
+managedLedgerOffloadDriver=AWS_S3
 ```
 
-### "aws-s3" Driver configuration
+### "AWS_S3" Driver configuration
 
 #### Bucket and Region
 
@@ -121,7 +125,79 @@ Pulsar also provides some knobs to configure the size of requests sent to AWS S3
 
 In both cases, these should not be touched unless you know what you are doing.
 
-### "google-cloud-storage" Driver configuration
+### "AWS_GLACIER" Driver configuration
+
+Amazon Glacier is a cold storage service which can be used as an alternative to traditional storage services for data archiving and backup. The main downside of Glacier is its very long retrieval time. After you've requested your data, it can take several hours until it's available for download.
+
+#### Vault and Region
+
+In AWS Glacier, a vault defines a container in a region for a collection of archives.
+
+```conf
+glacierManagedLedgerOffloadVault=pulsar-topic-offload
+```
+
+Vault Region is the region where the vault is located. The Vault Region is not a required
+but a recommended configuration. If it is not configured, It will use the default region.
+
+With AWS Glacier, the default region is `US East (N. Virginia)`. Page
+[AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html) contains more information.
+
+Currently, only the us-east-1 region is supported by JClouds due to a [known issue](https://issues.apache.org/jira/browse/JCLOUDS-659)
+
+```conf
+glacierManagedLedgerOffloadRegion=eu-west-3
+```
+
+#### Authentication with AWS
+
+Authentication is the same as it is for AWS S3 shown above. please refer to that section for details.
+
+#### Configuring the size of block read/write
+
+Pulsar also provides some knobs to configure the size of requests sent to AWS S3.
+
+- ```glacierManagedLedgerOffloadMaxBlockSizeInBytes```  configures the maximum size of
+  a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
+- ```glacierManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for
+  each individual read when reading back data from AWS Glacier. Default is 1MB.
+
+In both cases, these should not be touched unless you know what you are doing.
+
+### "AZURE_BLOB" Driver configuration
+
+#### Containers and Region
+
+Containers are the basic containers that hold your data in Azure.
+Everything that you store in Azure Cloud Storage must reside in a container.
+You can use containers to organize your data and control access to your data,
+but unlike directories and folders, you cannot nest containers.
+
+```conf
+azureManagedLedgerOffloadContainer=pulsar-topic-offload
+```
+
+Region is the region where your container will be located. Region is not a required
+but a recommended configuration. If no region is configured, then we
+will use the default region of the storage account associated with the credentials provided.
+
+With Azure Blob Storage, refer to the following link to see which regions are supported.
+[Azure Regions](https://azure.microsoft.com/en-us/global-infrastructure/services/?products=storage). 
+
+```conf
+azureManagedLedgerOffloadRegion=east-US
+```
+
+#### Authentication with Azure
+
+To be able to access Azure Storage, you need to authenticate with Azure. Please refer to [Azure Storage Security Guide](https://docs.microsoft.com/en-us/azure/storage/common/storage-security-guide) for details on securing your Azure storage account.
+in order to utilize Azure Storgae for Tiered-storage, you will need to provide the following details to Pulsar.
+
+- ```azureStorageAccountName```  configures the Storage account name you are using for the offload.
+- ```azureStorageAccountKey``` specifies the secret access key associated with the Storage Account
+
+
+### "GOOGLE_CLOUD_STORAGE" Driver configuration
 
 Buckets are the basic containers that hold your data. Everything that you store in
 Cloud Storage must be contained in a bucket. You can use buckets to organize your data and

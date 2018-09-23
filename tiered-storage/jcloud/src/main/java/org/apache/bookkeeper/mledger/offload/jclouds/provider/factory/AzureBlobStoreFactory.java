@@ -38,14 +38,15 @@ public class AzureBlobStoreFactory extends JCloudBlobStoreFactory {
     
     private String azureManagedLedgerOffloadRegion = null;
 
+    // For Azure ledger offload, Container to place offloaded ledger into
+    private String azureManagedLedgerOffloadContainer = null;
+    
     // For Microsoft Azure Blob Storage ledger offload, the storage account name
     private String azureStorageAccountName = null;
 
     // For Microsoft Azure Blob Storage ledger offload, the storage account access key
     private String azureStorageAccountKey = null;
     
-    // For Azure ledger offload, Container to place offloaded ledger into
-    private String azureManagedLedgerOffloadBucket = null;
 
     @Override
     public String getRegion() {
@@ -54,7 +55,7 @@ public class AzureBlobStoreFactory extends JCloudBlobStoreFactory {
 
     @Override
     public String getBucket() {
-         return azureManagedLedgerOffloadBucket;
+         return azureManagedLedgerOffloadContainer;
     }
     
     @Override
