@@ -44,6 +44,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static java.net.HttpURLConnection.HTTP_CONFLICT;
+
 /**
  * A function container implemented using java thread.
  */
@@ -260,9 +262,14 @@ class KubernetesRuntime implements Runtime {
                     client.createNamespacedStatefulSetCall(jobNamespace, statefulSet, null,
                             null, null).execute();
             if (!response.isSuccessful()) {
-                log.error("Error creating k8 job:- : " + response.message());
-                // construct a message based on the k8s api server response
-                throw new RuntimeException(response.message());
+                if (response.code() == HTTP_CONFLICT) {
+                    log.warn("Kubernetes job already running");
+                    running = true;
+                } else {
+                    log.error("Error creating k8 job:- : " + response.message());
+                    // construct a message based on the k8s api server response
+                    throw new RuntimeException(response.message());
+                }
             } else {
                 log.info("Job Submitted Successfully");
                 running = true;
@@ -466,6 +473,6 @@ class KubernetesRuntime implements Runtime {
     }
 
     private String createJobName(String tenant, String namespace, String functionName) {
-        return functionName;
+        return "pulsarfunction-" + tenant + "_" + namespace + "_" + functionName;
     }
 }
