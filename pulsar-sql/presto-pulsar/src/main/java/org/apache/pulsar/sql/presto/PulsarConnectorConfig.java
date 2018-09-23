@@ -21,9 +21,9 @@ package org.apache.pulsar.sql.presto;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.airlift.configuration.Config;
-import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
 
 import javax.validation.constraints.NotNull;
 import java.lang.reflect.Type;
