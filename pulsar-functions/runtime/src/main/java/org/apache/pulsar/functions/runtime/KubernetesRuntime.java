@@ -473,6 +473,6 @@ class KubernetesRuntime implements Runtime {
     }
 
     private String createJobName(String tenant, String namespace, String functionName) {
-        return "pulsarfunction-" + tenant + "_" + namespace + "_" + functionName;
+        return "pfn-" + tenant + "-" + namespace + "-" + functionName;
     }
 }

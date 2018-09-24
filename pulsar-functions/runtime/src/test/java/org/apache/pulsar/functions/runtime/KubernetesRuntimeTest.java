@@ -68,7 +68,7 @@ public class KubernetesRuntimeTest {
         this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "logs/functions";
         this.factory = new KubernetesRuntimeFactory(null, null, null, null,
-            pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null);
+            false, pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null);
     }
 
     @AfterMethod

@@ -40,6 +40,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String jobNamespace;
     private final String pulsarDockerImageName;
     private final String pulsarRootDir;
+    private final Boolean submittingInsidePod;
     private final String pulsarAdminUri;
     private final String pulsarServiceUri;
     private final String stateStorageServiceUri;
@@ -54,6 +55,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String jobNamespace,
                                     String pulsarDockerImageName,
                                     String pulsarRootDir,
+                                    Boolean submittingInsidePod,
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
                                     String stateStorageServiceUri,
@@ -74,6 +76,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.pulsarRootDir = "/pulsar";
         }
+        this.submittingInsidePod = submittingInsidePod;
         this.pulsarServiceUri = pulsarServiceUri;
         this.pulsarAdminUri = pulsarAdminUri;
         this.stateStorageServiceUri = stateStorageServiceUri;
@@ -126,10 +129,19 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private void setupClient() throws Exception {
         if (k8Client == null) {
             if (k8Uri == null) {
-                ApiClient cli = Config.defaultClient();
+                log.info("k8Uri is null thus going by defaults");
+                ApiClient cli;
+                if (submittingInsidePod) {
+                    log.info("Looks like we are inside a k8 pod ourselves. Initializing as cluster");
+                    cli = Config.fromCluster();
+                } else {
+                    log.info("Using default cluster since we are not running inside k8");
+                    cli = Config.defaultClient();
+                }
                 Configuration.setDefaultApiClient(cli);
                 k8Client = new AppsV1Api();
             } else {
+                log.info("Setting up k8Client using uri " + k8Uri);
                 final ApiClient apiClient = new ApiClient().setBasePath(k8Uri);
                 k8Client = new AppsV1Api(apiClient);
             }
