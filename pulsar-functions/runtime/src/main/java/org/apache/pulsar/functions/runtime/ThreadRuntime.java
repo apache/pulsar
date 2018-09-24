@@ -104,7 +104,10 @@ class ThreadRuntime implements Runtime {
         if (!isAlive()) {
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            functionStatusBuilder.setFailureException(getDeathException().getMessage());
+            Throwable ex = getDeathException();
+            if (ex != null && ex.getMessage() != null) {
+                functionStatusBuilder.setFailureException(ex.getMessage());
+            }
             statsFuture.complete(functionStatusBuilder.build());
             return statsFuture;
         }
