@@ -689,35 +689,38 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         acknowledgmentsGroupingTracker.close();
 
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
 
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
         if (null == cnx) {
-            // no connection already
-            closeFuture.complete(null);
-            return closeFuture;
-        }
-        cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
-            cnx.removeConsumer(consumerId);
-            if (exception == null || !cnx.ctx().channel().isActive()) {
-                log.info("[{}] [{}] Closed consumer", topic, subscription);
-                setState(State.Closed);
-                unAckedMessageTracker.close();
-                if (possibleSendToDeadLetterTopicMessages != null) {
-                    possibleSendToDeadLetterTopicMessages.clear();
+            cleanupAtClose(closeFuture);
+        } else {
+            ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
+            cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
+                cnx.removeConsumer(consumerId);
+                if (exception == null || !cnx.ctx().channel().isActive()) {
+                    cleanupAtClose(closeFuture);
+                } else {
+                    closeFuture.completeExceptionally(exception);
                 }
-                closeFuture.complete(null);
-                client.cleanupConsumer(this);
-                // fail all pending-receive futures to notify application
-                failPendingReceive();
-            } else {
-                closeFuture.completeExceptionally(exception);
-            }
-            return null;
-        });
+                return null;
+            });
+        }
 
         return closeFuture;
+    }
+
+    private void cleanupAtClose(CompletableFuture<Void> closeFuture) {
+        log.info("[{}] [{}] Closed consumer", topic, subscription);
+        setState(State.Closed);
+        unAckedMessageTracker.close();
+        if (possibleSendToDeadLetterTopicMessages != null) {
+            possibleSendToDeadLetterTopicMessages.clear();
+        }
+        closeFuture.complete(null);
+        client.cleanupConsumer(this);
+        // fail all pending-receive futures to notify application
+        failPendingReceive();
     }
 
     private void failPendingReceive() {
