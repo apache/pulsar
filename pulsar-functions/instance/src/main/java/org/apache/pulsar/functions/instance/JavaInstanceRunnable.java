@@ -172,7 +172,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return new JavaInstance(contextImpl, object);
     }
 
-    ContextImpl setupContext() {
+    ContextImpl setupContext()
         List<String> inputTopics = null;
         if (source instanceof PulsarSource) {
             inputTopics = ((PulsarSource<?>) source).getInputTopics();
