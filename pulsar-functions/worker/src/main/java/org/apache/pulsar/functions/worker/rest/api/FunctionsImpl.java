@@ -682,7 +682,7 @@ public class FunctionsImpl {
         try {
             log.info("Uploading function package to {}", path);
 
-            Utils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, Codec.encode(path));
+            Utils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, path);
         } catch (IOException e) {
             log.error("Error uploading file {}", path, e);
             return Response.serverError().type(MediaType.APPLICATION_JSON).entity(new ErrorData(e.getMessage()))
@@ -709,7 +709,7 @@ public class FunctionsImpl {
                         throw new IllegalArgumentException("invalid file url path: " + path);
                     }
                 } else {
-                    Utils.downloadFromBookkeeper(worker().getDlogNamespace(), output, Codec.encode(path));
+                    Utils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
                 }
             }
         }).build();
