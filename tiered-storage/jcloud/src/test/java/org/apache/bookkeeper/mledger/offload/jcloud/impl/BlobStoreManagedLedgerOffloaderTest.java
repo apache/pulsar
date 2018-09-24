@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -42,7 +43,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.LedgerMetadata;
-import org.apache.bookkeeper.client.MockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -82,11 +83,11 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     private static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     private static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
     final OrderedScheduler scheduler;
-    final MockBookKeeper bk;
+    final PulsarMockBookKeeper bk;
 
     BlobStoreManagedLedgerOffloaderTest() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
-        bk = new MockBookKeeper(createMockZooKeeper());
+        bk = new PulsarMockBookKeeper(createMockZooKeeper(), scheduler.chooseThread(this));
     }
 
     private ReadHandle buildReadHandle() throws Exception {
@@ -252,7 +253,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
 
-        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid).get();
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
         Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
 
         try (LedgerEntries toWriteEntries = toWrite.read(0, toWrite.getLastAddConfirmed());
@@ -406,7 +407,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
 
-        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid).get();
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
         Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
 
         for (long[] access : randomAccesses) {
@@ -438,7 +439,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
 
-        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid).get();
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
         Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
 
         try {
@@ -467,7 +468,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         Assert.assertTrue(blobStore.blobExists(BUCKET, BlobStoreManagedLedgerOffloader.indexBlockOffloadKey(readHandle.getId(), uuid)));
 
         // verify object deleted after delete
-        offloader.deleteOffloaded(readHandle.getId(), uuid).get();
+        offloader.deleteOffloaded(readHandle.getId(), uuid, Collections.emptyMap()).get();
         Assert.assertFalse(blobStore.blobExists(BUCKET, BlobStoreManagedLedgerOffloader.dataBlockOffloadKey(readHandle.getId(), uuid)));
         Assert.assertFalse(blobStore.blobExists(BUCKET, BlobStoreManagedLedgerOffloader.indexBlockOffloadKey(readHandle.getId(), uuid)));
     }
@@ -492,7 +493,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.assertTrue(blobStore.blobExists(BUCKET, BlobStoreManagedLedgerOffloader.dataBlockOffloadKey(readHandle.getId(), uuid)));
             Assert.assertTrue(blobStore.blobExists(BUCKET, BlobStoreManagedLedgerOffloader.indexBlockOffloadKey(readHandle.getId(), uuid)));
 
-            offloader.deleteOffloaded(readHandle.getId(), uuid).get();
+            offloader.deleteOffloaded(readHandle.getId(), uuid, Collections.emptyMap()).get();
         } catch (Exception e) {
             // expected
             Assert.assertTrue(e.getCause().getMessage().contains(failureString));
@@ -542,7 +543,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY.toLowerCase(), String.valueOf(-12345));
         blobStore.copyBlob(BUCKET, dataKey, BUCKET, dataKey, CopyOptions.builder().userMetadata(userMeta).build());
 
-        try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
+        try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get()) {
             toRead.readAsync(0, 0).get();
             Assert.fail("Shouldn't have been able to read");
         } catch (ExecutionException e) {
@@ -554,7 +555,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         userMeta.put(BlobStoreManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY.toLowerCase(), String.valueOf(12345));
         blobStore.copyBlob(BUCKET, dataKey, BUCKET, dataKey, CopyOptions.builder().userMetadata(userMeta).build());
 
-        try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
+        try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get()) {
             toRead.readAsync(0, 0).get();
             Assert.fail("Shouldn't have been able to read");
         } catch (ExecutionException e) {
@@ -581,7 +582,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         blobStore.copyBlob(BUCKET, indexKey, BUCKET, indexKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try {
-            offloader.readOffloaded(toWrite.getId(), uuid).get();
+            offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
             Assert.fail("Shouldn't have been able to open");
         } catch (ExecutionException e) {
             Assert.assertEquals(e.getCause().getClass(), IOException.class);
@@ -592,7 +593,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         blobStore.copyBlob(BUCKET, indexKey, BUCKET, indexKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try {
-            offloader.readOffloaded(toWrite.getId(), uuid).get();
+            offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
             Assert.fail("Shouldn't have been able to open");
         } catch (ExecutionException e) {
             Assert.assertEquals(e.getCause().getClass(), IOException.class);

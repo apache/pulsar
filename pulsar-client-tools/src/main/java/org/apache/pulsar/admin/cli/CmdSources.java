@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -36,6 +43,7 @@ import java.util.Set;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
@@ -56,20 +64,6 @@ import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.Collections;
-import java.util.Map;
-
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
-import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO Sources (ingress data into Pulsar)")
@@ -115,30 +109,57 @@ public class CmdSources extends CmdBase {
     @Parameters(commandDescription = "Run a Pulsar IO source connector locally (rather than deploying it to the Pulsar cluster)")
     protected class LocalSourceRunner extends CreateSource {
 
-        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
+        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
+        protected String DEPRECATED_brokerServiceUrl;
+        @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
 
-        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker")
+        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker", hidden = true)
+        protected String DEPRECATED_clientAuthPlugin;
+        @Parameter(names = "--client-auth-plugin", description = "Client authentication plugin using which function-process can connect to broker")
         protected String clientAuthPlugin;
 
-        @Parameter(names = "--clientAuthParams", description = "Client authentication param")
+        @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
+        protected String DEPRECATED_clientAuthParams;
+        @Parameter(names = "--client-auth-params", description = "Client authentication param")
         protected String clientAuthParams;
 
-        @Parameter(names = "--use_tls", description = "Use tls connection\n")
+        @Parameter(names = "--use_tls", description = "Use tls connection", hidden = true)
+        protected Boolean DEPRECATED_useTls;
+        @Parameter(names = "--use-tls", description = "Use tls connection")
         protected boolean useTls;
 
-        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection", hidden = true)
+        protected Boolean DEPRECATED_tlsAllowInsecureConnection;
+        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection")
         protected boolean tlsAllowInsecureConnection;
 
-        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
+        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification", hidden = true)
+        protected Boolean DEPRECATED_tlsHostNameVerificationEnabled;
+        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification")
         protected boolean tlsHostNameVerificationEnabled;
 
-        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
+        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path", hidden = true)
+        protected String DEPRECATED_tlsTrustCertFilePath;
+        @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path")
         protected String tlsTrustCertFilePath;
+
+        private void mergeArgs() {
+            if (!StringUtils.isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
+            if (!StringUtils.isBlank(DEPRECATED_clientAuthPlugin)) clientAuthPlugin = DEPRECATED_clientAuthPlugin;
+            if (!StringUtils.isBlank(DEPRECATED_clientAuthParams)) clientAuthParams = DEPRECATED_clientAuthParams;
+            if (DEPRECATED_useTls != null) useTls = DEPRECATED_useTls;
+            if (DEPRECATED_tlsAllowInsecureConnection != null) tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
+            if (DEPRECATED_tlsHostNameVerificationEnabled != null) tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
+            if (!StringUtils.isBlank(DEPRECATED_tlsTrustCertFilePath)) tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+        }
 
         @Override
         void runCmd() throws Exception {
-                CmdFunctions.startLocalRun(createSourceConfigProto2(sourceConfig), sourceConfig.getParallelism(),
+            // merge deprecated args with new args
+            mergeArgs();
+
+            CmdFunctions.startLocalRun(createSourceConfigProto2(sourceConfig), sourceConfig.getParallelism(),
                     0, brokerServiceUrl, null,
                     AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
                             .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
@@ -205,20 +226,39 @@ public class CmdSources extends CmdBase {
         @Parameter(names = { "-t", "--source-type" }, description = "The source's connector provider")
         protected String sourceType;
 
-        @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Source")
+        @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Source", hidden = true)
+        protected FunctionConfig.ProcessingGuarantees DEPRECATED_processingGuarantees;
+        @Parameter(names = "--processing-guarantees", description = "The processing guarantees (aka delivery semantics) applied to the source")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--destinationTopicName", description = "The Pulsar topic to which data is sent")
+
+        @Parameter(names = { "-o", "--destinationTopicName" }, description = "The Pulsar topic to which data is sent", hidden = true)
+        protected String DEPRECATED_destinationTopicName;
+        @Parameter(names = "--destination-topic-name", description = "The Pulsar topic to which data is sent")
         protected String destinationTopicName;
-        @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source")
+
+        @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source", hidden = true)
+        protected String DEPRECATED_deserializationClassName;
+        @Parameter(names = "--deserialization-classname", description = "The SerDe classname for the source")
         protected String deserializationClassName;
+
+        @Parameter(names = { "-st",
+                "--schema-type" }, description = "The schema type (either a builtin schema like 'avro', 'json', etc.."
+                        + " or custom Schema class name to be used to encode messages emitted from the source")
+        protected String schemaType;
+
         @Parameter(names = "--parallelism", description = "The source's parallelism factor (i.e. the number of source instances to run)")
         protected Integer parallelism;
         @Parameter(names = { "-a", "--archive" },
                 description = "The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String archive;
-        @Parameter(names = "--className", description = "The source's class name if archive is file-url-path (file://)")
+        @Parameter(names = "--className", description = "The source's class name if archive is file-url-path (file://)", hidden = true)
+        protected String DEPRECATED_className;
+        @Parameter(names = "--classname", description = "The source's class name if archive is file-url-path (file://)")
         protected String className;
         @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
+                + "source's configuration", hidden = true)
+        protected String DEPRECATED_sourceConfigFile;
+        @Parameter(names = "--source-config-file", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
         protected String sourceConfigFile;
         @Parameter(names = "--cpu", description = "The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime)")
@@ -227,14 +267,27 @@ public class CmdSources extends CmdBase {
         protected Long ram;
         @Parameter(names = "--disk", description = "The disk (in bytes) that need to be allocated per source instance (applicable only to Docker runtime)")
         protected Long disk;
-        @Parameter(names = "--sourceConfig", description = "Source config key/values")
+        @Parameter(names = "--sourceConfig", description = "Source config key/values", hidden = true)
+        protected String DEPRECATED_sourceConfigString;
+        @Parameter(names = "--source-config", description = "Source config key/values")
         protected String sourceConfigString;
 
         protected SourceConfig sourceConfig;
 
+        private void mergeArgs() {
+            if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
+            if (!StringUtils.isBlank(DEPRECATED_destinationTopicName)) destinationTopicName = DEPRECATED_destinationTopicName;
+            if (!StringUtils.isBlank(DEPRECATED_deserializationClassName)) deserializationClassName = DEPRECATED_deserializationClassName;
+            if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
+            if (!StringUtils.isBlank(DEPRECATED_sourceConfigFile)) sourceConfigFile = DEPRECATED_sourceConfigFile;
+            if (!StringUtils.isBlank(DEPRECATED_sourceConfigString)) sourceConfigString = DEPRECATED_sourceConfigString;
+        }
+
         @Override
         void processArguments() throws Exception {
             super.processArguments();
+            // merge deprecated args with new args
+            mergeArgs();
 
             if (null != sourceConfigFile) {
                 this.sourceConfig = CmdUtils.loadConfig(sourceConfigFile, SourceConfig.class);
@@ -259,6 +312,10 @@ public class CmdSources extends CmdBase {
             if (null != deserializationClassName) {
                 sourceConfig.setSerdeClassName(deserializationClassName);
             }
+            if (null != schemaType) {
+                sourceConfig.setSchemaType(schemaType);
+            }
+
             if (null != processingGuarantees) {
                 sourceConfig.setProcessingGuarantees(processingGuarantees);
             }
@@ -331,8 +388,7 @@ public class CmdSources extends CmdBase {
                 if(sourceConfig.getArchive().startsWith(Utils.HTTP)) {
                     File tempPkgFile = null;
                     try {
-                        tempPkgFile = File.createTempFile(sourceConfig.getName(), "source");
-                        downloadFromHttpUrl(sourceConfig.getArchive(), new FileOutputStream(tempPkgFile));
+                        tempPkgFile = downloadFromHttpUrl(sourceConfig.getArchive(), sourceConfig.getName());
                         archivePath = tempPkgFile.getAbsolutePath();
                     } catch(Exception e) {
                         if(tempPkgFile!=null ) {
@@ -452,9 +508,13 @@ public class CmdSources extends CmdBase {
             // set up sink spec.
             // Sink spec classname should be empty so that the default pulsar sink will be used
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-            if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()) {
+            if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
+                sinkSpecBuilder.setSchemaType(sourceConfig.getSchemaType());
+            }
+            if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
                 sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
             }
+
             sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
 
             if (typeArg != null) {

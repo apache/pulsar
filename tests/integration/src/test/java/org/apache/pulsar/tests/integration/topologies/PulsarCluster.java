@@ -43,6 +43,7 @@ import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 
@@ -134,6 +135,15 @@ public class PulsarCluster {
                 )
         );
 
+        spec.classPathVolumeMounts.entrySet().forEach(e -> {
+            zkContainer.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE);
+            proxyContainer.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE);
+
+            bookieContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
+            brokerContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
+            workerContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
+        });
+
     }
 
     public String getPlainTextServiceUrl() {
@@ -198,6 +208,23 @@ public class PulsarCluster {
             });
         }
     }
+
+    public void startService(String networkAlias,
+                             GenericContainer<?> serviceContainer) {
+        log.info("Starting external service {} ...", networkAlias);
+        serviceContainer.withNetwork(network);
+        serviceContainer.withNetworkAliases(networkAlias);
+        serviceContainer.start();
+        log.info("Successfully start external service {}", networkAlias);
+    }
+
+    public void stopService(String networkAlias,
+                            GenericContainer<?> serviceContainer) {
+        log.info("Stopping external service {} ...", networkAlias);
+        serviceContainer.stop();
+        log.info("Successfully stop external service {}", networkAlias);
+    }
+
 
     private static <T extends PulsarContainer> Map<String, T> runNumContainers(String serviceName,
                                                                                int numContainers,

@@ -41,7 +41,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -249,14 +248,24 @@ public class BatchMessageTest extends BrokerTestBase {
                 .subscribe();
         consumer.close();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .compressionType(compressionType)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            // disabled time based batch by setting delay to a large enough value
+            .batchingMaxPublishDelay(60, TimeUnit.HOURS)
+            // disabled size based batch
+            .batchingMaxMessages(2 * numMsgs)
+            .enableBatching(true)
+            .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("msg-" + i).getBytes();
             sendFutureList.add(producer.sendAsync(message));
+            if ((i + 1) % numMsgsInBatch == 0) {
+                producer.flush();
+                LOG.info("Flush {} messages", (i + 1));
+            }
         }
         FutureUtil.waitForAll(sendFutureList).get();
 

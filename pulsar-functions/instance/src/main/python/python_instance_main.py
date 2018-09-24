@@ -70,6 +70,7 @@ def main():
   parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
   parser.add_argument('--logging_directory', required=True, help='Logging Directory')
   parser.add_argument('--logging_file', required=True, help='Log file name')
+  parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
 
   args = parser.parse_args()
   function_details = Function_pb2.FunctionDetails()
@@ -81,9 +82,6 @@ def main():
                            max_files=5, max_bytes=10 * 1024 * 1024)
 
   Log.info("Starting Python instance with %s" % str(args))
-
-  if function_details.source.topicsPattern:
-    raise ValueError('topicsPattern is not supported by python client')
 
   authentication = None
   use_tls = False
@@ -100,7 +98,9 @@ def main():
   pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication, 30, 1, 1, 50000, None, use_tls, tls_trust_cert_path, tls_allow_insecure_connection)
   pyinstance = python_instance.PythonInstance(str(args.instance_id), str(args.function_id),
                                               str(args.function_version), function_details,
-                                              int(args.max_buffered_tuples), str(args.py), pulsar_client)
+                                              int(args.max_buffered_tuples),
+                                              int(args.expected_healthcheck_interval),
+                                              str(args.py), pulsar_client)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 

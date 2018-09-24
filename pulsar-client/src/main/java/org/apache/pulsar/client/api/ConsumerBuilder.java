@@ -330,4 +330,36 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Set subscriptionInitialPosition for the consumer
     */
     ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition);
+
+    /**
+     * Intercept {@link Consumer}.
+     *
+     * @param interceptors the list of interceptors to intercept the consumer created by this builder.
+     * @return consumer builder.
+     */
+    ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
+
+    /**
+     * Set dead letter policy for consumer
+     *
+     * By default some message will redelivery so many times possible, even to the extent that it can be never stop.
+     * By using dead letter mechanism messages will has the max redelivery count, when message exceeding the maximum
+     * number of redeliveries, message will send to the Dead Letter Topic and acknowledged automatic.
+     *
+     * You can enable the dead letter mechanism by setting dead letter policy.
+     * example:
+     * <pre>
+     * client.newConsumer()
+     *          .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())
+     *          .subscribe();
+     * </pre>
+     * Default dead letter topic name is {TopicName}-{Subscription}-DLQ.
+     * To setting a custom dead letter topic name
+     * <pre>
+     * client.newConsumer()
+     *          .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).deadLetterTopic("your-topic-name").build())
+     *          .subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 }

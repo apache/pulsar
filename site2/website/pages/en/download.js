@@ -18,22 +18,23 @@ function getLatestArchiveMirrorUrl(version, type) {
   return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
 }
 
+function distUrl(version, type) {
+    return `https://www.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
+}
+
 function archiveUrl(version, type) {
   return `${archiveRootUrl}/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
 }
 
 class Download extends React.Component {
   render() {
-    const latestRelease = releases[0];
-
-    const latestVersion = `${latestRelease}-incubating`
+    const latestVersion = releases[0];
     const latestArchiveMirrorUrl = getLatestArchiveMirrorUrl(latestVersion, 'bin');
     const latestSrcArchiveMirrorUrl = getLatestArchiveMirrorUrl(latestVersion, 'src');
-    const latestArchiveUrl = archiveUrl(latestVersion, 'bin');
-    const latestSrcArchiveUrl = archiveUrl(latestVersion, 'src')
+    const latestArchiveUrl = distUrl(latestVersion, 'bin');
+    const latestSrcArchiveUrl = distUrl(latestVersion, 'src')
 
-    const releaseInfo = releases.map(r => {
-      const version = `${r}-incubating`;
+    const releaseInfo = releases.map(version => {
       return {
         version: version,
         binArchiveUrl: archiveUrl(version, 'bin'),
@@ -65,8 +66,7 @@ class Download extends React.Component {
                     <a href={latestArchiveMirrorUrl}>pulsar-{latestVersion}-bin.tar.gz</a>
                   </td>
                   <td>
-                    <a href={`${latestArchiveUrl}.asc`}>asc</a>,
-                    <a href={`${latestArchiveUrl}.sha1`}>sha1</a>,
+                    <a href={`${latestArchiveUrl}.asc`}>asc</a>,&nbsp;
                     <a href={`${latestArchiveUrl}.sha512`}>sha512</a>
                   </td>
                 </tr>
@@ -76,8 +76,7 @@ class Download extends React.Component {
                     <a href={latestSrcArchiveMirrorUrl}>pulsar-{latestVersion}-src.tar.gz</a>
                   </td>
                   <td>
-                    <a href={`${latestSrcArchiveUrl}.asc`}>asc</a>,
-                    <a href={`${latestSrcArchiveUrl}.sha1`}>sha1</a>,
+                    <a href={`${latestSrcArchiveUrl}.asc`}>asc</a>,&nbsp;
                     <a href={`${latestSrcArchiveUrl}.sha512`}>sha512</a>
                   </td>
                 </tr>
@@ -89,7 +88,7 @@ class Download extends React.Component {
               You must [verify](https://www.apache.org/info/verification.html) the integrity of the downloaded files.
               We provide OpenPGP signatures for every release file. This signature should be matched against the
               [KEYS](https://www.apache.org/dist/incubator/pulsar/KEYS) file which contains the OpenPGP keys of
-              Pulsar's Release Managers. We also provide `MD5` and `SHA-512` checksums for every release file.
+              Pulsar's Release Managers. We also provide `SHA-512` checksums for every release file.
               After you download the file, you should calculate a checksum for your download, and make sure it is
               the same as ours.
             </MarkdownBlock>
@@ -98,7 +97,7 @@ class Download extends React.Component {
             <h2><translate>Release notes</translate></h2>
             <div>
               <p>
-                <a href={`${siteConfig.baseUrl}/release-notes`}>Release notes</a> for all Pulsar's versions
+                <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes`}>Release notes</a> for all Pulsar's versions
               </p>
             </div>
 
@@ -108,7 +107,7 @@ class Download extends React.Component {
               <translate>
                 Once you've downloaded a Pulsar release, instructions on getting up and running with a standalone cluster
                 that you can run on your laptop can be found in the{' '}
-              </translate>
+              </translate>&nbsp;
                 <a href={`${siteConfig.baseUrl}docs/${this.props.language}/standalone`}><translate>Run Pulsar locally</translate></a> <translate>tutorial</translate>.
               </p>
             </div>
@@ -165,14 +164,12 @@ class Download extends React.Component {
                           <a href={info.binArchiveUrl}>pulsar-{info.version}-bin-tar.gz</a>
                           &nbsp;
                           (<a href={`${info.binArchiveUrl}.asc`}>asc</a>,&nbsp;
-                            <a href={`${info.binArchiveUrl}.sha1`}>sha1</a>,&nbsp;
                             <a href={`${info.binArchiveUrl}.sha512`}>sha512</a>)
                         </td>
                         <td>
                           <a href={info.srcArchiveUrl}>pulsar-{info.version}-bin-tar.gz</a>
                           &nbsp;
-                          (<a href={`${info.srcArchiveUrl}.asc`}>asc</a>,&nbsp;
-                            <a href={`${info.srcArchiveUrl}.sha1`}>sha1</a>,&nbsp;
+                          (<a href={`${info.srcArchiveUrl}.asc`}>asc</a>&nbsp;
                             <a href={`${info.srcArchiveUrl}.sha512`}>sha512</a>)
                         </td>
                         <td>

@@ -27,6 +27,7 @@ import com.google.gson.reflect.TypeToken;
 
 import io.netty.buffer.ByteBuf;
 
+import java.io.FileNotFoundException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,7 +51,6 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -64,9 +64,9 @@ import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.Build
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
-import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
+import org.apache.pulsar.functions.utils.ConsumerConfig;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -109,7 +109,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     // function stats
     private final FunctionStats stats;
 
-    private Record currentRecord;
+    private Record<?> currentRecord;
 
     private Source source;
     private Sink sink;
@@ -144,7 +144,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
         ThreadContext.put("instance", instanceConfig.getInstanceName());
 
-        log.info("Starting Java Instance {}", instanceConfig.getFunctionDetails().getName());
+        log.info("Starting Java Instance {} : \n Details = {}",
+            instanceConfig.getFunctionDetails().getName(), instanceConfig.getFunctionDetails());
 
         // start the function thread
         loadJars();
@@ -176,8 +177,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
-        return new ContextImpl(instanceConfig, instanceLog, client,
-                Thread.currentThread().getContextClassLoader(), inputTopics);
+        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics);
     }
 
     /**
@@ -209,14 +209,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.incrementProcessed(processAt);
                 addLogTopicHandler();
                 JavaExecutionResult result;
-                MessageId messageId = null;
-                String topicName = null;
-
-                if (currentRecord instanceof PulsarRecord) {
-                    PulsarRecord<?> pulsarRecord = (PulsarRecord<?>) currentRecord;
-                    messageId = pulsarRecord.getMessageId();
-                    topicName = pulsarRecord.getTopicName().get();
-                }
 
                 result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
 
@@ -245,15 +237,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void loadJars() throws Exception {
-
-        if (jarFile.endsWith(".nar")) {
-            // The functions code is contained in a NAR archive
+        try {
+            // Let's first try to treat it as a nar archive
             fnCache.registerFunctionInstanceWithArchive(
                 instanceConfig.getFunctionId(),
                 instanceConfig.getInstanceName(),
                 jarFile);
-        } else {
-            log.info("Loading JAR files for function {} from archive {}", instanceConfig, jarFile);
+        } catch (FileNotFoundException e) {
+            log.info("For Function {} Loading as NAR failed with {}; treating it as Jar instead", instanceConfig, e);
             // create the function class loader
             fnCache.registerFunctionInstance(
                     instanceConfig.getFunctionId(),
@@ -512,8 +503,28 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // If source classname is not set, we default pulsar source
         if (sourceSpec.getClassName().isEmpty()) {
             PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
-            pulsarSourceConfig.setTopicSerdeClassNameMap(sourceSpec.getTopicsToSerDeClassNameMap());
-            pulsarSourceConfig.setTopicsPattern(sourceSpec.getTopicsPattern());
+            sourceSpec.getInputSpecsMap().forEach((topic, conf) -> {
+                ConsumerConfig consumerConfig = ConsumerConfig.builder().isRegexPattern(conf.getIsRegexPattern()).build();
+                if (conf.getSchemaType() != null && !conf.getSchemaType().isEmpty()) {
+                    consumerConfig.setSchemaType(conf.getSchemaType());
+                } else if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
+                    consumerConfig.setSerdeClassName(conf.getSerdeClassName());
+                }
+                pulsarSourceConfig.getTopicSchema().put(topic, consumerConfig);
+            });
+
+            sourceSpec.getTopicsToSerDeClassNameMap().forEach((topic, serde) -> {
+                pulsarSourceConfig.getTopicSchema().put(topic,
+                        ConsumerConfig.builder()
+                                .serdeClassName(serde)
+                                .isRegexPattern(false)
+                                .build());
+            });
+
+            if (!StringUtils.isEmpty(sourceSpec.getTopicsPattern())) {
+                pulsarSourceConfig.getTopicSchema().get(sourceSpec.getTopicsPattern()).setRegexPattern(true);
+            }
+
             pulsarSourceConfig.setSubscriptionName(
                     StringUtils.isNotBlank(sourceSpec.getSubscriptionName()) ? sourceSpec.getSubscriptionName()
                             : FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
@@ -535,7 +546,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sourceSpec.getTimeoutMs() > 0 ) {
                 pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
             }
-            object = new PulsarSource(this.client, pulsarSourceConfig);
+
+            if (this.instanceConfig.getFunctionDetails().hasRetryDetails()) {
+                pulsarSourceConfig.setMaxMessageRetries(this.instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
+                pulsarSourceConfig.setDeadLetterTopic(this.instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
+            }
+            object = new PulsarSource(this.client, pulsarSourceConfig,
+                    FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
         } else {
             object = Reflections.createInstance(
                     sourceSpec.getClassName(),
@@ -549,7 +566,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } else {
             throw new RuntimeException("Source does not implement correct interface");
         }
-        this.source = (Source) object;
+        this.source = (Source<?>) object;
 
         if (sourceSpec.getConfigs().isEmpty()) {
             this.source.open(new HashMap<>(), contextImpl);
@@ -565,19 +582,25 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Object object;
         // If sink classname is not set, we default pulsar sink
         if (sinkSpec.getClassName().isEmpty()) {
-
             if (StringUtils.isEmpty(sinkSpec.getTopic())) {
                 object = PulsarSinkDisable.INSTANCE;
             } else {
                 PulsarSinkConfig pulsarSinkConfig = new PulsarSinkConfig();
-                pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees
-                        .valueOf(this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
+                pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
+                        this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
                 pulsarSinkConfig.setTopic(sinkSpec.getTopic());
-                pulsarSinkConfig.setSerDeClassName(sinkSpec.getSerDeClassName());
-                pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
-                object = new PulsarSink(this.client, pulsarSinkConfig);
-            }
 
+                if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
+                    pulsarSinkConfig.setSchemaType(sinkSpec.getSchemaType());
+                } else if (!StringUtils.isEmpty(sinkSpec.getSerDeClassName())) {
+                    pulsarSinkConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
+                }
+
+                pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
+
+                object = new PulsarSink(this.client, pulsarSinkConfig,
+                        FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
+            }
         } else {
             object = Reflections.createInstance(
                     sinkSpec.getClassName(),

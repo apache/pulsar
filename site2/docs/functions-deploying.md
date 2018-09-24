@@ -43,7 +43,7 @@ When managing Pulsar Functions, you'll need to specify a variety of information 
 
 Parameter | Default
 :---------|:-------
-Function name | Whichever value is specified for the class name (minus org, library, etc.). The flag `--className org.example.MyFunction`, for example, would give the function a name of `MyFunction`.
+Function name | Whichever value is specified for the class name (minus org, library, etc.). The flag `--classname org.example.MyFunction`, for example, would give the function a name of `MyFunction`.
 Tenant | Derived from the input topics' names. If the input topics are under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/{namespace}/{topicName}`---then the tenant will be `marketing`.
 Namespace | Derived from the input topics' names. If the input topics are under the `asia` namespace under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace will be `asia`.
 Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation`, for example, would have an output topic of `incoming-exclamation-output`.
@@ -58,7 +58,7 @@ Take this `create` command:
 ```bash
 $ bin/pulsar-admin functions create \
   --jar my-pulsar-functions.jar \
-  --className org.example.MyFunction \
+  --classname org.example.MyFunction \
   --inputs my-function-input-topic1,my-function-input-topic2
 ```
 
@@ -71,7 +71,7 @@ If you run a Pulsar Function in **local run** mode, it will run on the machine f
 ```bash
 $ bin/pulsar-admin functions localrun \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
@@ -80,7 +80,7 @@ By default, the function will connect to a Pulsar cluster running on the same ma
 
 ```bash
 $ bin/pulsar-admin functions localrun \
-  --brokerServiceUrl pulsar://my-cluster-host:6650 \
+  --broker-service-url pulsar://my-cluster-host:6650 \
   # Other function parameters
 ```
 
@@ -91,7 +91,7 @@ When you run a Pulsar Function in **cluster mode**, the function code will be up
 ```bash
 $ bin/pulsar-admin functions create \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
@@ -103,7 +103,7 @@ You can use the [`update`](reference-pulsar-admin.md#update-1) command to update
 ```bash
 $ bin/pulsar-admin functions update \
   --py myfunc.py \
-  --className myfunc.SomeFunction \
+  --classname myfunc.SomeFunction \
   --inputs persistent://public/default/new-input-topic \
   --output persistent://public/default/new-output-topic
 ```
@@ -143,7 +143,7 @@ And here's the corresponding update command:
 
 ```bash
 $ bin/pulsar-admin functions update \
-  --functionConfigFile function-config.yaml
+  --function-config-file function-config.yaml
 ```
 
 ### Function instance resources
@@ -161,7 +161,7 @@ Here's an example function creation command that allocates 8 cores, 8 GB of RAM,
 ```bash
 $ bin/pulsar-admin functions create \
   --jar target/my-functions.jar \
-  --className org.example.functions.MyFunction \
+  --classname org.example.functions.MyFunction \
   --cpu 8 \
   --ram 8589934592 \
   --disk 10737418240
@@ -192,7 +192,7 @@ $ bin/pulsar-admin functions create \
   --namespace default \
   --name myfunc \
   --py myfunc.py \
-  --className myfunc \
+  --classname myfunc \
   --inputs persistent://public/default/in \
   --output persistent://public/default/out
 ```
@@ -212,7 +212,7 @@ $ bin/pulsar-admin functions trigger \
   --tenant public \
   --namespace default \
   --name myfunc \
-  --triggerValue "hello world"
+  --trigger-value "hello world"
 ```
 
 The consumer listening on the output topic should then produce this in its logs:

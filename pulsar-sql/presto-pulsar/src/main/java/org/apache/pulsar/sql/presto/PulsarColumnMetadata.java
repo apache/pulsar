@@ -21,19 +21,25 @@ package org.apache.pulsar.sql.presto;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.type.Type;
 
+import java.util.Arrays;
+import java.util.List;
+
 public class PulsarColumnMetadata extends ColumnMetadata {
 
     private boolean isInternal;
-    private Integer positionIndex;
     // need this because presto ColumnMetadata saves name in lowercase
     private String nameWithCase;
+    private String[] fieldNames;
+    private Integer[] positionIndices;
 
     public PulsarColumnMetadata(String name, Type type, String comment, String extraInfo,
-                                boolean hidden, boolean isInternal, Integer positionIndex) {
+                                boolean hidden, boolean isInternal,
+                                String[] fieldNames, Integer[] positionIndices) {
         super(name, type, comment, extraInfo, hidden);
         this.nameWithCase = name;
         this.isInternal = isInternal;
-        this.positionIndex = positionIndex;
+        this.fieldNames = fieldNames;
+        this.positionIndices = positionIndices;
     }
 
     public String getNameWithCase() {
@@ -44,30 +50,22 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         return isInternal;
     }
 
-    public int getPositionIndex() {
-        return positionIndex;
+    public String[] getFieldNames() {
+        return fieldNames;
     }
 
+    public Integer[] getPositionIndices() {
+        return positionIndices;
+    }
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("PulsarColumnMetadata{");
-        sb.append("name='").append(getName()).append('\'');
-        sb.append(", type=").append(getType());
-        if (getComment() != null) {
-            sb.append(", comment='").append(getComment()).append('\'');
-        }
-        if (getExtraInfo() != null) {
-            sb.append(", extraInfo='").append(getExtraInfo()).append('\'');
-        }
-        if (isHidden()) {
-            sb.append(", hidden");
-        }
-        if (isInternal()) {
-            sb.append(", internal");
-        }
-        sb.append('}');
-        return sb.toString();
+        return "PulsarColumnMetadata{" +
+                "isInternal=" + isInternal +
+                ", nameWithCase='" + nameWithCase + '\'' +
+                ", fieldNames=" + Arrays.toString(fieldNames) +
+                ", positionIndices=" + Arrays.toString(positionIndices) +
+                '}';
     }
 
     @Override
@@ -78,13 +76,19 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
         PulsarColumnMetadata that = (PulsarColumnMetadata) o;
 
-        return isInternal == that.isInternal;
+        if (isInternal != that.isInternal) return false;
+        if (nameWithCase != null ? !nameWithCase.equals(that.nameWithCase) : that.nameWithCase != null) return false;
+        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) return false;
+        return Arrays.deepEquals(positionIndices, that.positionIndices);
     }
 
     @Override
     public int hashCode() {
         int result = super.hashCode();
         result = 31 * result + (isInternal ? 1 : 0);
+        result = 31 * result + (nameWithCase != null ? nameWithCase.hashCode() : 0);
+        result = 31 * result + Arrays.hashCode(fieldNames);
+        result = 31 * result + Arrays.hashCode(positionIndices);
         return result;
     }
 }

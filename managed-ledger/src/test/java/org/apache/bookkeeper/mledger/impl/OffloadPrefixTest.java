@@ -493,9 +493,10 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 }
 
                 @Override
-                public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid) {
+                public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid,
+                                                               Map<String, String> offloadDriverMetadata) {
                     deleted.add(Pair.of(ledgerId, uuid));
-                    return super.deleteOffloaded(ledgerId, uuid);
+                    return super.deleteOffloaded(ledgerId, uuid, offloadDriverMetadata);
                 }
             };
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -929,6 +930,11 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
 
         @Override
+        public String getOffloadDriverName() {
+            return "mock";
+        }
+
+        @Override
         public CompletableFuture<Void> offload(ReadHandle ledger,
                                                UUID uuid,
                                                Map<String, String> extraMetadata) {
@@ -942,14 +948,16 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid) {
+        public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid,
+                                                           Map<String, String> offloadDriverMetadata) {
             CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
             promise.completeExceptionally(new UnsupportedOperationException());
             return promise;
         }
 
         @Override
-        public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid) {
+        public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid,
+                                                       Map<String, String> offloadDriverMetadata) {
             CompletableFuture<Void> promise = new CompletableFuture<>();
             if (offloads.remove(ledgerId, uuid)) {
                 deletes.put(ledgerId, uuid);

@@ -195,6 +195,7 @@ public class PersistentSubscription implements Subscription {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
             cursor.asyncDelete(positions, deleteCallback, positions);
+            dispatcher.getRedeliveryTracker().removeBatch(positions);
         }
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog() == 0) {

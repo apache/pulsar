@@ -793,7 +793,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 if (ownerZkSessionId != 0 && ownerZkSessionId != zkClient.getSessionId()) {
                     log.error("Broker znode - [{}] is own by different zookeeper-ssession {} ", brokerZnodePath,
                             ownerZkSessionId);
-                    throw new PulsarServerException("Broker-znode owned by different zk-session " + ownerZkSessionId);
+                    throw new PulsarServerException(
+                            "Broker-znode owned by different zk-session " + ownerZkSessionId);
                 }
                 // Node may already be created by another load manager: in this case update the data.
                 zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);

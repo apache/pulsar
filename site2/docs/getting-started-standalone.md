@@ -9,12 +9,14 @@ For the purposes of local development and testing, you can run Pulsar in standal
 > #### Pulsar in production? 
 > If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](deploy-bare-metal.md) guide.
 
-## System requirements
+## Run Pulsar Standalone Manually
+
+### System requirements
 
 Pulsar is currently available for **MacOS** and **Linux**. In order to use Pulsar, you'll need to install [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
 
 
-## Installing Pulsar
+### Installing Pulsar
 
 To get started running Pulsar, download a binary tarball release in one of the following ways:
 
@@ -37,7 +39,7 @@ $ tar xvfz apache-pulsar-{{pulsar:version}}-bin.tar.gz
 $ cd apache-pulsar-{{pulsar:version}}
 ```
 
-## What your package contains
+### What your package contains
 
 The Pulsar binary package initially contains the following directories:
 
@@ -58,7 +60,7 @@ Directory | Contains
 `logs` | Logs created by the installation
 
 
-## Installing Builtin Connectors
+### Installing Builtin Connectors
 
 Since release `2.1.0-incubating`, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
 If you would like to enable those `builtin` connectors, you can download the connectors tarball release in one of the following ways:
@@ -87,24 +89,24 @@ $ tar xvfz /path/to/apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
 $ cd apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
 
 $ ls connectors
-pulsar-io-aerospike-{{pulsar.version}}.nar
-pulsar-io-cassandra-{{pulsar.version}}.nar 
-pulsar-io-kafka-{{pulsar.version}}.nar     
-pulsar-io-kinesis-{{pulsar.version}}.nar   
-pulsar-io-rabbitmq-{{pulsar.version}}.nar  
-pulsar-io-twitter-{{pulsar.version}}.nar
+pulsar-io-aerospike-{{pulsar:version}}.nar
+pulsar-io-cassandra-{{pulsar:version}}.nar
+pulsar-io-kafka-{{pulsar:version}}.nar
+pulsar-io-kinesis-{{pulsar:version}}.nar
+pulsar-io-rabbitmq-{{pulsar:version}}.nar
+pulsar-io-twitter-{{pulsar:version}}.nar
 ...
 ```
 
 > #### NOTES
 >
-> If you are running Pulsar in a bare mental cluster, you need to make sure `connectors` tarball is unzipped in every broker's pulsar directory
+> If you are running Pulsar in a bare metal cluster, you need to make sure `connectors` tarball is unzipped in every broker's pulsar directory
 > (or in every function-worker's pulsar directory if you are running a separate worker cluster for Pulsar functions).
 > 
 > If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)),
 > you can use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
-## Starting the cluster
+### Starting the cluster
 
 Once you have an up-to-date local copy of the release, you can start up a local cluster using the [`pulsar`](reference-cli-tools.md#pulsar) command, which is stored in the `bin` directory, and specifying that you want to start up Pulsar in standalone mode:
 
@@ -123,6 +125,21 @@ If Pulsar has been successfully started, you should see `INFO`-level log message
 > #### Automatically created namespace
 > When you start a local standalone cluster, Pulsar will automatically create a `public/default` [namespace](concepts-messaging.md#namespaces) that you can use for development purposes. All Pulsar topics are managed within namespaces. For more info, see [Topics](concepts-messaging.md#topics).
 
+## Run Pulsar Standalone in Docker
+
+Alternatively, you can run pulsar standalone locally in docker.
+
+```bash
+docker run -it -p 80:80 -p 8080:8080 -p 6650:6650 apachepulsar/pulsar-standalone
+```
+
+The command forwards following port to localhost:
+
+- 80: the port for pulsar dashboard
+- 8080: the http service url for pulsar service
+- 6650: the binary protocol service url for pulsar service
+
+After the docker container is running, you can access the dashboard under http://localhost .
 
 ## Testing your cluster setup
 

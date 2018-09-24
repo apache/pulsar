@@ -54,6 +54,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -292,16 +293,18 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     public void testUnsupportedBatchMessageConsumer(SubscriptionType subType) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final int batchMessageDelayMs = 1000;
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         final String subscriptionName = "my-subscriber-name" + subType;
 
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).subscriptionType(subType).subscribe();
 
+        final int numMessagesPerBatch = 10;
+
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Producer<byte[]> batchProducer = pulsarClient.newProducer().topic(topicName).enableBatching(true)
-                .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS).batchingMaxMessages(20).create();
+                .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.SECONDS)
+                .batchingMaxMessages(numMessagesPerBatch).create();
 
         // update consumer's version to incompatible batch-message version = Version.V3
         Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
@@ -315,13 +318,13 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         versionField.set(cnx, 3);
 
         // (1) send non-batch message: consumer should be able to consume
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < numMessagesPerBatch; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
         Set<String> messageSet = Sets.newHashSet();
         Message<byte[]> msg = null;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < numMessagesPerBatch; i++) {
             msg = consumer1.receive(1, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             String expectedMessage = "my-message-" + i;
@@ -333,12 +336,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // verification
         consumer1.setClientCnx(null);
         // (2) send batch-message which should not be able to consume: as broker will disconnect the consumer
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < numMessagesPerBatch; i++) {
             String message = "my-message-" + i;
             batchProducer.sendAsync(message.getBytes());
         }
-
-        Thread.sleep(batchMessageDelayMs);
+        batchProducer.flush();
 
         // consumer should have not received any message as it should have been disconnected
         msg = consumer1.receive(2, TimeUnit.SECONDS);
@@ -349,7 +351,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 .subscribe();
 
         messageSet.clear();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < numMessagesPerBatch; i++) {
             msg = consumer2.receive(1, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
@@ -583,7 +585,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             ClientCnx cnx = producer.cnx();
             assertTrue(cnx.channel().isActive());
             ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
-            List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
+            final List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
             final int totalProducers = 10;
             CountDownLatch latch = new CountDownLatch(totalProducers);
             for (int i = 0; i < totalProducers; i++) {
@@ -591,14 +593,18 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                     final String randomTopicName1 = topicName + randomUUID().toString();
                     final String randomTopicName2 = topicName + randomUUID().toString();
                     // pass producer-name to avoid exception: producer is already connected to topic
-                    futures.add(pulsarClient2.newProducer().topic(randomTopicName1).createAsync());
-                    futures.add(pulsarClient.newProducer().topic(randomTopicName2).createAsync());
+                    synchronized (futures) {
+                        futures.add(pulsarClient2.newProducer().topic(randomTopicName1).createAsync());
+                        futures.add(pulsarClient.newProducer().topic(randomTopicName2).createAsync());
+                    }
                     latch.countDown();
                 });
             }
 
             latch.await();
-            FutureUtil.waitForAll(futures).get();
+            synchronized (futures) {
+                FutureUtil.waitForAll(futures).get();
+            }
             pulsarClient.close();
             pulsarClient2.close();
         } finally {

@@ -78,12 +78,13 @@ class Commands {
                                      uint64_t consumerId, uint64_t requestId,
                                      proto::CommandSubscribe_SubType subType, const std::string& consumerName,
                                      SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId,
-                                     bool readCompacted);
+                                     bool readCompacted, const std::map<std::string, std::string>& metadata);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 
     static SharedBuffer newProducer(const std::string& topic, uint64_t producerId,
-                                    const std::string& producerName, uint64_t requestId);
+                                    const std::string& producerName, uint64_t requestId,
+                                    const std::map<std::string, std::string>& metadata);
 
     static SharedBuffer newAck(uint64_t consumerId, const proto::MessageIdData& messageId,
                                proto::CommandAck_AckType ackType, int validationError);

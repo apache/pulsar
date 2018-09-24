@@ -31,6 +31,7 @@ import (
 )
 
 type reader struct {
+	client         *client
 	ptr            *C.pulsar_reader_t
 	defaultChannel chan ReaderMessage
 }
@@ -73,7 +74,7 @@ func createReaderAsync(client *client, options ReaderOptions, callback func(Read
 		return
 	}
 
-	reader := &reader{}
+	reader := &reader{client: client}
 
 	if options.MessageChannel == nil {
 		// If there is no message listener, set a default channel so that we can have receive to
@@ -98,6 +99,8 @@ func createReaderAsync(client *client, options ReaderOptions, callback func(Read
 		defer C.free(unsafe.Pointer(prefix))
 		C.pulsar_reader_configuration_set_subscription_role_prefix(conf, prefix)
 	}
+
+	C.pulsar_reader_configuration_set_read_compacted(conf, cBool(options.ReadCompacted))
 
 	if options.Name != "" {
 		name := C.CString(options.Name)
@@ -143,6 +146,19 @@ func (r *reader) Next(ctx context.Context) (Message, error) {
 
 	case rm := <-r.defaultChannel:
 		return rm.Message, nil
+	}
+}
+
+func (r *reader) HasNext() (bool, error) {
+	value := C.int(0)
+	res := C.pulsar_reader_has_message_available(r.ptr, &value)
+
+	if res != C.pulsar_result_Ok {
+		return false, newError(res, "Failed to check if next message is available")
+	} else if value == C.int(1) {
+		return true, nil
+	} else {
+		return false, nil
 	}
 }
 

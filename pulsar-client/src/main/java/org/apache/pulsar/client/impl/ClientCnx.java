@@ -243,8 +243,9 @@ public class ClientCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
         }
-        connectionFuture.complete(null);
+        // set remote protocol version to the correct version before we complete the connection future
         remoteEndpointProtocolVersion = connected.getProtocolVersion();
+        connectionFuture.complete(null);
         state = State.Ready;
     }
 
@@ -283,7 +284,7 @@ public class ClientCnx extends PulsarHandler {
         }
         ConsumerImpl<?> consumer = consumers.get(cmdMessage.getConsumerId());
         if (consumer != null) {
-            consumer.messageReceived(cmdMessage.getMessageId(), headersAndPayload, this);
+            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), headersAndPayload, this);
         }
     }
 

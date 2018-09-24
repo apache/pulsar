@@ -19,6 +19,9 @@
 #include <lib/ProducerConfigurationImpl.h>
 
 namespace pulsar {
+
+const static std::string emptyString;
+
 ProducerConfiguration::ProducerConfiguration() : impl_(boost::make_shared<ProducerConfigurationImpl>()) {}
 
 ProducerConfiguration::~ProducerConfiguration() {}
@@ -36,7 +39,6 @@ ProducerConfiguration& ProducerConfiguration::setProducerName(const std::string&
 }
 
 const std::string& ProducerConfiguration::getProducerName() const {
-    static const std::string emptyString;
     return impl_->producerName.is_present() ? impl_->producerName.value() : emptyString;
 }
 
@@ -182,6 +184,36 @@ bool ProducerConfiguration::isEncryptionEnabled() const {
 
 ProducerConfiguration& ProducerConfiguration::addEncryptionKey(std::string key) {
     impl_->encryptionKeys.insert(key);
+    return *this;
+}
+
+bool ProducerConfiguration::hasProperty(const std::string& name) const {
+    const std::map<std::string, std::string>& m = impl_->properties;
+    return m.find(name) != m.end();
+}
+
+const std::string& ProducerConfiguration::getProperty(const std::string& name) const {
+    if (hasProperty(name)) {
+        const std::map<std::string, std::string>& m = impl_->properties;
+        return m.at(name);
+    } else {
+        return emptyString;
+    }
+}
+
+std::map<std::string, std::string>& ProducerConfiguration::getProperties() const { return impl_->properties; }
+
+ProducerConfiguration& ProducerConfiguration::setProperty(const std::string& name, const std::string& value) {
+    impl_->properties.insert(std::make_pair(name, value));
+    return *this;
+}
+
+ProducerConfiguration& ProducerConfiguration::setProperties(
+    const std::map<std::string, std::string>& properties) {
+    for (std::map<std::string, std::string>::const_iterator it = properties.begin(); it != properties.end();
+         it++) {
+        setProperty(it->first, it->second);
+    }
     return *this;
 }
 

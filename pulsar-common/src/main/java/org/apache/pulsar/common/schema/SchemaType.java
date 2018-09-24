@@ -33,6 +33,41 @@ public enum SchemaType {
     STRING,
 
     /**
+     * A 8-byte integer.
+     */
+    INT8,
+
+    /**
+     * A 16-byte integer.
+     */
+    INT16,
+
+    /**
+     * A 32-byte integer.
+     */
+    INT32,
+
+    /**
+     * A 64-byte integer.
+     */
+    INT64,
+
+    /**
+     * A float number.
+     */
+    FLOAT,
+
+    /**
+     * A double number
+     */
+    DOUBLE,
+
+    /**
+     * A bytes array.
+     */
+    BYTES,
+
+    /**
      * JSON object encoding and validation
      */
     JSON,
@@ -45,5 +80,10 @@ public enum SchemaType {
     /**
      * Serialize and deserialize via avro
      */
-    AVRO
+    AVRO,
+
+    /**
+     * Auto Detect Schema Type.
+     */
+    AUTO
 }

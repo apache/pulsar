@@ -63,7 +63,7 @@ def fetch_broker_stats(cluster, broker_url, timestamp):
 
 def _fetch_broker_stats(cluster, broker_host_port, timestamp):
     broker_url = 'http://%s/' % broker_host_port
-    print '    Getting stats for %s' % broker_host_port
+    print('    Getting stats for %s' % broker_host_port)
 
     broker, _ = Broker.objects.get_or_create(
                         url     = broker_host_port,
@@ -262,7 +262,7 @@ def fetch_stats():
         if cluster_name == 'global': continue
 
         cluster_url = get(args.serviceUrl, '/admin/clusters/' + cluster_name)['serviceUrl']
-        print 'Cluster:', cluster_name,  '->', cluster_url
+        print('Cluster:', cluster_name,  '->', cluster_url)
         cluster, created = Cluster.objects.get_or_create(name=cluster_name)
         if cluster_url != cluster.serviceUrl:
             cluster.serviceUrl = cluster_url
@@ -275,7 +275,7 @@ def fetch_stats():
                 f = pool.apply_async(fetch_broker_stats, (cluster, broker_host_port, timestamp))
                 futures.append(f)
         except Exception as e:
-            print 'ERROR: ', e
+            print('ERROR: ', e)
 
     pool.close()
 
@@ -300,10 +300,10 @@ def purge_db():
     Consumer.objects.filter(timestamp__lt = threshold).delete()
 
 def collect_and_purge():
-    print '-- Starting stats collection'
+    print('-- Starting stats collection')
     fetch_stats()
     purge_db()
-    print '-- Finished collecting stats'
+    print('-- Finished collecting stats')
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dashboard.settings")

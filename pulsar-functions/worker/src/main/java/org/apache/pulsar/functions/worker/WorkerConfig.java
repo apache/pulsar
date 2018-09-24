@@ -56,6 +56,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private int workerPortTls;
     private String connectorsDirectory = "./connectors";
     private String functionMetadataTopicName;
+    private String functionWebServiceUrl;
     private String pulsarServiceUrl;
     private String pulsarWebServiceUrl;
     private String clusterCoordinationTopicName;
@@ -73,6 +74,9 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private long instanceLivenessCheckFreqMs;
     private String clientAuthenticationPlugin;
     private String clientAuthenticationParameters;
+    // Frequency how often worker performs compaction on function-topics
+    private long topicCompactionFrequencySec = 30 * 60; // 30 minutes
+    private int metricsSamplingPeriodSec = 60;
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
@@ -87,8 +91,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean tlsRequireTrustedClientCertOnConnect = false;
     private boolean useTls = false;
     private boolean tlsHostnameVerificationEnable = false;
-    
-    private int metricsSamplingPeriodSec = 60;
     // Enforce authentication
     private boolean authenticationEnabled = false;
     // Autentication provider name list, which is a list of class names
@@ -142,7 +144,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public String getWorkerId() {
         if (StringUtils.isBlank(this.workerId)) {
-            this.workerId = getWorkerHostname();
+            this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort());
         }
         return this.workerId;
     }
@@ -153,7 +155,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         }
         return this.workerHostname;
     }
-    
+
+    public String getWorkerWebAddress() {
+        return String.format("http://%s:%d", this.getWorkerHostname(), this.getWorkerPort());
+    }
+
     public static String unsafeLocalhostResolve() {
         try {
             return InetAddress.getLocalHost().getHostName();

@@ -114,7 +114,7 @@ class Stats(object):
     
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, user_code, pulsar_client):
+  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, expected_healthcheck_interval, user_code, pulsar_client):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     self.queue = Queue.Queue(max_buffered_tuples)
@@ -138,6 +138,7 @@ class PythonInstance(object):
     self.stats = Stats()
     self.last_health_check_ts = time.time()
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
+    self.expected_healthcheck_interval = expected_healthcheck_interval
 
   def health_check(self):
     self.last_health_check_ts = time.time()
@@ -146,12 +147,12 @@ class PythonInstance(object):
     return health_check_result
 
   def process_spawner_health_check_timer(self):
-    if time.time() - self.last_health_check_ts > 90:
+    if time.time() - self.last_health_check_ts > self.expected_healthcheck_interval * 3:
       Log.critical("Haven't received health check from spawner in a while. Stopping instance...")
-      os.kill(os.getpid(), signal.SIGTERM)
+      os.kill(os.getpid(), signal.SIGKILL)
       sys.exit(1)
 
-    Timer(30, self.process_spawner_health_check_timer).start()
+    Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
 
   def run(self):
     # Setup consumers and input deserializers
@@ -172,9 +173,31 @@ class PythonInstance(object):
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
-        message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
+        message_listener=partial(self.message_listener, self.input_serdes[topic]),
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
       )
+
+    for topic, consumer_conf in self.instance_config.function_details.source.inputSpecs.items():
+      if not consumer_conf.serdeClassName:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
+      else:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
+      self.input_serdes[topic] = serde_kclass()
+      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      if consumer_conf.isRegexPattern:
+        self.consumers[topic] = self.pulsar_client.subscribe_pattern(
+          str(topic), subscription_name,
+          consumer_type=mode,
+          message_listener=partial(self.message_listener, self.input_serdes[topic]),
+          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+        )
+      else:
+        self.consumers[topic] = self.pulsar_client.subscribe(
+          str(topic), subscription_name,
+          consumer_type=mode,
+          message_listener=partial(self.message_listener, self.input_serdes[topic]),
+          unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
+        )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
     if function_kclass is None:
@@ -192,7 +215,8 @@ class PythonInstance(object):
 
     # start proccess spawner health check timer
     self.last_health_check_ts = time.time()
-    Timer(30, self.process_spawner_health_check_timer).start()
+    if self.expected_healthcheck_interval > 0:
+      Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
 
   def actual_execution(self):
     Log.info("Started Thread for executing the function")
@@ -287,8 +311,8 @@ class PythonInstance(object):
         batching_max_publish_delay_ms=1,
         max_pending_messages=100000)
 
-  def message_listener(self, topic, serde, consumer, message):
-    item = InternalMessage(message, topic, serde, consumer)
+  def message_listener(self, serde, consumer, message):
+    item = InternalMessage(message, consumer.topic(), serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
       consumer.acknowledge(message)

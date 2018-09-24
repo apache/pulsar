@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -32,6 +33,8 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
@@ -63,23 +66,35 @@ public class WorkerService {
     private final ScheduledExecutorService statsUpdater;
     private AuthenticationService authenticationService;
     private ConnectorsManager connectorsManager;
-    private PulsarAdmin admin;
+    private PulsarAdmin brokerAdmin;
+    private PulsarAdmin functionAdmin;
     private final MetricsGenerator metricsGenerator;
+    private final ScheduledExecutorService executor;
+    @VisibleForTesting
+    private URI dlogUri;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
+        this.executor = Executors.newScheduledThreadPool(10, new DefaultThreadFactory("pulsar-worker"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater);
     }
 
     public void start(URI dlogUri) throws InterruptedException {
         log.info("Starting worker {}...", workerConfig.getWorkerId());
-        
-        this.admin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
+
+        this.brokerAdmin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
                 workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
                 workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
         
+        final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
+                ? workerConfig.getFunctionWebServiceUrl()
+                : workerConfig.getWorkerWebAddress(); 
+        this.functionAdmin = Utils.getPulsarAdminClient(functionWebServiceUrl,
+                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
+
         try {
             log.info("Worker Configs: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
                     .writeValueAsString(workerConfig));
@@ -88,12 +103,13 @@ public class WorkerService {
         }
 
         // create the dlog namespace for storing function packages
+        this.dlogUri = dlogUri;
         DistributedLogConfiguration dlogConf = Utils.getDlogConf(workerConfig);
         try {
             this.dlogNamespace = NamespaceBuilder.newBuilder()
                     .conf(dlogConf)
                     .clientId("function-worker-" + workerConfig.getWorkerId())
-                    .uri(dlogUri)
+                    .uri(this.dlogUri)
                     .build();
         } catch (Exception e) {
             log.error("Failed to initialize dlog namespace {} for storing function packages",
@@ -118,7 +134,8 @@ public class WorkerService {
             log.info("Created Pulsar client");
 
             //create scheduler manager
-            this.schedulerManager = new SchedulerManager(this.workerConfig, this.client);
+            this.schedulerManager = new SchedulerManager(this.workerConfig, this.client, this.brokerAdmin,
+                    this.executor);
 
             //create function meta data manager
             this.functionMetaDataManager = new FunctionMetaDataManager(
@@ -127,11 +144,11 @@ public class WorkerService {
             this.connectorsManager = new ConnectorsManager(workerConfig);
 
             //create membership manager
-            this.membershipManager = new MembershipManager(this.workerConfig, this.client);
+            this.membershipManager = new MembershipManager(this, this.client);
 
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(
-                    this.workerConfig, this.client, this.dlogNamespace, this.membershipManager, connectorsManager);
+                    this.workerConfig, this, this.dlogNamespace, this.membershipManager, connectorsManager);
 
             // Setting references to managers in scheduler
             this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
@@ -140,7 +157,7 @@ public class WorkerService {
 
             // initialize function metadata manager
             this.functionMetaDataManager.initialize();
-            
+
             authenticationService = new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
 
             // Starting cluster services
@@ -163,7 +180,7 @@ public class WorkerService {
             this.isInitialized = true;
 
             this.connectorsManager = new ConnectorsManager(workerConfig);
-            
+
             int metricsSamplingPeriodSec = this.workerConfig.getMetricsSamplingPeriodSec();
             if (metricsSamplingPeriodSec > 0) {
                 this.statsUpdater.scheduleAtFixedRate(() -> this.functionRuntimeManager.updateRates(),
@@ -214,9 +231,17 @@ public class WorkerService {
         if (null != schedulerManager) {
             schedulerManager.close();
         }
+
+        if (null != this.brokerAdmin) {
+            this.brokerAdmin.close();
+        }
         
-        if (null != this.admin) {
-            this.admin.close();
+        if (null != this.functionAdmin) {
+            this.functionAdmin.close();
+        }
+        
+        if(this.executor != null) {
+            this.executor.shutdown();
         }
     }
 

@@ -31,7 +31,7 @@ Generate the certificate request. When asked for a **common name**, enter the **
 
 ```bash
 $ openssl req -config openssl.cnf \
-      -key admin.key.pem -new -sha256 -out admin.cert.pem
+      -key admin.key.pem -new -sha256 -out admin.csr.pem
 ```
 
 Sign with request with the certificate authority. Note that that client certs uses the **usr_cert** extension, which allows the cert to be used for client authentication.

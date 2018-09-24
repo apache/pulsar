@@ -116,7 +116,7 @@ public class PulsarFunctionTlsTest {
         PulsarAdmin admin = mock(PulsarAdmin.class);
         Tenants tenants = mock(Tenants.class);
         when(admin.tenants()).thenReturn(tenants);
-        when(functionsWorkerService.getAdmin()).thenReturn(admin);
+        when(functionsWorkerService.getBrokerAdmin()).thenReturn(admin);
         Set<String> admins = Sets.newHashSet("superUser");
         TenantInfo tenantInfo = new TenantInfo(admins, null);
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);

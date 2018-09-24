@@ -37,19 +37,19 @@ import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
 
-import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.client.api.MessageId;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
@@ -71,12 +71,14 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         private double sum;
         private double max;
         private double min;
+
         AccumulatedMetricDatum() {
             count = 0;
             sum = 0;
             max = Double.MIN_VALUE;
             min = Double.MAX_VALUE;
         }
+
         public void update(double value) {
             count++;
             sum += value;
@@ -92,41 +94,36 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private ConcurrentMap<String, AccumulatedMetricDatum> currentAccumulatedMetrics;
     private ConcurrentMap<String, AccumulatedMetricDatum> accumulatedMetrics;
 
-    private Map<String, Producer> publishProducers;
-    private Map<String, SerDe> publishSerializers;
-    private ProducerConfiguration producerConfiguration;
-    private PulsarClient pulsarClient;
-    private final ClassLoader classLoader;
+    private Map<String, Producer<?>> publishProducers;
+    private ProducerBuilderImpl<?> producerBuilder;
 
     private final List<String> inputTopics;
 
+    private final TopicSchema topicSchema;
 
     @Getter
     @Setter
     private StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
-    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       ClassLoader classLoader, List<String> inputTopics) {
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics) {
         this.config = config;
         this.logger = logger;
-        this.pulsarClient = client;
-        this.classLoader = classLoader;
         this.currentAccumulatedMetrics = new ConcurrentHashMap<>();
         this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
-        this.publishSerializers = new HashMap<>();
         this.inputTopics = inputTopics;
-        producerConfiguration = new ProducerConfiguration();
-        producerConfiguration.setBlockIfQueueFull(true);
-        producerConfiguration.setBatchingEnabled(true);
-        producerConfiguration.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
-        producerConfiguration.setMaxPendingMessages(1000000);
+        this.topicSchema = new TopicSchema(client);
+
+        this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
+
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
         } else {
             userConfigs = new Gson().fromJson(config.getFunctionDetails().getUserConfig(),
-                    new TypeToken<Map<String, Object>>(){}.getType());
+                    new TypeToken<Map<String, Object>>() {
+                    }.getType());
         }
     }
 
@@ -150,8 +147,13 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
-    public String getOutputSerdeClassName() {
-        return config.getFunctionDetails().getSink().getSerDeClassName();
+    public String getOutputSchemaType() {
+        SinkSpec sink = config.getFunctionDetails().getSink();
+        if (!StringUtils.isEmpty(sink.getSchemaType())) {
+            return sink.getSchemaType();
+        } else {
+            return sink.getSerDeClassName();
+        }
     }
 
     @Override
@@ -210,7 +212,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         return userConfigs;
     }
 
-
     private void ensureStateEnabled() {
         checkState(null != stateContext, "State is not enabled.");
     }
@@ -255,49 +256,44 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object) {
-        return publish(topicName, object, DefaultSerDe.class.getName());
+        return publish(topicName, object, "");
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName) {
-        if (!publishProducers.containsKey(topicName)) {
+    public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName) {
+        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
+    }
+
+    @SuppressWarnings("unchecked")
+    public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
+        Producer<O> producer = (Producer<O>) publishProducers.get(topicName);
+
+        if (producer == null) {
             try {
-                publishProducers.put(topicName, pulsarClient.createProducer(topicName, producerConfiguration));
-            } catch (PulsarClientException ex) {
-                CompletableFuture<Void> retval = new CompletableFuture<>();
-                retval.completeExceptionally(ex);
-                return retval;
-            }
-        }
-        if (StringUtils.isEmpty(serDeClassName)) {
-            serDeClassName = DefaultSerDe.class.getName();
-        }
-        if (!publishSerializers.containsKey(serDeClassName)) {
-            SerDe serDe;
-            if (serDeClassName.equals(DefaultSerDe.class.getName())) {
-                if (!DefaultSerDe.IsSupportedType(object.getClass())) {
-                    throw new RuntimeException("Default Serializer does not support " + object.getClass());
+                Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone())
+                        .schema(schema).topic(topicName).create();
+
+                Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
+
+                if (existingProducer != null) {
+                    // The value in the map was not updated after the concurrent put
+                    newProducer.close();
+                    producer = existingProducer;
+                } else {
+                    producer = newProducer;
                 }
-                serDe = new DefaultSerDe(object.getClass());
-            } else {
-                try {
-                    Class<? extends SerDe> serDeClass = (Class<? extends SerDe>) Class.forName(serDeClassName);
-                    serDe = Reflections.createInstance(
-                            serDeClassName,
-                            serDeClass,
-                            classLoader);
-                } catch (ClassNotFoundException e) {
-                    throw new RuntimeException(e);
-                }
+
+            } catch (PulsarClientException e) {
+                logger.error("Failed to create Producer while doing user publish", e);
+                return FutureUtil.failedFuture(e);
             }
-            publishSerializers.put(serDeClassName, serDe);
         }
 
-        byte[] bytes = publishSerializers.get(serDeClassName).serialize(object);
-        return publishProducers.get(topicName).sendAsync(bytes)
-                .thenApply(msgId -> null);
+        return producer.sendAsync(object).thenApply(msgId -> null);
     }
 
     @Override

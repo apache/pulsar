@@ -139,7 +139,7 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     uint64_t requestId = client->newRequestId();
     SharedBuffer cmd =
         Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_,
-                               subscriptionMode_, startMessageId_, readCompacted_);
+                               subscriptionMode_, startMessageId_, readCompacted_, config_.getProperties());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(boost::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, _1));
 }
