@@ -37,7 +37,7 @@ public class PulsarSourceConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     SubscriptionType subscriptionType;
     private String subscriptionName;
-    private int maxMessageRetries;
+    private Integer maxMessageRetries = -1;
     private String deadLetterTopic;
 
     private Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
