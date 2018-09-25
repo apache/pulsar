@@ -835,6 +835,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
+        messageId = messageId == null ? (MessageIdImpl) MessageId.earliest : messageId;
         log.info("[{}][{}] Creating subscription {} at message id {}", clientAppId(), topicName,
                 subscriptionName, messageId);
 

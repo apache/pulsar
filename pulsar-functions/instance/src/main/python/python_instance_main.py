@@ -28,8 +28,8 @@ import os
 import sys
 import signal
 import time
+import zipfile
 
-from pulsar import Authentication
 import pulsar
 
 import Function_pb2
@@ -70,10 +70,17 @@ def main():
   parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
   parser.add_argument('--logging_directory', required=True, help='Logging Directory')
   parser.add_argument('--logging_file', required=True, help='Log file name')
+  parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
 
   args = parser.parse_args()
   function_details = Function_pb2.FunctionDetails()
   json_format.Parse(args.function_details, function_details)
+
+  if os.path.splitext(str(args.py))[1] == '.whl':
+    zpfile = zipfile.ZipFile(str(args.py), 'r')
+    zpfile.extractall(os.path.dirname(str(args.py)))
+    sys.path.insert(0, os.path.dirname(str(args.py)))
+
   log_file = os.path.join(args.logging_directory,
                           util.getFullyQualifiedFunctionName(function_details.tenant, function_details.namespace, function_details.name),
                           "%s-%s.log" % (args.logging_file, args.instance_id))
@@ -97,7 +104,9 @@ def main():
   pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication, 30, 1, 1, 50000, None, use_tls, tls_trust_cert_path, tls_allow_insecure_connection)
   pyinstance = python_instance.PythonInstance(str(args.instance_id), str(args.function_id),
                                               str(args.function_version), function_details,
-                                              int(args.max_buffered_tuples), str(args.py), pulsar_client)
+                                              int(args.max_buffered_tuples),
+                                              int(args.expected_healthcheck_interval),
+                                              str(args.py), pulsar_client)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker;
 import java.io.Closeable;
 import java.io.IOException;
 
+import java.util.concurrent.RejectedExecutionException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -63,7 +64,18 @@ public class ManagedLedgerClientFactory implements Closeable {
             managedLedgerFactory.shutdown();
             log.info("Closed managed ledger factory");
 
-            bkClient.close();
+            try {
+                bkClient.close();
+            } catch (RejectedExecutionException ree) {
+                // when closing bookkeeper client, it will error outs all pending metadata operations.
+                // those callbacks of those operations will be triggered, and submitted to the scheduler
+                // in managed ledger factory. but the managed ledger factory has been shutdown before,
+                // so `RejectedExecutionException` will be thrown there. we can safely ignore this exception.
+                //
+                // an alternative solution is to close bookkeeper client before shutting down managed ledger
+                // factory, however that might be introducing more unknowns.
+                log.warn("Encountered exceptions on closing bookkeeper client", ree);
+            }
             log.info("Closed BookKeeper client");
         } catch (Exception e) {
             log.warn(e.getMessage(), e);

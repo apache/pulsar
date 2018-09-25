@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
+
 /**
  * {@link ConsumerBuilder} is used to configure and create instances of {@link Consumer}.
  *
@@ -330,6 +332,14 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Set subscriptionInitialPosition for the consumer
     */
     ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition);
+
+    /**
+     * Determines to which topics this consumer should be subscribed to - Persistent, Non-Persistent, or both.
+     * Only used with pattern subscriptions.
+     *
+     * @param mode Pattern subscription mode
+     */
+    ConsumerBuilder<T> subscriptionTopicsMode(Mode mode);
 
     /**
      * Intercept {@link Consumer}.
