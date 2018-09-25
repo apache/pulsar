@@ -68,7 +68,7 @@ To get started deploying a Pulsar cluster on bare metal, you'll need to download
 * By clicking on the link directly below, which will automatically trigger a download:
   * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
 * From the Pulsar [downloads page](pulsar:download_page_url)
-* From the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest) on [GitHub](https://github.com)
+* From the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest) on [GitHub](https://github.com)
 * Using [wget](https://www.gnu.org/software/wget):
 
 ```bash
@@ -106,7 +106,7 @@ one of the following ways:
   * <a href="pulsar:connector_release_url" download>Pulsar IO Connectors {{pulsar:version}} release</a>
 
 * from the Pulsar [downloads page](pulsar:download_page_url)
-* from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
+* from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell

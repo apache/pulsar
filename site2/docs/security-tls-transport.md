@@ -38,12 +38,12 @@ The following guide is an abridged guide to setting up a certificate authority. 
 
 The first step is to create the certificate for the CA. The CA will be used to sign both the broker and client certificates, in order to ensure that each party will trust the others. The CA should be stored in a very secure location (ideally completely disconnected from networks, air gapped, and fully encrypted).
 
-Create a directory for your CA, and place [this openssl configuration file](https://github.com/apache/incubator-pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories needed for the CA.
+Create a directory for your CA, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories needed for the CA.
 
 ```bash
 $ mkdir my-ca
 $ cd my-ca
-$ wget https://github.com/apache/incubator-pulsar/tree/master/site2/website/static/examples/openssl.cnf
+$ wget https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf
 $ export CA_HOME=$(pwd)
 ```
 
