@@ -118,8 +118,8 @@ class Footer extends React.Component {
     const contactUrl = this.pageUrl('contact', this.props.language)
     const eventsUrl = this.pageUrl('events', this.props.language)
     const twitterUrl = 'https://twitter.com/Apache_Pulsar'
-    const wikiUrl = 'https://github.com/apache/incubator-pulsar/wiki'
-    const issuesUrl = 'https://github.com/apache/incubator-pulsar/issues'
+    const wikiUrl = 'https://github.com/apache/pulsar/wiki'
+    const issuesUrl = 'https://github.com/apache/pulsar/issues'
     const resourcesUrl = this.pageUrl('resources', this.props.language)
     const teamUrl = this.pageUrl('team', this.props.language)
     const contributingUrl = this.pageUrl('contributing', this.props.language)

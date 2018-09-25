@@ -226,7 +226,7 @@ public class CmdFunctions extends CmdBase {
         protected String jarFile;
         @Parameter(
                 names = "--py",
-                description = "Path to the main Python file for the function (if the function is written in Python)",
+                description = "Path to the main Python file/Python Wheel file for the function (if the function is written in Python)",
                 listConverter = StringConverter.class)
         protected String pyFile;
         @Parameter(names = { "-i",

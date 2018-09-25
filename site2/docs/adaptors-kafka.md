@@ -104,7 +104,7 @@ while (true) {
 ## Complete Examples
 
 You can find the complete producer and consumer examples
-[here](https://github.com/apache/incubator-pulsar/tree/master/pulsar-client-kafka-compat/pulsar-client-kafka-tests/src/test/java/org/apache/pulsar/client/kafka/compat/examples).
+[here](https://github.com/apache/pulsar/tree/master/pulsar-client-kafka-compat/pulsar-client-kafka-tests/src/test/java/org/apache/pulsar/client/kafka/compat/examples).
 
 ## Compatibility matrix
 

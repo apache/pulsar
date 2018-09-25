@@ -34,7 +34,7 @@ import java.net.URI;
 import java.util.HashSet;
 
 @Slf4j
-public class Worker extends AbstractService {
+public class Worker {
 
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
@@ -45,19 +45,7 @@ public class Worker extends AbstractService {
         this.workerService = new WorkerService(workerConfig);
     }
 
-    @Override
-    protected void doStart() {
-        try {
-            doStartImpl();
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            log.error("Interrupted at starting worker", ie);
-        } catch (Throwable t) {
-            log.error("Failed to start worker", t);
-        }
-    }
-
-    protected void doStartImpl() throws Exception {
+    protected void start() throws Exception {
         URI dlogUri = initialize(this.workerConfig);
 
         workerService.start(dlogUri);
@@ -146,11 +134,15 @@ public class Worker extends AbstractService {
         }
     }
 
-    @Override
-    protected void doStop() {
-        if (null != this.server) {
-            this.server.stop();
+    protected void stop() {
+        try {
+            if (null != this.server) {
+                this.server.stop();
+            }
+            workerService.stop();    
+        }catch(Exception e) {
+            log.warn("Failed to gracefully stop worker service ", e);
         }
-        workerService.stop();
+        
     }
 }
