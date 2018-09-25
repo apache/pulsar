@@ -616,7 +616,7 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected static CompletableFuture<ClusterData> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
+    public static CompletableFuture<ClusterData> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
             NamespaceName namespace) {
         if (!namespace.isGlobal()) {
             return CompletableFuture.completedFuture(null);
