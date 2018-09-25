@@ -99,21 +99,21 @@ public abstract class JCloudBlobStoreFactory implements Serializable, Cloneable,
         overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, Integer.toString(100));
         return overrides;
     }
-    
+
     public String getServiceEndpoint() {
         return null;
     }
-    
+
     public void setServiceEndpoint(String s) {
         // No-op
     }
-    
+
     public abstract String getRegion();
-    
+
     public abstract void setRegion(String s);
-    
+
     public abstract String getBucket();
-    
+
     public abstract void validate();
 
     public abstract ProviderMetadata getProviderMetadata();

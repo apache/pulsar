@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,7 +112,7 @@ public class JCloudBlobStoreFactoryFactory implements OffloadDriverMetadataKeys 
         }
         return data;
     }
-    
+
     private static Collection<Field> getFields(Class<?> clazz) {
         Map<String, Field> fields = new HashMap<String, Field>();
         while (clazz != null) {

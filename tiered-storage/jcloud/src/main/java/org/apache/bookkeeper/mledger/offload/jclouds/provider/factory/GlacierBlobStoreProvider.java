@@ -18,16 +18,17 @@
  */
 package org.apache.bookkeeper.mledger.offload.jclouds.provider.factory;
 
-import org.jclouds.providers.ProviderMetadata;
-
+/**
+ * Configuration for AWS Glacier storage.
+ */
 public class GlacierBlobStoreProvider extends AWSBlobStoreFactory {
 
     private static final long serialVersionUID = 1L;
 
     private String glacierManagedLedgerOffloadRegion = null;
-    
+
     private String glacierManagedLedgerOffloadBucket = null;
-    
+
     @Override
     public String getRegion() {
         return glacierManagedLedgerOffloadRegion;
