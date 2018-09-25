@@ -206,4 +206,14 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions.getListOfConnectors();
     }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
+    public Response getFunctionState(final @PathParam("tenant") String tenant,
+                                      final @PathParam("namespace") String namespace,
+                                      final @PathParam("functionName") String functionName,
+                                     final @PathParam("key") String key) throws IOException {
+        return functions.getFunctionState(
+            tenant, namespace, functionName, key);
+    }
 }

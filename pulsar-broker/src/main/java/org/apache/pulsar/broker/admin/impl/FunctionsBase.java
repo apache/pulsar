@@ -223,6 +223,25 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
 
     }
 
+    @GET
+    @ApiOperation(
+        value = "Fetch the current state associated with a Pulsar Function",
+        response = String.class
+    )
+    @ApiResponses(value = {
+        @ApiResponse(code = 400, message = "Invalid request"),
+        @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+    })
+    @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
+    public Response getFunctionState(final @PathParam("tenant") String tenant,
+                                     final @PathParam("namespace") String namespace,
+                                     final @PathParam("functionName") String functionName,
+                                     final @PathParam("key") String key) {
+        return functions.getFunctionState(
+            tenant, namespace, functionName, key);
+
+    }
+
     @POST
     @ApiOperation(value = "Restart function instance", response = Void.class)
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
