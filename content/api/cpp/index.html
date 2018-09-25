@@ -81,7 +81,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><h1>The Pulsar C++ client</h1>
-<p>Welcome to the Doxygen documentation for <a href="https://pulsar.incubator.apache.org/">Pulsar</a>.</p>
+<p>Welcome to the Doxygen documentation for <a href="https://pulsar.apache.org/">Pulsar</a>.</p>
 <h2>Supported platforms</h2>
 <p>The Pulsar C++ client has been successfully tested on <b>MacOS</b> and <b>Linux</b>.</p>
 <h2>System requirements</h2>
@@ -97,7 +97,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </ul>
 <h2>Compilation</h2>
 <p>There are separate compilation instructions for <a href="#macos">MacOS</a> and <a href="#linux">Linux</a>. For both systems, start by cloning the Pulsar repository:</p>
-<div class="fragment"><div class="line"><a name="l00001"></a><span class="lineno">    1</span>&#160;$ git clone https://github.com/apache/incubator-pulsar</div></div><!-- fragment --><h3>Linux</h3>
+<div class="fragment"><div class="line"><a name="l00001"></a><span class="lineno">    1</span>&#160;$ git clone https://github.com/apache/pulsar</div></div><!-- fragment --><h3>Linux</h3>
 <p>First, install all of the necessary dependencies:</p>
 <div class="fragment"><div class="line"><a name="l00001"></a><span class="lineno">    1</span>&#160;$ apt-get install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \</div><div class="line"><a name="l00002"></a><span class="lineno">    2</span>&#160;  libprotobuf-dev libboost-all-dev libgtest-dev libjsoncpp-dev</div></div><!-- fragment --><p>Then compile and install <a href="https://github.com/google/googletest">Google Test</a>:</p>
 <div class="fragment"><div class="line"><a name="l00001"></a><span class="lineno">    1</span>&#160;$ git clone https://github.com/google/googletest.git &amp;&amp; cd googletest</div><div class="line"><a name="l00002"></a><span class="lineno">    2</span>&#160;$ sudo cmake .</div><div class="line"><a name="l00003"></a><span class="lineno">    3</span>&#160;$ sudo make</div><div class="line"><a name="l00004"></a><span class="lineno">    4</span>&#160;$ sudo cp *.a /usr/lib</div></div><!-- fragment --><p>Finally, compile the Pulsar client library for C++ inside the Pulsar repo:</p>

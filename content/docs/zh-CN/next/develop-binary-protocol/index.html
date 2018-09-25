@@ -46,7 +46,7 @@
               }
             });
         </script></nav></div><div class="container mainContainer docMainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Pulsar binary protocol specification</h1></header><article><div><span><p>Pulsar uses a custom binary protocol for communications between producers/consumers and brokers. This protocol is designed to support required features, such as acknowledgements and flow control, while ensuring maximum transport and implementation efficiency.</p>
-<p>Clients and brokers exchange <em>commands</em> with each other. Commands are formatted as binary <a href="https://developers.google.com/protocol-buffers/">protocol buffer</a> (aka <em>protobuf</em>) messages. The format of protobuf commands is specified in the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto"><code>PulsarApi.proto</code></a> file and also documented in the <a href="#protobuf-interface">Protobuf interface</a> section below.</p>
+<p>Clients and brokers exchange <em>commands</em> with each other. Commands are formatted as binary <a href="https://developers.google.com/protocol-buffers/">protocol buffer</a> (aka <em>protobuf</em>) messages. The format of protobuf commands is specified in the <a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto"><code>PulsarApi.proto</code></a> file and also documented in the <a href="#protobuf-interface">Protobuf interface</a> section below.</p>
 <blockquote>
 <h3><a class="anchor" aria-hidden="true" id="connection-sharing"></a><a href="#connection-sharing" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection sharing</h3>
 <p>Commands for different producers and consumers can be interleaved and sent through the same connection without restriction.</p>
@@ -101,7 +101,7 @@
 <tr><td style="text-align:left"><code>producer_name</code></td><td style="text-align:left">The name of the producer that published the message</td></tr>
 <tr><td style="text-align:left"><code>sequence_id</code></td><td style="text-align:left">The sequence ID of the message, assigned by producer}</td></tr>
 <tr><td style="text-align:left"><code>publish_time</code></td><td style="text-align:left">The publish timestamp in Unix time (i.e. as the number of milliseconds since January 1st, 1970 in UTC)</td></tr>
-<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">A sequence of key/value pairs (using the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32"><code>KeyValue</code></a> message). These are application-defined keys and values with no special meaning to Pulsar.</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">A sequence of key/value pairs (using the <a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32"><code>KeyValue</code></a> message). These are application-defined keys and values with no special meaning to Pulsar.</td></tr>
 <tr><td style="text-align:left"><code>replicated_from</code> <em>(optional)</em></td><td style="text-align:left">Indicates that the message has been replicated and specifies the name of the <a href="/docs/zh-CN/next/reference-terminology#cluster">cluster</a> where the message was originally published</td></tr>
 <tr><td style="text-align:left"><code>partition_key</code> <em>(optional)</em></td><td style="text-align:left">While publishing on a partition topic, if the key is present, the hash of the key is used to determine which partition to choose</td></tr>
 <tr><td style="text-align:left"><code>compression</code> <em>(optional)</em></td><td style="text-align:left">Signals that payload has been compressed and with which compression library</td></tr>
@@ -339,8 +339,8 @@
             '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
             '<li><a href="/zh-CN/events">Events</a></li>' +
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
-            '<li><a href="https://github.com/apache/incubator-pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
-            '<li><a href="https://github.com/apache/incubator-pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-CN/resources">Resources</a></li>' +
             '<li><a href="/zh-CN/team">Team</a></li>' +
