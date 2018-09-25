@@ -25,7 +25,7 @@ You need to have the following installed to use the C++ client:
 There are separate compilation instructions for [MacOS](#macos) and [Linux](#linux). For both systems, start by cloning the Pulsar repository:
 
 ```shell
-$ git clone https://github.com/apache/incubator-pulsar
+$ git clone https://github.com/apache/pulsar
 ```
 
 ### Linux

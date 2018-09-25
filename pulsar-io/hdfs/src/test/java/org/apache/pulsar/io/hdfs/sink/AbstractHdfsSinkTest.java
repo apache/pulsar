@@ -53,8 +53,8 @@ public abstract class AbstractHdfsSinkTest<K, V> {
     @BeforeMethod
     public final void setUp() throws Exception {
         map = new HashMap<String, Object> ();
-        map.put("hdfsConfigResources", "../incubator-pulsar/pulsar-io/hdfs/src/test/resources/hadoop/core-site.xml,"
-                + "../incubator-pulsar/pulsar-io/hdfs/src/test/resources/hadoop/hdfs-site.xml");
+        map.put("hdfsConfigResources", "../pulsar/pulsar-io/hdfs/src/test/resources/hadoop/core-site.xml,"
+                + "../pulsar/pulsar-io/hdfs/src/test/resources/hadoop/hdfs-site.xml");
         map.put("directory", "/tmp/testing");
         map.put("filenamePrefix", "prefix");
         
