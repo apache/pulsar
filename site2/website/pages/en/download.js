@@ -13,27 +13,15 @@ const siteConfig = require(`${CWD}/siteConfig.js`);
 const releases = require(`${CWD}/releases.json`);
 
 function getLatestArchiveMirrorUrl(version, type) {
-    if (version.includes('incubating')) {
-        return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
-    } else {
-        return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
-    }
+    return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
 }
 
 function distUrl(version, type) {
-    if (version.includes('incubating')) {
-        return `https://www.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
-    } else {
-        return `https://www.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
-    }
+    return `https://www.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
 }
 
 function archiveUrl(version, type) {
-    if (version.includes('incubating')) {
-        return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
-    } else {
-        return `https://archive.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
-    }
+    return `https://archive.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
 }
 
 class Download extends React.Component {
