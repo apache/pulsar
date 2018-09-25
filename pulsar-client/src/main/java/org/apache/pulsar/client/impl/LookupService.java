@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -75,6 +76,6 @@ public interface LookupService extends AutoCloseable {
 	 * @param namespace : namespace-name
 	 * @return
 	 */
-	public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace);
+	public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode);
 
 }

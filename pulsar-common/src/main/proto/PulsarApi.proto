@@ -504,8 +504,14 @@ message CommandGetLastMessageIdResponse {
 }
 
 message CommandGetTopicsOfNamespace {
+    enum Mode {
+        PERSISTENT = 0;
+        NON_PERSISTENT = 1;
+        ALL = 2;
+    }
 	required uint64 request_id	= 1;
 	required string namespace	= 2;
+    optional Mode mode = 3 [default = PERSISTENT];
 }
 
 message CommandGetTopicsOfNamespaceResponse {

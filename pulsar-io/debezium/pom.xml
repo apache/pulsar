@@ -19,7 +19,7 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.pulsar</groupId>
@@ -27,8 +27,8 @@
     <version>2.2.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>pulsar-io-kinesis</artifactId>
-  <name>Pulsar IO :: Kinesis</name>
+  <artifactId>pulsar-io-debezium</artifactId>
+  <name>Pulsar IO :: Debezium</name>
 
   <dependencies>
 
@@ -39,60 +39,52 @@
     </dependency>
 
     <dependency>
+      <groupId>io.debezium</groupId>
+      <artifactId>debezium-core</artifactId>
+      <version>${debezium-core.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka_${scala.binary.version}</artifactId>
+      <version>${kafka-client.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-instance</artifactId>
+      <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
-      <scope>provided</scope>
     </dependency>
 
     <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-all</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger-original</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-zookeeper-utils</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-yaml</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.code.gson</groupId>
-      <artifactId>gson</artifactId>
-    </dependency>
-
-    <!-- kinesis dependencies -->
-    <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-core</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>amazon-kinesis-client</artifactId>
-      <version>1.9.0</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>amazon-kinesis-producer</artifactId>
-      <version>0.12.9</version>
-    </dependency>
-	<!-- /kinesis dependencies -->
-
-    <dependency>
-      <groupId>com.google.flatbuffers</groupId>
-      <artifactId>flatbuffers-java</artifactId>
-      <version>1.9.0</version>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
     </dependency>
 
   </dependencies>
@@ -105,5 +97,6 @@
       </plugin>
     </plugins>
   </build>
+
 
 </project>
