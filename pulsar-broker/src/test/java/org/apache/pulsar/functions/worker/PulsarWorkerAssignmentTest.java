@@ -139,13 +139,17 @@ public class PulsarWorkerAssignmentTest {
     }
 
     @AfterMethod
-    void shutdown() throws Exception {
+    void shutdown() {
         log.info("--- Shutting down ---");
-        pulsarClient.close();
-        admin.close();
-        functionsWorkerService.stop();
-        pulsar.close();
-        bkEnsemble.stop();
+        try {
+            pulsarClient.close();
+            admin.close();
+            functionsWorkerService.stop();
+            pulsar.close();
+            bkEnsemble.stop();
+        } catch (Exception e) {
+            log.warn("Encountered errors at shutting down PulsarWorkerAssignmentTest", e);
+        }
     }
 
     private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {

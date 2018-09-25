@@ -36,6 +36,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private String serviceUrl;
+    @JsonIgnore
     private ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
