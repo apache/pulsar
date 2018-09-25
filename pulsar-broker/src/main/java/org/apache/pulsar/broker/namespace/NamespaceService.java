@@ -18,30 +18,9 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.lang.String.format;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
-
-import java.net.URI;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
+import com.google.common.collect.Lists;
+import com.google.common.hash.Hashing;
+import io.netty.channel.EventLoopGroup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -53,17 +32,26 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.data.LookupData;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -77,8 +65,32 @@ import org.apache.zookeeper.KeeperException.Code;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
+import java.net.URI;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.lang.String.format;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
+import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -123,6 +135,8 @@ public class NamespaceService {
 
     public static final String NAMESPACE_ISOLATION_POLICIES = "namespaceIsolationPolicies";
 
+    private final ConcurrentOpenHashMap<ClusterData, PulsarClientImpl> namespaceClients;
+
     /**
      * Default constructor.
      *
@@ -136,6 +150,7 @@ public class NamespaceService {
         ServiceUnitZkUtils.initZK(pulsar.getLocalZkCache().getZooKeeper(), pulsar.getBrokerServiceUrl());
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory);
+        this.namespaceClients = new ConcurrentOpenHashMap<>();
     }
 
     public CompletableFuture<Optional<LookupResult>> getBrokerServiceUrlAsync(TopicName topic,
@@ -808,7 +823,26 @@ public class NamespaceService {
         return getBundle(topicName);
     }
 
-    public List<String> getListOfTopics(NamespaceName namespaceName) throws Exception {
+    public List<String> getFullListOfTopics(NamespaceName namespaceName) throws Exception {
+        List<String> topics = getListOfPersistentTopics(namespaceName);
+        topics.addAll(getListOfNonPersistentTopics(namespaceName));
+        return topics;
+    }
+
+    public List<String> getListOfTopics(NamespaceName namespaceName, Mode mode)
+        throws Exception {
+        switch (mode) {
+            case ALL:
+                return getFullListOfTopics(namespaceName);
+            case NON_PERSISTENT:
+                return getListOfNonPersistentTopics(namespaceName);
+            case PERSISTENT:
+            default:
+                return getListOfPersistentTopics(namespaceName);
+        }
+    }
+
+    public List<String> getListOfPersistentTopics(NamespaceName namespaceName) throws Exception {
         List<String> topics = Lists.newArrayList();
 
         // For every topic there will be a managed ledger created.
@@ -827,6 +861,86 @@ public class NamespaceService {
 
         topics.sort(null);
         return topics;
+    }
+
+    public List<String> getListOfNonPersistentTopics(NamespaceName namespaceName) throws Exception {
+        List<String> topics = Lists.newArrayList();
+
+        ClusterData peerClusterData;
+        try {
+            peerClusterData = PulsarWebResource.checkLocalOrGetPeerReplicationCluster(pulsar, namespaceName)
+                .get(cacheTimeOutInSec, SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException("Failed to contact peer replication cluster.", e);
+        }
+
+        // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request should be
+        // redirect to the peer-cluster
+        if (peerClusterData != null) {
+            return getNonPersistentTopicsFromPeerCluster(peerClusterData, namespaceName);
+        }
+
+        // Non-persistent topics don't have managed ledgers so we have to retrieve them from local cache.
+        synchronized (pulsar.getBrokerService().getMultiLayerTopicMap()) {
+            if (pulsar.getBrokerService().getMultiLayerTopicMap().containsKey(namespaceName.toString())) {
+                pulsar.getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString()).values()
+                    .forEach(bundle -> {
+                        bundle.forEach((topicName, topic) -> {
+                            if (topic instanceof NonPersistentTopic && ((NonPersistentTopic)topic).isActive()) {
+                                topics.add(topicName);
+                            }
+                        });
+                    });
+            }
+        }
+
+        topics.sort(null);
+        return topics;
+    }
+
+    private List<String> getNonPersistentTopicsFromPeerCluster(ClusterData peerClusterData,
+                                                               NamespaceName namespace) throws Exception {
+        PulsarClientImpl client = getNamespaceClient(peerClusterData);
+        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT).get();
+    }
+
+
+    public PulsarClientImpl getNamespaceClient(ClusterData cluster) {
+        PulsarClientImpl client = namespaceClients.get(cluster);
+        if (client != null) {
+            return client;
+        }
+
+        return namespaceClients.computeIfAbsent(cluster, key -> {
+            try {
+                ClientBuilder clientBuilder = PulsarClient.builder()
+                    .enableTcpNoDelay(false)
+                    .statsInterval(0, TimeUnit.SECONDS);
+
+                if (pulsar.getConfiguration().isAuthenticationEnabled()) {
+                    clientBuilder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
+                        pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
+                }
+
+                if (pulsar.getConfiguration().isTlsEnabled()) {
+                    clientBuilder
+                        .serviceUrl(isNotBlank(cluster.getBrokerServiceUrlTls())
+                            ? cluster.getBrokerServiceUrlTls() : cluster.getServiceUrlTls())
+                        .enableTls(true)
+                        .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
+                        .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
+                } else {
+                    clientBuilder.serviceUrl(isNotBlank(cluster.getBrokerServiceUrl())
+                        ? cluster.getBrokerServiceUrl() : cluster.getServiceUrl());
+                }
+
+                // Share all the IO threads across broker and client connections
+                ClientConfigurationData conf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+                return new PulsarClientImpl(conf, (EventLoopGroup)pulsar.getBrokerService().executor());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     public Optional<NamespaceEphemeralData> getOwner(NamespaceBundle bundle) throws Exception {

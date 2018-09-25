@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
 public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T> implements TimerTask {
     private final Pattern topicsPattern;
     private final TopicsChangedListener topicsChangeListener;
+    private final Mode subscriptionMode;
     private volatile Timeout recheckPatternTimeout = null;
 
     public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
@@ -51,9 +53,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                                           ConsumerConfigurationData<T> conf,
                                           ExecutorService listenerExecutor,
                                           CompletableFuture<Consumer<T>> subscribeFuture,
-                                          Schema<T> schema, ConsumerInterceptors<T> interceptors) {
+                                          Schema<T> schema, Mode subscriptionMode, ConsumerInterceptors<T> interceptors) {
         super(client, conf, listenerExecutor, subscribeFuture, schema, interceptors);
         this.topicsPattern = topicsPattern;
+        this.subscriptionMode = subscriptionMode;
 
         if (this.namespaceName == null) {
             this.namespaceName = getNameSpaceFromPattern(topicsPattern);
@@ -78,7 +81,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         CompletableFuture<Void> recheckFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(2);
 
-        client.getLookup().getTopicsUnderNamespace(namespaceName).thenAccept(topics -> {
+        client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode).thenAccept(topics -> {
             if (log.isDebugEnabled()) {
                 log.debug("Get topics under namespace {}, topics.size: {}", namespaceName.toString(), topics.size());
                 topics.forEach(topicName ->
