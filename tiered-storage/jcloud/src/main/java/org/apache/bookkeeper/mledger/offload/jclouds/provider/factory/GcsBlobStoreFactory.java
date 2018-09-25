@@ -45,11 +45,11 @@ public class GcsBlobStoreFactory extends JCloudBlobStoreFactory {
     // For Google Cloud Storage, path to json file containing service account credentials.
     // For more details, see the "Service Accounts" section of https://support.google.com/googleapi/answer/6158849
     private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
-    
+
     private String gcsManagedLedgerOffloadRegion = null;
-    
+
     private String gcsManagedLedgerOffloadBucket = null;
-    
+
     @Override
     public String getRegion() {
         return gcsManagedLedgerOffloadRegion;
@@ -59,10 +59,10 @@ public class GcsBlobStoreFactory extends JCloudBlobStoreFactory {
     public String getBucket() {
         return gcsManagedLedgerOffloadBucket;
     }
-    
+
     @Override
     public void setRegion(String s) {
-        gcsManagedLedgerOffloadRegion = s; 
+        gcsManagedLedgerOffloadRegion = s;
     }
 
     @Override

@@ -18,8 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.offload.jclouds.provider.factory;
 
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.google.common.base.Strings;
 
 import java.util.Properties;
@@ -28,13 +26,10 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import org.jclouds.ContextBuilder;
-import org.jclouds.aws.s3.AWSS3ProviderMetadata;
-import org.jclouds.domain.Credentials;
-import org.jclouds.providers.ProviderMetadata;
 import org.jclouds.s3.reference.S3Constants;
 
 /**
- * Configuration for AWS Blob storage. Used for both S3 and Glacier.
+ * Configuration for AWS S3 storage.
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -44,11 +39,11 @@ public class S3BlobStoreFactory extends AWSBlobStoreFactory {
 
     // For Amazon S3 ledger off-load, Alternative endpoint to connect to (useful for testing)
     private String s3ManagedLedgerOffloadServiceEndpoint = null;
-    
+
     private String s3ManagedLedgerOffloadRegion = null;
-    
+
     private String s3ManagedLedgerOffloadBucket = null;
-    
+
     @Override
     public String getRegion() {
          return s3ManagedLedgerOffloadRegion;
@@ -63,7 +58,7 @@ public class S3BlobStoreFactory extends AWSBlobStoreFactory {
     public String getServiceEndpoint() {
         return s3ManagedLedgerOffloadServiceEndpoint;
     }
-    
+
     @Override
     public void setRegion(String s) {
         s3ManagedLedgerOffloadRegion = s;
