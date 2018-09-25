@@ -73,11 +73,12 @@ class ProcessRuntime implements Runtime {
                    String codeFile,
                    String pulsarServiceUrl,
                    String stateStorageServiceUrl,
-                   AuthenticationConfig authConfig) throws Exception {
+                   AuthenticationConfig authConfig,
+                   Long expectedHealthCheckInterval) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
         this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig);
+                authConfig, expectedHealthCheckInterval);
     }
 
     private List<String> composeArgs(InstanceConfig instanceConfig,
@@ -86,7 +87,8 @@ class ProcessRuntime implements Runtime {
                                      String codeFile,
                                      String pulsarServiceUrl,
                                      String stateStorageServiceUrl,
-                                     AuthenticationConfig authConfig) throws Exception {
+                                     AuthenticationConfig authConfig,
+                                     Long expectedHealthCheckInterval) throws Exception {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
@@ -167,6 +169,8 @@ class ProcessRuntime implements Runtime {
             args.add("--state_storage_serviceurl");
             args.add(stateStorageServiceUrl);
         }
+        args.add("--expected_healthcheck_interval");
+        args.add(String.valueOf(expectedHealthCheckInterval));
         return args;
     }
 

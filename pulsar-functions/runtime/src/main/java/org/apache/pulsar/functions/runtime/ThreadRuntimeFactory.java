@@ -81,7 +81,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     }
     
     @Override
-    public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile) {
+    public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile,
+                                         Long expectedHealthCheckInterval) {
         return new ThreadRuntime(
             instanceConfig,
             fnCache,

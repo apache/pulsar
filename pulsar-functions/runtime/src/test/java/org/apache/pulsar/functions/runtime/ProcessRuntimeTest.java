@@ -114,9 +114,9 @@ public class ProcessRuntimeTest {
     public void testJavaConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
-        ProcessRuntime container = factory.createContainer(config, userJarFile);
+        ProcessRuntime container = factory.createContainer(config, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 26);
+        assertEquals(args.size(), 28);
         String expectedArgs = "java -cp " + javaInstanceJarFile
                 + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
                 + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
@@ -129,7 +129,8 @@ public class ProcessRuntimeTest {
                 + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
                 + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(23)
-                + " --state_storage_serviceurl " + stateStorageServiceUrl;
+                + " --state_storage_serviceurl " + stateStorageServiceUrl
+                + " --expected_healthcheck_interval 30";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -137,9 +138,9 @@ public class ProcessRuntimeTest {
     public void testPythonConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
 
-        ProcessRuntime container = factory.createContainer(config, userJarFile);
+        ProcessRuntime container = factory.createContainer(config, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 22);
+        assertEquals(args.size(), 24);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
@@ -147,7 +148,8 @@ public class ProcessRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
                 + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(21);
+                + " --max_buffered_tuples 1024 --port " + args.get(21)
+                + " --expected_healthcheck_interval 30";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

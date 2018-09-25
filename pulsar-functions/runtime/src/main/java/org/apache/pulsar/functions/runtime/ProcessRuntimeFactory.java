@@ -91,7 +91,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile) throws Exception {
+    public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
+                                          Long expectedHealthCheckInterval) throws Exception {
         String instanceFile;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
@@ -110,7 +111,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             codeFile,
             pulsarServiceUrl,
             stateStorageServiceUrl,
-            authConfig);
+            authConfig,
+            expectedHealthCheckInterval);
     }
 
     @Override

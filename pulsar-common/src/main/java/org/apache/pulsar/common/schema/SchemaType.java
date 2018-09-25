@@ -68,11 +68,6 @@ public enum SchemaType {
     BYTES,
 
     /**
-     * A bytebuffer.
-     */
-    BYTEBUFFER,
-
-    /**
      * JSON object encoding and validation
      */
     JSON,
