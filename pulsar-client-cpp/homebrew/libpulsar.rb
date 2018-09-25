@@ -21,7 +21,7 @@ class Libpulsar < Formula
   desc "Apache Pulsar C++ library"
   homepage "https://pulsar.apache.org"
 
-  head "https://github.com/apache/incubator-pulsar.git"
+  head "https://github.com/apache/pulsar.git"
 
   # TODO: Switch to official 2.1 version when available
   version "2.1.0-incubating-SNAPSHOT"

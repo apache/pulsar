@@ -94,7 +94,7 @@ Use the [Homebrew](https://brew.sh/) supplied recipe to build the Pulsar
 client lib on MacOS.
 
 ```shell
-brew install https://raw.githubusercontent.com/apache/incubator-pulsar/master/pulsar-client-cpp/homebrew/libpulsar.rb
+brew install https://raw.githubusercontent.com/apache/pulsar/master/pulsar-client-cpp/homebrew/libpulsar.rb
 ```
 
 If using Python 3 on MacOS, add the flag `--with-python3` to the above command.

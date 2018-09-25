@@ -65,10 +65,10 @@ setup(
     ext_modules=[Extension('_pulsar', [])],
 
     author="Pulsar Devs",
-    author_email="dev@pulsar.incubator.apache.org",
+    author_email="dev@pulsar.apache.org",
     description="Apache Pulsar Python client library",
     license="Apache License v2.0",
-    url="http://pulsar.incubator.apache.org/",
+    url="http://pulsar.apache.org/",
     install_requires=[
         'grpcio', 'protobuf'
     ],

@@ -39,8 +39,8 @@ type of connection or by passing a certificate chain to use for TLS.
 
 Examples for client authentication providers can be found at:
 
- * Mutual TLS Auth -- https://github.com/apache/incubator-pulsar/tree/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/auth
- * Athenz -- https://github.com/apache/incubator-pulsar/tree/master/pulsar-client-auth-athenz/src/main/java/org/apache/pulsar/client/impl/auth
+ * Mutual TLS Auth -- https://github.com/apache/pulsar/tree/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/auth
+ * Athenz -- https://github.com/apache/pulsar/tree/master/pulsar-client-auth-athenz/src/main/java/org/apache/pulsar/client/impl/auth
 
 ### Broker authentication plugin
 
@@ -94,8 +94,8 @@ public interface AuthenticationProvider extends Closeable {
 
 Example for Broker authentication plugins:
 
- * Mutual TLS -- https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderTls.java
- * Athenz -- https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker-auth-athenz/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderAthenz.java
+ * Mutual TLS -- https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderTls.java
+ * Athenz -- https://github.com/apache/pulsar/blob/master/pulsar-broker-auth-athenz/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderAthenz.java
 
 ## Authorization
 
