@@ -66,6 +66,7 @@ import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchema;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -466,11 +467,12 @@ public class PulsarClientImpl implements PulsarClient {
 
     private <T> CompletableFuture<Consumer<T>> patternTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors interceptors) {
         String regex = conf.getTopicsPattern().pattern();
+        Mode subscriptionMode = conf.getSubscriptionTopicsMode();
         TopicName destination = TopicName.get(regex);
         NamespaceName namespaceName = destination.getNamespaceObject();
 
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
-        lookup.getTopicsUnderNamespace(namespaceName)
+        lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode)
             .thenAccept(topics -> {
                 if (log.isDebugEnabled()) {
                     log.debug("Get topics under namespace {}, topics.size: {}", namespaceName.toString(), topics.size());
@@ -485,7 +487,7 @@ public class PulsarClientImpl implements PulsarClient {
                     conf,
                     externalExecutorProvider.getExecutor(),
                     consumerSubscribedFuture,
-                    schema, interceptors);
+                    schema, subscriptionMode, interceptors);
 
                 synchronized (consumers) {
                     consumers.put(consumer, Boolean.TRUE);
@@ -503,11 +505,13 @@ public class PulsarClientImpl implements PulsarClient {
     // get topics that match 'topicsPattern' from original topics list
     // return result should contain only topic names, without partition part
     public static List<String> topicsPatternFilter(List<String> original, Pattern topicsPattern) {
+        final Pattern shortenedTopicsPattern = topicsPattern.toString().contains("://")
+            ? Pattern.compile(topicsPattern.toString().split("\\:\\/\\/")[1]) : topicsPattern;
+
         return original.stream()
-            .filter(topic -> {
-                TopicName destinationName = TopicName.get(topic);
-                return topicsPattern.matcher(destinationName.toString()).matches();
-            })
+            .map(TopicName::get)
+            .map(TopicName::toString)
+            .filter(topic -> shortenedTopicsPattern.matcher(topic.split("\\:\\/\\/")[1]).matches())
             .collect(Collectors.toList());
     }
 
