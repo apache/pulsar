@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -271,29 +271,35 @@ extends Cloneable</pre>
 </tr>
 <tr id="i22" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionTopicsMode-Mode-">subscriptionTopicsMode</a></span>(Mode&nbsp;mode)</code>
+<div class="block">Determines to which topics this consumer should be subscribed to - Persistent, Non-Persistent, or both.</div>
+</td>
+</tr>
+<tr id="i23" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionType-org.apache.pulsar.client.api.SubscriptionType-">subscriptionType</a></span>(<a href="../../../../../org/apache/pulsar/client/api/SubscriptionType.html" title="enum in org.apache.pulsar.client.api">SubscriptionType</a>&nbsp;subscriptionType)</code>
 <div class="block">Select the subscription type to be used when subscribing to the topic.</div>
 </td>
 </tr>
-<tr id="i23" class="rowColor">
+<tr id="i24" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topic-java.lang.String...-">topic</a></span>(String...&nbsp;topicNames)</code>
 <div class="block">Specify the topics this consumer will subscribe on.</div>
 </td>
 </tr>
-<tr id="i24" class="altColor">
+<tr id="i25" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topics-java.util.List-">topics</a></span>(List&lt;String&gt;&nbsp;topicNames)</code>
 <div class="block">Specify a list of topics that this consumer will subscribe on.</div>
 </td>
 </tr>
-<tr id="i25" class="rowColor">
+<tr id="i26" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.util.regex.Pattern-">topicsPattern</a></span>(java.util.regex.Pattern&nbsp;topicsPattern)</code>
 <div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
 </td>
 </tr>
-<tr id="i26" class="altColor">
+<tr id="i27" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.lang.String-">topicsPattern</a></span>(String&nbsp;topicsPattern)</code>
 <div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
@@ -775,6 +781,21 @@ extends Cloneable</pre>
 <h4>subscriptionInitialPosition</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;subscriptionInitialPosition(<a href="../../../../../org/apache/pulsar/client/api/SubscriptionInitialPosition.html" title="enum in org.apache.pulsar.client.api">SubscriptionInitialPosition</a>&nbsp;subscriptionInitialPosition)</pre>
 <div class="block">Set subscriptionInitialPosition for the consumer</div>
+</li>
+</ul>
+<a name="subscriptionTopicsMode-Mode-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>subscriptionTopicsMode</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;subscriptionTopicsMode(Mode&nbsp;mode)</pre>
+<div class="block">Determines to which topics this consumer should be subscribed to - Persistent, Non-Persistent, or both.
+ Only used with pattern subscriptions.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>mode</code> - Pattern subscription mode</dd>
+</dl>
 </li>
 </ul>
 <a name="intercept-org.apache.pulsar.client.api.ConsumerInterceptor...-">

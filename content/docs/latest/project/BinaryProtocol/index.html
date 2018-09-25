@@ -1001,9 +1001,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol specification</a></li>
+          
+          
           
           
           
@@ -1247,9 +1247,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol specification</a></li>
+          
+          
           
           
           
@@ -2529,6 +2529,12 @@ response will contain actual metadata.</p>
           <li>
             <a href="#pulsar.proto.CommandAck.ValidationError">
               ValidationError
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar.proto.CommandGetTopicsOfNamespace.Mode">
+              Mode
             </a>
           </li>
           
@@ -3981,6 +3987,16 @@ of any number previously specified</td>
               
               <td>required</td>
               <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">mode</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.CommandGetTopicsOfNamespace.Mode">Mode</a></td>
+              
+              <td>optional</td>
+              <td>PERSISTENT</td>
               <td></td>
             </tr>
              <!-- for field in fields -->
@@ -6216,6 +6232,50 @@ before being passed on to the application.</p>
             <tr>
               <td>DecryptionError</td>
               <td>4</td>
+              <td>
+</td>
+            </tr>
+             <!-- for value in values -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="enum-name" id="pulsar.proto.CommandGetTopicsOfNamespace.Mode">Mode</h5>
+        <p class="lead">
+</p>
+      </div>
+      <div class="card">
+        <h5>Enum values</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Number</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td>PERSISTENT</td>
+              <td>0</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>NON_PERSISTENT</td>
+              <td>1</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>ALL</td>
+              <td>2</td>
               <td>
 </td>
             </tr>
