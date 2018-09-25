@@ -33,6 +33,8 @@ PULSAR_API_ROOT = 'pulsar'
 PULSAR_FUNCTIONS_API_ROOT = 'functions'
 
 def import_class(from_path, full_class_name):
+  from_path = str(from_path)
+  full_class_name = str(full_class_name)
   kclass = import_class_from_path(from_path, full_class_name)
   if kclass is None:
     our_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
