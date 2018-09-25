@@ -63,4 +63,43 @@ public class PersistentTopicStatsTest {
         assertEquals(topicStats.replication.size(), 0);
     }
 
+    @Test
+    public void testPersistentTopicStatsAggregation() {
+        TopicStats topicStats1 = new TopicStats();
+        topicStats1.msgRateIn = 1;
+        topicStats1.msgThroughputIn = 1;
+        topicStats1.msgRateOut = 1;
+        topicStats1.msgThroughputOut = 1;
+        topicStats1.averageMsgSize = 1;
+        topicStats1.storageSize = 1;
+        topicStats1.publishers.add(new PublisherStats());
+        topicStats1.subscriptions.put("test_ns", new SubscriptionStats());
+        topicStats1.replication.put("test_ns", new ReplicatorStats());
+
+        TopicStats topicStats2 = new TopicStats();
+        topicStats2.msgRateIn = 1;
+        topicStats2.msgThroughputIn = 2;
+        topicStats2.msgRateOut = 3;
+        topicStats2.msgThroughputOut = 4;
+        topicStats2.averageMsgSize = 5;
+        topicStats2.storageSize = 6;
+        topicStats2.publishers.add(new PublisherStats());
+        topicStats2.subscriptions.put("test_ns", new SubscriptionStats());
+        topicStats2.replication.put("test_ns", new ReplicatorStats());
+
+        TopicStats target = new TopicStats();
+        target.add(topicStats1);
+        target.add(topicStats2);
+
+        assertEquals(target.msgRateIn, 2.0);
+        assertEquals(target.msgThroughputIn, 3.0);
+        assertEquals(target.msgRateOut, 4.0);
+        assertEquals(target.msgThroughputOut, 5.0);
+        assertEquals(target.averageMsgSize, 3.0);
+        assertEquals(target.storageSize, 7);
+        assertEquals(target.publishers.size(), 1);
+        assertEquals(target.subscriptions.size(), 1);
+        assertEquals(target.replication.size(), 1);
+    }
+
 }
