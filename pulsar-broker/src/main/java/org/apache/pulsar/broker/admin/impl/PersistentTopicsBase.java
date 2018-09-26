@@ -107,7 +107,9 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1450,7 +1452,11 @@ public class PersistentTopicsBase extends AdminResource {
             }
             policies.backlog_quota_map.put(backlogQuotaType, backlogQuota);
             path = path(POLICIES, namespaceName.toString(), topicName.getLocalName());
-            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            if (globalZk().exists(path, null) == null) {
+                globalZk().create(path, jsonMapper().writeValueAsBytes(policies), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            } else {
+                globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            }
             policiesCache().invalidate(path(POLICIES, namespaceName.toString(), topicName.getLocalName()));
             log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, map={}", clientAppId(), namespaceName, topicName.getLocalName(),
                     jsonMapper().writeValueAsString(policies.backlog_quota_map));
