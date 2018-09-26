@@ -98,11 +98,13 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.KeeperException;
@@ -1411,47 +1413,111 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
-
-        //todo
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        validateAdminAccessForTenant(namespaceName.getTenant());
-        validatePoliciesReadOnlyAccess();
-
         if (backlogQuotaType == null) {
-            backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage;
+            backlogQuotaType = BacklogQuotaType.destination_storage;
         }
-
-        Policies policy = null;
         try {
-            policy = policiesCache().get(path(POLICIES, topicName.getNamespace(), topicName.getLocalName()))
-                    .orElse(null);
-        } catch (KeeperException.NoNodeException ignore) {
+            Stat nodeStat = new Stat();
+            String path = path(POLICIES, namespaceName.toString(), topicName.getLocalName());
+            byte[] content = null;
+            try {
+                content = globalZk().getData(path, null, nodeStat);
+            } catch (KeeperException.NoNodeException e) {
+                log.warn("[{}] Fail to get backlog configuration for namespace {} topic {}, back to use namespace backlog default.",
+                        clientAppId(), namespaceName.toString(), topicName.getLocalName());
+            }
+            if (content == null) {
+                path = path(POLICIES, namespaceName.toString());
+                content = globalZk().getData(path, null, null);
+            }
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+            RetentionPolicies r = policies.retention_policies;
+            if (r != null) {
+                Policies p = new Policies();
+                p.backlog_quota_map.put(backlogQuotaType, backlogQuota);
+                if (!checkQuotas(p, r)) {
+                    log.warn(
+                            "[{}] Failed to update backlog configuration for namespace {} topic {}: conflicts with retention quota",
+                            clientAppId(), namespaceName, topicName.getLocalName());
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Backlog Quota exceeds configured retention quota for namespace. Please increase retention quota and retry");
+                }
+            }
+            policies.backlog_quota_map.put(backlogQuotaType, backlogQuota);
+            path = path(POLICIES, namespaceName.toString(), topicName.getLocalName());
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString(), topicName.getLocalName()));
+            log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, map={}", clientAppId(), namespaceName, topicName.getLocalName(),
+                    jsonMapper().writeValueAsString(policies.backlog_quota_map));
+
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update backlog quota map for namespace {} topic {}: does not exist", clientAppId(),
+                    namespaceName, topicName.getLocalName());
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update backlog quota map for namespace {} topic {}: concurrent modification", clientAppId(),
+                    namespaceName, topicName.getLocalName());
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to get topic policy {}", clientAppId(), topicName, e);
+            log.error("[{}] Failed to update backlog quota map for namespace {} topic {}", clientAppId(), namespaceName, topicName.getLocalName(), e);
             throw new RestException(e);
         }
-
-        if (policy == null) {
-            try {
-                policy = policiesCache().get(path(POLICIES, topicName.getNamespace())).orElse(null);
-            } catch (KeeperException.NoNodeException e) {
-                log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(), topicName.getNamespace());
-                throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-            } catch (Exception e) {
-                log.error("[{}] Failed to get topic backlog {}", clientAppId(), topicName.getNamespace(), e);
-                throw new RestException(e);
-            }
-        }
-
-        policy.backlog_quota_map.put(backlogQuotaType, backlogQuota);
-
-
     }
 
     protected void internalRemoveBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType) {
-        //todo
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        if (backlogQuotaType == null) {
+            backlogQuotaType = BacklogQuotaType.destination_storage;
+        }
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString(), topicName.getLocalName());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+            policies.backlog_quota_map.remove(backlogQuotaType);
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString(), topicName.getLocalName()));
+            log.info("[{}] Successfully removed backlog namespace={}, topic={} quota={}", clientAppId(), namespaceName, topicName.getLocalName(),
+                    backlogQuotaType);
+
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update backlog quota map for namespace {} topic {}: does not exist", clientAppId(),
+                    namespaceName, topicName.getLocalName());
+            throw new RestException(Status.NOT_FOUND, "Topic does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update backlog quota map for namespace {} topic {}: concurrent modification", clientAppId(),
+                    namespaceName, topicName.getLocalName());
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update backlog quota map for namespace {} topic {}", clientAppId(), namespaceName, topicName.getLocalName(), e);
+            throw new RestException(e);
+        }
+    }
+
+    private boolean checkQuotas(Policies policies, RetentionPolicies retention) {
+        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = policies.backlog_quota_map;
+        if (backlog_quota_map.isEmpty() || retention.getRetentionSizeInMB() == 0 || retention.getRetentionSizeInMB() == -1) {
+            return true;
+        }
+        BacklogQuota quota = backlog_quota_map.get(BacklogQuotaType.destination_storage);
+        if (quota == null) {
+            quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
+        }
+        if (quota.getLimit() >= ((long) retention.getRetentionSizeInMB() * 1024 * 1024)) {
+            return false;
+        }
+        return true;
     }
 
     protected MessageId internalTerminate(boolean authoritative) {

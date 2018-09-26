@@ -386,7 +386,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {
-//        return pulsar().getBrokerService().getBacklogQuotaManager().getBacklogQuota(namespace, namespacePath);
+        return pulsar().getBrokerService().getBacklogQuotaManager().getBacklogQuota(namespace, namespacePath);
     }
 
     protected DispatchRate dispatchRate() {
