@@ -358,7 +358,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
         }
-        for (Assignment assignment : assignments) {
+        if (runtimeFactory.externallyManaged()) {
+            Assignment assignment = assignments.iterator().next();
             final String assignedWorkerId = assignment.getWorkerId();
             final String workerId = this.workerConfig.getWorkerId();
             String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
@@ -376,14 +377,43 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] has not been assigned yet", fullyQualifiedInstanceId);
                     }
-                    continue;
+                    return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                            .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
                 }
                 if (restart) {
-                    this.functionAdmin.functions().restartFunction(tenant, namespace, functionName,
-                            assignment.getInstance().getInstanceId());
+                    this.functionAdmin.functions().restartFunction(tenant, namespace, functionName);
                 } else {
-                    this.functionAdmin.functions().stopFunction(tenant, namespace, functionName,
-                            assignment.getInstance().getInstanceId());
+                    this.functionAdmin.functions().stopFunction(tenant, namespace, functionName);
+                }
+            }
+        } else {
+            for (Assignment assignment : assignments) {
+                final String assignedWorkerId = assignment.getWorkerId();
+                final String workerId = this.workerConfig.getWorkerId();
+                String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+                if (assignedWorkerId.equals(workerId)) {
+                    stopFunction(fullyQualifiedInstanceId, restart);
+                } else {
+                    List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
+                    WorkerInfo workerInfo = null;
+                    for (WorkerInfo entry : workerInfoList) {
+                        if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                            workerInfo = entry;
+                        }
+                    }
+                    if (workerInfo == null) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] has not been assigned yet", fullyQualifiedInstanceId);
+                        }
+                        continue;
+                    }
+                    if (restart) {
+                        this.functionAdmin.functions().restartFunction(tenant, namespace, functionName,
+                                assignment.getInstance().getInstanceId());
+                    } else {
+                        this.functionAdmin.functions().stopFunction(tenant, namespace, functionName,
+                                assignment.getInstance().getInstanceId());
+                    }
                 }
             }
         }
@@ -420,7 +450,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             this.functionActioner.stopFunction(functionRuntimeInfo);
             try {
                 if(restart) {
-                    this.functionActioner.startFunction(functionRuntimeInfo);    
+                    this.functionActioner.startFunction(functionRuntimeInfo);
                 }
             } catch (Exception ex) {
                 log.info("{} Error re-starting function", fullyQualifiedInstanceId, ex);

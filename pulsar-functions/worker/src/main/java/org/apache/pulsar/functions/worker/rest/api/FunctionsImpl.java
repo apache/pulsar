@@ -359,6 +359,13 @@ public class FunctionsImpl {
             return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
+        int instanceIdInt = Integer.parseInt(instanceId);
+        if (instanceIdInt < 0 || instanceIdInt >= functionMetaData.getFunctionDetails().getParallelism()) {
+            log.error("instanceId in getFunctionStatus out of bounds @ /{}/{}/{}", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Invalid InstanceId"))).build();
+        }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         FunctionStatus functionStatus = null;
@@ -730,7 +737,6 @@ public class FunctionsImpl {
         validateGetFunctionRequestParams(tenant, namespace, functionName);
         if (instanceId == null) {
             throw new IllegalArgumentException("Function Instance Id is not provided");
-
         }
     }
 
