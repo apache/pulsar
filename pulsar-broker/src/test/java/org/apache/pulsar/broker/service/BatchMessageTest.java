@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 
 import com.google.common.collect.Lists;
 
@@ -554,7 +555,11 @@ public class BatchMessageTest extends BrokerTestBase {
         assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(),
                 (numMsgs / 2) / numMsgsInBatch + numMsgs / 2);
-        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+        consumer = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                    .subscribe();
 
         Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i < numMsgs; i++) {
@@ -572,8 +577,9 @@ public class BatchMessageTest extends BrokerTestBase {
         if (lastunackedMsg != null) {
             consumer.acknowledgeCumulative(lastunackedMsg);
         }
-        Thread.sleep(100);
-        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
+
+        retryStrategically(t -> topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog() == 0, 100, 100);
+
         consumer.close();
         producer.close();
         noBatchProducer.close();
