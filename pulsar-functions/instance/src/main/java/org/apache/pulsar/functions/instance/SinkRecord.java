@@ -72,4 +72,8 @@ public class SinkRecord<T> implements Record<T> {
         sourceRecord.fail();
     }
 
+    @Override
+    public Optional<String> getDestinationTopic() {
+        return sourceRecord.getDestinationTopic();
+    }
 }
