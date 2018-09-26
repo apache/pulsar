@@ -111,9 +111,9 @@ public class RuntimeSpawner implements AutoCloseable {
         return runtime.getFunctionStatus(instanceId).thenApply(f -> {
            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
            builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(String.valueOf(instanceId));
-           if (runtimeDeathException != null) {
-               builder.setFailureException(runtimeDeathException.getMessage());
-           }
+            if (!f.getRunning() && runtimeDeathException != null) {
+                builder.setFailureException(runtimeDeathException.getMessage());
+            }
            return builder.build();
         });
     }

@@ -32,7 +32,7 @@
 
 <!-- /TOC -->
 Examples for using the API to publish and consume messages can be found on
-https://github.com/apache/incubator-pulsar/tree/master/pulsar-client-cpp/examples
+https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples
 
 ## Requirements
 

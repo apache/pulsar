@@ -125,8 +125,7 @@ public class BrokerBkEnsemblesTests {
             pulsar.close();
             bkEnsemble.stop();
         } catch (Throwable t) {
-            LOG.error("Error cleaning up broker test setup state", t);
-            Assert.fail("Broker test cleanup failed");
+            LOG.warn("Error cleaning up broker test setup state", t);
         }
     }
 

@@ -46,9 +46,9 @@ fi
 
 brew link --force protobuf260
 
-rm -rf incubator-pulsar
-git clone --depth 1 --branch $GITTAG https://github.com/apache/incubator-pulsar.git
-cd incubator-pulsar/pulsar-client-cpp
+rm -rf pulsar
+git clone --depth 1 --branch $GITTAG https://github.com/apache/pulsar.git
+cd pulsar/pulsar-client-cpp
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
 make _pulsar -j8
 cd python

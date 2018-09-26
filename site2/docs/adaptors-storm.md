@@ -101,4 +101,4 @@ PulsarBolt bolt = new PulsarBolt(boltConf, clientConf);
 
 ## Example
 
-You can find a complete example [here](https://github.com/apache/incubator-pulsar/tree/master/pulsar-storm/src/test/java/org/apache/pulsar/storm/example/StormExample.java).
+You can find a complete example [here](https://github.com/apache/pulsar/tree/master/pulsar-storm/src/test/java/org/apache/pulsar/storm/example/StormExample.java).

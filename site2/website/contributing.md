@@ -7,7 +7,7 @@ We use a review-then-commit workflow in Pulsar for all contributions.
 **For larger contributions or those that affect multiple components:**
 
 1. **Engage**: We encourage you to work with the Pulsar community on the
-   [Github Issues](https://github.com/apache/incubator-pulsar/issues) and
+   [Github Issues](https://github.com/apache/pulsar/issues) and
    [developer’s mailing list](/contact) to identify
    good areas for contribution.
 1. **Design:** More complicated contributions will likely benefit from some early discussion in
@@ -17,7 +17,7 @@ We use a review-then-commit workflow in Pulsar for all contributions.
 
 1. **Code:** The best part ;-)
 1. **Review:** Submit a pull request with your contribution to our
-   [GitHub Repo](https://github.com/apache/incubator-pulsar). Work with a committer to review and
+   [GitHub Repo](https://github.com/apache/pulsar). Work with a committer to review and
    iterate on the code, if needed.
 1. **Commit:** Once at least 2 Pulsar committers have approved the pull request, a Pulsar committer
     will merge it into the master branch (and potentially backport to stable branches in case of
@@ -29,22 +29,22 @@ We look forward to working with you!
 
 ### Mailing list(s)
 
-We discuss design and implementation issues on the [dev@pulsar.incubator.apache.org](mailto:dev@pulsar.incubator.apache.org)
+We discuss design and implementation issues on the [dev@pulsar.apache.org](mailto:dev@pulsar.apache.org)
 mailing list, which is archived [here](https://lists.apache.org/list.html?dev@pulsar.apache.org).
-Join by emailing [`dev-subscribe@pulsar.incubator.apache.org`](mailto:dev-subscribe@pulsar.incubator.apache.org).
+Join by emailing [`dev-subscribe@pulsar.apache.org`](mailto:dev-subscribe@pulsar.apache.org).
 
 If interested, you can also join the other [mailing lists](/contact).
 
 ### Github Issues
 
-We are using [Github Issues](https://github.com/apache/incubator-pulsar/issues) as the issue tracking
+We are using [Github Issues](https://github.com/apache/pulsar/issues) as the issue tracking
 and project management tool, as well as a way to communicate among a very diverse and distributed set
 of contributors. To be able to gather feedback, avoid frustration, and avoid duplicated efforts all
 Pulsar related work are being tracked there.
 
 If you do not already have an Github account, sign up [here](https://github.com/join).
 
-If a quick [search](https://github.com/apache/incubator-pulsar/issues) doesn’t turn up an existing
+If a quick [search](https://github.com/apache/pulsar/issues) doesn’t turn up an existing
 Github issue for the work you want to contribute, create it. Please discuss your idea with a
 committer in Github or, alternatively, on the developer mailing list.
 
@@ -72,7 +72,7 @@ To avoid potential frustration during the code review cycle, we encourage you to
 design non-trivial contributions with the Pulsar community before you start coding.
 
 We are using "Pulsar Improvement Proposals" (or "PIP") for managing major changes to Pulsar. The
-list of all PIPs is maintained in the Pulsar wiki at https://github.com/apache/incubator-pulsar/wiki.
+list of all PIPs is maintained in the Pulsar wiki at https://github.com/apache/pulsar/wiki.
 
 ## Code
 
@@ -95,7 +95,7 @@ If you do not already have a personal GitHub account, sign up [here](https://git
 
 #### Fork the repository on GitHub
 
-Go to the [Pulsar GitHub Repo](https://github.com/apache/incubator-pulsar/) and fork the repository
+Go to the [Pulsar GitHub Repo](https://github.com/apache/pulsar/) and fork the repository
 to your own private account. This will be your private workspace for staging changes.
 
 #### Clone the repository locally
@@ -108,13 +108,13 @@ GitHub by following [their instructions](https://help.github.com/articles/genera
 
 Clone your personal Pulsar’s GitHub fork.
 
-    $ git clone https://github.com/<Github_user>/incubator-pulsar.git
-    $ cd incubator-pulsar
+    $ git clone https://github.com/<Github_user>/pulsar.git
+    $ cd pulsar
 
 Add Apache Repo as additional Git remotes, where you can sync the changes (for committers, you need
 these two remotes for pushing changes).
 
-	$ git remote add apache https://github.com/apache/incubator-pulsar
+	$ git remote add apache https://github.com/apache/pulsar
 
 You are now ready to start developing!
 
@@ -226,7 +226,7 @@ Organize your commits to make a committer’s job easier when reviewing. Committ
 
 You'll then push to your branch on GitHub. Note: when updating your commit after pull request feedback and use squash to get back to one commit, you will need to do a force submit to the branch on your repo.
 
-Navigate to the [Pulsar GitHub Repo](https://github.com/apache/incubator-pulsar) to create a pull request.
+Navigate to the [Pulsar GitHub Repo](https://github.com/apache/pulsar) to create a pull request.
 
 In the pull request description, please include:
 
@@ -290,10 +290,10 @@ For smaller contributions, however, this is not required. In this case, we rely 
 
 ### Website
 
-The Pulsar website is in the same [Pulsar Github Repo](https://github.com/apache/incubator-pulsar). The source files are hosted under `site2` directory in `master` branch,
+The Pulsar website is in the same [Pulsar Github Repo](https://github.com/apache/pulsar). The source files are hosted under `site2` directory in `master` branch,
 the static content is generated by CI job and merged into the `asf-site` branch.
 
-Follow the [README](https://github.com/apache/incubator-pulsar/tree/master/site2) for making contributions to the website.
+Follow the [README](https://github.com/apache/pulsar/tree/master/site2) for making contributions to the website.
 
 ## Becoming a committer
 

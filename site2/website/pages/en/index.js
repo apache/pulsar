@@ -164,17 +164,8 @@ const KeyFeautresGrid = props => (
 const ApacheBlock = prop => (
   <Container>
     <div className="Block" style={{textAlign: 'center'}}>
-      <div className="" style={{alignItems: 'center', margin: 'auto'}}>
-        <img src={imgUrl('apache_incubator.png')} />
-      </div>
       <p>
-        Apache Pulsar is an effort undergoing incubation at The <a href="http://www.apache.org">Apache Software Foundation (ASF)</a> 
-        sponsored by the Apache Incubator PMC. Incubation is required of all newly accepted projects 
-        until a further review indicates that the infrastructure, communications, and decision making 
-        process have stabilized in a manner consistent with other successful ASF projects. 
-        While incubation status is not necessarily a reflection of the completeness or stability of the code, 
-        it does indicate that the project has yet to be fully endorsed by the ASF.
-        Apache Pulsar (incubating) is available under the <a href="https://www.apache.org/licenses">Apache License, version 2.0</a>.
+        Apache Pulsar is available under the <a href="https://www.apache.org/licenses">Apache License, version 2.0</a>.
       </p>
     </div>
   </Container>
