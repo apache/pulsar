@@ -230,7 +230,9 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     )
     @ApiResponses(value = {
         @ApiResponse(code = 400, message = "Invalid request"),
-        @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+        @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+        @ApiResponse(code = 404, message = "The key does not exist"),
+        @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
     public Response getFunctionState(final @PathParam("tenant") String tenant,
