@@ -42,7 +42,7 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
-    public String getInstanceId() {
+    public int getInstanceId() {
         return this.context.getInstanceId();
     }
 
