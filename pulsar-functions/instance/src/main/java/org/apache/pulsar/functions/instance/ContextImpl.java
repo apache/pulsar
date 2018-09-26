@@ -177,8 +177,13 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
-    public String getInstanceId() {
-        return config.getInstanceId().toString();
+    public int getInstanceId() {
+        return config.getInstanceId();
+    }
+
+    @Override
+    public int getNumInstances() {
+        return config.getFunctionDetails().getParallelism();
     }
 
     @Override

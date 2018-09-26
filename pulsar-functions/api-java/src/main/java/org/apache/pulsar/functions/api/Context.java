@@ -86,7 +86,14 @@ public interface Context {
      *
      * @return the instance id
      */
-    String getInstanceId();
+    int getInstanceId();
+
+    /**
+     * Get the number of instances that invoke this function.
+     *
+     * @return the number of instances that invoke this function.
+     */
+    int getNumInstances();
 
     /**
      * The version of the function that we are executing
