@@ -35,10 +35,19 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 @EqualsAndHashCode
 @ToString
 public class InstanceConfig {
-    private String instanceId;
+    private int instanceId;
     private String functionId;
     private String functionVersion;
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;
     private int port;
+
+    /**
+     * Get the string representation of {@link #getInstanceId()}.
+     *
+     * @return the string representation of {@link #getInstanceId()}.
+     */
+    public String getInstanceName() {
+        return "" + instanceId;
+    }
 }

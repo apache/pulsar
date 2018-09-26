@@ -7,7 +7,7 @@ sidebar_label: Go
 The Pulsar Go client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
 > #### API docs available as well
-> For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar).
+> For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/pulsar/pulsar-client-go/pulsar).
 
 
 ## Installation
@@ -28,19 +28,19 @@ You can install the `pulsar` library locally using `go get`:
 > from latest master. You need to make sure you have installed the right pulsar cpp client library.
 
 ```bash
-$ go get -u github.com/apache/incubator-pulsar/pulsar-client-go/pulsar
+$ go get -u github.com/apache/pulsar/pulsar-client-go/pulsar
 ```
 
 Or you can use [dep](https://github.com/golang/dep) for managing the dependencies.
 
 ```bash
-$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v{{pulsar:version}}
+$ dep ensure -add github.com/apache/pulsar/pulsar-client-go/pulsar@v{{pulsar:version}}
 ```
 
 Once installed locally, you can import it into your project:
 
 ```go
-import "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+import "github.com/apache/pulsar/pulsar-client-go/pulsar"
 ```
 
 ## Connection URLs
@@ -75,7 +75,7 @@ import (
     "log"
     "runtime"
 
-    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
@@ -153,7 +153,7 @@ import (
     "context"
     "fmt"
 
-    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
@@ -276,7 +276,7 @@ import (
     "context"
     "log"
 
-    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
@@ -359,7 +359,7 @@ import (
     "context"
     "log"
 
-    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {

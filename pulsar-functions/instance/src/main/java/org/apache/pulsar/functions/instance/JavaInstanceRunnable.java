@@ -51,7 +51,6 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -65,7 +64,6 @@ import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.Build
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
-import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.functions.utils.ConsumerConfig;
@@ -144,7 +142,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // initialize the thread context
         ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
-        ThreadContext.put("instance", instanceConfig.getInstanceId());
+        ThreadContext.put("instance", instanceConfig.getInstanceName());
 
         log.info("Starting Java Instance {} : \n Details = {}",
             instanceConfig.getFunctionDetails().getName(), instanceConfig.getFunctionDetails());
@@ -239,17 +237,18 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void loadJars() throws Exception {
-
         try {
             // Let's first try to treat it as a nar archive
-            fnCache.registerFunctionInstanceWithArchive(instanceConfig.getFunctionId(), instanceConfig.getInstanceId(),
-                    jarFile);
+            fnCache.registerFunctionInstanceWithArchive(
+                instanceConfig.getFunctionId(),
+                instanceConfig.getInstanceName(),
+                jarFile);
         } catch (FileNotFoundException e) {
             log.info("For Function {} Loading as NAR failed with {}; treating it as Jar instead", instanceConfig, e);
             // create the function class loader
             fnCache.registerFunctionInstance(
                     instanceConfig.getFunctionId(),
-                    instanceConfig.getInstanceId(),
+                    instanceConfig.getInstanceName(),
                     Arrays.asList(jarFile),
                     Collections.emptyList());
         }
@@ -393,7 +392,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // once the thread quits, clean up the instance
         fnCache.unregisterFunctionInstance(
                 instanceConfig.getFunctionId(),
-                instanceConfig.getInstanceId());
+                instanceConfig.getInstanceName());
         log.info("Unloading JAR files for function {}", instanceConfig);
     }
 

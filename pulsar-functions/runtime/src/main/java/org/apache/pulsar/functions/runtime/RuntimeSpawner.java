@@ -106,11 +106,11 @@ public class RuntimeSpawner implements AutoCloseable {
 
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
         return runtime.getFunctionStatus().thenApply(f -> {
-           FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-           builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(instanceConfig.getInstanceId());
-           if (runtimeDeathException != null) {
-               builder.setFailureException(runtimeDeathException.getMessage());
-           }
+            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
+            builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(instanceConfig.getInstanceName());
+            if (!f.getRunning() && runtimeDeathException != null) {
+                builder.setFailureException(runtimeDeathException.getMessage());
+            }
            return builder.build();
         });
     }

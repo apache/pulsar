@@ -19,6 +19,21 @@
 package org.apache.pulsar.io.core;
 
 public interface SinkContext {
+
+    /**
+     * The id of the instance that invokes this function.
+     *
+     * @return the instance id
+     */
+    int getInstanceId();
+
+    /**
+     * Get the number of instances that invoke this function.
+     *
+     * @return the number of instances that invoke this function.
+     */
+    int getNumInstances();
+
     /**
      * Record a user defined metric
      * @param metricName The name of the metric

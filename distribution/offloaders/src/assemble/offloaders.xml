@@ -29,11 +29,6 @@
   <includeBaseDirectory>true</includeBaseDirectory>
   <files>
     <file>
-      <source>${basedir}/../../DISCLAIMER</source>
-      <outputDirectory>.</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
-    <file>
       <source>${basedir}/../../LICENSE</source>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>

@@ -211,4 +211,4 @@ to start contributing.
 
 Your contributed translations will be licensed under [Apache License V2](https://www.apache.org/licenses/LICENSE-2.0).
 Pulsar Committers will review those translations. If your translations are not reviewed or approved by any committers,
-feel free to reach out to use via [slack channel](https://apache-pulsar.herokuapp.com/) or [mailing lists](https://pulsar.incubator.apache.org/contact/).
+feel free to reach out to use via [slack channel](https://apache-pulsar.herokuapp.com/) or [mailing lists](https://pulsar.apache.org/contact/).

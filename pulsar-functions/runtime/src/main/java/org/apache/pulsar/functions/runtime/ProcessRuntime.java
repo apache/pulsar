@@ -128,7 +128,7 @@ class ProcessRuntime implements Runtime {
             // TODO:- Find a platform independent way of controlling memory for a python application
         }
         args.add("--instance_id");
-        args.add(instanceConfig.getInstanceId());
+        args.add(instanceConfig.getInstanceName());
         args.add("--function_id");
         args.add(instanceConfig.getFunctionId());
         args.add("--function_version");
