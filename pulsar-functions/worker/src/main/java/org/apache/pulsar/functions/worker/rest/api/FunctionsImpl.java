@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.pulsar.functions.utils.Reflections.createInstance;
 import static org.apache.pulsar.functions.utils.Utils.FILE;
 import static org.apache.pulsar.functions.utils.Utils.HTTP;
@@ -27,6 +29,9 @@ import static org.apache.pulsar.functions.utils.functioncache.FunctionClassLoade
 
 import com.google.gson.Gson;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -50,6 +55,11 @@ import javax.ws.rs.core.StreamingOutput;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.bookkeeper.api.StorageClient;
+import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.api.kv.result.KeyValue;
+import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.commons.io.IOUtils;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -467,7 +477,7 @@ public class FunctionsImpl {
             return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
         }
     }
-    
+
     public Response getFunctionStatus(final String tenant, final String namespace, final String functionName)
             throws IOException {
 
@@ -673,6 +683,65 @@ public class FunctionsImpl {
         }
     }
 
+    public Response getFunctionState(final String tenant, final String namespace,
+                                     final String functionName, final String key) {
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionStateParams(tenant, namespace, functionName, key);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid getFunctionState request @ /{}/{}/{}/{}",
+                tenant, namespace, functionName, key, e);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        String tableNs = String.format(
+            "%s_%s",
+            tenant,
+            namespace).replace('-', '_');
+        String tableName = functionName;
+
+        String stateStorageServiceUrl = worker().getWorkerConfig().getStateStorageServiceUrl();
+
+        try (StorageClient client = StorageClientBuilder.newBuilder()
+            .withSettings(StorageClientSettings.newBuilder()
+                .serviceUri(stateStorageServiceUrl)
+                .clientName("functions-admin")
+                .build())
+            .withNamespace(tableNs)
+            .build()) {
+            try (Table<ByteBuf, ByteBuf> table = result(client.openTable(tableName))) {
+                try (KeyValue<ByteBuf, ByteBuf> kv = result(table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))))) {
+                    if (null == kv) {
+                        return Response.status(Status.NOT_FOUND)
+                            .entity(new String("key '" + key + "' doesn't exist."))
+                            .build();
+                    } else {
+                        String value;
+                        if (kv.isNumber()) {
+                            value = "value : " + kv.numberValue() + ", version : " + kv.version();
+                        } else {
+                            value = "value : " + new String(ByteBufUtil.getBytes(kv.value()), UTF_8)
+                                + ", version : " + kv.version();
+                        }
+                        return Response.status(Status.OK)
+                            .entity(new String(value))
+                            .build();
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
+                    tenant, namespace, functionName, key, e);
+                return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+            }
+        }
+    }
+
     public Response uploadFunction(final InputStream uploadedInputStream, final String path) {
         // validate parameters
         try {
@@ -791,6 +860,23 @@ public class FunctionsImpl {
         }
 
         return functionDetails;
+    }
+
+    private void validateGetFunctionStateParams(String tenant, String namespace, String functionName, String key)
+        throws IllegalArgumentException {
+
+        if (tenant == null) {
+            throw new IllegalArgumentException("Tenant is not provided");
+        }
+        if (namespace == null) {
+            throw new IllegalArgumentException("Namespace is not provided");
+        }
+        if (functionName == null) {
+            throw new IllegalArgumentException("Function Name is not provided");
+        }
+        if (key == null) {
+            throw new IllegalArgumentException("Key is not provided");
+        }
     }
 
     private boolean isFunctionCodeBuiltin(FunctionDetails functionDetails) {

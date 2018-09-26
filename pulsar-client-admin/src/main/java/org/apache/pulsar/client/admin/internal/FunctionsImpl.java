@@ -343,6 +343,21 @@ public class FunctionsImpl extends BaseResource implements Functions {
         }
     }
 
+    public String getFunctionState(String tenant, String namespace, String function, String key)
+        throws PulsarAdminException {
+        try {
+            Response response = request(functions.path(tenant)
+                .path(namespace).path(function).path("state").path(key)).get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            return response.readEntity(String.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+
     public static void mergeJson(String json, Builder builder) throws IOException {
         JsonFormat.parser().merge(json, builder);
     }
