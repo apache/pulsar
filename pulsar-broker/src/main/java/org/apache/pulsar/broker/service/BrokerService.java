@@ -939,10 +939,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      */
     public boolean isBacklogExceeded(PersistentTopic topic) {
         TopicName topicName = TopicName.get(topic.getName());
-        long backlogQuotaLimitInBytes = getBacklogQuotaManager().getBacklogQuotaLimit(topicName.getNamespace());
+        long backlogQuotaLimitInBytes = getBacklogQuotaManager().getBacklogQuotaLimit(topicName);
         if (backlogQuotaLimitInBytes < 0) {
             return false;
         }
+
         if (log.isDebugEnabled()) {
             log.debug("[{}] - backlog quota limit = [{}]", topic.getName(), backlogQuotaLimitInBytes);
         }

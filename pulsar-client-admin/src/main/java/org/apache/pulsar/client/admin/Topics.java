@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -1045,4 +1046,89 @@ public interface Topics {
      * @throws PulsarAdminException
      */
     MessageId getLastMessageId(String topic) throws PulsarAdminException;
+
+    /**
+     * Get backlog quota map on a topic.
+     * <p>
+     * Get backlog quota map on a topic.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "namespace_memory" : {
+     *          "limit" : "134217728",
+     *          "policy" : "consumer_backlog_eviction"
+     *      },
+     *      "destination_storage" : {
+     *          "limit" : "-1",
+     *          "policy" : "producer_exception"
+     *      }
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Permission denied
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic) throws PulsarAdminException;
+
+    /**
+     * Set a backlog quota for a topic.
+     * <p>
+     * Set a backlog quota on a topic.
+     * <p>
+     * The backlog quota can be set on this resource:
+     * <p>
+     * Request parameter example:
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "limit" : "134217728",
+     *     "policy" : "consumer_backlog_eviction"
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param backlogQuota
+     *            the new BacklogQuota
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException;
+
+    /**
+     * Remove a backlog quota policy from a topic.
+     * <p>
+     * Remove a backlog quota policy from a topic.
+     * <p>
+     * The namespace backlog policy will fall back to the default.
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeBacklogQuota(String topic) throws PulsarAdminException;
 }

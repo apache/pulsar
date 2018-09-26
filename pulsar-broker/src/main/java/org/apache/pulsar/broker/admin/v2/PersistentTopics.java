@@ -46,10 +46,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 
 import io.swagger.annotations.Api;
@@ -1006,5 +1007,45 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetLastMessageId(authoritative);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/backlogQuotaMap")
+    @ApiOperation(value = "Get backlog quota map on a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic policy does not exist") })
+    public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
+                                                                  @PathParam("namespace") String namespace,
+                                                                  @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        Policies policies = getTopicPolicies(topicName);
+        return policies.backlog_quota_map;
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/backlogQuota")
+    @ApiOperation(value = " Set a backlog quota for a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Specified backlog quota exceeds retention quota. Increase retention quota and retry request") })
+    public void setBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetBacklogQuota(backlogQuotaType, backlogQuota);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/backlogQuota")
+    @ApiOperation(value = "Remove a backlog quota policy from a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void removeBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                   @PathParam("topic") @Encoded String encodedTopic,
+                                   @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalRemoveBacklogQuota(backlogQuotaType);
     }
 }

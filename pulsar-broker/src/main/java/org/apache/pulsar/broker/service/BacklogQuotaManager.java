@@ -31,10 +31,10 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
-import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,21 +58,28 @@ public class BacklogQuotaManager {
         return this.defaultQuota;
     }
 
-    public BacklogQuota getBacklogQuota(String namespace, String policyPath) {
+    public BacklogQuota getBacklogQuota(TopicName topicName) {
+        String policyPath = AdminResource.path(POLICIES, topicName.getNamespace(), topicName.getLocalName());
         try {
+            try {
+                if (!zkCache.get(policyPath).isPresent()) {
+                    policyPath = AdminResource.path(POLICIES, topicName.getNamespace());
+                }
+            } catch (KeeperException.NoNodeException ignore) {
+                policyPath = AdminResource.path(POLICIES, topicName.getNamespace());
+            }
             return zkCache.get(policyPath)
                     .map(p -> p.backlog_quota_map.getOrDefault(BacklogQuotaType.destination_storage, defaultQuota))
                     .orElse(defaultQuota);
         } catch (Exception e) {
-            log.error(String.format("Failed to read policies data, will apply the default backlog quota: namespace=%s",
-                    namespace), e);
+            log.error(String.format("Failed to read policies data, will apply the default backlog quota: policyPath=%s",
+                    policyPath), e);
             return this.defaultQuota;
         }
     }
 
-    public long getBacklogQuotaLimit(String namespace) {
-        String policyPath = AdminResource.path(POLICIES, namespace);
-        return getBacklogQuota(namespace, policyPath).getLimit();
+    public long getBacklogQuotaLimit(TopicName topicName) {
+        return getBacklogQuota(topicName).getLimit();
     }
 
     /**
@@ -83,10 +90,7 @@ public class BacklogQuotaManager {
      */
     public void handleExceededBacklogQuota(PersistentTopic persistentTopic) {
         TopicName topicName = TopicName.get(persistentTopic.getName());
-        String namespace = topicName.getNamespace();
-        String policyPath = AdminResource.path(POLICIES, namespace);
-
-        BacklogQuota quota = getBacklogQuota(namespace, policyPath);
+        BacklogQuota quota = getBacklogQuota(topicName);
         log.info("Backlog quota exceeded for topic [{}]. Applying [{}] policy", persistentTopic.getName(),
                 quota.getPolicy());
         switch (quota.getPolicy()) {

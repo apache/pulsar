@@ -386,7 +386,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {
-        return pulsar().getBrokerService().getBacklogQuotaManager().getBacklogQuota(namespace, namespacePath);
+//        return pulsar().getBrokerService().getBacklogQuotaManager().getBacklogQuota(namespace, namespacePath);
     }
 
     protected DispatchRate dispatchRate() {
@@ -410,6 +410,17 @@ public abstract class AdminResource extends PulsarWebResource {
                 pulsar().getConfiguration().getSubscribeThrottlingRatePerConsumer(),
                 pulsar().getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
         );
+    }
+    protected Policies getTopicPolicies(TopicName topicName) {
+        try {
+            return policiesCache().get(AdminResource.path(POLICIES, topicName.getNamespace(), topicName.getLocalName()))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic policy does not exist"));
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
+            throw new RestException(e);
+        }
     }
 
     public static ObjectMapper jsonMapper() {

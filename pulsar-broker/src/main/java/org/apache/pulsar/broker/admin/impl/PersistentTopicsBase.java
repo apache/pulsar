@@ -97,6 +97,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -1407,6 +1408,50 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(exception);
         }
         return offlineTopicStats;
+    }
+
+    protected void internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
+
+        //todo
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        if (backlogQuotaType == null) {
+            backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage;
+        }
+
+        Policies policy = null;
+        try {
+            policy = policiesCache().get(path(POLICIES, topicName.getNamespace(), topicName.getLocalName()))
+                    .orElse(null);
+        } catch (KeeperException.NoNodeException ignore) {
+        } catch (Exception e) {
+            log.error("[{}] Failed to get topic policy {}", clientAppId(), topicName, e);
+            throw new RestException(e);
+        }
+
+        if (policy == null) {
+            try {
+                policy = policiesCache().get(path(POLICIES, topicName.getNamespace())).orElse(null);
+            } catch (KeeperException.NoNodeException e) {
+                log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(), topicName.getNamespace());
+                throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+            } catch (Exception e) {
+                log.error("[{}] Failed to get topic backlog {}", clientAppId(), topicName.getNamespace(), e);
+                throw new RestException(e);
+            }
+        }
+
+        policy.backlog_quota_map.put(backlogQuotaType, backlogQuota);
+
+
+    }
+
+    protected void internalRemoveBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType) {
+        //todo
     }
 
     protected MessageId internalTerminate(boolean authoritative) {
