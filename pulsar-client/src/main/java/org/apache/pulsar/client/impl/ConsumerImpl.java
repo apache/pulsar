@@ -426,6 +426,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 && !batchMessageId.getAcker().isPrevBatchCumulativelyAcked()) {
                 sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties);
                 batchMessageId.getAcker().setPrevBatchCumulativelyAcked(true);
+            } else {
+                onAcknowledge(batchMessageId, null);
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] cannot ack message to broker {}, acktype {}, pending acks - {}", subscription,
@@ -459,11 +461,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             } else {
                 // other messages in batch are still pending ack.
-                if (ackType == AckType.Individual) {
-                    onAcknowledge(messageId, null);
-                } else if (ackType == AckType.Cumulative) {
-                    onAcknowledgeCumulative(messageId, null);
-                }
                 return CompletableFuture.completedFuture(null);
             }
         }
