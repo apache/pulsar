@@ -47,7 +47,13 @@ import java.util.regex.Pattern;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 
 /**
- * A function container implemented using java thread.
+ * Kubernetes based runtime for running functions.
+ * This runtime provides the usual methods to start/stop/getfunctionstatus
+ * interfaces to control the kubernetes job running function.
+ * We first create a headless service and then a statefulset for starting function pods
+ * Each function instance runs as a pod itself. The reason using statefulset as opposed
+ * to a regular deployment is that functions require a unique instance_id for each instance.
+ * The service abstraction is used for getting functionstatus.
  */
 @Slf4j
 class KubernetesRuntime implements Runtime {
@@ -114,7 +120,7 @@ class KubernetesRuntime implements Runtime {
     }
 
     /**
-     * The core logic that initialize the thread container and executes the function
+     * The core logic that creates a service first followed by statefulset
      */
     @Override
     public void start() throws Exception {
@@ -225,21 +231,31 @@ class KubernetesRuntime implements Runtime {
 
     private void submitService() throws Exception {
         final V1Service service = createService();
-        log.info("Submitting the following service to k8 " + coreClient.getApiClient().getJSON().serialize(service));
+        log.info("Submitting the following service to k8 {}", coreClient.getApiClient().getJSON().serialize(service));
 
         final Response response =
                 coreClient.createNamespacedServiceCall(jobNamespace, service, null,
                         null, null).execute();
         if (!response.isSuccessful()) {
             if (response.code() == HTTP_CONFLICT) {
-                log.warn("Service already created");
+                log.warn("Service already created for function {}/{}/{}",
+                        instanceConfig.getFunctionDetails().getTenant(),
+                        instanceConfig.getFunctionDetails().getNamespace(),
+                        instanceConfig.getFunctionDetails().getName());
             } else {
-                log.error("Error creating Service:- : " + response.message());
+                log.error("Error creating Service for function {}/{}/{}:- {}",
+                        instanceConfig.getFunctionDetails().getTenant(),
+                        instanceConfig.getFunctionDetails().getNamespace(),
+                        instanceConfig.getFunctionDetails().getName(),
+                        response.message());
                 // construct a message based on the k8s api server response
                 throw new IllegalStateException(response.message());
             }
         } else {
-            log.info("Service Created Successfully");
+            log.info("Service Created Successfully for function {}/{}/{}",
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName());
         }
     }
 
@@ -272,21 +288,31 @@ class KubernetesRuntime implements Runtime {
     private void submitStatefulSet() throws Exception {
         final V1StatefulSet statefulSet = createStatefulSet();
 
-        log.info("Submitting the following spec to k8 " + appsClient.getApiClient().getJSON().serialize(statefulSet));
+        log.info("Submitting the following spec to k8 {}", appsClient.getApiClient().getJSON().serialize(statefulSet));
 
         final Response response =
                 appsClient.createNamespacedStatefulSetCall(jobNamespace, statefulSet, null,
                         null, null).execute();
         if (!response.isSuccessful()) {
             if (response.code() == HTTP_CONFLICT) {
-                log.warn("Kubernetes job already running");
+                log.warn("Statefulset already present for function {}/{}/{}",
+                        instanceConfig.getFunctionDetails().getTenant(),
+                        instanceConfig.getFunctionDetails().getNamespace(),
+                        instanceConfig.getFunctionDetails().getName());
             } else {
-                log.error("Error creating k8 job:- : " + response.message());
+                log.error("Error creating statefulset for function {}/{}/{}:- {}",
+                        instanceConfig.getFunctionDetails().getTenant(),
+                        instanceConfig.getFunctionDetails().getNamespace(),
+                        instanceConfig.getFunctionDetails().getName(),
+                        response.message());
                 // construct a message based on the k8s api server response
                 throw new IllegalStateException(response.message());
             }
         } else {
-            log.info("Job Submitted Successfully");
+            log.info("Successfully created statefulset for function {}/{}/{}",
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName());
         }
     }
 
@@ -300,9 +326,16 @@ class KubernetesRuntime implements Runtime {
                 .execute();
 
         if (!response.isSuccessful()) {
-            throw new RuntimeException("Error killing k8 job " + response.message());
+            throw new RuntimeException(String.format("Error deleting statefulset for function {}/{}/{} :- {} ",
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName(),
+                    response.message()));
         } else {
-            log.info("Killed Successfully");
+            log.info("Successfully deleted statefulset for function {}/{}/{}",
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName());
         }
     }
 
@@ -316,9 +349,16 @@ class KubernetesRuntime implements Runtime {
                 .execute();
 
         if (!response.isSuccessful()) {
-            throw new RuntimeException("Error deleting service " + response.message());
+            throw new RuntimeException(String.format("Error deleting service for function {}/{}/{} :- {}",
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName(),
+                    response.message()));
         } else {
-            log.info("Service deleted successfully");
+            log.info("Service deleted successfully for function {}/{}/{}",
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName());
         }
     }
 

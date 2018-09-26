@@ -32,7 +32,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 /**
- * Thread based function container factory implementation.
+ * Kubernetes based function container factory implementation.
  */
 @Slf4j
 public class KubernetesRuntimeFactory implements RuntimeFactory {
