@@ -126,8 +126,7 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
 
     public void register_BYTES_READ(long bytes) {
         BYTES_READ_sum += bytes;
-        statsLogger.getOpStatsLogger(BYTES_READ)
-                .registerSuccessfulValue(bytes);
+        statsLogger.getCounter(BYTES_READ).add(bytes);
     }
 
     public void start_ENTRY_DESERIALIZE_TIME() {
@@ -254,7 +253,7 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
         statsLogger.getOpStatsLogger(READ_LATENCY_PER_QUERY)
                 .registerSuccessfulEvent(READ_LATENCY_SUCCESS_sum, TimeUnit.NANOSECONDS);
         statsLogger.getOpStatsLogger(READ_LATENCY_PER_QUERY)
-                .registerSuccessfulEvent(READ_LATENCY_FAIL_sum, TimeUnit.NANOSECONDS);
+                .registerFailedEvent(READ_LATENCY_FAIL_sum, TimeUnit.NANOSECONDS);
 
         // register number of entries per query
         statsLogger.getOpStatsLogger(NUM_ENTRIES_PER_QUERY)
