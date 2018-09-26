@@ -459,6 +459,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             } else {
                 // other messages in batch are still pending ack.
+                if (ackType == AckType.Individual) {
+                    onAcknowledge(messageId, null);
+                } else if (ackType == AckType.Cumulative) {
+                    onAcknowledgeCumulative(messageId, null);
+                }
                 return CompletableFuture.completedFuture(null);
             }
         }
