@@ -25,8 +25,9 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
 import com.squareup.okhttp.Response;
 import io.grpc.ManagedChannel;
-import io.kubernetes.client.ApiException;
+import io.grpc.ManagedChannelBuilder;
 import io.kubernetes.client.apis.AppsV1Api;
+import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.models.*;
 import lombok.Getter;
@@ -38,7 +39,6 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
@@ -58,7 +58,8 @@ class KubernetesRuntime implements Runtime {
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                     Pattern.CASE_INSENSITIVE);
 
-    private final AppsV1Api client;
+    private final AppsV1Api appsClient;
+    private final CoreV1Api coreClient;
     static final List<String> TOLERATIONS = Collections.unmodifiableList(
             Arrays.asList(
                     "node.kubernetes.io/not-ready",
@@ -71,8 +72,8 @@ class KubernetesRuntime implements Runtime {
     @Getter
     private List<String> processArgs;
     @Getter
-    private ManagedChannel channel;
-    private InstanceControlGrpc.InstanceControlFutureStub stub;
+    private ManagedChannel[] channel;
+    private InstanceControlGrpc.InstanceControlFutureStub[] stub;
     private InstanceConfig instanceConfig;
     private final String jobNamespace;
     private final String pulsarDockerImageName;
@@ -83,7 +84,8 @@ class KubernetesRuntime implements Runtime {
     private boolean running;
 
 
-    KubernetesRuntime(AppsV1Api client,
+    KubernetesRuntime(AppsV1Api appsClient,
+                      CoreV1Api coreClient,
                       String jobNamespace,
                       String pulsarDockerImageName,
                       String pulsarRootDir,
@@ -96,7 +98,8 @@ class KubernetesRuntime implements Runtime {
                       String pulsarAdminUrl,
                       String stateStorageServiceUrl,
                       AuthenticationConfig authConfig) throws Exception {
-        this.client = client;
+        this.appsClient = appsClient;
+        this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
         this.jobNamespace = jobNamespace;
         this.pulsarDockerImageName = pulsarDockerImageName;
@@ -107,23 +110,33 @@ class KubernetesRuntime implements Runtime {
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, "conf/log4j2.yaml");
         running = false;
+        doChecks(instanceConfig.getFunctionDetails());
     }
 
     /**
      * The core logic that initialize the thread container and executes the function
      */
     @Override
-    public void start() {
-        createKubernetesJob();
-        // TODO:- Make someting here
-        /*
-        if (channel == null && stub == null) {
-            // channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
-                    .usePlaintext(true)
-                    .build();
-            stub = InstanceControlGrpc.newFutureStub(channel);
+    public void start() throws Exception {
+        submitService();
+        try {
+            submitStatefulSet();
+        } catch (Exception e) {
+            deleteService();
         }
-        */
+        running = true;
+        if (channel == null && stub == null) {
+            channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
+            stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails().getParallelism()];
+            for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
+                String address = createJobName(instanceConfig.getFunctionDetails()) + "-" +
+                        i + "." + createJobName(instanceConfig.getFunctionDetails());
+                channel[i] = ManagedChannelBuilder.forAddress(address, GRPC_PORT)
+                        .usePlaintext(true)
+                        .build();
+                stub[i] = InstanceControlGrpc.newFutureStub(channel[i]);
+            }
+        }
     }
 
     @Override
@@ -133,13 +146,19 @@ class KubernetesRuntime implements Runtime {
     }
 
     @Override
-    public void stop() {
-        deleteKubernetesJob();
+    public void stop() throws Exception {
+        if (running) {
+            deleteStatefulSet();
+            deleteService();
+        }
         if (channel != null) {
-            channel.shutdown();
+            for (ManagedChannel cn : channel) {
+                cn.shutdown();
+            }
         }
         channel = null;
         stub = null;
+        running = false;
     }
 
     @Override
@@ -148,13 +167,19 @@ class KubernetesRuntime implements Runtime {
     }
 
     @Override
-    public CompletableFuture<FunctionStatus> getFunctionStatus() {
+    public CompletableFuture<FunctionStatus> getFunctionStatus(int instanceId) {
         CompletableFuture<FunctionStatus> retval = new CompletableFuture<>();
+        if (instanceId < 0 || instanceId >= stub.length) {
+            if (stub == null) {
+                retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
+                return retval;
+            }
+        }
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<FunctionStatus> response = stub.getFunctionStatus(Empty.newBuilder().build());
+        ListenableFuture<FunctionStatus> response = stub[instanceId].getFunctionStatus(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
             @Override
             public void onFailure(Throwable throwable) {
@@ -198,64 +223,103 @@ class KubernetesRuntime implements Runtime {
         return running;
     }
 
-    private void createKubernetesJob() {
-        final String jobName = createJobName(instanceConfig.getFunctionDetails());
-        if (!jobName.equals(jobName.toLowerCase())) {
-            throw new RuntimeException("K8S scheduler does not allow upper case jobNames.");
-        }
-        final Matcher matcher = VALID_POD_NAME_REGEX.matcher(jobName);
-        if (!matcher.matches()) {
-            throw new RuntimeException("K8S scheduler only admits lower case and numbers.");
-        }
+    private void submitService() throws Exception {
+        final V1Service service = createService();
+        log.info("Submitting the following service to k8 " + coreClient.getApiClient().getJSON().serialize(service));
 
-        final V1StatefulSet statefulSet = createStatefulSet();
-
-        log.info("Submitting the following spec to k8 " + client.getApiClient().getJSON().serialize(statefulSet));
-
-        try {
-            final Response response =
-                    client.createNamespacedStatefulSetCall(jobNamespace, statefulSet, null,
-                            null, null).execute();
-            if (!response.isSuccessful()) {
-                if (response.code() == HTTP_CONFLICT) {
-                    log.warn("Kubernetes job already running");
-                    running = true;
-                } else {
-                    log.error("Error creating k8 job:- : " + response.message());
-                    // construct a message based on the k8s api server response
-                    throw new RuntimeException(response.message());
-                }
+        final Response response =
+                coreClient.createNamespacedServiceCall(jobNamespace, service, null,
+                        null, null).execute();
+        if (!response.isSuccessful()) {
+            if (response.code() == HTTP_CONFLICT) {
+                log.warn("Service already created");
             } else {
-                log.info("Job Submitted Successfully");
-                running = true;
+                log.error("Error creating Service:- : " + response.message());
+                // construct a message based on the k8s api server response
+                throw new IllegalStateException(response.message());
             }
-        } catch (IOException | ApiException e) {
-            log.error("Error creating k8 job", e);
-            throw new RuntimeException(e.getMessage());
+        } else {
+            log.info("Service Created Successfully");
         }
     }
 
-    public void deleteKubernetesJob() {
-        if (!running) return;
-        try {
-            final V1DeleteOptions options = new V1DeleteOptions();
-            options.setGracePeriodSeconds(0L);
-            options.setPropagationPolicy("Foreground");
-            final Response response = client.deleteNamespacedStatefulSetCall(
-                    createJobName(instanceConfig.getFunctionDetails()),
-                    jobNamespace, options, null, null, null, null, null, null)
-                    .execute();
+    private V1Service createService() {
+        final String jobName = createJobName(instanceConfig.getFunctionDetails());
 
-            if (!response.isSuccessful()) {
-                throw new RuntimeException("Error killing k8 job " + response.message());
+        final V1Service service = new V1Service();
+
+        // setup stateful set metadata
+        final V1ObjectMeta objectMeta = new V1ObjectMeta();
+        objectMeta.name(jobName);
+        service.metadata(objectMeta);
+
+        // create the stateful set spec
+        final V1ServiceSpec serviceSpec = new V1ServiceSpec();
+
+        serviceSpec.clusterIP("None");
+
+        final V1ServicePort servicePort = new V1ServicePort();
+        servicePort.name("grpc").port(GRPC_PORT).protocol("TCP");
+        serviceSpec.addPortsItem(servicePort);
+
+        serviceSpec.selector(getLabels(instanceConfig.getFunctionDetails()));
+
+        service.spec(serviceSpec);
+
+        return service;
+    }
+
+    private void submitStatefulSet() throws Exception {
+        final V1StatefulSet statefulSet = createStatefulSet();
+
+        log.info("Submitting the following spec to k8 " + appsClient.getApiClient().getJSON().serialize(statefulSet));
+
+        final Response response =
+                appsClient.createNamespacedStatefulSetCall(jobNamespace, statefulSet, null,
+                        null, null).execute();
+        if (!response.isSuccessful()) {
+            if (response.code() == HTTP_CONFLICT) {
+                log.warn("Kubernetes job already running");
             } else {
-                log.info("Killed Successfully");
-                running = false;
+                log.error("Error creating k8 job:- : " + response.message());
+                // construct a message based on the k8s api server response
+                throw new IllegalStateException(response.message());
             }
-        } catch (IOException | ApiException e) {
-            throw new RuntimeException(e);
+        } else {
+            log.info("Job Submitted Successfully");
         }
+    }
 
+    public void deleteStatefulSet() throws Exception {
+        final V1DeleteOptions options = new V1DeleteOptions();
+        options.setGracePeriodSeconds(0L);
+        options.setPropagationPolicy("Foreground");
+        final Response response = appsClient.deleteNamespacedStatefulSetCall(
+                createJobName(instanceConfig.getFunctionDetails()),
+                jobNamespace, options, null, null, null, null, null, null)
+                .execute();
+
+        if (!response.isSuccessful()) {
+            throw new RuntimeException("Error killing k8 job " + response.message());
+        } else {
+            log.info("Killed Successfully");
+        }
+    }
+
+    public void deleteService() throws Exception {
+        final V1DeleteOptions options = new V1DeleteOptions();
+        options.setGracePeriodSeconds(0L);
+        options.setPropagationPolicy("Foreground");
+        final Response response = coreClient.deleteNamespacedServiceCall(
+                createJobName(instanceConfig.getFunctionDetails()),
+                jobNamespace, options, null, null, null, null, null, null)
+                .execute();
+
+        if (!response.isSuccessful()) {
+            throw new RuntimeException("Error deleting service " + response.message());
+        } else {
+            log.info("Service deleted successfully");
+        }
     }
 
     protected List<String> getExecutorCommand() {
@@ -342,8 +406,7 @@ class KubernetesRuntime implements Runtime {
 
     private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
         final Map<String, String> labels = new HashMap<>();
-        labels.put("app", "pulsarfunction");
-        labels.put("name", functionDetails.getName());
+        labels.put("app", createJobName(functionDetails));
         labels.put("namespace", functionDetails.getNamespace());
         labels.put("tenant", functionDetails.getTenant());
         return labels;
@@ -421,13 +484,24 @@ class KubernetesRuntime implements Runtime {
         return ports;
     }
 
-    private String createJobName(Function.FunctionDetails functionDetails) {
+    private static String createJobName(Function.FunctionDetails functionDetails) {
         return createJobName(functionDetails.getTenant(),
                 functionDetails.getNamespace(),
                 functionDetails.getName());
     }
 
-    private String createJobName(String tenant, String namespace, String functionName) {
-        return "pfn-" + tenant + "-" + namespace + "-" + functionName;
+    private static String createJobName(String tenant, String namespace, String functionName) {
+        return functionName;
+    }
+
+    private static void doChecks(Function.FunctionDetails functionDetails) {
+        final String jobName = createJobName(functionDetails);
+        if (!jobName.equals(jobName.toLowerCase())) {
+            throw new RuntimeException("K8S scheduler does not allow upper case jobNames.");
+        }
+        final Matcher matcher = VALID_POD_NAME_REGEX.matcher(jobName);
+        if (!matcher.matches()) {
+            throw new RuntimeException("K8S scheduler only admits lower case and numbers.");
+        }
     }
 }

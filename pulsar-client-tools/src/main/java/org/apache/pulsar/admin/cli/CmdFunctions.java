@@ -1285,7 +1285,8 @@ public class CmdFunctions extends CmdBase {
                         CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
                         int index = 0;
                         for (RuntimeSpawner spawner : spawners) {
-                            futures[index++] = spawner.getFunctionStatusAsJson();
+                            futures[index] = spawner.getFunctionStatusAsJson(index);
+                            index++;
                         }
                         try {
                             CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);

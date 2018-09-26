@@ -219,7 +219,8 @@ public class JavaInstanceMain implements AutoCloseable {
         @Override
         public void getFunctionStatus(Empty request, StreamObserver<InstanceCommunication.FunctionStatus> responseObserver) {
             try {
-                InstanceCommunication.FunctionStatus response = runtimeSpawner.getFunctionStatus().get();
+                int instanceId = Integer.valueOf(runtimeSpawner.getInstanceConfig().getInstanceId());
+                InstanceCommunication.FunctionStatus response = runtimeSpawner.getFunctionStatus(instanceId).get();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } catch (Exception e) {

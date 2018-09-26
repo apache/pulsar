@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.kubernetes.client.ApiClient;
 import io.kubernetes.client.Configuration;
 import io.kubernetes.client.apis.AppsV1Api;
+import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.util.Config;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -48,7 +49,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String logDirectory = "logs/functions";
-    private AppsV1Api k8Client;
+    private AppsV1Api appsClient;
+    private CoreV1Api coreClient;
 
     @VisibleForTesting
     public KubernetesRuntimeFactory(String k8Uri,
@@ -107,7 +109,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
         return new KubernetesRuntime(
-            k8Client,
+            appsClient,
+            coreClient,
             jobNamespace,
             pulsarDockerImageName,
             pulsarRootDir,
@@ -127,7 +130,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     private void setupClient() throws Exception {
-        if (k8Client == null) {
+        if (appsClient == null) {
             if (k8Uri == null) {
                 log.info("k8Uri is null thus going by defaults");
                 ApiClient cli;
@@ -139,11 +142,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                     cli = Config.defaultClient();
                 }
                 Configuration.setDefaultApiClient(cli);
-                k8Client = new AppsV1Api();
+                appsClient = new AppsV1Api();
+                coreClient = new CoreV1Api();
             } else {
                 log.info("Setting up k8Client using uri " + k8Uri);
                 final ApiClient apiClient = new ApiClient().setBasePath(k8Uri);
-                k8Client = new AppsV1Api(apiClient);
+                appsClient = new AppsV1Api(apiClient);
+                coreClient = new CoreV1Api(apiClient);
             }
         }
     }
