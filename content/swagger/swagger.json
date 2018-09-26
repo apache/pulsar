@@ -3772,7 +3772,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "403" : {
@@ -6697,14 +6697,16 @@
           "type" : "number",
           "format" : "double"
         },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
@@ -6722,13 +6724,11 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
+        "underLoaded" : {
+          "type" : "boolean"
         },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "overLoaded" : {
+          "type" : "boolean"
         },
         "loadReportType" : {
           "type" : "string"
@@ -6891,10 +6891,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "connectedSince" : {
@@ -7595,10 +7595,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "connectedSince" : {
@@ -7703,11 +7703,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
