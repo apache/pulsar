@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
@@ -44,7 +45,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;
@@ -249,6 +250,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 	}
 
     @Override
+    public ConsumerBuilder<T> subscriptionTopicsMode(Mode mode) {
+        conf.setSubscriptionTopicsMode(mode);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> intercept(ConsumerInterceptor<T>... interceptors) {
         if (interceptorList == null) {
             interceptorList = new ArrayList<>();
@@ -264,6 +271,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     public ConsumerConfigurationData<T> getConf() {
-	    return conf;
-	}
+        return conf;
+    }
 }

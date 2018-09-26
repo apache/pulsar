@@ -92,6 +92,9 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
     protected int maxBufferedTuples;
 
+    @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in seconds between healtchecks", required = true)
+    protected int expectedHealthCheckInterval;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -124,7 +127,7 @@ public class JavaInstanceMain implements AutoCloseable {
                 instanceConfig,
                 jarFile,
                 containerFactory,
-                30000);
+                expectedHealthCheckInterval * 1000);
 
         server = ServerBuilder.forPort(port)
                 .addService(new InstanceControlImpl(runtimeSpawner))
@@ -146,20 +149,22 @@ public class JavaInstanceMain implements AutoCloseable {
         log.info("Starting runtimeSpawner");
         runtimeSpawner.start();
 
-        timer = Executors.newSingleThreadScheduledExecutor();
-        timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                try {
-                    if (System.currentTimeMillis() - lastHealthCheckTs > 90000) {
-                        log.info("Haven't received health check from spawner in a while. Stopping instance...");
-                        close();
+        if (expectedHealthCheckInterval > 0) {
+            timer = Executors.newSingleThreadScheduledExecutor();
+            timer.scheduleAtFixedRate(new TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        if (System.currentTimeMillis() - lastHealthCheckTs > 3 * expectedHealthCheckInterval * 1000) {
+                            log.info("Haven't received health check from spawner in a while. Stopping instance...");
+                            close();
+                        }
+                    } catch (Exception e) {
+                        log.error("Error occurred when checking for latest health check", e);
                     }
-                } catch (Exception e) {
-                    log.error("Error occurred when checking for latest health check", e);
                 }
-            }
-        }, 30000, 30000, TimeUnit.MILLISECONDS);
+            }, expectedHealthCheckInterval * 1000, expectedHealthCheckInterval * 1000, TimeUnit.MILLISECONDS);
+        }
 
         runtimeSpawner.join();
         log.info("RuntimeSpawner quit, shutting down JavaInstance");
