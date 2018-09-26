@@ -73,7 +73,7 @@ class ProcessRuntime implements Runtime {
         this.instancePort = instanceConfig.getPort();
         this.expectedHealthCheckInterval = expectedHealthCheckInterval;
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, instanceConfig.getInstanceId(), instanceConfig.getPort(), expectedHealthCheckInterval,
+                authConfig, instanceConfig.getInstanceName(), instanceConfig.getPort(), expectedHealthCheckInterval,
                 "java_instance_log4j2.yml");
     }
 

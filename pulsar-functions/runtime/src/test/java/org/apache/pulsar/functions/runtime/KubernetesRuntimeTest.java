@@ -104,7 +104,7 @@ public class KubernetesRuntimeTest {
         config.setFunctionDetails(createFunctionDetails(runtime));
         config.setFunctionId(java.util.UUID.randomUUID().toString());
         config.setFunctionVersion("1.0");
-        config.setInstanceId(java.util.UUID.randomUUID().toString());
+        config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
 
         return config;
