@@ -59,6 +59,7 @@ import static java.net.HttpURLConnection.HTTP_CONFLICT;
 class KubernetesRuntime implements Runtime {
 
     private static final String ENV_SHARD_ID = "SHARD_ID";
+    private static final int maxJobNameSize = 63;
     private static final Integer GRPC_PORT = 9093;
     public static final Pattern VALID_POD_NAME_REGEX =
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
@@ -531,17 +532,20 @@ class KubernetesRuntime implements Runtime {
     }
 
     private static String createJobName(String tenant, String namespace, String functionName) {
-        return functionName;
+        return "pf-" + tenant + "-" + namespace + "-" + functionName;
     }
 
     private static void doChecks(Function.FunctionDetails functionDetails) {
         final String jobName = createJobName(functionDetails);
         if (!jobName.equals(jobName.toLowerCase())) {
-            throw new RuntimeException("K8S scheduler does not allow upper case jobNames.");
+            throw new RuntimeException("Kubernetes does not allow upper case jobNames.");
         }
         final Matcher matcher = VALID_POD_NAME_REGEX.matcher(jobName);
         if (!matcher.matches()) {
-            throw new RuntimeException("K8S scheduler only admits lower case and numbers.");
+            throw new RuntimeException("Kubernetes only admits lower case and numbers.");
+        }
+        if (jobName.length() > maxJobNameSize) {
+            throw new RuntimeException("Kubernetes job name size should be less than " + maxJobNameSize);
         }
     }
 }
