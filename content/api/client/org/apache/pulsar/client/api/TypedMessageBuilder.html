@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -150,42 +150,48 @@ extends Serializable</pre>
 </tr>
 <tr id="i3" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="type parameter in TypedMessageBuilder">T</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html#keyBytes-byte:A-">keyBytes</a></span>(byte[]&nbsp;key)</code>
+<div class="block">Sets the bytes of the key of the message for routing policy.</div>
+</td>
+</tr>
+<tr id="i4" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="type parameter in TypedMessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html#properties-java.util.Map-">properties</a></span>(Map&lt;String,String&gt;&nbsp;properties)</code>
 <div class="block">Add all the properties in the provided map</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="type parameter in TypedMessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html#property-java.lang.String-java.lang.String-">property</a></span>(String&nbsp;name,
         String&nbsp;value)</code>
 <div class="block">Sets a new property on a message.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="type parameter in TypedMessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html#replicationClusters-java.util.List-">replicationClusters</a></span>(List&lt;String&gt;&nbsp;clusters)</code>
 <div class="block">Override the replication clusters for this message.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html#send--">send</a></span>()</code>
 <div class="block">Send a message synchronously.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html#sendAsync--">sendAsync</a></span>()</code>
 <div class="block">Send a message asynchronously</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="type parameter in TypedMessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html#sequenceId-long-">sequenceId</a></span>(long&nbsp;sequenceId)</code>
 <div class="block">Specify a custom sequence id for the message being published.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="type parameter in TypedMessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html#value-T-">value</a></span>(<a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="type parameter in TypedMessageBuilder">T</a>&nbsp;value)</code>
 <div class="block">Set a domain object on the message</div>
@@ -281,6 +287,21 @@ extends Serializable</pre>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>key</code> - </dd>
+</dl>
+</li>
+</ul>
+<a name="keyBytes-byte:A-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>keyBytes</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="type parameter in TypedMessageBuilder">T</a>&gt;&nbsp;keyBytes(byte[]&nbsp;key)</pre>
+<div class="block">Sets the bytes of the key of the message for routing policy.
+ Internally the bytes will be base64 encoded.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>key</code> - routing key for message, in byte array form</dd>
 </dl>
 </li>
 </ul>
