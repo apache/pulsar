@@ -68,12 +68,6 @@ public class RuntimeSpawner implements AutoCloseable {
         log.info("{}/{}/{}-{} RuntimeSpawner starting function", details.getTenant(), details.getNamespace(),
                 details.getName(), this.instanceConfig.getInstanceId());
 
-        if (instanceConfig.getFunctionDetails().getRuntime() == PYTHON
-                && instanceConfig.getFunctionDetails().getSource() != null
-                && StringUtils.isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {
-            throw new IllegalArgumentException("topics-pattern is not supported for python function");
-        }
-
         runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile,
                 instanceLivenessCheckFreqMs * 1000);
         runtime.start();
