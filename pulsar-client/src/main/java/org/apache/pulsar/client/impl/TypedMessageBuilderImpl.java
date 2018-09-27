@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.base.Preconditions;
 
 import java.nio.ByteBuffer;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -62,6 +63,14 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> key(String key) {
         msgMetadataBuilder.setPartitionKey(key);
+        msgMetadataBuilder.setPartitionKeyB64Encoded(false);
+        return this;
+    }
+
+    @Override
+    public TypedMessageBuilder<T> keyBytes(byte[] key) {
+        msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
+        msgMetadataBuilder.setPartitionKeyB64Encoded(true);
         return this;
     }
 
