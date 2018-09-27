@@ -24,6 +24,7 @@ import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -32,10 +33,13 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.zookeeper.KeeperException;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -46,6 +50,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.Mockito.doNothing;
@@ -53,10 +58,15 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
+public class PersistentTopicsTest  extends MockedPulsarServiceBaseTest {
+
+    private static final Logger log = LoggerFactory.getLogger(PersistentTopicsTest.class);
+
+    private final String myTenant = "my-tenant";
+    private final String myNamespace = myTenant + "/" + "my-namespace";
+    private final String myTopic = "persistent://" + myNamespace + "/my-topic";
 
     private PersistentTopics persistentTopics;
     private final String testTenant = "my-tenant";
@@ -111,6 +121,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster, "test")));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet(testLocalCluster, "test"));
+        TenantInfo tenantInfo = new TenantInfo();
+        tenantInfo.setAllowedClusters(Collections.singleton("test"));
+        admin.tenants().createTenant(myTenant, tenantInfo);
+        admin.namespaces().createNamespace(myNamespace, Collections.singleton("test"));
+        admin.topics().createPartitionedTopic(myTopic, 2);
     }
 
     @Override
@@ -257,5 +272,56 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         List<String> nonPersistentPartitionedTopics = nonPersistentTopic.getPartitionedTopicList(testTenant, testNamespace);
         Assert.assertEquals(nonPersistentPartitionedTopics.size(), 1);
         Assert.assertEquals(TopicName.get(nonPersistentPartitionedTopics.get(0)).getDomain().value(), TopicDomain.non_persistent.value());
+    }
+    @Test
+    public void testSetBacklogQuota() throws PulsarAdminException {
+
+        BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, myTopic);
+
+        admin.topics().setBacklogQuota(myTopic, backlogQuota);
+        log.info("Backlog quota set success on topic: {}", myTopic);
+
+        BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(myTopic).get(BacklogQuota.BacklogQuotaType.destination_storage);
+        log.info("Backlog quota {} get on topic: {}", getBacklogQuota, myTopic);
+        Assert.assertEquals(backlogQuota, getBacklogQuota);
+
+        BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
+        BacklogQuota backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(myTopic));
+        log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInManager, myTopic);
+        Assert.assertEquals(backlogQuota, backlogQuotaInManager);
+
+        admin.topics().deletePartitionedTopic(myTopic, true);
+    }
+
+    @Test
+    public void testRemoveBacklogQuota() throws PulsarAdminException {
+
+        BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, myTopic);
+
+        admin.topics().setBacklogQuota(myTopic, backlogQuota);
+        log.info("Backlog quota set success on topic: {}", myTopic);
+
+        BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(myTopic).get(BacklogQuota.BacklogQuotaType.destination_storage);
+        log.info("Backlog quota {} get on topic: {}", getBacklogQuota, myTopic);
+        Assert.assertEquals(backlogQuota, getBacklogQuota);
+
+        BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
+        BacklogQuota backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(myTopic));
+        log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInManager, myTopic);
+        Assert.assertEquals(backlogQuota, backlogQuotaInManager);
+
+        admin.topics().removeBacklogQuota(myTopic);
+        getBacklogQuota = admin.topics().getBacklogQuotaMap(myTopic).get(BacklogQuota.BacklogQuotaType.destination_storage);
+        log.info("Backlog quota {} get on topic: {} after remove", getBacklogQuota, myTopic);
+        Assert.assertNull(getBacklogQuota);
+
+        backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(myTopic));
+        log.info("Backlog quota {} in backlog quota manager on topic: {} after remove", backlogQuotaInManager, myTopic);
+        Assert.assertEquals(backlogQuotaManager.getDefaultQuota(), backlogQuotaInManager);
+
+        admin.topics().deletePartitionedTopic(myTopic, true);
+
     }
 }
