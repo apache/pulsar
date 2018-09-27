@@ -39,9 +39,9 @@ import static org.testng.Assert.assertEquals;
  */
 public class KubernetesRuntimeTest {
 
-    private static final String TEST_TENANT = "test-function-tenant";
-    private static final String TEST_NAMESPACE = "test-function-namespace";
-    private static final String TEST_NAME = "test-function-container";
+    private static final String TEST_TENANT = "tenant";
+    private static final String TEST_NAMESPACE = "namespace";
+    private static final String TEST_NAME = "container";
     private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
     private static final Map<String, ConsumerSpec> topicsToSchema = new HashMap<>();
     static {
