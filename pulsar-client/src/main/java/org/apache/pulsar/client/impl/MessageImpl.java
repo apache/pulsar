@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.Maps;
 
@@ -29,6 +30,7 @@ import io.netty.util.Recycler.Handle;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -129,6 +131,7 @@ public class MessageImpl<T> implements Message<T> {
         }
 
         if (singleMessageMetadata.hasPartitionKey()) {
+            msgMetadataBuilder.setPartitionKeyB64Encoded(singleMessageMetadata.getPartitionKeyB64Encoded());
             msgMetadataBuilder.setPartitionKey(singleMessageMetadata.getPartitionKey());
         }
 
@@ -288,6 +291,22 @@ public class MessageImpl<T> implements Message<T> {
     public String getKey() {
         checkNotNull(msgMetadataBuilder);
         return msgMetadataBuilder.getPartitionKey();
+    }
+
+    @Override
+    public boolean hasBase64EncodedKey() {
+        checkNotNull(msgMetadataBuilder);
+        return msgMetadataBuilder.getPartitionKeyB64Encoded();
+    }
+
+    @Override
+    public byte[] getKeyBytes() {
+        checkNotNull(msgMetadataBuilder);
+        if (hasBase64EncodedKey()) {
+            return Base64.getDecoder().decode(getKey());
+        } else {
+            return getKey().getBytes(UTF_8);
+        }
     }
 
     public ClientCnx getCnx() {
