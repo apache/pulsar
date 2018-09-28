@@ -169,11 +169,11 @@ public class TopicName implements ServiceUnitId {
         }
         if (isV2()) {
             this.completeTopicName = String.format("%s://%s/%s/%s",
-                                                   domain, tenant, namespacePortion, getEncodedLocalName());
+                                                   domain, tenant, namespacePortion, localName);
         } else {
             this.completeTopicName = String.format("%s://%s/%s/%s/%s",
                                                    domain, tenant, cluster,
-                                                   namespacePortion, getEncodedLocalName());
+                                                   namespacePortion, localName);
         }
     }
 
