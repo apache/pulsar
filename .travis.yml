@@ -67,7 +67,7 @@ deploy:
     skip_cleanup: true
     script: mvn install deploy -Papache-release -DskipTests --settings .travis/settings.xml
     on:
-      repo: apache/incubator-pulsar
+      repo: apache/pulsar
       tags: true
   -
     provider: releases
@@ -77,14 +77,14 @@ deploy:
     file_glob: true
     file: "distribution/server/target/pulsar-*.tar.gz"
     on:
-      repo: apache/incubator-pulsar
+      repo: apache/pulsar
       tags: true
   -
     provider: script
     skip_cleanup: true
     script: (cd site && make travis_publish)
     on:
-        repo: apache/incubator-pulsar
+        repo: apache/pulsar
         branch: master
   -
     provider: script

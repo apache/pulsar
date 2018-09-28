@@ -90,6 +90,14 @@ public interface TypedMessageBuilder<T> extends Serializable {
     TypedMessageBuilder<T> key(String key);
 
     /**
+     * Sets the bytes of the key of the message for routing policy.
+     * Internally the bytes will be base64 encoded.
+     *
+     * @param key routing key for message, in byte array form
+     */
+    TypedMessageBuilder<T> keyBytes(byte[] key);
+
+    /**
      * Set a domain object on the message
      *
      * @param value

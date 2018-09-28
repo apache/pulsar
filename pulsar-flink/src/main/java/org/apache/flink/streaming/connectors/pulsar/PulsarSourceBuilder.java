@@ -58,7 +58,7 @@ public class PulsarSourceBuilder<T> {
     /**
      * Sets the topic to consumer from. This is required.
      *
-     * <p>Topic names (https://pulsar.incubator.apache.org/docs/latest/getting-started/ConceptsAndArchitecture/#Topics)
+     * <p>Topic names (https://pulsar.apache.org/docs/latest/getting-started/ConceptsAndArchitecture/#Topics)
      * are in the following format:
      * {persistent|non-persistent}://tenant/namespace/topic
      *

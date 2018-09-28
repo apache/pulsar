@@ -166,7 +166,6 @@ const siteConfig = {
   },
 
   githubUrl: githubUrl,
-  archiveRootUrl: 'https://archive.apache.org/dist/incubator/pulsar',
 
   projectDescription: `
     Apache Pulsar is an open-source distributed pub-sub messaging system originally

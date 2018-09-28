@@ -119,6 +119,16 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public boolean hasBase64EncodedKey() {
+        return msg.hasBase64EncodedKey();
+    }
+
+    @Override
+    public byte[] getKeyBytes() {
+        return msg.getKeyBytes();
+    }
+
+    @Override
     public T getValue() {
         return msg.getValue();
     }

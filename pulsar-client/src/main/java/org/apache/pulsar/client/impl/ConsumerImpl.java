@@ -427,6 +427,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 && !batchMessageId.getAcker().isPrevBatchCumulativelyAcked()) {
                 sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties);
                 batchMessageId.getAcker().setPrevBatchCumulativelyAcked(true);
+            } else {
+                onAcknowledge(batchMessageId, null);
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] cannot ack message to broker {}, acktype {}, pending acks - {}", subscription,

@@ -42,7 +42,7 @@ There are also [Doxygen](http://www.stack.nl/~dimitri/doxygen/)-generated API do
 
 ## Feature Matrix
 
-This matrix listing all the features among different languages in Pulsar master can be found [here](https://github.com/apache/incubator-pulsar/wiki/Client-Features-Matrix).
+This matrix listing all the features among different languages in Pulsar master can be found [here](https://github.com/apache/pulsar/wiki/Client-Features-Matrix).
 
 ## Thirdparty Clients
 

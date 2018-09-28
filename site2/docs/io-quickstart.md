@@ -26,7 +26,7 @@ To get started running Pulsar, download a binary tarball release in one of the f
   * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
 
 * from the Pulsar [downloads page](pulsar:download_page_url)
-* from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
+* from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
@@ -50,7 +50,7 @@ If you would like to enable those `builtin` connectors, you can download the con
   * <a href="pulsar:connector_release_url" download>Pulsar IO Connectors {{pulsar:version}} release</a>
 
 * from the Pulsar [downloads page](pulsar:download_page_url)
-* from the Pulsar [releases page](https://github.com/apache/incubator-pulsar/releases/latest)
+* from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
