@@ -19,24 +19,31 @@
 package org.apache.pulsar.client.api;
 
 /**
- * The provider to provide the service url
- * It used by {@link ClientBuilder#serviceUrlProvider(ServiceUrlProvider)}
+ * The provider to provide the service url.
+ *
+ * This allows applications to retrieve the service URL from an external configuration provider and, more importantly,
+ * to force the Pulsar client to reconnect if the service URL has been changed.
+ *
+ * It can be passed with {@link ClientBuilder#serviceUrlProvider(ServiceUrlProvider)}
  */
 public interface ServiceUrlProvider {
 
     /**
-     * Get pulsar service url from ServiceUrlProvider.
+     * Initialize the service url provider with Pulsar client instance.
      *
-     * @return pulsar service url.
+     * This can be used by the provider to force the Pulsar client to reconnect whenever the service url might have
+     * changed. See {@link PulsarClient#updateServiceUrl(String)}.
+     *
+     * @param client
+     *            created pulsar client.
      */
-    String getServiceUrl();
+    void initialize(PulsarClient client);
 
     /**
-     * Set pulsar client to the provider for provider can control the pulsar client,
-     * such as {@link PulsarClient#forceCloseConnection()} or {@link PulsarClient#close()}.
+     * Get the current service URL the Pulsar client should connect to.
      *
-     * @param client created pulsar client.
+     * @return the pulsar service url.
      */
-    void setClient(PulsarClient client);
+    String getServiceUrl();
 
 }
