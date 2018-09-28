@@ -53,7 +53,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         }
         PulsarClient client = new PulsarClientImpl(conf);
         if (conf.getServiceUrlProvider() != null) {
-            conf.getServiceUrlProvider().setClient(client);
+            conf.getServiceUrlProvider().initialize(client);
         }
         return client;
     }

@@ -60,7 +60,7 @@ public class HttpClient implements Closeable {
     protected final static int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     protected final AsyncHttpClient httpClient;
-    protected final URL url;
+    protected volatile URL url;
     protected final Authentication authentication;
 
     protected HttpClient(String serviceUrl, Authentication authentication,
@@ -74,12 +74,7 @@ public class HttpClient implements Closeable {
             EventLoopGroup eventLoopGroup, boolean tlsAllowInsecureConnection, String tlsTrustCertsFilePath,
             int connectTimeoutInSeconds, int readTimeoutInSeconds) throws PulsarClientException {
         this.authentication = authentication;
-        try {
-            // Ensure trailing "/" on url
-            url = new URL(serviceUrl);
-        } catch (MalformedURLException e) {
-            throw new PulsarClientException.InvalidServiceURL(e);
-        }
+        setServiceUrl(serviceUrl);
 
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setFollowRedirect(true);
@@ -118,6 +113,15 @@ public class HttpClient implements Closeable {
         httpClient = new DefaultAsyncHttpClient(config);
 
         log.debug("Using HTTP url: {}", this.url);
+    }
+
+    void setServiceUrl(String serviceUrl) throws PulsarClientException {
+        try {
+            // Ensure trailing "/" on url
+            url = new URL(serviceUrl);
+        } catch (MalformedURLException e) {
+            throw new PulsarClientException.InvalidServiceURL(e);
+        }
     }
 
     @Override
