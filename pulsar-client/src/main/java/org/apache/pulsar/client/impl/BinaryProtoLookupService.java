@@ -38,7 +38,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
@@ -52,7 +51,7 @@ import org.slf4j.LoggerFactory;
 public class BinaryProtoLookupService implements LookupService {
 
     private final PulsarClientImpl client;
-    protected final InetSocketAddress serviceAddress;
+    protected volatile InetSocketAddress serviceAddress;
     private final boolean useTls;
     private final ExecutorService executor;
 
@@ -61,6 +60,11 @@ public class BinaryProtoLookupService implements LookupService {
         this.client = client;
         this.useTls = useTls;
         this.executor = executor;
+        updateServiceUrl(serviceUrl);
+    }
+
+    @Override
+    public void updateServiceUrl(String serviceUrl) throws PulsarClientException {
         URI uri;
         try {
             uri = new URI(serviceUrl);

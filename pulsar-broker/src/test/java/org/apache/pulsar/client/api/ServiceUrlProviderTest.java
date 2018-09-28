@@ -64,7 +64,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             producer.send("Hello Pulsar[" + i + "]");
         }
-        client.forceCloseConnection();
+        client.updateServiceUrl(pulsar.getBrokerServiceUrl());
         for (int i = 100; i < 200; i++) {
             producer.send("Hello Pulsar[" + i + "]");
         }
@@ -132,7 +132,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         }
 
         @Override
-        public void setClient(PulsarClient client) {
+        public void initialize(PulsarClient client) {
             this.pulsarClient = client;
         }
 
@@ -148,9 +148,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         }
 
         public void onServiceUrlChanged(String newServiceUrl) throws PulsarClientException {
-            this.getPulsarClient().getConf().setServiceUrl(newServiceUrl);
-            this.getPulsarClient().reloadLookUp();
-            this.getPulsarClient().forceCloseConnection();
+            this.getPulsarClient().updateServiceUrl(newServiceUrl);
         }
     }
 }
