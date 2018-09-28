@@ -20,19 +20,18 @@ package org.apache.pulsar.admin.cli.utils;
 
 import org.apache.pulsar.client.api.Schema;
 
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 
 public class SchemaExtractor {
 
-    public static String getJsonSchemaInfo(Class clazz) throws UnsupportedEncodingException {
+    public static String getJsonSchemaInfo(Class clazz) {
 
-        return new String(Schema.JSON(clazz).getSchemaInfo().toString().getBytes(), StandardCharsets.UTF_8.toString());
+        return new String(Schema.JSON(clazz).getSchemaInfo().getSchema(), StandardCharsets.UTF_8);
     }
 
-    public static String getAvroSchemaInfo(Class clazz) throws UnsupportedEncodingException {
+    public static String getAvroSchemaInfo(Class clazz) {
 
-        return new String(Schema.AVRO(clazz).getSchemaInfo().toString().getBytes(), StandardCharsets.UTF_8.toString());
+        return new String(Schema.AVRO(clazz).getSchemaInfo().getSchema(), StandardCharsets.UTF_8);
     }
 
 }

@@ -38,7 +38,7 @@ public class CmdSchemas extends CmdBase {
         jcommander.addCommand("get", new GetSchema());
         jcommander.addCommand("delete", new DeleteSchema());
         jcommander.addCommand("upload", new UploadSchema());
-        jcommander.addCommand("pojo", new PojoSchema());
+        jcommander.addCommand("extract", new ExtractSchema());
     }
 
     @Parameters(commandDescription = "Get the schema for a topic")
@@ -89,7 +89,7 @@ public class CmdSchemas extends CmdBase {
     }
 
     @Parameters(commandDescription = "Provide the schema via a topic")
-    private class PojoSchema extends CliCommand {
+    private class ExtractSchema extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
@@ -99,7 +99,7 @@ public class CmdSchemas extends CmdBase {
         @Parameter(names = { "-t", "--type" }, description = "type avro or json", required = true)
         private String type;
 
-        @Parameter(names = { "-c", "--class-name" }, description = "class name of pojo", required = true)
+        @Parameter(names = { "-c", "--classname" }, description = "class name of pojo", required = true)
         private String className;
 
         @Override

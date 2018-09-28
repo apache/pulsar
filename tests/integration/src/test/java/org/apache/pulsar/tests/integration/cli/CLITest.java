@@ -28,6 +28,7 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -233,24 +234,27 @@ public class CLITest extends PulsarTestSuite {
     }
 
     @Test
-    public void cliJarSchemaUploadTest() throws Exception {
-        ContainerExecResult result;
+    public void testJarPojoSchemaUploadAvro() throws Exception {
 
-        String namespace = "grant-permissions-" + randomName(8);
-        result = pulsarCluster.createNamespace(namespace);
-        assertEquals(0, result.getExitCode());
+        ContainerExecResult containerExecResult = pulsarCluster.runAdminCommandOnAnyBroker(
+                "schemas",
+                "extract", "--jar", "/pulsar/examples/api-examples.jar", "--type", "avro",
+                "--class-name", "org.apache.pulsar.functions.api.examples.pojo.Tick",
+                "persistent://public/default/pojo-avro");
 
-        String[] grantCommand = {
-                "namespaces", "grant-permission", "public/" + namespace,
-                "--actions", "produce",
-                "--role", "test-role"
-        };
-        try {
-            pulsarCluster.runAdminCommandOnAnyBroker(grantCommand);
-        } catch (ContainerExecException cee) {
-            result = cee.getResult();
-            assertTrue(result.getStderr().contains("HTTP 501 Not Implemented"), result.getStderr());
-        }
+        Assert.assertEquals(containerExecResult.getExitCode(), 0);
+    }
+
+    @Test
+    public void testJarPojoSchemaUploadJson() throws Exception {
+
+        ContainerExecResult containerExecResult = pulsarCluster.runAdminCommandOnAnyBroker(
+                "schemas",
+                "extract", "--jar", "/pulsar/examples/api-examples.jar", "--type", "json",
+                "--class-name", "org.apache.pulsar.functions.api.examples.pojo.Tick",
+                "persistent://public/default/pojo-json");
+
+        Assert.assertEquals(containerExecResult.getExitCode(), 0);
     }
 
 }
