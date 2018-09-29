@@ -100,8 +100,12 @@ var activeTableTab = "activeTableTab";
 <hr>
 <br>
 <pre>public interface <span class="typeNameLabel">ServiceUrlProvider</span></pre>
-<div class="block">The provider to provide the service url
- It used by <a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#serviceUrlProvider-org.apache.pulsar.client.api.ServiceUrlProvider-"><code>ClientBuilder.serviceUrlProvider(ServiceUrlProvider)</code></a></div>
+<div class="block">The provider to provide the service url.
+
+ This allows applications to retrieve the service URL from an external configuration provider and, more importantly,
+ to force the Pulsar client to reconnect if the service URL has been changed.
+
+ It can be passed with <a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#serviceUrlProvider-org.apache.pulsar.client.api.ServiceUrlProvider-"><code>ClientBuilder.serviceUrlProvider(ServiceUrlProvider)</code></a></div>
 </li>
 </ul>
 </div>
@@ -123,14 +127,13 @@ var activeTableTab = "activeTableTab";
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ServiceUrlProvider.html#getServiceUrl--">getServiceUrl</a></span>()</code>
-<div class="block">Get pulsar service url from ServiceUrlProvider.</div>
+<div class="block">Get the current service URL the Pulsar client should connect to.</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ServiceUrlProvider.html#setClient-org.apache.pulsar.client.api.PulsarClient-">setClient</a></span>(<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a>&nbsp;client)</code>
-<div class="block">Set pulsar client to the provider for provider can control the pulsar client,
- such as <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#forceCloseConnection--"><code>PulsarClient.forceCloseConnection()</code></a> or <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#close--"><code>PulsarClient.close()</code></a>.</div>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ServiceUrlProvider.html#initialize-org.apache.pulsar.client.api.PulsarClient-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a>&nbsp;client)</code>
+<div class="block">Initialize the service url provider with Pulsar client instance.</div>
 </td>
 </tr>
 </table>
@@ -148,32 +151,34 @@ var activeTableTab = "activeTableTab";
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a name="getServiceUrl--">
+<a name="initialize-org.apache.pulsar.client.api.PulsarClient-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>getServiceUrl</h4>
-<pre>String&nbsp;getServiceUrl()</pre>
-<div class="block">Get pulsar service url from ServiceUrlProvider.</div>
+<h4>initialize</h4>
+<pre>void&nbsp;initialize(<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a>&nbsp;client)</pre>
+<div class="block">Initialize the service url provider with Pulsar client instance.
+
+ This can be used by the provider to force the Pulsar client to reconnect whenever the service url might have
+ changed. See <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#updateServiceUrl-java.lang.String-"><code>PulsarClient.updateServiceUrl(String)</code></a>.</div>
 <dl>
-<dt><span class="returnLabel">Returns:</span></dt>
-<dd>pulsar service url.</dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>client</code> - created pulsar client.</dd>
 </dl>
 </li>
 </ul>
-<a name="setClient-org.apache.pulsar.client.api.PulsarClient-">
+<a name="getServiceUrl--">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
-<h4>setClient</h4>
-<pre>void&nbsp;setClient(<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a>&nbsp;client)</pre>
-<div class="block">Set pulsar client to the provider for provider can control the pulsar client,
- such as <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#forceCloseConnection--"><code>PulsarClient.forceCloseConnection()</code></a> or <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#close--"><code>PulsarClient.close()</code></a>.</div>
+<h4>getServiceUrl</h4>
+<pre>String&nbsp;getServiceUrl()</pre>
+<div class="block">Get the current service URL the Pulsar client should connect to.</div>
 <dl>
-<dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>client</code> - created pulsar client.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the pulsar service url.</dd>
 </dl>
 </li>
 </ul>

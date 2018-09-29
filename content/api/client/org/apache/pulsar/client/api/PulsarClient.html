@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":17,"i1":6,"i2":6,"i3":49,"i4":49,"i5":38,"i6":38,"i7":38,"i8":38,"i9":38,"i10":38,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":38,"i22":38,"i23":38,"i24":38};
+var methods = {"i0":17,"i1":6,"i2":6,"i3":49,"i4":49,"i5":38,"i6":38,"i7":38,"i8":38,"i9":38,"i10":38,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":38,"i19":38,"i20":38,"i21":38,"i22":6};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -217,66 +217,48 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
-<td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#forceCloseConnection--">forceCloseConnection</a></span>()</code>
-<div class="block">Force close connection of pulsar client.</div>
-</td>
-</tr>
-<tr id="i12" class="altColor">
-<td class="colFirst"><code>ClientConfigurationData</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#getConf--">getConf</a></span>()</code>
-<div class="block">Get client config data.</div>
-</td>
-</tr>
-<tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--">newConsumer</a></span>()</code>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--">newConsumer</a></span>(&lt;any&gt;&nbsp;schema)</code>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--">newProducer</a></span>()</code>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;T&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--">newProducer</a></span>(&lt;any&gt;&nbsp;schema)</code>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newReader--">newReader</a></span>()</code>
 <div class="block">Create a topic reader for reading messages from the specified topic.</div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;T&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newReader--">newReader</a></span>(&lt;any&gt;&nbsp;schema)</code>
 <div class="block">Create a topic reader for reading messages from the specified topic.</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
-<td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#reloadLookUp--">reloadLookUp</a></span>()</code>
-<div class="block">Reload lookup service in pulsar client.</div>
-</td>
-</tr>
-<tr id="i20" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#shutdown--">shutdown</a></span>()</code>
 <div class="block">Perform immediate shutdown of PulsarClient.</div>
 </td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.lang.String-java.lang.String-">subscribe</a></span>(String&nbsp;topic,
          String&nbsp;subscription)</code>
@@ -285,7 +267,7 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i22" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.lang.String-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">subscribe</a></span>(String&nbsp;topic,
          String&nbsp;subscription,
@@ -295,7 +277,7 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i23" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.lang.String-java.lang.String-">subscribeAsync</a></span>(String&nbsp;topic,
               String&nbsp;subscription)</code>
@@ -304,7 +286,7 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i24" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.lang.String-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">subscribeAsync</a></span>(String&nbsp;topic,
               String&nbsp;subscription,
@@ -312,6 +294,12 @@ extends Closeable</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
 <div class="block"><span class="deprecationComment">Use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>newConsumer()</code></a> to build a new consumer</span></div>
 </div>
+</td>
+</tr>
+<tr id="i22" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#updateServiceUrl-java.lang.String-">updateServiceUrl</a></span>(String&nbsp;serviceUrl)</code>
+<div class="block">Update the service URL this client is using.</div>
 </td>
 </tr>
 </table>
@@ -765,6 +753,26 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader
 </dl>
 </li>
 </ul>
+<a name="updateServiceUrl-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>updateServiceUrl</h4>
+<pre>void&nbsp;updateServiceUrl(String&nbsp;serviceUrl)
+               throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<div class="block">Update the service URL this client is using.
+
+ This will force the client close all existing connections and to restart service discovery to the new service
+ endpoint.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>serviceUrl</code> - the new service URL this client should connect to</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></code> - in case the serviceUrl is not valid</dd>
+</dl>
+</li>
+</ul>
 <a name="close--">
 <!--   -->
 </a>
@@ -805,7 +813,7 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader
 <a name="shutdown--">
 <!--   -->
 </a>
-<ul class="blockList">
+<ul class="blockListLast">
 <li class="blockList">
 <h4>shutdown</h4>
 <pre>void&nbsp;shutdown()
@@ -816,46 +824,6 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader
 <dl>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></code> - if the forceful shutdown fails</dd>
-</dl>
-</li>
-</ul>
-<a name="forceCloseConnection--">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>forceCloseConnection</h4>
-<pre>void&nbsp;forceCloseConnection()</pre>
-<div class="block">Force close connection of pulsar client.
-
- close all producer connection and close all consumer producer.</div>
-</li>
-</ul>
-<a name="reloadLookUp--">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>reloadLookUp</h4>
-<pre>void&nbsp;reloadLookUp()
-           throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
-<div class="block">Reload lookup service in pulsar client.</div>
-<dl>
-<dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></code></dd>
-</dl>
-</li>
-</ul>
-<a name="getConf--">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>getConf</h4>
-<pre>ClientConfigurationData&nbsp;getConf()</pre>
-<div class="block">Get client config data.</div>
-<dl>
-<dt><span class="returnLabel">Returns:</span></dt>
 </dl>
 </li>
 </ul>
