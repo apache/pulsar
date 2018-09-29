@@ -54,7 +54,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                                           ExecutorService listenerExecutor,
                                           CompletableFuture<Consumer<T>> subscribeFuture,
                                           Schema<T> schema, Mode subscriptionMode, ConsumerInterceptors<T> interceptors) {
-        super(client, conf, listenerExecutor, subscribeFuture, schema, interceptors);
+        super(client, conf, listenerExecutor, subscribeFuture, schema, interceptors, false);
         this.topicsPattern = topicsPattern;
         this.subscriptionMode = subscriptionMode;
 
@@ -65,6 +65,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
 
         this.topicsChangeListener = new PatternTopicsChangedListener();
         recheckPatternTimeout = client.timer().newTimeout(this, Math.min(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.MINUTES);
+        super.init();
     }
 
     public static NamespaceName getNameSpaceFromPattern(Pattern pattern) {

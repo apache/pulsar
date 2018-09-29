@@ -84,8 +84,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
 
-    MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf, ExecutorService listenerExecutor,
-                            CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
+    MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
+            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+            ConsumerInterceptors<T> interceptors) {
+        this(client, conf, listenerExecutor, subscribeFuture, schema, interceptors, true);
+    }
+    
+    MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
+            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+            ConsumerInterceptors<T> interceptors, boolean init) {
         super(client, "TopicsConsumerFakeTopicName" + ConsumerName.generateRandomName(), conf,
                 Math.max(2, conf.getReceiverQueueSize()), listenerExecutor, subscribeFuture, schema, interceptors);
 
@@ -118,29 +125,37 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.namespaceName = conf.getTopicNames().stream().findFirst()
                 .flatMap(s -> Optional.of(TopicName.get(s).getNamespaceObject())).get();
 
+        //initialize immediately 
+        if(init) {
+            init();    
+        }
+    }
+
+    protected void init() {
         List<CompletableFuture<Void>> futures = conf.getTopicNames().stream().map(this::subscribeAsync)
                 .collect(Collectors.toList());
         FutureUtil.waitForAll(futures)
-            .thenAccept(finalFuture -> {
-                try {
-                    if (allTopicPartitionsNumber.get() > maxReceiverQueueSize) {
-                        setMaxReceiverQueueSize(allTopicPartitionsNumber.get());
-                    }
-                    setState(State.Ready);
-                    // We have successfully created N consumers, so we can start receiving messages now
-                    startReceivingMessages(new ArrayList<>(consumers.values()));
-                    subscribeFuture().complete(MultiTopicsConsumerImpl.this);
-                    log.info("[{}] [{}] Created topics consumer with {} sub-consumers",
-                        topic, subscription, allTopicPartitionsNumber.get());
-                } catch (PulsarClientException e) {
-                    log.warn("[{}] Failed startReceivingMessages while subscribe topics: {}", topic, e.getMessage());
-                    subscribeFuture.completeExceptionally(e);
-                }})
-            .exceptionally(ex -> {
-                log.warn("[{}] Failed to subscribe topics: {}", topic, ex.getMessage());
-                subscribeFuture.completeExceptionally(ex);
-                return null;
-            });
+        .thenAccept(finalFuture -> {
+            try {
+                if (allTopicPartitionsNumber.get() > maxReceiverQueueSize) {
+                    setMaxReceiverQueueSize(allTopicPartitionsNumber.get());
+                }
+                setState(State.Ready);
+                // We have successfully created N consumers, so we can start receiving messages now
+                startReceivingMessages(new ArrayList<>(consumers.values()));
+                subscribeFuture().complete(MultiTopicsConsumerImpl.this);
+                log.info("[{}] [{}] Created topics consumer with {} sub-consumers",
+                    topic, subscription, allTopicPartitionsNumber.get());
+            } catch (PulsarClientException e) {
+                log.warn("[{}] Failed startReceivingMessages while subscribe topics: {}", topic, e.getMessage());
+                subscribeFuture.completeExceptionally(e);
+            }})
+        .exceptionally(ex -> {
+            log.warn("[{}] Failed to subscribe topics: {}", topic, ex.getMessage());
+            subscribeFuture.completeExceptionally(ex);
+            return null;
+        });
+        
     }
 
     // Check topics are valid.
