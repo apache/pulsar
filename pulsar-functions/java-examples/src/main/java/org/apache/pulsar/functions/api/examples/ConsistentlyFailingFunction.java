@@ -16,20 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.elasticsearch;
+package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
 
 /**
- * Concrete ElasticSearch sink.
- * This class assumes that the input will be JSON documents
+ * This Function simulates a pulsar function encountering failing on a particular message.
  */
-public class ElasticSearchStringSink extends ElasticSearchAbstractSink<String, String> {
-
+public class ConsistentlyFailingFunction implements Function<String, String> {
     @Override
-    public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {
-        String key = record.getKey().orElseGet(() -> new String(record.getValue()));
-        return new KeyValue<>(key, new String(record.getValue()));
+    public String process(String input, Context context) {
+        if (input.equals("FAIL")) {
+            throw new RuntimeException("Failed");
+        } else {
+            return "SUCCESS";
+        }
     }
 }
+

@@ -33,7 +33,6 @@
       <useDefaultExcludes>true</useDefaultExcludes>
       <includes>
         <include>**/README.md</include>
-        <include>**/DISCLAIMER</include>
         <include>**/LICENSE</include>
         <include>**/NOTICE</include>
         <include>**/pom.xml</include>

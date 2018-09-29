@@ -33,6 +33,7 @@ PYTHON_VERSIONS=(
    '3.4 cp34-cp34m'
    '3.5 cp35-cp35m'
    '3.6 cp36-cp36m'
+   '3.7 cp37-cp37m'
 )
 
 function contains() {

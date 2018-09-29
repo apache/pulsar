@@ -114,7 +114,11 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
-    @Test
+    /**
+     * The test is disabled {@link https://github.com/apache/pulsar/issues/2647}.
+     * @throws Exception
+     */
+    @Test(enabled = false)
     public void testDeadLetterTopicWithMultiTopic() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/dead-letter-topic-1";
         final String topic2 = "persistent://my-property/my-ns/dead-letter-topic-2";

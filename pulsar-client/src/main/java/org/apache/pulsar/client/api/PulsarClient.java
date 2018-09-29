@@ -339,6 +339,19 @@ public interface PulsarClient extends Closeable {
     CompletableFuture<Reader<byte[]>> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf);
 
     /**
+     * Update the service URL this client is using.
+     *
+     * This will force the client close all existing connections and to restart service discovery to the new service
+     * endpoint.
+     *
+     * @param serviceUrl
+     *            the new service URL this client should connect to
+     * @throws PulsarClientException
+     *             in case the serviceUrl is not valid
+     */
+    void updateServiceUrl(String serviceUrl) throws PulsarClientException;
+
+    /**
      * Close the PulsarClient and release all the resources.
      *
      * All the producers and consumers will be orderly closed. Waits until all pending write request are persisted.

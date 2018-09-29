@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -50,7 +51,7 @@ import org.slf4j.LoggerFactory;
 public class BinaryProtoLookupService implements LookupService {
 
     private final PulsarClientImpl client;
-    protected final InetSocketAddress serviceAddress;
+    protected volatile InetSocketAddress serviceAddress;
     private final boolean useTls;
     private final ExecutorService executor;
 
@@ -59,6 +60,11 @@ public class BinaryProtoLookupService implements LookupService {
         this.client = client;
         this.useTls = useTls;
         this.executor = executor;
+        updateServiceUrl(serviceUrl);
+    }
+
+    @Override
+    public void updateServiceUrl(String serviceUrl) throws PulsarClientException {
         URI uri;
         try {
             uri = new URI(serviceUrl);
@@ -199,14 +205,14 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
+    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode) {
         CompletableFuture<List<String>> topicsFuture = new CompletableFuture<List<String>>();
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
             opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS,
             0 , TimeUnit.MILLISECONDS);
-        getTopicsUnderNamespace(serviceAddress, namespace, backoff, opTimeoutMs, topicsFuture);
+        getTopicsUnderNamespace(serviceAddress, namespace, backoff, opTimeoutMs, topicsFuture, mode);
         return topicsFuture;
     }
 
@@ -214,11 +220,12 @@ public class BinaryProtoLookupService implements LookupService {
                                          NamespaceName namespace,
                                          Backoff backoff,
                                          AtomicLong remainingTime,
-                                         CompletableFuture<List<String>> topicsFuture) {
+                                         CompletableFuture<List<String>> topicsFuture,
+                                         Mode mode) {
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
-                namespace.toString(), requestId);
+                namespace.toString(), requestId, mode);
 
             clientCnx.newGetTopicsOfNamespace(request, requestId).thenAccept(topicsList -> {
                 if (log.isDebugEnabled()) {
@@ -251,7 +258,7 @@ public class BinaryProtoLookupService implements LookupService {
                 log.warn("[namespace: {}] Could not get connection while getTopicsUnderNamespace -- Will try again in {} ms",
                     namespace, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
-                getTopicsUnderNamespace(socketAddress, namespace, backoff, remainingTime, topicsFuture);
+                getTopicsUnderNamespace(socketAddress, namespace, backoff, remainingTime, topicsFuture, mode);
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
         });

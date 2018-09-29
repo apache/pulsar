@@ -56,7 +56,7 @@ public class ElasticSearchSinkTests {
     @Mock
     protected SinkContext mockSinkContext;   
     protected Map<String, Object> map;
-    protected ElasticSearchStringSink sink;
+    protected ElasticSearchSink sink;
     
     @BeforeClass
     public static final void init() {
@@ -71,7 +71,7 @@ public class ElasticSearchSinkTests {
     public final void setUp() throws Exception {
         map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:9200");
-        sink = new ElasticSearchStringSink();
+        sink = new ElasticSearchSink();
         
         mockRecord = mock(Record.class);
         mockSinkContext = mock(SinkContext.class);

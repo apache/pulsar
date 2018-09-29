@@ -24,7 +24,7 @@ import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
@@ -45,7 +45,6 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
@@ -79,12 +78,12 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Resources;
+import org.apache.pulsar.functions.proto.Function.RetryDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.utils.ConsumerConfig;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
@@ -227,7 +226,7 @@ public class CmdFunctions extends CmdBase {
         protected String jarFile;
         @Parameter(
                 names = "--py",
-                description = "Path to the main Python file for the function (if the function is written in Python)",
+                description = "Path to the main Python file/Python Wheel file for the function (if the function is written in Python)",
                 listConverter = StringConverter.class)
         protected String pyFile;
         @Parameter(names = { "-i",
@@ -321,6 +320,10 @@ public class CmdFunctions extends CmdBase {
         protected Long DEPRECATED_timeoutMs;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
+        @Parameter(names = "--max-message-retries", description = "How many times should we try to process a message before giving up")
+        protected Integer maxMessageRetries = -1;
+        @Parameter(names = "--dead-letter-topic", description = "The topic where all messages which could not be processed successfully are sent")
+        protected String deadLetterTopic;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -463,6 +466,13 @@ public class CmdFunctions extends CmdBase {
             functionConfig.setWindowConfig(windowConfig);
 
             functionConfig.setAutoAck(autoAck);
+
+            if (null != maxMessageRetries) {
+                functionConfig.setMaxMessageRetries(maxMessageRetries);
+            }
+            if (null != deadLetterTopic) {
+                functionConfig.setDeadLetterTopic(deadLetterTopic);
+            }
 
             if (null != jarFile) {
                 functionConfig.setJar(jarFile);
@@ -715,6 +725,15 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getProcessingGuarantees() != null) {
                 functionDetailsBuilder.setProcessingGuarantees(
                         Utils.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
+            }
+
+            if (functionConfig.getMaxMessageRetries() >= 0) {
+                RetryDetails.Builder retryBuilder = RetryDetails.newBuilder();
+                retryBuilder.setMaxMessageRetries(functionConfig.getMaxMessageRetries());
+                if (isNotEmpty(functionConfig.getDeadLetterTopic())) {
+                    retryBuilder.setDeadLetterTopic(functionConfig.getDeadLetterTopic());
+                }
+                functionDetailsBuilder.setRetryDetails(retryBuilder);
             }
 
             Map<String, Object> configs = new HashMap<>();
@@ -1239,7 +1258,7 @@ public class CmdFunctions extends CmdBase {
                 // TODO: correctly implement function version and id
                 instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
                 instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                instanceConfig.setInstanceId(Integer.toString(i + instanceIdOffset));
+                instanceConfig.setInstanceId(i + instanceIdOffset);
                 instanceConfig.setMaxBufferedTuples(1024);
                 instanceConfig.setPort(Utils.findAvailablePort());
                 RuntimeSpawner runtimeSpawner = new RuntimeSpawner(

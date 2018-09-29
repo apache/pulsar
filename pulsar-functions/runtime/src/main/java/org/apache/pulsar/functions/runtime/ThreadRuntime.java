@@ -72,7 +72,9 @@ class ThreadRuntime implements Runtime {
     public void start() {
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
-                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+                String.format("%s-%s",
+                        FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
+                        instanceConfig.getInstanceId()));
         this.fnThread.start();
     }
 
@@ -102,7 +104,10 @@ class ThreadRuntime implements Runtime {
         if (!isAlive()) {
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            functionStatusBuilder.setFailureException(getDeathException().getMessage());
+            Throwable ex = getDeathException();
+            if (ex != null && ex.getMessage() != null) {
+                functionStatusBuilder.setFailureException(ex.getMessage());
+            }
             statsFuture.complete(functionStatusBuilder.build());
             return statsFuture;
         }

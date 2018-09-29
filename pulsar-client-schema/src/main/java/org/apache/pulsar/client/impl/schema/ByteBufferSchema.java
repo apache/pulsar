@@ -24,7 +24,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
- * A bytebuffer schema.
+ * A bytebuffer schema is effectively a `BYTES` schema.
  */
 public class ByteBufferSchema implements Schema<ByteBuffer> {
 
@@ -35,7 +35,7 @@ public class ByteBufferSchema implements Schema<ByteBuffer> {
     private static final ByteBufferSchema INSTANCE = new ByteBufferSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("ByteBuffer")
-        .setType(SchemaType.BYTEBUFFER)
+        .setType(SchemaType.BYTES)
         .setSchema(new byte[0]);
 
     @Override

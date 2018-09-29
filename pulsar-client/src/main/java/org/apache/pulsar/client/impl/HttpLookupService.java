@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -56,6 +57,11 @@ class HttpLookupService implements LookupService {
         this.httpClient = new HttpClient(conf.getServiceUrl(), conf.getAuthentication(),
                 eventLoopGroup, conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
         this.useTls = conf.isUseTls();
+    }
+
+    @Override
+    public void updateServiceUrl(String serviceUrl) throws PulsarClientException {
+        httpClient.setServiceUrl(serviceUrl);
     }
 
     /**
@@ -102,12 +108,13 @@ class HttpLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
+    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode) {
         CompletableFuture<List<String>> future = new CompletableFuture<>();
 
-        String format = namespace.isV2() ? "admin/v2/namespaces/%s/topics" : "admin/namespaces/%s/destinations";
+        String format = namespace.isV2()
+            ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
         httpClient
-            .get(String.format(format, namespace), String[].class)
+            .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {
                 List<String> result = Lists.newArrayList();
                 // do not keep partition part of topic name

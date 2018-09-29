@@ -68,13 +68,8 @@ public class RuntimeSpawner implements AutoCloseable {
         log.info("{}/{}/{}-{} RuntimeSpawner starting function", details.getTenant(), details.getNamespace(),
                 details.getName(), this.instanceConfig.getInstanceId());
 
-        if (instanceConfig.getFunctionDetails().getRuntime() == PYTHON
-                && instanceConfig.getFunctionDetails().getSource() != null
-                && StringUtils.isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {
-            throw new IllegalArgumentException("topics-pattern is not supported for python function");
-        }
-
-        runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile);
+        runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile,
+                instanceLivenessCheckFreqMs * 1000);
         runtime.start();
 
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
@@ -105,11 +100,11 @@ public class RuntimeSpawner implements AutoCloseable {
 
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
         return runtime.getFunctionStatus().thenApply(f -> {
-           FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-           builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(instanceConfig.getInstanceId());
-           if (runtimeDeathException != null) {
-               builder.setFailureException(runtimeDeathException.getMessage());
-           }
+            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
+            builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(instanceConfig.getInstanceName());
+            if (!f.getRunning() && runtimeDeathException != null) {
+                builder.setFailureException(runtimeDeathException.getMessage());
+            }
            return builder.build();
         });
     }

@@ -20,8 +20,8 @@
 package main
 
 import (
-	"github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
 	"fmt"
+	"github.com/apache/pulsar/pulsar-client-go/pulsar"
 	"log"
 )
 

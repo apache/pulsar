@@ -18,14 +18,16 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.functions.proto.Request;
-
 import java.io.IOException;
 import java.util.function.Function;
+
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.functions.proto.Function.Assignment;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class FunctionAssignmentTailer
@@ -34,15 +36,16 @@ public class FunctionAssignmentTailer
         private final FunctionRuntimeManager functionRuntimeManager;
         private final Reader<byte[]> reader;
 
-    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager,
-                Reader<byte[]> reader)
+    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager)
             throws PulsarClientException {
-            this.functionRuntimeManager = functionRuntimeManager;
-            this.reader = reader;
-        }
+        this.functionRuntimeManager = functionRuntimeManager;
+
+        this.reader = functionRuntimeManager.getWorkerService().getClient().newReader()
+                .topic(functionRuntimeManager.getWorkerConfig().getFunctionAssignmentTopic()).readCompacted(true)
+                .startMessageId(MessageId.earliest).create();
+    }
 
     public void start() {
-
         receiveOne();
     }
 
@@ -65,29 +68,21 @@ public class FunctionAssignmentTailer
 
     @Override
     public void accept(Message<byte[]> msg) {
-
-        // check if latest
-        boolean hasMessageAvailable;
-        try {
-            hasMessageAvailable = this.reader.hasMessageAvailable();
-        } catch (PulsarClientException e) {
-            throw new RuntimeException(e);
-        }
-        if (!hasMessageAvailable) {
-            Request.AssignmentsUpdate assignmentsUpdate;
+        if(msg.getData()==null || (msg.getData().length==0)) {
+            log.info("Received assignment delete: {}", msg.getKey());
+            this.functionRuntimeManager.deleteAssignment(msg.getKey());
+        } else {
+            Assignment assignment;
             try {
-                assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(msg.getData());
+                assignment = Assignment.parseFrom(msg.getData());
             } catch (IOException e) {
                 log.error("[{}] Received bad assignment update at message {}", reader.getTopic(), msg.getMessageId(),
                         e);
                 // TODO: find a better way to handle bad request
                 throw new RuntimeException(e);
             }
-            if (log.isDebugEnabled()) {
-                log.debug("Received assignment update: {}", assignmentsUpdate);
-            }
-
-            this.functionRuntimeManager.processAssignmentUpdate(msg.getMessageId(), assignmentsUpdate);
+            log.info("Received assignment update: {}", assignment);
+            this.functionRuntimeManager.processAssignment(assignment);    
         }
         // receive next request
         receiveOne();

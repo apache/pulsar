@@ -48,7 +48,16 @@ endif()
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY}
                         ${Boost_PYTHON27-MT_LIBRARY} ${Boost_PYTHON37-MT_LIBRARY})
 
+if (APPLE)
+    set(PYTHON_WRAPPER_LIBS ${PYTHON_WRAPPER_LIBS}
+                         ${Boost_PYTHON27-MT_LIBRARY_RELEASE} ${Boost_PYTHON37-MT_LIBRARY_RELEASE})
+endif()
+
 message(STATUS "Using Boost Python libs: ${PYTHON_WRAPPER_LIBS}")
+
+if (NOT PYTHON_WRAPPER_LIBS)
+    MESSAGE(FATAL_ERROR "Could not find Boost Python library")
+endif ()
 
 if (APPLE)
     target_link_libraries(_pulsar -Wl,-all_load pulsarStatic ${PYTHON_WRAPPER_LIBS})

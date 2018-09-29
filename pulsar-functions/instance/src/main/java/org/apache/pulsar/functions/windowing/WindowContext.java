@@ -40,7 +40,7 @@ public interface WindowContext {
      *
      * @return the instance id
      */
-    String getInstanceId();
+    int getInstanceId();
 
     /**
      * The version of the function that we are executing

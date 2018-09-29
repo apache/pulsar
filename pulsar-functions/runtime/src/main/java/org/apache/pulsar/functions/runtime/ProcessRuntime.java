@@ -22,31 +22,31 @@ package org.apache.pulsar.functions.runtime;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.gson.Gson;
 import com.google.protobuf.Empty;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.io.InputStream;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * A function container implemented using java thread.
@@ -73,11 +73,12 @@ class ProcessRuntime implements Runtime {
                    String codeFile,
                    String pulsarServiceUrl,
                    String stateStorageServiceUrl,
-                   AuthenticationConfig authConfig) throws Exception {
+                   AuthenticationConfig authConfig,
+                   Long expectedHealthCheckInterval) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
         this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig);
+                authConfig, expectedHealthCheckInterval);
     }
 
     private List<String> composeArgs(InstanceConfig instanceConfig,
@@ -86,7 +87,8 @@ class ProcessRuntime implements Runtime {
                                      String codeFile,
                                      String pulsarServiceUrl,
                                      String stateStorageServiceUrl,
-                                     AuthenticationConfig authConfig) throws Exception {
+                                     AuthenticationConfig authConfig,
+                                     Long expectedHealthCheckInterval) throws Exception {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
@@ -97,8 +99,14 @@ class ProcessRuntime implements Runtime {
             // by the child process and manually added to classpath
             args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
             args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
-            args.add("-Dpulsar.log.dir=" + logDirectory);
-            args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionDetails().getName());
+            args.add("-Dpulsar.function.log.dir=" + String.format(
+                    "%s/%s",
+                    logDirectory,
+                    FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails())));
+            args.add("-Dpulsar.function.log.file=" + String.format(
+                    "%s-%s",
+                    instanceConfig.getFunctionDetails().getName(),
+                    instanceConfig.getInstanceId()));
             if (instanceConfig.getFunctionDetails().getResources() != null) {
                 Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
                 if (resources.getRam() != 0) {
@@ -120,7 +128,7 @@ class ProcessRuntime implements Runtime {
             // TODO:- Find a platform independent way of controlling memory for a python application
         }
         args.add("--instance_id");
-        args.add(instanceConfig.getInstanceId());
+        args.add(instanceConfig.getInstanceName());
         args.add("--function_id");
         args.add(instanceConfig.getFunctionId());
         args.add("--function_version");
@@ -161,6 +169,8 @@ class ProcessRuntime implements Runtime {
             args.add("--state_storage_serviceurl");
             args.add(stateStorageServiceUrl);
         }
+        args.add("--expected_healthcheck_interval");
+        args.add(String.valueOf(expectedHealthCheckInterval));
         return args;
     }
 
