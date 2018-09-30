@@ -1791,6 +1791,15 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 
     @Override
+    public CompletableFuture<Boolean> hasSchema() {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        return brokerService.pulsar()
+            .getSchemaRegistryService()
+            .getSchema(id).thenApply((schema) -> schema != null);
+    }
+
+    @Override
     public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
         if (schema == null) {
             return CompletableFuture.completedFuture(SchemaVersion.Empty);
@@ -1810,5 +1819,17 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return brokerService.pulsar()
             .getSchemaRegistryService()
             .isCompatibleWithLatestVersion(id, schema);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+        return hasSchema()
+            .thenCompose((hasSchema) -> {
+                    if (hasSchema || isActive() || ledger.getTotalSize() != 0) {
+                        return isSchemaCompatible(schema);
+                    } else {
+                        return addSchema(schema).thenApply((ignore) -> true);
+                    }
+                });
     }
 }
