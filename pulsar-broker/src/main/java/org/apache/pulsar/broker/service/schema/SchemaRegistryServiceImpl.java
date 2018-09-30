@@ -83,23 +83,25 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema) {
-        return checkCompatibilityWithLatest(schemaId, schema).thenCompose(isCompatible -> {
-            if (isCompatible) {
-                byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
-                SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
-                    .setType(Functions.convertFromDomainType(schema.getType()))
-                    .setSchema(ByteString.copyFrom(schema.getData()))
-                    .setSchemaId(schemaId)
-                    .setUser(schema.getUser())
-                    .setDeleted(false)
-                    .setTimestamp(clock.millis())
-                    .addAllProps(toPairs(schema.getProps()))
-                    .build();
-                return schemaStorage.put(schemaId, info.toByteArray(), context);
-            } else {
-                return FutureUtil.failedFuture(new IncompatibleSchemaException());
-            }
-        });
+        return getSchema(schemaId).thenApply(
+                (existingSchema) -> existingSchema == null || isCompatible(existingSchema, schema))
+            .thenCompose(isCompatible -> {
+                    if (isCompatible) {
+                        byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
+                        SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
+                            .setType(Functions.convertFromDomainType(schema.getType()))
+                            .setSchema(ByteString.copyFrom(schema.getData()))
+                            .setSchemaId(schemaId)
+                            .setUser(schema.getUser())
+                            .setDeleted(false)
+                            .setTimestamp(clock.millis())
+                            .addAllProps(toPairs(schema.getProps()))
+                            .build();
+                        return schemaStorage.put(schemaId, info.toByteArray(), context);
+                    } else {
+                        return FutureUtil.failedFuture(new IncompatibleSchemaException());
+                    }
+                });
     }
 
     @Override
@@ -135,15 +137,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .build();
     }
 
-    private CompletableFuture<Boolean> checkCompatibilityWithLatest(String schemaId, SchemaData schema) {
+    private boolean isCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema) {
+        return compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
+            .isCompatible(existingSchema.schema, newSchema);
+    }
 
-        return getSchema(schemaId).thenApply(storedSchema ->
-            (storedSchema == null) ||
-                compatibilityChecks.getOrDefault(
-                    schema.getType(),
-                    SchemaCompatibilityCheck.DEFAULT
-                ).isCompatible(storedSchema.schema, schema)
-        );
+    private CompletableFuture<Boolean> checkCompatibilityWithLatest(String schemaId, SchemaData schema) {
+        return getSchema(schemaId).thenApply(
+                (existingSchema) -> existingSchema != null && isCompatible(existingSchema, schema));
     }
 
     interface Functions {
