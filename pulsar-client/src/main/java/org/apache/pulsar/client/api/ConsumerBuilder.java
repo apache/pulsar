@@ -151,7 +151,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            for unacked messages.
      * @param timeUnit
      *            unit in which the timeout is provided.
-     * @return {@link ConsumerConfiguration}
      */
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
@@ -258,9 +257,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * The consumer group listener is used for receiving consumer state change in a consumer group for failover
      * subscription. Application can then react to the consumer state changes.
      *
-     * @param listener
+     * @param consumerEventListener
      *            the consumer group listener object
-     * @return consumer configuration
      */
     ConsumerBuilder<T> consumerEventListener(ConsumerEventListener consumerEventListener);
 
@@ -316,7 +314,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * @param key
      * @param value
-     * @return
      */
     ConsumerBuilder<T> property(String key, String value);
 
@@ -324,7 +321,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Add all the properties in the provided map
      *
      * @param properties
-     * @return
      */
     ConsumerBuilder<T> properties(Map<String, String> properties);
 
@@ -345,7 +341,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Intercept {@link Consumer}.
      *
      * @param interceptors the list of interceptors to intercept the consumer created by this builder.
-     * @return consumer builder.
      */
     ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
 
