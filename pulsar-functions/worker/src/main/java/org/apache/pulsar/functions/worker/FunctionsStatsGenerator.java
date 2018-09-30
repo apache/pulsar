@@ -21,11 +21,13 @@ package org.apache.pulsar.functions.worker;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -35,8 +37,12 @@ public class FunctionsStatsGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(FunctionsStatsGenerator.class);
 
+    private static Set<String> METRIC_TYPES = new ConcurrentHashSet<>();
+
     public static void generate(WorkerService workerService, String cluster, SimpleTextOutputStream out) {
         if (workerService != null) {
+            METRIC_TYPES.forEach(metric -> metricType(out, metric));
+
             Map<String, FunctionRuntimeInfo> functionRuntimes
                     = workerService.getFunctionRuntimeManager().getFunctionRuntimeInfos();
 
@@ -86,10 +92,19 @@ public class FunctionsStatsGenerator {
         }
     }
 
+    private static void metricType(SimpleTextOutputStream stream, String name) {
+        stream.write("# TYPE ").write(name).write(" gauge\n");
+    }
+
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace,
                                String functionName, String metricName, int instanceId, double value) {
-        stream.write(metricName).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
-                .write("\", name=\"").write(functionName).write("\", instanceId=\"").write(instanceId).write("\"} ");
+        if (!METRIC_TYPES.contains(metricName)) {
+            metricType(stream, metricName);
+            METRIC_TYPES.add(metricName);
+        }
+
+        stream.write(metricName).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
+                .write("\",name=\"").write(functionName).write("\",instanceId=\"").write(instanceId).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 }

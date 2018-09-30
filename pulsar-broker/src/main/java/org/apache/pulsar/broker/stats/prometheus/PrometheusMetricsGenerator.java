@@ -86,12 +86,16 @@ public class PrometheusMetricsGenerator {
         while (metricFamilySamples.hasMoreElements()) {
             MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
 
+            // Write type of metric
+            stream.write("# TYPE ").write(metricFamily.name).write(' ')
+                    .write(getTypeStr(metricFamily.type)).write('\n');
+
             for (int i = 0; i < metricFamily.samples.size(); i++) {
                 Sample sample = metricFamily.samples.get(i);
                 stream.write(sample.name);
                 stream.write("{cluster=\"").write(cluster).write('"');
                 for (int j = 0; j < sample.labelNames.size(); j++) {
-                    stream.write(", ");
+                    stream.write(",");
                     stream.write(sample.labelNames.get(j));
                     stream.write("=\"");
                     stream.write(sample.labelValues.get(j));
@@ -104,4 +108,21 @@ public class PrometheusMetricsGenerator {
             }
         }
     }
+
+    static String getTypeStr(Collector.Type type) {
+        switch (type) {
+        case COUNTER:
+            return "counter";
+        case GAUGE:
+            return "gauge";
+        case SUMMARY        :
+            return "summary";
+        case HISTOGRAM:
+            return "histogram";
+        case UNTYPED:
+        default:
+            return "untyped";
+        }
+    }
+
 }
