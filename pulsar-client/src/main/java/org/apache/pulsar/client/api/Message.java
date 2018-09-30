@@ -147,6 +147,13 @@ public interface Message<T> {
     byte[] getKeyBytes();
 
     /**
+     * Get the topic the message was published to
+     *
+     * @return the topic the message was published to
+     */
+    String getTopicName();
+
+    /**
      * {@link EncryptionContext} contains encryption and compression information in it using which application can
      * decrypt consumed message with encrypted-payload.
      * 

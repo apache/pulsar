@@ -113,21 +113,21 @@ public interface PulsarClient extends Closeable {
     <T> ProducerBuilder<T> newProducer(Schema<T> schema);
 
     /**
-     * Create a producer with default for publishing on a specific topic
+     * Create a consumer with default for subscribing on a specific topic
      *
-     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     * @return a {@link ConsumerBuilder} object to configure and construct the {@link Consumer} instance
      *
      * @since 2.0.0
      */
     ConsumerBuilder<byte[]> newConsumer();
 
     /**
-     * Create a producer with default for publishing on a specific topic
+     * Create a consumer with default for subscribing on a specific topic
      *
      * @param schema
      *          provide a way to convert between serialized data and domain objects
      *
-     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     * @return a {@link ConsumerBuilder} object to configure and construct the {@link Consumer} instance
      *
      * @since 2.0.0
      */

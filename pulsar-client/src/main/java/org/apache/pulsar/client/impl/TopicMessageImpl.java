@@ -29,7 +29,7 @@ public class TopicMessageImpl<T> implements Message<T> {
 
     /** This topicPartitionName is get from ConsumerImpl, it contains partition part. */
     private final String topicPartitionName;
-    private final String topicName;
+
     private final Message<T> msg;
     private final TopicMessageIdImpl messageId;
 
@@ -37,7 +37,6 @@ public class TopicMessageImpl<T> implements Message<T> {
                      String topicName,
                      Message<T> msg) {
         this.topicPartitionName = topicPartitionName;
-        this.topicName = topicName;
 
         this.msg = msg;
         this.messageId = new TopicMessageIdImpl(topicPartitionName, topicName, msg.getMessageId());
@@ -47,8 +46,9 @@ public class TopicMessageImpl<T> implements Message<T> {
      * Get the topic name without partition part of this message.
      * @return the name of the topic on which this message was published
      */
+    @Override
     public String getTopicName() {
-        return topicName;
+        return msg.getTopicName();
     }
 
     /**
