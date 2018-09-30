@@ -150,7 +150,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
         Splitter.on("\n").split(metrics).forEach(line -> {
-            if (line.isEmpty()) {
+            if (line.isEmpty() || line.startsWith("#")) {
                 return;
             }
 

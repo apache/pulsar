@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
-
-import java.util.HashMap;
-import java.util.Map;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 
 class TopicStats {
 
@@ -45,6 +47,7 @@ class TopicStats {
 
     Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
     Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
+    private static Set<String> METRIC_TYPES = new ConcurrentHashSet<>();
 
     public void reset() {
         subscriptionsCount = 0;
@@ -68,6 +71,8 @@ class TopicStats {
 
     static void printTopicStats(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
                                 TopicStats stats) {
+
+        METRIC_TYPES.forEach(metric -> metricType(stream, metric));
 
         metric(stream, cluster, namespace, topic, "pulsar_subscriptions_count", stats.subscriptionsCount);
         metric(stream, cluster, namespace, topic, "pulsar_producers_count", stats.producersCount);
@@ -129,40 +134,69 @@ class TopicStats {
 
     }
 
+    static void metricType(SimpleTextOutputStream stream, String name) {
+        stream.write("# TYPE ").write(name).write(" gauge\n");
+    }
+
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
                                String name, double value) {
-        stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
-                .write("\", topic=\"").write(topic).write("\"} ");
+        if (!METRIC_TYPES.contains(name)) {
+            metricType(stream, name);
+            METRIC_TYPES.add(name);
+        }
+
+        stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
+                .write("\",topic=\"").write(topic).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
                                String name, long value) {
-        stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
-                .write("\", topic=\"").write(topic).write("\", subscription=\"").write(subscription).write("\"} ");
+        if (!METRIC_TYPES.contains(name)) {
+            metricType(stream, name);
+            METRIC_TYPES.add(name);
+        }
+
+        stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
+                .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
                                String name, double value) {
-        stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
-                .write("\", topic=\"").write(topic).write("\", subscription=\"").write(subscription).write("\"} ");
+        if (!METRIC_TYPES.contains(name)) {
+            metricType(stream, name);
+            METRIC_TYPES.add(name);
+        }
+
+        stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
+                .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
                                String consumerName, long consumerId, String name, long value) {
+        if (!METRIC_TYPES.contains(name)) {
+            metricType(stream, name);
+            METRIC_TYPES.add(name);
+        }
+
         stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
-                .write("\", topic=\"").write(topic).write("\", subscription=\"").write(subscription)
-                .write("\", consumer_name=\"").write(consumerName).write("\", consumer_id=\"").write(consumerId).write("\"} ");
+                .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription)
+                .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"").write(consumerId).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
                                String consumerName, long consumerId, String name, double value) {
-        stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
-                .write("\", topic=\"").write(topic).write("\", subscription=\"").write(subscription)
-                .write("\", consumer_name=\"").write(consumerName).write("\", consumer_id=\"").write(consumerId).write("\"} ");
+        if (!METRIC_TYPES.contains(name)) {
+            metricType(stream, name);
+            METRIC_TYPES.add(name);
+        }
+
+        stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
+                .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription)
+                .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"").write(consumerId).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 }
