@@ -30,6 +30,8 @@ public interface RuntimeFactory extends AutoCloseable {
      * Create a function container to execute a java instance.
      *
      * @param instanceConfig java instance config
+     * @param codeFile code file
+     * @param expectedHealthCheckInterval expected health check interval in seconds
      * @return function container to start/stop instance
      */
     Runtime createContainer(
