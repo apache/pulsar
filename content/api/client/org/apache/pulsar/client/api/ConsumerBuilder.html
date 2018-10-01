@@ -504,8 +504,6 @@ extends Cloneable</pre>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>ackTimeout</code> - for unacked messages.</dd>
 <dd><code>timeUnit</code> - unit in which the timeout is provided.</dd>
-<dt><span class="returnLabel">Returns:</span></dt>
-<dd><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api"><code>ConsumerConfiguration</code></a></dd>
 </dl>
 </li>
 </ul>
@@ -669,9 +667,7 @@ extends Cloneable</pre>
  subscription. Application can then react to the consumer state changes.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>listener</code> - the consumer group listener object</dd>
-<dt><span class="returnLabel">Returns:</span></dt>
-<dd>consumer configuration</dd>
+<dd><code>consumerEventListener</code> - the consumer group listener object</dd>
 </dl>
 </li>
 </ul>
@@ -754,7 +750,6 @@ extends Cloneable</pre>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>key</code> - </dd>
 <dd><code>value</code> - </dd>
-<dt><span class="returnLabel">Returns:</span></dt>
 </dl>
 </li>
 </ul>
@@ -769,7 +764,6 @@ extends Cloneable</pre>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>properties</code> - </dd>
-<dt><span class="returnLabel">Returns:</span></dt>
 </dl>
 </li>
 </ul>
@@ -809,8 +803,6 @@ extends Cloneable</pre>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>interceptors</code> - the list of interceptors to intercept the consumer created by this builder.</dd>
-<dt><span class="returnLabel">Returns:</span></dt>
-<dd>consumer builder.</dd>
 </dl>
 </li>
 </ul>

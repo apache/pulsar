@@ -219,13 +219,13 @@ extends Closeable</pre>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--">newConsumer</a></span>()</code>
-<div class="block">Create a producer with default for publishing on a specific topic</div>
+<div class="block">Create a consumer with default for subscribing on a specific topic</div>
 </td>
 </tr>
 <tr id="i12" class="altColor">
 <td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--">newConsumer</a></span>(&lt;any&gt;&nbsp;schema)</code>
-<div class="block">Create a producer with default for publishing on a specific topic</div>
+<div class="block">Create a consumer with default for subscribing on a specific topic</div>
 </td>
 </tr>
 <tr id="i13" class="rowColor">
@@ -432,10 +432,10 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 <li class="blockList">
 <h4>newConsumer</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;byte[]&gt;&nbsp;newConsumer()</pre>
-<div class="block">Create a producer with default for publishing on a specific topic</div>
+<div class="block">Create a consumer with default for subscribing on a specific topic</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>a <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a> object to configure and construct the <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance</dd>
+<dd>a <a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ConsumerBuilder</code></a> object to configure and construct the <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> instance</dd>
 <dt><span class="simpleTagLabel">Since:</span></dt>
 <dd>2.0.0</dd>
 </dl>
@@ -448,12 +448,12 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 <li class="blockList">
 <h4>newConsumer</h4>
 <pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;&nbsp;newConsumer(&lt;any&gt;&nbsp;schema)</pre>
-<div class="block">Create a producer with default for publishing on a specific topic</div>
+<div class="block">Create a consumer with default for subscribing on a specific topic</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>schema</code> - provide a way to convert between serialized data and domain objects</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>a <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a> object to configure and construct the <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance</dd>
+<dd>a <a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ConsumerBuilder</code></a> object to configure and construct the <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> instance</dd>
 <dt><span class="simpleTagLabel">Since:</span></dt>
 <dd>2.0.0</dd>
 </dl>
