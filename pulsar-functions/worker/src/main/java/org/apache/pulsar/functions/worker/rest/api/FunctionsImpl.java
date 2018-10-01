@@ -243,6 +243,14 @@ public class FunctionsImpl {
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
 
+        try {
+            worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
+        } catch (Exception e) {
+            log.error("Updated Function {}/{}/{} cannot be submitted to runtime factory", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s cannot be admitted:- %s", functionName, e.getMessage()))).build();
+        }
+
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
                 .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
