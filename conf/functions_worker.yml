@@ -36,6 +36,8 @@ downloadDirectory: /tmp/pulsar_functions
 #  threadGroupName: "Thread Function Container Group"
 processContainerFactory:
   logDirectory:
+#kubernetesContainerFactory:
+#  k8Uri:
 
 schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler"
 functionAssignmentTopicName: "assignments"
