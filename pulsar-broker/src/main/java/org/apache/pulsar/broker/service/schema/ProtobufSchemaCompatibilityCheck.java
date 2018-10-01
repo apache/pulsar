@@ -22,14 +22,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 public class ProtobufSchemaCompatibilityCheck extends AvroSchemaCompatibilityCheck {
 
-    public ProtobufSchemaCompatibilityCheck () {
-        this(SchemaCompatibilityStrategy.FULL);
-    }
-
-    public ProtobufSchemaCompatibilityCheck (SchemaCompatibilityStrategy compatibilityStrategy) {
-        super(compatibilityStrategy);
-    }
-
     @Override
     public SchemaType getSchemaType() {
         return SchemaType.PROTOBUF;

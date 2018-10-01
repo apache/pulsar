@@ -219,7 +219,8 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     private void putSchema(String schemaId, SchemaData schema, SchemaVersion expectedVersion) throws Exception {
-        CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(schemaId, schema);
+        CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(
+                schemaId, schema, SchemaCompatibilityStrategy.FULL);
         SchemaVersion newVersion = put.get();
         assertEquals(expectedVersion, newVersion);
     }

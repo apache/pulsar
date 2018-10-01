@@ -28,17 +28,11 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.Arrays;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
-
-    private final SchemaCompatibilityStrategy compatibilityStrategy;
-
-    public AvroSchemaCompatibilityCheck () {
-        this(SchemaCompatibilityStrategy.FULL);
-    }
-
-    public AvroSchemaCompatibilityCheck(SchemaCompatibilityStrategy compatibilityStrategy) {
-        this.compatibilityStrategy = compatibilityStrategy;
-    }
+    private final static Logger log = LoggerFactory.getLogger(AvroSchemaCompatibilityCheck.class);
 
     @Override
     public SchemaType getSchemaType() {
@@ -46,14 +40,13 @@ public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
     }
 
     @Override
-    public boolean isCompatible(SchemaData from, SchemaData to) {
-
+    public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
         Schema.Parser fromParser = new Schema.Parser();
         Schema fromSchema = fromParser.parse(new String(from.getData()));
         Schema.Parser toParser = new Schema.Parser();
         Schema toSchema =  toParser.parse(new String(to.getData()));
 
-        SchemaValidator schemaValidator = createSchemaValidator(this.compatibilityStrategy, true);
+        SchemaValidator schemaValidator = createSchemaValidator(strategy, true);
         try {
             schemaValidator.validate(toSchema, Arrays.asList(fromSchema));
         } catch (SchemaValidationException e) {
@@ -70,8 +63,10 @@ public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
                 return createLatestOrAllValidator(validatorBuilder.canReadStrategy(), onlyLatestValidator);
             case FORWARD:
                 return createLatestOrAllValidator(validatorBuilder.canBeReadStrategy(), onlyLatestValidator);
-            default:
+            case FULL:
                 return createLatestOrAllValidator(validatorBuilder.mutualReadStrategy(), onlyLatestValidator);
+            default:
+                return NeverSchemaValidator.INSTANCE;
         }
     }
 

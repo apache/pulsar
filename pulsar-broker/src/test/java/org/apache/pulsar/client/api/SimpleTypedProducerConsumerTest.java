@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -116,7 +117,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                     .user("me")
                     .data(jsonSchema.getSchemaInfo().getSchema())
                     .props(Collections.emptyMap())
-                    .build()
+                    .build(),
+                SchemaCompatibilityStrategy.FULL
             ).get();
 
         Consumer<JsonEncodedPojo> consumer = pulsarClient
@@ -157,7 +159,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                     .user("me")
                     .data(randomSchemaBytes)
                     .props(Collections.emptyMap())
-                    .build()
+                    .build(),
+                SchemaCompatibilityStrategy.FULL
             ).get();
 
         Consumer<JsonEncodedPojo> consumer = pulsarClient
@@ -184,7 +187,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                     .user("me")
                     .data(randomSchemaBytes)
                     .props(Collections.emptyMap())
-                    .build()
+                    .build(),
+                SchemaCompatibilityStrategy.FULL
             ).get();
 
         Producer<JsonEncodedPojo> producer = pulsarClient
@@ -262,7 +266,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                                 .user("me")
                                 .data(schema.getSchemaInfo().getSchema())
                                 .props(Collections.emptyMap())
-                                .build()
+                                .build(),
+                        SchemaCompatibilityStrategy.FULL
                 ).get();
 
         Consumer<org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong> consumer = pulsarClient
@@ -343,7 +348,8 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                     .user("me")
                     .data(randomSchemaBytes)
                     .props(Collections.emptyMap())
-                    .build()
+                    .build(),
+                SchemaCompatibilityStrategy.FULL
             ).get();
 
         Consumer<AvroEncodedPojo> consumer = pulsarClient

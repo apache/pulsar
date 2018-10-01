@@ -16,12 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
 
-public class ProtobufSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilityTest{
+package org.apache.pulsar.common.policies.data;
 
-    @Override
-    public SchemaCompatibilityCheck getSchemaCheck() {
-        return new ProtobufSchemaCompatibilityCheck();
-    }
+/**
+ * Strategy to use when checking an auto-updated schema for compatibility to the current schema.
+ */
+public enum SchemaAutoUpdateCompatibilityStrategy {
+    /**
+     * Don't allow any auto updates.
+     */
+    AutoUpdateDisabled,
+
+    /**
+     * Messages written in the new schema can be read by the previous schema.
+     */
+    Backward,
+
+    /**
+     * Messages written in the previous schema can be read by the new schema.
+     */
+    Forward,
+
+    /**
+     * Backward and Forward.
+     */
+    Full
 }
