@@ -33,6 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
@@ -173,12 +175,11 @@ public class SchedulerManager implements AutoCloseable {
                 .entrySet().stream()
                 .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream()).collect(Collectors.toList());
 
-        List<Assignment> resultAssignments = Lists.newArrayList();
-        List<Function.Instance> needsAssignment = this.getUnassignedFunctionInstances(resultAssignments, workerIdToAssignments,
+        Pair<List<Function.Instance>, List<Assignment>> unassignedInstances = this.getUnassignedFunctionInstances(workerIdToAssignments,
                 allInstances);
 
-        List<Assignment> assignments = this.scheduler.schedule(resultAssignments,
-                needsAssignment, currentAssignments, currentMembership);
+        List<Assignment> assignments = this.scheduler.schedule(unassignedInstances.getLeft(), currentAssignments, currentMembership);
+        assignments.addAll(unassignedInstances.getRight());
         
         if (log.isDebugEnabled()) {
             log.debug("New assignments computed: {}", assignments);
@@ -239,11 +240,11 @@ public class SchedulerManager implements AutoCloseable {
         return functionInstances;
     }
 
-    private List<Function.Instance> getUnassignedFunctionInstances(
-            List<Assignment> resultAssignments,
+    private Pair<List<Function.Instance>, List<Assignment>> getUnassignedFunctionInstances(
             Map<String, Map<String, Assignment>> currentAssignments, Map<String, Function.Instance> functionInstances) {
 
         List<Function.Instance> unassignedFunctionInstances = new LinkedList<>();
+        List<Assignment> heartBeatAssignments = Lists.newArrayList();
         Map<String, Assignment> assignmentMap = new HashMap<>();
         for (Map<String, Assignment> entry : currentAssignments.values()) {
             assignmentMap.putAll(entry);
@@ -254,7 +255,7 @@ public class SchedulerManager implements AutoCloseable {
             Function.Instance instance = instanceEntry.getValue();
             String heartBeatWorkerId = checkHeartBeatFunction(instance);
             if (heartBeatWorkerId != null) {
-                resultAssignments
+                heartBeatAssignments
                         .add(Assignment.newBuilder().setInstance(instance).setWorkerId(heartBeatWorkerId).build());
                 continue;
             }
@@ -262,7 +263,7 @@ public class SchedulerManager implements AutoCloseable {
                 unassignedFunctionInstances.add(instance);
             }
         }
-        return unassignedFunctionInstances;
+        return ImmutablePair.of(unassignedFunctionInstances, heartBeatAssignments);
     }
 
     @Override

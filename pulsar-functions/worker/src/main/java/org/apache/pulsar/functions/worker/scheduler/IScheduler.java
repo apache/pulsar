@@ -29,8 +29,6 @@ public interface IScheduler {
     /**
      * Scheduler schedules assignments to appropriate workers and adds into #resultAssignments
      * 
-     * @param resultAssignments
-     *            scheduler adds new assignents into the list
      * @param unassignedFunctionInstances
      *            all unassigned instances
      * @param currentAssignments
@@ -38,6 +36,6 @@ public interface IScheduler {
      * @param workers
      * @return
      */
-    List<Assignment> schedule(List<Assignment> resultAssignments, List<Instance> unassignedFunctionInstances,
-            List<Assignment> currentAssignments, Set<String> workers);
+    List<Assignment> schedule(List<Instance> unassignedFunctionInstances, List<Assignment> currentAssignments,
+            Set<String> workers);
 }

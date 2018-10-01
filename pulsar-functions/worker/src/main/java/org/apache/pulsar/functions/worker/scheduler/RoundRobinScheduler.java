@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.worker.scheduler;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.Instance;
 
+import com.google.common.collect.Lists;
+
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -30,10 +32,11 @@ import java.util.Set;
 public class RoundRobinScheduler implements IScheduler {
 
     @Override
-    public List<Assignment> schedule(List<Assignment> resultAssignments, List<Instance> unassignedFunctionInstances,
+    public List<Assignment> schedule(List<Instance> unassignedFunctionInstances,
             List<Assignment> currentAssignments, Set<String> workers) {
 
         Map<String, List<Assignment>> workerIdToAssignment = new HashMap<>();
+        List<Assignment> newAssignments = Lists.newArrayList();
 
         for (String workerId : workers) {
             workerIdToAssignment.put(workerId, new LinkedList<>());
@@ -48,10 +51,10 @@ public class RoundRobinScheduler implements IScheduler {
             Assignment newAssignment = Assignment.newBuilder().setInstance(unassignedFunctionInstance)
                     .setWorkerId(workerId).build();
             workerIdToAssignment.get(workerId).add(newAssignment);
-            resultAssignments.add(newAssignment);
+            newAssignments.add(newAssignment);
         }
 
-        return resultAssignments;
+        return newAssignments;
     }
 
     private String findNextWorker(Map<String, List<Assignment>> workerIdToAssignment) {
