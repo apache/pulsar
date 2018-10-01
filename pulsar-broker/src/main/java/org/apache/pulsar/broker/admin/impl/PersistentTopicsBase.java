@@ -1426,23 +1426,32 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             Stat nodeStat = new Stat();
             String path = path(POLICIES, namespaceName.toString(), topicName.getLocalName());
-            byte[] content = null;
+            Policies policiesOnTopic = null;
+            RetentionPolicies retentionPolicies = null;
+            // Load policy from topic, must catch the KeeperException.NoNodeException.
             try {
-                content = globalZk().getData(path, null, nodeStat);
+                byte[] content = globalZk().getData(path, null, nodeStat);
+                policiesOnTopic = jsonMapper().readValue(content, Policies.class);
+                retentionPolicies = policiesOnTopic.retention_policies;
             } catch (KeeperException.NoNodeException e) {
                 log.warn("[{}] Fail to get backlog configuration for namespace {} topic {}, back to use namespace backlog default.",
                         clientAppId(), namespaceName.toString(), topicName.getLocalName());
             }
-            if (content == null) {
-                path = path(POLICIES, namespaceName.toString());
-                content = globalZk().getData(path, null, null);
+            if (policiesOnTopic == null) {
+                policiesOnTopic = new Policies();
             }
-            Policies policies = jsonMapper().readValue(content, Policies.class);
-            RetentionPolicies r = policies.retention_policies;
-            if (r != null) {
+            // Load RetentionPolicies from namespace.
+            if (retentionPolicies == null) {
+                path = path(POLICIES, namespaceName.toString());
+                byte[] content = globalZk().getData(path, null, null);
+                Policies policiesOnNamespace = jsonMapper().readValue(content, Policies.class);
+                retentionPolicies = policiesOnNamespace.retention_policies;
+            }
+            // Process checkQuotas.
+            if (retentionPolicies != null) {
                 Policies p = new Policies();
                 p.backlog_quota_map.put(backlogQuotaType, backlogQuota);
-                if (!checkQuotas(p, r)) {
+                if (!checkQuotas(p, retentionPolicies)) {
                     log.warn(
                             "[{}] Failed to update backlog configuration for namespace {} topic {}: conflicts with retention quota",
                             clientAppId(), namespaceName, topicName.getLocalName());
@@ -1450,17 +1459,17 @@ public class PersistentTopicsBase extends AdminResource {
                             "Backlog Quota exceeds configured retention quota for namespace. Please increase retention quota and retry");
                 }
             }
-            policies.backlog_quota_map.put(backlogQuotaType, backlogQuota);
+            // Set backlog quota to topic.
+            policiesOnTopic.backlog_quota_map.put(backlogQuotaType, backlogQuota);
             path = path(POLICIES, namespaceName.toString(), topicName.getLocalName());
             if (globalZk().exists(path, null) == null) {
-                globalZk().create(path, jsonMapper().writeValueAsBytes(policies), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                globalZk().create(path, jsonMapper().writeValueAsBytes(policiesOnTopic), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             } else {
-                globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+                globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesOnTopic), nodeStat.getVersion());
             }
             policiesCache().invalidate(path(POLICIES, namespaceName.toString(), topicName.getLocalName()));
             log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, map={}", clientAppId(), namespaceName, topicName.getLocalName(),
-                    jsonMapper().writeValueAsString(policies.backlog_quota_map));
-
+                    jsonMapper().writeValueAsString(policiesOnTopic.backlog_quota_map));
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update backlog quota map for namespace {} topic {}: does not exist", clientAppId(),
                     namespaceName, topicName.getLocalName());
