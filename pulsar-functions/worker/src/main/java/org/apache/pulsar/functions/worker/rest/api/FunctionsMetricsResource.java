@@ -53,7 +53,10 @@ public class FunctionsMetricsResource extends FunctionApiResource {
                 out.write(payload, arrayOffset, readableBytes);
                 out.flush();
             };
-            return Response.ok(streamOut).build();
+            return Response
+                .ok(streamOut)
+                .type(MediaType.TEXT_PLAIN_TYPE)
+                .build();
         } finally {
             buf.release();
         }
