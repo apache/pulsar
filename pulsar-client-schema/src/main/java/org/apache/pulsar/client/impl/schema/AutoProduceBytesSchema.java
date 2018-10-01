@@ -44,7 +44,9 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
         ensureSchemaInitialized();
 
         // verify if the message can be decoded by the underlying schema
-        return schema.encode(schema.decode(message));
+        schema.decode(message);
+
+        return message;
     }
 
     @Override
