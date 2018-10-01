@@ -52,7 +52,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     }
 
     @VisibleForTesting
-    ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl) {
+    public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl) {
         this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
@@ -82,6 +82,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     
     @Override
     public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile,
+                                         String originalCodeFileName,
                                          Long expectedHealthCheckInterval) {
         return new ThreadRuntime(
             instanceConfig,
