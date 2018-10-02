@@ -330,10 +330,8 @@ public class CmdFunctions extends CmdBase {
             if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
             if (!StringUtils.isBlank(DEPRECATED_topicsPattern)) topicsPattern = DEPRECATED_topicsPattern;
             if (!StringUtils.isBlank(DEPRECATED_logTopic)) logTopic = DEPRECATED_logTopic;
-            if (!StringUtils.isBlank(DEPRECATED_outputSerdeClassName))
-                outputSerdeClassName = DEPRECATED_outputSerdeClassName;
-            if (!StringUtils.isBlank(DEPRECATED_customSerdeInputString))
-                customSerdeInputString = DEPRECATED_customSerdeInputString;
+            if (!StringUtils.isBlank(DEPRECATED_outputSerdeClassName)) outputSerdeClassName = DEPRECATED_outputSerdeClassName;
+            if (!StringUtils.isBlank(DEPRECATED_customSerdeInputString)) customSerdeInputString = DEPRECATED_customSerdeInputString;
 
             if (!StringUtils.isBlank(DEPRECATED_fnConfigFile)) fnConfigFile = DEPRECATED_fnConfigFile;
             if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
@@ -342,8 +340,7 @@ public class CmdFunctions extends CmdBase {
             if (DEPRECATED_windowLengthCount != null) windowLengthCount = DEPRECATED_windowLengthCount;
             if (DEPRECATED_windowLengthDurationMs != null) windowLengthDurationMs = DEPRECATED_windowLengthDurationMs;
             if (DEPRECATED_slidingIntervalCount != null) slidingIntervalCount = DEPRECATED_slidingIntervalCount;
-            if (DEPRECATED_slidingIntervalDurationMs != null)
-                slidingIntervalDurationMs = DEPRECATED_slidingIntervalDurationMs;
+            if (DEPRECATED_slidingIntervalDurationMs != null) slidingIntervalDurationMs = DEPRECATED_slidingIntervalDurationMs;
             if (DEPRECATED_autoAck != null) autoAck = DEPRECATED_autoAck;
             if (DEPRECATED_timeoutMs != null) timeoutMs = DEPRECATED_timeoutMs;
         }
@@ -380,14 +377,12 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setInputs(inputTopics);
             }
             if (null != customSerdeInputString) {
-                Type type = new TypeToken<Map<String, String>>() {
-                }.getType();
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
                 functionConfig.setCustomSerdeInputs(customSerdeInputMap);
             }
             if (null != customSchemaInputString) {
-                Type type = new TypeToken<Map<String, String>>() {
-                }.getType();
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, String> customschemaInputMap = new Gson().fromJson(customSchemaInputString, type);
                 functionConfig.setCustomSchemaInputs(customschemaInputMap);
             }
@@ -421,8 +416,7 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (null != userConfigString) {
-                Type type = new TypeToken<Map<String, String>>() {
-                }.getType();
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
             }
