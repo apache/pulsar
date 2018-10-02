@@ -16,23 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
-
-import org.apache.pulsar.functions.api.Consumer;
-import org.apache.pulsar.functions.api.Context;
-
-import java.util.Arrays;
+package org.apache.pulsar.functions.api;
 
 /**
- * The classic word count example done using pulsar functions
- * Each input message is a sentence that split into words and each word counted.
- * The built in counter state is used to keep track of the word count in a
- * persistent and consistent manner.
+ * This is one of the core interface of the function api. The process is called
+ * for every message of the input topic of the function. The incoming input bytes
+ * are converted to the input type I for simple Java types(String, Integer, Boolean,
+ * Map, and List types) and for org.Json type. If this serialization approach does not
+ * meet your needs, you can use the byte stream handler defined in RawRequestHandler.
  */
-public class WordCountFunction implements Consumer<String> {
+@FunctionalInterface
+public interface Consumer<I> {
 
-    @Override
-    public void accept(String input, Context context) {
-        Arrays.asList(input.split(" ")).forEach(word -> context.incrCount(word));
-    }
+    /**
+     * Process the input.
+     */
+    void accept(I input, Context context) throws Exception;
 }

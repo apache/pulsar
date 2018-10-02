@@ -227,6 +227,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
+    public void incrCount(String key) {
+        incrCounter(key, 1);
+    }
+
+    @Override
     public long getCounter(String key) {
         ensureStateEnabled();
         try {

@@ -108,7 +108,13 @@ public interface Context {
     Logger getLogger();
 
     /**
-     * Increment the builtin distributed counter refered by key
+     * Increment the builtin distributed counter referred by key
+     * @param key The name of the key
+     */
+    void incrCount(String key);
+
+    /**
+     * Increment the builtin distributed counter referred by key by 1
      * @param key The name of the key
      * @param amount The amount to be incremented
      */
