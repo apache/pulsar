@@ -48,7 +48,6 @@ public class DispatchRateLimiter {
         this.subscriptionName = subscriptionName;
         this.brokerService = topic.getBrokerService();
         updateDispatchRate();
-        registerLocalPoliciesListener();
     }
 
     public DispatchRateLimiter(PersistentTopic topic) {
@@ -119,40 +118,31 @@ public class DispatchRateLimiter {
         log.info("[{}] [{}] configured message-dispatch rate at broker {}", this.topicName, this.subscriptionName, dispatchRate);
     }
 
-    /**
-     * Register listener on namespace policy change to update dispatch-rate if required
-     *
-     */
-    private void registerLocalPoliciesListener() {
-        brokerService.pulsar().getConfigurationCache().policiesCache().registerListener((path, data, stat) -> {
-            final NamespaceName namespace = TopicName.get(this.topicName).getNamespaceObject();
-            final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
-            final String policiesPath = path(POLICIES, namespace.toString());
-            if (policiesPath.equals(path)) {
-                DispatchRate dispatchRate;
-                if (subscriptionName == null) {
-                    dispatchRate = data.clusterDispatchRate.get(cluster);
-                } else {
-                    dispatchRate = data.subscriptionDispatchRate.get(cluster);
-                }
-                // update dispatch-rate only if it's configured in policies else ignore
-                if (dispatchRate != null) {
-                    int inMsg = (subscriptionName == null) ?
-                        brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInMsg() :
-                        brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg();
-                    long inByte = (subscriptionName == null) ?
-                        brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInByte() :
-                        brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerSubscribeInByte();
-                    final DispatchRate newDispatchRate = new DispatchRate(inMsg, inByte, 1);
-                    // if policy-throttling rate is disabled and cluster-throttling is enabled then apply
-                    // cluster-throttling rate
-                    if (!isDispatchRateEnabled(dispatchRate) && isDispatchRateEnabled(newDispatchRate)) {
-                        dispatchRate = newDispatchRate;
-                    }
-                    updateDispatchRate(dispatchRate);
-                }
+    public void onPoliciesUpdate(Policies data) {
+        String cluster = brokerService.pulsar().getConfiguration().getClusterName();
+
+        DispatchRate dispatchRate;
+        if (subscriptionName == null) {
+            dispatchRate = data.clusterDispatchRate.get(cluster);
+        } else {
+            dispatchRate = data.subscriptionDispatchRate.get(cluster);
+        }
+        // update dispatch-rate only if it's configured in policies else ignore
+        if (dispatchRate != null) {
+            int inMsg = (subscriptionName == null) ?
+                brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInMsg() :
+                brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg();
+            long inByte = (subscriptionName == null) ?
+                brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInByte() :
+                brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerSubscribeInByte();
+            final DispatchRate newDispatchRate = new DispatchRate(inMsg, inByte, 1);
+            // if policy-throttling rate is disabled and cluster-throttling is enabled then apply
+            // cluster-throttling rate
+            if (!isDispatchRateEnabled(dispatchRate) && isDispatchRateEnabled(newDispatchRate)) {
+                dispatchRate = newDispatchRate;
             }
-        });
+            updateDispatchRate(dispatchRate);
+        }
     }
 
     /**
