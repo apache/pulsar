@@ -16,34 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package org.apache.pulsar.functions.runtime;
-
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-
-import java.util.concurrent.CompletableFuture;
+package org.apache.pulsar.tests.integration.containers;
 
 /**
- * A function container is an environment for invoking functions.
+ * A pulsar container that runs the presto worker
  */
-public interface Runtime {
+public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer> {
 
-    void start() throws Exception;
+    public static final String NAME = "presto-worker";
+    public static final int PRESTO_HTTP_PORT = 8081;
 
-    void join() throws Exception;
-
-    void stop() throws Exception;
-
-    boolean isAlive();
-
-    Throwable getDeathException();
-
-    CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus(int instanceId);
-
-    CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
-    
-    CompletableFuture<Void> resetMetrics();
-    
-    CompletableFuture<InstanceCommunication.MetricsData> getMetrics();
-
+    public PrestoWorkerContainer(String clusterName, String hostname) {
+        super(
+                clusterName,
+                hostname,
+                hostname,
+                "bin/run-presto-worker.sh",
+                -1,
+                PRESTO_HTTP_PORT,
+                "/v1/node");
+    }
 }

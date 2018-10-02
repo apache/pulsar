@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,19 +18,12 @@
 # under the License.
 #
 
-FROM apachepulsar/pulsar-all:latest
+bin/apply-config-from-env.py conf/presto/catalog/pulsar.properties && \
+    bin/apply-config-from-env.py conf/pulsar_env.sh
 
-RUN apt-get update && apt-get install -y supervisor
+if [ -z "$NO_AUTOSTART" ]; then
+    sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/presto_worker.conf
+fi
 
-RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
-
-COPY conf/supervisord.conf /etc/supervisord.conf
-COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf conf/functions_worker.conf \
-     conf/proxy.conf conf/presto_worker.conf /etc/supervisord/conf.d/
-
-COPY ssl/ca.cert.pem ssl/broker.key-pk8.pem ssl/broker.cert.pem \
-     ssl/admin.key-pk8.pem ssl/admin.cert.pem /pulsar/ssl/
-
-COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
-     scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh scripts/run-presto-worker.sh \
-     /pulsar/bin/
+bin/watch-znode.py -z $zookeeperServers -p /initialized-$clusterName -w
+exec /usr/bin/supervisord -c /etc/supervisord.conf

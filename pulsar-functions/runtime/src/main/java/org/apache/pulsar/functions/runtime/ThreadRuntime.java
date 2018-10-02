@@ -99,7 +99,7 @@ class ThreadRuntime implements Runtime {
     }
 
     @Override
-    public CompletableFuture<FunctionStatus> getFunctionStatus() {
+    public CompletableFuture<FunctionStatus> getFunctionStatus(int instanceId) {
         CompletableFuture<FunctionStatus> statsFuture = new CompletableFuture<>();
         if (!isAlive()) {
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();

@@ -169,6 +169,14 @@ public class FunctionsImpl {
                     .entity(new ErrorData(String.format("Function %s already exists", functionName))).build();
         }
 
+        try {
+            worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
+        } catch (Exception e) {
+            log.error("Function {}/{}/{} cannot be admitted by the runtime factory", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s cannot be admitted:- %s", functionName, e.getMessage()))).build();
+        }
+
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
                 .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
@@ -233,6 +241,14 @@ public class FunctionsImpl {
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+        try {
+            worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
+        } catch (Exception e) {
+            log.error("Updated Function {}/{}/{} cannot be submitted to runtime factory", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s cannot be admitted:- %s", functionName, e.getMessage()))).build();
         }
 
         // function state
@@ -368,6 +384,13 @@ public class FunctionsImpl {
             log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}", tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
+        int instanceIdInt = Integer.parseInt(instanceId);
+        if (instanceIdInt < 0 || instanceIdInt >= functionMetaData.getFunctionDetails().getParallelism()) {
+            log.error("instanceId in getFunctionStatus out of bounds @ /{}/{}/{}", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Invalid InstanceId"))).build();
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
@@ -751,7 +774,7 @@ public class FunctionsImpl {
         try {
             log.info("Uploading function package to {}", path);
 
-            Utils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, Codec.encode(path));
+            Utils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, path);
         } catch (IOException e) {
             log.error("Error uploading file {}", path, e);
             return Response.serverError().type(MediaType.APPLICATION_JSON).entity(new ErrorData(e.getMessage()))
@@ -778,7 +801,7 @@ public class FunctionsImpl {
                         throw new IllegalArgumentException("invalid file url path: " + path);
                     }
                 } else {
-                    Utils.downloadFromBookkeeper(worker().getDlogNamespace(), output, Codec.encode(path));
+                    Utils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
                 }
             }
         }).build();
@@ -799,7 +822,6 @@ public class FunctionsImpl {
         validateGetFunctionRequestParams(tenant, namespace, functionName);
         if (instanceId == null) {
             throw new IllegalArgumentException("Function Instance Id is not provided");
-
         }
     }
 

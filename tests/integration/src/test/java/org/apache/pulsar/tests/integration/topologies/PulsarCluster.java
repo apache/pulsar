@@ -25,19 +25,21 @@ import static org.apache.pulsar.tests.integration.containers.PulsarContainer.ZK_
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
-import com.google.common.collect.Streams;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
+import org.apache.pulsar.tests.integration.containers.PrestoWorkerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
@@ -78,13 +80,29 @@ public class PulsarCluster {
     private final Map<String, BrokerContainer> brokerContainers;
     private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
+    private final PrestoWorkerContainer prestoWorkerContainer;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
+    private final boolean enablePrestoWorker;
 
     private PulsarCluster(PulsarClusterSpec spec) {
 
         this.spec = spec;
         this.clusterName = spec.clusterName();
         this.network = Network.newNetwork();
+        this.enablePrestoWorker = spec.enablePrestoWorker();
+
+        if (enablePrestoWorker) {
+            prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
+                    .withNetwork(network)
+                    .withNetworkAliases(PrestoWorkerContainer.NAME)
+                    .withEnv("clusterName", clusterName)
+                    .withEnv("zkServers", ZKContainer.NAME)
+                    .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+        } else {
+            prestoWorkerContainer = null;
+        }
+
 
         this.zkContainer = new ZKContainer(clusterName);
         this.zkContainer
@@ -196,6 +214,11 @@ public class PulsarCluster {
         log.info("\tBinary Service Url : {}", getPlainTextServiceUrl());
         log.info("\tHttp Service Url : {}", getHttpServiceUrl());
 
+        if (enablePrestoWorker) {
+            log.info("Starting Presto Worker");
+            prestoWorkerContainer.start();
+        }
+
         // start external services
         this.externalServices = spec.externalServices;
         if (null != externalServices) {
@@ -238,19 +261,32 @@ public class PulsarCluster {
         return containers;
     }
 
-    public synchronized void stop() {
-        Stream<GenericContainer> containers = Streams.concat(
-                workerContainers.values().stream(),
-                brokerContainers.values().stream(),
-                bookieContainers.values().stream(),
-                Stream.of(proxyContainer, csContainer, zkContainer)
-        );
+    public PrestoWorkerContainer getPrestoWorkerContainer() {
+        return prestoWorkerContainer;
+    }
 
-        if (spec.externalServices() != null) {
-            containers = Streams.concat(containers, spec.externalServices().values().stream());
+    public synchronized void stop() {
+
+        List<GenericContainer> containers = new ArrayList<>();
+
+        containers.addAll(workerContainers.values());
+        containers.addAll(brokerContainers.values());
+        containers.addAll(bookieContainers.values());
+
+        if (externalServices != null) {
+            containers.addAll(externalServices.values());
         }
 
-        containers.parallel().forEach(GenericContainer::stop);
+        containers.add(proxyContainer);
+        containers.add(csContainer);
+        containers.add(zkContainer);
+        containers.add(prestoWorkerContainer);
+
+        containers.parallelStream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        containers.parallelStream().forEach(GenericContainer::stop);
 
         try {
             network.close();
@@ -349,11 +385,19 @@ public class PulsarCluster {
     }
 
     public BrokerContainer getAnyBroker() {
-        return getAnyContainer(brokerContainers, "broker");
+        return getAnyContainer(brokerContainers, "pulsar-broker");
     }
 
     public synchronized WorkerContainer getAnyWorker() {
-        return getAnyContainer(workerContainers, "functions-worker");
+        return getAnyContainer(workerContainers, "pulsar-functions-worker");
+    }
+
+    public BrokerContainer getBroker(int index) {
+        return getAnyContainer(brokerContainers, "pulsar-broker", index);
+    }
+
+    public synchronized WorkerContainer getWorker(int index) {
+        return getAnyContainer(workerContainers, "pulsar-functions-worker", index);
     }
 
     private <T> T getAnyContainer(Map<String, T> containers, String serviceName) {
@@ -362,6 +406,12 @@ public class PulsarCluster {
         Collections.shuffle(containerList);
         checkArgument(!containerList.isEmpty(), "No " + serviceName + " is alive");
         return containerList.get(0);
+    }
+
+    private <T> T getAnyContainer(Map<String, T> containers, String serviceName, int index) {
+        checkArgument(!containers.isEmpty(), "No " + serviceName + " is alive");
+        checkArgument((index >= 0 && index < containers.size()), "Index : " + index + " is out range");
+        return containers.get(serviceName.toLowerCase() + "-" + index);
     }
 
     public Collection<BrokerContainer> getBrokers() {

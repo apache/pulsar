@@ -66,12 +66,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testSink(new KafkaSinkTester(), true, new KafkaSourceTester());
     }
 
-    @Test
+    @Test(enabled = false)
     public void testCassandraSink() throws Exception {
         testSink(CassandraSinkTester.createTester(true), true);
     }
 
-    @Test
+    @Test(enabled = false)
     public void testCassandraArchiveSink() throws Exception {
         testSink(CassandraSinkTester.createTester(false), false);
     }
@@ -579,7 +579,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     // Test CRUD functions on different runtimes.
     //
 
-    @Test
+    @Test(enabled = false)
     public void testPythonExclamationFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON);
     }
