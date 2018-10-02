@@ -315,6 +315,7 @@ public class FunctionApiV2ResourceTest {
                 details,
                 null,
                 org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+                null,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -344,6 +345,7 @@ public class FunctionApiV2ResourceTest {
             mockedFormData,
             null,
             org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+            null,
             null);
     }
 
@@ -590,6 +592,7 @@ public class FunctionApiV2ResourceTest {
             details,
             null,
             org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+            null,
             null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -619,6 +622,7 @@ public class FunctionApiV2ResourceTest {
             mockedFormData,
             null,
             org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+            null,
             null);
     }
 
@@ -701,6 +705,7 @@ public class FunctionApiV2ResourceTest {
             null,
             filePackageUrl,
             org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+            null,
             null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -1050,7 +1055,7 @@ public class FunctionApiV2ResourceTest {
                         .setSubscriptionType(subscriptionType).putAllTopicsToSerDeClassName(topicsToSerDeClassName))
                 .build();
         Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails), null);
+                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails), null, null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
@@ -1075,7 +1080,7 @@ public class FunctionApiV2ResourceTest {
                         .setSubscriptionType(subscriptionType).putAllTopicsToSerDeClassName(topicsToSerDeClassName))
                 .build();
         Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails), null);
+                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails), null, null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
     }

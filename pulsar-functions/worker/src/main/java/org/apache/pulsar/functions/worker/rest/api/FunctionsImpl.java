@@ -20,8 +20,10 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.pulsar.functions.utils.Reflections.createInstance;
+import static org.apache.pulsar.functions.utils.Reflections.loadJar;
 import static org.apache.pulsar.functions.utils.Utils.FILE;
 import static org.apache.pulsar.functions.utils.Utils.HTTP;
 import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
@@ -38,6 +40,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -66,6 +71,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.join;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -82,6 +88,8 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -125,7 +133,8 @@ public class FunctionsImpl {
 
     public Response registerFunction(final String tenant, final String namespace, final String functionName,
             final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
-            final String functionPkgUrl, final String functionDetailsJson, final String clientRole) {
+            final String functionPkgUrl, final String functionDetailsJson, final String functionConfigJson,
+            final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -146,14 +155,18 @@ public class FunctionsImpl {
 
         FunctionDetails functionDetails;
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
+        File uploadedInputStreamAsFile = null;
+        if (uploadedInputStream != null) {
+            uploadedInputStreamAsFile = dumpToTmpFile(uploadedInputStream);
+        }
         // validate parameters
         try {
             if (isPkgUrlProvided) {
                 functionDetails = validateUpdateRequestParamsWithPkgUrl(tenant, namespace, functionName, functionPkgUrl,
-                        functionDetailsJson);
+                        functionDetailsJson, functionConfigJson);
             } else {
-                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName, uploadedInputStream,
-                        fileDetail, functionDetailsJson);
+                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName, uploadedInputStreamAsFile,
+                        fileDetail, functionDetailsJson, functionConfigJson);
             }
         } catch (Exception e) {
             log.error("Invalid register function request @ /{}/{}/{}", tenant, namespace, functionName, e);
@@ -187,12 +200,13 @@ public class FunctionsImpl {
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
         return (isPkgUrlProvided || isBuiltin) ? updateRequest(functionMetaDataBuilder.build())
-                : updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
+                : updateRequest(functionMetaDataBuilder.build(), uploadedInputStreamAsFile);
     }
 
     public Response updateFunction(final String tenant, final String namespace, final String functionName,
             final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
-            final String functionPkgUrl, final String functionDetailsJson, final String clientRole) {
+            final String functionPkgUrl, final String functionDetailsJson, final String functionConfigJson,
+            final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -213,14 +227,18 @@ public class FunctionsImpl {
 
         FunctionDetails functionDetails;
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
+        File uploadedInputStreamAsFile = null;
+        if (uploadedInputStream != null) {
+            uploadedInputStreamAsFile = dumpToTmpFile(uploadedInputStream);
+        }
         // validate parameters
         try {
             if (isPkgUrlProvided) {
                 functionDetails = validateUpdateRequestParamsWithPkgUrl(tenant, namespace, functionName, functionPkgUrl,
-                        functionDetailsJson);
+                        functionDetailsJson, functionConfigJson);
             } else {
-                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName, uploadedInputStream,
-                        fileDetail, functionDetailsJson);
+                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName, uploadedInputStreamAsFile,
+                        fileDetail, functionDetailsJson, functionConfigJson);
             }
         } catch (Exception e) {
             log.error("Invalid register function request @ /{}/{}/{}", tenant, namespace, functionName, e);
@@ -254,7 +272,7 @@ public class FunctionsImpl {
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
         return (isPkgUrlProvided || isBuiltin) ? updateRequest(functionMetaDataBuilder.build())
-                : updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
+                : updateRequest(functionMetaDataBuilder.build(), uploadedInputStreamAsFile);
     }
 
     public Response deregisterFunction(final String tenant, final String namespace, final String functionName,
@@ -540,10 +558,11 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
 
-    private Response updateRequest(FunctionMetaData functionMetaData, InputStream uploadedInputStream) {
+    private Response updateRequest(FunctionMetaData functionMetaData, File uploadedInputStreamAsFile) {
         // Upload to bookkeeper
         try {
             log.info("Uploading function package to {}", functionMetaData.getPackageLocation());
+            FileInputStream uploadedInputStream = new FileInputStream(uploadedInputStreamAsFile);
 
             Utils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream,
                     functionMetaData.getPackageLocation().getPackagePath());
@@ -838,28 +857,39 @@ public class FunctionsImpl {
     }
 
     private FunctionDetails validateUpdateRequestParamsWithPkgUrl(String tenant, String namespace, String functionName,
-            String functionPkgUrl, String functionDetailsJson)
+            String functionPkgUrl, String functionDetailsJson, String functionConfigJson)
             throws IllegalArgumentException, IOException, URISyntaxException {
         if (!isFunctionPackageUrlSupported(functionPkgUrl)) {
             throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
         }
-        Utils.validateFileUrl(functionPkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
         FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                functionDetailsJson, functionPkgUrl);
+                functionDetailsJson, functionConfigJson, functionPkgUrl, null);
         return functionDetails;
     }
 
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
-            InputStream uploadedInputStream, FormDataContentDisposition fileDetail, String functionDetailsJson)
-            throws IllegalArgumentException {
+            File uploadedInputStreamAsFile, FormDataContentDisposition fileDetail, String functionDetailsJson,
+            String functionConfigJson)
+            throws IllegalArgumentException, IOException, URISyntaxException {
 
         FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                functionDetailsJson, null);
-        if (!isFunctionCodeBuiltin(functionDetails) && (uploadedInputStream == null || fileDetail == null)) {
+                functionDetailsJson, functionConfigJson, null, uploadedInputStreamAsFile);
+        if (!isFunctionCodeBuiltin(functionDetails) && (uploadedInputStreamAsFile == null || fileDetail == null)) {
             throw new IllegalArgumentException("Function Package is not provided");
         }
 
         return functionDetails;
+    }
+
+    private static File dumpToTmpFile(InputStream uploadedInputStream) {
+        try {
+            File tmpFile = File.createTempFile("functions", null);
+            tmpFile.deleteOnExit();
+            Files.copy(uploadedInputStream, tmpFile.toPath(), REPLACE_EXISTING);
+            return tmpFile;
+        } catch (IOException e) {
+            throw new RuntimeException("Cannot create a temporary file", e);
+        }
     }
 
     private void validateGetFunctionStateParams(String tenant, String namespace, String functionName, String key)
@@ -916,7 +946,7 @@ public class FunctionsImpl {
     }
 
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
-            String functionDetailsJson, String functionPkgUrl) throws IllegalArgumentException {
+            String functionDetailsJson, String functionConfigJson, String functionPkgUrl, File uploadedInputStreamAsFile) throws IOException, URISyntaxException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -927,20 +957,33 @@ public class FunctionsImpl {
             throw new IllegalArgumentException("Function Name is not provided");
         }
 
-        if (functionDetailsJson == null) {
-            throw new IllegalArgumentException("FunctionDetails is not provided");
+        if (StringUtils.isEmpty(functionDetailsJson) && StringUtils.isEmpty(functionConfigJson)) {
+            throw new IllegalArgumentException("FunctionConfig is not provided");
+        }
+        if (!StringUtils.isEmpty(functionDetailsJson) && !StringUtils.isEmpty(functionConfigJson)) {
+            throw new IllegalArgumentException("Only one of FunctionDetails or FunctionConfig should be provided");
+        }
+        if (!StringUtils.isEmpty(functionConfigJson)) {
+            FunctionConfig functionConfig = new Gson().fromJson(functionConfigJson, FunctionConfig.class);
+            ClassLoader clsLoader = null;
+            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
+                clsLoader = extractClassLoader(functionPkgUrl, uploadedInputStreamAsFile);
+            }
+            return FunctionConfigUtils.convert(functionConfig, clsLoader);
         }
         try {
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
             org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
             if (isNotBlank(functionPkgUrl)) {
-                // validate function details by loading function-jar from local file-system
-                File jarWithFileUrl = functionPkgUrl.startsWith(FILE) ? (new File((new URL(functionPkgUrl)).toURI()))
-                        : null;
-                validateFunctionClassTypes(jarWithFileUrl, functionDetailsBuilder);
                 // set package-url if present
                 functionDetailsBuilder.setPackageUrl(functionPkgUrl);
             }
+            ClassLoader clsLoader = null;
+            if (functionDetailsBuilder.getRuntime() == FunctionDetails.Runtime.JAVA) {
+                clsLoader = extractClassLoader(functionPkgUrl, uploadedInputStreamAsFile);
+            }
+            validateFunctionClassTypes(clsLoader, functionDetailsBuilder);
+
             FunctionDetails functionDetails = functionDetailsBuilder.build();
 
             List<String> missingFields = new LinkedList<>();
@@ -979,21 +1022,30 @@ public class FunctionsImpl {
         }
     }
 
-    private void validateFunctionClassTypes(File jarFile, FunctionDetails.Builder functionDetailsBuilder)
-            throws MalformedURLException {
+    private ClassLoader extractClassLoader(String functionPkgUrl, File uploadedInputStreamAsFile) throws URISyntaxException, IOException {
+        if (isNotBlank(functionPkgUrl)) {
+            return Utils.validateFileUrl(functionPkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
+        } else if (uploadedInputStreamAsFile != null) {
+            try {
+                return loadJar(uploadedInputStreamAsFile);
+            } catch (MalformedURLException e) {
+                throw new IllegalArgumentException("Corrupted Jar File", e);
+            }
+        } else {
+            return null;
+        }
+    }
 
-        // validate only if jar-file is provided
-        if (jarFile == null) {
+    private void validateFunctionClassTypes(ClassLoader classLoader, FunctionDetails.Builder functionDetailsBuilder) {
+
+        // validate only if classLoader is provided
+        if (classLoader == null) {
             return;
         }
 
         if (isBlank(functionDetailsBuilder.getClassName())) {
             throw new IllegalArgumentException("function class-name can't be empty");
         }
-
-        URL[] urls = new URL[1];
-        urls[0] = jarFile.toURI().toURL();
-        URLClassLoader classLoader = create(urls, FunctionClassLoaders.class.getClassLoader());
 
         // validate function class-type
         Object functionObject = createInstance(functionDetailsBuilder.getClassName(), classLoader);
@@ -1057,7 +1109,7 @@ public class FunctionsImpl {
 
     }
 
-    private Class<?> getTypeArg(String className, Class<?> funClass, URLClassLoader classLoader)
+    private Class<?> getTypeArg(String className, Class<?> funClass, ClassLoader classLoader)
             throws ClassNotFoundException {
         Class<?> loadedClass = classLoader.loadClass(className);
         if (!funClass.isAssignableFrom(loadedClass)) {

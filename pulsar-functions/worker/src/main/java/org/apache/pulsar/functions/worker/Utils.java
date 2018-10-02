@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -46,6 +47,7 @@ import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
@@ -133,12 +135,18 @@ public final class Utils {
         }
     }
 
-    public static void validateFileUrl(String destPkgUrl, String downloadPkgDir) throws IOException, URISyntaxException {
+    public static ClassLoader validateFileUrl(String destPkgUrl, String downloadPkgDir) throws IOException, URISyntaxException {
         if (destPkgUrl.startsWith(FILE)) {
             URL url = new URL(destPkgUrl);
             File file = new File(url.toURI());
             if (!file.exists()) {
                 throw new IOException(destPkgUrl + " does not exists locally");
+            }
+            try {
+                return Reflections.loadJar(file);
+            } catch (MalformedURLException e) {
+                throw new IllegalArgumentException(
+                        "Corrupt User PackageFile " + file + " with error " + e.getMessage());
             }
         } else if (destPkgUrl.startsWith("http")) {
             URL website = new URL(destPkgUrl);
@@ -150,6 +158,7 @@ public final class Utils {
             if (tempFile.exists()) {
                 tempFile.delete();
             }
+            return null;
         } else {
             throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
         }

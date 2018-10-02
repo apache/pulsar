@@ -92,7 +92,7 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             validateField(name, this.includeZero, o);
         }
     }
@@ -104,7 +104,7 @@ public class ValidatorImpls {
     public static class NotNullValidator extends Validator {
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             if (o == null) {
                 throw new IllegalArgumentException(String.format("Field '%s' cannot be null!", name));
             }
@@ -113,7 +113,7 @@ public class ValidatorImpls {
 
     public static class ResourcesValidator extends Validator {
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             if (o == null) {
                 throw new IllegalArgumentException(String.format("Field '%s' cannot be null!", name));
             }
@@ -152,7 +152,7 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             validateField(name, this.type, o);
         }
     }
@@ -176,7 +176,7 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             validateField(name, this.keyType, this.valueType, o);
         }
     }
@@ -194,7 +194,7 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             if (o == null) {
                 return;
             }
@@ -206,7 +206,7 @@ public class ValidatorImpls {
 
             Class<?> objectClass;
             try {
-                objectClass = loadClass(className);
+                objectClass = loadClass(className, classLoader);
             } catch (ClassNotFoundException e) {
                 throw new IllegalArgumentException("Cannot find/load class " + className);
             }
@@ -235,7 +235,7 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             if (o == null) {
                 return;
             }
@@ -248,7 +248,7 @@ public class ValidatorImpls {
             for (Class<?> classImplements : classesImplements) {
                 Class<?> objectClass = null;
                 try {
-                    objectClass = loadClass(className);
+                    objectClass = loadClass(className, classLoader);
                 } catch (ClassNotFoundException e) {
                     throw new IllegalArgumentException("Cannot find/load class " + className);
                 }
@@ -269,8 +269,8 @@ public class ValidatorImpls {
     public static class SerdeValidator extends Validator {
 
         @Override
-        public void validateField(String name, Object o) {
-            new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, o);
+        public void validateField(String name, Object o, ClassLoader classLoader) {
+            new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, o, classLoader);
         }
     }
 
@@ -278,8 +278,8 @@ public class ValidatorImpls {
     public static class SchemaValidator extends Validator {
 
         @Override
-        public void validateField(String name, Object o) {
-            new ValidatorImpls.ImplementsClassValidator(Schema.class).validateField(name, o);
+        public void validateField(String name, Object o, ClassLoader classLoader) {
+            new ValidatorImpls.ImplementsClassValidator(Schema.class).validateField(name, o, classLoader);
         }
     }
 
@@ -298,7 +298,8 @@ public class ValidatorImpls {
         }
 
         @SuppressWarnings("unchecked")
-        public static void validateField(String name, Class<?>[] keyValidators, Class<?>[] valueValidators, Object o)
+        public static void validateField(String name, Class<?>[] keyValidators, Class<?>[] valueValidators, Object o,
+                                         ClassLoader classLoader)
                 throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
             if (o == null) {
                 return;
@@ -309,7 +310,7 @@ public class ValidatorImpls {
                 for (Class<?> kv : keyValidators) {
                     Object keyValidator = kv.getConstructor().newInstance();
                     if (keyValidator instanceof Validator) {
-                        ((Validator) keyValidator).validateField(name + " Map key", entry.getKey());
+                        ((Validator) keyValidator).validateField(name + " Map key", entry.getKey(), classLoader);
                     } else {
                         log.warn(
                                 "validator: {} cannot be used in MapEntryCustomValidator to validate keys.  Individual entry validators must " +
@@ -320,7 +321,7 @@ public class ValidatorImpls {
                 for (Class<?> vv : valueValidators) {
                     Object valueValidator = vv.getConstructor().newInstance();
                     if (valueValidator instanceof Validator) {
-                        ((Validator) valueValidator).validateField(name + " Map value", entry.getValue());
+                        ((Validator) valueValidator).validateField(name + " Map value", entry.getValue(), classLoader);
                     } else {
                         log.warn(
                                 "validator: {} cannot be used in MapEntryCustomValidator to validate values.  Individual entry validators " +
@@ -332,9 +333,9 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             try {
-                validateField(name, this.keyValidators, this.valueValidators, o);
+                validateField(name, this.keyValidators, this.valueValidators, o, classLoader);
             } catch (IllegalAccessException | InstantiationException | NoSuchMethodException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
@@ -357,7 +358,7 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             SimpleTypeValidator.validateField(name, String.class, o);
             if (this.acceptedValues != null) {
                 if (!this.acceptedValues.contains((String) o)) {
@@ -370,11 +371,8 @@ public class ValidatorImpls {
     @NoArgsConstructor
     public static class FunctionConfigValidator extends Validator {
 
-        private static void doJavaChecks(FunctionConfig functionConfig, String name) {
-            Class<?>[] typeArgs = Utils.getFunctionTypes(functionConfig);
-
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-
+        private static void doJavaChecks(FunctionConfig functionConfig, String name, ClassLoader clsLoader) {
+            Class<?>[] typeArgs = Utils.getFunctionTypes(functionConfig, clsLoader);
             // inputs use default schema, so there is no check needed there
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
@@ -441,7 +439,7 @@ public class ValidatorImpls {
                 // If it's built-in, no need to validate
             } else {
                 try {
-                    new SchemaValidator().validateField(name, schemaType);
+                    new SchemaValidator().validateField(name, schemaType, clsLoader);
                 } catch (IllegalArgumentException ex) {
                     throw new IllegalArgumentException(
                             String.format("The input schema class %s does not not implement %s",
@@ -457,7 +455,7 @@ public class ValidatorImpls {
             if (StringUtils.isEmpty(inputSerializer)) return;
             Class<?> serdeClass;
             try {
-                serdeClass = loadClass(inputSerializer);
+                serdeClass = loadClass(inputSerializer, clsLoader);
             } catch (ClassNotFoundException e) {
                 throw new IllegalArgumentException(
                         String.format("The input serialization/deserialization class %s does not exist",
@@ -465,7 +463,7 @@ public class ValidatorImpls {
             }
 
             try {
-                new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, inputSerializer);
+                new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, inputSerializer, clsLoader);
             } catch (IllegalArgumentException ex) {
                 throw new IllegalArgumentException(
                         String.format("The input serialization/deserialization class %s does not not implement %s",
@@ -584,12 +582,12 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             FunctionConfig functionConfig = (FunctionConfig) o;
             doCommonChecks(functionConfig);
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                 if (!functionConfig.getJar().startsWith(Utils.FILE)) {
-                    doJavaChecks(functionConfig, name);
+                    doJavaChecks(functionConfig, name, classLoader);
                 }
             } else {
                 doPythonChecks(functionConfig, name);
@@ -609,7 +607,7 @@ public class ValidatorImpls {
             this.entryValidators = (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.ENTRY_VALIDATOR_CLASSES);
         }
 
-        public static void validateField(String name, Class<?>[] validators, Object o)
+        public static void validateField(String name, Class<?>[] validators, Object o, ClassLoader classLoader)
                 throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
             if (o == null) {
                 return;
@@ -620,7 +618,7 @@ public class ValidatorImpls {
                 for (Class<?> validator : validators) {
                     Object v = validator.getConstructor().newInstance();
                     if (v instanceof Validator) {
-                        ((Validator) v).validateField(name + " list entry", entry);
+                        ((Validator) v).validateField(name + " list entry", entry, classLoader);
                     } else {
                         log.warn(
                                 "validator: {} cannot be used in ListEntryCustomValidator.  Individual entry validators must a instance of " +
@@ -632,9 +630,9 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             try {
-                validateField(name, this.entryValidators, o);
+                validateField(name, this.entryValidators, o, classLoader);
             } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
                 throw new RuntimeException(e);
             }
@@ -645,11 +643,11 @@ public class ValidatorImpls {
     public static class TopicNameValidator extends Validator {
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             if (o == null) {
                 return;
             }
-            new StringValidator().validateField(name, o);
+            new StringValidator().validateField(name, o, classLoader);
             String topic = (String) o;
             if (!TopicName.isValid(topic)) {
                 throw new IllegalArgumentException(
@@ -715,7 +713,7 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             if (o == null) {
                 return;
             }
@@ -729,7 +727,7 @@ public class ValidatorImpls {
 
     public static class SourceConfigValidator extends Validator {
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             SourceConfig sourceConfig = (SourceConfig) o;
             if (sourceConfig.getArchive().startsWith(Utils.BUILTIN)) {
                 // We don't have to check the archive, since it's provided on the worker itself
@@ -743,31 +741,27 @@ public class ValidatorImpls {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e1);
             }
 
-            try (NarClassLoader clsLoader = NarClassLoader.getFromArchive(new File(sourceConfig.getArchive()),
-                    Collections.emptySet())) {
-                Class<?> typeArg = getSourceType(sourceClassName, clsLoader);
 
-                // Only one of serdeClassName or schemaType should be set
-                if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()
-                        && sourceConfig.getSchemaType() != null && !sourceConfig.getSchemaType().isEmpty()) {
-                    throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
-                }
+            Class<?> typeArg = getSourceType(sourceClassName, classLoader);
 
-                if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()) {
-                    FunctionConfigValidator.validateSerde(sourceConfig.getSerdeClassName(),typeArg, name, clsLoader, false);
-                }
-                if (sourceConfig.getSchemaType() != null && !sourceConfig.getSchemaType().isEmpty()) {
-                    FunctionConfigValidator.validateSchema(sourceConfig.getSchemaType(), typeArg, name, clsLoader, false);
-                }
-            } catch (IOException e) {
-                throw new IllegalArgumentException(e);
+            // Only one of serdeClassName or schemaType should be set
+            if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()
+                    && sourceConfig.getSchemaType() != null && !sourceConfig.getSchemaType().isEmpty()) {
+                throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
+            }
+
+            if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()) {
+                FunctionConfigValidator.validateSerde(sourceConfig.getSerdeClassName(),typeArg, name, classLoader, false);
+            }
+            if (sourceConfig.getSchemaType() != null && !sourceConfig.getSchemaType().isEmpty()) {
+                FunctionConfigValidator.validateSchema(sourceConfig.getSchemaType(), typeArg, name, classLoader, false);
             }
         }
     }
 
     public static class SinkConfigValidator extends Validator {
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             SinkConfig sinkConfig = (SinkConfig) o;
             if (sinkConfig.getArchive().startsWith(Utils.BUILTIN)) {
                 // We don't have to check the archive, since it's provided on the worker itself
@@ -849,11 +843,11 @@ public class ValidatorImpls {
 
     public static class FileValidator extends Validator {
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             if (o == null) {
                 return;
             }
-            new StringValidator().validateField(name, o);
+            new StringValidator().validateField(name, o, classLoader);
 
             String path = (String) o;
 
@@ -890,19 +884,18 @@ public class ValidatorImpls {
         }
 
         @Override
-        public void validateField(String name, Object o) {
+        public void validateField(String name, Object o, ClassLoader classLoader) {
             validateField(name, this.type, o);
         }
     }
 
-    private static Class<?> loadClass(String className) throws ClassNotFoundException {
+    private static Class<?> loadClass(String className, ClassLoader classLoader) throws ClassNotFoundException {
         Class<?> objectClass;
         try {
             objectClass = Class.forName(className);
         } catch (ClassNotFoundException e) {
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            if (clsLoader != null) {
-                objectClass = clsLoader.loadClass(className);
+            if (classLoader != null) {
+                objectClass = classLoader.loadClass(className);
             } else {
                 throw e;
             }
