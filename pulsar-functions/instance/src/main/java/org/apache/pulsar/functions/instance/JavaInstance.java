@@ -22,6 +22,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.pulsar.functions.api.Consumer;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -37,6 +38,7 @@ public class JavaInstance implements AutoCloseable {
     @Getter(AccessLevel.PACKAGE)
     private final ContextImpl context;
     private Function function;
+    private Consumer consumer;
     private java.util.function.Function javaUtilFunction;
 
     public JavaInstance(ContextImpl contextImpl, Object userClassObject) {
@@ -46,7 +48,11 @@ public class JavaInstance implements AutoCloseable {
         // create the functions
         if (userClassObject instanceof Function) {
             this.function = (Function) userClassObject;
-        } else {
+        }
+        else if (userClassObject instanceof Consumer) {
+            this.consumer = (Consumer) userClassObject;
+        }
+        else {
             this.javaUtilFunction = (java.util.function.Function) userClassObject;
         }
     }
@@ -60,7 +66,11 @@ public class JavaInstance implements AutoCloseable {
             Object output;
             if (function != null) {
                 output = function.process(input, context);
-            } else {
+            } else if (consumer != null) {
+                consumer.accept(input, context);
+                output = null;
+            }
+            else {
                 output = javaUtilFunction.apply(input);
             }
             executionResult.setResult(output);

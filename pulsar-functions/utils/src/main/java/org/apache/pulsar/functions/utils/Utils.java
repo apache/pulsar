@@ -32,6 +32,7 @@ import java.util.Collection;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.functions.api.Consumer;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
 import org.apache.pulsar.io.core.Sink;
@@ -130,7 +131,12 @@ public class Utils {
             if (userClass instanceof Function) {
                 Function pulsarFunction = (Function) userClass;
                 typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
-            } else {
+            }
+            else if (userClass instanceof Consumer){
+                Consumer pulsarFunction = (Consumer) userClass;
+                typeArgs = TypeResolver.resolveRawArguments(Consumer.class, pulsarFunction.getClass());
+            }
+            else {
                 java.util.function.Function function = (java.util.function.Function) userClass;
                 typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
             }
