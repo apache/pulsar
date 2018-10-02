@@ -111,6 +111,12 @@ public class JavaInstanceMain implements AutoCloseable {
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        if (functionDetailsJsonString.charAt(0) == '\'') {
+            functionDetailsJsonString = functionDetailsJsonString.substring(1);
+        }
+        if (functionDetailsJsonString.charAt(functionDetailsJsonString.length() - 1) == '\'') {
+            functionDetailsJsonString = functionDetailsJsonString.substring(0, functionDetailsJsonString.length() - 1);
+        }
         JsonFormat.parser().merge(functionDetailsJsonString, functionDetailsBuilder);
         FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
