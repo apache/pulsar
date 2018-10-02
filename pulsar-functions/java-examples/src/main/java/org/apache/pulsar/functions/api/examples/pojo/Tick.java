@@ -61,6 +61,8 @@ public class Tick {
         return ask;
     }
 
+    public Tick() {}
+
     public Tick(long timeStamp, String stockSymbol, double bid, double ask) {
 
         this.timeStamp = timeStamp;

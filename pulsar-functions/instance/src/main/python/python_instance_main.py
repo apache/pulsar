@@ -74,6 +74,11 @@ def main():
 
   args = parser.parse_args()
   function_details = Function_pb2.FunctionDetails()
+  args.function_details = str(args.function_details)
+  if args.function_details[0] == '\'':
+    args.function_details = args.function_details[1:]
+  if args.function_details[-1] == '\'':
+    args.function_details = args.function_details[:-1]
   json_format.Parse(args.function_details, function_details)
 
   if os.path.splitext(str(args.py))[1] == '.whl':

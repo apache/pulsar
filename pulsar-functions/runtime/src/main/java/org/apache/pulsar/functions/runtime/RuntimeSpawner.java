@@ -41,9 +41,11 @@ import static org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime
 @Slf4j
 public class RuntimeSpawner implements AutoCloseable {
 
+    @Getter
     private final InstanceConfig instanceConfig;
     private final RuntimeFactory runtimeFactory;
     private final String codeFile;
+    private final String originalCodeFileName;
 
     @Getter
     private Runtime runtime;
@@ -55,10 +57,12 @@ public class RuntimeSpawner implements AutoCloseable {
 
     public RuntimeSpawner(InstanceConfig instanceConfig,
                           String codeFile,
+                          String originalCodeFileName,
                           RuntimeFactory containerFactory, long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
         this.codeFile = codeFile;
+        this.originalCodeFileName = originalCodeFileName;
         this.numRestarts = 0;
         this.instanceLivenessCheckFreqMs = instanceLivenessCheckFreqMs;
     }
@@ -68,12 +72,12 @@ public class RuntimeSpawner implements AutoCloseable {
         log.info("{}/{}/{}-{} RuntimeSpawner starting function", details.getTenant(), details.getNamespace(),
                 details.getName(), this.instanceConfig.getInstanceId());
 
-        runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile,
+        runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile, originalCodeFileName,
                 instanceLivenessCheckFreqMs / 1000);
         runtime.start();
 
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
-        if (instanceLivenessCheckFreqMs > 0) {
+        if (!runtimeFactory.externallyManaged() && instanceLivenessCheckFreqMs > 0) {
             processLivenessCheckTimer = new Timer();
             processLivenessCheckTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override
@@ -82,9 +86,14 @@ public class RuntimeSpawner implements AutoCloseable {
                         log.error("{}/{}/{}-{} Function Container is dead with exception.. restarting", details.getTenant(),
                                 details.getNamespace(), details.getName(), runtime.getDeathException());
                         // Just for the sake of sanity, just destroy the runtime
-                        runtime.stop();
-                        runtimeDeathException = runtime.getDeathException();
-                        runtime.start();
+                        try {
+                            runtime.stop();
+                            runtimeDeathException = runtime.getDeathException();
+                            runtime.start();
+                        } catch (Exception e) {
+                            log.error("{}/{}/{}-{} Function Restart failed", details.getTenant(),
+                                    details.getNamespace(), details.getName(), e);
+                        }
                         numRestarts++;
                     }
                 }
@@ -98,10 +107,10 @@ public class RuntimeSpawner implements AutoCloseable {
         }
     }
 
-    public CompletableFuture<FunctionStatus> getFunctionStatus() {
-        return runtime.getFunctionStatus().thenApply(f -> {
-            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-            builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(instanceConfig.getInstanceName());
+    public CompletableFuture<FunctionStatus> getFunctionStatus(int instanceId) {
+        return runtime.getFunctionStatus(instanceId).thenApply(f -> {
+           FunctionStatus.Builder builder = FunctionStatus.newBuilder();
+           builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(String.valueOf(instanceId));
             if (!f.getRunning() && runtimeDeathException != null) {
                 builder.setFailureException(runtimeDeathException.getMessage());
             }
@@ -109,8 +118,8 @@ public class RuntimeSpawner implements AutoCloseable {
         });
     }
 
-    public CompletableFuture<String> getFunctionStatusAsJson() {
-        return this.getFunctionStatus().thenApply(msg -> {
+    public CompletableFuture<String> getFunctionStatusAsJson(int instanceId) {
+        return this.getFunctionStatus(instanceId).thenApply(msg -> {
             try {
                 return Utils.printJson(msg);
             } catch (IOException e) {
@@ -123,7 +132,11 @@ public class RuntimeSpawner implements AutoCloseable {
     @Override
     public void close() {
         if (null != runtime) {
-            runtime.stop();
+            try {
+                runtime.stop();
+            } catch (Exception e) {
+                // Ignore
+            }
             runtime = null;
         }
         if (processLivenessCheckTimer != null) {

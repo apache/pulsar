@@ -54,6 +54,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Request;
+import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler;
 import org.mockito.Mockito;
 import org.mockito.invocation.Invocation;
@@ -153,6 +154,9 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function1);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
+
         // set assignments
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
@@ -240,6 +244,9 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
+
         // set assignments
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
@@ -296,6 +303,9 @@ public class SchedulerManagerTest {
                 .build();
         functionMetaDataList.add(function1);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
+
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
@@ -358,6 +368,9 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
+
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
@@ -463,6 +476,9 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
+
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
@@ -586,6 +602,9 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
+
         Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
         Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
 
@@ -636,6 +655,9 @@ public class SchedulerManagerTest {
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
+
+        ThreadRuntimeFactory factory = new ThreadRuntimeFactory("dummy", null, "dummy");
+        doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
         Function.Assignment assignment1 = Function.Assignment.newBuilder()

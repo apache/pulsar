@@ -111,6 +111,12 @@ public class JavaInstanceMain implements AutoCloseable {
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        if (functionDetailsJsonString.charAt(0) == '\'') {
+            functionDetailsJsonString = functionDetailsJsonString.substring(1);
+        }
+        if (functionDetailsJsonString.charAt(functionDetailsJsonString.length() - 1) == '\'') {
+            functionDetailsJsonString = functionDetailsJsonString.substring(0, functionDetailsJsonString.length() - 1);
+        }
         JsonFormat.parser().merge(functionDetailsJsonString, functionDetailsBuilder);
         FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
@@ -126,6 +132,7 @@ public class JavaInstanceMain implements AutoCloseable {
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
+                null, // we really dont use this in thread container
                 containerFactory,
                 expectedHealthCheckInterval * 1000);
 
@@ -218,7 +225,7 @@ public class JavaInstanceMain implements AutoCloseable {
         @Override
         public void getFunctionStatus(Empty request, StreamObserver<InstanceCommunication.FunctionStatus> responseObserver) {
             try {
-                InstanceCommunication.FunctionStatus response = runtimeSpawner.getFunctionStatus().get();
+                InstanceCommunication.FunctionStatus response = runtimeSpawner.getFunctionStatus(runtimeSpawner.getInstanceConfig().getInstanceId()).get();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } catch (Exception e) {

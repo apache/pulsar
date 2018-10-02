@@ -30,3 +30,4 @@ docker pull apachepulsar/s3mock:latest
 docker pull alpine/socat:latest
 docker pull cassandra:3
 docker pull confluentinc/cp-kafka:4.0.0
+docker pull mysql:5.7.22

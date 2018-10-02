@@ -126,7 +126,7 @@ public class SchedulerManager implements AutoCloseable {
                 .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toList());
 
         List<FunctionMetaData> allFunctions = this.functionMetaDataManager.getAllFunctionMetaData();
-        Map<String, Function.Instance> allInstances = computeAllInstances(allFunctions);
+        Map<String, Function.Instance> allInstances = computeAllInstances(allFunctions, functionRuntimeManager.getRuntimeFactory().externallyManaged());
         Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager
                 .getCurrentAssignments();
         //delete assignments of functions and instances that don't exist anymore
@@ -207,23 +207,32 @@ public class SchedulerManager implements AutoCloseable {
         }
     }
 
-    public static Map<String, Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions) {
+    public static Map<String, Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions,
+                                                                     boolean externallyManagedRuntime) {
         Map<String, Function.Instance> functionInstances = new HashMap<>();
         for (FunctionMetaData functionMetaData : allFunctions) {
-            for (Function.Instance instance : computeInstances(functionMetaData)) {
+            for (Function.Instance instance : computeInstances(functionMetaData, externallyManagedRuntime)) {
                 functionInstances.put(Utils.getFullyQualifiedInstanceId(instance), instance);
             }
         }
         return functionInstances;
     }
 
-    public static List<Function.Instance> computeInstances(FunctionMetaData functionMetaData) {
+    public static List<Function.Instance> computeInstances(FunctionMetaData functionMetaData,
+                                                           boolean externallyManagedRuntime) {
         List<Function.Instance> functionInstances = new LinkedList<>();
-        int instances = functionMetaData.getFunctionDetails().getParallelism();
-        for (int i = 0; i < instances; i++) {
+        if (!externallyManagedRuntime) {
+            int instances = functionMetaData.getFunctionDetails().getParallelism();
+            for (int i = 0; i < instances; i++) {
+                functionInstances.add(Function.Instance.newBuilder()
+                        .setFunctionMetaData(functionMetaData)
+                        .setInstanceId(i)
+                        .build());
+            }
+        } else {
             functionInstances.add(Function.Instance.newBuilder()
                     .setFunctionMetaData(functionMetaData)
-                    .setInstanceId(i)
+                    .setInstanceId(-1)
                     .build());
         }
         return functionInstances;
