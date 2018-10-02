@@ -348,10 +348,15 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (!ledger.ledgerExists(position.getLedgerId())) {
             Long nextExistingLedger = ledger.getNextValidLedger(position.getLedgerId());
             if (nextExistingLedger == null) {
-                log.info("[{}-{}] Couldn't find next next valid ledger for recovery {}", ledger.getName(), name,
+                log.info("[{}] [{}] Couldn't find next next valid ledger for recovery {}", ledger.getName(), name,
                         position);
             }
             position = nextExistingLedger != null ? PositionImpl.get(nextExistingLedger, -1) : position;
+        }
+        if (position.compareTo(ledger.getLastPosition()) > 0) {
+            log.warn("[{}] [{}] Current position {} is ahead of last position {}", ledger.getName(), name, position,
+                    ledger.getLastPosition());
+            position = PositionImpl.get(ledger.getLastPosition());
         }
         log.info("[{}] Cursor {} recovered to position {}", ledger.getName(), name, position);
 
