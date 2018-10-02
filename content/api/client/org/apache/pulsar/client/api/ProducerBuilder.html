@@ -144,7 +144,7 @@ extends Cloneable</pre>
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#batchingMaxPublishDelay-long-java.util.concurrent.TimeUnit-">batchingMaxPublishDelay</a></span>(long&nbsp;batchDelay,
                        TimeUnit&nbsp;timeUnit)</code>
-<div class="block">Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
+<div class="block">Set the time period within which the messages sent will be batched <i>default: 1 ms</i> if batch messages are
  enabled.</div>
 </td>
 </tr>
@@ -648,7 +648,7 @@ extends Cloneable</pre>
 <h4>batchingMaxPublishDelay</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;batchingMaxPublishDelay(long&nbsp;batchDelay,
                                            TimeUnit&nbsp;timeUnit)</pre>
-<div class="block">Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
+<div class="block">Set the time period within which the messages sent will be batched <i>default: 1 ms</i> if batch messages are
  enabled. If set to a non zero value, messages will be queued until this time interval or until</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
