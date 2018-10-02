@@ -28,6 +28,7 @@ import io.kubernetes.client.util.Config;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
@@ -127,6 +128,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
     @Override
     public void close() {
+    }
+
+    @Override
+    public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
+        KubernetesRuntime.doChecks(functionDetails);
     }
 
     private void setupClient() throws Exception {
