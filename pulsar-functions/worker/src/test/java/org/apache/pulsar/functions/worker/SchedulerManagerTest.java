@@ -589,14 +589,14 @@ public class SchedulerManagerTest {
         final String workerId2 = "host-workerId-2";
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName(workerId1)
-                        .setNamespace(RoundRobinScheduler.HEARTBEAT_NAMESPACE)
-                        .setTenant(RoundRobinScheduler.HEARTBEAT_TENANT).setParallelism(1))
+                        .setNamespace(SchedulerManager.HEARTBEAT_NAMESPACE)
+                        .setTenant(SchedulerManager.HEARTBEAT_TENANT).setParallelism(1))
                 .setVersion(version).build();
 
         Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName(workerId2)
-                        .setNamespace(RoundRobinScheduler.HEARTBEAT_NAMESPACE)
-                        .setTenant(RoundRobinScheduler.HEARTBEAT_TENANT).setParallelism(1))
+                        .setNamespace(SchedulerManager.HEARTBEAT_NAMESPACE)
+                        .setTenant(SchedulerManager.HEARTBEAT_TENANT).setParallelism(1))
                 .setVersion(version).build();
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2);

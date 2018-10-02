@@ -46,6 +46,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
 
 /**
  * A simple implementation of leader election using a pulsar topic.
@@ -239,6 +240,10 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
             if (!currentMembership.contains(workerId)) {
                 for (Function.Assignment assignmentEntry : assignmentEntries.values()) {
                     Function.Instance instance = assignmentEntry.getInstance();
+                    // avoid scheduling-trigger for heartbeat-function if owner-worker is not up
+                    if (checkHeartBeatFunction(instance) != null) {
+                        continue;
+                    }
                     if (!this.unsignedFunctionDurations.containsKey(instance)) {
                         this.unsignedFunctionDurations.put(instance, currentTimeMs);
                     }
