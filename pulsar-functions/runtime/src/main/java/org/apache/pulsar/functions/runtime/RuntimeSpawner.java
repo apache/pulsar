@@ -73,7 +73,7 @@ public class RuntimeSpawner implements AutoCloseable {
                 details.getName(), this.instanceConfig.getInstanceId());
 
         runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile, originalCodeFileName,
-                instanceLivenessCheckFreqMs * 1000);
+                instanceLivenessCheckFreqMs / 1000);
         runtime.start();
 
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
