@@ -91,6 +91,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders;
+import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.Utils;
@@ -969,6 +970,7 @@ public class FunctionsImpl {
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                 clsLoader = extractClassLoader(functionPkgUrl, uploadedInputStreamAsFile);
             }
+            ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name(), clsLoader);
             return FunctionConfigUtils.convert(functionConfig, clsLoader);
         }
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
