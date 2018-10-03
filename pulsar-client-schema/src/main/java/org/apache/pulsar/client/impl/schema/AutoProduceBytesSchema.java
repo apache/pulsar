@@ -22,17 +22,16 @@ package org.apache.pulsar.client.impl.schema;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * Auto detect schema.
  */
-public class AutoSchema implements Schema<GenericRecord> {
+public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
-    private Schema<GenericRecord> schema;
+    private Schema<T> schema;
 
-    public void setSchema(Schema<GenericRecord> schema) {
+    public void setSchema(Schema<T> schema) {
         this.schema = schema;
     }
 
@@ -41,17 +40,23 @@ public class AutoSchema implements Schema<GenericRecord> {
     }
 
     @Override
-    public byte[] encode(GenericRecord message) {
+    public byte[] encode(byte[] message) {
         ensureSchemaInitialized();
 
-        return schema.encode(message);
+        // verify if the message can be decoded by the underlying schema
+        schema.decode(message);
+
+        return message;
     }
 
     @Override
-    public GenericRecord decode(byte[] bytes) {
+    public byte[] decode(byte[] bytes) {
         ensureSchemaInitialized();
 
-        return schema.decode(bytes);
+        // verify the message can be detected by the underlying schema
+        schema.decode(bytes);
+
+        return bytes;
     }
 
     @Override

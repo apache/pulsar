@@ -19,12 +19,20 @@
 package org.apache.pulsar.client.api;
 
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.schema.AutoSchema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.ByteSchema;
 import org.apache.pulsar.client.impl.schema.BytesSchema;
+import org.apache.pulsar.client.impl.schema.DoubleSchema;
+import org.apache.pulsar.client.impl.schema.FloatSchema;
+import org.apache.pulsar.client.impl.schema.IntSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.LongSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
+import org.apache.pulsar.client.impl.schema.ShortSchema;
 import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -80,7 +88,43 @@ public interface Schema<T> {
         return JSONSchema.of(clazz);
     }
 
+    @Deprecated
     static Schema<GenericRecord> AUTO() {
-        return new AutoSchema();
+        return AUTO_CONSUME();
+    }
+
+    static Schema<GenericRecord> AUTO_CONSUME() {
+        return new AutoConsumeSchema();
+    }
+
+    static Schema<byte[]> AUTO_PRODUCE_BYTES() {
+        return new AutoProduceBytesSchema();
+    }
+
+    static Schema<?> getSchema(SchemaInfo schemaInfo) {
+        switch (schemaInfo.getType()) {
+            case INT8:
+                return ByteSchema.of();
+            case INT16:
+                return ShortSchema.of();
+            case INT32:
+                return IntSchema.of();
+            case INT64:
+                return LongSchema.of();
+            case STRING:
+                return StringSchema.utf8();
+            case FLOAT:
+                return FloatSchema.of();
+            case DOUBLE:
+                return DoubleSchema.of();
+            case BYTES:
+                return BytesSchema.of();
+            case JSON:
+            case AVRO:
+                return GenericSchema.of(schemaInfo);
+            default:
+                throw new IllegalArgumentException("Retrieve schema instance from schema info for type '"
+                    + schemaInfo.getType() + "' is not supported yet");
+        }
     }
 }
