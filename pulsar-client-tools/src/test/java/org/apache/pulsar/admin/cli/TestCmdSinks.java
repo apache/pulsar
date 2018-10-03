@@ -435,7 +435,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Connector from .*.pulsar-io-twitter.nar has error: The 'twitter' connector does not provide a sink implementation")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "The 'twitter' connector does not provide a sink implementation")
     public void testInvalidJarWithNoSource() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setArchive(WRONG_JAR_PATH);
@@ -783,7 +783,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Connector from .*.pulsar-io-twitter.nar has error: The 'twitter' connector does not provide a sink implementation")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "The 'twitter' connector does not provide a sink implementation")
     public void testCmdSinkConfigFileInvalidJarNoSink() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive(WRONG_JAR_PATH);

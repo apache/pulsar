@@ -814,7 +814,7 @@ public class ValidatorImpls {
                     });
                 }
             } catch (IOException e) {
-                throw new IllegalArgumentException(e);
+                throw new IllegalArgumentException(e.getMessage());
             }
         }
 
