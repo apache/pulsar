@@ -60,6 +60,9 @@ import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.result.KeyValue;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
+import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
+import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.io.IOUtils;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -82,6 +85,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.utils.StateUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -291,6 +295,24 @@ public class FunctionsImpl {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
             return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        // delete state table
+        if (null != worker().getStateStoreAdminClient()) {
+            final String tableNs = StateUtils.getStateNamespace(tenant, namespace);
+            final String tableName = functionName;
+            try {
+                FutureUtils.result(worker().getStateStoreAdminClient().deleteStream(tableNs, tableName));
+            } catch (NamespaceNotFoundException | StreamNotFoundException e) {
+                // ignored if the state table doesn't exist
+            } catch (Exception e) {
+                log.error("{}/{}/{} Failed to delete state table", e);
+                return Response
+                    .status(Status.INTERNAL_SERVER_ERROR)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage()))
+                    .build();
+            }
         }
 
         // validate parameters
@@ -705,6 +727,10 @@ public class FunctionsImpl {
             return getUnavailableResponse();
         }
 
+        if (null == worker().getStateStoreAdminClient()) {
+            return getStateStoreUnvailableResponse();
+        }
+
         // validate parameters
         try {
             validateGetFunctionStateParams(tenant, namespace, functionName, key);
@@ -715,10 +741,7 @@ public class FunctionsImpl {
                 .entity(new ErrorData(e.getMessage())).build();
         }
 
-        String tableNs = String.format(
-            "%s_%s",
-            tenant,
-            namespace).replace('-', '_');
+        String tableNs = StateUtils.getStateNamespace(tenant, namespace);
         String tableName = functionName;
 
         String stateStorageServiceUrl = worker().getWorkerConfig().getStateStorageServiceUrl();
@@ -1103,6 +1126,14 @@ public class FunctionsImpl {
         return Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
                 .entity(new ErrorData(
                         "Function worker service is not done initializing. " + "Please try again in a little while."))
+                .build();
+    }
+
+    private Response getStateStoreUnvailableResponse() {
+        return Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
+                .entity(new ErrorData(
+                        "State storage client is not done initializing. "
+                            + "Please try again in a little while."))
                 .build();
     }
 
