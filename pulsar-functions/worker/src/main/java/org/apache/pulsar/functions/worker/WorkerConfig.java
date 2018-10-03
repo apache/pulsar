@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -138,6 +139,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private Boolean submittingInsidePod;
         private String pulsarServiceUrl;
         private String pulsarAdminUrl;
+        private Map<String, String> customLabels;
     }
     private KubernetesContainerFactory kubernetesContainerFactory;
 

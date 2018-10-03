@@ -83,6 +83,7 @@ class KubernetesRuntime implements Runtime {
     private InstanceControlGrpc.InstanceControlFutureStub[] stub;
     private InstanceConfig instanceConfig;
     private final String jobNamespace;
+    private final Map<String, String> customLabels;
     private final String pulsarDockerImageName;
     private final String pulsarRootDir;
     private final String userCodePkgUrl;
@@ -94,6 +95,7 @@ class KubernetesRuntime implements Runtime {
     KubernetesRuntime(AppsV1Api appsClient,
                       CoreV1Api coreClient,
                       String jobNamespace,
+                      Map<String, String> customLabels,
                       String pulsarDockerImageName,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
@@ -109,6 +111,7 @@ class KubernetesRuntime implements Runtime {
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
         this.jobNamespace = jobNamespace;
+        this.customLabels = customLabels;
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.pulsarRootDir = pulsarRootDir;
         this.userCodePkgUrl = userCodePkgUrl;
@@ -450,6 +453,9 @@ class KubernetesRuntime implements Runtime {
         labels.put("app", createJobName(functionDetails));
         labels.put("namespace", functionDetails.getNamespace());
         labels.put("tenant", functionDetails.getTenant());
+        if (customLabels != null && !customLabels.isEmpty()) {
+            labels.putAll(customLabels);
+        }
         return labels;
     }
 
