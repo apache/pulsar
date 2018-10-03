@@ -163,7 +163,9 @@ public class FunctionConfigUtils {
         }
 
         Map<String, Object> configs = new HashMap<>();
-        configs.putAll(functionConfig.getUserConfig());
+        if (functionConfig.getUserConfig() != null) {
+            configs.putAll(functionConfig.getUserConfig());
+        }
 
         // windowing related
         WindowConfig windowConfig = functionConfig.getWindowConfig();
