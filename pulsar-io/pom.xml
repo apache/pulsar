@@ -43,6 +43,7 @@
     <module>jdbc</module>
     <module>data-genenator</module>
     <module>elastic-search</module>
+    <module>kafka-connect-adaptor</module>
     <module>debezium</module>
   </modules>
 
