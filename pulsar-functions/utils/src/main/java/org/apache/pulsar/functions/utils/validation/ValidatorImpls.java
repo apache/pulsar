@@ -115,7 +115,7 @@ public class ValidatorImpls {
         @Override
         public void validateField(String name, Object o, ClassLoader classLoader) {
             if (o == null) {
-                throw new IllegalArgumentException(String.format("Field '%s' cannot be null!", name));
+                return;
             }
 
             if (o instanceof Resources) {
@@ -270,6 +270,7 @@ public class ValidatorImpls {
 
         @Override
         public void validateField(String name, Object o, ClassLoader classLoader) {
+            if (o.equals(DEFAULT_SERDE)) return;
             new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, o, classLoader);
         }
     }
@@ -453,6 +454,7 @@ public class ValidatorImpls {
         private static void validateSerde(String inputSerializer, Class<?> typeArg, String name, ClassLoader clsLoader,
                                           boolean deser) {
             if (StringUtils.isEmpty(inputSerializer)) return;
+            if (inputSerializer.equals(DEFAULT_SERDE)) return;
             Class<?> serdeClass;
             try {
                 serdeClass = loadClass(inputSerializer, clsLoader);
@@ -471,35 +473,31 @@ public class ValidatorImpls {
                                 inputSerializer, SerDe.class.getCanonicalName()));
             }
 
-            if (inputSerializer.equals(DEFAULT_SERDE)) {
-                // No checks needed here
+            SerDe serDe = (SerDe) Reflections.createInstance(inputSerializer, clsLoader);
+            if (serDe == null) {
+                throw new IllegalArgumentException(String.format("The SerDe class %s does not exist",
+                        inputSerializer));
+            }
+            Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+
+            // type inheritance information seems to be lost in generic type
+            // load the actual type class for verification
+            Class<?> fnInputClass;
+            Class<?> serdeInputClass;
+            try {
+                fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
+                serdeInputClass = Class.forName(serDeTypes[0].getName(), true, clsLoader);
+            } catch (ClassNotFoundException e) {
+                throw new IllegalArgumentException("Failed to load type class", e);
+            }
+
+            if (deser) {
+                if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
+                    throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " + serDeTypes[0]);
+                }
             } else {
-                SerDe serDe = (SerDe) Reflections.createInstance(inputSerializer, clsLoader);
-                if (serDe == null) {
-                    throw new IllegalArgumentException(String.format("The SerDe class %s does not exist",
-                            inputSerializer));
-                }
-                Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-
-                // type inheritance information seems to be lost in generic type
-                // load the actual type class for verification
-                Class<?> fnInputClass;
-                Class<?> serdeInputClass;
-                try {
-                    fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
-                    serdeInputClass = Class.forName(serDeTypes[0].getName(), true, clsLoader);
-                } catch (ClassNotFoundException e) {
-                    throw new IllegalArgumentException("Failed to load type class", e);
-                }
-
-                if (deser) {
-                    if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
-                        throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " + serDeTypes[0]);
-                    }
-                } else {
-                    if (!serdeInputClass.isAssignableFrom(fnInputClass)) {
-                        throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " + serDeTypes[0]);
-                    }
+                if (!serdeInputClass.isAssignableFrom(fnInputClass)) {
+                    throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " + serDeTypes[0]);
                 }
             }
         }
@@ -586,7 +584,7 @@ public class ValidatorImpls {
             FunctionConfig functionConfig = (FunctionConfig) o;
             doCommonChecks(functionConfig);
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                if (!functionConfig.getJar().startsWith(Utils.FILE)) {
+                if (classLoader != null) {
                     doJavaChecks(functionConfig, name, classLoader);
                 }
             } else {
