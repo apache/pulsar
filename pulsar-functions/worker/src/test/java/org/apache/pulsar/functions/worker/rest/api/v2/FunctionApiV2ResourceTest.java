@@ -729,16 +729,16 @@ public class FunctionApiV2ResourceTest {
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         String filePackageUrl = "file://" + fileLocation;
 
-        SinkSpec sinkSpec = SinkSpec.newBuilder()
-                .setTopic(outputTopic)
-                .setSerDeClassName(outputSerdeClassName).build();
-        FunctionDetails functionDetails = FunctionDetails.newBuilder()
-                .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setSink(sinkSpec)
-                .setClassName(className)
-                .setParallelism(parallelism)
-                .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
-                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setOutput(outputTopic);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(function);
+        functionConfig.setClassName(className);
+        functionConfig.setParallelism(parallelism);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
         RequestResult rr = new RequestResult()
@@ -754,8 +754,8 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             filePackageUrl,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
             null,
+            new Gson().toJson(functionConfig),
             null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -1097,19 +1097,24 @@ public class FunctionApiV2ResourceTest {
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        SinkSpec sinkSpec = SinkSpec.newBuilder().setClassName(TestSink.class.getName()).setTopic(outputTopic)
-                .setSerDeClassName(outputSerdeClassName).build();
-        FunctionDetails functionDetails = FunctionDetails
-                .newBuilder().setTenant(tenant).setNamespace(namespace).setName(function).setSink(sinkSpec)
-                .setClassName(className).setParallelism(parallelism).setSource(SourceSpec.newBuilder()
-                        .setSubscriptionType(subscriptionType).putAllTopicsToSerDeClassName(topicsToSerDeClassName))
-                .build();
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(function);
+        functionConfig.setClassName(className);
+        functionConfig.setParallelism(parallelism);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        functionConfig.setOutput(outputTopic);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails), null, null);
+                null, new Gson().toJson(functionConfig), null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
 
+    /*
+    TODO:- Needs to be moved to a source/sink specific unittest
     @Test
     public void testRegisterFunctionFileUrlWithInValidSinkClass() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
@@ -1122,6 +1127,16 @@ public class FunctionApiV2ResourceTest {
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(function);
+        functionConfig.setClassName(className);
+        functionConfig.setParallelism(parallelism);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        functionConfig.setOutput(outputTopic);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         SinkSpec sinkSpec = SinkSpec.newBuilder().setClassName(className).setTopic(outputTopic)
                 .setSerDeClassName(outputSerdeClassName).build();
         FunctionDetails functionDetails = FunctionDetails
@@ -1130,8 +1145,9 @@ public class FunctionApiV2ResourceTest {
                         .setSubscriptionType(subscriptionType).putAllTopicsToSerDeClassName(topicsToSerDeClassName))
                 .build();
         Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails), null, null);
+                null, new Gson().toJson(functionConfig), null);
 
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+        assertEquals(response.getStatus(), Status.BAD_REQUEST.getStatusCode());
     }
+    */
 }
