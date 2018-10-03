@@ -126,8 +126,8 @@ public class KubernetesRuntimeTest {
                 + " --jar " + userJarFile + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
-                + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
-                + "' --pulsar_serviceurl " + pulsarServiceUrl
+                + " --function_details " + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
+                + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(23)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval -1";
@@ -146,8 +146,8 @@ public class KubernetesRuntimeTest {
                 + logDirectory + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
-                + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
-                + "' --pulsar_serviceurl " + pulsarServiceUrl
+                + " --function_details " + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
+                + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(21)
                 + " --expected_healthcheck_interval -1";
         assertEquals(String.join(" ", args), expectedArgs);
