@@ -38,12 +38,7 @@ public class FunctionConfigUtils {
 
         Class<?>[] typeArgs = null;
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-            if (functionConfig.getJar().startsWith(Utils.FILE)) {
-                // server derives the arg-type by loading a class
-                if (isBlank(functionConfig.getClassName())) {
-                    throw new IllegalArgumentException("Class-name must be present for jar with file-url");
-                }
-            } else {
+            if (classLoader != null) {
                 typeArgs = Utils.getFunctionTypes(functionConfig, classLoader);
             }
         }
