@@ -1559,7 +1559,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             producer.checkPermissions();
             producer.checkEncryption();
         });
-        subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
+        subscriptions.forEach((subName, sub) -> {
+            sub.getConsumers().forEach(Consumer::checkPermissions);
+            if (sub.getDispatcher().getRateLimiter() != null) {
+                sub.getDispatcher().getRateLimiter().onPoliciesUpdate(data);
+            }
+        });
         checkMessageExpiry();
         CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
         CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
