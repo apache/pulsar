@@ -37,10 +37,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import javax.ws.rs.core.Response;
@@ -180,12 +177,13 @@ public class FunctionApiV2ResourceTest {
             namespace,
             function,
             mockedInputStream,
+            topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Tenant");
+                "Tenant is not provided");
     }
 
     @Test
@@ -195,12 +193,13 @@ public class FunctionApiV2ResourceTest {
             null,
             function,
             mockedInputStream,
+            topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Namespace");
+                "Namespace is not provided");
     }
 
     @Test
@@ -210,12 +209,13 @@ public class FunctionApiV2ResourceTest {
             namespace,
             null,
             mockedInputStream,
+            topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Name");
+                "Function Name is not provided");
     }
 
     @Test
@@ -225,12 +225,29 @@ public class FunctionApiV2ResourceTest {
             namespace,
             function,
             null,
+            topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package");
+                "Function Package is not provided");
+    }
+
+    @Test
+    public void testRegisterFunctionMissingInputTopics() throws IOException {
+        testRegisterFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                null,
+                null,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                "No input topic(s) specified for the function");
     }
 
     @Test
@@ -240,12 +257,13 @@ public class FunctionApiV2ResourceTest {
             namespace,
             function,
             mockedInputStream,
+            topicsToSerDeClassName,
             null,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package");
+                "Function Package is not provided");
     }
 
     @Test
@@ -255,12 +273,13 @@ public class FunctionApiV2ResourceTest {
             namespace,
             function,
             mockedInputStream,
+            topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             null,
             parallelism,
-                "ClassName");
+                "Field 'className' cannot be null!");
     }
 
     @Test
@@ -270,12 +289,13 @@ public class FunctionApiV2ResourceTest {
                 namespace,
                 function,
                 mockedInputStream,
+                topicsToSerDeClassName,
                 mockedFormData,
                 outputTopic,
                 outputSerdeClassName,
                 className,
                 null,
-                "parallelism");
+                "Field 'parallelism' must be a Positive Number");
     }
 
     private void testRegisterFunctionMissingArguments(
@@ -283,38 +303,40 @@ public class FunctionApiV2ResourceTest {
             String namespace,
             String function,
             InputStream inputStream,
+            Map<String, String> topicsToSerDeClassName,
             FormDataContentDisposition details,
             String outputTopic,
             String outputSerdeClassName,
             String className,
             Integer parallelism,
-            String missingFieldName) throws IOException {
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+            String errorExpected) throws IOException {
+        FunctionConfig functionConfig = new FunctionConfig();
         if (tenant != null) {
-            functionDetailsBuilder.setTenant(tenant);
+            functionConfig.setTenant(tenant);
         }
         if (namespace != null) {
-            functionDetailsBuilder.setNamespace(namespace);
+            functionConfig.setNamespace(namespace);
         }
         if (function != null) {
-            functionDetailsBuilder.setName(function);
+            functionConfig.setName(function);
         }
-        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
+        if (topicsToSerDeClassName != null) {
+            functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        }
         if (outputTopic != null) {
-            sinkSpecBuilder.setTopic(outputTopic);
+            functionConfig.setOutput(outputTopic);
         }
         if (outputSerdeClassName != null) {
-            sinkSpecBuilder.setSerDeClassName(outputSerdeClassName);
+            functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         }
-        functionDetailsBuilder.setSink(sinkSpecBuilder);
         if (className != null) {
-            functionDetailsBuilder.setClassName(className);
+            functionConfig.setClassName(className);
         }
         if (parallelism != null) {
-            functionDetailsBuilder.setParallelism(parallelism);
+            functionConfig.setParallelism(parallelism);
         }
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
-        FunctionDetails functionDetails = functionDetailsBuilder.build();
         Response response = resource.registerFunction(
                 tenant,
                 namespace,
@@ -322,16 +344,12 @@ public class FunctionApiV2ResourceTest {
                 inputStream,
                 details,
                 null,
-                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
                 null,
+                new Gson().toJson(functionConfig),
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        if (missingFieldName.equals("parallelism")) {
-            Assert.assertEquals(new ErrorData("Parallelism needs to be set to a positive number").reason, ((ErrorData) response.getEntity()).reason);
-        } else {
-            Assert.assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
-        }
+        Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(errorExpected).reason);
     }
 
     private Response registerDefaultFunction() {
