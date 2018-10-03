@@ -47,6 +47,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -63,6 +64,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -85,6 +87,7 @@ import org.testng.annotations.Test;
  */
 @PrepareForTest(Utils.class)
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
+@Slf4j
 public class FunctionApiV2ResourceTest {
 
     @ObjectFactory
@@ -94,7 +97,8 @@ public class FunctionApiV2ResourceTest {
 
     private static final class TestFunction implements Function<String, String> {
 
-        public String process(String input, Context context) throws Exception {
+        @Override
+        public String process(String input, Context context) {
             return input;
         }
     }
@@ -102,15 +106,15 @@ public class FunctionApiV2ResourceTest {
     public static final class TestSink implements Sink<byte[]> {
 
         @Override
-        public void close() throws Exception {
+        public void close() {
         }
 
         @Override
-        public void open(Map config, SinkContext sinkContext) throws Exception {
+        public void open(Map config, SinkContext sinkContext) {
         }
 
         @Override
-        public void write(Record<byte[]> record) throws Exception {
+        public void write(Record<byte[]> record) {
         }
     }
 
@@ -326,17 +330,17 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    private Response registerDefaultFunction() throws IOException {
-        SinkSpec sinkSpec = SinkSpec.newBuilder()
-                .setTopic(outputTopic)
-                .setSerDeClassName(outputSerdeClassName).build();
-        FunctionDetails functionDetails = FunctionDetails.newBuilder()
-                .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setSink(sinkSpec)
-                .setClassName(className)
-                .setParallelism(parallelism)
-                .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
-                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
+    private Response registerDefaultFunction() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(function);
+        functionConfig.setClassName(className);
+        functionConfig.setParallelism(parallelism);
+        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        functionConfig.setOutput(outputTopic);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         return resource.registerFunction(
             tenant,
             namespace,
@@ -344,8 +348,8 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             null,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
             null,
+            new Gson().toJson(functionConfig),
             null);
     }
 
