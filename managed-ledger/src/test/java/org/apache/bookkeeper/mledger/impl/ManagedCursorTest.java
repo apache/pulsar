@@ -2759,6 +2759,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void operationComplete() {
                 assertEquals(cursor.getMarkDeletedPosition(), lastPosition);
                 assertEquals(cursor.getReadPosition(), nextPosition);
+                assertEquals(cursor.getNumberOfEntries(), 0L);
             }
 
             @Override
