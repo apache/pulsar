@@ -25,7 +25,7 @@ import static org.testng.Assert.assertTrue;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.schema.AutoSchema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
 import org.testng.annotations.Test;
@@ -53,7 +53,7 @@ public class GenericSchemaTest {
     @Test
     public void testAutoAvroSchema() {
         Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
-        AutoSchema decodeSchema = new AutoSchema();
+        AutoConsumeSchema decodeSchema = new AutoConsumeSchema();
         decodeSchema.setSchema(GenericSchema.of(encodeSchema.getSchemaInfo()));
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
@@ -61,7 +61,7 @@ public class GenericSchemaTest {
     @Test
     public void testAutoJsonSchema() {
         Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
-        AutoSchema decodeSchema = new AutoSchema();
+        AutoConsumeSchema decodeSchema = new AutoConsumeSchema();
         decodeSchema.setSchema(GenericSchema.of(encodeSchema.getSchemaInfo()));
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }

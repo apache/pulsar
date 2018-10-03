@@ -85,5 +85,16 @@ public enum SchemaType {
     /**
      * Auto Detect Schema Type.
      */
-    AUTO
+    @Deprecated
+    AUTO,
+
+    /**
+     * Auto Consume Type.
+     */
+    AUTO_CONSUME,
+
+    /**
+     * Auto Publish Type.
+     */
+    AUTO_PUBLISH
 }
