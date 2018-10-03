@@ -24,11 +24,8 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
-import org.eclipse.jetty.util.ConcurrentHashSet;
 
 import io.netty.util.concurrent.FastThreadLocal;
-
-import java.util.Set;
 
 public class NamespaceStatsAggregator {
 
@@ -46,8 +43,6 @@ public class NamespaceStatsAggregator {
         }
     };
 
-    private static Set<String> METRIC_TYPES = new ConcurrentHashSet<>();
-
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics, SimpleTextOutputStream stream) {
         String cluster = pulsar.getConfiguration().getClusterName();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
@@ -55,8 +50,6 @@ public class NamespaceStatsAggregator {
 
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
-
-            METRIC_TYPES.forEach(metric -> TopicStats.metricType(stream, metric));
 
             bundlesMap.forEach((bundle, topicsMap) -> {
                 topicsMap.forEach((name, topic) -> {
@@ -225,33 +218,21 @@ public class NamespaceStatsAggregator {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String name,
                                long value) {
-        if (!METRIC_TYPES.contains(name)) {
-            TopicStats.metricType(stream, name);
-            METRIC_TYPES.add(name);
-        }
-
+        TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String name,
                                double value) {
-        if (!METRIC_TYPES.contains(name)) {
-            TopicStats.metricType(stream, name);
-            METRIC_TYPES.add(name);
-        }
-
+        TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metricWithRemoteCluster(SimpleTextOutputStream stream, String cluster, String namespace,
                                                 String name, String remoteCluster, double value) {
-        if (!METRIC_TYPES.contains(name)) {
-            TopicStats.metricType(stream, name);
-            METRIC_TYPES.add(name);
-        }
-
+        TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);
         stream.write("\",remote_cluster=\"").write(remoteCluster).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
