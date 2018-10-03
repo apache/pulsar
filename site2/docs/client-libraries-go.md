@@ -20,12 +20,10 @@ through [RPM](client-libraries-cpp.md#rpm), [Deb](client-libraries-cpp.md#deb) o
 
 ### Installing go package
 
-You can install the `pulsar` library locally using `go get`:
-
-> #### NOTE
+> #### Compatibility Warning
 > The version number of the Go client **must match** the version number of the Pulsar C++ client library.
-> Additionally, `go get` doesn't support fetching a specific tag - it will always pull in master's
-> version of the Go client - so you'll need a bleeding edge C++ client library to match.
+
+You can install the `pulsar` library locally using `go get`.  Note that `go get` doesn't support fetching a specific tag - it will always pull in master's version of the Go client.  You'll need a C++ client library that matches master.
 
 ```bash
 $ go get -u github.com/apache/pulsar/pulsar-client-go/pulsar
