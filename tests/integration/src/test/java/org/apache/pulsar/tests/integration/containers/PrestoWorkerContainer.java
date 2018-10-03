@@ -16,26 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.scheduler;
+package org.apache.pulsar.tests.integration.containers;
 
-import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.proto.Function.Instance;
+/**
+ * A pulsar container that runs the presto worker
+ */
+public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer> {
 
-import java.util.List;
-import java.util.Set;
+    public static final String NAME = "presto-worker";
+    public static final int PRESTO_HTTP_PORT = 8081;
 
-public interface IScheduler {
-
-    /**
-     * Scheduler schedules assignments to appropriate workers and adds into #resultAssignments
-     * 
-     * @param unassignedFunctionInstances
-     *            all unassigned instances
-     * @param currentAssignments
-     *            current assignments
-     * @param workers
-     * @return
-     */
-    List<Assignment> schedule(List<Instance> unassignedFunctionInstances, List<Assignment> currentAssignments,
-            Set<String> workers);
+    public PrestoWorkerContainer(String clusterName, String hostname) {
+        super(
+                clusterName,
+                hostname,
+                hostname,
+                "bin/run-presto-worker.sh",
+                -1,
+                PRESTO_HTTP_PORT,
+                "/v1/node");
+    }
 }

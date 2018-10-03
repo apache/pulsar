@@ -162,6 +162,14 @@ public class FunctionsImpl {
                     .entity(new ErrorData(String.format("Function %s already exists", functionName))).build();
         }
 
+        try {
+            worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
+        } catch (Exception e) {
+            log.error("Function {}/{}/{} cannot be admitted by the runtime factory", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s cannot be admitted:- %s", functionName, e.getMessage()))).build();
+        }
+
         FunctionDetails functionDetails;
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         File uploadedInputStreamAsFile = null;
@@ -231,6 +239,14 @@ public class FunctionsImpl {
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+        try {
+            worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
+        } catch (Exception e) {
+            log.error("Updated Function {}/{}/{} cannot be submitted to runtime factory", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s cannot be admitted:- %s", functionName, e.getMessage()))).build();
         }
 
         FunctionDetails functionDetails;

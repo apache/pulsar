@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.runtime;
 
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function;
 
 /**
  * A factory to create {@link Runtime}s to invoke functions.
@@ -39,6 +40,8 @@ public interface RuntimeFactory extends AutoCloseable {
             Long expectedHealthCheckInterval) throws Exception;
 
     default boolean externallyManaged() { return false; }
+
+    default void doAdmissionChecks(Function.FunctionDetails functionDetails) { }
 
     @Override
     void close();

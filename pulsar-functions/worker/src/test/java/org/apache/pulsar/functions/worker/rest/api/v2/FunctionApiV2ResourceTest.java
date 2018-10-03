@@ -63,12 +63,9 @@ import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.Utils;
-import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.io.core.Sink;
@@ -134,6 +131,8 @@ public class FunctionApiV2ResourceTest {
 
     private WorkerService mockedWorkerService;
     private FunctionMetaDataManager mockedManager;
+    private FunctionRuntimeManager mockedFunctionRunTimeManager;
+    private RuntimeFactory mockedRuntimeFactory;
     private Namespace mockedNamespace;
     private FunctionsImpl resource;
     private InputStream mockedInputStream;
@@ -142,6 +141,8 @@ public class FunctionApiV2ResourceTest {
     @BeforeMethod
     public void setup() {
         this.mockedManager = mock(FunctionMetaDataManager.class);
+        this.mockedFunctionRunTimeManager = mock(FunctionRuntimeManager.class);
+        this.mockedRuntimeFactory = mock(RuntimeFactory.class);
         this.mockedInputStream = mock(InputStream.class);
         this.mockedNamespace = mock(Namespace.class);
         this.mockedFormData = mock(FormDataContentDisposition.class);
@@ -149,6 +150,8 @@ public class FunctionApiV2ResourceTest {
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
+        when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
+        when(mockedFunctionRunTimeManager.getRuntimeFactory()).thenReturn(mockedRuntimeFactory);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
         when(mockedWorkerService.isInitialized()).thenReturn(true);
 
