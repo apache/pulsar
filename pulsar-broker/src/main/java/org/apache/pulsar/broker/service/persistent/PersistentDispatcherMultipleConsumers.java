@@ -636,5 +636,10 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         return redeliveryTracker;
     }
 
+    @Override
+    public DispatchRateLimiter getRateLimiter() {
+        return dispatchRateLimiter;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);
 }
