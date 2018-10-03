@@ -970,6 +970,9 @@ public class FunctionsImpl {
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                 clsLoader = extractClassLoader(functionPkgUrl, uploadedInputStreamAsFile);
             }
+            if (functionConfig.getRuntime() == null) {
+                throw new IllegalArgumentException("Function Runtime no specified");
+            }
             ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name(), clsLoader);
             return FunctionConfigUtils.convert(functionConfig, clsLoader);
         }
