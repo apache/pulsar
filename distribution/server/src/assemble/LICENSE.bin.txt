@@ -387,6 +387,7 @@ The Apache Software License, Version 2.0
     - org.apache.distributedlog-distributedlog-core-4.7.2-tests.jar
     - org.apache.distributedlog-distributedlog-core-4.7.2.jar
     - org.apache.distributedlog-distributedlog-protocol-4.7.2.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.7.2.jar
  * LZ4 -- net.jpountz.lz4-lz4-1.3.0.jar
  * AsyncHttpClient
     - org.asynchttpclient-async-http-client-2.1.0-alpha26.jar
@@ -459,6 +460,10 @@ The Apache Software License, Version 2.0
     - io.kubernetes-client-java-proto-2.0.0.jar
   * Joda Time
     - joda-time-joda-time-2.9.3.jar
+  * Dropwizard
+    - io.dropwizard.metrics-metrics-core-3.1.0.jar
+    - io.dropwizard.metrics-metrics-graphite-3.1.0.jar
+    - io.dropwizard.metrics-metrics-jvm-3.1.0.jar
 
 
 BSD 3-clause "New" or "Revised" License
