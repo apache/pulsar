@@ -971,55 +971,49 @@ public class FunctionsImpl {
             }
             return FunctionConfigUtils.convert(functionConfig, clsLoader);
         }
-        try {
-            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-            org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
-            if (isNotBlank(functionPkgUrl)) {
-                // set package-url if present
-                functionDetailsBuilder.setPackageUrl(functionPkgUrl);
-            }
-            ClassLoader clsLoader = null;
-            if (functionDetailsBuilder.getRuntime() == FunctionDetails.Runtime.JAVA) {
-                clsLoader = extractClassLoader(functionPkgUrl, uploadedInputStreamAsFile);
-            }
-            validateFunctionClassTypes(clsLoader, functionDetailsBuilder);
-
-            FunctionDetails functionDetails = functionDetailsBuilder.build();
-
-            List<String> missingFields = new LinkedList<>();
-            if (functionDetails.getTenant() == null || functionDetails.getTenant().isEmpty()) {
-                missingFields.add("Tenant");
-            }
-            if (functionDetails.getNamespace() == null || functionDetails.getNamespace().isEmpty()) {
-                missingFields.add("Namespace");
-            }
-            if (functionDetails.getName() == null || functionDetails.getName().isEmpty()) {
-                missingFields.add("Name");
-            }
-            if (functionDetails.getClassName() == null || functionDetails.getClassName().isEmpty()) {
-                missingFields.add("ClassName");
-            }
-            // TODO in the future add more check here for functions and connectors
-            if (!functionDetails.getSource().isInitialized()) {
-                missingFields.add("Source");
-            }
-            // TODO in the future add more check here for functions and connectors
-            if (!functionDetails.getSink().isInitialized()) {
-                missingFields.add("Sink");
-            }
-            if (!missingFields.isEmpty()) {
-                String errorMessage = join(missingFields, ",");
-                throw new IllegalArgumentException(errorMessage + " is not provided");
-            }
-            if (functionDetails.getParallelism() <= 0) {
-                throw new IllegalArgumentException("Parallelism needs to be set to a positive number");
-            }
-            return functionDetails;
-        } catch (IllegalArgumentException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new IllegalArgumentException("Invalid FunctionDetails");
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
+        if (isNotBlank(functionPkgUrl)) {
+            // set package-url if present
+            functionDetailsBuilder.setPackageUrl(functionPkgUrl);
         }
+        ClassLoader clsLoader = null;
+        if (functionDetailsBuilder.getRuntime() == FunctionDetails.Runtime.JAVA) {
+            clsLoader = extractClassLoader(functionPkgUrl, uploadedInputStreamAsFile);
+        }
+        validateFunctionClassTypes(clsLoader, functionDetailsBuilder);
+
+        FunctionDetails functionDetails = functionDetailsBuilder.build();
+
+        List<String> missingFields = new LinkedList<>();
+        if (functionDetails.getTenant() == null || functionDetails.getTenant().isEmpty()) {
+            missingFields.add("Tenant");
+        }
+        if (functionDetails.getNamespace() == null || functionDetails.getNamespace().isEmpty()) {
+            missingFields.add("Namespace");
+        }
+        if (functionDetails.getName() == null || functionDetails.getName().isEmpty()) {
+            missingFields.add("Name");
+        }
+        if (functionDetails.getClassName() == null || functionDetails.getClassName().isEmpty()) {
+            missingFields.add("ClassName");
+        }
+        // TODO in the future add more check here for functions and connectors
+        if (!functionDetails.getSource().isInitialized()) {
+            missingFields.add("Source");
+        }
+        // TODO in the future add more check here for functions and connectors
+        if (!functionDetails.getSink().isInitialized()) {
+            missingFields.add("Sink");
+        }
+        if (!missingFields.isEmpty()) {
+            String errorMessage = join(missingFields, ",");
+            throw new IllegalArgumentException(errorMessage + " is not provided");
+        }
+        if (functionDetails.getParallelism() <= 0) {
+            throw new IllegalArgumentException("Parallelism needs to be set to a positive number");
+        }
+        return functionDetails;
     }
 
     private ClassLoader extractClassLoader(String functionPkgUrl, File uploadedInputStreamAsFile) throws URISyntaxException, IOException {
