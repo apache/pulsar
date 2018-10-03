@@ -270,7 +270,7 @@ public class ValidatorImpls {
 
         @Override
         public void validateField(String name, Object o, ClassLoader classLoader) {
-            if (o.equals(DEFAULT_SERDE)) return;
+            if (o != null && o.equals(DEFAULT_SERDE)) return;
             new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, o, classLoader);
         }
     }
