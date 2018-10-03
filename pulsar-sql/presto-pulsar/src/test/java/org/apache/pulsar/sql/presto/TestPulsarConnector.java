@@ -53,6 +53,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.javax.ws.rs.ClientErrorException;
 import org.apache.pulsar.shade.javax.ws.rs.core.Response;
+import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -923,7 +924,8 @@ public abstract class TestPulsarConnector {
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
 
-            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(fooColumnHandles, split.getValue(), pulsarConnectorConfig, managedLedgerFactory));
+            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(fooColumnHandles, split.getValue(),
+                    pulsarConnectorConfig, managedLedgerFactory, new PulsarConnectorMetricsTracker(new NullStatsProvider())));
             this.pulsarRecordCursors.put(split.getKey(), pulsarRecordCursor);
         }
     }

@@ -100,13 +100,14 @@ public class PulsarRecordCursor implements RecordCursor {
             throw new RuntimeException(e);
         }
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig,
-                pulsarConnectorCache.getManagedLedgerFactory(), new PulsarConnectorMetricsTracker(pulsarConnectorCache));
+                pulsarConnectorCache.getManagedLedgerFactory(),
+                new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
     }
 
     // Exposed for testing purposes
     PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
-            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory) {
-        initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, null);
+            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker) {
+        initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, pulsarConnectorMetricsTracker);
     }
 
     private void initialize(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
@@ -189,7 +190,7 @@ public class PulsarRecordCursor implements RecordCursor {
         private final Thread thread;
 
         public DeserializeEntries() {
-            this.thread = new Thread(this);
+            this.thread = new Thread(this, "derserialize-thread-split-" + pulsarSplit.getSplitId());
         }
 
         public void interrupt() {
@@ -367,6 +368,7 @@ public class PulsarRecordCursor implements RecordCursor {
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
         currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
+        metricsTracker.incr_NUM_RECORD_DESERIALIZED();
 
         // stats for time spend deserializing
         metricsTracker.end_RECORD_DESERIALIZE_TIME();

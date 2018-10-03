@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import org.apache.pulsar.shade.org.apache.bookkeeper.stats.Gauge;
+import org.apache.pulsar.shade.org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.pulsar.shade.org.apache.bookkeeper.stats.StatsLogger;
 
 import java.util.concurrent.TimeUnit;
@@ -55,6 +56,8 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
     // time spent waiting for message queue enqueue because message queue is full per query
     private static final String MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_PER_QUERY = "message-queue-enqueue-wait-time-per-query";
 
+    private static final String NUM_MESSAGES_DERSERIALIZED = "num-messages-deserialized";
+
     // number of messages deserialized
     public static final String NUM_MESSAGES_DERSERIALIZED_PER_ENTRY = "num-messages-deserialized-per-entry";
 
@@ -88,6 +91,8 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
     // time spent deserializing message to record per query
     private static final String RECORD_DESERIALIZE_TIME_PER_QUERY = "record-deserialize-time-per-query";
 
+    private static final String NUM_RECORD_DESERIALIZED = "num-record-deserialized";
+
     private static final String TOTAL_EXECUTION_TIME = "total-execution-time";
 
     /** internal tracking variables **/
@@ -109,162 +114,208 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
     private long RECORD_DESERIALIZE_TIME_startTime;
     private long RECORD_DESERIALIZE_TIME_sum = 0L;
 
-    public PulsarConnectorMetricsTracker(PulsarConnectorCache pulsarConnectorCache) {
-        this.statsLogger = pulsarConnectorCache.getStatsProvider().getStatsLogger(SCOPE);
+    public PulsarConnectorMetricsTracker(StatsProvider statsProvider) {
+        this.statsLogger = statsProvider instanceof NullStatsProvider
+                ? null : statsProvider.getStatsLogger(SCOPE);
     }
 
     public void start_ENTRY_QUEUE_DEQUEUE_WAIT_TIME() {
-        ENTRY_QUEUE_DEQUEUE_WAIT_TIME_startTime = System.nanoTime();
+        if (statsLogger != null) {
+            ENTRY_QUEUE_DEQUEUE_WAIT_TIME_startTime = System.nanoTime();
+        }
     }
 
     public void end_ENTRY_QUEUE_DEQUEUE_WAIT_TIME() {
-        long time = System.nanoTime() - ENTRY_QUEUE_DEQUEUE_WAIT_TIME_startTime;
-        ENTRY_QUEUE_DEQUEUE_WAIT_TIME_sum += time;
-        statsLogger.getOpStatsLogger(ENTRY_QUEUE_DEQUEUE_WAIT_TIME)
-                .registerSuccessfulEvent(time, TimeUnit.NANOSECONDS);
+        if (statsLogger != null) {
+            long time = System.nanoTime() - ENTRY_QUEUE_DEQUEUE_WAIT_TIME_startTime;
+            ENTRY_QUEUE_DEQUEUE_WAIT_TIME_sum += time;
+            statsLogger.getOpStatsLogger(ENTRY_QUEUE_DEQUEUE_WAIT_TIME)
+                    .registerSuccessfulEvent(time, TimeUnit.NANOSECONDS);
+        }
     }
 
     public void register_BYTES_READ(long bytes) {
-        BYTES_READ_sum += bytes;
-        statsLogger.getCounter(BYTES_READ).add(bytes);
+        if (statsLogger != null) {
+            BYTES_READ_sum += bytes;
+            statsLogger.getCounter(BYTES_READ).add(bytes);
+        }
     }
 
     public void start_ENTRY_DESERIALIZE_TIME() {
-        ENTRY_DESERIALIZE_TIME_startTime = System.nanoTime();
+        if (statsLogger != null) {
+            ENTRY_DESERIALIZE_TIME_startTime = System.nanoTime();
+        }
     }
 
     public void end_ENTRY_DESERIALIZE_TIME() {
-
-        long time = System.nanoTime() - ENTRY_DESERIALIZE_TIME_startTime;
-        ENTRY_DESERIALIZE_TIME_sum += time;
-        statsLogger.getOpStatsLogger(ENTRY_DESERIALIZE_TIME)
-                .registerSuccessfulEvent(time, TimeUnit.NANOSECONDS);
+        if (statsLogger != null) {
+            long time = System.nanoTime() - ENTRY_DESERIALIZE_TIME_startTime;
+            ENTRY_DESERIALIZE_TIME_sum += time;
+            statsLogger.getOpStatsLogger(ENTRY_DESERIALIZE_TIME)
+                    .registerSuccessfulEvent(time, TimeUnit.NANOSECONDS);
+        }
     }
 
     public void start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME() {
-        MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_startTime = System.nanoTime();
+        if (statsLogger != null) {
+            MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_startTime = System.nanoTime();
+        }
     }
 
     public void end_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME() {
-        long time = System.nanoTime() - MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_startTime;
-        MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_sum += time;
-        statsLogger.getOpStatsLogger(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME)
-                .registerSuccessfulEvent(time, TimeUnit.NANOSECONDS);
+        if (statsLogger != null) {
+            long time = System.nanoTime() - MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_startTime;
+            MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_sum += time;
+            statsLogger.getOpStatsLogger(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME)
+                    .registerSuccessfulEvent(time, TimeUnit.NANOSECONDS);
+        }
     }
 
     public void incr_NUM_MESSAGES_DESERIALIZED_PER_ENTRY() {
-        NUM_MESSAGED_DERSERIALIZED_PER_BATCH ++;
+        if (statsLogger != null) {
+            NUM_MESSAGED_DERSERIALIZED_PER_BATCH++;
+            statsLogger.getCounter(NUM_MESSAGES_DERSERIALIZED).add(1);
+        }
     }
 
     public void end_NUM_MESSAGES_DESERIALIZED_PER_ENTRY() {
-        NUM_MESSAGES_DERSERIALIZED_sum += NUM_MESSAGED_DERSERIALIZED_PER_BATCH;
+        if (statsLogger != null) {
+            NUM_MESSAGES_DERSERIALIZED_sum += NUM_MESSAGED_DERSERIALIZED_PER_BATCH;
 
-        statsLogger.getOpStatsLogger(NUM_MESSAGES_DERSERIALIZED_PER_ENTRY)
-                .registerSuccessfulValue(NUM_MESSAGED_DERSERIALIZED_PER_BATCH);
+            statsLogger.getOpStatsLogger(NUM_MESSAGES_DERSERIALIZED_PER_ENTRY)
+                    .registerSuccessfulValue(NUM_MESSAGED_DERSERIALIZED_PER_BATCH);
 
-        NUM_MESSAGED_DERSERIALIZED_PER_BATCH = 0L;
+            NUM_MESSAGED_DERSERIALIZED_PER_BATCH = 0L;
+        }
     }
 
     public void incr_READ_ATTEMPTS_SUCCESS() {
-        READ_ATTEMTPS_SUCCESS_sum++;
-        statsLogger.getOpStatsLogger(READ_ATTEMTPS)
-                .registerSuccessfulValue(1L);
+        if (statsLogger != null) {
+            READ_ATTEMTPS_SUCCESS_sum++;
+            statsLogger.getOpStatsLogger(READ_ATTEMTPS)
+                    .registerSuccessfulValue(1L);
+        }
     }
 
     public void incr_READ_ATTEMPTS_FAIL() {
-        READ_ATTEMTPS_FAIL_sum++;
-        statsLogger.getOpStatsLogger(READ_ATTEMTPS)
-                .registerFailedValue(1L);
+        if (statsLogger != null) {
+            READ_ATTEMTPS_FAIL_sum++;
+            statsLogger.getOpStatsLogger(READ_ATTEMTPS)
+                    .registerFailedValue(1L);
+        }
     }
 
     public void register_READ_LATENCY_PER_BATCH_SUCCESS(long latency) {
-        READ_LATENCY_SUCCESS_sum += latency;
-        statsLogger.getOpStatsLogger(READ_LATENCY_PER_BATCH)
-                .registerSuccessfulEvent(latency, TimeUnit.NANOSECONDS);
+        if (statsLogger != null) {
+            READ_LATENCY_SUCCESS_sum += latency;
+            statsLogger.getOpStatsLogger(READ_LATENCY_PER_BATCH)
+                    .registerSuccessfulEvent(latency, TimeUnit.NANOSECONDS);
+        }
     }
 
     public void register_READ_LATENCY_PER_BATCH_FAIL(long latency) {
-        READ_LATENCY_FAIL_sum += latency;
-        statsLogger.getOpStatsLogger(READ_LATENCY_PER_BATCH)
-                .registerFailedEvent(latency, TimeUnit.NANOSECONDS);
+        if (statsLogger != null) {
+            READ_LATENCY_FAIL_sum += latency;
+            statsLogger.getOpStatsLogger(READ_LATENCY_PER_BATCH)
+                    .registerFailedEvent(latency, TimeUnit.NANOSECONDS);
+        }
     }
 
     public void incr_NUM_ENTRIES_PER_BATCH_SUCCESS(long delta) {
-        NUM_ENTRIES_PER_BATCH_sum += delta;
-        statsLogger.getOpStatsLogger(NUM_ENTRIES_PER_BATCH)
-                .registerSuccessfulValue(delta);
+        if (statsLogger != null) {
+            NUM_ENTRIES_PER_BATCH_sum += delta;
+            statsLogger.getOpStatsLogger(NUM_ENTRIES_PER_BATCH)
+                    .registerSuccessfulValue(delta);
+        }
     }
 
     public void incr_NUM_ENTRIES_PER_BATCH_FAIL(long delta) {
-        statsLogger.getOpStatsLogger(NUM_ENTRIES_PER_BATCH)
-                .registerFailedValue(delta);
+        if (statsLogger != null) {
+            statsLogger.getOpStatsLogger(NUM_ENTRIES_PER_BATCH)
+                    .registerFailedValue(delta);
+        }
     }
 
     public void register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(long latency) {
-        MESSAGE_QUEUE_DEQUEUE_WAIT_TIME_sum += latency;
+        if (statsLogger != null) {
+            MESSAGE_QUEUE_DEQUEUE_WAIT_TIME_sum += latency;
+        }
     }
 
     public void start_RECORD_DESERIALIZE_TIME() {
-        RECORD_DESERIALIZE_TIME_startTime = System.nanoTime();
+        if (statsLogger != null) {
+            RECORD_DESERIALIZE_TIME_startTime = System.nanoTime();
+        }
     }
 
     public void end_RECORD_DESERIALIZE_TIME() {
-        long time = System.nanoTime() - RECORD_DESERIALIZE_TIME_startTime;
-        RECORD_DESERIALIZE_TIME_sum += time;
-        statsLogger.getOpStatsLogger(RECORD_DESERIALIZE_TIME)
-                .registerSuccessfulEvent(time, TimeUnit.NANOSECONDS);
+        if (statsLogger != null) {
+            long time = System.nanoTime() - RECORD_DESERIALIZE_TIME_startTime;
+            RECORD_DESERIALIZE_TIME_sum += time;
+            statsLogger.getOpStatsLogger(RECORD_DESERIALIZE_TIME)
+                    .registerSuccessfulEvent(time, TimeUnit.NANOSECONDS);
+        }
+    }
+
+    public void incr_NUM_RECORD_DESERIALIZED() {
+        if (statsLogger != null) {
+            statsLogger.getCounter(NUM_RECORD_DESERIALIZED).add(1);
+        }
     }
 
     public void register_TOTAL_EXECUTION_TIME(long latency) {
-        statsLogger.getOpStatsLogger(TOTAL_EXECUTION_TIME)
-                .registerSuccessfulEvent(latency, TimeUnit.NANOSECONDS);
+        if (statsLogger != null) {
+            statsLogger.getOpStatsLogger(TOTAL_EXECUTION_TIME)
+                    .registerSuccessfulEvent(latency, TimeUnit.NANOSECONDS);
+        }
     }
-
 
     @Override
     public void close() {
-        // register total entry dequeue wait time for query
-        statsLogger.getOpStatsLogger(ENTRY_QUEUE_DEQUEUE_WAIT_TIME_PER_QUERY)
-                .registerSuccessfulEvent(ENTRY_QUEUE_DEQUEUE_WAIT_TIME_sum, TimeUnit.NANOSECONDS);
+        if (statsLogger != null) {
+            // register total entry dequeue wait time for query
+            statsLogger.getOpStatsLogger(ENTRY_QUEUE_DEQUEUE_WAIT_TIME_PER_QUERY)
+                    .registerSuccessfulEvent(ENTRY_QUEUE_DEQUEUE_WAIT_TIME_sum, TimeUnit.NANOSECONDS);
 
-        //register bytes read per query
-        statsLogger.getOpStatsLogger(BYTES_READ_PER_QUERY)
-                .registerSuccessfulValue(BYTES_READ_sum);
-        
-        // register total time spent deserializing entries for query
-        statsLogger.getOpStatsLogger(ENTRY_DESERIALIZE_TIME_PER_QUERY)
-                .registerSuccessfulEvent(ENTRY_DESERIALIZE_TIME_sum, TimeUnit.NANOSECONDS);
+            //register bytes read per query
+            statsLogger.getOpStatsLogger(BYTES_READ_PER_QUERY)
+                    .registerSuccessfulValue(BYTES_READ_sum);
 
-        // register time spent waiting for message queue enqueue because message queue is full per query
-        statsLogger.getOpStatsLogger(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_PER_QUERY)
-                .registerSuccessfulEvent(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_sum, TimeUnit.NANOSECONDS);
+            // register total time spent deserializing entries for query
+            statsLogger.getOpStatsLogger(ENTRY_DESERIALIZE_TIME_PER_QUERY)
+                    .registerSuccessfulEvent(ENTRY_DESERIALIZE_TIME_sum, TimeUnit.NANOSECONDS);
 
-        // register number of messages deserialized per query
-        statsLogger.getOpStatsLogger(NUM_MESSAGES_DERSERIALIZED_PER_QUERY)
-                .registerSuccessfulValue(NUM_MESSAGES_DERSERIALIZED_sum);
+            // register time spent waiting for message queue enqueue because message queue is full per query
+            statsLogger.getOpStatsLogger(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_PER_QUERY)
+                    .registerSuccessfulEvent(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_sum, TimeUnit.NANOSECONDS);
 
-        // register number of read attempts per query
-        statsLogger.getOpStatsLogger(READ_ATTEMTPS_PER_QUERY)
-                .registerSuccessfulValue(READ_ATTEMTPS_SUCCESS_sum);
-        statsLogger.getOpStatsLogger(READ_ATTEMTPS_PER_QUERY)
-                .registerFailedValue(READ_ATTEMTPS_FAIL_sum);
+            // register number of messages deserialized per query
+            statsLogger.getOpStatsLogger(NUM_MESSAGES_DERSERIALIZED_PER_QUERY)
+                    .registerSuccessfulValue(NUM_MESSAGES_DERSERIALIZED_sum);
 
-        // register total read latency for query
-        statsLogger.getOpStatsLogger(READ_LATENCY_PER_QUERY)
-                .registerSuccessfulEvent(READ_LATENCY_SUCCESS_sum, TimeUnit.NANOSECONDS);
-        statsLogger.getOpStatsLogger(READ_LATENCY_PER_QUERY)
-                .registerFailedEvent(READ_LATENCY_FAIL_sum, TimeUnit.NANOSECONDS);
+            // register number of read attempts per query
+            statsLogger.getOpStatsLogger(READ_ATTEMTPS_PER_QUERY)
+                    .registerSuccessfulValue(READ_ATTEMTPS_SUCCESS_sum);
+            statsLogger.getOpStatsLogger(READ_ATTEMTPS_PER_QUERY)
+                    .registerFailedValue(READ_ATTEMTPS_FAIL_sum);
 
-        // register number of entries per query
-        statsLogger.getOpStatsLogger(NUM_ENTRIES_PER_QUERY)
-                .registerSuccessfulValue(NUM_ENTRIES_PER_BATCH_sum);
+            // register total read latency for query
+            statsLogger.getOpStatsLogger(READ_LATENCY_PER_QUERY)
+                    .registerSuccessfulEvent(READ_LATENCY_SUCCESS_sum, TimeUnit.NANOSECONDS);
+            statsLogger.getOpStatsLogger(READ_LATENCY_PER_QUERY)
+                    .registerFailedEvent(READ_LATENCY_FAIL_sum, TimeUnit.NANOSECONDS);
 
-        // register time spent waiting to read for message queue per query
-        statsLogger.getOpStatsLogger(MESSAGE_QUEUE_DEQUEUE_WAIT_TIME_PER_QUERY)
-                .registerSuccessfulEvent(MESSAGE_QUEUE_DEQUEUE_WAIT_TIME_sum, TimeUnit.MILLISECONDS);
+            // register number of entries per query
+            statsLogger.getOpStatsLogger(NUM_ENTRIES_PER_QUERY)
+                    .registerSuccessfulValue(NUM_ENTRIES_PER_BATCH_sum);
 
-        // register time spent deserializing records per query
-        statsLogger.getOpStatsLogger(RECORD_DESERIALIZE_TIME_PER_QUERY)
-                .registerSuccessfulEvent(RECORD_DESERIALIZE_TIME_sum, TimeUnit.NANOSECONDS);
+            // register time spent waiting to read for message queue per query
+            statsLogger.getOpStatsLogger(MESSAGE_QUEUE_DEQUEUE_WAIT_TIME_PER_QUERY)
+                    .registerSuccessfulEvent(MESSAGE_QUEUE_DEQUEUE_WAIT_TIME_sum, TimeUnit.MILLISECONDS);
+
+            // register time spent deserializing records per query
+            statsLogger.getOpStatsLogger(RECORD_DESERIALIZE_TIME_PER_QUERY)
+                    .registerSuccessfulEvent(RECORD_DESERIALIZE_TIME_sum, TimeUnit.NANOSECONDS);
+        }
     }
 }
