@@ -21,11 +21,13 @@ package org.apache.pulsar.functions.worker;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -86,10 +88,15 @@ public class FunctionsStatsGenerator {
         }
     }
 
+    private static void metricType(SimpleTextOutputStream stream, String name) {
+        stream.write("# TYPE ").write(name).write(" gauge\n");
+    }
+
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace,
                                String functionName, String metricName, int instanceId, double value) {
-        stream.write(metricName).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
-                .write("\", name=\"").write(functionName).write("\", instanceId=\"").write(instanceId).write("\"} ");
+        metricType(stream, metricName);
+        stream.write(metricName).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
+                .write("\",name=\"").write(functionName).write("\",instanceId=\"").write(instanceId).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 }

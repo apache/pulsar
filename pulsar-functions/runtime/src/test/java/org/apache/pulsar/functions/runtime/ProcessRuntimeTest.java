@@ -104,7 +104,7 @@ public class ProcessRuntimeTest {
         config.setFunctionDetails(createFunctionDetails(runtime));
         config.setFunctionId(java.util.UUID.randomUUID().toString());
         config.setFunctionVersion("1.0");
-        config.setInstanceId(java.util.UUID.randomUUID().toString());
+        config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
 
         return config;
@@ -114,7 +114,7 @@ public class ProcessRuntimeTest {
     public void testJavaConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
-        ProcessRuntime container = factory.createContainer(config, userJarFile, 30l);
+        ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
         List<String> args = container.getProcessArgs();
         assertEquals(args.size(), 28);
         String expectedArgs = "java -cp " + javaInstanceJarFile
@@ -126,8 +126,8 @@ public class ProcessRuntimeTest {
                 + " --jar " + userJarFile + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
-                + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
-                + " --pulsar_serviceurl " + pulsarServiceUrl
+                + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
+                + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(23)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval 30";
@@ -138,7 +138,7 @@ public class ProcessRuntimeTest {
     public void testPythonConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
 
-        ProcessRuntime container = factory.createContainer(config, userJarFile, 30l);
+        ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
         List<String> args = container.getProcessArgs();
         assertEquals(args.size(), 24);
         String expectedArgs = "python " + pythonInstanceFile
@@ -146,8 +146,8 @@ public class ProcessRuntimeTest {
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
-                + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
-                + " --pulsar_serviceurl " + pulsarServiceUrl
+                + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
+                + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(21)
                 + " --expected_healthcheck_interval 30";
         assertEquals(String.join(" ", args), expectedArgs);

@@ -18,17 +18,23 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
+
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
@@ -37,11 +43,14 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.Instance;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -70,6 +79,8 @@ public class SchedulerManager implements AutoCloseable {
     
     AtomicBoolean isCompactionNeeded = new AtomicBoolean(false);
     private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60; 
+    public static final String HEARTBEAT_TENANT = "pulsar-function";
+    public static final String HEARTBEAT_NAMESPACE = "heartbeat";
 
     public SchedulerManager(WorkerConfig workerConfig, PulsarClient pulsarClient, PulsarAdmin admin, ScheduledExecutorService executor) {
         this.workerConfig = workerConfig;
@@ -122,11 +133,11 @@ public class SchedulerManager implements AutoCloseable {
     @VisibleForTesting
     public void invokeScheduler() {
         
-        List<String> currentMembership = this.membershipManager.getCurrentMembership()
-                .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toList());
+        Set<String> currentMembership = this.membershipManager.getCurrentMembership()
+                .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toSet());
 
         List<FunctionMetaData> allFunctions = this.functionMetaDataManager.getAllFunctionMetaData();
-        Map<String, Function.Instance> allInstances = computeAllInstances(allFunctions);
+        Map<String, Function.Instance> allInstances = computeAllInstances(allFunctions, functionRuntimeManager.getRuntimeFactory().externallyManaged());
         Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager
                 .getCurrentAssignments();
         //delete assignments of functions and instances that don't exist anymore
@@ -164,12 +175,12 @@ public class SchedulerManager implements AutoCloseable {
                 .entrySet().stream()
                 .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream()).collect(Collectors.toList());
 
-        List<Function.Instance> needsAssignment = this.getUnassignedFunctionInstances(workerIdToAssignments,
+        Pair<List<Function.Instance>, List<Assignment>> unassignedInstances = this.getUnassignedFunctionInstances(workerIdToAssignments,
                 allInstances);
 
-        List<Assignment> assignments = this.scheduler.schedule(
-                needsAssignment, currentAssignments, currentMembership);
-
+        List<Assignment> assignments = this.scheduler.schedule(unassignedInstances.getLeft(), currentAssignments, currentMembership);
+        assignments.addAll(unassignedInstances.getRight());
+        
         if (log.isDebugEnabled()) {
             log.debug("New assignments computed: {}", assignments);
         }
@@ -207,32 +218,42 @@ public class SchedulerManager implements AutoCloseable {
         }
     }
 
-    public static Map<String, Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions) {
+    public static Map<String, Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions,
+                                                                     boolean externallyManagedRuntime) {
         Map<String, Function.Instance> functionInstances = new HashMap<>();
         for (FunctionMetaData functionMetaData : allFunctions) {
-            for (Function.Instance instance : computeInstances(functionMetaData)) {
+            for (Function.Instance instance : computeInstances(functionMetaData, externallyManagedRuntime)) {
                 functionInstances.put(Utils.getFullyQualifiedInstanceId(instance), instance);
             }
         }
         return functionInstances;
     }
 
-    public static List<Function.Instance> computeInstances(FunctionMetaData functionMetaData) {
+    public static List<Function.Instance> computeInstances(FunctionMetaData functionMetaData,
+                                                           boolean externallyManagedRuntime) {
         List<Function.Instance> functionInstances = new LinkedList<>();
-        int instances = functionMetaData.getFunctionDetails().getParallelism();
-        for (int i = 0; i < instances; i++) {
+        if (!externallyManagedRuntime) {
+            int instances = functionMetaData.getFunctionDetails().getParallelism();
+            for (int i = 0; i < instances; i++) {
+                functionInstances.add(Function.Instance.newBuilder()
+                        .setFunctionMetaData(functionMetaData)
+                        .setInstanceId(i)
+                        .build());
+            }
+        } else {
             functionInstances.add(Function.Instance.newBuilder()
                     .setFunctionMetaData(functionMetaData)
-                    .setInstanceId(i)
+                    .setInstanceId(-1)
                     .build());
         }
         return functionInstances;
     }
 
-    private List<Function.Instance> getUnassignedFunctionInstances(
+    private Pair<List<Function.Instance>, List<Assignment>> getUnassignedFunctionInstances(
             Map<String, Map<String, Assignment>> currentAssignments, Map<String, Function.Instance> functionInstances) {
 
         List<Function.Instance> unassignedFunctionInstances = new LinkedList<>();
+        List<Assignment> heartBeatAssignments = Lists.newArrayList();
         Map<String, Assignment> assignmentMap = new HashMap<>();
         for (Map<String, Assignment> entry : currentAssignments.values()) {
             assignmentMap.putAll(entry);
@@ -241,11 +262,17 @@ public class SchedulerManager implements AutoCloseable {
         for (Map.Entry<String, Function.Instance> instanceEntry : functionInstances.entrySet()) {
             String fullyQualifiedInstanceId = instanceEntry.getKey();
             Function.Instance instance = instanceEntry.getValue();
+            String heartBeatWorkerId = checkHeartBeatFunction(instance);
+            if (heartBeatWorkerId != null) {
+                heartBeatAssignments
+                        .add(Assignment.newBuilder().setInstance(instance).setWorkerId(heartBeatWorkerId).build());
+                continue;
+            }
             if (!assignmentMap.containsKey(fullyQualifiedInstanceId)) {
                 unassignedFunctionInstances.add(instance);
             }
         }
-        return unassignedFunctionInstances;
+        return ImmutablePair.of(unassignedFunctionInstances, heartBeatAssignments);
     }
 
     @Override
@@ -255,5 +282,15 @@ public class SchedulerManager implements AutoCloseable {
         } catch (PulsarClientException e) {
             log.warn("Failed to shutdown scheduler manager assignment producer", e);
         }
+    }
+    
+    public static String checkHeartBeatFunction(Instance funInstance) {
+        if (funInstance.getFunctionMetaData() != null
+                && funInstance.getFunctionMetaData().getFunctionDetails() != null) {
+            FunctionDetails funDetails = funInstance.getFunctionMetaData().getFunctionDetails();
+            return HEARTBEAT_TENANT.equals(funDetails.getTenant())
+                    && HEARTBEAT_NAMESPACE.equals(funDetails.getNamespace()) ? funDetails.getName() : null;
+        }
+        return null;
     }
 }

@@ -185,7 +185,7 @@ public interface Functions {
 
     /**
      * Gets the current status of a function instance.
-     * 
+     *
      * @param tenant
      *            Tenant name
      * @param namespace
@@ -217,7 +217,7 @@ public interface Functions {
      *             Unexpected error
      */
     void restartFunction(String tenant, String namespace, String function, int instanceId) throws PulsarAdminException;
-    
+
     /**
      * Restart all function instances
      *
@@ -233,7 +233,7 @@ public interface Functions {
      */
     void restartFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
-    
+
     /**
      * Stop function instance
      *
@@ -251,7 +251,7 @@ public interface Functions {
      *             Unexpected error
      */
     void stopFunction(String tenant, String namespace, String function, int instanceId) throws PulsarAdminException;
-    
+
     /**
      * Stop all function instances
      *
@@ -266,7 +266,7 @@ public interface Functions {
      *             Unexpected error
      */
     void stopFunction(String tenant, String namespace, String function) throws PulsarAdminException;
-    
+
     /**
      * Triggers the function by writing to the input topic.
      *
@@ -338,4 +338,34 @@ public interface Functions {
      *
      */
     Set<String> getSinks() throws PulsarAdminException;
+
+    /**
+     * Fetch the current state associated with a Pulsar Function.
+     * <p>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{ "value : 12, version : 2"}</code>
+     * </pre>
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param key
+     *            Key name of State
+     *
+     * @return the function configuration
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to get the configuration of the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    String getFunctionState(String tenant, String namespace, String function, String key) throws PulsarAdminException;
+
 }

@@ -93,4 +93,13 @@ public interface Record<T> {
      */
     default void fail() {
     }
+
+    /**
+     * To support message routing on a per message basis
+     *
+     * @return The topic this message should be written to
+     */
+    default Optional<String> getDestinationTopic() {
+        return Optional.empty();
+    }
 }

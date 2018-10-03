@@ -181,7 +181,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                     } else {
                         cb.addComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, entryId, ctx);
                     }
-                });
+                }, bk.executor);
     }
 
     @Override

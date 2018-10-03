@@ -1258,12 +1258,13 @@ public class CmdFunctions extends CmdBase {
                 // TODO: correctly implement function version and id
                 instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
                 instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                instanceConfig.setInstanceId(Integer.toString(i + instanceIdOffset));
+                instanceConfig.setInstanceId(i + instanceIdOffset);
                 instanceConfig.setMaxBufferedTuples(1024);
                 instanceConfig.setPort(Utils.findAvailablePort());
                 RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                         instanceConfig,
                         userCodeFile,
+                        null,
                         containerFactory,
                         30000);
                 spawners.add(runtimeSpawner);
@@ -1284,7 +1285,8 @@ public class CmdFunctions extends CmdBase {
                         CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
                         int index = 0;
                         for (RuntimeSpawner spawner : spawners) {
-                            futures[index++] = spawner.getFunctionStatusAsJson();
+                            futures[index] = spawner.getFunctionStatusAsJson(index);
+                            index++;
                         }
                         try {
                             CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);

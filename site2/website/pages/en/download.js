@@ -12,18 +12,16 @@ const translate = require('../../server/translate.js').translate;
 const siteConfig = require(`${CWD}/siteConfig.js`);
 const releases = require(`${CWD}/releases.json`);
 
-const archiveRootUrl = siteConfig.archiveRootUrl;
-
 function getLatestArchiveMirrorUrl(version, type) {
-  return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
+    return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
 }
 
 function distUrl(version, type) {
-    return `https://www.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
+    return `https://www.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
 }
 
 function archiveUrl(version, type) {
-  return `${archiveRootUrl}/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
+    return `https://archive.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
 }
 
 class Download extends React.Component {
@@ -63,7 +61,7 @@ class Download extends React.Component {
                 <tr key={'binary'}>
                   <th><translate>Binary</translate></th>
                   <td>
-                    <a href={latestArchiveMirrorUrl}>pulsar-{latestVersion}-bin.tar.gz</a>
+                    <a href={latestArchiveMirrorUrl}>apache-pulsar-{latestVersion}-bin.tar.gz</a>
                   </td>
                   <td>
                     <a href={`${latestArchiveUrl}.asc`}>asc</a>,&nbsp;
@@ -73,7 +71,7 @@ class Download extends React.Component {
                 <tr key={'source'}>
                   <th><translate>Source</translate></th>
                   <td>
-                    <a href={latestSrcArchiveMirrorUrl}>pulsar-{latestVersion}-src.tar.gz</a>
+                    <a href={latestSrcArchiveMirrorUrl}>apache-pulsar-{latestVersion}-src.tar.gz</a>
                   </td>
                   <td>
                     <a href={`${latestSrcArchiveUrl}.asc`}>asc</a>,&nbsp;
@@ -161,13 +159,13 @@ class Download extends React.Component {
                       <tr key={info.version}>
                         <th>{info.version}</th>
                         <td>
-                          <a href={info.binArchiveUrl}>pulsar-{info.version}-bin-tar.gz</a>
+                          <a href={info.binArchiveUrl}>apache-pulsar-{info.version}-bin-tar.gz</a>
                           &nbsp;
                           (<a href={`${info.binArchiveUrl}.asc`}>asc</a>,&nbsp;
                             <a href={`${info.binArchiveUrl}.sha512`}>sha512</a>)
                         </td>
                         <td>
-                          <a href={info.srcArchiveUrl}>pulsar-{info.version}-bin-tar.gz</a>
+                          <a href={info.srcArchiveUrl}>apache-pulsar-{info.version}-bin-tar.gz</a>
                           &nbsp;
                           (<a href={`${info.srcArchiveUrl}.asc`}>asc</a>&nbsp;
                             <a href={`${info.srcArchiveUrl}.sha512`}>sha512</a>)

@@ -138,26 +138,31 @@ public class FunctionActioner implements AutoCloseable {
         FunctionDetails.Builder functionDetails = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
         log.info("{}/{}/{}-{} Starting function ...", functionDetails.getTenant(), functionDetails.getNamespace(),
                 functionDetails.getName(), instanceId);
-        File pkgFile = null;
+        String packageFile;
 
         String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
         boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
 
         if (isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
             URL url = new URL(pkgLocation);
-            pkgFile = new File(url.toURI());
+            File pkgFile = new File(url.toURI());
+            packageFile = pkgFile.getAbsolutePath();
         } else if (isFunctionCodeBuiltin(functionDetails)) {
-            pkgFile = getBuiltinArchive(functionDetails);
+            File pkgFile = getBuiltinArchive(functionDetails);
+            packageFile = pkgFile.getAbsolutePath();
+        } else if (runtimeFactory.externallyManaged()) {
+            packageFile = pkgLocation;
         } else {
             File pkgDir = new File(
                     workerConfig.getDownloadDirectory(),
                     getDownloadPackagePath(functionMetaData, instanceId));
             pkgDir.mkdirs();
 
-            pkgFile = new File(
+            File pkgFile = new File(
                     pkgDir,
                     new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
             downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
+            packageFile = pkgFile.getAbsolutePath();
         }
 
         InstanceConfig instanceConfig = new InstanceConfig();
@@ -165,14 +170,15 @@ public class FunctionActioner implements AutoCloseable {
         // TODO: set correct function id and version when features implemented
         instanceConfig.setFunctionId(UUID.randomUUID().toString());
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-        instanceConfig.setInstanceId(String.valueOf(instanceId));
+        instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
 
         log.info("{}/{}/{}-{} start process with instance config {}", functionDetails.getTenant(), functionDetails.getNamespace(),
                 functionDetails.getName(), instanceId, instanceConfig);
 
-        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
+        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, packageFile,
+                functionMetaData.getPackageLocation().getOriginalFileName(),
                 runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 
         functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);

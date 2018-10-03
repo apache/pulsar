@@ -168,7 +168,7 @@ public class FunctionStatsGeneratorTest {
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
         Arrays.asList(metrics.split("\n")).forEach(line -> {
-            if (line.isEmpty()) {
+            if (line.isEmpty() || line.startsWith("#")) {
                 return;
             }
             Matcher matcher = pattern.matcher(line);

@@ -131,7 +131,28 @@ public interface Message<T> {
      * @return the key of the message
      */
     String getKey();
-    
+
+    /**
+     * Check whether the key has been base64 encoded.
+     *
+     * @return true if the key is base64 encoded, false otherwise
+     */
+    boolean hasBase64EncodedKey();
+
+    /**
+     * Get bytes in key. If the key has been base64 encoded, it is decoded before being returned.
+     * Otherwise, if the key is a plain string, this method returns the UTF_8 encoded bytes of the string.
+     * @return the key in byte[] form
+     */
+    byte[] getKeyBytes();
+
+    /**
+     * Get the topic the message was published to
+     *
+     * @return the topic the message was published to
+     */
+    String getTopicName();
+
     /**
      * {@link EncryptionContext} contains encryption and compression information in it using which application can
      * decrypt consumed message with encrypted-payload.

@@ -28,17 +28,17 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface Runtime {
 
-    void start();
+    void start() throws Exception;
 
     void join() throws Exception;
 
-    void stop();
+    void stop() throws Exception;
 
     boolean isAlive();
 
     Throwable getDeathException();
 
-    CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus();
+    CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus(int instanceId);
 
     CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
     

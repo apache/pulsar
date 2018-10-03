@@ -77,6 +77,12 @@
     <dependency>
       <groupId>com.datastax.cassandra</groupId>
       <artifactId>cassandra-driver-core</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-handler</artifactId>
+        </exclusion>
+      </exclusions>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -116,6 +122,7 @@
       <artifactId>jackson-databind</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
@@ -127,7 +134,7 @@
   	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
   	  <version>6.3.2</version>
   	</dependency>
-  	
+
   </dependencies>
 
   <build>

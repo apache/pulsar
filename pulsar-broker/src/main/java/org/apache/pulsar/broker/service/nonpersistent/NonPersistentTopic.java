@@ -1003,6 +1003,15 @@ public class NonPersistentTopic implements Topic {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
 
     @Override
+    public CompletableFuture<Boolean> hasSchema() {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        return brokerService.pulsar()
+            .getSchemaRegistryService()
+            .getSchema(id).thenApply((schema) -> schema != null);
+    }
+
+    @Override
     public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
         if (schema == null) {
             return CompletableFuture.completedFuture(SchemaVersion.Empty);
@@ -1022,5 +1031,17 @@ public class NonPersistentTopic implements Topic {
         return brokerService.pulsar()
             .getSchemaRegistryService()
             .isCompatibleWithLatestVersion(id, schema);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+        return hasSchema()
+            .thenCompose((hasSchema) -> {
+                    if (hasSchema || isActive() || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
+                        return isSchemaCompatible(schema);
+                    } else {
+                        return addSchema(schema).thenApply((ignore) -> true);
+                    }
+                });
     }
 }

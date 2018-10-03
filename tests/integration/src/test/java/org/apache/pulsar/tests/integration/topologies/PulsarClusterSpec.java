@@ -78,6 +78,15 @@ public class PulsarClusterSpec {
     @Default
     int numFunctionWorkers = 0;
 
+
+    /**
+     * Enable a Preto Worker Node
+     *
+     * @return the flag whether presto worker is eanbled
+     */
+    @Default
+    boolean enablePrestoWorker = false;
+
     /**
      * Returns the function runtime type.
      *

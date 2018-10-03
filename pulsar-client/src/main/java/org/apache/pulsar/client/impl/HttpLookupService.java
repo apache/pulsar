@@ -59,6 +59,11 @@ class HttpLookupService implements LookupService {
         this.useTls = conf.isUseTls();
     }
 
+    @Override
+    public void updateServiceUrl(String serviceUrl) throws PulsarClientException {
+        httpClient.setServiceUrl(serviceUrl);
+    }
+
     /**
      * Calls http-lookup api to find broker-service address which can serve a given topic.
      *

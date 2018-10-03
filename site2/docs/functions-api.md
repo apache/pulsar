@@ -173,7 +173,7 @@ How you get started writing Pulsar Functions in Java depends on which API you're
   <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-functions-api</artifactId>
-      <version>2.0.0-incubating-SNAPSHOT</version>
+      <version>2.1.1-incubating</version>
   </dependency>
   ```
 
@@ -181,7 +181,7 @@ How you get started writing Pulsar Functions in Java depends on which API you're
 
   ```groovy
   dependencies {
-    compile group: 'org.apache.pulsar', name: 'pulsar-functions-api', version: '2.0.0-incubating-SNAPSHOT'
+    compile group: 'org.apache.pulsar', name: 'pulsar-functions-api', version: '2.1.1-incubating'
   }
   ```
 
@@ -236,14 +236,14 @@ There are several example Java SDK functions in this {@inject: github:folder:/pu
 
 Function name | Description
 :-------------|:-----------
-[`ContextFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ContextFunction.java) | Illustrates [context](#context)-specific functionality like [logging](#java-logging) and [metrics](#java-metrics)
-[`WordCountFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java) | Illustrates usage of Pulsar Function [state-storage](functions-overview.md#state-storage)
-[`ExclamationFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java) | A basic string manipulation function for the Java SDK
-[`LoggingFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/LoggingFunction.java) | A function that shows how [logging](#java-logging) works for Java
-[`PublishFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/PublishFunction.java) | Publishes results to a topic specified in the function's [user config](#java-user-config) (rather than on the function's output topic)
-[`UserConfigFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserConfigFunction.java) | A function that consumes [user-supplied configuration](#java-user-config) values
-[`UserMetricFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserMetricFunction.java) | A function that records metrics
-[`VoidFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserMetricFunction.java)  | A simple [void function](#void-functions)
+[`ContextFunction`](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ContextFunction.java) | Illustrates [context](#context)-specific functionality like [logging](#java-logging) and [metrics](#java-metrics)
+[`WordCountFunction`](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java) | Illustrates usage of Pulsar Function [state-storage](functions-overview.md#state-storage)
+[`ExclamationFunction`](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java) | A basic string manipulation function for the Java SDK
+[`LoggingFunction`](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/LoggingFunction.java) | A function that shows how [logging](#java-logging) works for Java
+[`PublishFunction`](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/PublishFunction.java) | Publishes results to a topic specified in the function's [user config](#java-user-config) (rather than on the function's output topic)
+[`UserConfigFunction`](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserConfigFunction.java) | A function that consumes [user-supplied configuration](#java-user-config) values
+[`UserMetricFunction`](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserMetricFunction.java) | A function that records metrics
+[`VoidFunction`](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserMetricFunction.java)  | A simple [void function](#void-functions)
 
 ### Java context object
 
@@ -561,13 +561,13 @@ There are several example Python functions in this {@inject: github:folder:/puls
 
 Function file | Description
 :-------------|:-----------
-[`exclamation_function.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/exclamation_function.py) | Adds an exclamation point at the end of each incoming string
-[`logging_function.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/logging_function.py) | Logs each incoming message
-[`thumbnailer.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/thumbnailer.py) | Takes image data as input and outputs a 128x128 thumbnail of each image
+[`exclamation_function.py`](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/exclamation_function.py) | Adds an exclamation point at the end of each incoming string
+[`logging_function.py`](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/logging_function.py) | Logs each incoming message
+[`thumbnailer.py`](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/thumbnailer.py) | Takes image data as input and outputs a 128x128 thumbnail of each image
 
 #### Python context object
 
-The [`Context`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/context.py) class provides a number of methods that you can use to access the function's [context](#context). The various methods for the `Context` class are listed below:
+The [`Context`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/context.py) class provides a number of methods that you can use to access the function's [context](#context). The various methods for the `Context` class are listed below:
 
 Method | What it provides
 :------|:----------------
@@ -607,9 +607,9 @@ In this case, there are two input topics, `input-topic-1` and `input-topic-2`, e
 
 When using Pulsar Functions for Python, you essentially have three SerDe options:
 
-1. You can use the [`IdentitySerde`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L70), which leaves the data unchanged. The `IdentitySerDe` is the **default**. Creating or running a function without explicitly specifying SerDe will mean that this option is used.
-2. You can use the [`PickeSerDe`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L62), which uses Python's [`pickle`](https://docs.python.org/3/library/pickle.html) for SerDe.
-3. You can create a custom SerDe class by implementing the baseline [`SerDe`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L50) class, which has just two methods: [`serialize`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L53) for converting the object into bytes, and [`deserialize`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L58) for converting bytes into an object of the required application-specific type.
+1. You can use the [`IdentitySerde`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L70), which leaves the data unchanged. The `IdentitySerDe` is the **default**. Creating or running a function without explicitly specifying SerDe will mean that this option is used.
+2. You can use the [`PickeSerDe`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L62), which uses Python's [`pickle`](https://docs.python.org/3/library/pickle.html) for SerDe.
+3. You can create a custom SerDe class by implementing the baseline [`SerDe`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L50) class, which has just two methods: [`serialize`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L53) for converting the object into bytes, and [`deserialize`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L58) for converting bytes into an object of the required application-specific type.
 
 The table below shows when you should use each SerDe:
 

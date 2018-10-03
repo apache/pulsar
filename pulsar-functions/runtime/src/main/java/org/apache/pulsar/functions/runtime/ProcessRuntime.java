@@ -23,30 +23,23 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
-import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.io.InputStream;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * A function container implemented using java thread.
@@ -66,6 +59,7 @@ class ProcessRuntime implements Runtime {
     private InstanceControlGrpc.InstanceControlFutureStub stub;
     private ScheduledExecutorService timer;
     private InstanceConfig instanceConfig;
+    private final Long expectedHealthCheckInterval;
 
     ProcessRuntime(InstanceConfig instanceConfig,
                    String instanceFile,
@@ -77,101 +71,10 @@ class ProcessRuntime implements Runtime {
                    Long expectedHealthCheckInterval) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
-        this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, expectedHealthCheckInterval);
-    }
-
-    private List<String> composeArgs(InstanceConfig instanceConfig,
-                                     String instanceFile,
-                                     String logDirectory,
-                                     String codeFile,
-                                     String pulsarServiceUrl,
-                                     String stateStorageServiceUrl,
-                                     AuthenticationConfig authConfig,
-                                     Long expectedHealthCheckInterval) throws Exception {
-        List<String> args = new LinkedList<>();
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            args.add("java");
-            args.add("-cp");
-            args.add(instanceFile);
-
-            // Keep the same env property pointing to the Java instance file so that it can be picked up
-            // by the child process and manually added to classpath
-            args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
-            args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
-            args.add("-Dpulsar.function.log.dir=" + String.format(
-                    "%s/%s",
-                    logDirectory,
-                    FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails())));
-            args.add("-Dpulsar.function.log.file=" + String.format(
-                    "%s-%s",
-                    instanceConfig.getFunctionDetails().getName(),
-                    instanceConfig.getInstanceId()));
-            if (instanceConfig.getFunctionDetails().getResources() != null) {
-                Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
-                if (resources.getRam() != 0) {
-                    args.add("-Xmx" + String.valueOf(resources.getRam()));
-                }
-            }
-            args.add(JavaInstanceMain.class.getName());
-            args.add("--jar");
-            args.add(codeFile);
-        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
-            args.add("python");
-            args.add(instanceFile);
-            args.add("--py");
-            args.add(codeFile);
-            args.add("--logging_directory");
-            args.add(logDirectory);
-            args.add("--logging_file");
-            args.add(instanceConfig.getFunctionDetails().getName());
-            // TODO:- Find a platform independent way of controlling memory for a python application
-        }
-        args.add("--instance_id");
-        args.add(instanceConfig.getInstanceId());
-        args.add("--function_id");
-        args.add(instanceConfig.getFunctionId());
-        args.add("--function_version");
-        args.add(instanceConfig.getFunctionVersion());
-        args.add("--function_details");
-        args.add(JsonFormat.printer().print(instanceConfig.getFunctionDetails()));
-
-        args.add("--pulsar_serviceurl");
-        args.add(pulsarServiceUrl);
-        if (authConfig != null) {
-            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
-                args.add("--client_auth_plugin");
-                args.add(authConfig.getClientAuthenticationPlugin());
-                args.add("--client_auth_params");
-                args.add(authConfig.getClientAuthenticationParameters());
-            }
-            args.add("--use_tls");
-            args.add(Boolean.toString(authConfig.isUseTls()));
-            args.add("--tls_allow_insecure");
-            args.add(Boolean.toString(authConfig.isTlsAllowInsecureConnection()));
-            args.add("--hostname_verification_enabled");
-            args.add(Boolean.toString(authConfig.isTlsHostnameVerificationEnable()));
-            if(isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
-                args.add("--tls_trust_cert_path");
-                args.add(authConfig.getTlsTrustCertsFilePath());
-            }
-        }
-        args.add("--max_buffered_tuples");
-        args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-
-        args.add("--port");
-        args.add(String.valueOf(instanceConfig.getPort()));
-
-        // state storage configs
-        if (null != stateStorageServiceUrl
-            && instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            args.add("--state_storage_serviceurl");
-            args.add(stateStorageServiceUrl);
-        }
-        args.add("--expected_healthcheck_interval");
-        args.add(String.valueOf(expectedHealthCheckInterval));
-        return args;
+        this.expectedHealthCheckInterval = expectedHealthCheckInterval;
+        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
+                authConfig, instanceConfig.getInstanceName(), instanceConfig.getPort(), expectedHealthCheckInterval,
+                "java_instance_log4j2.yml");
     }
 
     /**
@@ -201,7 +104,7 @@ class ProcessRuntime implements Runtime {
                                 instanceConfig.getInstanceId(), e);
                     }
                 }
-            }, 30000, 30000, TimeUnit.MILLISECONDS);
+            }, expectedHealthCheckInterval, expectedHealthCheckInterval, TimeUnit.SECONDS);
         }
     }
 
@@ -226,7 +129,7 @@ class ProcessRuntime implements Runtime {
     }
 
     @Override
-    public CompletableFuture<FunctionStatus> getFunctionStatus() {
+    public CompletableFuture<FunctionStatus> getFunctionStatus(int instanceId) {
         CompletableFuture<FunctionStatus> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));

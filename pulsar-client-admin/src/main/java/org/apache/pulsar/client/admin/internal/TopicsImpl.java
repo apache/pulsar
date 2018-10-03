@@ -623,7 +623,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
                     @Override
                     public void completed(Response response) {
                         try {
-                            future.complete(getMessageFromHttpResponse(response));
+                            future.complete(getMessageFromHttpResponse(tn.toString(), response));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -851,7 +851,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
         return TopicName.get(topic);
     }
 
-    private List<Message<byte[]>> getMessageFromHttpResponse(Response response) throws Exception {
+    private List<Message<byte[]>> getMessageFromHttpResponse(String topic, Response response) throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
             if (response.getStatus() >= 500) {
@@ -879,7 +879,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
             tmp =  headers.getFirst(BATCH_HEADER);
             if (response.getHeaderString(BATCH_HEADER) != null) {
                 properties.put(BATCH_HEADER, (String)tmp);
-                return getIndividualMsgsFromBatch(msgId, data, properties);
+                return getIndividualMsgsFromBatch(topic, msgId, data, properties);
             }
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
@@ -889,7 +889,8 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
                 }
             }
 
-            return Collections.singletonList(new MessageImpl<byte[]>(msgId, properties, data, Schema.BYTES));
+            return Collections.singletonList(new MessageImpl<byte[]>(topic, msgId, properties,
+                                                                     Unpooled.wrappedBuffer(data), Schema.BYTES));
         } finally {
             if (stream != null) {
                 stream.close();
@@ -897,7 +898,8 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
         }
     }
 
-    private List<Message<byte[]>> getIndividualMsgsFromBatch(String msgId, byte[] data, Map<String, String> properties) {
+    private List<Message<byte[]>> getIndividualMsgsFromBatch(String topic, String msgId, byte[] data,
+                                                             Map<String, String> properties) {
         List<Message<byte[]>> ret = new ArrayList<>();
         int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
         for (int i = 0; i < batchSize; i++) {
@@ -914,7 +916,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
                         properties.put(entry.getKey(), entry.getValue());
                     }
                 }
-                ret.add(new MessageImpl<>(batchMsgId, properties, singleMessagePayload, Schema.BYTES));
+                ret.add(new MessageImpl<>(topic, batchMsgId, properties, singleMessagePayload, Schema.BYTES));
             } catch (Exception ex) {
                 log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
             }

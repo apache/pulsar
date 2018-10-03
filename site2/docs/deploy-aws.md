@@ -32,11 +32,11 @@ $ pip install ansible
 
 You can install Terraform using the instructions [here](https://www.terraform.io/intro/getting-started/install.html).
 
-You'll also need to have the Terraform and Ansible configurations for Pulsar locally on your machine. They're contained in Pulsar's [GitHub repository](https://github.com/apache/incubator-pulsar), which you can fetch using Git:
+You'll also need to have the Terraform and Ansible configurations for Pulsar locally on your machine. They're contained in Pulsar's [GitHub repository](https://github.com/apache/pulsar), which you can fetch using Git:
 
 ```bash
-$ git clone https://github.com/apache/incubator-pulsar
-$ cd incubator-pulsar/deployment/terraform-ansible/aws
+$ git clone https://github.com/apache/pulsar
+$ cd pulsar/deployment/terraform-ansible/aws
 ```
 
 ## SSH setup

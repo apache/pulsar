@@ -113,21 +113,21 @@ public interface PulsarClient extends Closeable {
     <T> ProducerBuilder<T> newProducer(Schema<T> schema);
 
     /**
-     * Create a producer with default for publishing on a specific topic
+     * Create a consumer with default for subscribing on a specific topic
      *
-     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     * @return a {@link ConsumerBuilder} object to configure and construct the {@link Consumer} instance
      *
      * @since 2.0.0
      */
     ConsumerBuilder<byte[]> newConsumer();
 
     /**
-     * Create a producer with default for publishing on a specific topic
+     * Create a consumer with default for subscribing on a specific topic
      *
      * @param schema
      *          provide a way to convert between serialized data and domain objects
      *
-     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     * @return a {@link ConsumerBuilder} object to configure and construct the {@link Consumer} instance
      *
      * @since 2.0.0
      */
@@ -339,6 +339,19 @@ public interface PulsarClient extends Closeable {
     CompletableFuture<Reader<byte[]>> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf);
 
     /**
+     * Update the service URL this client is using.
+     *
+     * This will force the client close all existing connections and to restart service discovery to the new service
+     * endpoint.
+     *
+     * @param serviceUrl
+     *            the new service URL this client should connect to
+     * @throws PulsarClientException
+     *             in case the serviceUrl is not valid
+     */
+    void updateServiceUrl(String serviceUrl) throws PulsarClientException;
+
+    /**
      * Close the PulsarClient and release all the resources.
      *
      * All the producers and consumers will be orderly closed. Waits until all pending write request are persisted.
@@ -368,26 +381,4 @@ public interface PulsarClient extends Closeable {
      *             if the forceful shutdown fails
      */
     void shutdown() throws PulsarClientException;
-
-    /**
-     * Force close connection of pulsar client.
-     *
-     * close all producer connection and close all consumer producer.
-     *
-     */
-    void forceCloseConnection();
-
-    /**
-     * Reload lookup service in pulsar client.
-     *
-     * @throws PulsarClientException
-     */
-    void reloadLookUp() throws PulsarClientException;
-
-    /**
-     * Get client config data.
-     *
-     * @return
-     */
-    ClientConfigurationData getConf();
 }

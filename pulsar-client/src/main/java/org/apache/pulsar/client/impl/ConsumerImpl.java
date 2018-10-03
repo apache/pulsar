@@ -135,6 +135,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final SubscriptionInitialPosition subscriptionInitialPosition;
     private final ConnectionHandler connectionHandler;
 
+    private final TopicName topicName;
     private final String topicNameWithoutPartition;
 
     private ConcurrentHashMap<MessageIdImpl, List<MessageImpl<T>>> possibleSendToDeadLetterTopicMessages;
@@ -206,8 +207,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS),
             this);
 
-        TopicName topicName = TopicName.get(topic);
-        if (topicName.isPersistent()) {
+        this.topicName = TopicName.get(topic);
+        if (this.topicName.isPersistent()) {
             this.acknowledgmentsGroupingTracker =
                 new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
         } else {
@@ -426,6 +427,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 && !batchMessageId.getAcker().isPrevBatchCumulativelyAcked()) {
                 sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties);
                 batchMessageId.getAcker().setPrevBatchCumulativelyAcked(true);
+            } else {
+                onAcknowledge(batchMessageId, null);
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] cannot ack message to broker {}, acktype {}, pending acks - {}", subscription,
@@ -689,30 +692,38 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         acknowledgmentsGroupingTracker.close();
 
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
 
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
-        cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
-            cnx.removeConsumer(consumerId);
-            if (exception == null || !cnx.ctx().channel().isActive()) {
-                log.info("[{}] [{}] Closed consumer", topic, subscription);
-                setState(State.Closed);
-                unAckedMessageTracker.close();
-                if (possibleSendToDeadLetterTopicMessages != null) {
-                    possibleSendToDeadLetterTopicMessages.clear();
+        if (null == cnx) {
+            cleanupAtClose(closeFuture);
+        } else {
+            ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
+            cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
+                cnx.removeConsumer(consumerId);
+                if (exception == null || !cnx.ctx().channel().isActive()) {
+                    cleanupAtClose(closeFuture);
+                } else {
+                    closeFuture.completeExceptionally(exception);
                 }
-                closeFuture.complete(null);
-                client.cleanupConsumer(this);
-                // fail all pending-receive futures to notify application
-                failPendingReceive();
-            } else {
-                closeFuture.completeExceptionally(exception);
-            }
-            return null;
-        });
+                return null;
+            });
+        }
 
         return closeFuture;
+    }
+
+    private void cleanupAtClose(CompletableFuture<Void> closeFuture) {
+        log.info("[{}] [{}] Closed consumer", topic, subscription);
+        setState(State.Closed);
+        unAckedMessageTracker.close();
+        if (possibleSendToDeadLetterTopicMessages != null) {
+            possibleSendToDeadLetterTopicMessages.clear();
+        }
+        closeFuture.complete(null);
+        client.cleanupConsumer(this);
+        // fail all pending-receive futures to notify application
+        failPendingReceive();
     }
 
     private void failPendingReceive() {
@@ -805,9 +816,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if message is not decryptable then it can't be parsed as a batch-message. so, add EncyrptionCtx to message
         // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
-            final MessageImpl<T> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload,
-                    createEncryptionContext(msgMetadata), cnx, schema);
-
+            final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId,
+                                                             msgMetadata, uncompressedPayload,
+                                                             createEncryptionContext(msgMetadata), cnx, schema);
             uncompressedPayload.release();
             msgMetadata.recycle();
 
@@ -985,8 +996,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), getPartitionIndex(), i, acker);
-                final MessageImpl<T> message = new MessageImpl<>(batchMessageIdImpl, msgMetadata,
-                        singleMessageMetadataBuilder.build(), singleMessagePayload,
+                final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
+                        msgMetadata, singleMessageMetadataBuilder.build(), singleMessagePayload,
                         createEncryptionContext(msgMetadata), cnx, schema);
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);

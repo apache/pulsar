@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -515,7 +516,8 @@ public class PulsarConsumerSourceTests {
     }
 
     private static Message<byte[]> createMessage(String content, String messageId) {
-        return new MessageImpl<>(messageId, Collections.emptyMap(), content.getBytes(), Schema.BYTES);
+        return new MessageImpl<byte[]>("my-topic", messageId, Collections.emptyMap(),
+                                       Unpooled.wrappedBuffer(content.getBytes()), Schema.BYTES);
     }
 
     private static String createMessageId(long ledgerId, long entryId, long partitionIndex) {

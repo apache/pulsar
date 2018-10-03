@@ -34,7 +34,6 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -712,16 +711,12 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
-    public void forceCloseConnection() {
-        for (ConcurrentMap<Integer, CompletableFuture<ClientCnx>> cnxMap : cnxPool.pool.values()) {
-            for (CompletableFuture<ClientCnx> clientCnxCompletableFuture : cnxMap.values()) {
-                try {
-                    clientCnxCompletableFuture.get().close();
-                } catch (Exception e) {
-                    log.error("Force close connection exception ", e);
-                }
-            }
-        }
+    public synchronized void updateServiceUrl(String serviceUrl) throws PulsarClientException {
+        log.info("Updating service URL to {}", serviceUrl);
+
+        conf.setServiceUrl(serviceUrl);
+        lookup.updateServiceUrl(serviceUrl);
+        cnxPool.closeAllConnections();
     }
 
     protected CompletableFuture<ClientCnx> getConnection(final String topic) {
@@ -769,11 +764,6 @@ public class PulsarClientImpl implements PulsarClient {
         } else {
             lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.isUseTls(), externalExecutorProvider.getExecutor());
         }
-    }
-
-    @Override
-    public ClientConfigurationData getConf() {
-        return conf;
     }
 
     public CompletableFuture<Integer> getNumberOfPartitions(String topic) {

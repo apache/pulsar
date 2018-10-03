@@ -105,7 +105,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         BrokerService service = pulsar.getBrokerService();
 
         final CountDownLatch latch1 = new CountDownLatch(1);
-        service.getOrCreateTopic(topic, null).thenAccept(t -> {
+        service.getOrCreateTopic(topic).thenAccept(t -> {
             latch1.countDown();
             fail("should fail as NS is not owned");
         }).exceptionally(exception -> {
@@ -118,7 +118,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         admin.lookups().lookupTopic(topic);
 
         final CountDownLatch latch2 = new CountDownLatch(1);
-        service.getOrCreateTopic(topic, null).thenAccept(t -> {
+        service.getOrCreateTopic(topic).thenAccept(t -> {
             try {
                 assertNotNull(service.getTopicReference(topic));
             } catch (Exception e) {
@@ -747,7 +747,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                .loadOrCreatePersistentTopic(topicName, true, null);
+                .loadOrCreatePersistentTopic(topicName, true);
 
         try {
             futureResult.get();
@@ -790,7 +790,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // create topic async and wait on the future completion
         executor.submit(() -> {
-            service.getOrCreateTopic(deadLockTestTopic, null).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
+            service.getOrCreateTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
                 topicCreation.completeExceptionally(e.getCause());
                 return null;
             });
@@ -842,7 +842,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // create topic async and wait on the future completion
         executor.submit(() -> {
-            service.getOrCreateTopic(deadLockTestTopic, null).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
+            service.getOrCreateTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
                 topicCreation.completeExceptionally(e.getCause());
                 return null;
             });

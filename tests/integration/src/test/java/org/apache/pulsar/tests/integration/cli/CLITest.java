@@ -18,17 +18,29 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.functions.api.examples.pojo.Tick;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertThat;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Test Pulsar CLI.
@@ -230,6 +242,62 @@ public class CLITest extends PulsarTestSuite {
             result = cee.getResult();
             assertTrue(result.getStderr().contains("HTTP 501 Not Implemented"), result.getStderr());
         }
+    }
+
+    @Test
+    public void testJarPojoSchemaUploadAvro() throws Exception {
+
+        ContainerExecResult containerExecResult = pulsarCluster.runAdminCommandOnAnyBroker(
+                "schemas",
+                "extract", "--jar", "/pulsar/examples/api-examples.jar", "--type", "avro",
+                "--classname", "org.apache.pulsar.functions.api.examples.pojo.Tick",
+                "persistent://public/default/pojo-avro");
+
+        Assert.assertEquals(containerExecResult.getExitCode(), 0);
+        testPublishAndConsume("persistent://public/default/pojo-avro", "avro", Schema.AVRO(Tick.class));
+    }
+
+    @Test
+    public void testJarPojoSchemaUploadJson() throws Exception {
+
+        ContainerExecResult containerExecResult = pulsarCluster.runAdminCommandOnAnyBroker(
+                "schemas",
+                "extract", "--jar", "/pulsar/examples/api-examples.jar", "--type", "json",
+                "--classname", "org.apache.pulsar.functions.api.examples.pojo.Tick",
+                "persistent://public/default/pojo-json");
+
+        Assert.assertEquals(containerExecResult.getExitCode(), 0);
+        testPublishAndConsume("persistent://public/default/pojo-json", "json", Schema.JSON(Tick.class));
+    }
+
+    private void testPublishAndConsume(String topic, String sub, Schema type) throws PulsarClientException {
+
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+
+        Producer<Tick> producer = client.newProducer(type)
+                .topic(topic + "-message")
+                .create();
+
+        Consumer<Tick> consumer = client.newConsumer(type)
+                .topic(topic + "-message")
+                .subscriptionName(sub)
+                .subscribe();
+
+        final int numOfMessages = 10;
+
+        for (int i = 1; i < numOfMessages; ++i) {
+            producer.send(new Tick(i, "Stock_" + i, 100 + i, 110 + i));
+        }
+
+        for (int i = 1; i < numOfMessages; ++i) {
+            Tick expected = new Tick(i, "Stock_" + i, 100 + i, 110 + i);
+            Message<Tick> receive = consumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertEquals(receive.getValue(), expected);
+        }
+
+        producer.close();
+        consumer.close();
+        client.close();
     }
 
 }

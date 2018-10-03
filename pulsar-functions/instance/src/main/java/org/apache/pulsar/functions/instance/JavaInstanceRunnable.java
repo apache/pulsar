@@ -19,25 +19,13 @@
 
 package org.apache.pulsar.functions.instance;
 
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
-
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
 import io.netty.buffer.ByteBuf;
-
-import java.io.FileNotFoundException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
+import net.jodah.typetools.TypeResolver;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
@@ -51,7 +39,6 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -65,7 +52,6 @@ import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.Build
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
-import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.functions.utils.ConsumerConfig;
@@ -78,7 +64,15 @@ import org.apache.pulsar.io.core.Source;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.jodah.typetools.TypeResolver;
+import java.io.FileNotFoundException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
 
 /**
  * A function container implemented using java thread.
@@ -144,7 +138,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // initialize the thread context
         ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
-        ThreadContext.put("instance", instanceConfig.getInstanceId());
+        ThreadContext.put("instance", instanceConfig.getInstanceName());
 
         log.info("Starting Java Instance {} : \n Details = {}",
             instanceConfig.getFunctionDetails().getName(), instanceConfig.getFunctionDetails());
@@ -239,17 +233,18 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void loadJars() throws Exception {
-
         try {
             // Let's first try to treat it as a nar archive
-            fnCache.registerFunctionInstanceWithArchive(instanceConfig.getFunctionId(), instanceConfig.getInstanceId(),
-                    jarFile);
+            fnCache.registerFunctionInstanceWithArchive(
+                instanceConfig.getFunctionId(),
+                instanceConfig.getInstanceName(),
+                jarFile);
         } catch (FileNotFoundException e) {
             log.info("For Function {} Loading as NAR failed with {}; treating it as Jar instead", instanceConfig, e);
             // create the function class loader
             fnCache.registerFunctionInstance(
                     instanceConfig.getFunctionId(),
-                    instanceConfig.getInstanceId(),
+                    instanceConfig.getInstanceName(),
                     Arrays.asList(jarFile),
                     Collections.emptyList());
         }
@@ -393,7 +388,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // once the thread quits, clean up the instance
         fnCache.unregisterFunctionInstance(
                 instanceConfig.getFunctionId(),
-                instanceConfig.getInstanceId());
+                instanceConfig.getInstanceName());
         log.info("Unloading JAR files for function {}", instanceConfig);
     }
 

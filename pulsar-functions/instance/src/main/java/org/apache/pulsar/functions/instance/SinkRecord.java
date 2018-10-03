@@ -38,6 +38,11 @@ public class SinkRecord<T> implements Record<T> {
     }
 
     @Override
+    public Optional<String> getTopicName() {
+        return sourceRecord.getTopicName();
+    }
+
+    @Override
     public Optional<String> getKey() {
         return sourceRecord.getKey();
     }
@@ -72,4 +77,8 @@ public class SinkRecord<T> implements Record<T> {
         sourceRecord.fail();
     }
 
+    @Override
+    public Optional<String> getDestinationTopic() {
+        return sourceRecord.getDestinationTopic();
+    }
 }
