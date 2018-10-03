@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.debezium;
+package org.apache.pulsar.io.kafka.connect;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -66,6 +66,7 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
         checkArgument(!isBlank(serviceUrl), "Pulsar service url must be specified at `"
             + WorkerConfig.BOOTSTRAP_SERVERS_CONFIG + "`");
         this.data = new HashMap<>();
+
         log.info("Configure offset backing store on pulsar topic {} at cluster {}",
             topic, serviceUrl);
     }
@@ -222,7 +223,6 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
                 .value(valBytes)
                 .sendAsync();
         });
-
         return producer.flushAsync().whenComplete((ignored, cause) -> {
             if (null != callback) {
                 callback.onCompletion(cause, ignored);

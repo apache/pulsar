@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.debezium;
+package org.apache.pulsar.io.kafka.connect;
 
 import java.util.Map;
 import org.apache.kafka.common.config.ConfigDef;
