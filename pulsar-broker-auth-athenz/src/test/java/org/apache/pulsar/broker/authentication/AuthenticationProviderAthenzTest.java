@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.authentication;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
+
 import org.testng.annotations.Test;
 import org.testng.annotations.BeforeClass;
 
@@ -61,6 +62,20 @@ public class AuthenticationProviderAthenzTest {
 
         // Specify Athenz configuration file for AuthZpeClient which is used in AuthenticationProviderAthenz
         System.setProperty(ZpeConsts.ZPE_PROP_ATHENZ_CONF, "./src/test/resources/athenz.conf.test");
+    }
+
+    @Test
+    public void testInitilizeFromSystemPropeties() {
+        System.setProperty("pulsar.athenz.domain.names", "test_provider");
+        ServiceConfiguration emptyConf = new ServiceConfiguration();
+        Properties emptyProp = new Properties();
+        emptyConf.setProperties(emptyProp);
+        AuthenticationProviderAthenz sysPropProvider = new AuthenticationProviderAthenz();
+        try {
+            sysPropProvider.initialize(emptyConf);
+        } catch (Exception e) {
+            fail("Fail to Read pulsar.athenz.domain.names from System Properties");
+        }
     }
 
     @Test
