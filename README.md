@@ -66,6 +66,10 @@ $ bin/pulsar standalone
 
 Check https://pulsar.apache.org for documentation and examples.
 
+## Build Pulsar docs
+
+Refer to the docs [README](site2/README.md).
+
 ## Contact
 
 ##### Mailing lists
