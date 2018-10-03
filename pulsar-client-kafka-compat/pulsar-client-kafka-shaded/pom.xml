@@ -147,14 +147,6 @@
                   <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>org.apache.pulsar.common</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.common</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.pulsar.policies</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.policies</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>com.yahoo.datasketches</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.datasketches</shadedPattern>
                 </relocation>

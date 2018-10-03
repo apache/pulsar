@@ -28,7 +28,6 @@
     <version>2.2.0-SNAPSHOT</version>
   </parent>
 
-  <groupId>org.apache.pulsar.tests</groupId>
   <artifactId>integration</artifactId>
   <packaging>jar</packaging>
   <name>Apache Pulsar :: Tests :: Integration</name>
@@ -71,6 +70,12 @@
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>managed-ledger-original</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client-kafka</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
@@ -128,7 +133,7 @@
       <artifactId>jackson-dataformat-yaml</artifactId>
       <scope>test</scope>
     </dependency>
-    
+
     <dependency>
   	  <groupId>org.elasticsearch.client</groupId>
   	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
