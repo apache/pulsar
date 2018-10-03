@@ -496,5 +496,10 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         return redeliveryTracker;
     }
 
+    @Override
+    public DispatchRateLimiter getRateLimiter() {
+        return dispatchRateLimiter;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
 }
