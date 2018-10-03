@@ -476,12 +476,13 @@ public class FunctionApiV2ResourceTest {
             namespace,
             function,
             mockedInputStream,
+            topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Tenant");
+                "Tenant is not provided");
     }
 
     @Test
@@ -491,12 +492,13 @@ public class FunctionApiV2ResourceTest {
             null,
             function,
             mockedInputStream,
+            topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Namespace");
+                "Namespace is not provided");
     }
 
     @Test
@@ -506,12 +508,13 @@ public class FunctionApiV2ResourceTest {
             namespace,
             null,
             mockedInputStream,
+            topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Name");
+                "Function Name is not provided");
     }
 
     @Test
@@ -521,12 +524,29 @@ public class FunctionApiV2ResourceTest {
             namespace,
             function,
             null,
+            topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package");
+                "Function Package is not provided");
+    }
+
+    @Test
+    public void testUpdateFunctionMissingInputTopic() throws IOException {
+        testUpdateFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                null,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                "No input topic(s) specified for the function");
     }
 
     @Test
@@ -536,12 +556,13 @@ public class FunctionApiV2ResourceTest {
             namespace,
             function,
             mockedInputStream,
+            topicsToSerDeClassName,
             null,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package");
+                "Function Package is not provided");
     }
 
     @Test
@@ -551,12 +572,13 @@ public class FunctionApiV2ResourceTest {
             namespace,
             function,
             mockedInputStream,
+            topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             null,
             parallelism,
-                "ClassName");
+                "Field 'className' cannot be null!");
     }
     @Test
     public void testUpdateFunctionMissingParallelism() throws IOException {
@@ -565,12 +587,13 @@ public class FunctionApiV2ResourceTest {
                 namespace,
                 function,
                 mockedInputStream,
+                topicsToSerDeClassName,
                 mockedFormData,
                 outputTopic,
                 outputSerdeClassName,
                 className,
                 null,
-                "parallelism");
+                "Field 'parallelism' must be a Positive Number");
     }
 
     private void testUpdateFunctionMissingArguments(
@@ -578,38 +601,42 @@ public class FunctionApiV2ResourceTest {
             String namespace,
             String function,
             InputStream inputStream,
+            Map<String, String> topicsToSerDeClassName,
             FormDataContentDisposition details,
             String outputTopic,
             String outputSerdeClassName,
             String className,
             Integer parallelism,
-            String missingFieldName) throws IOException {
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+            String expectedError) throws IOException {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        FunctionConfig functionConfig = new FunctionConfig();
         if (tenant != null) {
-            functionDetailsBuilder.setTenant(tenant);
+            functionConfig.setTenant(tenant);
         }
         if (namespace != null) {
-            functionDetailsBuilder.setNamespace(namespace);
+            functionConfig.setNamespace(namespace);
         }
         if (function != null) {
-            functionDetailsBuilder.setName(function);
+            functionConfig.setName(function);
         }
-        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
+        if (topicsToSerDeClassName != null) {
+            functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        }
         if (outputTopic != null) {
-            sinkSpecBuilder.setTopic(outputTopic);
+            functionConfig.setOutput(outputTopic);
         }
         if (outputSerdeClassName != null) {
-            sinkSpecBuilder.setSerDeClassName(outputSerdeClassName);
+            functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         }
-        functionDetailsBuilder.setSink(sinkSpecBuilder);
         if (className != null) {
-            functionDetailsBuilder.setClassName(className);
+            functionConfig.setClassName(className);
         }
         if (parallelism != null) {
-            functionDetailsBuilder.setParallelism(parallelism);
+            functionConfig.setParallelism(parallelism);
         }
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
-        FunctionDetails functionDetails = functionDetailsBuilder.build();
         Response response = resource.updateFunction(
             tenant,
             namespace,
@@ -617,29 +644,26 @@ public class FunctionApiV2ResourceTest {
             inputStream,
             details,
             null,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
             null,
+            new Gson().toJson(functionConfig),
             null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        if (missingFieldName.equals("parallelism")) {
-            Assert.assertEquals(new ErrorData("Parallelism needs to be set to a positive number").reason, ((ErrorData) response.getEntity()).reason);
-        } else {
-            Assert.assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
-        }
+        Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(expectedError).reason);
     }
 
     private Response updateDefaultFunction() throws IOException {
-        SinkSpec sinkSpec = SinkSpec.newBuilder()
-                .setTopic(outputTopic)
-                .setSerDeClassName(outputSerdeClassName).build();
-        FunctionDetails functionDetails = FunctionDetails.newBuilder()
-                .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setSink(sinkSpec)
-                .setClassName(className)
-                .setParallelism(parallelism)
-                .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
-                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(function);
+        functionConfig.setClassName(className);
+        functionConfig.setParallelism(parallelism);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        functionConfig.setOutput(outputTopic);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+
         return resource.updateFunction(
             tenant,
             namespace,
@@ -647,8 +671,8 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             null,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
             null,
+            new Gson().toJson(functionConfig),
             null);
     }
 
