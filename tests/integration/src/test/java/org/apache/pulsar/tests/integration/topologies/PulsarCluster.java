@@ -80,7 +80,7 @@ public class PulsarCluster {
     private final Map<String, BrokerContainer> brokerContainers;
     private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
-    private final PrestoWorkerContainer prestoWorkerContainer;
+    private PrestoWorkerContainer prestoWorkerContainer;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
     private final boolean enablePrestoWorker;
 
@@ -277,10 +277,18 @@ public class PulsarCluster {
             containers.addAll(externalServices.values());
         }
 
-        containers.add(proxyContainer);
-        containers.add(csContainer);
-        containers.add(zkContainer);
-        containers.add(prestoWorkerContainer);
+        if (null != proxyContainer) {
+            containers.add(proxyContainer);
+        }
+        if (null != csContainer) {
+            containers.add(csContainer);
+        }
+        if (null != zkContainer) {
+            containers.add(zkContainer);
+        }
+        if (null != prestoWorkerContainer) {
+            containers.add(prestoWorkerContainer);
+        }
 
         containers.parallelStream()
                 .filter(Objects::nonNull)
@@ -292,6 +300,28 @@ public class PulsarCluster {
             network.close();
         } catch (Exception e) {
             log.info("Failed to shutdown network for pulsar cluster {}", clusterName, e);
+        }
+    }
+
+    public void startPrestoWorker() {
+        if (null == prestoWorkerContainer) {
+            prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
+                    .withNetwork(network)
+                    .withNetworkAliases(PrestoWorkerContainer.NAME)
+                    .withEnv("clusterName", clusterName)
+                    .withEnv("zkServers", ZKContainer.NAME)
+                    .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+        }
+        log.info("Starting Presto Worker");
+        prestoWorkerContainer.start();
+    }
+
+    public void stopPrestoWorker() {
+        if (null != prestoWorkerContainer) {
+            prestoWorkerContainer.stop();
+            log.info("Stopped Presto Worker");
+            prestoWorkerContainer = null;
         }
     }
 
