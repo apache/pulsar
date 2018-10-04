@@ -131,7 +131,7 @@ class RuntimeUtils {
         }
         args.add("--expected_healthcheck_interval");
         args.add(String.valueOf(expectedHealthCheckInterval));
-        if (installUserCodeDepdendencies) {
+        if (installUserCodeDepdendencies != null && installUserCodeDepdendencies) {
             args.add("--install_usercode_dependencies");
         }
         return args;
