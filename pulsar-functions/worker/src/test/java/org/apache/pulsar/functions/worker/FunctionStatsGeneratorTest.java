@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import lombok.ToString;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.proto.Function;
@@ -41,9 +42,22 @@ import java.util.regex.Pattern;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
 public class FunctionStatsGeneratorTest {
+
+    @Test
+    public void testGenerateFunctionStatsWhenWorkerServiceIsNotInitialized() {
+        WorkerService workerService = mock(WorkerService.class);
+        when(workerService.isInitialized()).thenReturn(false);
+        FunctionsStatsGenerator.generate(
+            workerService, "test-cluster", new SimpleTextOutputStream(Unpooled.buffer()));
+        verify(workerService, times(1)).isInitialized();
+        verify(workerService, times(0)).getFunctionRuntimeManager();
+    }
 
     @Test
     public void testFunctionsStatsGenerate() {
