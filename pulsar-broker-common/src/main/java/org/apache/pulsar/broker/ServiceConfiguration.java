@@ -286,6 +286,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Speculative reads are initiated if a read request doesn't complete within
     // a certain time Using a value of 0, is disabling the speculative reads
     private int bookkeeperClientSpeculativeReadTimeoutInMillis = 0;
+    // Use older Bookkeeper wire protocol with bookie
+    private boolean bookkeeperUseV2WireProtocol = true;
     // Enable bookies health check. Bookies that have more than the configured
     // number of failure within the interval will be quarantined for some time.
     // During this period, new ledgers won't be created on these bookies
@@ -1095,6 +1097,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setBookkeeperClientSpeculativeReadTimeoutInMillis(int bookkeeperClientSpeculativeReadTimeoutInMillis) {
         this.bookkeeperClientSpeculativeReadTimeoutInMillis = bookkeeperClientSpeculativeReadTimeoutInMillis;
+    }
+
+    public boolean isBookkeeperUseV2WireProtocol() {
+        return bookkeeperUseV2WireProtocol;
+    }
+
+    public void setBookkeeperUseV2WireProtocol(boolean bookkeeperUseV2WireProtocol) {
+        this.bookkeeperUseV2WireProtocol = bookkeeperUseV2WireProtocol;
     }
 
     public boolean isBookkeeperClientHealthCheckEnabled() {
