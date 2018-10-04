@@ -23,52 +23,47 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Slf4j
-public class TestBasicPresto extends PulsarClusterTestBase {
+public class TestBasicPresto extends PulsarTestSuite {
 
     private static final int NUM_OF_STOCKS = 10;
 
-    @BeforeSuite
-    @Override
-    public void setupCluster() throws Exception {
-        final String clusterName = Stream.of(this.getClass().getSimpleName(), randomName(5))
-                .filter(s -> s != null && !s.isEmpty())
-                .collect(joining("-"));
+    @BeforeClass
+    public void setupPresto() throws Exception {
+        pulsarCluster.startPrestoWorker();
 
-        PulsarClusterSpec spec = PulsarClusterSpec.builder()
-                .numBookies(2)
-                .numBrokers(1)
-                .enablePrestoWorker(true)
-                .clusterName(clusterName)
-                .build();
-
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
-
-        pulsarCluster = PulsarCluster.forSpec(spec);
-        pulsarCluster.start();
-
-        log.info("Cluster {} is setup with presto worker", spec.clusterName());
+        // wait until presto worker started
+        ContainerExecResult result;
+        do {
+            try {
+                result = execQuery("show catalogs;");
+                assertThat(result.getExitCode()).isEqualTo(0);
+                assertThat(result.getStdout()).contains("pulsar", "system");
+                break;
+            } catch (ContainerExecException cee) {
+                if (cee.getResult().getStderr().contains("Presto server is still initializing")) {
+                    Thread.sleep(10000);
+                } else {
+                    throw cee;
+                }
+            }
+        } while (true);
     }
 
-    @Test
-    public void testDefaultCatalog() throws Exception {
-        ContainerExecResult containerExecResult = execQuery("show catalogs;");
-        assertThat(containerExecResult.getExitCode()).isEqualTo(0);
-        assertThat(containerExecResult.getStdout()).contains("pulsar", "system");
+    @AfterClass
+    public void teardownPresto() {
+        pulsarCluster.stopPrestoWorker();;
     }
 
     @Test
