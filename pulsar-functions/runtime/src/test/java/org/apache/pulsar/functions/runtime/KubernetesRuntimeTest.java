@@ -32,6 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.powermock.api.mockito.PowerMockito.doNothing;
+import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
 
 /**
@@ -67,8 +69,9 @@ public class KubernetesRuntimeTest {
         this.pulsarAdminUrl = "http://localhost:8080";
         this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "logs/functions";
-        this.factory = new KubernetesRuntimeFactory(null, null, null, null,
-            false, null, pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null);
+        this.factory = spy(new KubernetesRuntimeFactory(null, null, null, null,
+            false, null, pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null));
+        doNothing().when(this.factory).setupClient();
     }
 
     @AfterMethod
