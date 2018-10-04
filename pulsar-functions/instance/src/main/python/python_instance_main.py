@@ -84,11 +84,11 @@ def main():
 
   if os.path.splitext(str(args.py))[1] == '.whl':
     if args.install_usercode_dependencies:
-      os.system("pip install %s --user" % str(args.py))
+      os.system("pip install -t %s %s" % (os.path.dirname(str(args.py)), str(args.py)))
     else:
       zpfile = zipfile.ZipFile(str(args.py), 'r')
       zpfile.extractall(os.path.dirname(str(args.py)))
-      sys.path.insert(0, os.path.dirname(str(args.py)))
+    sys.path.insert(0, os.path.dirname(str(args.py)))
 
   log_file = os.path.join(args.logging_directory,
                           util.getFullyQualifiedFunctionName(function_details.tenant, function_details.namespace, function_details.name),
