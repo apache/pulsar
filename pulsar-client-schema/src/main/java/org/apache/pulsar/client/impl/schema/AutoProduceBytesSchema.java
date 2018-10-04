@@ -23,16 +23,20 @@ import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Auto detect schema.
  */
 public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
+    private boolean requireSchemaValidation = true;
     private Schema<T> schema;
 
     public void setSchema(Schema<T> schema) {
         this.schema = schema;
+        this.requireSchemaValidation = SchemaType.BYTES != schema.getSchemaInfo().getType()
+            && SchemaType.NONE != schema.getSchemaInfo().getType();
     }
 
     private void ensureSchemaInitialized() {
@@ -43,8 +47,10 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     public byte[] encode(byte[] message) {
         ensureSchemaInitialized();
 
-        // verify if the message can be decoded by the underlying schema
-        schema.decode(message);
+        if (requireSchemaValidation) {
+            // verify if the message can be decoded by the underlying schema
+            schema.decode(message);
+        }
 
         return message;
     }
@@ -53,8 +59,10 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     public byte[] decode(byte[] bytes) {
         ensureSchemaInitialized();
 
-        // verify the message can be detected by the underlying schema
-        schema.decode(bytes);
+        if (requireSchemaValidation) {
+            // verify the message can be detected by the underlying schema
+            schema.decode(bytes);
+        }
 
         return bytes;
     }

@@ -23,17 +23,19 @@ import java.io.IOException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 
 public class ContinuousProducer {
     public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://127.0.0.1:8080").build();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-tenant/my-ns/my-topic")
-                .create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+            .topic("persistent://my-tenant/my-ns/my-topic")
+            .create();
 
         while (true) {
             try {
-                producer.send("my-message".getBytes());
+                producer.send("my-message");
                 Thread.sleep(1000);
 
             } catch (Exception e) {

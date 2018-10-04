@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
 
 @Slf4j
 public class SampleCryptoProducer {
@@ -76,12 +77,13 @@ public class SampleCryptoProducer {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://127.0.0.1:8080").build();
 
         // Setup the CryptoKeyReader with the file name where public/private key is kept
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-tenant/my-ns/my-topic")
-                .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"))
-                .addEncryptionKey("myappkey").create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+            .topic("persistent://my-tenant/my-ns/my-topic")
+            .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"))
+            .addEncryptionKey("myappkey").create();
 
         for (int i = 0; i < 10; i++) {
-            producer.send("my-message".getBytes());
+            producer.send("my-message");
         }
 
         pulsarClient.close();
