@@ -67,6 +67,7 @@ public class FunctionStatsGeneratorTest {
         WorkerService workerService = mock(WorkerService.class);
         doReturn(functionRuntimeManager).when(workerService).getFunctionRuntimeManager();
         doReturn(new WorkerConfig()).when(workerService).getWorkerConfig();
+        when(workerService.isInitialized()).thenReturn(true);
 
         CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture = new CompletableFuture<>();
         InstanceCommunication.MetricsData metricsData = InstanceCommunication.MetricsData.newBuilder()
