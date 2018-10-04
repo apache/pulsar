@@ -355,7 +355,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Connector from .*.pulsar-io-cassandra.nar has error: The 'cassandra' connector does not provide a source implementation")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Failed to extract source class from archive")
     public void testInvalidJarWithNoSource() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setArchive(WRONG_JAR_PATH);
@@ -650,7 +650,7 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Connector from .*.pulsar-io-cassandra.nar has error: The 'cassandra' connector does not provide a source implementation")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Failed to extract source class from archive")
     public void testCmdSourceConfigFileInvalidJarNoSource() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setArchive(WRONG_JAR_PATH);

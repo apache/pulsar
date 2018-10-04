@@ -178,6 +178,17 @@ public class ConfigValidationAnnotations {
     }
 
     /**
+     * checks if the topic name is valid
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface isValidSerde {
+        Class<?> validatorClass() default ValidatorImpls.SerdeValidator.class;
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.JAVA;
+    }
+
+    /**
      * checks if window configs is valid
      */
     @Retention(RetentionPolicy.RUNTIME)
