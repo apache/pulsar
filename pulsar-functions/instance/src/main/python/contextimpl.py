@@ -48,12 +48,13 @@ class AccumulatedMetricDatum(object):
       self.min = value
 
 class ContextImpl(pulsar.Context):
-  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers):
+  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, state_context):
     self.instance_config = instance_config
     self.log = logger
     self.pulsar_client = pulsar_client
     self.user_code_dir = os.path.dirname(user_code)
     self.consumers = consumers
+    self.state_context = state_context
     self.current_accumulated_metrics = {}
     self.accumulated_metrics = {}
     self.publish_producers = {}
@@ -165,3 +166,15 @@ class ContextImpl(pulsar.Context):
       m.min = accumulated_metric.min
       metrics.metrics[metric_name] = m
     return metrics
+
+  def incr_counter(self, key, amount):
+    return self.state_context.incr(key, amount)
+
+  def get_counter(self, key):
+    return self.state_context.get_amount(key)
+
+  def put_state(self, key, value):
+    return self.state_context.put(key, value)
+
+  def get_state(self, key):
+    return self.state_context.get_value(key)

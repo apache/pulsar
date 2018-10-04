@@ -119,7 +119,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
-        ArrayList<BookieSocketAddress> ensemble = isolationPolicy.newEnsemble(3, 3, 2, Collections.emptyMap(), new HashSet<>());
+        List<BookieSocketAddress> ensemble = isolationPolicy.newEnsemble(3, 3, 2, Collections.emptyMap(), new HashSet<>());
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4)));
@@ -201,7 +201,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
 
         Thread.sleep(100);
 
-        ArrayList<BookieSocketAddress> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>());
+        List<BookieSocketAddress> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>());
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
 
@@ -242,7 +242,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
-        ArrayList<BookieSocketAddress> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>());
+        List<BookieSocketAddress> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>());
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1)));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2)));
 

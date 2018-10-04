@@ -38,6 +38,7 @@ import server
 import python_instance
 import util
 from google.protobuf import json_format
+from bookkeeper.kv.client import Client
 
 to_run = True
 Log = log.Log
@@ -71,6 +72,7 @@ def main():
   parser.add_argument('--logging_directory', required=True, help='Logging Directory')
   parser.add_argument('--logging_file', required=True, help='Log file name')
   parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
+  parser.add_argument('--state_storage_serviceurl', required=False, help='Managed State Storage Service Url')
 
   args = parser.parse_args()
   function_details = Function_pb2.FunctionDetails()
@@ -107,11 +109,19 @@ def main():
   if args.tls_trust_cert_path:
      tls_trust_cert_path =  args.tls_trust_cert_path
   pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication, 30, 1, 1, 50000, None, use_tls, tls_trust_cert_path, tls_allow_insecure_connection)
+
+  state_storage_serviceurl = None
+  if args.state_storage_serviceurl is not None:
+    state_storage_serviceurl = str(args.state_storage_serviceurl)
+
+
   pyinstance = python_instance.PythonInstance(str(args.instance_id), str(args.function_id),
                                               str(args.function_version), function_details,
                                               int(args.max_buffered_tuples),
                                               int(args.expected_healthcheck_interval),
-                                              str(args.py), pulsar_client)
+                                              str(args.py),
+                                              pulsar_client,
+                                              state_storage_serviceurl)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 

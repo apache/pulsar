@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
+import org.apache.bookkeeper.client.BKException.Code;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
@@ -198,7 +199,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
             public CompletableFuture<ReadHandle> execute() {
                 return getProgrammedFailure().thenCompose(
                         (res) -> {
-                            if (!validate()) {
+                            if (validate() != Code.OK) {
                                 return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
                             }
 

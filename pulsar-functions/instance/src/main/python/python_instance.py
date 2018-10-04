@@ -41,6 +41,9 @@ import log
 import util
 import InstanceCommunication_pb2
 
+# state dependencies
+import state_context
+
 Log = log.Log
 # Equivalent of the InstanceConfig in Java
 InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_version function_details max_buffered_tuples')
@@ -114,7 +117,16 @@ class Stats(object):
     
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, expected_healthcheck_interval, user_code, pulsar_client):
+  def __init__(self,
+               instance_id,
+               function_id,
+               function_version,
+               function_details,
+               max_buffered_tuples,
+               expected_healthcheck_interval,
+               user_code,
+               pulsar_client,
+               state_storage_serviceurl):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     self.queue = Queue.Queue(max_buffered_tuples)
@@ -122,6 +134,7 @@ class PythonInstance(object):
     if function_details.logTopic is not None and function_details.logTopic != "":
       self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
     self.pulsar_client = pulsar_client
+    self.state_storage_serviceurl = state_storage_serviceurl
     self.input_serdes = {}
     self.consumers = {}
     self.output_serde = None
@@ -139,6 +152,7 @@ class PythonInstance(object):
     self.last_health_check_ts = time.time()
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
     self.expected_healthcheck_interval = expected_healthcheck_interval
+    self.state_context = state_context.NullStateContext()
 
   def health_check(self):
     self.last_health_check_ts = time.time()
@@ -155,6 +169,9 @@ class PythonInstance(object):
     Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
 
   def run(self):
+    # Setup state
+    self.state_context = self.setup_state()
+
     # Setup consumers and input deserializers
     mode = pulsar._pulsar.ConsumerType.Shared
     if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
@@ -208,7 +225,8 @@ class PythonInstance(object):
     except:
       self.function_purefunction = function_kclass
 
-    self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers)
+    self.contextimpl = contextimpl.ContextImpl(
+      self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers, self.state_context)
     # Now launch a thread that does execution
     self.exeuction_thread = threading.Thread(target=self.actual_execution)
     self.exeuction_thread.start()
@@ -310,6 +328,12 @@ class PythonInstance(object):
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
         max_pending_messages=100000)
+
+  def setup_state(self):
+    table_ns = "%s_%s" % (str(self.instance_config.function_details.tenant),
+                          str(self.instance_config.function_details.namespace))
+    table_name = str(self.instance_config.function_details.name)
+    return state_context.create_state_context(self.state_storage_serviceurl, table_ns, table_name)
 
   def message_listener(self, serde, consumer, message):
     item = InternalMessage(message, consumer.topic(), serde, consumer)
