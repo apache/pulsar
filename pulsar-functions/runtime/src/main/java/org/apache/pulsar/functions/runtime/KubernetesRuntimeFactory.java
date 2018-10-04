@@ -30,6 +30,8 @@ import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 
+import java.util.Map;
+
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 /**
@@ -43,6 +45,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String pulsarDockerImageName;
     private final String pulsarRootDir;
     private final Boolean submittingInsidePod;
+    private final Map<String, String> customLabels;
     private final String pulsarAdminUri;
     private final String pulsarServiceUri;
     private final String stateStorageServiceUri;
@@ -59,6 +62,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String pulsarDockerImageName,
                                     String pulsarRootDir,
                                     Boolean submittingInsidePod,
+                                    Map<String, String> customLabels,
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
                                     String stateStorageServiceUri,
@@ -80,6 +84,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.pulsarRootDir = "/pulsar";
         }
         this.submittingInsidePod = submittingInsidePod;
+        this.customLabels = customLabels;
         this.pulsarServiceUri = pulsarServiceUri;
         this.pulsarAdminUri = pulsarAdminUri;
         this.stateStorageServiceUri = stateStorageServiceUri;
@@ -113,6 +118,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             appsClient,
             coreClient,
             jobNamespace,
+            customLabels,
             pulsarDockerImageName,
             pulsarRootDir,
             instanceConfig,

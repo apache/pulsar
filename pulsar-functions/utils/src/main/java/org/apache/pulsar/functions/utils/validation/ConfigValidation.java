@@ -44,7 +44,7 @@ public class ConfigValidation {
         PYTHON
     }
 
-    public static void validateConfig(Object config, String runtimeType) {
+    public static void validateConfig(Object config, String runtimeType, ClassLoader classLoader) {
         for (Field field : config.getClass().getDeclaredFields()) {
             Object value;
             field.setAccessible(true);
@@ -53,12 +53,12 @@ public class ConfigValidation {
             } catch (IllegalAccessException e) {
                throw new RuntimeException(e);
             }
-            validateField(field, value, Runtime.valueOf(runtimeType));
+            validateField(field, value, Runtime.valueOf(runtimeType), classLoader);
         }
-        validateClass(config, Runtime.valueOf(runtimeType));
+        validateClass(config, Runtime.valueOf(runtimeType), classLoader);
     }
 
-    private static void validateClass(Object config, Runtime runtime) {
+    private static void validateClass(Object config, Runtime runtime, ClassLoader classLoader) {
 
         List<Annotation> annotationList = new LinkedList<>();
         Class<?>[] classes = ConfigValidationAnnotations.class.getDeclaredClasses();
@@ -70,10 +70,10 @@ public class ConfigValidation {
 
             }
         }
-        processAnnotations(annotationList, config.getClass().getName(), config, runtime);
+        processAnnotations(annotationList, config.getClass().getName(), config, runtime, classLoader);
     }
 
-    private static void validateField(Field field, Object value, Runtime runtime) {
+    private static void validateField(Field field, Object value, Runtime runtime, ClassLoader classLoader) {
         List<Annotation> annotationList = new LinkedList<>();
         Class<?>[] classes = ConfigValidationAnnotations.class.getDeclaredClasses();
         for (Class clazz : classes) {
@@ -84,11 +84,11 @@ public class ConfigValidation {
 
             }
         }
-        processAnnotations(annotationList, field.getName(), value, runtime);
+        processAnnotations(annotationList, field.getName(), value, runtime, classLoader);
     }
 
     private static void processAnnotations( List<Annotation> annotations, String fieldName, Object value,
-                                           Runtime runtime) {
+                                           Runtime runtime, ClassLoader classLoader) {
         try {
             for (Annotation annotation : annotations) {
 
@@ -127,7 +127,7 @@ public class ConfigValidation {
                         } else { //If not call default constructor
                             o = clazz.newInstance();
                         }
-                        o.validateField(fieldName, value);
+                        o.validateField(fieldName, value, classLoader);
                     }
                 }
             }

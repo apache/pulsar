@@ -80,10 +80,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                      final @FormDataParam("url") String functionPkgUrl,
-                                     final @FormDataParam("functionDetails") String functionDetailsJson) {
+                                     final @FormDataParam("functionDetails") String functionDetailsJson,
+                                     final @FormDataParam("functionConfig") String functionConfigJson) {
 
         return functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, clientAppId());
+                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId());
     }
 
     @PUT
@@ -101,10 +102,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                    final @FormDataParam("url") String functionPkgUrl,
-                                   final @FormDataParam("functionDetails") String functionDetailsJson) {
+                                   final @FormDataParam("functionDetails") String functionDetailsJson,
+                                   final @FormDataParam("functionConfig") String functionConfigJson) {
 
         return functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, clientAppId());
+                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId());
 
     }
 
