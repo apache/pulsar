@@ -20,9 +20,7 @@ package org.apache.pulsar.admin.cli;
 
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 import com.beust.jcommander.Parameter;
@@ -33,7 +31,6 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Paths;
@@ -52,14 +49,10 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.Resources;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.SourceConfig;
+import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
@@ -194,9 +187,9 @@ public class CmdSources extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(this.sourceConfig.getArchive())) {
-                admin.functions().createFunctionWithUrl(createSourceConfig(sourceConfig), sourceConfig.getArchive());
+                admin.functions().createFunctionWithUrl(SourceConfigUtils.convert(sourceConfig), sourceConfig.getArchive());
             } else {
-                admin.functions().createFunction(createSourceConfig(sourceConfig), sourceConfig.getArchive());
+                admin.functions().createFunction(SourceConfigUtils.convert(sourceConfig), sourceConfig.getArchive());
             }
             print("Created successfully");
         }
@@ -207,9 +200,9 @@ public class CmdSources extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive())) {
-                admin.functions().updateFunctionWithUrl(createSourceConfig(sourceConfig), sourceConfig.getArchive());
+                admin.functions().updateFunctionWithUrl(SourceConfigUtils.convert(sourceConfig), sourceConfig.getArchive());
             } else {
-                admin.functions().updateFunction(createSourceConfig(sourceConfig), sourceConfig.getArchive());
+                admin.functions().updateFunction(SourceConfigUtils.convert(sourceConfig), sourceConfig.getArchive());
             }
             print("Updated successfully");
         }
@@ -357,6 +350,9 @@ public class CmdSources extends CmdBase {
             }
 
             inferMissingArguments(sourceConfig);
+
+            // check if source configs are valid
+            validateSourceConfigs(sourceConfig);
         }
 
         protected Map<String, Object> parseConfigs(String str) {
@@ -407,6 +403,7 @@ public class CmdSources extends CmdBase {
 
 
             // if jar file is present locally then load jar and validate SinkClass in it
+            ClassLoader classLoader = null;
             if (archivePath != null) {
                 if (!fileExists(archivePath)) {
                     throw new ParameterException("Archive file " + archivePath + " does not exist");
@@ -415,17 +412,21 @@ public class CmdSources extends CmdBase {
                 try {
                     ConnectorDefinition connector = ConnectorUtils.getConnectorDefinition(archivePath);
                     log.info("Connector: {}", connector);
-
-                    // Validate source class
-                    ConnectorUtils.getIOSourceClass(archivePath);
                 } catch (IOException e) {
                     throw new ParameterException("Connector from " + archivePath + " has error: " + e.getMessage());
+                }
+
+                try {
+                    classLoader = NarClassLoader.getFromArchive(new File(archivePath),
+                            Collections.emptySet());
+                } catch (IOException e) {
+                    throw new IllegalArgumentException(e);
                 }
             }
 
             try {
              // Need to load jar and set context class loader before calling
-                ConfigValidation.validateConfig(sourceConfig, FunctionConfig.Runtime.JAVA.name());
+                ConfigValidation.validateConfig(sourceConfig, FunctionConfig.Runtime.JAVA.name(), classLoader);
             } catch (Exception e) {
                 throw new ParameterException(e.getMessage());
             }
@@ -435,108 +436,7 @@ public class CmdSources extends CmdBase {
                 throws IOException {
             org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder
                     = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
-            Utils.mergeJson(FunctionsImpl.printJson(createSourceConfig(sourceConfig)), functionDetailsBuilder);
-            return functionDetailsBuilder.build();
-        }
-
-        protected FunctionDetails createSourceConfig(SourceConfig sourceConfig) throws IOException {
-
-            // check if source configs are valid
-            validateSourceConfigs(sourceConfig);
-
-            String sourceClassName = null;
-            String typeArg = null;
-
-            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-
-            boolean isBuiltin = sourceConfig.getArchive().startsWith(Utils.BUILTIN);
-
-            if (!isBuiltin) {
-                if (sourceConfig.getArchive().startsWith(Utils.FILE)) {
-                    if (StringUtils.isBlank(sourceConfig.getClassName())) {
-                        throw new ParameterException("Class-name must be present for archive with file-url");
-                    }
-                    sourceClassName = sourceConfig.getClassName(); // server derives the arg-type by loading a class
-                } else {
-                    sourceClassName = ConnectorUtils.getIOSourceClass(sourceConfig.getArchive());
-
-                    try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sourceConfig.getArchive()),
-                            Collections.emptySet())) {
-                        typeArg = getSourceType(sourceClassName, ncl).getName();
-                    }
-                }
-            }
-
-            if (sourceConfig.getTenant() != null) {
-                functionDetailsBuilder.setTenant(sourceConfig.getTenant());
-            }
-            if (sourceConfig.getNamespace() != null) {
-                functionDetailsBuilder.setNamespace(sourceConfig.getNamespace());
-            }
-            if (sourceConfig.getName() != null) {
-                functionDetailsBuilder.setName(sourceConfig.getName());
-            }
-            functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-            functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
-            functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
-            functionDetailsBuilder.setAutoAck(true);
-            if (sourceConfig.getProcessingGuarantees() != null) {
-                functionDetailsBuilder.setProcessingGuarantees(
-                        convertProcessingGuarantee(sourceConfig.getProcessingGuarantees()));
-            }
-
-            // set source spec
-            SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            if (sourceClassName != null) {
-                sourceSpecBuilder.setClassName(sourceClassName);
-            }
-
-            if (isBuiltin) {
-                String builtin = sourceConfig.getArchive().replaceFirst("^builtin://", "");
-                sourceSpecBuilder.setBuiltin(builtin);
-            }
-
-            if (sourceConfig.getConfigs() != null) {
-                sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
-            }
-
-            if (typeArg != null) {
-                sourceSpecBuilder.setTypeClassName(typeArg);
-            }
-            functionDetailsBuilder.setSource(sourceSpecBuilder);
-
-            // set up sink spec.
-            // Sink spec classname should be empty so that the default pulsar sink will be used
-            SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-            if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
-                sinkSpecBuilder.setSchemaType(sourceConfig.getSchemaType());
-            }
-            if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
-                sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
-            }
-
-            sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
-
-            if (typeArg != null) {
-                sinkSpecBuilder.setTypeClassName(typeArg);
-            }
-
-            functionDetailsBuilder.setSink(sinkSpecBuilder);
-
-            if (sourceConfig.getResources() != null) {
-                Resources.Builder bldr = Resources.newBuilder();
-                if (sourceConfig.getResources().getCpu() != null) {
-                    bldr.setCpu(sourceConfig.getResources().getCpu());
-                }
-                if (sourceConfig.getResources().getRam() != null) {
-                    bldr.setRam(sourceConfig.getResources().getRam());
-                }
-                if (sourceConfig.getResources().getDisk() != null) {
-                    bldr.setDisk(sourceConfig.getResources().getDisk());
-                }
-                functionDetailsBuilder.setResources(bldr.build());
-            }
-
+            Utils.mergeJson(FunctionsImpl.printJson(SourceConfigUtils.convert(sourceConfig)), functionDetailsBuilder);
             return functionDetailsBuilder.build();
         }
 
