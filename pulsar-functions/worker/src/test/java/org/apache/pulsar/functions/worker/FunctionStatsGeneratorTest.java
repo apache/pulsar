@@ -25,6 +25,7 @@ import lombok.ToString;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.testng.Assert;
@@ -60,6 +61,20 @@ public class FunctionStatsGeneratorTest {
     }
 
     @Test
+    public void testGenerateFunctionStatsOnK8SRuntimeFactory() {
+        WorkerService workerService = mock(WorkerService.class);
+        when(workerService.isInitialized()).thenReturn(true);
+        FunctionRuntimeManager frm = mock(FunctionRuntimeManager.class);
+        when(frm.getRuntimeFactory()).thenReturn(mock(KubernetesRuntimeFactory.class));
+        when(workerService.getFunctionRuntimeManager()).thenReturn(frm);
+        FunctionsStatsGenerator.generate(
+            workerService, "test-cluster", new SimpleTextOutputStream(Unpooled.buffer()));
+        verify(workerService, times(1)).isInitialized();
+        verify(workerService, times(1)).getFunctionRuntimeManager();
+        verify(frm, times(0)).getFunctionRuntimeInfos();
+    }
+
+    @Test
     public void testFunctionsStatsGenerate() {
         FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
         Map<String, FunctionRuntimeInfo> functionRuntimeInfoMap = new HashMap<>();
@@ -67,6 +82,7 @@ public class FunctionStatsGeneratorTest {
         WorkerService workerService = mock(WorkerService.class);
         doReturn(functionRuntimeManager).when(workerService).getFunctionRuntimeManager();
         doReturn(new WorkerConfig()).when(workerService).getWorkerConfig();
+        when(workerService.isInitialized()).thenReturn(true);
 
         CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture = new CompletableFuture<>();
         InstanceCommunication.MetricsData metricsData = InstanceCommunication.MetricsData.newBuilder()
