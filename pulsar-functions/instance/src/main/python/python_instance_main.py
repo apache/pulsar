@@ -73,7 +73,7 @@ def main():
   parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
   parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
 
-args = parser.parse_args()
+  args = parser.parse_args()
   function_details = Function_pb2.FunctionDetails()
   args.function_details = str(args.function_details)
   if args.function_details[0] == '\'':
