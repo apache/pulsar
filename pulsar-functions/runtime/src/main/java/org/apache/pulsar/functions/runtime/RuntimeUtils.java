@@ -47,7 +47,8 @@ class RuntimeUtils {
                                            String shardId,
                                            Integer grpcPort,
                                            Long expectedHealthCheckInterval,
-                                           String javaLog4jFileName) throws Exception {
+                                           String javaLog4jFileName,
+                                           Boolean installUserCodeDepdendencies) throws Exception {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
@@ -130,6 +131,9 @@ class RuntimeUtils {
         }
         args.add("--expected_healthcheck_interval");
         args.add(String.valueOf(expectedHealthCheckInterval));
+        if (installUserCodeDepdendencies) {
+            args.add("--install_usercode_dependencies");
+        }
         return args;
     }
 }
