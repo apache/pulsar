@@ -53,6 +53,10 @@
           <artifactId>lz4</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.lz4</groupId>
+          <artifactId>lz4-java</artifactId>
+        </exclusion>
+        <exclusion>
           <groupId>org.xerial.snappy</groupId>
           <artifactId>snappy-java</artifactId>
         </exclusion>

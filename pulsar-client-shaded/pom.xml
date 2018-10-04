@@ -99,12 +99,6 @@
               </artifactSet>
               <filters>
                 <filter>
-                  <artifact>net.jpountz.lz4:lz4</artifact>
-                  <includes>
-                    <include>**</include>
-                  </includes>
-                </filter>
-                <filter>
                   <artifact>org.apache.pulsar:pulsar-io-core</artifact>
                   <includes>
                     <include>**</include>
