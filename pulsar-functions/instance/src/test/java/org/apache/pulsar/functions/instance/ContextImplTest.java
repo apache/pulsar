@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.junit.Before;
@@ -63,7 +64,9 @@ public class ContextImplTest {
         config.setFunctionDetails(functionDetails);
         logger = mock(Logger.class);
         client = mock(PulsarClientImpl.class);
-        when(client.newProducer()).thenReturn(new ProducerBuilderImpl(client, Schema.BYTES));
+        AutoProduceBytesSchema<byte[]> autoProduceBytesSchema = (AutoProduceBytesSchema<byte[]>) Schema.AUTO_PRODUCE_BYTES();
+        autoProduceBytesSchema.setSchema(Schema.BYTES);
+        when(client.newProducer(any(Schema.class))).thenReturn(new ProducerBuilderImpl(client, autoProduceBytesSchema));
         when(client.createProducerAsync(Matchers.any(ProducerConfigurationData.class), Matchers.any(Schema.class), eq(null)))
                 .thenReturn(CompletableFuture.completedFuture(producer));
         when(client.getSchema(anyString())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
