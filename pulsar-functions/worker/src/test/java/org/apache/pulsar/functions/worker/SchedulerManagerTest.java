@@ -53,7 +53,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.proto.Request;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler;
 import org.mockito.Mockito;
@@ -80,18 +79,6 @@ public class SchedulerManagerTest {
     private Producer producer;
     private TypedMessageBuilder<byte[]> message;
     private ScheduledExecutorService executor;
-
-    private static PulsarClient mockPulsarClient() throws PulsarClientException {
-        ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
-        when(builder.topic(anyString())).thenReturn(builder);
-
-        when(builder.create()).thenReturn(mock(Producer.class));
-
-        PulsarClient client = mock(PulsarClient.class);
-        when(client.newProducer()).thenReturn(builder);
-
-        return client;
-    }
 
     @BeforeMethod
     public void setup() throws PulsarClientException {
@@ -121,7 +108,7 @@ public class SchedulerManagerTest {
         when(builder.compressionType(any(CompressionType.class))).thenReturn(builder);
         when(builder.sendTimeout(anyInt(), any(TimeUnit.class))).thenReturn(builder);
 
-        when(builder.create()).thenReturn(producer);
+        when(builder.createAsync()).thenReturn(CompletableFuture.completedFuture(producer));
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
         when(pulsarClient.newProducer()).thenReturn(builder);
