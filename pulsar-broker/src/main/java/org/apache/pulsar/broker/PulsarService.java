@@ -689,6 +689,7 @@ public class PulsarService implements AutoCloseable {
                     throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
                 }
             } else {
+                log.info("No ledger offloader configured, using NULL instance");
                 return NullLedgerOffloader.INSTANCE;
             }
         } catch (Throwable t) {
