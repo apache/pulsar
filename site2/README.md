@@ -23,6 +23,8 @@ yarn install
 yarn start
 ```
 
+Note that the `/docs/en/` path shows the documentation for the latest stable release of Pulsar.  Change it to `/docs/en/next/` to show your local changes, with live refresh.
+
 ## Contribute
 
 The website is comprised of two parts, one is documentation, while the other is website pages (including blog posts).

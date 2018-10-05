@@ -50,9 +50,10 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.javax.ws.rs.ClientErrorException;
 import org.apache.pulsar.shade.javax.ws.rs.core.Response;
+import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -69,7 +70,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -603,7 +603,7 @@ public abstract class TestPulsarConnector {
 
             Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 
-            org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload
+            ByteBuf payload
                     = org.apache.pulsar.shade.io.netty.buffer.Unpooled.copiedBuffer(schema.encode(foo));
 
             ByteBuf byteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, payload);
@@ -664,7 +664,7 @@ public abstract class TestPulsarConnector {
     @BeforeMethod
     public void setup() throws Exception {
         this.pulsarConnectorConfig = spy(new PulsarConnectorConfig());
-        this.pulsarConnectorConfig.setEntryReadBatchSize(1);
+        this.pulsarConnectorConfig.setMaxEntryReadBatchSize(1);
         this.pulsarConnectorConfig.setMaxSplitEntryQueueSize(10);
         this.pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
 
@@ -851,7 +851,7 @@ public abstract class TestPulsarConnector {
 
                                     Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 
-                                    org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload
+                                    ByteBuf payload
                                             = org.apache.pulsar.shade.io.netty.buffer.Unpooled.copiedBuffer(schema.encode(foo));
 
                                     ByteBuf byteBuf = serializeMetadataAndPayload
@@ -924,7 +924,8 @@ public abstract class TestPulsarConnector {
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
 
-            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(fooColumnHandles, split.getValue(), pulsarConnectorConfig, managedLedgerFactory));
+            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(fooColumnHandles, split.getValue(),
+                    pulsarConnectorConfig, managedLedgerFactory, new PulsarConnectorMetricsTracker(new NullStatsProvider())));
             this.pulsarRecordCursors.put(split.getKey(), pulsarRecordCursor);
         }
     }

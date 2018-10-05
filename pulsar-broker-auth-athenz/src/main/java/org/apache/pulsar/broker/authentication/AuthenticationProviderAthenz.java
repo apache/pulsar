@@ -25,6 +25,7 @@ import java.security.PublicKey;
 
 import javax.naming.AuthenticationException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.slf4j.Logger;
@@ -39,14 +40,21 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
     private static final String DOMAIN_NAME_LIST = "athenzDomainNames";
 
+    private static final String SYS_PROP_DOMAIN_NAME_LIST = "pulsar.athenz.domain.names";
+
     private List<String> domainNameList = null;
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        if (config.getProperty(DOMAIN_NAME_LIST) == null) {
+        String domainNames;
+        if (config.getProperty(DOMAIN_NAME_LIST) != null) {
+            domainNames = (String) config.getProperty(DOMAIN_NAME_LIST);
+        } else if (!StringUtils.isEmpty(System.getProperty(SYS_PROP_DOMAIN_NAME_LIST))) {
+            domainNames = System.getProperty(SYS_PROP_DOMAIN_NAME_LIST);
+        } else {
             throw new IOException("No athenz domain name specified");
         }
-        String domainNames = (String) config.getProperty(DOMAIN_NAME_LIST);
+
         domainNameList = Lists.newArrayList(domainNames.split(","));
         log.info("Supported domain names for athenz: {}", domainNameList);
     }

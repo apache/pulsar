@@ -27,5 +27,5 @@ public abstract class Validator {
     public Validator() {
     }
 
-    public abstract void validateField(String name, Object o);
+    public abstract void validateField(String name, Object o, ClassLoader classLoader);
 }

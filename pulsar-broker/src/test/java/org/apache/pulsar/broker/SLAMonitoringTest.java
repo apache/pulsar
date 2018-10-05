@@ -72,7 +72,7 @@ public class SLAMonitoringTest {
     void setup() throws Exception {
         log.info("---- Initializing SLAMonitoringTest -----");
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
 
         // start brokers
