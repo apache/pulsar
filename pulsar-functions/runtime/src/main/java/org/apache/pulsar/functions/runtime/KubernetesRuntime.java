@@ -115,9 +115,9 @@ class KubernetesRuntime implements Runtime {
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.pulsarRootDir = pulsarRootDir;
         this.userCodePkgUrl = userCodePkgUrl;
-        this.originalCodeFileName = originalCodeFileName;
+        this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
-        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
+        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, "conf/log4j2.yaml");
         running = false;
         doChecks(instanceConfig.getFunctionDetails());
@@ -370,7 +370,7 @@ class KubernetesRuntime implements Runtime {
         return Arrays.asList(
                 "sh",
                 "-c",
-                String.join(" ", getDownloadCommand(userCodePkgUrl, pulsarRootDir + "/" + originalCodeFileName))
+                String.join(" ", getDownloadCommand(userCodePkgUrl, originalCodeFileName))
                         + " && " + setShardIdEnvironmentVariableCommand()
                         + " && " + String.join(" ", processArgs)
         );
