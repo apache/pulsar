@@ -119,7 +119,7 @@ public class KubernetesRuntimeTest {
 
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 29);
+        assertEquals(args.size(), 30);
         String expectedArgs = "java -cp " + javaInstanceJarFile
                 + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
                 + " -Dlog4j.configurationFile=conf/log4j2.yaml "
@@ -133,7 +133,7 @@ public class KubernetesRuntimeTest {
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(23)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
-                + " --expected_healthcheck_interval -1 --install_usercode_dependencies";
+                + " --expected_healthcheck_interval -1 --install_usercode_dependencies True";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -143,7 +143,7 @@ public class KubernetesRuntimeTest {
 
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 25);
+        assertEquals(args.size(), 26);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
@@ -152,7 +152,7 @@ public class KubernetesRuntimeTest {
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(21)
-                + " --expected_healthcheck_interval -1 --install_usercode_dependencies";
+                + " --expected_healthcheck_interval -1 --install_usercode_dependencies True";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
