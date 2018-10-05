@@ -125,7 +125,7 @@ public interface PulsarClient extends Closeable {
     /**
      * Create a consumer with default for subscribing on a specific topic
      *
-     * Since 2.2, if you are creating a consumer with non-bytes schema on a non-exist topic, it will
+     * Since 2.2, if you are creating a consumer with non-bytes schema on a non-existence topic, it will
      * automatically create the topic with the provided schema.
      *
      * @param schema
