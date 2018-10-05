@@ -96,6 +96,7 @@ class KubernetesRuntime implements Runtime {
                       CoreV1Api coreClient,
                       String jobNamespace,
                       Map<String, String> customLabels,
+                      Boolean installUserCodeDependencies,
                       String pulsarDockerImageName,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
@@ -115,10 +116,10 @@ class KubernetesRuntime implements Runtime {
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.pulsarRootDir = pulsarRootDir;
         this.userCodePkgUrl = userCodePkgUrl;
-        this.originalCodeFileName = originalCodeFileName;
+        this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
-        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, "conf/log4j2.yaml");
+        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
+                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, "conf/log4j2.yaml", installUserCodeDependencies);
         running = false;
         doChecks(instanceConfig.getFunctionDetails());
     }
