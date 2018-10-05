@@ -37,12 +37,8 @@ public class FunctionsStatsGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(FunctionsStatsGenerator.class);
 
-    private static Set<String> METRIC_TYPES = new ConcurrentHashSet<>();
-
     public static void generate(WorkerService workerService, String cluster, SimpleTextOutputStream out) {
         if (workerService != null) {
-            METRIC_TYPES.forEach(metric -> metricType(out, metric));
-
             Map<String, FunctionRuntimeInfo> functionRuntimes
                     = workerService.getFunctionRuntimeManager().getFunctionRuntimeInfos();
 
@@ -98,11 +94,7 @@ public class FunctionsStatsGenerator {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace,
                                String functionName, String metricName, int instanceId, double value) {
-        if (!METRIC_TYPES.contains(metricName)) {
-            metricType(stream, metricName);
-            METRIC_TYPES.add(metricName);
-        }
-
+        metricType(stream, metricName);
         stream.write(metricName).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",name=\"").write(functionName).write("\",instanceId=\"").write(instanceId).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');

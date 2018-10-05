@@ -81,6 +81,7 @@
         <exclude>**/file:/**</exclude>
         <exclude>**/SecurityAuth.audit*</exclude>
         <exclude>**/site/**</exclude>
+        <exclude>**/site2/**</exclude>
         <exclude>**/.idea/**</exclude>
         <exclude>**/*.a</exclude>
         <exclude>**/*.so</exclude>

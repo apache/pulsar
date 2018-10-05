@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.fail;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Sets;
 import java.time.Clock;
@@ -465,7 +467,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        }
 
        Consumer<GenericRecord> consumer = pulsarClient
-           .newConsumer(Schema.AUTO())
+           .newConsumer(Schema.AUTO_CONSUME())
            .topic("persistent://my-property/use/my-ns/my-topic1")
            .subscriptionName("my-subscriber-name")
            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -513,7 +515,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
        }
 
        Reader<GenericRecord> reader = pulsarClient
-           .newReader(Schema.AUTO())
+           .newReader(Schema.AUTO_CONSUME())
            .topic("persistent://my-property/use/my-ns/my-topic1")
            .startMessageId(MessageId.earliest)
            .create();
@@ -541,4 +543,76 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
    }
 
+    @Test
+    public void testAutoBytesProducer() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        AvroSchema<AvroEncodedPojo> avroSchema =
+            AvroSchema.of(AvroEncodedPojo.class);
+
+        try (Producer<AvroEncodedPojo> producer = pulsarClient
+            .newProducer(avroSchema)
+            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .create()) {
+            for (int i = 0; i < 10; i++) {
+                String message = "my-message-" + i;
+                producer.send(new AvroEncodedPojo(message));
+            }
+        }
+
+        try (Producer<byte[]> producer = pulsarClient
+            .newProducer(Schema.AUTO_PRODUCE_BYTES())
+            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .create()) {
+            // try to produce junk data
+            for (int i = 10; i < 20; i++) {
+                String message = "my-message-" + i;
+                byte[] data = avroSchema.encode(new AvroEncodedPojo(message));
+                byte[] junkData = new byte[data.length / 2];
+                System.arraycopy(data, 0, junkData, 0, junkData.length);
+                try {
+                    producer.send(junkData);
+                    fail("Should fail on sending junk data");
+                } catch (SchemaSerializationException sse) {
+                    // expected
+                }
+            }
+
+            for (int i = 10; i < 20; i++) {
+                String message = "my-message-" + i;
+                byte[] data = avroSchema.encode(new AvroEncodedPojo(message));
+                producer.send(data);
+            }
+        }
+
+        Consumer<GenericRecord> consumer = pulsarClient
+            .newConsumer(Schema.AUTO_CONSUME())
+            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .subscriptionName("my-subscriber-name")
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscribe();
+
+        Message<GenericRecord> msg = null;
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = 0; i < 20; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            GenericRecord receivedMessage = msg.getValue();
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            String actualMessage = (String) receivedMessage.getField("message");
+            testMessageOrderAndDuplicates(messageSet, actualMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+
+        SchemaRegistry.SchemaAndMetadata storedSchema = pulsar.getSchemaRegistryService()
+            .getSchema("my-property/my-ns/my-topic1")
+            .get();
+
+        Assert.assertEquals(storedSchema.schema.getData(), avroSchema.getSchemaInfo().getSchema());
+
+        log.info("-- Exiting {} test --", methodName);
+
+    }
 }

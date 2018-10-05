@@ -264,7 +264,7 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> cryptoFailureAction(ProducerCryptoFailureAction action);
 
     /**
-     * Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
+     * Set the time period within which the messages sent will be batched <i>default: 1 ms</i> if batch messages are
      * enabled. If set to a non zero value, messages will be queued until this time interval or until
      *
      * @see ProducerConfiguration#getBatchingMaxMessages()  threshold is reached; all messages will be published as a single

@@ -348,10 +348,15 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (!ledger.ledgerExists(position.getLedgerId())) {
             Long nextExistingLedger = ledger.getNextValidLedger(position.getLedgerId());
             if (nextExistingLedger == null) {
-                log.info("[{}-{}] Couldn't find next next valid ledger for recovery {}", ledger.getName(), name,
+                log.info("[{}] [{}] Couldn't find next next valid ledger for recovery {}", ledger.getName(), name,
                         position);
             }
             position = nextExistingLedger != null ? PositionImpl.get(nextExistingLedger, -1) : position;
+        }
+        if (position.compareTo(ledger.getLastPosition()) > 0) {
+            log.warn("[{}] [{}] Current position {} is ahead of last position {}", ledger.getName(), name, position,
+                    ledger.getLastPosition());
+            position = PositionImpl.get(ledger.getLastPosition());
         }
         log.info("[{}] Cursor {} recovered to position {}", ledger.getName(), name, position);
 
@@ -647,7 +652,15 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long getNumberOfEntries() {
-        return getNumberOfEntries(Range.closedOpen(readPosition, ledger.getLastPosition().getNext()));
+        if (readPosition.compareTo(ledger.getLastPosition().getNext()) > 0) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Read position {} is ahead of last position {}. There are no entries to read",
+                        ledger.getName(), name, readPosition, ledger.getLastPosition());
+            }
+            return 0;
+        } else {
+            return getNumberOfEntries(Range.closedOpen(readPosition, ledger.getLastPosition().getNext()));
+        }
     }
 
     @Override

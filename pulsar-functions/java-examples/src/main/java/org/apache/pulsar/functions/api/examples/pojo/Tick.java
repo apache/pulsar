@@ -18,9 +18,16 @@
  */
 package org.apache.pulsar.functions.api.examples.pojo;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 /**
  * Pojo to represent a stock tick
  */
+@Data
+@ToString
+@EqualsAndHashCode
 public class Tick {
 
     private long timeStamp;
@@ -28,38 +35,7 @@ public class Tick {
     private double bid;
     private double ask;
 
-    public void setTimeStamp(long timeStamp) {
-        this.timeStamp = timeStamp;
-    }
-
-    public void setStockSymbol(String stockSymbol) {
-        this.stockSymbol = stockSymbol;
-    }
-
-    public void setBid(double bid) {
-        this.bid = bid;
-    }
-
-    public void setAsk(double ask) {
-        this.ask = ask;
-    }
-
-    public long getTimeStamp() {
-
-        return timeStamp;
-    }
-
-    public String getStockSymbol() {
-        return stockSymbol;
-    }
-
-    public double getBid() {
-        return bid;
-    }
-
-    public double getAsk() {
-        return ask;
-    }
+    public Tick() {}
 
     public Tick(long timeStamp, String stockSymbol, double bid, double ask) {
 

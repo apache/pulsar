@@ -18,6 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.*;
 
 import com.google.common.base.Charsets;
@@ -42,6 +47,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -66,6 +72,9 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.zookeeper.KeeperException.Code;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -2706,6 +2715,58 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // it's not an estimate if all entries are the same size
         assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 10 * entryData.length);
+    }
+
+    @Test(timeOut = 20000)
+    public void testRecoverCursorAheadOfLastPosition() throws Exception {
+        final String mlName = "my_test_ledger";
+        final PositionImpl lastPosition = new PositionImpl(1L, 10L);
+        final PositionImpl nextPosition = new PositionImpl(3L, -1L);
+
+        final String cursorName = "my_test_cursor";
+        final long cursorsLedgerId = -1L;
+        final long markDeleteLedgerId = 2L;
+        final long markDeleteEntryId = -1L;
+
+        MetaStoreImplZookeeper mockMetaStore = mock(MetaStoreImplZookeeper.class);
+        doAnswer(new Answer<Object>() {
+            public Object answer(InvocationOnMock invocation) {
+                ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(cursorsLedgerId)
+                        .setMarkDeleteLedgerId(markDeleteLedgerId).setMarkDeleteEntryId(markDeleteEntryId)
+                        .setLastActive(0L).build();
+                Stat stat = mock(Stat.class);
+                MetaStoreCallback<ManagedCursorInfo> callback = (MetaStoreCallback<ManagedCursorInfo>) invocation
+                        .getArguments()[2];
+                callback.operationComplete(info, stat);
+                return null;
+            }
+        }).when(mockMetaStore).asyncGetCursorInfo(eq(mlName), eq(cursorName), any(MetaStoreCallback.class));
+
+        ManagedLedgerImpl ml = mock(ManagedLedgerImpl.class);
+        when(ml.getName()).thenReturn(mlName);
+        when(ml.getStore()).thenReturn(mockMetaStore);
+        when(ml.getLastPosition()).thenReturn(lastPosition);
+        when(ml.getNextValidLedger(markDeleteLedgerId)).thenReturn(3L);
+        when(ml.getNextValidPosition(lastPosition)).thenReturn(nextPosition);
+        when(ml.ledgerExists(markDeleteLedgerId)).thenReturn(false);
+
+        BookKeeper mockBookKeeper = mock(BookKeeper.class);
+        final ManagedCursorImpl cursor = new ManagedCursorImpl(mockBookKeeper, new ManagedLedgerConfig(), ml,
+                cursorName);
+
+        cursor.recover(new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                assertEquals(cursor.getMarkDeletedPosition(), lastPosition);
+                assertEquals(cursor.getReadPosition(), nextPosition);
+                assertEquals(cursor.getNumberOfEntries(), 0L);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                fail("Cursor recovery should not fail");
+            }
+        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);

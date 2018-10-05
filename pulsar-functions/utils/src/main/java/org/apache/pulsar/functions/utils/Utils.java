@@ -101,9 +101,8 @@ public class Utils {
         }
     }
 
-    public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig) {
-        Object userClass = createInstance(functionConfig.getClassName(),
-                Thread.currentThread().getContextClassLoader());
+    public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig, ClassLoader classLoader) {
+        Object userClass = createInstance(functionConfig.getClassName(), classLoader);
         boolean isWindowConfigPresent = functionConfig.getWindowConfig() != null;
         return getFunctionTypes(userClass, isWindowConfigPresent);
     }
@@ -187,10 +186,6 @@ public class Utils {
         throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
     }
 
-    public static Class<?> getSourceType(String className) {
-        return getSourceType(className, Thread.currentThread().getContextClassLoader());
-    }
-
     public static Class<?> getSourceType(String className, ClassLoader classloader) {
 
         Object userClass = Reflections.createInstance(className, classloader);
@@ -203,10 +198,6 @@ public class Utils {
         typeArg = TypeResolver.resolveRawArgument(Source.class, source.getClass());
 
         return typeArg;
-    }
-
-    public static Class<?> getSinkType(String className) {
-        return getSinkType(className, Thread.currentThread().getContextClassLoader());
     }
 
     public static Class<?> getSinkType(String className, ClassLoader classLoader) {
