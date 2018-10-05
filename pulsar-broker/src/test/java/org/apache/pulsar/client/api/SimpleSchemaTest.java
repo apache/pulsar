@@ -28,6 +28,7 @@ import org.testng.annotations.Test;
 
 public class SimpleSchemaTest extends ProducerConsumerBase {
 
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -131,9 +132,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
 
         try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create()) {
-            Assert.fail("Shouldn't be able to connect to a schema'd topic with no schema");
-        } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            p.send("junkdata".getBytes(UTF_8));
         }
     }
 

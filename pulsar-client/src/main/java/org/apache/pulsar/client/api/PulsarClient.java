@@ -19,13 +19,10 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
 /**
  * Class that provides a client interface to Pulsar.
@@ -87,6 +84,10 @@ public interface PulsarClient extends Closeable {
      * Producer producer = client.newProducer().topic(myTopic).create();
      * </code>
      *
+     * Since 2.2, the default schema is switched to {@link Schema#AUTO_PRODUCE_BYTES()}. If you are producing
+     * bytes to a topic that has schema associated, the producer will fetch the schema info and validate if
+     * a message is a valid message of the schema, if so the producer can continue producing the messages,
+     * otherwise the message will be rejected with {@link SchemaSerializationException}.
      *
      * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
      *
@@ -124,9 +125,11 @@ public interface PulsarClient extends Closeable {
     /**
      * Create a consumer with default for subscribing on a specific topic
      *
+     * Since 2.2, if you are creating a consumer with non-bytes schema on a non-exist topic, it will
+     * automatically create the topic with the provided schema.
+     *
      * @param schema
      *          provide a way to convert between serialized data and domain objects
-     *
      * @return a {@link ConsumerBuilder} object to configure and construct the {@link Consumer} instance
      *
      * @since 2.0.0

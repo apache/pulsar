@@ -472,6 +472,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Interval between checks to see if topics with compaction policies need to be compacted
     private int brokerServiceCompactionMonitorIntervalInSeconds = 60;
 
+    private boolean isSchemaValidationEnforced = false;
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
             "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
@@ -1656,6 +1657,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setExposeConsumerLevelMetricsInPrometheus(boolean exposeConsumerLevelMetricsInPrometheus) {
         this.exposeConsumerLevelMetricsInPrometheus = exposeConsumerLevelMetricsInPrometheus;
+    }
+
+    public boolean isSchemaValidationEnforced() {
+        return isSchemaValidationEnforced;
+    }
+
+    public void setSchemaValidationEnforced(boolean enforced) {
+        this.isSchemaValidationEnforced = enforced;
     }
 
     public String getSchemaRegistryStorageClassName() {
