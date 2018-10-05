@@ -54,6 +54,7 @@ public class KubernetesRuntimeTest {
 
     private final KubernetesRuntimeFactory factory;
     private final String userJarFile;
+    private final String pulsarRootDir;
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String pulsarServiceUrl;
@@ -62,14 +63,15 @@ public class KubernetesRuntimeTest {
     private final String logDirectory;
 
     public KubernetesRuntimeTest() throws Exception {
-        this.userJarFile = "/Users/user/UserJar.jar";
+        this.userJarFile = "UserJar.jar";
+        this.pulsarRootDir = "/pulsar";
         this.javaInstanceJarFile = "/pulsar/instances/java-instance.jar";
         this.pythonInstanceFile = "/pulsar/instances/python-instance/python_instance_main.py";
         this.pulsarServiceUrl = "pulsar://localhost:6670";
         this.pulsarAdminUrl = "http://localhost:8080";
         this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "logs/functions";
-        this.factory = spy(new KubernetesRuntimeFactory(null, null, null, null,
+        this.factory = spy(new KubernetesRuntimeFactory(null, null, null, pulsarRootDir,
             false, true, null, pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null));
         doNothing().when(this.factory).setupClient();
     }
@@ -126,7 +128,7 @@ public class KubernetesRuntimeTest {
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionDetailsUtils.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
-                + " --jar " + userJarFile + " --instance_id "
+                + " --jar " + pulsarRootDir + "/" + userJarFile + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
@@ -145,7 +147,7 @@ public class KubernetesRuntimeTest {
         List<String> args = container.getProcessArgs();
         assertEquals(args.size(), 26);
         String expectedArgs = "python " + pythonInstanceFile
-                + " --py " + userJarFile + " --logging_directory "
+                + " --py " + pulsarRootDir + "/" + userJarFile + " --logging_directory "
                 + logDirectory + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
