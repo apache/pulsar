@@ -22,6 +22,7 @@ import java.util.Properties;
 
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 
 public class PulsarProducerKafkaConfig {
 
@@ -35,7 +36,7 @@ public class PulsarProducerKafkaConfig {
     public static final String BATCHING_MAX_MESSAGES = "pulsar.producer.batching.max.messages";
 
     public static ProducerBuilder<byte[]> getProducerBuilder(PulsarClient client, Properties properties) {
-        ProducerBuilder<byte[]> producerBuilder = client.newProducer();
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer(Schema.AUTO_PRODUCE_BYTES());
 
         if (properties.containsKey(PRODUCER_NAME)) {
             producerBuilder.producerName(properties.getProperty(PRODUCER_NAME));

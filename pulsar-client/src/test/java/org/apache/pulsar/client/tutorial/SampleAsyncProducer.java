@@ -31,20 +31,22 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
 
 @Slf4j
 public class SampleAsyncProducer {
     public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-tenant/my-ns/my-topic")
-                .sendTimeout(3, TimeUnit.SECONDS).create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+            .topic("persistent://my-tenant/my-ns/my-topic")
+            .sendTimeout(3, TimeUnit.SECONDS).create();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayList();
 
         for (int i = 0; i < 10; i++) {
             final String content = "my-message-" + i;
-            CompletableFuture<MessageId> future = producer.sendAsync(content.getBytes());
+            CompletableFuture<MessageId> future = producer.sendAsync(content);
 
             future.handle((v, ex) -> {
                 if (ex == null) {

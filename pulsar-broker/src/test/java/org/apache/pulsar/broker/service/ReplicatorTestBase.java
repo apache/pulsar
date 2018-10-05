@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -268,7 +269,7 @@ public class ReplicatorTestBase {
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
             client = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
-            producer = client.newProducer()
+            producer = client.newProducer(Schema.AUTO_PRODUCE_BYTES())
                 .topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -281,7 +282,7 @@ public class ReplicatorTestBase {
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
             client = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
-            ProducerBuilder<byte[]> producerBuilder = client.newProducer()
+            ProducerBuilder<byte[]> producerBuilder = client.newProducer(Schema.AUTO_PRODUCE_BYTES())
                 .topic(topicName)
                 .enableBatching(batch)
                 .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
