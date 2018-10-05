@@ -32,6 +32,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
@@ -82,7 +83,8 @@ public class RuntimeSpawner implements AutoCloseable {
             processLivenessCheckTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override
                 public void run() {
-                    if (!runtime.isAlive()) {
+                    Runtime runtime = RuntimeSpawner.this.runtime;
+                    if (runtime != null && !runtime.isAlive()) {
                         log.error("{}/{}/{}-{} Function Container is dead with exception.. restarting", details.getTenant(),
                                 details.getNamespace(), details.getName(), runtime.getDeathException());
                         // Just for the sake of sanity, just destroy the runtime
@@ -108,6 +110,10 @@ public class RuntimeSpawner implements AutoCloseable {
     }
 
     public CompletableFuture<FunctionStatus> getFunctionStatus(int instanceId) {
+        Runtime runtime = this.runtime;
+        if (null == runtime) {
+            return FutureUtil.failedFuture(new IllegalStateException("Function runtime is not started yet"));
+        }
         return runtime.getFunctionStatus(instanceId).thenApply(f -> {
            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
            builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(String.valueOf(instanceId));
@@ -131,6 +137,11 @@ public class RuntimeSpawner implements AutoCloseable {
 
     @Override
     public void close() {
+        // cancel liveness checker before stopping runtime.
+        if (processLivenessCheckTimer != null) {
+            processLivenessCheckTimer.cancel();
+            processLivenessCheckTimer = null;
+        }
         if (null != runtime) {
             try {
                 runtime.stop();
@@ -138,10 +149,6 @@ public class RuntimeSpawner implements AutoCloseable {
                 // Ignore
             }
             runtime = null;
-        }
-        if (processLivenessCheckTimer != null) {
-            processLivenessCheckTimer.cancel();
-            processLivenessCheckTimer = null;
         }
     }
 }
