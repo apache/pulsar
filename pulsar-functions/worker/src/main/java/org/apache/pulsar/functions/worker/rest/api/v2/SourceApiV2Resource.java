@@ -44,15 +44,15 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/{sourceName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response registerSource(final @PathParam("tenant") String tenant,
-                                     final @PathParam("namespace") String namespace,
-                                     final @PathParam("sourceName") String sourceName,
-                                     final @FormDataParam("data") InputStream uploadedInputStream,
-                                     final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                     final @FormDataParam("url") String sourcePkgUrl,
-                                     final @FormDataParam("sourceConfig") String sourceConfigJson) {
+                                   final @PathParam("namespace") String namespace,
+                                   final @PathParam("sourceName") String sourceName,
+                                   final @FormDataParam("data") InputStream uploadedInputStream,
+                                   final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                                   final @FormDataParam("url") String functionPkgUrl,
+                                   final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         return functions.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                sourcePkgUrl, null, null, sourceConfigJson, null, clientAppId());
+                functionPkgUrl, null, null, sourceConfigJson, null, clientAppId());
 
     }
 

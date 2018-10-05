@@ -39,10 +39,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -75,6 +73,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
@@ -1007,13 +1006,13 @@ public class FunctionsImpl {
         }
         if (!StringUtils.isEmpty(sourceConfigJson)) {
             SourceConfig sourceConfig = new Gson().fromJson(sourceConfigJson, SourceConfig.class);
-            ClassLoader clsLoader = extractClassLoader(functionPkgUrl, uploadedInputStreamAsFile);
+            NarClassLoader clsLoader = extractNarClassLoader(sourceConfig.getArchive(), functionPkgUrl, uploadedInputStreamAsFile, true);
             ConfigValidation.validateConfig(sourceConfig, FunctionConfig.Runtime.JAVA.name(), clsLoader);
             return SourceConfigUtils.convert(sourceConfig, clsLoader);
         }
         if (!StringUtils.isEmpty(sinkConfigJson)) {
             SinkConfig sinkConfig = new Gson().fromJson(sinkConfigJson, SinkConfig.class);
-            ClassLoader clsLoader = extractClassLoader(functionPkgUrl, uploadedInputStreamAsFile);
+            NarClassLoader clsLoader = extractNarClassLoader(sinkConfig.getArchive(), functionPkgUrl, uploadedInputStreamAsFile, false);
             ConfigValidation.validateConfig(sinkConfig, FunctionConfig.Runtime.JAVA.name(), clsLoader);
             return SinkConfigUtils.convert(sinkConfig, clsLoader);
         }
@@ -1074,6 +1073,55 @@ public class FunctionsImpl {
         } else {
             return null;
         }
+    }
+
+    private NarClassLoader extractNarClassLoader(String archive, String pkgUrl, File uploadedInputStreamFileName,
+                                                 boolean isSource) {
+        if (!StringUtils.isEmpty(archive)) {
+            if (isSource) {
+                Path path;
+                try {
+                    path = this.worker().getConnectorsManager().getSourceArchive(archive);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(String.format("No Source archive %s found", archive));
+                }
+                try {
+                    return NarClassLoader.getFromArchive(path.toFile(),
+                            Collections.emptySet());
+                } catch (IOException e) {
+                    throw new IllegalArgumentException(String.format("The source %s is corrupted", archive));
+                }
+            } else {
+                Path path;
+                try {
+                    path = this.worker().getConnectorsManager().getSinkArchive(archive);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(String.format("No Sink archive %s found", archive));
+                }
+                try {
+                    return NarClassLoader.getFromArchive(path.toFile(),
+                            Collections.emptySet());
+                } catch (IOException e) {
+                    throw new IllegalArgumentException(String.format("The sink %s is corrupted", archive));
+                }
+            }
+        }
+        if (!StringUtils.isEmpty(pkgUrl)) {
+            try {
+                return Utils.extractNarClassloader(pkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
+            } catch (Exception e) {
+                throw new IllegalArgumentException(e.getMessage());
+            }
+        }
+        if (uploadedInputStreamFileName != null) {
+            try {
+                return NarClassLoader.getFromArchive(uploadedInputStreamFileName,
+                        Collections.emptySet());
+            } catch (IOException e) {
+                throw new IllegalArgumentException(e.getMessage());
+            }
+        }
+        return null;
     }
 
     private void validateFunctionClassTypes(ClassLoader classLoader, FunctionDetails.Builder functionDetailsBuilder) {

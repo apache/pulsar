@@ -48,11 +48,11 @@ public class SinkApiV2Resource extends FunctionApiResource {
                                  final @PathParam("sinkName") String sinkName,
                                  final @FormDataParam("data") InputStream uploadedInputStream,
                                  final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                 final @FormDataParam("url") String sourcePkgUrl,
+                                 final @FormDataParam("url") String functionPkgUrl,
                                  final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
         return functions.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                sourcePkgUrl, null, null, null, sinkConfigJson, clientAppId());
+                functionPkgUrl, null, null, null, sinkConfigJson, clientAppId());
 
     }
 
