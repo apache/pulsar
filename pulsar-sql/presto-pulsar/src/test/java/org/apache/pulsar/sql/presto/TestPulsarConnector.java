@@ -50,7 +50,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.javax.ws.rs.ClientErrorException;
 import org.apache.pulsar.shade.javax.ws.rs.core.Response;
 import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
@@ -603,7 +603,7 @@ public abstract class TestPulsarConnector {
 
             Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 
-            org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload
+            ByteBuf payload
                     = org.apache.pulsar.shade.io.netty.buffer.Unpooled.copiedBuffer(schema.encode(foo));
 
             ByteBuf byteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, payload);
@@ -851,7 +851,7 @@ public abstract class TestPulsarConnector {
 
                                     Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 
-                                    org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload
+                                    ByteBuf payload
                                             = org.apache.pulsar.shade.io.netty.buffer.Unpooled.copiedBuffer(schema.encode(foo));
 
                                     ByteBuf byteBuf = serializeMetadataAndPayload
