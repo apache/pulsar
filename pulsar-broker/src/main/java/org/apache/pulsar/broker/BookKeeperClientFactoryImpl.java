@@ -53,7 +53,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setReadEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setSpeculativeReadTimeout(conf.getBookkeeperClientSpeculativeReadTimeoutInMillis());
         bkConf.setNumChannelsPerBookie(16);
-        bkConf.setUseV2WireProtocol(true);
+        bkConf.setUseV2WireProtocol(conf.isBookkeeperUseV2WireProtocol());
         bkConf.setEnableDigestTypeAutodetection(true);
         bkConf.setLedgerManagerFactoryClassName(HierarchicalLedgerManagerFactory.class.getName());
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
