@@ -38,7 +38,8 @@ public class FunctionsStatsGenerator {
     private static final Logger log = LoggerFactory.getLogger(FunctionsStatsGenerator.class);
 
     public static void generate(WorkerService workerService, String cluster, SimpleTextOutputStream out) {
-        if (workerService != null) {
+        // only when worker service is initialized, we generate the stats. otherwise we will get bunch of NPE.
+        if (workerService != null && workerService.isInitialized()) {
             Map<String, FunctionRuntimeInfo> functionRuntimes
                     = workerService.getFunctionRuntimeManager().getFunctionRuntimeInfos();
 
