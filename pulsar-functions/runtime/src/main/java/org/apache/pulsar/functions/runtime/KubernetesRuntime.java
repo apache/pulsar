@@ -370,7 +370,7 @@ class KubernetesRuntime implements Runtime {
         return Arrays.asList(
                 "sh",
                 "-c",
-                String.join(" ", getDownloadCommand(userCodePkgUrl, originalCodeFileName))
+                String.join(" ", getDownloadCommand(userCodePkgUrl, pulsarRootDir + "/" + originalCodeFileName))
                         + " && " + setShardIdEnvironmentVariableCommand()
                         + " && " + String.join(" ", processArgs)
         );
