@@ -105,7 +105,7 @@ public class ReplicatorTestBase {
 
         // Start region 1
         int zkPort1 = PortManager.nextFreePort();
-        bkEnsemble1 = new LocalBookkeeperEnsemble(3, zkPort1, PortManager.nextFreePort());
+        bkEnsemble1 = new LocalBookkeeperEnsemble(3, zkPort1, () -> PortManager.nextFreePort());
         bkEnsemble1.start();
 
         int webServicePort1 = PortManager.nextFreePort();
@@ -143,7 +143,7 @@ public class ReplicatorTestBase {
 
         // Start zk & bks
         int zkPort2 = PortManager.nextFreePort();
-        bkEnsemble2 = new LocalBookkeeperEnsemble(3, zkPort2, PortManager.nextFreePort());
+        bkEnsemble2 = new LocalBookkeeperEnsemble(3, zkPort2, () -> PortManager.nextFreePort());
         bkEnsemble2.start();
 
         int webServicePort2 = PortManager.nextFreePort();
@@ -177,7 +177,7 @@ public class ReplicatorTestBase {
 
         // Start zk & bks
         int zkPort3 = PortManager.nextFreePort();
-        bkEnsemble3 = new LocalBookkeeperEnsemble(3, zkPort3, PortManager.nextFreePort());
+        bkEnsemble3 = new LocalBookkeeperEnsemble(3, zkPort3, () -> PortManager.nextFreePort());
         bkEnsemble3.start();
 
         int webServicePort3 = PortManager.nextFreePort();
