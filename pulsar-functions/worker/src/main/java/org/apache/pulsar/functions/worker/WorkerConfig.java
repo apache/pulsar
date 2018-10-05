@@ -139,6 +139,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private Boolean submittingInsidePod;
         private String pulsarServiceUrl;
         private String pulsarAdminUrl;
+        private Boolean installUserCodeDependencies;
         private Map<String, String> customLabels;
     }
     private KubernetesContainerFactory kubernetesContainerFactory;

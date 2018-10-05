@@ -26,7 +26,10 @@ import base64
 import os
 import signal
 import time
-import Queue
+try:
+  import Queue as queue
+except:
+  import queue
 import threading
 from functools import partial
 from collections import namedtuple
@@ -117,7 +120,7 @@ class PythonInstance(object):
   def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, expected_healthcheck_interval, user_code, pulsar_client):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
-    self.queue = Queue.Queue(max_buffered_tuples)
+    self.queue = queue.Queue(max_buffered_tuples)
     self.log_topic_handler = None
     if function_details.logTopic is not None and function_details.logTopic != "":
       self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
