@@ -71,6 +71,7 @@ def main():
   parser.add_argument('--logging_directory', required=True, help='Logging Directory')
   parser.add_argument('--logging_file', required=True, help='Log file name')
   parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
+  parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
 
   args = parser.parse_args()
   function_details = Function_pb2.FunctionDetails()
@@ -82,8 +83,11 @@ def main():
   json_format.Parse(args.function_details, function_details)
 
   if os.path.splitext(str(args.py))[1] == '.whl':
-    zpfile = zipfile.ZipFile(str(args.py), 'r')
-    zpfile.extractall(os.path.dirname(str(args.py)))
+    if args.install_usercode_dependencies:
+      os.system("pip install -t %s %s" % (os.path.dirname(str(args.py)), str(args.py)))
+    else:
+      zpfile = zipfile.ZipFile(str(args.py), 'r')
+      zpfile.extractall(os.path.dirname(str(args.py)))
     sys.path.insert(0, os.path.dirname(str(args.py)))
 
   log_file = os.path.join(args.logging_directory,
