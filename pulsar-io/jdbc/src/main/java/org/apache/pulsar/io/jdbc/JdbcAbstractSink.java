@@ -19,8 +19,6 @@
 
 package org.apache.pulsar.io.jdbc;
 
-import static jersey.repackaged.com.google.common.base.Preconditions.checkState;
-
 import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -139,8 +137,9 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             if (log.isDebugEnabled()) {
                 log.debug("Starting flush, queue size: {}", incomingList.size());
             }
-            checkState(swapList.isEmpty(),
-                "swapList should be empty since last flush. swapList.size: " + swapList.size());
+            if (!swapList.isEmpty()) {
+                throw new IllegalStateException("swapList should be empty since last flush. swapList.size: " + swapList.size());
+            }
 
             synchronized (incomingList) {
                 List<Record<T>> tmpList;
