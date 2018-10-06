@@ -676,6 +676,12 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient_log4j2</artifactId>
+        <version>${prometheus.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.prometheus</groupId>
         <artifactId>simpleclient_servlet</artifactId>
         <version>${prometheus.version}</version>
       </dependency>
