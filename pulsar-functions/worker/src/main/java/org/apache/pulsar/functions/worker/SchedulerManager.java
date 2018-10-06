@@ -18,19 +18,19 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
-
+import com.google.common.base.Stopwatch;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -88,19 +88,46 @@ public class SchedulerManager implements AutoCloseable {
         this.scheduler = Reflections.createInstance(workerConfig.getSchedulerClassName(), IScheduler.class,
                 Thread.currentThread().getContextClassLoader());
 
-        try {
-            this.producer = pulsarClient.newProducer().topic(this.workerConfig.getFunctionAssignmentTopic())
-                    .enableBatching(false).blockIfQueueFull(true).compressionType(CompressionType.LZ4).
-                    sendTimeout(0, TimeUnit.MILLISECONDS).create();
-        } catch (PulsarClientException e) {
-            log.error("Failed to create producer to function assignment topic "
-                    + this.workerConfig.getFunctionAssignmentTopic(), e);
-            throw new RuntimeException(e);
-        }
-
+        this.producer = createProducer(pulsarClient, workerConfig);
         this.executorService = executor;
         
         scheduleCompaction(executor, workerConfig.getTopicCompactionFrequencySec());
+    }
+
+    private static Producer<byte[]> createProducer(PulsarClient client, WorkerConfig config) {
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        for (int i = 0; i < 6; i++) {
+            try {
+                return client.newProducer().topic(config.getFunctionAssignmentTopic())
+                    .enableBatching(false)
+                    .blockIfQueueFull(true)
+                    .compressionType(CompressionType.LZ4)
+                    .sendTimeout(0, TimeUnit.MILLISECONDS)
+                    .createAsync().get(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                log.error("Interrupted at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                log.error("Encountered exceptions at creating producer for topic {}",
+                    config.getFunctionAssignmentTopic(), e);
+                throw new RuntimeException(e);
+            } catch (TimeoutException e) {
+                try {
+                    log.info("Can't create a producer on assignment topic {} in {} seconds, retry in 10 seconds ...",
+                        stopwatch.elapsed(TimeUnit.SECONDS));
+                    TimeUnit.SECONDS.sleep(10);
+                } catch (InterruptedException e1) {
+                    log.error("Interrupted at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+                continue;
+            }
+        }
+        throw new RuntimeException("Can't create a producer on assignment topic "
+            + config.getFunctionAssignmentTopic() + " in " + stopwatch.elapsed(TimeUnit.SECONDS)
+            + " seconds, fail fast ...");
     }
 
     public Future<?> schedule() {
