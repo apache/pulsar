@@ -45,6 +45,7 @@ import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
@@ -106,6 +107,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setZookeeperServers("localhost:2181");
         this.conf.setConfigurationStoreServers("localhost:3181");
+        this.conf.setSchemaRegistryStorageClassName(BookkeeperSchemaStorage.class.getName());
     }
 
     protected final void internalSetup() throws Exception {
