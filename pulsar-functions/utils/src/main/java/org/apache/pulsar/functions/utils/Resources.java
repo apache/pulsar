@@ -20,9 +20,6 @@ package org.apache.pulsar.functions.utils;
 
 import lombok.*;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @Getter
 @Setter
 @Data

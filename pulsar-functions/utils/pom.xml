@@ -34,14 +34,20 @@
   <dependencies>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-admin-original</artifactId>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-all</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-all</artifactId>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-io-core</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
