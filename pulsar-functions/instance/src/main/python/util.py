@@ -25,6 +25,7 @@
 import os
 import inspect
 import sys
+import importlib
 
 import log
 
@@ -52,7 +53,7 @@ def import_class_from_path(from_path, full_class_name):
     sys.path.insert(0, from_path)
   if not classname_path:
     try:
-      mod = __import__(class_name, level=-1)
+      mod = importlib.import_module(class_name)
       return mod
     except Exception as e:
       Log.info("Import failed class_name %s from path %s" % (class_name, from_path))
@@ -60,7 +61,7 @@ def import_class_from_path(from_path, full_class_name):
       return None
   else:
     try:
-      mod = __import__(classname_path, fromlist=[class_name], level=-1)
+      mod = importlib.import_module(classname_path)
       retval = getattr(mod, class_name)
       return retval
     except Exception as e:
