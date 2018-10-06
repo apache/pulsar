@@ -107,7 +107,6 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setZookeeperServers("localhost:2181");
         this.conf.setConfigurationStoreServers("localhost:3181");
-        this.conf.setSchemaRegistryStorageClassName(BookkeeperSchemaStorage.class.getName());
     }
 
     protected final void internalSetup() throws Exception {
