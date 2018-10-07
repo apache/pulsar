@@ -54,7 +54,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.Test;
 
-@Test(enabled = false)
 @Slf4j
 public class KafkaApiTest extends PulsarTestSuite {
 
