@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -247,13 +248,13 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
 		// Step 3: Pass correct client params
 		PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams, 1);
-		proxyClient.newProducer().topic(topicName).create();
+		proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
 		// Sleep for 4 seconds - wait for proxy auth params to expire
 		Thread.sleep(4 * 1000);
-		proxyClient.newProducer().topic(topicName).create();
+		proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
 		// Sleep for 3 seconds - wait for client auth parans to expire
 		Thread.sleep(3 * 1000);
-		proxyClient.newProducer().topic(topicName).create();
+		proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
 		proxyClient.close();
 		proxyService.close();
 	}

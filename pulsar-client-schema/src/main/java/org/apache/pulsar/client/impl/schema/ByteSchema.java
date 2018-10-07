@@ -38,6 +38,12 @@ public class ByteSchema implements Schema<Byte> {
         .setType(SchemaType.INT8)
         .setSchema(new byte[0]);
 
+    @Override
+    public void validate(byte[] message) {
+        if (message.length != 1) {
+            throw new SchemaSerializationException("Size of data received by ByteSchema is not 1");
+        }
+    }
 
     @Override
     public byte[] encode(Byte message) {
@@ -53,9 +59,7 @@ public class ByteSchema implements Schema<Byte> {
         if (null == bytes) {
             return null;
         }
-        if (bytes.length != 1) {
-            throw new SchemaSerializationException("Size of data received by ByteSchema is not 1");
-        }
+        validate(bytes);
         return bytes[0];
     }
 
