@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.functions.instance;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
