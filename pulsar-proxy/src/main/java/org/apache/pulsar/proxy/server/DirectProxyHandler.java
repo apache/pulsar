@@ -50,6 +50,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
+import io.prometheus.client.Counter;
 
 public class DirectProxyHandler {
 
@@ -61,6 +62,12 @@ public class DirectProxyHandler {
     public static final String TLS_HANDLER = "tls";
 
     private final Authentication authentication;
+
+    static final Counter opsCounter = Counter
+            .build("pulsar_proxy_ops", "Counter of proxy operations").create().register();
+
+    static final Counter bytesCounter = Counter
+            .build("pulsar_proxy_bytes", "Counter of proxy bytes").create().register();
 
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl) {
         this.authentication = proxyConnection.getClientAuthentication();
@@ -169,6 +176,10 @@ public class DirectProxyHandler {
                 break;
 
             case HandshakeCompleted:
+                opsCounter.inc();
+                if (msg instanceof ByteBuf) {
+                    bytesCounter.inc(((ByteBuf) msg).readableBytes());
+                }
                 inboundChannel.writeAndFlush(msg).addListener(this);
                 break;
 
