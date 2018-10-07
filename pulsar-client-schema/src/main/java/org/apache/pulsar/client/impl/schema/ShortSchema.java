@@ -39,6 +39,13 @@ public class ShortSchema implements Schema<Short> {
         .setSchema(new byte[0]);
 
     @Override
+    public void validate(byte[] message) {
+        if (message.length != 2) {
+            throw new SchemaSerializationException("Size of data received by ShortSchema is not 2");
+        }
+    }
+
+    @Override
     public byte[] encode(Short message) {
         if (null == message) {
             return null;
@@ -55,9 +62,7 @@ public class ShortSchema implements Schema<Short> {
         if (null == bytes) {
             return null;
         }
-        if (bytes.length != 2) {
-            throw new SchemaSerializationException("Size of data received by ShortSchema is not 2");
-        }
+        validate(bytes);
         short value = 0;
         for (byte b : bytes) {
             value <<= 8;

@@ -41,6 +41,13 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
+    public void validate(byte[] message) {
+        ensureSchemaInitialized();
+
+        schema.validate(message);
+    }
+
+    @Override
     public byte[] encode(GenericRecord message) {
         ensureSchemaInitialized();
 
