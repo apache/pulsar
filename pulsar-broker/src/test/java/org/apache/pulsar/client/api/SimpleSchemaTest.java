@@ -163,8 +163,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             }
         }
 
-        // default schema is AUTO_PRODUCE_BYTES. producer can connect but the publish will fail
-        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create()) {
+        // if using AUTO_PRODUCE_BYTES, producer can connect but the publish will fail
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topic).create()) {
             p.send("junkdata".getBytes(UTF_8));
         } catch (PulsarClientException e) {
             assertTrue(e.getCause() instanceof SchemaSerializationException);

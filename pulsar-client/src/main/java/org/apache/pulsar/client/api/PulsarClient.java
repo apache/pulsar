@@ -84,11 +84,6 @@ public interface PulsarClient extends Closeable {
      * Producer producer = client.newProducer().topic(myTopic).create();
      * </code>
      *
-     * Since 2.2, the default schema is switched to {@link Schema#AUTO_PRODUCE_BYTES()}. If you are producing
-     * bytes to a topic that has schema associated, the producer will fetch the schema info and validate if
-     * a message is a valid message of the schema, if so the producer can continue producing the messages,
-     * otherwise the message will be rejected with {@link SchemaSerializationException}.
-     *
      * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
      *
      * @since 2.0.0

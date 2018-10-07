@@ -155,9 +155,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public ProducerBuilder<byte[]> newProducer() {
-        // set the default to `AUTO_PRODUCE_BYTES`, so when server side enforces schema validation, it won't
-        // break existing pulsar clients
-        return new ProducerBuilderImpl<>(this, Schema.AUTO_PRODUCE_BYTES());
+        return new ProducerBuilderImpl<>(this, Schema.BYTES);
     }
 
     @Override
