@@ -37,6 +37,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -79,7 +80,7 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("localrun", localSourceRunner);
-        jcommander.addCommand("available-sources", new ListSources());
+        jcommander.addCommand("available-sources", new ListBuiltInSources());
     }
 
     /**
@@ -187,9 +188,9 @@ public class CmdSources extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(this.sourceConfig.getArchive())) {
-                admin.functions().createFunctionWithUrl(SourceConfigUtils.convert(sourceConfig), sourceConfig.getArchive());
+                admin.source().createSourceWithUrl(sourceConfig, sourceConfig.getArchive());
             } else {
-                admin.functions().createFunction(SourceConfigUtils.convert(sourceConfig), sourceConfig.getArchive());
+                admin.source().createSource(sourceConfig, sourceConfig.getArchive());
             }
             print("Created successfully");
         }
@@ -200,9 +201,9 @@ public class CmdSources extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive())) {
-                admin.functions().updateFunctionWithUrl(SourceConfigUtils.convert(sourceConfig), sourceConfig.getArchive());
+                admin.source().updateSourceWithUrl(sourceConfig, sourceConfig.getArchive());
             } else {
-                admin.functions().updateFunction(SourceConfigUtils.convert(sourceConfig), sourceConfig.getArchive());
+                admin.source().updateSource(sourceConfig, sourceConfig.getArchive());
             }
             print("Updated successfully");
         }
@@ -266,6 +267,8 @@ public class CmdSources extends CmdBase {
         protected String sourceConfigString;
 
         protected SourceConfig sourceConfig;
+
+        protected NarClassLoader classLoader;
 
         private void mergeArgs() {
             if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
@@ -403,7 +406,6 @@ public class CmdSources extends CmdBase {
 
 
             // if jar file is present locally then load jar and validate SinkClass in it
-            ClassLoader classLoader = null;
             if (archivePath != null) {
                 if (!fileExists(archivePath)) {
                     throw new ParameterException("Archive file " + archivePath + " does not exist");
@@ -436,14 +438,14 @@ public class CmdSources extends CmdBase {
                 throws IOException {
             org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder
                     = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
-            Utils.mergeJson(FunctionsImpl.printJson(SourceConfigUtils.convert(sourceConfig)), functionDetailsBuilder);
+            Utils.mergeJson(FunctionsImpl.printJson(SourceConfigUtils.convert(sourceConfig, classLoader)), functionDetailsBuilder);
             return functionDetailsBuilder.build();
         }
 
         protected String validateSourceType(String sourceType) throws IOException {
             Set<String> availableSources;
             try {
-                availableSources = admin.functions().getSources();
+                availableSources = admin.source().getBuiltInSources().stream().map(ConnectorDefinition::getName).collect(Collectors.toSet());
             } catch (PulsarAdminException e) {
                 throw new IOException(e);
             }
@@ -487,16 +489,16 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.functions().deleteFunction(tenant, namespace, name);
+            admin.source().deleteSource(tenant, namespace, name);
             print("Delete source successfully");
         }
     }
 
     @Parameters(commandDescription = "Get the list of Pulsar IO connector sources supported by Pulsar cluster")
-    public class ListSources extends BaseCommand {
+    public class ListBuiltInSources extends BaseCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().getConnectorsList().stream().filter(x -> !StringUtils.isEmpty(x.getSourceClass()))
+            admin.source().getBuiltInSources().stream().filter(x -> !StringUtils.isEmpty(x.getSourceClass()))
                     .forEach(connector -> {
                         System.out.println(connector.getName());
                         System.out.println(WordUtils.wrap(connector.getDescription(), 80));
