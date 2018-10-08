@@ -225,7 +225,10 @@ extends Closeable</pre>
 <tr id="i12" class="altColor">
 <td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--">newConsumer</a></span>(&lt;any&gt;&nbsp;schema)</code>
-<div class="block">Create a consumer with default for subscribing on a specific topic</div>
+<div class="block">Create a consumer with default for subscribing on a specific topic
+
+ Since 2.2, if you are creating a consumer with non-bytes schema on a non-existence topic, it will
+ automatically create the topic with the provided schema.</div>
 </td>
 </tr>
 <tr id="i13" class="rowColor">
@@ -448,7 +451,10 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 <li class="blockList">
 <h4>newConsumer</h4>
 <pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;&nbsp;newConsumer(&lt;any&gt;&nbsp;schema)</pre>
-<div class="block">Create a consumer with default for subscribing on a specific topic</div>
+<div class="block">Create a consumer with default for subscribing on a specific topic
+
+ Since 2.2, if you are creating a consumer with non-bytes schema on a non-existence topic, it will
+ automatically create the topic with the provided schema.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>schema</code> - provide a way to convert between serialized data and domain objects</dd>

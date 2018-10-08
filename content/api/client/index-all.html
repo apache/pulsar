@@ -1215,7 +1215,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--">newConsumer(&lt;any&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Create a consumer with default for subscribing on a specific topic</div>
+<div class="block">Create a consumer with default for subscribing on a specific topic
+
+ Since 2.2, if you are creating a consumer with non-bytes schema on a non-existence topic, it will
+ automatically create the topic with the provided schema.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Producer.html#newMessage--">newMessage()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a></dt>
 <dd>
