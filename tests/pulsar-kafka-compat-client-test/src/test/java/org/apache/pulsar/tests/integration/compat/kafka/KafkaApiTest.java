@@ -51,25 +51,32 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.testng.annotations.Test;
 
-@Test(enabled = false)
 @Slf4j
-public class KafkaApiTest extends PulsarTestSuite {
+public class KafkaApiTest extends PulsarStandaloneTestSuite {
+
+    private static String getPlainTextServiceUrl() {
+        return container.getPlainTextServiceUrl();
+    }
+
+    private static String getHttpServiceUrl() {
+        return container.getHttpServiceUrl();
+    }
 
     @Test(timeOut = 30000)
     public void testSimpleProducerConsumer() throws Exception {
         String topic = "persistent://public/default/testSimpleProducerConsumer";
 
         Properties producerProperties = new Properties();
-        producerProperties.put("bootstrap.servers", pulsarCluster.getPlainTextServiceUrl());
+        producerProperties.put("bootstrap.servers", getPlainTextServiceUrl());
         producerProperties.put("key.serializer", IntegerSerializer.class.getName());
         producerProperties.put("value.serializer", StringSerializer.class.getName());
         Producer<Integer, String> producer = new KafkaProducer<>(producerProperties);
 
         Properties consumerProperties = new Properties();
-        consumerProperties.put("bootstrap.servers", pulsarCluster.getPlainTextServiceUrl());
+        consumerProperties.put("bootstrap.servers", getPlainTextServiceUrl());
         consumerProperties.put("group.id", "my-subscription-name");
         consumerProperties.put("key.deserializer", IntegerDeserializer.class.getName());
         consumerProperties.put("value.deserializer", StringDeserializer.class.getName());
@@ -110,16 +117,20 @@ public class KafkaApiTest extends PulsarTestSuite {
         String topic = "testSimpleConsumer";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", pulsarCluster.getPlainTextServiceUrl());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
 
+        @Cleanup
         Consumer<String, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
+
+        @Cleanup
         org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
@@ -129,17 +140,21 @@ public class KafkaApiTest extends PulsarTestSuite {
         AtomicInteger received = new AtomicInteger();
         while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(received.get()));
-                assertEquals(record.value(), "hello-" + received.get());
+            if (!records.isEmpty()) {
+                records.forEach(record -> {
+                    String key = Integer.toString(received.get());
+                    String value = "hello-" + received.get();
+                    log.info("Receive record : key = {}, value = {}, topic = {}, ptn = {}",
+                        key, value, record.topic(), record.partition());
+                    assertEquals(record.key(), key);
+                    assertEquals(record.value(), value);
 
-                received.incrementAndGet();
-            });
+                    received.incrementAndGet();
+                });
 
-            consumer.commitSync();
+                consumer.commitSync();
+            }
         }
-
-        consumer.close();
     }
 
     @Test
@@ -147,7 +162,7 @@ public class KafkaApiTest extends PulsarTestSuite {
         String topic = "testConsumerAutoCommit";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", pulsarCluster.getPlainTextServiceUrl());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "true");
         props.put("key.deserializer", StringDeserializer.class.getName());
@@ -157,7 +172,7 @@ public class KafkaApiTest extends PulsarTestSuite {
         consumer.subscribe(Arrays.asList(topic));
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
         org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
@@ -190,7 +205,7 @@ public class KafkaApiTest extends PulsarTestSuite {
         String topic = "testConsumerManualOffsetCommit";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", pulsarCluster.getPlainTextServiceUrl());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
@@ -200,7 +215,7 @@ public class KafkaApiTest extends PulsarTestSuite {
         consumer.subscribe(Arrays.asList(topic));
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
         org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
@@ -240,18 +255,18 @@ public class KafkaApiTest extends PulsarTestSuite {
 
         // Create 8 partitions in topic
         @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(getHttpServiceUrl()).build();
         admin.topics().createPartitionedTopic(topic, 8);
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", pulsarCluster.getPlainTextServiceUrl());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "true");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
         org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic)
                 .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition).create();
 
@@ -287,10 +302,10 @@ public class KafkaApiTest extends PulsarTestSuite {
 
     @Test
     public void testConsumerSeek() throws Exception {
-        String topic = "testSimpleConsumer";
+        String topic = "testConsumerSeek";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", pulsarCluster.getPlainTextServiceUrl());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
@@ -301,7 +316,7 @@ public class KafkaApiTest extends PulsarTestSuite {
         consumer.subscribe(Arrays.asList(topic));
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
         org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
@@ -344,10 +359,10 @@ public class KafkaApiTest extends PulsarTestSuite {
 
     @Test
     public void testConsumerSeekToEnd() throws Exception {
-        String topic = "testSimpleConsumer";
+        String topic = "testConsumerSeekToEnd";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", pulsarCluster.getPlainTextServiceUrl());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
@@ -358,7 +373,7 @@ public class KafkaApiTest extends PulsarTestSuite {
         consumer.subscribe(Arrays.asList(topic));
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
         org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
@@ -399,13 +414,13 @@ public class KafkaApiTest extends PulsarTestSuite {
         String topic = "testSimpleProducer";
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
         org.apache.pulsar.client.api.Consumer<byte[]> pulsarConsumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("my-subscription")
                 .subscribe();
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", pulsarCluster.getPlainTextServiceUrl());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
 
         props.put("key.serializer", IntegerSerializer.class.getName());
         props.put("value.serializer", StringSerializer.class.getName());
@@ -431,14 +446,14 @@ public class KafkaApiTest extends PulsarTestSuite {
         String topic = "testProducerCallback";
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
         org.apache.pulsar.client.api.Consumer<byte[]> pulsarConsumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscribe();
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", pulsarCluster.getPlainTextServiceUrl());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
 
         props.put("key.serializer", IntegerSerializer.class.getName());
         props.put("value.serializer", StringSerializer.class.getName());

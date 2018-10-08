@@ -34,6 +34,7 @@
   <modules>
     <module>docker-images</module>
     <module>integration</module>
+    <module>pulsar-kafka-compat-client-test</module>
   </modules>
   <build>
     <plugins>
