@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.mockito.Mockito;
@@ -80,7 +81,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     public void testProducer() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
-        Producer<byte[]> producer = client.newProducer().topic("persistent://sample/test/local/producer-topic")
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
                 .create();
 
         for (int i = 0; i < 10; i++) {
@@ -94,7 +95,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     public void testProducerConsumer() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
-        Producer<byte[]> producer = client.newProducer()
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
             .topic("persistent://sample/test/local/producer-consumer-topic")
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -128,7 +129,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                 .build();
         admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
-        Producer<byte[]> producer = client.newProducer()
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
             .topic("persistent://sample/test/local/partitioned-topic")
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
@@ -177,7 +178,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
             final int numMessages = 20;
 
-            try (Producer<byte[]> producer = client.newProducer()
+            try (Producer<byte[]> producer = client.newProducer(Schema.BYTES)
                 .topic("persistent://sample/test/local/topic1")
                 .create()) {
                 for (int i = 0; i < numMessages; i++) {

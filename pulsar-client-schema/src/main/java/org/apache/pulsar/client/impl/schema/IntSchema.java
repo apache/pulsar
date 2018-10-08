@@ -39,6 +39,13 @@ public class IntSchema implements Schema<Integer> {
         .setSchema(new byte[0]);
 
     @Override
+    public void validate(byte[] message) {
+        if (message.length != 4) {
+            throw new SchemaSerializationException("Size of data received by IntSchema is not 4");
+        }
+    }
+
+    @Override
     public byte[] encode(Integer message) {
         if (null == message) {
             return null;
@@ -57,9 +64,7 @@ public class IntSchema implements Schema<Integer> {
         if (null == bytes) {
             return null;
         }
-        if (bytes.length != 4) {
-            throw new SchemaSerializationException("Size of data received by IntSchema is not 4");
-        }
+        validate(bytes);
         int value = 0;
         for (byte b : bytes) {
             value <<= 8;

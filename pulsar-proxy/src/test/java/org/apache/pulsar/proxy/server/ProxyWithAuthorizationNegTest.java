@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -186,13 +187,13 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         }
         Producer<byte[]> producer;
         try {
-            producer = proxyClient.newProducer()
+            producer = proxyClient.newProducer(Schema.BYTES)
                     .topic("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1").create();
         } catch (Exception ex) {
             // expected
             admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
                     Sets.newHashSet(AuthAction.produce, AuthAction.consume));
-            producer = proxyClient.newProducer()
+            producer = proxyClient.newProducer(Schema.BYTES)
                     .topic("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1").create();
         }
         final int msgs = 10;
