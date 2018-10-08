@@ -31,5 +31,6 @@
         </Root>
         <Logger name="org.apache.pulsar" level="info"/>
         <Logger name="org.apache.bookkeeper" level="info"/>
+        <Logger name="org.apache.kafka" level="info"/>
     </Loggers>
 </Configuration>
