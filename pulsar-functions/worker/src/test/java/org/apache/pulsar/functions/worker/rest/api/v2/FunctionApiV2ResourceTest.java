@@ -346,6 +346,8 @@ public class FunctionApiV2ResourceTest {
                 null,
                 null,
                 new Gson().toJson(functionConfig),
+                null,
+                null,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -372,7 +374,9 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            null);
+            null,
+                null,
+                null);
     }
 
     @Test
@@ -646,7 +650,9 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            null);
+            null,
+                null,
+                null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(expectedError).reason);
@@ -673,7 +679,9 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            null);
+            null,
+                null,
+                null);
     }
 
     @Test
@@ -756,7 +764,9 @@ public class FunctionApiV2ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(functionConfig),
-            null);
+            null,
+                null,
+                null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
@@ -1108,7 +1118,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), null);
+                null, new Gson().toJson(functionConfig), null, null, null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
