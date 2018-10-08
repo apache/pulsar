@@ -31,8 +31,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -139,7 +141,7 @@ public class SchedulerManager implements AutoCloseable {
                         invokeScheduler();
                     } catch (Exception e) {
                         log.warn("Failed to invoke scheduler", e);
-                        schedule();
+                        throw e;
                     }
                 }
             }
@@ -167,6 +169,7 @@ public class SchedulerManager implements AutoCloseable {
         Map<String, Function.Instance> allInstances = computeAllInstances(allFunctions, functionRuntimeManager.getRuntimeFactory().externallyManaged());
         Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager
                 .getCurrentAssignments();
+
         //delete assignments of functions and instances that don't exist anymore
         Iterator<Map.Entry<String, Map<String, Assignment>>> it = workerIdToAssignments.entrySet().iterator();
         while (it.hasNext()) {
@@ -199,8 +202,20 @@ public class SchedulerManager implements AutoCloseable {
         }
 
         List<Assignment> currentAssignments = workerIdToAssignments
-                .entrySet().stream()
-                .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream()).collect(Collectors.toList());
+                .entrySet()
+                .stream()
+                .filter(workerIdToAssignmentEntry -> {
+                    String workerId = workerIdToAssignmentEntry.getKey();
+                    // remove assignments to workers that don't exist / died for now.
+                    // wait for failure detector to unassign them in the future for re-scheduling
+                    if (!currentMembership.contains(workerId)) {
+                        return false;
+                    }
+
+                    return true;
+                })
+                .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream())
+                .collect(Collectors.toList());
 
         Pair<List<Function.Instance>, List<Assignment>> unassignedInstances = this.getUnassignedFunctionInstances(workerIdToAssignments,
                 allInstances);
