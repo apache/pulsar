@@ -974,16 +974,16 @@ public class FunctionsImpl {
         }
 
         int numDefinitions = 0;
-        if (StringUtils.isEmpty(functionDetailsJson)) {
+        if (!StringUtils.isEmpty(functionDetailsJson)) {
             numDefinitions++;
         }
-        if (StringUtils.isEmpty(functionConfigJson)) {
+        if (!StringUtils.isEmpty(functionConfigJson)) {
             numDefinitions++;
         }
-        if (StringUtils.isEmpty(sourceConfigJson)) {
+        if (!StringUtils.isEmpty(sourceConfigJson)) {
             numDefinitions++;
         }
-        if (StringUtils.isEmpty(sinkConfigJson)) {
+        if (!StringUtils.isEmpty(sinkConfigJson)) {
             numDefinitions++;
         }
         if (numDefinitions == 0) {
