@@ -44,6 +44,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.sink.PulsarSink;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.powermock.api.mockito.PowerMockito;
@@ -213,7 +214,7 @@ public class CmdFunctionsTest {
         assertEquals(outputTopicName, creater.getOutput());
         assertEquals(false, creater.isAutoAck());
 
-        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 
     }
 
@@ -343,7 +344,7 @@ public class CmdFunctionsTest {
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
-        verify(functions, times(1)).createFunctionWithUrl(any(FunctionDetails.class), anyString());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
     @Test
@@ -420,7 +421,7 @@ public class CmdFunctionsTest {
         assertEquals(topicPatterns, creater.getTopicsPattern());
         assertEquals(outputTopicName, creater.getOutput());
 
-        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 
     }
 
@@ -441,7 +442,7 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         assertEquals("public", creater.getFunctionConfig().getTenant());
-        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
     @Test
@@ -461,7 +462,7 @@ public class CmdFunctionsTest {
         CreateFunction creater = cmd.getCreater();
         assertEquals("public", creater.getFunctionConfig().getTenant());
         assertEquals("default", creater.getFunctionConfig().getNamespace());
-        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
     @Test
@@ -486,7 +487,7 @@ public class CmdFunctionsTest {
         assertEquals(tenant, creater.getFunctionConfig().getTenant());
         assertEquals(namespace, creater.getFunctionConfig().getNamespace());
         assertEquals(functionName, creater.getFunctionConfig().getName());
-        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
     @Test
@@ -505,7 +506,7 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         assertEquals("CmdFunctionsTest$DummyFunction", creater.getFunctionConfig().getName());
-        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
     @Test
@@ -522,7 +523,7 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         assertNull(creater.getFunctionConfig().getOutput());
-        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 
     }
 
@@ -613,7 +614,7 @@ public class CmdFunctionsTest {
         assertEquals(inputTopicName, updater.getInputs());
         assertEquals(outputTopicName, updater.getOutput());
 
-        verify(functions, times(1)).updateFunction(any(FunctionDetails.class), anyString());
+        verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString());
     }
 
     @Test
@@ -711,9 +712,9 @@ public class CmdFunctionsTest {
             }
 
             if (type.equals("create")) {
-                verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+                verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
             } else if (type.equals("update")) {
-                verify(functions, times(1)).updateFunction(any(FunctionDetails.class), anyString());
+                verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString());
             }
 
             setup();
