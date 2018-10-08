@@ -170,9 +170,6 @@ public class SchedulerManager implements AutoCloseable {
         Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager
                 .getCurrentAssignments();
 
-        log.info("currentMembership: {}", currentMembership);
-        log.info("allFunctions: {}", allFunctions);
-        log.info("workerIdToAssignments: {}", workerIdToAssignments);
         //delete assignments of functions and instances that don't exist anymore
         Iterator<Map.Entry<String, Map<String, Assignment>>> it = workerIdToAssignments.entrySet().iterator();
         while (it.hasNext()) {
@@ -199,7 +196,6 @@ public class SchedulerManager implements AutoCloseable {
                     functionMap.put(fullyQualifiedInstanceId, assignment.toBuilder().setInstance(instance).build());
                 }
             }
-
             if (functionMap.isEmpty()) {
                 it.remove();
             }
