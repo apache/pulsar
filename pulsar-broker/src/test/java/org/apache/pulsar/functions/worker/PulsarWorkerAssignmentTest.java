@@ -28,6 +28,7 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -51,6 +52,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.sink.PulsarSink;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -192,13 +194,12 @@ public class PulsarWorkerAssignmentTest {
 
         String jarFilePathUrl = Utils.FILE + ":"
                 + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionDetails.Builder functionDetailsBuilder = createFunctionDetails(jarFilePathUrl, tenant, namespacePortion,
+        FunctionConfig functionConfig = createFunctionConfig(jarFilePathUrl, tenant, namespacePortion,
                 functionName, "my.*", sinkTopic, subscriptionName);
-        functionDetailsBuilder.setParallelism(2);
-        FunctionDetails functionDetails = functionDetailsBuilder.build();
+        functionConfig.setParallelism(2);
 
         // (1) Create function with 2 instance
-        admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         retryStrategically((test) -> {
             try {
                 return admin.topics().getStats(sinkTopic).subscriptions.size() == 1
@@ -213,10 +214,9 @@ public class PulsarWorkerAssignmentTest {
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 2);
 
         // (2) Update function with 1 instance
-        functionDetailsBuilder.setParallelism(1);
-        functionDetails = functionDetailsBuilder.build();
+        functionConfig.setParallelism(1);
         // try to update function to test: update-function functionality
-        admin.functions().updateFunctionWithUrl(functionDetails, jarFilePathUrl);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
         retryStrategically((test) -> {
             try {
                 return admin.topics().getStats(sinkTopic).subscriptions.size() == 1
@@ -247,17 +247,16 @@ public class PulsarWorkerAssignmentTest {
 
         String jarFilePathUrl = Utils.FILE + ":"
                 + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionDetails.Builder functionDetailsBuilder = null;
+        FunctionConfig functionConfig = null;
         // (1) Register functions with 2 instances
         for (int i = 0; i < totalFunctions; i++) {
             String functionName = baseFunctionName + i;
-            functionDetailsBuilder = createFunctionDetails(jarFilePathUrl, tenant, namespacePortion, functionName,
+            functionConfig = createFunctionConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
-            functionDetailsBuilder.setParallelism(parallelism);
+            functionConfig.setParallelism(parallelism);
             // set-auto-ack prop =true
-            functionDetailsBuilder.setAutoAck(true);
-            FunctionDetails functionDetails = functionDetailsBuilder.build();
-            admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+            functionConfig.setAutoAck(true);
+            admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
         retryStrategically((test) -> {
             try {
@@ -275,13 +274,12 @@ public class PulsarWorkerAssignmentTest {
         // (2) Update function with prop=auto-ack and Delete 2 functions
         for (int i = 0; i < totalFunctions; i++) {
             String functionName = baseFunctionName + i;
-            functionDetailsBuilder = createFunctionDetails(jarFilePathUrl, tenant, namespacePortion, functionName,
+            functionConfig = createFunctionConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
-            functionDetailsBuilder.setParallelism(parallelism);
+            functionConfig.setParallelism(parallelism);
             // set-auto-ack prop =false
-            functionDetailsBuilder.setAutoAck(false);
-            FunctionDetails functionDetails = functionDetailsBuilder.build();
-            admin.functions().updateFunctionWithUrl(functionDetails, jarFilePathUrl);
+            functionConfig.setAutoAck(false);
+            admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
 
         int totalDeletedFunction = 2;
@@ -328,8 +326,8 @@ public class PulsarWorkerAssignmentTest {
         }
     }
 
-    protected static FunctionDetails.Builder createFunctionDetails(String jarFile, String tenant, String namespace,
-            String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String jarFile, String tenant, String namespace,
+                                                         String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
 
         File file = new File(jarFile);
         try {
@@ -340,35 +338,21 @@ public class PulsarWorkerAssignmentTest {
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
         Class<?> typeArg = byte[].class;
 
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        functionDetailsBuilder.setTenant(tenant);
-        functionDetailsBuilder.setNamespace(namespace);
-        functionDetailsBuilder.setName(functionName);
-        functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-        functionDetailsBuilder.setParallelism(1);
-        functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(functionName);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setParallelism(1);
+        functionConfig.setClassName(IdentityFunction.class.getName());
 
-        // set source spec
-        // source spec classname should be empty so that the default pulsar source will be used
-        SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-        sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
-        sourceSpecBuilder.setTypeClassName(typeArg.getName());
-        sourceSpecBuilder.setTopicsPattern(sourceTopicPattern);
-        sourceSpecBuilder.setSubscriptionName(subscriptionName);
-        sourceSpecBuilder.putTopicsToSerDeClassName(sourceTopicPattern, "");
-        functionDetailsBuilder.setAutoAck(true);
-        functionDetailsBuilder.setSource(sourceSpecBuilder);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        functionConfig.setInputs(Collections.singleton(sourceTopicPattern));
+        functionConfig.setSubName(subscriptionName);
+        functionConfig.setAutoAck(true);
+        functionConfig.setOutput(sinkTopic);
 
-        // set up sink spec
-        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-        // sinkSpecBuilder.setClassName(PulsarSink.class.getName());
-        sinkSpecBuilder.setTopic(sinkTopic);
-        Map<String, Object> sinkConfigMap = Maps.newHashMap();
-        sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfigMap));
-        sinkSpecBuilder.setTypeClassName(typeArg.getName());
-        functionDetailsBuilder.setSink(sinkSpecBuilder);
-
-        return functionDetailsBuilder;
+        return functionConfig;
     }
 
 }
