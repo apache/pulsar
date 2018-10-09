@@ -22,6 +22,7 @@ Configuration:
   status: INFO
   monitorInterval: 30
   name: pulsar
+  packages: io.prometheus.client.log4j2
 
   Properties:
     Property:
@@ -43,7 +44,7 @@ Configuration:
       language: JavaScript
       path: ./conf/log4j2-scripts/filter.js
       charset: UTF-8
-  
+
   Appenders:
 
     # Console
@@ -80,6 +81,9 @@ Configuration:
               glob: "*/${sys:pulsar.log.file}*log.gz"
             IfLastModified:
               age: 30d
+
+    Prometheus:
+      name: Prometheus
 
     # Routing
     Routing:
@@ -129,10 +133,12 @@ Configuration:
     # Default root logger configuration
     Root:
       level: info
-      additivity: false
+      additivity: true
       AppenderRef:
         - ref: "${sys:pulsar.log.appender}"
           level: "${sys:pulsar.log.level}"
+        - ref: Prometheus
+          level: info
 
     Logger:
       - name: org.apache.bookkeeper.bookie.BookieShell
@@ -146,7 +152,7 @@ Configuration:
         additivity: false
         AppenderRef:
           - ref: Console
-    
+
     # Logger to inject filter script
 #     - name: org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl
 #       level: debug
@@ -158,4 +164,4 @@ Configuration:
 #           onMisMatch: DENY
 #           ScriptRef:
 #             ref: filter.js
-        
+

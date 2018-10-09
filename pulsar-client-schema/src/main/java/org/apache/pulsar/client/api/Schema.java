@@ -41,6 +41,22 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 public interface Schema<T> {
 
     /**
+     * Check if the message is a valid object for this schema.
+     *
+     * <p>The implementation can choose what its most efficient approach to validate the schema.
+     * If the implementation doesn't provide it, it will attempt to use {@link #decode(byte[])}
+     * to see if this schema can decode this message or not as a validation mechanism to verify
+     * the bytes.
+     *
+     * @param message the messages to verify
+     * @return true if it is a valid message
+     * @throws SchemaSerializationException if it is not a valid message
+     */
+    default void validate(byte[] message) {
+        decode(message);
+    }
+
+    /**
      * Encode an object representing the message content into a byte array.
      *
      * @param message
