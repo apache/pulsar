@@ -164,7 +164,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public Response getSinkStatus(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace,
                                   final @PathParam("sinkName") String sinkName) throws IOException {
-        return functions.getFunctionStatus(tenant, namespace, sinkName);
+        return functions.getFunctionStatus(tenant, namespace, sinkName, uri.getRequestUri());
     }
 
     @GET
