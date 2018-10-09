@@ -26,10 +26,10 @@ std::string MessageId_str(const MessageId& msgId) {
     return ss.str();
 }
 
-std::string MessageId_serialize(const MessageId& msgId) {
+boost::python::object MessageId_serialize(const MessageId& msgId) {
     std::string serialized;
     msgId.serialize(serialized);
-    return serialized;
+    return boost::python::object(boost::python::handle<>(PyBytes_FromStringAndSize(serialized.c_str(), serialized.length())));
 }
 
 std::string Message_str(const Message& msg) {
