@@ -104,7 +104,7 @@ public class SourceApiV2Resource extends FunctionApiResource {
     public Response getSourceStatus(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("sourceName") String sourceName) throws IOException {
-        return functions.getFunctionStatus(tenant, namespace, sourceName);
+        return functions.getFunctionStatus(tenant, namespace, sourceName, uri.getRequestUri());
     }
 
     @GET

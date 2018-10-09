@@ -104,7 +104,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
     public Response getSinkStatus(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace,
                                   final @PathParam("sinkName") String sinkName) throws IOException {
-        return functions.getFunctionStatus(tenant, namespace, sinkName);
+        return functions.getFunctionStatus(tenant, namespace, sinkName, uri.getRequestUri());
     }
 
     @GET
