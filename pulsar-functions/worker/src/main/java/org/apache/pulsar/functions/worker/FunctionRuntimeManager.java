@@ -306,8 +306,12 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 return functionStatusBuilder.build();
             }
 
-            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
-            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            if (uri == null) {
+                throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+            } else {
+                URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            }
         }
 
         return functionStatus;
@@ -346,8 +350,12 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build();
             }
 
-            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
-            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            if (uri == null) {
+                throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+            } else {
+                URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            }
         }
     }
 
@@ -507,8 +515,12 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     return functionStatusBuilder.build();
                 }
 
-                URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
-                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                if (uri == null) {
+                    throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+                } else {
+                    URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                }
             }
         } else {
             for (Assignment assignment : assignments) {
