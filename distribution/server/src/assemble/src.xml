@@ -48,6 +48,8 @@
       </includes>
       <excludes>
         <exclude>.git/**</exclude>
+        <exclude>**/*.nar</exclude>
+        <exclude>**/.terraform/**</exclude>
         <exclude>**/.gitignore</exclude>
         <exclude>**/.svn</exclude>
         <exclude>**/*.iws</exclude>
@@ -72,6 +74,8 @@
         <exclude>pulsar-client-cpp/perf/perfConsumer</exclude>
 
         <exclude>**/python/dist/**</exclude>
+        <exclude>**/pulsar-client-cpp/pkg/rpm/RPMS/**</exclude>
+        <exclude>**/pulsar-client-cpp/pkg/rpm/SOURCES/**</exclude>
         <exclude>**/python/wheelhouse/**</exclude>
         <exclude>**/python/MANIFEST</exclude>
         <exclude>**/*.egg-info/**</exclude>
