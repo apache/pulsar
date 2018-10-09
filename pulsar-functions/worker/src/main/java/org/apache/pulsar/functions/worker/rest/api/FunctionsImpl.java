@@ -508,6 +508,8 @@ public class FunctionsImpl {
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         try {
             return functionRuntimeManager.stopFunctionInstances(tenant, namespace, functionName, restart);
+        } catch (WebApplicationException we) {
+            throw we;
         } catch (Exception e) {
             log.error("Failed to restart function: {}/{}/{}", tenant, namespace, functionName, e);
             return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
@@ -541,6 +543,8 @@ public class FunctionsImpl {
         InstanceCommunication.FunctionStatusList functionStatusList = null;
         try {
             functionStatusList = functionRuntimeManager.getAllFunctionStatus(tenant, namespace, functionName, uri);
+        } catch (WebApplicationException we) {
+            throw we;
         } catch (Exception e) {
             log.error("Got Exception Getting Status", e);
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
