@@ -514,7 +514,7 @@ public class FunctionsImpl {
         }
     }
 
-    public Response getFunctionStatus(final String tenant, final String namespace, final String functionName)
+    public Response getFunctionStatus(final String tenant, final String namespace, final String functionName, URI uri)
             throws IOException {
 
         if (!isWorkerServiceAvailable()) {
@@ -540,7 +540,7 @@ public class FunctionsImpl {
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         InstanceCommunication.FunctionStatusList functionStatusList = null;
         try {
-            functionStatusList = functionRuntimeManager.getAllFunctionStatus(tenant, namespace, functionName);
+            functionStatusList = functionRuntimeManager.getAllFunctionStatus(tenant, namespace, functionName, uri);
         } catch (Exception e) {
             log.error("Got Exception Getting Status", e);
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
