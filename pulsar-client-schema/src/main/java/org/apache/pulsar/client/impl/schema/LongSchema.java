@@ -39,6 +39,13 @@ public class LongSchema implements Schema<Long> {
         .setSchema(new byte[0]);
 
     @Override
+    public void validate(byte[] message) {
+        if (message.length != 8) {
+            throw new SchemaSerializationException("Size of data received by LongSchema is not 8");
+        }
+    }
+
+    @Override
     public byte[] encode(Long data) {
         if (null == data) {
             return null;
@@ -61,9 +68,7 @@ public class LongSchema implements Schema<Long> {
         if (null == bytes) {
             return null;
         }
-        if (bytes.length != 8) {
-            throw new SchemaSerializationException("Size of data received by LongSchema is not 8");
-        }
+        validate(bytes);
         long value = 0L;
         for (byte b : bytes) {
             value <<= 8;

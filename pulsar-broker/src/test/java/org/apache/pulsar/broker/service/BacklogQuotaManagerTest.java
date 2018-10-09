@@ -27,6 +27,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -53,7 +54,7 @@ import com.google.common.collect.Sets;
 /**
  */
 public class BacklogQuotaManagerTest {
-    protected static int BROKER_SERVICE_PORT = 16650;
+    protected static int BROKER_SERVICE_PORT = PortManager.nextFreePort();
     PulsarService pulsar;
     ServiceConfiguration config;
 
@@ -62,15 +63,15 @@ public class BacklogQuotaManagerTest {
 
     LocalBookkeeperEnsemble bkEnsemble;
 
-    private final int ZOOKEEPER_PORT = 12759;
-    protected final int BROKER_WEBSERVICE_PORT = 15782;
+    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
+    protected final int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
     @BeforeMethod
     void setup() throws Exception {
         try {
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, 5001);
+            bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
             bkEnsemble.start();
 
             // start pulsar service

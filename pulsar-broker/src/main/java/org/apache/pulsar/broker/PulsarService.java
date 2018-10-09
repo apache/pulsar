@@ -826,27 +826,43 @@ public class PulsarService implements AutoCloseable {
     }
 
     public static String brokerUrl(ServiceConfiguration config) {
-        return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePort();
+        return brokerUrl(advertisedAddress(config), config.getBrokerServicePort());
+    }
+
+    public static String brokerUrl(String host, int port) {
+        return String.format("pulsar://%s:%d", host, port);
     }
 
     public static String brokerUrlTls(ServiceConfiguration config) {
         if (config.isTlsEnabled()) {
-            return "pulsar+ssl://" + advertisedAddress(config) + ":" + config.getBrokerServicePortTls();
+            return brokerUrlTls(advertisedAddress(config), config.getBrokerServicePortTls());
         } else {
             return "";
         }
     }
 
+    public static String brokerUrlTls(String host, int port) {
+        return String.format("pulsar+ssl://%s:%d", host, port);
+    }
+
     public static String webAddress(ServiceConfiguration config) {
-        return String.format("http://%s:%d", advertisedAddress(config), config.getWebServicePort());
+        return webAddress(advertisedAddress(config), config.getWebServicePort());
+    }
+
+    public static String webAddress(String host, int port) {
+        return String.format("http://%s:%d", host, port);
     }
 
     public static String webAddressTls(ServiceConfiguration config) {
         if (config.isTlsEnabled()) {
-            return String.format("https://%s:%d", advertisedAddress(config), config.getWebServicePortTls());
+            return webAddressTls(advertisedAddress(config), config.getWebServicePortTls());
         } else {
             return "";
         }
+    }
+
+    public static String webAddressTls(String host, int port) {
+        return String.format("https://%s:%d", host, port);
     }
 
     public String getBindAddress() {

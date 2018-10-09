@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.kafka.compat.tests;
+package org.apache.pulsar.tests.integration.compat.kafka;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,62 +28,80 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.consumer.PulsarKafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.testng.annotations.Test;
 
-public class KafkaConsumerTest extends BrokerTestBase {
+@Slf4j
+public class KafkaApiTest extends PulsarStandaloneTestSuite {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        isTcpLookup = true;
-        super.baseSetup();
+    private static String getPlainTextServiceUrl() {
+        return container.getPlainTextServiceUrl();
     }
 
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    private static String getHttpServiceUrl() {
+        return container.getHttpServiceUrl();
     }
 
-    @Test
-    public void testSimpleConsumer() throws Exception {
-        String topic = "persistent://prop/ns-abc/testSimpleConsumer";
+    @Test(timeOut = 30000)
+    public void testSimpleProducerConsumer() throws Exception {
+        String topic = "persistent://public/default/testSimpleProducerConsumer";
 
-        Properties props = new Properties();
-        props.put("bootstrap.servers", lookupUrl.toString());
-        props.put("group.id", "my-subscription-name");
-        props.put("enable.auto.commit", "false");
-        props.put("key.deserializer", StringDeserializer.class.getName());
-        props.put("value.deserializer", StringDeserializer.class.getName());
+        Properties producerProperties = new Properties();
+        producerProperties.put("bootstrap.servers", getPlainTextServiceUrl());
+        producerProperties.put("key.serializer", IntegerSerializer.class.getName());
+        producerProperties.put("value.serializer", StringSerializer.class.getName());
+        Producer<Integer, String> producer = new KafkaProducer<>(producerProperties);
 
-        Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
+        Properties consumerProperties = new Properties();
+        consumerProperties.put("bootstrap.servers", getPlainTextServiceUrl());
+        consumerProperties.put("group.id", "my-subscription-name");
+        consumerProperties.put("key.deserializer", IntegerDeserializer.class.getName());
+        consumerProperties.put("value.deserializer", StringDeserializer.class.getName());
+        consumerProperties.put("enable.auto.commit", "true");
+        Consumer<Integer, String> consumer = new KafkaConsumer<>(consumerProperties);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
+        List<Long> offsets = new ArrayList<>();
 
         for (int i = 0; i < 10; i++) {
-            pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
+            RecordMetadata md = producer.send(new ProducerRecord<Integer, String>(topic, i, "hello-" + i)).get();
+            offsets.add(md.offset());
+            log.info("Published message at {}", Long.toHexString(md.offset()));
         }
+
+        producer.flush();
+        producer.close();
 
         AtomicInteger received = new AtomicInteger();
         while (received.get() < 10) {
-            ConsumerRecords<String, String> records = consumer.poll(100);
+            ConsumerRecords<Integer, String> records = consumer.poll(100);
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.key().intValue(), received.get());
                 assertEquals(record.value(), "hello-" + received.get());
+                assertEquals(record.offset(), offsets.get(received.get()).longValue());
 
                 received.incrementAndGet();
             });
@@ -94,20 +113,67 @@ public class KafkaConsumerTest extends BrokerTestBase {
     }
 
     @Test
-    public void testConsumerAutoCommit() throws Exception {
-        String topic = "persistent://prop/ns-abc/testConsumerAutoCommit";
+    public void testSimpleConsumer() throws Exception {
+        String topic = "testSimpleConsumer";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", lookupUrl.toString());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
+        props.put("group.id", "my-subscription-name");
+        props.put("enable.auto.commit", "false");
+        props.put("key.deserializer", StringDeserializer.class.getName());
+        props.put("value.deserializer", StringDeserializer.class.getName());
+
+        @Cleanup
+        Consumer<String, String> consumer = new KafkaConsumer<>(props);
+        consumer.subscribe(Arrays.asList(topic));
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
+
+        @Cleanup
+        org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
+
+        for (int i = 0; i < 10; i++) {
+            pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
+        }
+
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
+            ConsumerRecords<String, String> records = consumer.poll(100);
+            if (!records.isEmpty()) {
+                records.forEach(record -> {
+                    String key = Integer.toString(received.get());
+                    String value = "hello-" + received.get();
+                    log.info("Receive record : key = {}, value = {}, topic = {}, ptn = {}",
+                        key, value, record.topic(), record.partition());
+                    assertEquals(record.key(), key);
+                    assertEquals(record.value(), value);
+
+                    received.incrementAndGet();
+                });
+
+                consumer.commitSync();
+            }
+        }
+    }
+
+    @Test
+    public void testConsumerAutoCommit() throws Exception {
+        String topic = "testConsumerAutoCommit";
+
+        Properties props = new Properties();
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "true");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
 
-        Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
+        Consumer<String, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
+        org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
             pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
@@ -126,7 +192,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         consumer.close();
 
         // Re-open consumer and verify every message was acknowledged
-        Consumer<String, String> consumer2 = new PulsarKafkaConsumer<>(props);
+        Consumer<String, String> consumer2 = new KafkaConsumer<>(props);
         consumer2.subscribe(Arrays.asList(topic));
 
         ConsumerRecords<String, String> records = consumer2.poll(100);
@@ -136,19 +202,21 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
     @Test
     public void testConsumerManualOffsetCommit() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testConsumerManualOffsetCommit";
+        String topic = "testConsumerManualOffsetCommit";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", lookupUrl.toString());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
 
-        Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
+        Consumer<String, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
+        org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
             pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
@@ -173,7 +241,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         consumer.close();
 
         // Re-open consumer and verify every message was acknowledged
-        Consumer<String, String> consumer2 = new PulsarKafkaConsumer<>(props);
+        Consumer<String, String> consumer2 = new KafkaConsumer<>(props);
         consumer2.subscribe(Arrays.asList(topic));
 
         ConsumerRecords<String, String> records = consumer2.poll(100);
@@ -183,26 +251,29 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
     @Test
     public void testPartitions() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testPartitions";
+        String topic = "testPartitions";
 
         // Create 8 partitions in topic
-        admin.tenants().createTenant("sample", new TenantInfo());
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(getHttpServiceUrl()).build();
         admin.topics().createPartitionedTopic(topic, 8);
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", lookupUrl.toString());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "true");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
 
-        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic)
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
+        org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic)
                 .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition).create();
 
         // Create 2 Kakfa consumer and verify each gets half of the messages
         List<Consumer<String, String>> consumers = new ArrayList<>();
         for (int c = 0; c < 2; c++) {
-            Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
+            Consumer<String, String> consumer = new KafkaConsumer<>(props);
             consumer.subscribe(Arrays.asList(topic));
             consumers.add(consumer);
         }
@@ -231,20 +302,22 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
     @Test
     public void testConsumerSeek() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testSimpleConsumer";
+        String topic = "testConsumerSeek";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", lookupUrl.toString());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
         props.put("pulsar.consumer.acknowledgments.group.time.millis", "0");
 
-        Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
+        Consumer<String, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
+        org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
             pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
@@ -286,20 +359,22 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
     @Test
     public void testConsumerSeekToEnd() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testSimpleConsumer";
+        String topic = "testConsumerSeekToEnd";
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", lookupUrl.toString());
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
         props.put("group.id", "my-subscription-name");
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
         props.put("pulsar.consumer.acknowledgments.group.time.millis", "0");
 
-        Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
+        Consumer<String, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
+        org.apache.pulsar.client.api.Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
             pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
@@ -324,7 +399,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         consumer.close();
 
         // Recreate the consumer
-        consumer = new PulsarKafkaConsumer<>(props);
+        consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
         ConsumerRecords<String, String> records = consumer.poll(100);
@@ -334,4 +409,76 @@ public class KafkaConsumerTest extends BrokerTestBase {
         consumer.close();
     }
 
+    @Test
+    public void testSimpleProducer() throws Exception {
+        String topic = "testSimpleProducer";
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
+        org.apache.pulsar.client.api.Consumer<byte[]> pulsarConsumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("my-subscription")
+                .subscribe();
+
+        Properties props = new Properties();
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
+
+        props.put("key.serializer", IntegerSerializer.class.getName());
+        props.put("value.serializer", StringSerializer.class.getName());
+
+        Producer<Integer, String> producer = new KafkaProducer<>(props);
+
+        for (int i = 0; i < 10; i++) {
+            producer.send(new ProducerRecord<Integer, String>(topic, i, "hello-" + i));
+        }
+
+        producer.flush();
+        producer.close();
+
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> msg = pulsarConsumer.receive(1, TimeUnit.SECONDS);
+            assertEquals(new String(msg.getData()), "hello-" + i);
+            pulsarConsumer.acknowledge(msg);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testProducerCallback() throws Exception {
+        String topic = "testProducerCallback";
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(getPlainTextServiceUrl()).build();
+        org.apache.pulsar.client.api.Consumer<byte[]> pulsarConsumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscribe();
+
+        Properties props = new Properties();
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
+
+        props.put("key.serializer", IntegerSerializer.class.getName());
+        props.put("value.serializer", StringSerializer.class.getName());
+
+        Producer<Integer, String> producer = new KafkaProducer<>(props);
+
+        CountDownLatch counter = new CountDownLatch(10);
+
+        for (int i = 0; i < 10; i++) {
+            producer.send(new ProducerRecord<Integer, String>(topic, i, "hello-" + i), (metadata, exception) -> {
+                assertEquals(metadata.topic(), topic);
+                assertNull(exception);
+
+                counter.countDown();
+            });
+        }
+
+        counter.await();
+
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> msg = pulsarConsumer.receive(1, TimeUnit.SECONDS);
+            assertEquals(new String(msg.getData()), "hello-" + i);
+            pulsarConsumer.acknowledge(msg);
+        }
+
+        producer.close();
+    }
 }

@@ -39,6 +39,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
@@ -81,8 +82,25 @@ public class LocalBookkeeperEnsemble {
     int numberOfBookies;
     private boolean clearOldData = false;
 
-    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort) {
-        this(numberOfBookies, zkPort, bkBasePort, null, null, true);
+    private static class BasePortManager implements Supplier<Integer> {
+
+        private int port;
+
+        public BasePortManager(int basePort) {
+            this.port = basePort;
+        }
+
+        @Override
+        public synchronized Integer get() {
+            return port++;
+        }
+    }
+
+    private final Supplier<Integer> portManager;
+
+
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, Supplier<Integer> portManager) {
+        this(numberOfBookies, zkPort, 4181, null, null, true, null, portManager);
     }
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
@@ -103,10 +121,22 @@ public class LocalBookkeeperEnsemble {
                                    String bkDataDirName,
                                    boolean clearOldData,
                                    String advertisedAddress) {
+        this(numberOfBookies, zkPort, 4181, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress,
+                new BasePortManager(bkBasePort));
+    }
+
+    public LocalBookkeeperEnsemble(int numberOfBookies,
+            int zkPort,
+            int streamStoragePort,
+            String zkDataDirName,
+            String bkDataDirName,
+            boolean clearOldData,
+            String advertisedAddress,
+            Supplier<Integer> portManager) {
         this.numberOfBookies = numberOfBookies;
         this.HOSTPORT = "127.0.0.1:" + zkPort;
         this.ZooKeeperDefaultPort = zkPort;
-        this.initialPort = bkBasePort;
+        this.portManager = portManager;
         this.streamStoragePort = streamStoragePort;
         this.zkDataDirName = zkDataDirName;
         this.bkDataDirName = bkDataDirName;
@@ -128,7 +158,6 @@ public class LocalBookkeeperEnsemble {
     String bkDataDirName;
     BookieServer bs[];
     ServerConfiguration bsConfs[];
-    Integer initialPort = 5000;
 
     // Stream/Table Storage
     StreamStorageLifecycleComponent streamStorage;
@@ -221,7 +250,7 @@ public class LocalBookkeeperEnsemble {
                 cleanDirectory(bkDataDir);
             }
 
-            int bookiePort = initialPort + i;
+            int bookiePort = portManager.get();
 
             // Ensure registration Z-nodes are cleared when standalone service is restarted ungracefully
             String registrationZnode = String.format("/ledgers/available/%s:%d", baseConf.getAdvertisedAddress(), bookiePort);
@@ -257,7 +286,7 @@ public class LocalBookkeeperEnsemble {
                 bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
             }
             bs[i].start();
-            LOG.debug("Local BK[{}] started (port: {}, data_directory: {})", i, initialPort + i,
+            LOG.debug("Local BK[{}] started (port: {}, data_directory: {})", i, bookiePort,
                     bkDataDir.getAbsolutePath());
         }
     }

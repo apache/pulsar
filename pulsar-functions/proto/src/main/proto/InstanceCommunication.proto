@@ -55,6 +55,7 @@ message FunctionStatus {
 }
 
 message FunctionStatusList {
+    string error = 2;
     repeated FunctionStatus functionStatusList = 1;
 }
 

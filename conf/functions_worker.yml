@@ -17,27 +17,44 @@
 # under the License.
 #
 
+####################
+# Worker Settings
+####################
+
 workerId: standalone
 workerHostname: localhost
 workerPort: 6750
 workerPortTls: 6751
 
-connectorsDirectory: ./connectors
+################################
+# Function package management
+################################
 
-functionMetadataTopicName: metadata
-clusterCoordinationTopicName: coordinate
-pulsarFunctionsNamespace: public/functions
-pulsarFunctionsCluster: standalone
-pulsarServiceUrl: pulsar://localhost:6650
-pulsarWebServiceUrl: http://localhost:8080
 numFunctionPackageReplicas: 1
 downloadDirectory: /tmp/pulsar_functions
-#threadContainerFactory:
-#  threadGroupName: "Thread Function Container Group"
-processContainerFactory:
-  logDirectory:
-#kubernetesContainerFactory:
-#  k8Uri:
+
+#################################################################
+# Function metadata managment (assignment, scheduling, and etc)
+#################################################################
+
+# Configure the pulsar client used by function metadata management
+#
+# points 
+pulsarServiceUrl: pulsar://localhost:6650
+pulsarWebServiceUrl: http://localhost:8080
+# the authentication plugin to be used by the pulsar client used in worker service
+# clientAuthenticationPlugin:
+# the authentication parameter to be used by the pulsar client used in worker service
+# clientAuthenticationParameters:
+
+# pulsar topics used for function metadata management
+
+pulsarFunctionsNamespace: public/functions
+pulsarFunctionsCluster: standalone
+functionMetadataTopicName: metadata
+clusterCoordinationTopicName: coordinate
+
+# function assignment and scheduler
 
 schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler"
 functionAssignmentTopicName: "assignments"
@@ -49,6 +66,47 @@ instanceLivenessCheckFreqMs: 30000
 # Frequency how often worker performs compaction on function-topics
 topicCompactionFrequencySec: 1800
 metricsSamplingPeriodSec: 60
+
+
+###############################
+# Function Runtime Management
+###############################
+
+#threadContainerFactory:
+#  threadGroupName: "Thread Function Container Group"
+processContainerFactory:
+  logDirectory:
+  # change the jar location only when you put the java instance jar in a different location
+  javaInstanceJarLocation:
+  # change the python instance location only when you put the python instance jar in a different location
+  pythonInstanceLocation:
+#kubernetesContainerFactory:
+#  # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
+#  k8Uri:
+#  # the kubernetes namespace to run the function instances. it is `default`, if this setting is left to be empty
+#  jobNamespace:
+#  # the docker image to run function instance. by default it is `apachepulsar/pulsar`
+#  pulsarDockerImageName:
+#  # the root directory of pulsar home directory in `pulsarDockerImageName`. by default it is `/pulsar`.
+#  # if you are using your own built image in `pulsarDockerImageName`, you need to set this setting accordingly
+#  pulsarRootDir:
+#  # this setting only takes effects if `k8Uri` is set to null. if your function worker is running as a k8 pod,
+#  # setting this to true is let function worker to submit functions to the same k8s cluster as function worker
+#  # is running. setting this to false if your function worker is not running as a k8 pod.
+#  submittingInsidePod: false
+#  # setting the pulsar service url that pulsar function should use to connect to pulsar 
+#  # if it is not set, it will use the pulsar service url configured in worker service
+#  pulsarServiceUrl:
+#  # setting the pulsar admin url that pulsar function should use to connect to pulsar
+#  # if it is not set, it will use the pulsar admin url configured in worker service
+#  pulsarAdminUrl:
+#  # the custom labels that function worker uses to select the nodes for pods
+#  customLabels:
+
+############################################
+# security settings for worker service
+############################################
+
 # Enforce authentication
 authenticationEnabled: false
 # Enforce authorization on accessing functions api
@@ -58,7 +116,7 @@ authenticationProviders:
 # Set of role names that are treated as "super-user", meaning they will be able to access any admin-api
 superUserRoles: 
 
-#### tls configuration
+#### tls configuration for worker service
 # Enable TLS
 tlsEnabled: false
 # Path for the TLS certificate file
@@ -69,3 +127,16 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client 
 tlsAllowInsecureConnection: false
+
+########################
+# State Management
+########################
+
+# the service url points to bookkeeper table service
+# stateStorageServiceUrl: bk://localhost:4181
+
+########################
+# Connectors
+########################
+
+connectorsDirectory: ./connectors

@@ -66,6 +66,14 @@
       <scope>test</scope>
     </dependency>
 
+     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger-original</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+      <version>${project.parent.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-common</artifactId>

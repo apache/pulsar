@@ -41,6 +41,7 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,6 +75,7 @@ class KubernetesRuntime implements Runtime {
                     "node.alpha.kubernetes.io/unreachable"
             )
     );
+    private static final long GRPC_TIMEOUT_SECS = 5;
 
     // The thread that invokes the function
     @Getter
@@ -96,6 +98,7 @@ class KubernetesRuntime implements Runtime {
                       CoreV1Api coreClient,
                       String jobNamespace,
                       Map<String, String> customLabels,
+                      Boolean installUserCodeDependencies,
                       String pulsarDockerImageName,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
@@ -115,10 +118,10 @@ class KubernetesRuntime implements Runtime {
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.pulsarRootDir = pulsarRootDir;
         this.userCodePkgUrl = userCodePkgUrl;
-        this.originalCodeFileName = originalCodeFileName;
+        this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
-        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, "conf/log4j2.yaml");
+        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
+                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, pulsarRootDir + "/conf/log4j2.yaml", installUserCodeDependencies);
         running = false;
         doChecks(instanceConfig.getFunctionDetails());
     }
@@ -189,7 +192,7 @@ class KubernetesRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<FunctionStatus> response = stub[instanceId].getFunctionStatus(Empty.newBuilder().build());
+        ListenableFuture<FunctionStatus> response = stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getFunctionStatus(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
             @Override
             public void onFailure(Throwable throwable) {
