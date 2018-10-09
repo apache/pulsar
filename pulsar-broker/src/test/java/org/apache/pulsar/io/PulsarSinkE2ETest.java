@@ -364,7 +364,7 @@ public class PulsarSinkE2ETest {
         FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
         functionRuntimeManager.updateRates();
         FunctionStatusList functionStats = functionRuntimeManager.getAllFunctionStatus(tenant, namespacePortion,
-                functionName);
+                functionName, null);
 
         int numInstances = functionStats.getFunctionStatusListCount();
         assertEquals(numInstances, 1);

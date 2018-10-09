@@ -37,6 +37,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
@@ -62,6 +63,7 @@ import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
+@Slf4j
 public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListener<byte[]> {
 
     private static final long serialVersionUID = 1L;
@@ -216,18 +218,28 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                         CompletableFuture<org.apache.pulsar.client.api.Consumer<byte[]>> future = consumerBuilder.clone()
                                 .topic(partitionName).subscribeAsync();
                         int partitionIndex = i;
-                        TopicPartition tp = new TopicPartition(topic, partitionIndex);
-                        future.thenAccept(consumer -> consumers.putIfAbsent(tp, consumer));
-                        futures.add(future);
+                        TopicPartition tp = new TopicPartition(
+                            TopicName.get(topic).getPartitionedTopicName(),
+                            partitionIndex);
+                        futures.add(future.thenApply(consumer -> {
+                            log.info("Add consumer {} for partition {}", consumer, tp);
+                            consumers.putIfAbsent(tp, consumer);
+                            return consumer;
+                        }));
                         topicPartitions.add(tp);
                     }
                 } else {
                     // Topic has a single partition
                     CompletableFuture<org.apache.pulsar.client.api.Consumer<byte[]>> future = consumerBuilder.topic(topic)
                             .subscribeAsync();
-                    TopicPartition tp = new TopicPartition(topic, 0);
-                    future.thenAccept(consumer -> consumers.putIfAbsent(tp, consumer));
-                    futures.add(future);
+                    TopicPartition tp = new TopicPartition(
+                        TopicName.get(topic).getPartitionedTopicName(),
+                        0);
+                    futures.add(future.thenApply(consumer -> {
+                        log.info("Add consumer {} for partition {}", consumer, tp);
+                        consumers.putIfAbsent(tp, consumer);
+                        return consumer;
+                    }));
                     topicPartitions.add(tp);
                 }
             }
@@ -290,7 +302,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
             int numberOfRecords = 0;
 
-            while (item != null && ++numberOfRecords < MAX_RECORDS_IN_SINGLE_POLL) {
+            while (item != null) {
                 TopicName topicName = TopicName.get(item.consumer.getTopic());
                 String topic = topicName.getPartitionedTopicName();
                 int partition = topicName.isPartitioned() ? topicName.getPartitionIndex() : 0;
@@ -320,11 +332,15 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 // Update last offset seen by application
                 lastReceivedOffset.put(tp, offset);
 
+                if (++numberOfRecords < MAX_RECORDS_IN_SINGLE_POLL) {
+                    break;
+                }
+
                 // Check if we have an item already available
                 item = receivedMessages.poll(0, TimeUnit.MILLISECONDS);
             }
 
-            if (isAutoCommit) {
+            if (isAutoCommit && !records.isEmpty()) {
                 // Commit the offset of previously dequeued messages
                 commitAsync();
             }
@@ -395,7 +411,6 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
         offsets.forEach((topicPartition, offsetAndMetadata) -> {
             org.apache.pulsar.client.api.Consumer<byte[]> consumer = consumers.get(topicPartition);
-
             lastCommittedOffset.put(topicPartition, offsetAndMetadata);
             futures.add(consumer.acknowledgeCumulativeAsync(MessageIdUtils.getMessageId(offsetAndMetadata.offset())));
         });
@@ -435,6 +450,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         if (partitions.isEmpty()) {
             partitions = consumers.keySet();
         }
+        lastCommittedOffset.clear();
+        lastReceivedOffset.clear();
 
         for (TopicPartition tp : partitions) {
             org.apache.pulsar.client.api.Consumer<byte[]> c = consumers.get(tp);
@@ -456,6 +473,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         if (partitions.isEmpty()) {
             partitions = consumers.keySet();
         }
+        lastCommittedOffset.clear();
+        lastReceivedOffset.clear();
 
         for (TopicPartition tp : partitions) {
             org.apache.pulsar.client.api.Consumer<byte[]> c = consumers.get(tp);
