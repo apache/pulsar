@@ -41,7 +41,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
@@ -49,7 +49,7 @@ import org.testng.collections.Lists;
  * Test pulsar produce/consume semantics
  */
 @Slf4j
-public class SemanticsTest extends PulsarClusterTestBase {
+public class SemanticsTest extends PulsarTestSuite {
 
     //
     // Test Basic Publish & Consume Operations
@@ -57,34 +57,7 @@ public class SemanticsTest extends PulsarClusterTestBase {
 
     @Test(dataProvider = "ServiceUrlAndTopics")
     public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
-        String topicName = generateTopicName("testpubconsume", isPersistent);
-
-        int numMessages = 10;
-
-        try (PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl)
-            .build()) {
-
-            try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("my-sub")
-                .subscribe()) {
-
-                try (Producer<String> producer = client.newProducer(Schema.STRING)
-                    .topic(topicName)
-                    .create()) {
-
-                    for (int i = 0; i < numMessages; i++) {
-                        producer.send("smoke-message-" + i);
-                    }
-                }
-
-                for (int i = 0; i < numMessages; i++) {
-                    Message<String> m = consumer.receive();
-                    assertEquals("smoke-message-" + i, m.getValue());
-                }
-            }
-        }
+        super.testPublishAndConsume(serviceUrl, isPersistent);
     }
 
     @Test(dataProvider = "ServiceUrls")

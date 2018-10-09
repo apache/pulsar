@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.utils.validation;
 
-import org.apache.pulsar.functions.utils.FunctionConfig;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;

@@ -26,7 +26,10 @@ import base64
 import os
 import signal
 import time
-import Queue
+try:
+  import Queue as queue
+except:
+  import queue
 import threading
 from functools import partial
 from collections import namedtuple
@@ -51,6 +54,20 @@ InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_
 InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
 InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
 DEFAULT_SERIALIZER = "serde.IdentitySerDe"
+
+PY3 = sys.version_info[0] >= 3
+
+def base64ify(bytes_or_str):
+    if PY3 and isinstance(bytes_or_str, str):
+        input_bytes = bytes_or_str.encode('utf8')
+    else:
+        input_bytes = bytes_or_str
+
+    output_bytes = base64.urlsafe_b64encode(input_bytes)
+    if PY3:
+        return output_bytes.decode('ascii')
+    else:
+        return output_bytes
 
 # We keep track of the following metrics
 class Stats(object):
@@ -129,7 +146,7 @@ class PythonInstance(object):
                state_storage_serviceurl):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
-    self.queue = Queue.Queue(max_buffered_tuples)
+    self.queue = queue.Queue(max_buffered_tuples)
     self.log_topic_handler = None
     if function_details.logTopic is not None and function_details.logTopic != "":
       self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
@@ -299,7 +316,7 @@ class PythonInstance(object):
         self.current_stats.nserialization_exceptions += 1
         self.total_stats.nserialization_exceptions += 1
       if output_bytes is not None:
-        props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64.b64encode(msg.message.message_id().serialize())}
+        props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
         try:
           self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message), properties=props)
         except Exception as e:

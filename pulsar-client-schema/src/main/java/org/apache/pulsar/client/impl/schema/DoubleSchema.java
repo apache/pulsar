@@ -39,6 +39,13 @@ public class DoubleSchema implements Schema<Double> {
         .setSchema(new byte[0]);
 
     @Override
+    public void validate(byte[] message) {
+        if (message.length != 8) {
+            throw new SchemaSerializationException("Size of data received by DoubleSchema is not 8");
+        }
+    }
+
+    @Override
     public byte[] encode(Double message) {
         if (null == message) {
             return null;
@@ -62,9 +69,7 @@ public class DoubleSchema implements Schema<Double> {
         if (null == bytes) {
             return null;
         }
-        if (bytes.length != 8) {
-            throw new SchemaSerializationException("Size of data received by DoubleSchema is not 8");
-        }
+        validate(bytes);
         long value = 0;
         for (byte b : bytes) {
             value <<= 8;

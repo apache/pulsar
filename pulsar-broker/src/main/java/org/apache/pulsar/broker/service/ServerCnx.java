@@ -129,6 +129,7 @@ public class ServerCnx extends PulsarHandler {
     private String originalPrincipal = null;
     private Set<String> proxyRoles;
     private boolean authenticateOriginalAuthData;
+    private final boolean schemaValidationEnforced;
 
     enum State {
         Start, Connected, Failed
@@ -148,6 +149,7 @@ public class ServerCnx extends PulsarHandler {
                 .getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = service.pulsar().getConfiguration().getProxyRoles();
         this.authenticateOriginalAuthData = service.pulsar().getConfiguration().authenticateOriginalAuthData();
+        this.schemaValidationEnforced = pulsar.getConfiguration().isSchemaValidationEnforced();
     }
 
     @Override
@@ -833,7 +835,7 @@ public class ServerCnx extends PulsarHandler {
                             } else {
                                 schemaVersionFuture = topic.hasSchema().thenCompose((hasSchema) -> {
                                         CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
-                                        if (hasSchema) {
+                                        if (hasSchema && schemaValidationEnforced) {
                                             result.completeExceptionally(new IncompatibleSchemaException(
                                                 "Producers cannot connect without a schema to topics with a schema"));
                                         } else {
