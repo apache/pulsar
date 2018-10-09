@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
-@Path("/source")
+@Path("/sink")
 public class SinkApiV2Resource extends FunctionApiResource {
 
     @POST
