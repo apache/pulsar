@@ -1133,10 +1133,11 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
+            <exclude>**/META-INF/services/com.facebook.presto.spi.Plugin</exclude>
 
             <!-- Django generated code -->
             <exclude>dashboard/django/stats/migrations/*.py</exclude>
-            <exclude>dashboard/conf/uwsgi_params</exclude>
+            <exclude>**/conf/uwsgi_params</exclude>
 
             <!-- Exclude certificates used for tests -->
             <exclude>**/*.crt</exclude>
