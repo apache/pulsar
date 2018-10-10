@@ -50,7 +50,7 @@ InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_
 # This is the message that the consumers put on the queue for the function thread to process
 InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
 InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
-DEFAULT_SERIALIZER = "serde.StringSerDe"
+DEFAULT_SERIALIZER = "serde.IdentitySerDe"
 
 PY3 = sys.version_info[0] >= 3
 
@@ -293,7 +293,7 @@ class PythonInstance(object):
       if self.producer is None:
         self.setup_producer()
       try:
-        output_bytes = self.output_serde.serialize(output)
+        output_bytes = bytes(self.output_serde.serialize(output))
       except:
         self.current_stats.nserialization_exceptions += 1
         self.total_stats.nserialization_exceptions += 1

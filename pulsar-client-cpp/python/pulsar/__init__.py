@@ -102,7 +102,7 @@ from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode
 
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context
-from pulsar.functions.serde import SerDe, StringSerDe, PickleSerDe
+from pulsar.functions.serde import SerDe, IdentitySerDe, PickleSerDe
 
 import re
 _retype = type(re.compile('x'))
