@@ -293,7 +293,9 @@ class PythonInstance(object):
       if self.producer is None:
         self.setup_producer()
       try:
-        output_bytes = bytes(self.output_serde.serialize(output))
+        output_bytes = self.output_serde.serialize(output)
+        if type(output_bytes) == str:
+          output_bytes = bytes(output_bytes.encode('utf-8'))
       except:
         self.current_stats.nserialization_exceptions += 1
         self.total_stats.nserialization_exceptions += 1
