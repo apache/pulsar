@@ -46,6 +46,7 @@
 from abc import abstractmethod
 
 import pickle
+import json
 
 class SerDe(object):
   """Interface for Serialization/Deserialization"""
@@ -68,9 +69,9 @@ class PickleSerDe(SerDe):
       return pickle.loads(input_bytes)
 
 class IdentitySerDe(SerDe):
-  """Pickle based serializer"""
+  """Json based serializer"""
   def serialize(self, input):
-    return input
+    return json.dumps(input).encode('utf-8')
 
   def deserialize(self, input_bytes):
-    return input_bytes
+    return json.loads(input_bytes.decode('utf-8'))
