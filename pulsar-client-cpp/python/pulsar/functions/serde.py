@@ -67,8 +67,8 @@ class PickleSerDe(SerDe):
   def deserialize(self, input_bytes):
       return pickle.loads(input_bytes)
 
-class IdentitySerDe(SerDe):
-  """utf-8 based identity serializer"""
+class StringSerDe(SerDe):
+  """utf-8 based string serde"""
   def serialize(self, input):
     return bytes(str(input).encode('utf-8'))
 

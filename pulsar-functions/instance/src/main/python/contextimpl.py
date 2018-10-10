@@ -118,7 +118,7 @@ class ContextImpl(pulsar.Context):
   def get_output_serde_class_name(self):
     return self.instance_config.function_details.outputSerdeClassName
 
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe"):
+  def publish(self, topic_name, message, serde_class_name="serde.StringSerDe"):
     # Just make sure that user supplied values are properly typed
     topic_name = str(topic_name)
     serde_class_name = str(serde_class_name)

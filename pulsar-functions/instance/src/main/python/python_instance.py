@@ -50,7 +50,7 @@ InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_
 # This is the message that the consumers put on the queue for the function thread to process
 InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
 InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
-DEFAULT_SERIALIZER = "serde.IdentitySerDe"
+DEFAULT_SERIALIZER = "serde.StringSerDe"
 
 PY3 = sys.version_info[0] >= 3
 
