@@ -36,6 +36,7 @@ from collections import namedtuple
 from threading import Timer
 import traceback
 import sys
+import re
 
 import pulsar
 import contextimpl
@@ -202,8 +203,8 @@ class PythonInstance(object):
       self.input_serdes[topic] = serde_kclass()
       Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       if consumer_conf.isRegexPattern:
-        self.consumers[topic] = self.pulsar_client.subscribe_pattern(
-          str(topic), subscription_name,
+        self.consumers[topic] = self.pulsar_client.subscribe(
+          re.compile(str(topic)), subscription_name,
           consumer_type=mode,
           message_listener=partial(self.message_listener, self.input_serdes[topic]),
           unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
