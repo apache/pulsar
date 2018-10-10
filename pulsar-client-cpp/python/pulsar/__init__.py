@@ -337,6 +337,7 @@ class Client:
           The topic name
 
         **Options**
+
         * `producer_name`:
            Specify a name for the producer. If not assigned,
            the system will generate a globally unique name which can be accessed
