@@ -1,4 +1,39 @@
 
+## Apache 
+
+### 2.2.0 &mdash; 2018-10-17 <a id="2.2.0"></a>
+
+This is the first release of Pulsar as an Apache Top Level Project 
+
+This is a fetaure release, including several new features, improvements and fixes for  issues reported for 2.1.1-incubating.
+ 
+* [Pulsar Java Client Interceptors](https://github.com/apache/pulsar/pull/2627) 
+
+* [Integration of functions and io with schema registry](https://github.com/apache/pulsar/pull/2266) 
+
+* [Dead Letter Topic](https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic) 
+
+* [Flink Source connector](https://github.com/apache/pulsar/pull/2555) 
+
+* [JDBC Sink Connector](https://github.com/apache/pulsar/issues/2313) 
+
+* [HDFS Sink Connector](https://github.com/apache/pulsar/pull/2409) 
+
+* [Google Cloud Storage Offloader](https://github.com/apache/pulsar/issues/2067) 
+
+* [Pulsar SQL](https://github.com/apache/pulsar/wiki/PIP-19:-Pulsar-SQL) 
+
+
+For a complete list of issues fixed, see 
+
+https://github.com/apache/pulsar/milestone/16?closed=1
+
+https://github.com/apache/incubator-pulsar/releases/tag/v2.2.0
+
+
+
+
+
 ## Apache incubator
 
 ### 2.1.1-incubating &mdash; 2018-09-17 <a id="2.1.1-incubating"></a>
