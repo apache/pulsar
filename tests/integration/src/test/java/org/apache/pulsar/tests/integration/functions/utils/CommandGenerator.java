@@ -39,6 +39,7 @@ public class CommandGenerator {
     private String namespace = "default";
     private String functionClassName;
     private String sourceTopic;
+    private String sourceTopicPattern;
     private Map<String, String> customSereSourceTopics;
     private String sinkTopic;
     private String logTopic;
@@ -64,26 +65,12 @@ public class CommandGenerator {
         return generator;
     }
 
-    public static CommandGenerator createDefaultGenerator(Map<String, String> customSereSourceTopics,
-                                                          String functionClassName) {
+    public static CommandGenerator createTopicPatternGenerator(String sourceTopicPattern, String functionClassName) {
         CommandGenerator generator = new CommandGenerator();
-        generator.setCustomSereSourceTopics(customSereSourceTopics);
+        generator.setSourceTopicPattern(sourceTopicPattern);
         generator.setFunctionClassName(functionClassName);
         generator.setRuntime(Runtime.JAVA);
         return generator;
-    }
-
-    public static CommandGenerator createDefaultGenerator(String tenant, String namespace, String functionName) {
-        CommandGenerator generator = new CommandGenerator();
-        generator.setTenant(tenant);
-        generator.setNamespace(namespace);
-        generator.setFunctionName(functionName);
-        generator.setRuntime(Runtime.JAVA);
-        return generator;
-    }
-
-    public void createAdminUrl(String workerHost, int port) {
-        adminUrl = "http://" + workerHost + ":" + port;
     }
 
     public String generateCreateFunctionCommand() {
@@ -109,6 +96,9 @@ public class CommandGenerator {
         commandBuilder.append(" --className " + functionClassName);
         if (sourceTopic != null) {
             commandBuilder.append(" --inputs " + sourceTopic);
+        }
+        if (sourceTopicPattern != null) {
+            commandBuilder.append(" --topics-pattern " + sourceTopicPattern);
         }
         if (logTopic != null) {
             commandBuilder.append(" --logTopic " + logTopic);
