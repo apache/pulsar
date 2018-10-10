@@ -78,6 +78,10 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     }
 
+    protected Properties beforeCreateConsumer(Properties props) {
+        return props;
+    }
+
     @Override
     public void close() throws InterruptedException {
         LOG.info("Stopping kafka source");
@@ -96,7 +100,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     public void start() {
         runnerThread = new Thread(() -> {
             LOG.info("Starting kafka source");
-            consumer = new KafkaConsumer<>(props);
+            consumer = new KafkaConsumer<>(beforeCreateConsumer(props));
             consumer.subscribe(Arrays.asList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
             ConsumerRecords<String, byte[]> consumerRecords;
