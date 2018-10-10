@@ -34,6 +34,8 @@ class Logger {
         ERROR = 3
     };
 
+    virtual ~Logger() {}
+
     virtual bool isEnabled(Level level) = 0;
 
     virtual void log(Level level, int line, const std::string& message) = 0;
