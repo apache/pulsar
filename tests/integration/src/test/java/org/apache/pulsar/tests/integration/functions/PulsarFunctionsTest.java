@@ -24,8 +24,11 @@ import static org.testng.Assert.fail;
 
 import com.google.common.base.Stopwatch;
 import com.google.gson.Gson;
+
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -605,7 +608,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             return;
         }
 
-        String inputTopicName = "test-exclamation-" + runtime + "-input-" + randomName(8);
+        String inputTopicName = "persistent://public/default/test-exclamation-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-exclamation-" + runtime + "-output-" + randomName(8);
         if (isTopicPattern) {
             @Cleanup PulsarClient client = PulsarClient.builder()
@@ -786,9 +789,15 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             }
         }
 
+        Set<String> expectedMessages = new HashSet<>();
         for (int i = 0; i < numMessages; i++) {
-            Message<String> msg = consumer.receive();
-            assertEquals("message-" + i + "!", msg.getValue());
+            expectedMessages.add("message-" + i + "!");
+        }
+
+        for (int i = 0; i < numMessages; i++) {
+            Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
+            assertTrue(expectedMessages.contains(msg.getValue()));
+            expectedMessages.remove(msg.getValue());
         }
     }
 
