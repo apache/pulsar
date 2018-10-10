@@ -607,7 +607,7 @@ In this case, there are two input topics, `input-topic-1` and `input-topic-2`, e
 
 When using Pulsar Functions for Python, you essentially have three SerDe options:
 
-1. You can use the [`StringSerDe`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L70), which leaves the data unchanged. The `StringSerDe` is the **default**. Creating or running a function without explicitly specifying SerDe will mean that this option is used.
+1. You can use the [`StringSerDe`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L70), which handles strings. The `StringSerDe` is the **default**. Creating or running a function without explicitly specifying SerDe will mean that this option is used.
 2. You can use the [`PickeSerDe`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L62), which uses Python's [`pickle`](https://docs.python.org/3/library/pickle.html) for SerDe.
 3. You can create a custom SerDe class by implementing the baseline [`SerDe`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L50) class, which has just two methods: [`serialize`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L53) for converting the object into bytes, and [`deserialize`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L58) for converting bytes into an object of the required application-specific type.
 
@@ -615,7 +615,7 @@ The table below shows when you should use each SerDe:
 
 SerDe option | When to use
 :------------|:-----------
-`StringSerDe` | When you're working with simple types like strings, Booleans, integers, and the like
+`StringSerDe` | When you're working with simple strings
 `PickleSerDe` | When you're working with complex, application-specific types and are comfortable with `pickle`'s "best effort" approach
 Custom SerDe | When you require explicit control over SerDe, potentially for performance or data compatibility purposes
 
