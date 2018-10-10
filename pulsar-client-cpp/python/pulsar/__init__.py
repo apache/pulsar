@@ -107,6 +107,7 @@ from pulsar.functions.serde import SerDe, IdentitySerDe, PickleSerDe
 import re
 _retype = type(re.compile('x'))
 
+
 class MessageId:
     """
     Represents a message id
@@ -120,18 +121,18 @@ class MessageId:
 
     def serialize(self):
         """
-        Returns a string representation of the message id.
-        This string can be stored and later deserialized.
+        Returns a bytes representation of the message id.
+        This bytes sequence can be stored and later deserialized.
         """
         return self._msg_id.serialize()
 
     @staticmethod
-    def deserialize(message_id_str):
+    def deserialize(message_id_bytes):
         """
         Deserialize a message id object from a previously
-        serialized string.
+        serialized bytes sequence.
         """
-        return _pulsar.MessageId.deserialize(message_id_str)
+        return _pulsar.MessageId.deserialize(message_id_bytes)
 
 
 class Message:
