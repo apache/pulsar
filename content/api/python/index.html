@@ -1280,6 +1280,7 @@ from pulsar.functions.serde import SerDe, IdentitySerDe, PickleSerDe
 import re
 _retype = type(re.compile('x'))
 
+
 class MessageId:
     """
     Represents a message id
@@ -1293,18 +1294,18 @@ class MessageId:
 
     def serialize(self):
         """
-        Returns a string representation of the message id.
-        This string can be stored and later deserialized.
+        Returns a bytes representation of the message id.
+        This bytes sequence can be stored and later deserialized.
         """
         return self._msg_id.serialize()
 
     @staticmethod
-    def deserialize(message_id_str):
+    def deserialize(message_id_bytes):
         """
         Deserialize a message id object from a previously
-        serialized string.
+        serialized bytes sequence.
         """
-        return _pulsar.MessageId.deserialize(message_id_str)
+        return _pulsar.MessageId.deserialize(message_id_bytes)
 
 
 class Message:
@@ -4080,18 +4081,18 @@ message.</p></div>
 
     def serialize(self):
         """
-        Returns a string representation of the message id.
-        This string can be stored and later deserialized.
+        Returns a bytes representation of the message id.
+        This bytes sequence can be stored and later deserialized.
         """
         return self._msg_id.serialize()
 
     @staticmethod
-    def deserialize(message_id_str):
+    def deserialize(message_id_bytes):
         """
         Deserialize a message id object from a previously
-        serialized string.
+        serialized bytes sequence.
         """
-        return _pulsar.MessageId.deserialize(message_id_str)
+        return _pulsar.MessageId.deserialize(message_id_bytes)
 </code></pre>
   </div>
 </div>
@@ -4128,24 +4129,24 @@ message.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.MessageId.deserialize">
-    <p>def <span class="ident">deserialize</span>(</p><p>message_id_str)</p>
+    <p>def <span class="ident">deserialize</span>(</p><p>message_id_bytes)</p>
     </div>
     
 
     
   
     <div class="desc"><p>Deserialize a message id object from a previously
-serialized string.</p></div>
+serialized bytes sequence.</p></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.MessageId.deserialize', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.MessageId.deserialize" class="source">
     <pre><code>@staticmethod
-def deserialize(message_id_str):
+def deserialize(message_id_bytes):
     """
     Deserialize a message id object from a previously
-    serialized string.
+    serialized bytes sequence.
     """
-    return _pulsar.MessageId.deserialize(message_id_str)
+    return _pulsar.MessageId.deserialize(message_id_bytes)
 </code></pre>
   </div>
 </div>
@@ -4162,15 +4163,15 @@ def deserialize(message_id_str):
 
     
   
-    <div class="desc"><p>Returns a string representation of the message id.
-This string can be stored and later deserialized.</p></div>
+    <div class="desc"><p>Returns a bytes representation of the message id.
+This bytes sequence can be stored and later deserialized.</p></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.MessageId.serialize', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.MessageId.serialize" class="source">
     <pre><code>def serialize(self):
     """
-    Returns a string representation of the message id.
-    This string can be stored and later deserialized.
+    Returns a bytes representation of the message id.
+    This bytes sequence can be stored and later deserialized.
     """
     return self._msg_id.serialize()
 </code></pre>
