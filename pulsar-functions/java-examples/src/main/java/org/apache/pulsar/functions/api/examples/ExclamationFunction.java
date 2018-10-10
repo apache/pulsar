@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -25,9 +26,12 @@ import org.apache.pulsar.functions.api.Function;
  * The classic Exclamation Function that appends an exclamation at the end
  * of the input
  */
+@Slf4j
 public class ExclamationFunction implements Function<String, String> {
     @Override
     public String process(String input, Context context) {
+
+        log.info("output: {}", String.format("%s!", input));
         return String.format("%s!", input);
     }
 }

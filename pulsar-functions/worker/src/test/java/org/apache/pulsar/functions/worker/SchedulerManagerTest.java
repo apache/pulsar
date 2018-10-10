@@ -64,6 +64,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
@@ -400,6 +401,9 @@ public class SchedulerManagerTest {
                 .build();
         Assert.assertEquals(assignments, assignment2);
 
+        // updating assignments
+        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2.getInstance()), assignment2);
+
         // scale up
 
         Function.FunctionMetaData function2Scaled = Function.FunctionMetaData.newBuilder()
@@ -510,7 +514,6 @@ public class SchedulerManagerTest {
             }
         });
 
-
         Function.Assignment assignment2_1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
@@ -530,6 +533,11 @@ public class SchedulerManagerTest {
         assertTrue(allAssignments.contains(assignment2_1));
         assertTrue(allAssignments.contains(assignment2_2));
         assertTrue(allAssignments.contains(assignment2_3));
+
+        // updating assignments
+        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_1.getInstance()), assignment2_1);
+        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_2.getInstance()), assignment2_2);
+        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_3.getInstance()), assignment2_3);
 
         // scale down
 
@@ -551,11 +559,9 @@ public class SchedulerManagerTest {
         callSchedule();
 
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
-        Assert.assertEquals(invocations.size(), 4);
+        Assert.assertEquals(invocations.size(), 6);
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
-        send = (byte[]) invocations.get(0).getRawArguments()[0];
-        assignments = Assignment.parseFrom(send);
 
         Set<Assignment> allAssignments2 = Sets.newHashSet();
         invocations.forEach(invocation -> {
@@ -671,15 +677,6 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        List<Invocation> invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
-        Assert.assertEquals(invocations.size(), 3);
-        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
-                Object.class));
-        byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
-        Assignment assignments = Assignment.parseFrom(send);
-
-        log.info("assignmentsUpdate: {}", assignments);
-
         Function.Assignment assignment2_1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
                 .setInstance(Function.Instance.newBuilder()
@@ -696,12 +693,10 @@ public class SchedulerManagerTest {
                         .setFunctionMetaData(function2).setInstanceId(2).build())
                 .build();
 
-        invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
+        List<Invocation> invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("sendAsync"));
         Assert.assertEquals(invocations.size(), 3);
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
-        send = (byte[]) invocations.get(0).getRawArguments()[0];
-        assignments = Assignment.parseFrom(send);
 
         Set<Assignment> allAssignments = Sets.newHashSet();
         invocations.forEach(invocation -> {
@@ -712,11 +707,17 @@ public class SchedulerManagerTest {
             }
         });
 
+        assertEquals(allAssignments.size(), 3);
         assertTrue(allAssignments.contains(assignment2_1));
         assertTrue(allAssignments.contains(assignment2_2));
         assertTrue(allAssignments.contains(assignment2_3));
 
-        // scale down
+        // updating assignments
+        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_1.getInstance()), assignment2_1);
+        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_2.getInstance()), assignment2_2);
+        currentAssignments.get("worker-1").put(Utils.getFullyQualifiedInstanceId(assignment2_3.getInstance()), assignment2_3);
+
+        // update field
 
         Function.FunctionMetaData function2Updated = Function.FunctionMetaData.newBuilder()
                 .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/foo/bar2"))
@@ -750,8 +751,6 @@ public class SchedulerManagerTest {
         Assert.assertEquals(invocations.size(), 6);
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
-        send = (byte[]) invocations.get(0).getRawArguments()[0];
-        assignments = Assignment.parseFrom(send);
 
         Set<Assignment> allAssignments2 = Sets.newHashSet();
         invocations.forEach(invocation -> {
