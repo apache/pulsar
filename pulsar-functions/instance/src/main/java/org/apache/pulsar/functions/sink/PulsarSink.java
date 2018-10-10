@@ -239,6 +239,7 @@ public class PulsarSink<T> implements Sink<T> {
 
     @Override
     public void write(Record<T> record) throws Exception {
+        if (record == null) return;
         TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(record);
         if (record.getKey().isPresent()) {
             msg.key(record.getKey().get());
