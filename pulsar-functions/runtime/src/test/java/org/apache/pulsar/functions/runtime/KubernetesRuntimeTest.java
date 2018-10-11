@@ -121,7 +121,7 @@ public class KubernetesRuntimeTest {
 
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 30);
+        assertEquals(args.size(), 28);
         String expectedArgs = "java -cp " + javaInstanceJarFile
                 + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
                 + " -Dlog4j.configurationFile=/pulsar/conf/log4j2.yaml "
@@ -135,7 +135,7 @@ public class KubernetesRuntimeTest {
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(23)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
-                + " --expected_healthcheck_interval -1 --install_usercode_dependencies True";
+                + " --expected_healthcheck_interval -1";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -147,14 +147,17 @@ public class KubernetesRuntimeTest {
         List<String> args = container.getProcessArgs();
         assertEquals(args.size(), 26);
         String expectedArgs = "python " + pythonInstanceFile
-                + " --py " + pulsarRootDir + "/" + userJarFile + " --logging_directory "
-                + logDirectory + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
-                + "$SHARD_ID" + " --function_id " + config.getFunctionId()
+                + " --py " + pulsarRootDir + "/" + userJarFile
+                + " --logging_directory " + logDirectory
+                + " --logging_file " + config.getFunctionDetails().getName()
+                + " --install_usercode_dependencies True"
+                + " --instance_id " + "$SHARD_ID"
+                + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(21)
-                + " --expected_healthcheck_interval -1 --install_usercode_dependencies True";
+                + " --max_buffered_tuples 1024 --port " + args.get(23)
+                + " --expected_healthcheck_interval -1";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
