@@ -48,13 +48,13 @@ Deploying Pulsar Functions is handled by the [`pulsar-admin`](reference-pulsar-a
 ```bash
 $ bin/pulsar-admin functions localrun \
   --py sanitizer.py \          # The Python file with the function's code
-  --classname sanitizer \      # The class or function holding the processing logic
+  --className sanitizer \      # The class or function holding the processing logic
   --tenant public \            # The function's tenant (derived from the topic name by default)
   --namespace default \        # The function's namespace (derived from the topic name by default)
   --name sanitizer-function \  # The name of the function (the class name by default)
   --inputs dirty-strings-in \  # The input topic(s) for the function
   --output clean-strings-out \ # The output topic for the function
-  --log-topic sanitizer-logs   # The topic to which all functions logs are published
+  --logTopic sanitizer-logs    # The topic to which all functions logs are published
 ```
 
 For instructions on running functions in your Pulsar cluster, see the [Deploying Pulsar Functions](functions-deploying.md) guide.
@@ -86,16 +86,7 @@ class DisplayFunctionName(Function):
         return "The function processing this message has the name {0}".format(function_name)
 ```
 
-### Functions, Messages and Message Types
-
-Pulsar Functions can take byte arrays as inputs and spit out byte arrays as output. However in languages that support typed interfaces(just Java at the moment) one can write typed Functions as well. In this scenario, there are two ways one can bind messages to types.
-* [Schema Registry](#Schema-Registry)
-* [SerDe](#SerDe)
-
-### Schema Registry
-Pulsar has a built in [Schema Registry](concepts-schema-registry) and comes bundled with a variety of popular schema types(avro, json and protobuf). Pulsar Functions can leverage existing schema information from input topics to derive the input type. The same applies for output topic as well.
-
-### SerDe
+### Serialization and deserialization (SerDe)
 
 SerDe stands for **Ser**ialization and **De**serialization. All Pulsar Functions use SerDe for message handling. How SerDe works by default depends on the language you're using for a particular function:
 
@@ -129,7 +120,7 @@ When you run or update Pulsar Functions created using the [SDK](#available-apis)
 $ bin/pulsar-admin functions create \
   --name word-filter \
   # Other function configs
-  --user-config '{"forbidden-word":"rosebud"}'
+  --userConfig '{"forbidden-word":"rosebud"}'
 ```
 
 If the function were a Python function, that config value could be accessed like this:
@@ -252,10 +243,11 @@ The {@inject: javadoc:Context:/client/org/apache/pulsar/functions/api/Context} i
 
 ```java
 public interface Context {
-    Record<?> getCurrentRecord();
-    Collection<String> getInputTopics();
-    String getOutputTopic();
-    String getOutputSchemaType();
+    byte[] getMessageId();
+    String getTopicName();
+    Collection<String> getSourceTopics();
+    String getSinkTopic();
+    String getOutputSerdeClassName();
     String getTenant();
     String getNamespace();
     String getFunctionName();
@@ -263,16 +255,13 @@ public interface Context {
     String getInstanceId();
     String getFunctionVersion();
     Logger getLogger();
-    void incrCounter(String key, long amount);
-    long getCounter(String key);
-    void putState(String key, ByteBuffer value);
-    ByteBuffer getState(String key);
-    Map<String, Object> getUserConfigMap();
-    Optional<Object> getUserConfigValue(String key);
-    Object getUserConfigValueOrDefault(String key, Object defaultValue);
+    Map<String, String> getUserConfigMap();
+    Optional<String> getUserConfigValue(String key);
+    String getUserConfigValueOrDefault(String key, String default);
     void recordMetric(String metricName, double value);
-    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
+    <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName);
     <O> CompletableFuture<Void> publish(String topicName, O object);
+    CompletableFuture<Void> ack(byte[] messageId, String topic);
 }
 ```
 
@@ -394,7 +383,7 @@ Here's an example [`create`](reference-pulsar-admin.md#create-1) operation:
 ```bash
 $ bin/pulsar-admin functions create \
   --jar /path/to/your.jar \
-  --output-serde-classname com.example.serde.TweetSerde \
+  --outputSerdeClassName com.example.serde.TweetSerde \
   # Other function attributes
 ```
 
@@ -432,8 +421,8 @@ If you want your function to produce logs, you need to specify a log topic when 
 ```bash
 $ bin/pulsar-admin functions create \
   --jar my-functions.jar \
-  --classname my.package.LoggingFunction \
-  --log-topic persistent://public/default/logging-function-logs \
+  --className my.package.LoggingFunction \
+  --logTopic persistent://public/default/logging-function-logs \
   # Other function configs
 ```
 
@@ -446,7 +435,7 @@ The Java SDK's [`Context`](#context) object enables you to access key/value pair
 ```bash
 $ bin/pulsar-admin functions create \
   # Other function configs
-  --user-config '{"word-of-the-day":"verdure"}'
+  --userConfig '{"word-of-the-day":"verdure"}'
 ```
 
 To access that value in a Java function:
@@ -523,7 +512,7 @@ Writing Pulsar Functions in Python entails implementing one of two things:
 
 ### Getting started
 
-Regardless of which [deployment mode](functions-deploying.md) you're using, 'pulsar-client' python library has to installed on any machine that's running Pulsar Functions written in Python.
+Regardless of which [deployment mode](functions-deploying.md) you're using, you'll need to install the following Python libraries on any machine that's running Pulsar Functions written in Python:
 
 That could be your local machine for [local run mode](functions-deploying.md#local-run-mode) or a machine running a Pulsar [broker](reference-terminology.md#broker) for [cluster mode](functions-deploying.md#cluster-mode). To install those libraries using pip:
 
@@ -573,9 +562,7 @@ The [`Context`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-cl
 Method | What it provides
 :------|:----------------
 `get_message_id` | The message ID of the message being processed
-`get_current_message_topic_name` | The topic of the message being currently being processed
-`get_function_tenant` | The tenant under which the current Pulsar Function runs under
-`get_function_namespace` | The namespace under which the current Pulsar Function runs under
+`get_topic_name` | The input topic of the message being processed
 `get_function_name` | The name of the current Pulsar Function
 `get_function_id` | The ID of the current Pulsar Function
 `get_instance_id` | The ID of the current Pulsar Functions instance
@@ -598,9 +585,9 @@ $ bin/pulsar-admin functions create \
   --namespace default \
   --name my_function \
   --py my_function.py \
-  --classname my_function.MyFunction \
-  --custom-serde-inputs '{"input-topic-1":"Serde1","input-topic-2":"Serde2"}' \
-  --output-serde-classname Serde3 \
+  --className my_function.MyFunction \
+  --customSerdeInputs '{"input-topic-1":"Serde1","input-topic-2":"Serde2"}' \
+  --outputSerdeClassName Serde3 \
   --output output-topic-1
 ```
 
@@ -673,8 +660,8 @@ If you want your function to produce logs on a Pulsar topic, you need to specify
 ```bash
 $ bin/pulsar-admin functions create \
   --py logging_function.py \
-  --classname logging_function.LoggingFunction \
-  --log-topic logging-function-logs \
+  --className logging_function.LoggingFunction \
+  --logTopic logging-function-logs \
   # Other function configs
 ```
 
@@ -687,7 +674,7 @@ The Python SDK's [`Context`](#context) object enables you to access key/value pa
 ```bash
 $ bin/pulsar-admin functions create \
   # Other function configs \
-  --user-config '{"word-of-the-day":"verdure"}'
+  --userConfig '{"word-of-the-day":"verdure"}'
 ```
 
 To access that value in a Python function:
