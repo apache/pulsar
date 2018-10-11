@@ -75,7 +75,7 @@ class ContextImpl(pulsar.Context):
     return self.current_message_id
 
   def get_current_message_topic_name(self):
-    return self.current_topic_name
+    return self.current_input_topic_name
 
   def get_function_name(self):
     return self.instance_config.function_details.name
