@@ -85,6 +85,11 @@ class RuntimeUtils {
             args.add(logDirectory);
             args.add("--logging_file");
             args.add(instanceConfig.getFunctionDetails().getName());
+            // `installUserCodeDependencies` is only valid for python runtime
+            if (installUserCodeDepdendencies != null && installUserCodeDepdendencies) {
+                args.add("--install_usercode_dependencies");
+                args.add("True");
+            }
             // TODO:- Find a platform independent way of controlling memory for a python application
         }
         args.add("--instance_id");
@@ -131,10 +136,6 @@ class RuntimeUtils {
         }
         args.add("--expected_healthcheck_interval");
         args.add(String.valueOf(expectedHealthCheckInterval));
-        if (installUserCodeDepdendencies != null && installUserCodeDepdendencies) {
-            args.add("--install_usercode_dependencies");
-            args.add("True");
-        }
         return args;
     }
 }
