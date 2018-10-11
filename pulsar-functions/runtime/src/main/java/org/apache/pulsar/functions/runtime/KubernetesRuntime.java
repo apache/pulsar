@@ -445,10 +445,7 @@ class KubernetesRuntime implements Runtime {
 
         // set up pod meta
         final V1ObjectMeta templateMetaData = new V1ObjectMeta().labels(getLabels(instanceConfig.getFunctionDetails()));
-        /*
-        TODO:- Figure out the metrics collection later.
         templateMetaData.annotations(getPrometheusAnnotations());
-        */
         podTemplateSpec.setMetadata(templateMetaData);
 
         final List<String> command = getExecutorCommand();
@@ -464,7 +461,7 @@ class KubernetesRuntime implements Runtime {
     private Map<String, String> getPrometheusAnnotations() {
         final Map<String, String> annotations = new HashMap<>();
         annotations.put("prometheus.io/scrape", "true");
-        annotations.put("prometheus.io/port", "8080");
+        annotations.put("prometheus.io/port", String.valueOf(PROMETHEUS_PORT));
         return annotations;
     }
 
