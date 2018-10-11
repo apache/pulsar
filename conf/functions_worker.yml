@@ -74,18 +74,12 @@ metricsSamplingPeriodSec: 60
 
 #threadContainerFactory:
 #  threadGroupName: "Thread Function Container Group"
-#processContainerFactory:
-#  logDirectory:
+processContainerFactory:
+  logDirectory:
   # change the jar location only when you put the java instance jar in a different location
-#  javaInstanceJarLocation:
+  javaInstanceJarLocation:
   # change the python instance location only when you put the python instance jar in a different location
-#  pythonInstanceLocation:
-kubernetesContainerFactory:
-  pulsarDockerImageName: "srkukarni/pulsar"
-  submittingInsidePod: true
-  pulsarServiceUrl: pulsar://pulsar:6650/
-  pulsarAdminUrl: http://pulsar:8080/
-  expectedMetricsCollectionInterval: 30
+  pythonInstanceLocation:
 #kubernetesContainerFactory:
 #  # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
 #  k8Uri:
