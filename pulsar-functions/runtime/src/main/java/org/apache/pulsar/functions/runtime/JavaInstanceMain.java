@@ -95,9 +95,6 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in seconds between healtchecks", required = true)
     protected int expectedHealthCheckInterval;
 
-    @Parameter(names = "--install_usercode_dependencies", description = "Do we need to explictly install any user code dependencies(Does not apply to Java", required = false)
-    protected Boolean installUsercodeDependencies;
-
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
