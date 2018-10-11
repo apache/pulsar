@@ -53,7 +53,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final AuthenticationConfig authConfig;
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
+    private final String prometheusMetricsServerJarFile;
     private final String logDirectory = "logs/functions";
+    private final Integer expectedMetricsInterval;
     private AppsV1Api appsClient;
     private CoreV1Api coreClient;
 
@@ -68,7 +70,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
                                     String stateStorageServiceUri,
-                                    AuthenticationConfig authConfig) {
+                                    AuthenticationConfig authConfig,
+                                    Integer expectedMetricsInterval) {
         this.k8Uri = k8Uri;
         if (!isEmpty(jobNamespace)) {
             this.jobNamespace = jobNamespace;
@@ -94,6 +97,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.authConfig = authConfig;
         this.javaInstanceJarFile = this.pulsarRootDir + "/instances/java-instance.jar";
         this.pythonInstanceFile = this.pulsarRootDir + "/instances/python-instance/python_instance_main.py";
+        this.prometheusMetricsServerJarFile = this.pulsarRootDir + "/instances/PrometheusMetricsServer.jar";
+        this.expectedMetricsInterval = expectedMetricsInterval == null ? -1 : expectedMetricsInterval;
     }
 
     @Override
@@ -127,13 +132,15 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             pulsarRootDir,
             instanceConfig,
             instanceFile,
+            prometheusMetricsServerJarFile,
             logDirectory,
             codePkgUrl,
             originalCodeFileName,
             pulsarServiceUri,
             pulsarAdminUri,
             stateStorageServiceUri,
-            authConfig);
+            authConfig,
+            expectedMetricsInterval);
     }
 
     @Override
