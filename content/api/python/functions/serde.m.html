@@ -979,6 +979,7 @@ table {
         
           
   <ul>
+    <li class="mono"><a href="#pulsar.functions.serde.IdentitySerDe.__init__">__init__</a></li>
     <li class="mono"><a href="#pulsar.functions.serde.IdentitySerDe.deserialize">deserialize</a></li>
     <li class="mono"><a href="#pulsar.functions.serde.IdentitySerDe.serialize">serialize</a></li>
   </ul>
@@ -1097,12 +1098,22 @@ class PickleSerDe(SerDe):
       return pickle.loads(input_bytes)
 
 class IdentitySerDe(SerDe):
-  """Pickle based serializer"""
+  """Simple Serde that just conversion to string and back"""
+  def __init__(self):
+    self._types = [int, float, complex, str]
+
   def serialize(self, input):
-    return input
+    if type(input) in self._types:
+      return str(input).encode('utf-8')
+    raise TypeError
 
   def deserialize(self, input_bytes):
-    return input_bytes
+    for typ in self._types:
+      try:
+        return typ(input_bytes.decode('utf-8'))
+      except:
+        pass
+    raise TypeError
 </code></pre>
   </div>
 
@@ -1117,17 +1128,27 @@ class IdentitySerDe(SerDe):
       <p id="pulsar.functions.serde.IdentitySerDe" class="name">class <span class="ident">IdentitySerDe</span></p>
       
   
-    <div class="desc"><p>Pickle based serializer</p></div>
+    <div class="desc"><p>Simple Serde that just conversion to string and back</p></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.serde.IdentitySerDe', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.functions.serde.IdentitySerDe" class="source">
     <pre><code>class IdentitySerDe(SerDe):
-  """Pickle based serializer"""
+  """Simple Serde that just conversion to string and back"""
+  def __init__(self):
+    self._types = [int, float, complex, str]
+
   def serialize(self, input):
-    return input
+    if type(input) in self._types:
+      return str(input).encode('utf-8')
+    raise TypeError
 
   def deserialize(self, input_bytes):
-    return input_bytes
+    for typ in self._types:
+      try:
+        return typ(input_bytes.decode('utf-8'))
+      except:
+        pass
+    raise TypeError
 </code></pre>
   </div>
 </div>
@@ -1141,6 +1162,26 @@ class IdentitySerDe(SerDe):
           <li>__builtin__.object</li>
           </ul>
           <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.functions.serde.IdentitySerDe.__init__">
+    <p>def <span class="ident">__init__</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.serde.IdentitySerDe.__init__', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.serde.IdentitySerDe.__init__" class="source">
+    <pre><code>def __init__(self):
+  self._types = [int, float, complex, str]
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
             
   <div class="item">
     <div class="name def" id="pulsar.functions.serde.IdentitySerDe.deserialize">
@@ -1159,7 +1200,12 @@ class IdentitySerDe(SerDe):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.serde.IdentitySerDe.deserialize', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.functions.serde.IdentitySerDe.deserialize" class="source">
     <pre><code>def deserialize(self, input_bytes):
-  return input_bytes
+  for typ in self._types:
+    try:
+      return typ(input_bytes.decode('utf-8'))
+    except:
+      pass
+  raise TypeError
 </code></pre>
   </div>
 </div>
@@ -1184,7 +1230,9 @@ class IdentitySerDe(SerDe):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.serde.IdentitySerDe.serialize', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.functions.serde.IdentitySerDe.serialize" class="source">
     <pre><code>def serialize(self, input):
-  return input
+  if type(input) in self._types:
+    return str(input).encode('utf-8')
+  raise TypeError
 </code></pre>
   </div>
 </div>
