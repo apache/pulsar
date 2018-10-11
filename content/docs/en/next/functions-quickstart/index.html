@@ -211,7 +211,7 @@ $ bin/pulsar standalone \
 <p>Here, the <code>process</code> method defines the processing logic of the Pulsar Function. It simply uses some Python slice magic to reverse each incoming string. Now, we can deploy the function using <code>create</code>:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py reverse.py \
-  --class-name reverse \
+  --classname reverse \
   --inputs persistent://public/default/backwards \
   --output persistent://public/default/forwards \
   --tenant public \

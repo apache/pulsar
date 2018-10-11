@@ -1510,6 +1510,7 @@ class Client:
           The topic name
 
         **Options**
+
         * `producer_name`:
            Specify a name for the producer. If not assigned,
            the system will generate a globally unique name which can be accessed
@@ -2502,6 +2503,7 @@ producers and consumers.</p></div>
           The topic name
 
         **Options**
+
         * `producer_name`:
            Specify a name for the producer. If not assigned,
            the system will generate a globally unique name which can be accessed
@@ -2940,36 +2942,41 @@ producers and consumers.</p></div>
 <li><code>topic</code>:
   The topic name</li>
 </ul>
-<p><strong>Options</strong>
-<em> <code>producer_name</code>:
+<p><strong>Options</strong></p>
+<ul>
+<li><code>producer_name</code>:
    Specify a name for the producer. If not assigned,
    the system will generate a globally unique name which can be accessed
    with <code>Producer.producer_name()</code>. When specifying a name, it is app to
    the user to ensure that, for a given topic, the producer name is unique
-   across all Pulsar's clusters.
-</em> <code>initial_sequence_id</code>:
+   across all Pulsar's clusters.</li>
+<li><code>initial_sequence_id</code>:
    Set the baseline for the sequence ids for messages
    published by the producer. First message will be using
-   <code>(initialSequenceId + 1)`` as its sequence id and subsequent messages will
-   be assigned incremental sequence ids, if not otherwise specified.
-*</code>send_timeout_seconds<code>:
-  If a message is not acknowledged by the server before the</code>send_timeout<code>expires, an error will be reported.
-*</code>compression_type<code>:
+   `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
+   be assigned incremental sequence ids, if not otherwise specified.</li>
+<li><code>send_timeout_seconds</code>:
+  If a message is not acknowledged by the server before the
+  <code>send_timeout</code> expires, an error will be reported.</li>
+<li><code>compression_type</code>:
   Set the compression type for the producer. By default, message
-  payloads are not compressed. Supported compression types are</code>CompressionType.LZ4<code>and</code>CompressionType.ZLib<code>.
-*</code>max_pending_messages<code>:
+  payloads are not compressed. Supported compression types are
+  <code>CompressionType.LZ4</code> and <code>CompressionType.ZLib</code>.</li>
+<li><code>max_pending_messages</code>:
   Set the max size of the queue holding the messages pending to receive
-  an acknowledgment from the broker.
-*</code>max_pending_messages_across_partitions<code>:
+  an acknowledgment from the broker.</li>
+<li><code>max_pending_messages_across_partitions</code>:
   Set the max size of the queue holding the messages pending to receive
-  an acknowledgment across partitions from the broker.
-*</code>block_if_queue_full<code>: Set whether</code>send_async<code>operations should
-  block when the outgoing message queue is full.
-*</code>message_routing_mode<code>:
-  Set the message routing mode for the partitioned producer. Default is</code>PartitionsRoutingMode.RoundRobinDistribution<code>,
-  other option is</code>PartitionsRoutingMode.UseSinglePartition<code>*</code>properties`:
+  an acknowledgment across partitions from the broker.</li>
+<li><code>block_if_queue_full</code>: Set whether <code>send_async</code> operations should
+  block when the outgoing message queue is full.</li>
+<li><code>message_routing_mode</code>:
+  Set the message routing mode for the partitioned producer. Default is <code>PartitionsRoutingMode.RoundRobinDistribution</code>,
+  other option is <code>PartitionsRoutingMode.UseSinglePartition</code></li>
+<li><code>properties</code>:
   Sets the properties for the producer. The properties associated with a producer
-  can be used for identify a producer at broker side.</p></div>
+  can be used for identify a producer at broker side.</li>
+</ul></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client.create_producer', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.Client.create_producer" class="source">

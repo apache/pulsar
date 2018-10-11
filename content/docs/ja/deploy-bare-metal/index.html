@@ -287,7 +287,7 @@ brokerServiceurl=<span class="hljs-string">pulsar:</span><span class="hljs-comme
 <p>Create a ExclamationFunction <code>exclamation</code>.</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar examples/api-examples.jar \
-  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --tenant public \
@@ -295,7 +295,7 @@ brokerServiceurl=<span class="hljs-string">pulsar:</span><span class="hljs-comme
   --name exclamation
 </code></pre>
 <p>Check if the function is running as expected by <a href="/docs/ja/functions-deploying#triggering-pulsar-functions">triggering</a> the function.</p>
-<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger --name exclamation --trigger-value <span class="hljs-string">"hello world"</span>
+<pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger --name exclamation --triggerValue <span class="hljs-string">"hello world"</span>
 </code></pre>
 <p>You will see output as below:</p>
 <pre><code class="hljs css language-shell">hello world!

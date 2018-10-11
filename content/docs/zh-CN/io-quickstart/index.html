@@ -206,7 +206,7 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
     --namespace default \
     --name cassandra-test-sink \
     --sink-type cassandra \
-    --sink-config-file examples/cassandra-sink.yml \
+    --sinkConfigFile examples/cassandra-sink.yml \
     --inputs test_cassandra
 </code></pre>
 <p>Once the command is executed, Pulsar will create a sink connector named <code>cassandra-test-sink</code> and the sink connector will be running as a Pulsar Function and write the messages produced in topic <code>test_cassandra</code> to Cassandra table <code>pulsar_test_table</code>.</p>

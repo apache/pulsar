@@ -76,7 +76,7 @@ $ bin/pulsar standalone \
 <p>A JAR file containing this and several other functions (written in Java) is included with the binary distribution you downloaded above (in the <code>examples</code> folder). To run the function in local mode, i.e. on our laptop but outside our Pulsar cluster:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --jar examples/api-examples.jar \
-  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --name exclamation
@@ -116,7 +116,7 @@ $ bin/pulsar standalone \
 <p>This command, for example, would deploy the same exclamation function we ran locally above <em>in our Pulsar cluster</em> (rather than outside it):</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar examples/api-examples.jar \
-  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --name exclamation
@@ -165,7 +165,7 @@ $ bin/pulsar standalone \
 <p>As we can see, the parallelism of the function is 1, meaning that only one instance of the function is running in our cluster. Let's update our function to a parallelism of 3 using the <code>update</code> command:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> update \
   --jar examples/api-examples.jar \
-  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --tenant public \
@@ -211,7 +211,7 @@ $ bin/pulsar standalone \
 <p>Here, the <code>process</code> method defines the processing logic of the Pulsar Function. It simply uses some Python slice magic to reverse each incoming string. Now, we can deploy the function using <code>create</code>:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py reverse.py \
-  --class-name reverse \
+  --className reverse \
   --inputs persistent://public/default/backwards \
   --output persistent://public/default/forwards \
   --tenant public \
@@ -223,7 +223,7 @@ $ bin/pulsar standalone \
   --name reverse \
   --tenant public \
   --namespace default \
-  --trigger-value <span class="hljs-string">"sdrawrof won si tub sdrawkcab saw gnirts sihT"</span>
+  --triggerValue <span class="hljs-string">"sdrawrof won si tub sdrawkcab saw gnirts sihT"</span>
 </code></pre>
 <p>You should get this output:</p>
 <pre><code class="hljs">This <span class="hljs-built_in">string</span> was backwards <span class="hljs-keyword">but</span> <span class="hljs-keyword">is</span> now forwards
