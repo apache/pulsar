@@ -68,9 +68,19 @@ class PickleSerDe(SerDe):
       return pickle.loads(input_bytes)
 
 class IdentitySerDe(SerDe):
-  """Pickle based serializer"""
+  """Simple Serde that just conversion to string and back"""
+  def __init__(self):
+    self._types = [int, float, complex, str]
+
   def serialize(self, input):
-    return input
+    if type(input) in self._types:
+      return str(input).encode('utf-8')
+    raise TypeError
 
   def deserialize(self, input_bytes):
-    return input_bytes
+    for typ in self._types:
+      try:
+        return typ(input_bytes.decode('utf-8'))
+      except:
+        pass
+    raise TypeError
