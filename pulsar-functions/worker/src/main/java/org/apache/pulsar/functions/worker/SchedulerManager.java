@@ -194,6 +194,7 @@ public class SchedulerManager implements AutoCloseable {
 
                 if (!assignment.getInstance().equals(instance)) {
                     functionMap.put(fullyQualifiedInstanceId, assignment.toBuilder().setInstance(instance).build());
+                    publishNewAssignment(assignment.toBuilder().setInstance(instance).build().toBuilder().build(), false);
                 }
             }
             if (functionMap.isEmpty()) {
@@ -222,7 +223,7 @@ public class SchedulerManager implements AutoCloseable {
 
         List<Assignment> assignments = this.scheduler.schedule(unassignedInstances.getLeft(), currentAssignments, currentMembership);
         assignments.addAll(unassignedInstances.getRight());
-        
+
         if (log.isDebugEnabled()) {
             log.debug("New assignments computed: {}", assignments);
         }
@@ -251,7 +252,7 @@ public class SchedulerManager implements AutoCloseable {
         try {
             String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
             // publish empty message with instance-id key so, compactor can delete and skip delivery of this instance-id
-            // message 
+            // message
             producer.newMessage().key(fullyQualifiedInstanceId)
                     .value(deleted ? "".getBytes() : assignment.toByteArray()).sendAsync().get();
         } catch (Exception e) {

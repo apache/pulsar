@@ -218,6 +218,10 @@ public class PulsarSink<T> implements Sink<T> {
         log.info("Opening pulsar sink with config: {}", pulsarSinkConfig);
 
         Schema<T> schema = initializeSchema();
+        if (schema == null) {
+            log.info("Since output type is null, not creating any real sink");
+            return;
+        }
 
         FunctionConfig.ProcessingGuarantees processingGuarantees = this.pulsarSinkConfig.getProcessingGuarantees();
         switch (processingGuarantees) {
@@ -283,7 +287,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         if (Void.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check
-            return (Schema<T>) Schema.BYTES;
+            return null;
         }
 
         if (!StringUtils.isEmpty(pulsarSinkConfig.getSchemaType())) {

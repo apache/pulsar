@@ -24,8 +24,11 @@ import static org.testng.Assert.fail;
 
 import com.google.common.base.Stopwatch;
 import com.google.gson.Gson;
+
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -581,22 +584,48 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test(enabled = false)
     public void testPythonExclamationFunction() throws Exception {
-        testExclamationFunction(Runtime.PYTHON);
+        testExclamationFunction(Runtime.PYTHON, false);
+    }
+
+    @Test(enabled = false)
+    public void testPythonExclamationTopicPatternFunction() throws Exception {
+        testExclamationFunction(Runtime.PYTHON, true);
     }
 
     @Test
     public void testJavaExclamationFunction() throws Exception {
-        testExclamationFunction(Runtime.JAVA);
+        testExclamationFunction(Runtime.JAVA, false);
     }
 
-    private void testExclamationFunction(Runtime runtime) throws Exception {
+    @Test
+    public void testJavaExclamationTopicPatternFunction() throws Exception {
+        testExclamationFunction(Runtime.JAVA, true);
+    }
+
+    private void testExclamationFunction(Runtime runtime, boolean isTopicPattern) throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
             // python can only run on process mode
             return;
         }
 
-        String inputTopicName = "test-exclamation-" + runtime + "-input-" + randomName(8);
+        String inputTopicName = "persistent://public/default/test-exclamation-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-exclamation-" + runtime + "-output-" + randomName(8);
+        if (isTopicPattern) {
+            @Cleanup PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                    .build();
+            @Cleanup Consumer<String> consumer1 = client.newConsumer(Schema.STRING)
+                    .topic(inputTopicName + "1")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscriptionName("test-sub")
+                    .subscribe();
+            @Cleanup Consumer<String> consumer2 = client.newConsumer(Schema.STRING)
+                    .topic(inputTopicName + "2")
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscriptionName("test-sub")
+                    .subscribe();
+            inputTopicName = inputTopicName + ".*";
+        }
         String functionName = "test-exclamation-fn-" + randomName(8);
         final int numMessages = 10;
 
@@ -640,7 +669,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            String functionClass,
                                            Schema<T> inputTopicSchema) throws Exception {
         CommandGenerator generator;
-        generator = CommandGenerator.createDefaultGenerator(inputTopicName, functionClass);
+        if (inputTopicName.endsWith(".*")) {
+            generator = CommandGenerator.createTopicPatternGenerator(inputTopicName, functionClass);
+        } else {
+            generator = CommandGenerator.createDefaultGenerator(inputTopicName, functionClass);
+        }
         generator.setSinkTopic(outputTopicName);
         generator.setFunctionName(functionName);
         String command;
@@ -731,17 +764,40 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             .subscriptionType(SubscriptionType.Exclusive)
             .subscriptionName("test-sub")
             .subscribe();
-        @Cleanup Producer<String> producer = client.newProducer(Schema.STRING)
-            .topic(inputTopic)
-            .create();
+        if (inputTopic.endsWith(".*")) {
+            @Cleanup Producer<String> producer1 = client.newProducer(Schema.STRING)
+                    .topic(inputTopic.substring(0, inputTopic.length() - 2) + "1")
+                    .create();
+            @Cleanup Producer<String> producer2 = client.newProducer(Schema.STRING)
+                    .topic(inputTopic.substring(0, inputTopic.length() - 2) + "2")
+                    .create();
 
+            for (int i = 0; i < numMessages / 2; i++) {
+                producer1.send("message-" + i);
+            }
+
+            for (int i = numMessages / 2; i < numMessages; i++) {
+                producer2.send("message-" + i);
+            }
+        } else {
+            @Cleanup Producer<String> producer = client.newProducer(Schema.STRING)
+                    .topic(inputTopic)
+                    .create();
+
+            for (int i = 0; i < numMessages; i++) {
+                producer.send("message-" + i);
+            }
+        }
+
+        Set<String> expectedMessages = new HashSet<>();
         for (int i = 0; i < numMessages; i++) {
-            producer.send("message-" + i);
+            expectedMessages.add("message-" + i + "!");
         }
 
         for (int i = 0; i < numMessages; i++) {
-            Message<String> msg = consumer.receive();
-            assertEquals("message-" + i + "!", msg.getValue());
+            Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
+            assertTrue(expectedMessages.contains(msg.getValue()));
+            expectedMessages.remove(msg.getValue());
         }
     }
 

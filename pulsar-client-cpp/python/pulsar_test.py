@@ -753,6 +753,12 @@ class PulsarTest(TestCase):
             pass
         client.close()
 
+    def test_message_id(self):
+        s = MessageId.earliest.serialize()
+        self.assertEqual(MessageId.deserialize(s), MessageId.earliest)
+
+        s = MessageId.latest.serialize()
+        self.assertEqual(MessageId.deserialize(s), MessageId.latest)
 
     def _check_value_error(self, fun):
         try:
