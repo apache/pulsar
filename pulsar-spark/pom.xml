@@ -115,9 +115,6 @@
                 <relocation>
                   <pattern>io.netty</pattern>
                   <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
-                  <excludes>
-                    <exclude>io.netty.buffer.ByteBuf</exclude>
-                  </excludes>
                 </relocation>
               </relocations>
             </configuration>

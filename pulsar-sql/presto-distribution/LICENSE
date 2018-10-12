@@ -238,15 +238,7 @@ The Apache Software License, Version 2.0
     - commons-compress-1.15.jar
     - commons-lang3-3.3.2.jar
     - commons-lang3-3.4.jar
-    - commons-beanutils-1.7.0.jar
-    - commons-collections-3.2.1.jar
-    - commons-configuration-1.6.jar
-    - commons-digester-1.8.jar
-    - commons-lang-2.4.jar
-    - commons-logging-1.1.1.jar
  * Netty
-    - netty-all-4.1.22.Final.jar
-    - netty-tcnative-boringssl-static-2.0.7.Final.jar
     - netty-3.6.2.Final.jar
  * Joda Time
      - joda-time-2.9.9.jar
@@ -399,8 +391,6 @@ The Apache Software License, Version 2.0
     - simpleclient_common-0.0.23.jar
     - simpleclient_hotspot-0.0.23.jar
     - simpleclient_servlet-0.0.23.jar
-  * BookKeeper
-    - circe-checksum-4.7.2.jar
   * LZ4
     - lz4-java-1.5.0.jar
 
