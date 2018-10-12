@@ -18,10 +18,26 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-public class ProtobufSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilityTest{
+import org.apache.avro.Schema;
+import org.apache.avro.SchemaValidationException;
+import org.apache.avro.SchemaValidator;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * An avro schema validator that always reports as incompatible, if there is an existing schema.
+ */
+class NeverSchemaValidator implements SchemaValidator {
+    private final static Logger log = LoggerFactory.getLogger(NeverSchemaValidator.class);
+    static NeverSchemaValidator INSTANCE = new NeverSchemaValidator();
 
     @Override
-    public SchemaCompatibilityCheck getSchemaCheck() {
-        return new ProtobufSchemaCompatibilityCheck();
+    public void validate(Schema toValidate, Iterable<Schema> existing)
+            throws SchemaValidationException {
+        for (Schema s : existing) {
+            // only throw exception if there are existing schemas
+            throw new SchemaValidationException(toValidate, toValidate);
+        }
     }
 }

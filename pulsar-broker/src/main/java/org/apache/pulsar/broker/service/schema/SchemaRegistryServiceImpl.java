@@ -23,6 +23,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
@@ -82,9 +83,10 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     @NotNull
-    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema) {
+    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
+                                                              SchemaCompatibilityStrategy strategy) {
         return getSchema(schemaId).thenApply(
-                (existingSchema) -> existingSchema == null || isCompatible(existingSchema, schema))
+                (existingSchema) -> existingSchema == null || isCompatible(existingSchema, schema, strategy))
             .thenCompose(isCompatible -> {
                     if (isCompatible) {
                         byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
@@ -112,8 +114,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<Boolean> isCompatibleWithLatestVersion(String schemaId, SchemaData schema) {
-        return checkCompatibilityWithLatest(schemaId, schema);
+    public CompletableFuture<Boolean> isCompatibleWithLatestVersion(String schemaId, SchemaData schema,
+                                                                    SchemaCompatibilityStrategy strategy) {
+        return checkCompatibilityWithLatest(schemaId, schema, strategy);
     }
 
     @Override
@@ -137,14 +140,19 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .build();
     }
 
-    private boolean isCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema) {
-        return compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
-            .isCompatible(existingSchema.schema, newSchema);
+    private boolean isCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema,
+                                 SchemaCompatibilityStrategy strategy) {
+        HashCode existingHash = hashFunction.hashBytes(existingSchema.schema.getData());
+        HashCode newHash = hashFunction.hashBytes(newSchema.getData());
+        return newHash.equals(existingHash) ||
+            compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
+            .isCompatible(existingSchema.schema, newSchema, strategy);
     }
 
-    private CompletableFuture<Boolean> checkCompatibilityWithLatest(String schemaId, SchemaData schema) {
+    private CompletableFuture<Boolean> checkCompatibilityWithLatest(String schemaId, SchemaData schema,
+                                                                    SchemaCompatibilityStrategy strategy) {
         return getSchema(schemaId).thenApply(
-                (existingSchema) -> existingSchema != null && isCompatible(existingSchema, schema));
+                (existingSchema) -> existingSchema != null && isCompatible(existingSchema, schema, strategy));
     }
 
     interface Functions {
