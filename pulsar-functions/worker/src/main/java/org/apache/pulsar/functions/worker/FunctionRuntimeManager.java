@@ -651,6 +651,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
     
     public void updateRates() {
+        if (runtimeFactory.externallyManaged()) {
+            // We don't do metrics management for externally managed functions
+            return;
+        }
         for (Entry<String, FunctionRuntimeInfo> entry : this.functionRuntimeInfoMap.entrySet()) {
             RuntimeSpawner functionRuntimeSpawner = entry.getValue().getRuntimeSpawner();
             if (functionRuntimeSpawner != null) {
