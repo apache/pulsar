@@ -74,20 +74,24 @@ public class KafkaConnectSource implements Source<byte[]> {
         });
 
         // get the source class name from config and create source task from reflection
-        sourceTask = ((Class<? extends SourceTask>)config.get(TaskConfig.TASK_CLASS_CONFIG))
+        sourceTask = ((Class<? extends SourceTask>)Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG)))
             .asSubclass(SourceTask.class)
             .getDeclaredConstructor()
             .newInstance();
 
+
         // initialize the key and value converter
-        keyConverter = ((Class<? extends Converter>)config.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG))
+        keyConverter = ((Class<? extends Converter>)Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG)))
             .asSubclass(Converter.class)
             .getDeclaredConstructor()
             .newInstance();
-        valueConverter = ((Class<? extends Converter>)config.get(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG))
+        valueConverter = ((Class<? extends Converter>)Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG)))
             .asSubclass(Converter.class)
             .getDeclaredConstructor()
             .newInstance();
+
+        keyConverter.configure(config, true);
+        valueConverter.configure(config, false);
 
         offsetStore = new PulsarOffsetBackingStore();
         offsetStore.configure(new PulsarKafkaWorkerConfig(stringConfig));
@@ -143,6 +147,13 @@ public class KafkaConnectSource implements Source<byte[]> {
         return new Record<byte[]>() {
             @Override
             public Optional<String> getKey() {
+                log.error("++++ 7: srcRecord.toString: {},  srcRecord.topic:{}, srcRecord.keySchema: {}, srcRecord.key: {}",
+                    srcRecord.toString(),
+                    srcRecord.topic() == null ? "null" : srcRecord.topic(),
+                    srcRecord.keySchema() == null ? "null" : srcRecord.keySchema(),
+                    srcRecord.key() == null ? "null" : srcRecord.key());
+
+
                 byte[] keyBytes = keyConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
                 return Optional.of(Base64.getEncoder().encodeToString(keyBytes));
@@ -150,6 +161,12 @@ public class KafkaConnectSource implements Source<byte[]> {
 
             @Override
             public byte[] getValue() {
+                log.error("++++ 8: srcRecord.toString: {}, srcRecord.topic: {}, srcRecord.valueSchema: {}, srcRecord.value: {} ",
+                    srcRecord.toString(),
+                    srcRecord.topic() == null ? "null" : srcRecord.topic(),
+                    srcRecord.valueSchema() == null ? "null" : srcRecord.valueSchema(),
+                    srcRecord.value() == null ? "null" : srcRecord.value());
+
                 return valueConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
             }
@@ -161,7 +178,7 @@ public class KafkaConnectSource implements Source<byte[]> {
 
             @Override
             public Optional<Long> getEventTime() {
-                return Optional.of(srcRecord.timestamp());
+                return Optional.ofNullable(srcRecord.timestamp());
             }
 
             @Override
