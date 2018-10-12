@@ -896,9 +896,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // but now we have standardized on every schema to generate an Avro based schema
                     if (Commands.peerSupportJsonSchemaAvroFormat(cnx.getRemoteEndpointProtocolVersion())) {
                         schemaInfo = schema.getSchemaInfo();
-                    } else {
+                    } else if (schema instanceof JSONSchema){
                         JSONSchema jsonSchema = (JSONSchema) schema;
                         schemaInfo = jsonSchema.getBackwardsCompatibleJsonSchemaInfo();
+                    } else {
+                        schemaInfo = schema.getSchemaInfo();
                     }
                 } else if (schema.getSchemaInfo().getType() == SchemaType.BYTES) {
                     // don't set schema info for Schema.BYTES
