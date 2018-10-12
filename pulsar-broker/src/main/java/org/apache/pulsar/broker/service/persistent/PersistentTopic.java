@@ -79,6 +79,7 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
@@ -180,6 +181,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     // Whether messages published must be encrypted or not in this topic
     private volatile boolean isEncryptionRequired = false;
+    private volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
+        SchemaCompatibilityStrategy.FULL;
 
     private static final FastThreadLocal<TopicStatsHelper> threadLocalTopicStats = new FastThreadLocal<TopicStatsHelper>() {
         @Override
@@ -255,6 +258,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             isEncryptionRequired = policies.encryption_required;
+
+            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                    policies.schema_auto_update_compatibility_strategy);
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
@@ -1555,6 +1561,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired, data.encryption_required);
         }
         isEncryptionRequired = data.encryption_required;
+
+        schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                data.schema_auto_update_compatibility_strategy);
+
         producers.forEach(producer -> {
             producer.checkPermissions();
             producer.checkEncryption();
@@ -1815,7 +1825,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
-            .putSchemaIfAbsent(id, schema);
+            .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
     }
 
     @Override
@@ -1824,7 +1834,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
-            .isCompatibleWithLatestVersion(id, schema);
+            .isCompatibleWithLatestVersion(id, schema, schemaCompatibilityStrategy);
     }
 
     @Override
