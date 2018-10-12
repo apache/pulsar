@@ -36,6 +36,7 @@ COPY scripts/install-pulsar-client.sh /pulsar/bin
 
 ADD target/python-client/ /pulsar/pulsar-client
 RUN /pulsar/bin/install-pulsar-client.sh
+RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
 
 WORKDIR /pulsar
 
