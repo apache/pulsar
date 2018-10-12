@@ -17,7 +17,9 @@
 # under the License.
 #
 
-bin/pulsar-functions --admin-url http://localhost:8080 functions localrun \
-    --functionConfig conf/example.yml \
-    --functionClassName org.apache.pulsar.functions.api.examples.LoggingFunction \
-    --jar `pwd`/java-examples/target/pulsar-functions-api-examples.jar
+bin/pulsar-admin functions localrun \
+    --inputs input_topic \
+    --output output_topic \
+    --classname org.apache.pulsar.functions.api.examples.CounterFunction \
+    --jar `pwd`/java-examples/target/pulsar-functions-api-examples.jar \
+    --state-storage-service-url localhost:4182
