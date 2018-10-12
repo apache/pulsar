@@ -23,6 +23,1288 @@
 
 <html>
   <head>
-    <meta http-equiv="Refresh" content="0; url=//pulsar.apache.org/docs/en/security-tls-transport/">
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>Transport Encryption using TLS</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
   </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-getting-started">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
+            Getting started
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
+        <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/Pulsar-2.0">
+              Pulsar 2.0
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/LocalCluster">
+              Run Pulsar locally
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/docker">
+              Pulsar in Docker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/Clients">
+              Client libraries
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/ConceptsAndArchitecture">
+              Concepts and architecture
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-functions">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-functions" aria-controls="collapse-pulsar-functions">
+            Pulsar Functions
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-functions" role="tabpanel" aria-labelledby="heading-pulsar-functions">
+        <ul>
+          
+          
+          <li>
+            <a href="../../functions/overview">
+              Pulsar Functions overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/quickstart">
+              Getting started with Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/api">
+              The Pulsar Functions API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/deployment">
+              Deploying Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/guarantees">
+              Processing guarantees
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/metrics">
+              Metrics for Pulsar Functions
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-io">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-io" aria-controls="collapse-pulsar-io">
+            Pulsar IO
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-io" role="tabpanel" aria-labelledby="heading-pulsar-io">
+        <ul>
+          
+          
+          <li>
+            <a href="../../io/overview">
+              Pulsar IO overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../io/quickstart">
+              Getting started with Pulsar IO
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-deployment">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
+            Deployment
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
+        <ul>
+          
+          
+          <li>
+            <a href="../../deployment/aws-cluster">
+              Deploy on Amazon Web Services
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/cluster">
+              Single cluster on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/instance">
+              Multi-cluster instance on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes">
+              Pulsar on Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/dcos">
+              Pulsar on DC/OS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Monitoring">
+              Monitoring
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-administration">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-administration" aria-controls="collapse-administration">
+            Administration
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-administration" role="tabpanel" aria-labelledby="heading-administration">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin/ZooKeeperBookKeeper">
+              ZooKeeper and BookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/GeoReplication">
+              Geo-replication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Dashboard">
+              Dashboard
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Stats">
+              Pulsar statistics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/LoadDistribution">
+              Load distribution
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Proxy">
+              Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-security">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-security" aria-controls="collapse-security">
+            Security
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-security" role="tabpanel" aria-labelledby="heading-security">
+        <ul>
+          
+          
+          <li>
+            <a href="../../security/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/tls-transport">
+              Transport Encryption with TLS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/tls">
+              Authentication using TLS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/athenz">
+              Authentication using Athenz
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/authorization">
+              Authorization and ACLs
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/encryption">
+              End-to-End Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/extending">
+              Extending Authentication and Authorization
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-client-libraries">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
+            Client libraries
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
+        <ul>
+          
+          
+          <li>
+            <a href="../../clients/Java">
+              Java client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/go">
+              Go client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Python">
+              Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Cpp">
+              C++ client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-admin-api">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
+            Admin API
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin-api/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/clusters">
+              Clusters
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/tenants">
+              Tenants
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/brokers">
+              Brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/namespaces">
+              Namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/permissions">
+              Permissions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/persistent-topics">
+              Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/non-persistent-topics">
+              Non-Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/partitioned-topics">
+              Partitioned topics
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-adaptors">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
+            Adaptors
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
+        <ul>
+          
+          
+          <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-cookbooks">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-cookbooks" aria-controls="collapse-cookbooks">
+            Cookbooks
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-cookbooks" role="tabpanel" aria-labelledby="heading-cookbooks">
+        <ul>
+          
+          
+          <li>
+            <a href="../../cookbooks/tiered-storage">
+              Tiered Storage
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/compaction">
+              Topic compaction
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/message-deduplication">
+              Managing message deduplication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/non-persistent-messaging">
+              Non-persistent messaging
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/PartitionedTopics">
+              Partitioned topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/RetentionExpiry">
+              Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/Encryption">
+              Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/message-queue">
+              Using Pulsar as a message queue
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-developing-pulsar">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
+            Developing Pulsar
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
+        <ul>
+          
+          
+          <li>
+            <a href="../../project/SimulationTools">
+              Simulation tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/BinaryProtocol">
+              Pulsar binary protocol
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/Codebase">
+              Codebase
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/schema-storage">
+              Custom schema storage
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/CompileCpp">
+              Building Pulsar C++ client
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-reference">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
+            Reference
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
+        <ul>
+          
+          
+          <li>
+            <a href="../../reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/CliTools">
+              Command-line tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/Configuration">
+              Pulsar configuration
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">
+          Transport Encryption using TLS
+          
+          
+        </h1>
+        
+        <section class="tags">
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<h2 id="tls-overview">TLS Overview</h2>
+
+<p>By default, Apache Pulsar clients communicate with the Apache Pulsar service in plain text, which means that all data is sent in the clear. TLS can be used to encrypt this traffic so that it cannot be snooped by a man-in-the-middle attacker.</p>
+
+<p>TLS can be configured for both encryption and authentication. You may configure just TLS transport encryption, which is covered in this guide. TLS authentication is covered <a href="../tls">elsewhere</a>. Alternatively, you can use <a href="../athenz">another authentication mechanism</a> on top of TLS transport encryption.</p>
+
+<blockquote>
+  <p>Note that enabling TLS may have a performance impact due to encryption overhead.</p>
+</blockquote>
+
+<h2 id="tls-concepts">TLS concepts</h2>
+
+<p>TLS is a form of <a href="https://en.wikipedia.org/wiki/Public-key_cryptography">public key cryptography</a>. Encryption is performed using key pairs consisting of a public key and a private key. Messages are encrypted with the public key and can be decrypted with the private key.</p>
+
+<p>To use TLS transport encryption, you need two kinds of key pairs, <strong>server key pairs</strong> and a <strong>certificate authority</strong>.</p>
+
+<p>A third kind of key pair, <strong>client key pairs</strong>, are used for <a href="&quot;../tls&quot;">client authentication</a>.</p>
+
+<p>The <strong>certificate authority</strong> private key should be stored in a very secure location (a fully encrypted, disconnected, air gapped computer). The certificate authority public key, the <strong>trust cert</strong>, can be freely shared.</p>
+
+<p>For both client and server key pairs, the administrator first generates a private key and a certificate request. Then the certificate authority private key is used to sign the certificate request, generating a certificate. This certificate is the public key for the server/client key pair.</p>
+
+<p>For TLS transport encryption, the clients can use the <strong>trust cert</strong> to verify that the server they are talking to has a key pair that was signed by the certificate authority. A man-in-the-middle attacker would not have access to the certificate authority, so they couldn’t create a server with such a key pair.</p>
+
+<p>For TLS authentication, the server uses the <strong>trust cert</strong> to verify that the client has a key pair that was signed by the certificate authority. The Common Name of the <strong>client cert</strong> is then used as the client’s role token (see <a href="../overview">Overview</a>).</p>
+
+<h2 id="creating-tls-certificates">Creating TLS Certificates</h2>
+
+<p>Creating TLS certificates for Pulsar involves creating a <a href="#certificate-authority">certificate authority</a> (CA), <a href="#server-certificate">server certificate</a>, and <a href="#client-certificate">client certificate</a>.</p>
+
+<p>The following guide is an abridged guide to setting up a certificate authority. For a more detailed guide, there are plenty of resource on the internet. We recommend the <a href="https://jamielinux.com/docs/openssl-certificate-authority/index.html">this guide</a>.</p>
+
+<h3 id="certificate-authority">Certificate authority</h3>
+
+<p>The first step is to create the certificate for the CA. The CA will be used to sign both the broker and client certificates, in order to ensure that each party will trust the others. The CA should be stored in a very secure location (ideally completely disconnected from networks, air gapped, and fully encrypted).</p>
+
+<p>Create a directory for your CA, and place <a href="../openssl.cnf">this openssl configuration file</a> in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories needed for the CA.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">mkdir </span>my-ca
+<span class="nv">$ </span><span class="nb">cd </span>my-ca
+<span class="nv">$ </span>wget /docs/latest/security/openssl.cnf
+<span class="nv">$ </span><span class="nb">export </span><span class="nv">CA_HOME</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>
+</code></pre></div></div>
+
+<p>Create the necessary directories, keys and certs.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">mkdir </span>certs crl newcerts private
+<span class="nv">$ </span><span class="nb">chmod </span>700 private/
+<span class="nv">$ </span><span class="nb">touch </span>index.txt
+<span class="nv">$ </span><span class="nb">echo </span>1000 <span class="o">&gt;</span> serial
+<span class="nv">$ </span>openssl genrsa <span class="nt">-aes256</span> <span class="nt">-out</span> private/ca.key.pem 4096
+<span class="nv">$ </span><span class="nb">chmod </span>400 private/ca.key.pem
+<span class="nv">$ </span>openssl req <span class="nt">-config</span> openssl.cnf <span class="nt">-key</span> private/ca.key.pem <span class="se">\</span>
+      <span class="nt">-new</span> <span class="nt">-x509</span> <span class="nt">-days</span> 7300 <span class="nt">-sha256</span> <span class="nt">-extensions</span> v3_ca <span class="se">\</span>
+      <span class="nt">-out</span> certs/ca.cert.pem
+<span class="nv">$ </span><span class="nb">chmod </span>444 certs/ca.cert.pem
+</code></pre></div></div>
+
+<p>After answering the question prompts, this will store CA-related files in the <code class="highlighter-rouge">./my-ca</code> directory. Within that directory:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">certs/ca.cert.pem</code> is the public certificate. It is meant to be distributed to all parties involved.</li>
+  <li><code class="highlighter-rouge">private/ca.key.pem</code> is the private key. This is only needed when signing a new certificate for either broker or clients and it must be safely guarded.</li>
+</ul>
+
+<h3 id="server-certificate">Server certificate</h3>
+
+<p>Once a CA certificate has been created, you can create certificate requests and sign them with the CA.</p>
+
+<p>The following commands will ask you a few questions and then create the certificates. When asked for the common name, you should match the hostname of the broker. You could also use a wildcard to match a group of broker hostnames, for example <code class="highlighter-rouge">*.broker.usw.example.com</code>. This ensures that the same certificate can be reused on multiple machines.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Sometimes it is not possible or makes no sense to match the hostname, such as when the brokers are created with random hostnames, or you plan to connect to the hosts via their IP. In this case, the client should be configured to disable TLS hostname verification.</p>
+
+  </div>
+</div>
+
+<p>First generate the key.</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>openssl genrsa <span class="nt">-out</span> broker.key.pem 2048
+</code></pre></div></div>
+
+<p>The broker expects the key to be in <a href="https://en.wikipedia.org/wiki/PKCS_8">PKCS 8</a> format, so convert it.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>openssl pkcs8 <span class="nt">-topk8</span> <span class="nt">-inform</span> PEM <span class="nt">-outform</span> PEM <span class="se">\</span>
+      <span class="nt">-in</span> broker.key.pem <span class="nt">-out</span> broker.key-pk8.pem <span class="nt">-nocrypt</span>
+</code></pre></div></div>
+
+<p>Generate the certificate request…</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>openssl req <span class="nt">-config</span> openssl.cnf <span class="se">\</span>
+      <span class="nt">-key</span> broker.key.pem <span class="nt">-new</span> <span class="nt">-sha256</span> <span class="nt">-out</span> broker.cert.pem
+</code></pre></div></div>
+
+<p>… and sign it with the certificate authority.</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>openssl ca <span class="nt">-config</span> openssl.cnf <span class="nt">-extensions</span> server_cert <span class="se">\</span>
+      <span class="nt">-days</span> 1000 <span class="nt">-notext</span> <span class="nt">-md</span> sha256 <span class="se">\</span>
+      <span class="nt">-in</span> broker.csr.pem <span class="nt">-out</span> broker.cert.pem
+</code></pre></div></div>
+
+<p>At this point, you have a cert, <code class="highlighter-rouge">broker.cert.pem</code>, and a key, <code class="highlighter-rouge">broker.key-pk8.pem</code>, which can be used along with <code class="highlighter-rouge">ca.cert.pem</code> to configure TLS transport encryption for your broker and proxy nodes.</p>
+
+<h2 id="broker-configuration">Broker Configuration</h2>
+
+<p>To configure a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> to use TLS transport encryption, you’ll need to make some changes to <code class="highlighter-rouge">broker.conf</code>, which is located in the <code class="highlighter-rouge">conf</code> directory of your <a href="../../getting-started/LocalCluster">Pulsar installation</a>.</p>
+
+<p>Add these values to the configuration file (substituting the appropriate certificate paths where necessary):</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">tlsEnabled</span><span class="p">=</span><span class="s">true</span>
+<span class="py">tlsCertificateFilePath</span><span class="p">=</span><span class="s">/path/to/broker.cert.pem</span>
+<span class="py">tlsKeyFilePath</span><span class="p">=</span><span class="s">/path/to/broker.key-pk8.pem</span>
+<span class="py">tlsTrustCertsFilePath</span><span class="p">=</span><span class="s">/path/to/ca.cert.pem</span>
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="admonition">
+  <div class="info">
+    
+    <p>A full listing of parameters available in the <code class="highlighter-rouge">conf/broker.conf</code> file, as well as the default values for those parameters, can be found in <a href="../../reference/Configuration#broker">Broker Configuration</a>.</p>
+
+  </div>
+</div>
+
+<h1 id="proxy-configuration">Proxy Configuration</h1>
+
+<p>Proxies need to configure TLS in two directions, for clients connecting to the proxy, and for the proxy to be able to connect to brokers.</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># For clients connecting to the proxy
+</span><span class="py">tlsEnabledInProxy</span><span class="p">=</span><span class="s">true</span>
+<span class="py">tlsCertificateFilePath</span><span class="p">=</span><span class="s">/path/to/broker.cert.pem</span>
+<span class="py">tlsKeyFilePath</span><span class="p">=</span><span class="s">/path/to/broker.key-pk8.pem</span>
+<span class="py">tlsTrustCertsFilePath</span><span class="p">=</span><span class="s">/path/to/ca.cert.pem</span>
+
+<span class="c"># For the proxy to connect to brokers
+</span><span class="py">tlsEnabledWithBroker</span><span class="p">=</span><span class="s">true</span>
+<span class="py">brokerClientTrustCertsFilePath</span><span class="p">=</span><span class="s">/path/to/ca.cert.pem</span>
+</code></pre></div></div>
+
+<h2 id="client-configuration">Client configuration</h2>
+
+<p>When TLS transport encryption is enabled, you need to configure the client to use <code class="highlighter-rouge">https://</code> and port 8443 for the web service URL, and <code class="highlighter-rouge">pulsar+ssl://</code> and port 6651 for the broker service URL.</p>
+
+<p>As the server certificate you generated above doesn’t belong to any of the default trust chains, you also need to either specify the path the <strong>trust cert</strong> (recommended), or tell the client to allow untrusted server certs.</p>
+
+<h3 id="cli-tools">CLI tools</h3>
+
+<p><a href="../../reference/CliTools">Command-line tools</a> like <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a>, <a href="../../reference/CliTools#pulsar-perf"><code class="highlighter-rouge">pulsar-perf</code></a>, and <a href="../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> use the <code class="highlighter-rouge">conf/client.conf</code> config file in a Pulsar installation.</p>
+
+<p>You’ll need to add the following parameters to that file to use TLS transport with Pulsar’s CLI tools:</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">webServiceUrl</span><span class="p">=</span><span class="s">https://broker.example.com:8443/</span>
+<span class="py">brokerServiceUrl</span><span class="p">=</span><span class="s">pulsar+ssl://broker.example.com:6651/</span>
+<span class="py">tlsAllowInsecureConnection</span><span class="p">=</span><span class="s">false</span>
+<span class="py">tlsTrustCertsFilePath</span><span class="p">=</span><span class="s">/path/to/ca.cert.pem</span>
+</code></pre></div></div>
+
+<h3 id="java-client">Java client</h3>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.PulsarClient</span><span class="o">;</span>
+
+<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="s">"pulsar+ssl://broker.example.com:6651/"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">tlsTrustCertsFilePath</span><span class="o">(</span><span class="s">"/path/to/ca.cert.pem"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+</code></pre></div></div>
+
+<h3 id="python-client">Python client</h3>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">Client</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="s">"pulsar+ssl://broker.example.com:6651/"</span><span class="p">,</span>
+                <span class="n">tls_trust_certs_file_path</span><span class="o">=</span><span class="s">"/path/to/ca.cert.pem"</span><span class="p">,</span>
+                <span class="n">tls_allow_insecure_connection</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h3 id="c-client">C++ client</h3>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;pulsar/Client.h&gt;
+</span>
+<span class="n">pulsar</span><span class="o">::</span><span class="n">ClientConfiguration</span> <span class="n">config</span><span class="p">;</span>
+<span class="n">config</span><span class="p">.</span><span class="n">setTlsTrustCertsFilePath</span><span class="p">(</span><span class="s">"/path/to/ca.cert.pem"</span><span class="p">);</span>
+<span class="n">config</span><span class="p">.</span><span class="n">setTlsAllowInsecureConnection</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
+
+<span class="n">pulsar</span><span class="o">::</span><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar+ssl://broker.example.com:6651/"</span><span class="p">,</span> <span class="n">config</span><span class="p">);</span>
+</code></pre></div></div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Transport Encryption using TLS</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2018 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
 </html>

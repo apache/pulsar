@@ -46,7 +46,7 @@
               }
             });
         </script></nav></div><div class="container mainContainer docMainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ja" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Pulsar command-line tools</h1></header><article><div><span><p>Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more.</p>
-<p>All Pulsar command-line tools can be run from the <code>bin</code> directory of your <a href="/docs/ja/standalone">installed Pulsar package</a>. The following tools are currently documented:</p>
+<p>すべての Pulsar コマンドラインツールは<a href="/docs/ja/standalone">インストールした Pulsar パッケージ</a>内の <code>bin</code> ディレクトリから実行できます。いまのところ下記のツールについてのドキュメントがあります。</p>
 <ul>
 <li><a href="#pulsar"><code>pulsar</code></a></li>
 <li><a href="#pulsar-client"><code>pulsar-client</code></a></li>
@@ -55,8 +55,8 @@
 <li><a href="#bookkeeper"><code>bookkeeper</code></a></li>
 </ul>
 <blockquote>
-<h3><a class="anchor" aria-hidden="true" id="getting-help"></a><a href="#getting-help" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Getting help</h3>
-<p>You can get help for any CLI tool, command, or subcommand using the <code>--help</code> flag, or <code>-h</code> for short. Here's an example:</p>
+<h3><a class="anchor" aria-hidden="true" id="ヘルプの表示"></a><a href="#ヘルプの表示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ヘルプの表示</h3>
+<p>どの CLI ツール、コマンド、サブコマンドでも<code>--help</code> フラグもしくは短縮系の <code>-h</code> でヘルプを表示できます。下記はその例です。</p>
 <pre><code class="hljs css language-shell"></code></pre>
 </blockquote>
 <p>$ bin/pulsar broker --help</p>
@@ -79,7 +79,7 @@ $ pulsar command
 <p>The table below lists the environment variables that you can use to configure the <code>pulsar</code> tool.</p>
 <table>
 <thead>
-<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+<tr><th>変数</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PULSAR_LOG_CONF</code></td><td>Log4j configuration file</td><td><code>conf/log4j2.yaml</code></td></tr>
@@ -101,10 +101,10 @@ $ pulsar command
 <p>使い方：</p>
 <pre><code class="hljs css language-bash">$ pulsar bookie options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
-<tr><th>Option</th><th>Description</th><th>Default</th></tr>
+<tr><th>オプション</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-readOnly</code></td><td>Force start a read-only bookie server</td><td>false</td></tr>
@@ -118,13 +118,13 @@ $ pulsar command
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>broker</code></h3>
 <p>Starts up a Pulsar broker</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar broker options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
-<tr><th>Option</th><th>Description</th><th>Default</th></tr>
+<tr><th>オプション</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-bc</code> , <code>--bookie-conf</code></td><td>Configuration file for BookKeeper</td><td></td></tr>
@@ -137,10 +137,10 @@ $ pulsar command
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="compact-topic"></a><a href="#compact-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>compact-topic</code></h3>
 <p>Run compaction against a Pulsar topic (in a new process)</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar compact-topic options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -154,7 +154,7 @@ $ pulsar command
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="discovery"></a><a href="#discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>discovery</code></h3>
 <p>Run a discovery server</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar discovery
 </code></pre>
 <p>Example</p>
@@ -162,7 +162,7 @@ $ pulsar command
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>configuration-store</code></h3>
 <p>Starts up the Pulsar configuration store</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar configuration-store
 </code></pre>
 <p>Example</p>
@@ -170,10 +170,10 @@ $ pulsar command
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="initialize-cluster-metadata"></a><a href="#initialize-cluster-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>initialize-cluster-metadata</code></h3>
 <p>One-time cluster metadata initialization</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar initialize-cluster-metadata options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -190,10 +190,10 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="proxy"></a><a href="#proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>proxy</code></h3>
 <p>Manages the Pulsar proxy</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar proxy options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -210,10 +210,10 @@ $ pulsar command
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="standalone"></a><a href="#standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>standalone</code></h3>
 <p>Run a broker service with local bookies and local ZooKeeper</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar standalone options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -234,7 +234,7 @@ $ pulsar command
 <pre><code class="hljs css language-bash">$ PULSAR_STANDALONE_CONF=/path/to/standalone.conf pulsar standalone
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>websocket</code></h3>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar websocket
 </code></pre>
 <p>Example</p>
@@ -242,7 +242,7 @@ $ pulsar command
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>zookeeper</code></h3>
 <p>Starts up a ZooKeeper cluster</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar zookeeper
 </code></pre>
 <p>Example</p>
@@ -250,10 +250,10 @@ $ pulsar command
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zookeeper-shell"></a><a href="#zookeeper-shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>zookeeper-shell</code></h3>
 <p>Connects to a running ZooKeeper cluster using the ZooKeeper shell</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar zookeeper-shell options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -264,11 +264,11 @@ $ pulsar command
 </table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-client"></a><a href="#pulsar-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-client</code></h2>
 <p>The pulsar-client tool</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-client <span class="hljs-built_in">command</span>
 </code></pre>
 <p>Commands * <code>produce</code> * <code>consume</code></p>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -281,10 +281,10 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="produce"></a><a href="#produce" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>produce</code></h3>
 <p>Send a message or messages to a specific broker and topic</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-client produce topic options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -298,10 +298,10 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="consume"></a><a href="#consume" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>consume</code></h3>
 <p>Consume messages from a specific broker and topic</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-client consume topic options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -317,21 +317,21 @@ $ pulsar command
 <h2><a class="anchor" aria-hidden="true" id="pulsar-daemon"></a><a href="#pulsar-daemon" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-daemon</code></h2>
 <p>A wrapper around the pulsar tool that’s used to start and stop processes, such as ZooKeeper, bookies, and Pulsar brokers, in the background using nohup.</p>
 <p>pulsar-daemon has a similar interface to the pulsar command but adds start and stop commands for various services. For a listing of those services, run pulsar-daemon to see the help output or see the documentation for the pulsar command.</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-daemon <span class="hljs-built_in">command</span>
 </code></pre>
 <p>Commands * <code>start</code> * <code>stop</code></p>
 <h3><a class="anchor" aria-hidden="true" id="start"></a><a href="#start" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>start</code></h3>
 <p>Start a service in the background using nohup.</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-daemon start service
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="stop"></a><a href="#stop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stop</code></h3>
 <p>Stop a service that’s already been started using start.</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-daemon stop service options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -342,14 +342,14 @@ $ pulsar command
 </table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-perf"></a><a href="#pulsar-perf" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-perf</code></h2>
 <p>A tool for performance testing a Pulsar broker.</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf <span class="hljs-built_in">command</span>
 </code></pre>
 <p>Commands * <code>consume</code> * <code>produce</code> * <code>monitor-brokers</code> * <code>simulation-client</code> * <code>simulation-controller</code></p>
 <p>Environment variables The table below lists the environment variables that you can use to configure the pulsar-perf tool.</p>
 <table>
 <thead>
-<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+<tr><th>変数</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PULSAR_LOG_CONF</code></td><td>Log4j configuration file</td><td>conf/log4j2.yaml</td></tr>
@@ -360,10 +360,10 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="consume-1"></a><a href="#consume-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>consume</code></h3>
 <p>Run a consumer</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs">$ pulsar-perf consume options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -389,10 +389,10 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="produce-1"></a><a href="#produce-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>produce</code></h3>
 <p>Run a producer</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf produce options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -418,10 +418,10 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="monitor-brokers"></a><a href="#monitor-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>monitor-brokers</code></h3>
 <p>Continuously receive broker data and/or load reports</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf monitor-brokers options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -432,15 +432,15 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="simulation-client"></a><a href="#simulation-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>simulation-client</code></h3>
 <p>Run a simulation server acting as a Pulsar client. Uses the client configuration specified in conf/client.conf.</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf simulation-client
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="simulation-controller"></a><a href="#simulation-controller" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>simulation-controller</code></h3>
 <p>Run a simulation controller to give commands to servers</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf simulation-controller options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -453,14 +453,14 @@ $ pulsar command
 </table>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>bookkeeper</code></h2>
 <p>A tool for managing BookKeeper.</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ bookkeeper <span class="hljs-built_in">command</span>
 </code></pre>
 <p>Commands * <code>auto-recovery</code> * <code>bookie</code> * <code>localbookie</code> * <code>upgrade</code> * <code>shell</code></p>
 <p>Environment variables The table below lists the environment variables that you can use to configure the bookkeeper tool.</p>
 <table>
 <thead>
-<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+<tr><th>変数</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
 <tr><td>BOOKIE_LOG_CONF</td><td>Log4j configuration file</td><td>conf/log4j2.yaml</td></tr>
@@ -474,10 +474,10 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="auto-recovery"></a><a href="#auto-recovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>auto-recovery</code></h3>
 <p>Runs an auto-recovery service daemon</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ bookkeeper auto-recovery options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -488,10 +488,10 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="bookie-1"></a><a href="#bookie-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>bookie</code></h3>
 <p>Starts up a BookKeeper server (aka bookie)</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ bookkeeper bookie options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -504,15 +504,15 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="localbookie"></a><a href="#localbookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>localbookie</code></h3>
 <p>Runs a test ensemble of N bookies locally</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ bookkeeper localbookie N
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="upgrade"></a><a href="#upgrade" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>upgrade</code></h3>
 <p>Upgrade the bookie’s filesystem</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ bookkeeper upgrade options
 </code></pre>
-<p>Options</p>
+<p>オプション</p>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -524,7 +524,7 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="shell"></a><a href="#shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>shell</code></h3>
 <p>Run shell for admin commands. To see a full listing of those commands, run bookkeeper shell without an argument.</p>
-<p>Usage</p>
+<p>使い方</p>
 <pre><code class="hljs css language-bash">$ bookkeeper shell
 </code></pre>
 <p>Example</p>
