@@ -66,6 +66,8 @@
                                     <include>commons-codec:commons-codec</include>
                                     <include>commons-collections:commons-collections</include>
                                     <include>org.asynchttpclient:*</include>
+                                    <include>io.netty:netty-codec-http</include>
+                                    <include>io.netty:netty-transport-native-epoll</include>
                                     <include>org.reactivestreams:reactive-streams</include>
                                     <include>com.typesafe.netty:netty-reactive-streams</include>
                                     <include>org.javassist:javassist</include>
@@ -73,6 +75,8 @@
                                     <include>com.google.guava:guava</include>
                                     <include>com.google.code.gson:gson</include>
                                     <include>com.fasterxml.jackson.core</include>
+                                    <include>io.netty:netty</include>
+                                    <include>io.netty:netty-all</include>
                                     <include>org.apache.pulsar:pulsar-common</include>
                                     <include>com.yahoo.datasketches:sketches-core</include>
                                     <include>org.glassfish.jersey*:*</include>
@@ -82,6 +86,7 @@
                                     <include>com.fasterxml.jackson.*:*</include>
                                     <include>io.grpc:*</include>
                                     <include>com.yahoo.datasketches:*</include>
+                                    <include>io.netty:*</include>
                                     <include>com.squareup.*:*</include>
                                     <include>com.google.*:*</include>
                                     <include>commons-*:*</include>
@@ -136,6 +141,10 @@
                                 <relocation>
                                     <pattern>com.fasterxml.jackson</pattern>
                                     <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.netty</pattern>
+                                    <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>org.apache.pulsar.policies</pattern>
@@ -261,6 +270,30 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+              <!-- This plugin is used to run a script after the package phase in order to rename
+                  libnetty_transport_native_epoll_x86_64.so from Netty into
+                  liborg_apache_pulsar_shade_netty_transport_native_epoll_x86_64.so
+                  to reflect the shade that is being applied.
+               -->
+              <artifactId>exec-maven-plugin</artifactId>
+              <groupId>org.codehaus.mojo</groupId>
+              <executions>
+                <execution>
+                  <id>rename-epoll-library</id>
+                  <phase>package</phase>
+                  <goals>
+                    <goal>exec</goal>
+                  </goals>
+                  <configuration>
+                    <executable>${project.parent.basedir}/src/rename-netty-native-libs.sh</executable>
+                    <arguments>
+                      <argument>${project.artifactId}</argument>
+                    </arguments>
+                  </configuration>
+                </execution>
+              </executions>
             </plugin>
         </plugins>
     </build>
