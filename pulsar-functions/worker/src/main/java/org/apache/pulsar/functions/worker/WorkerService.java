@@ -150,6 +150,9 @@ public class WorkerService {
             this.functionRuntimeManager = new FunctionRuntimeManager(
                     this.workerConfig, this, this.dlogNamespace, this.membershipManager, connectorsManager);
 
+            // initialize function runtime manager
+            this.functionRuntimeManager.initialize();
+
             // Setting references to managers in scheduler
             this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
             this.schedulerManager.setFunctionRuntimeManager(this.functionRuntimeManager);
