@@ -29,12 +29,16 @@ public enum SchemaAutoUpdateCompatibilityStrategy {
     AutoUpdateDisabled,
 
     /**
-     * Messages written in the new schema can be read by the previous schema.
+     * Messages written in the previous schema can be read by the new schema.
+     * To be backward compatible, the new schema must not add any new fields that
+     * don't have default values. However, it may remove fields.
      */
     Backward,
 
     /**
-     * Messages written in the previous schema can be read by the new schema.
+     * Messages written in the new schema can be read by the previous schema.
+     * To be forward compatible, the new schema must not remove any fields which
+     * don't have default values in the previous schema. However, it may add new fields.
      */
     Forward,
 
