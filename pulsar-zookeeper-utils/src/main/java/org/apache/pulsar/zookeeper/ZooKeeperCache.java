@@ -93,11 +93,11 @@ public abstract class ZooKeeperCache implements Watcher {
         this.zkSession.set(zkSession);
         this.shouldShutdownExecutor = false;
 
-        this.dataCache = Caffeine.newBuilder().expireAfterAccess(1, TimeUnit.HOURS)
+        this.dataCache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
                 .buildAsync((key, executor1) -> null);
 
-        this.childrenCache = CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS).build();
-        this.existsCache = CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS).build();
+        this.childrenCache = CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
+        this.existsCache = CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
     }
 
     public ZooKeeperCache(ZooKeeper zkSession) {
