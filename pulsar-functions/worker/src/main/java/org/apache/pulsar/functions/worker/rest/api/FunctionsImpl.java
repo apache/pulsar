@@ -1079,7 +1079,7 @@ public class FunctionsImpl {
         }
     }
 
-    private NarClassLoader extractNarClassLoader(String archive, String pkgUrl, File uploadedInputStreamFileName,
+    public NarClassLoader extractNarClassLoader(String archive, String pkgUrl, File uploadedInputStreamFileName,
                                                  boolean isSource) {
         if (!StringUtils.isEmpty(archive)) {
             if (isSource) {
