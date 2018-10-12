@@ -17,9 +17,8 @@
 # under the License.
 #
 
-bin/pulsar-functions --admin-url http://localhost:8080 functions localrun \
-    --functionConfig conf/example.yml \
-    --output persistent://sample/standalone/ns1/test_result \
-    --outputSerdeClassName org.apache.pulsar.functions.api.utils.DefaultSerDe \
-    --functionClassName org.apache.pulsar.functions.api.examples.LoggingFunction \
+bin/pulsar-admin functions localrun \
+    --inputs input_topic \
+    --classname org.apache.pulsar.functions.api.examples.PublishFunction \
     --jar `pwd`/java-examples/target/pulsar-functions-api-examples.jar
+    --user-config '{"publish-topic" : "mytopic"}'

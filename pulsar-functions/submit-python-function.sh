@@ -19,8 +19,8 @@
 #
 
 
-bin/pulsar-functions functions create \
-    --output persistent://sample/standalone/ns1/test_result \
-    --inputs persistent://sample/standalone/ns1/test_src \
+bin/pulsar-admin functions create \
+    --output output_topic \
+    --inputs input_topics \
     --py python-examples/exclamation.py \
-    --className exclamation.Exclamation
+    --classname exclamation.ExclamationFunction
