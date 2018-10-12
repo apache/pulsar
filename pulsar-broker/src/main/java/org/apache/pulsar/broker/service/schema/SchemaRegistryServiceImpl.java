@@ -23,6 +23,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
@@ -141,7 +142,10 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     private boolean isCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema,
                                  SchemaCompatibilityStrategy strategy) {
-        return compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
+        HashCode existingHash = hashFunction.hashBytes(existingSchema.schema.getData());
+        HashCode newHash = hashFunction.hashBytes(newSchema.getData());
+        return newHash.equals(existingHash) ||
+            compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
             .isCompatible(existingSchema.schema, newSchema, strategy);
     }
 

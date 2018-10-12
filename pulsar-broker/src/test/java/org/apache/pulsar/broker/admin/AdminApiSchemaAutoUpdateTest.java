@@ -176,6 +176,11 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
         }
 
+        log.info("Should still be able to connect with original schema");
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
+            p.send(new V1Data("test2", 2));
+        }
+
         admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
                 SchemaAutoUpdateCompatibilityStrategy.Full);
 
