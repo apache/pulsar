@@ -39,16 +39,16 @@ import org.apache.pulsar.functions.metrics.MetricsSink;
 /**
  * A metrics sink that publishes metrics on a http endpoint
  */
-abstract class AbstractWebSink implements MetricsSink {
+abstract public class AbstractWebSink implements MetricsSink {
     private static final Logger LOG = Logger.getLogger(AbstractWebSink.class.getName());
 
     private static final int HTTP_STATUS_OK = 200;
 
     // Metrics will be published on http://host:port/path, the port
-    private static final String KEY_PORT = "port";
+    public static final String KEY_PORT = "port";
 
     // The path
-    private static final String KEY_PATH = "path";
+    public static final String KEY_PATH = "path";
 
     // Maximum number of metrics getting served
     private static final String KEY_METRICS_CACHE_MAX_SIZE = "metrics-cache-max-size";

@@ -130,7 +130,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarServiceUrl()) ? workerConfig.getPulsarServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarServiceUrl(),
                     StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl()) ? workerConfig.getPulsarWebServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl(),
                     workerConfig.getStateStorageServiceUrl(),
-                    authConfig);
+                    authConfig,
+                    workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval() == null ? -1 : workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval());
         } else {
             throw new RuntimeException("Either Thread, Process or Kubernetes Container Factory need to be set");
         }
@@ -650,6 +651,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
     
     public void updateRates() {
+        if (runtimeFactory.externallyManaged()) {
+            // We don't do metrics management for externally managed functions
+            return;
+        }
         for (Entry<String, FunctionRuntimeInfo> entry : this.functionRuntimeInfoMap.entrySet()) {
             RuntimeSpawner functionRuntimeSpawner = entry.getValue().getRuntimeSpawner();
             if (functionRuntimeSpawner != null) {

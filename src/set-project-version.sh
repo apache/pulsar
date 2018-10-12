@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,29 +18,21 @@
 # under the License.
 #
 
-FROM openjdk:8-jdk
+set -e
 
-# Install some utilities
-RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo python-yaml python-pip
+if [ $# -eq 0 ]; then
+    echo "Required argument with new project version"
+    exit 1
+fi
 
-ARG PULSAR_TARBALL
+NEW_VERSION=$1
 
-ADD ${PULSAR_TARBALL} /
-RUN mv /apache-pulsar-* /pulsar
+# Go to top level project directory
+pushd $(dirname "$0")/..
 
-COPY scripts/apply-config-from-env.py /pulsar/bin
-COPY scripts/gen-yml-from-env.py /pulsar/bin
-COPY scripts/generate-zookeeper-config.sh /pulsar/bin
-COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
-COPY scripts/watch-znode.py /pulsar/bin
-COPY scripts/install-pulsar-client.sh /pulsar/bin
+mvn versions:set -DnewVersion=$NEW_VERSION
+mvn versions:set -DnewVersion=$NEW_VERSION -pl buildtools
+mvn versions:set -DnewVersion=$NEW_VERSION -pl pulsar-sql/presto-distribution
+mvn versions:set -DnewVersion=$NEW_VERSION -f protobuf-shaded/pom.xml
 
-ADD target/python-client/ /pulsar/pulsar-client
-RUN /pulsar/bin/install-pulsar-client.sh
-RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
-
-WORKDIR /pulsar
-
-VOLUME  ["/pulsar/conf", "/pulsar/data"]
-
-ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
+popd
