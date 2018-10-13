@@ -36,6 +36,7 @@ configs:
   database.server.id: "184054"
   database.server.name: "dbserver1"
   database.whitelist: "inventory"
+
   database.history: "org.apache.pulsar.io.debezium.PulsarDatabaseHistory"
   database.history.pulsar.topic: "history-topic"
   database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"

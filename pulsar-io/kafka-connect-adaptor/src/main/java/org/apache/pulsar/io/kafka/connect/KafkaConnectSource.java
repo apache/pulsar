@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -121,7 +122,12 @@ public class KafkaConnectSource implements Source<byte[]> {
         while (true) {
             if (currentBatch == null) {
                 flushFuture = new CompletableFuture<>();
-                currentBatch = sourceTask.poll().iterator();
+                List<SourceRecord> recordList =  sourceTask.poll();
+                if (recordList == null) {
+                    Thread.sleep(1000);
+                    continue;
+                }
+                currentBatch = recordList.iterator();
             }
             if (currentBatch.hasNext()) {
                 return processSourceRecord(currentBatch.next());
@@ -130,7 +136,7 @@ public class KafkaConnectSource implements Source<byte[]> {
                 synchronized (this) {
                     hasOutstandingRecords = !outstandingRecords.isEmpty();
                 }
-                if (hasOutstandingRecords) {
+                if (!hasOutstandingRecords) {
                     // there is no records any more, then waiting for the batch to complete writing
                     // to sink and the offsets are committed as well
                     flushFuture.get();
@@ -147,13 +153,6 @@ public class KafkaConnectSource implements Source<byte[]> {
         return new Record<byte[]>() {
             @Override
             public Optional<String> getKey() {
-                log.error("++++ 7: srcRecord.toString: {},  srcRecord.topic:{}, srcRecord.keySchema: {}, srcRecord.key: {}",
-                    srcRecord.toString(),
-                    srcRecord.topic() == null ? "null" : srcRecord.topic(),
-                    srcRecord.keySchema() == null ? "null" : srcRecord.keySchema(),
-                    srcRecord.key() == null ? "null" : srcRecord.key());
-
-
                 byte[] keyBytes = keyConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
                 return Optional.of(Base64.getEncoder().encodeToString(keyBytes));
@@ -161,12 +160,6 @@ public class KafkaConnectSource implements Source<byte[]> {
 
             @Override
             public byte[] getValue() {
-                log.error("++++ 8: srcRecord.toString: {}, srcRecord.topic: {}, srcRecord.valueSchema: {}, srcRecord.value: {} ",
-                    srcRecord.toString(),
-                    srcRecord.topic() == null ? "null" : srcRecord.topic(),
-                    srcRecord.valueSchema() == null ? "null" : srcRecord.valueSchema(),
-                    srcRecord.value() == null ? "null" : srcRecord.value());
-
                 return valueConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
             }
