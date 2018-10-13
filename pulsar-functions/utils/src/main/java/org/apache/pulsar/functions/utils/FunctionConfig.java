@@ -110,7 +110,7 @@ public class FunctionConfig {
     private String deadLetterTopic;
     private String subName;
     @isPositiveNumber
-    private int parallelism;
+    private int parallelism = 1;
     @isValidResources
     private Resources resources;
     private String fqfn;
