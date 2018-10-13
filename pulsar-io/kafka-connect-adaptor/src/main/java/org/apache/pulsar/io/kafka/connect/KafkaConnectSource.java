@@ -212,6 +212,11 @@ public class KafkaConnectSource implements Source<byte[]> {
                     flushFuture.completeExceptionally(new Exception("Sink Error"));
                 }
             }
+
+            @Override
+            public Optional<String> getDestinationTopic() {
+                return Optional.of(srcRecord.topic());
+            }
         };
     }
 
