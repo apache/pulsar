@@ -64,9 +64,9 @@
 <p>ZooKeeper manages a variety of essential coordination- and configuration-related tasks for Pulsar.</p>
 <p>Deploying a Pulsar instance requires you to stand up one local ZooKeeper cluster <em>per Pulsar cluster</em>.</p>
 <p>To begin, add all ZooKeeper servers to the quorum configuration specified in the <a href="/docs/zh-CN/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a> file. Add a <code>server.N</code> line for each node in the cluster to the configuration, where <code>N</code> is the number of the ZooKeeper node. Here's an example for a three-node cluster:</p>
-<pre><code class="hljs css language-properties">server.<span class="hljs-number">1</span>=zk1<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2888</span>:<span class="hljs-number">3888</span>
-server.<span class="hljs-number">2</span>=zk2<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2888</span>:<span class="hljs-number">3888</span>
-server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2888</span>:<span class="hljs-number">3888</span>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2888:3888</span>
 </code></pre>
 <p>On each host, you need to specify the ID of the node in each node's <code>myid</code> file, which is in each server's <code>data/zookeeper</code> folder by default (this can be changed via the <a href="/docs/zh-CN/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a> parameter).</p>
 <blockquote>
@@ -86,10 +86,10 @@ server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.
 <h4><a class="anchor" aria-hidden="true" id="single-cluster-pulsar-instance"></a><a href="#single-cluster-pulsar-instance" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Single-cluster Pulsar instance</h4>
 <p>If your Pulsar instance will consist of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but running on different TCP ports.</p>
 <p>To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in <a href="/docs/zh-CN/reference-configuration#configuration-store"><code>conf/global_zookeeper.conf</code></a> using the same method for <a href="#local-zookeeper">local ZooKeeper</a>, but make sure to use a different port (2181 is the default for ZooKeeper). Here's an example that uses port 2184 for a three-node ZooKeeper cluster:</p>
-<pre><code class="hljs css language-properties">clientPort=<span class="hljs-number">2184</span>
-server.<span class="hljs-number">1</span>=zk1<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
-server.<span class="hljs-number">2</span>=zk2<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
-server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
+<pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
+<span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2185:2186</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2185:2186</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2185:2186</span>
 </code></pre>
 <p>As before, create the <code>myid</code> files for each server on <code>data/global-zookeeper/myid</code>.</p>
 <h4><a class="anchor" aria-hidden="true" id="multi-cluster-pulsar-instance"></a><a href="#multi-cluster-pulsar-instance" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Multi-cluster Pulsar instance</h4>
@@ -102,25 +102,25 @@ server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.
 <p>In this scenario we want to pick the quorum participants from few clusters and let all the others be ZK observers. For example, to form a 7 servers quorum, we can pick 3 servers from <code>us-west</code>, 2 from <code>us-central</code> and 2 from <code>us-east</code>.</p>
 <p>This will guarantee that writes to global ZooKeeper will be possible even if one of these regions is unreachable.</p>
 <p>The ZK configuration in all the servers will look like:</p>
-<pre><code class="hljs css language-properties">clientPort=<span class="hljs-number">2184</span>
-server.<span class="hljs-number">1</span>=zk1<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
-server.<span class="hljs-number">2</span>=zk2<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
-server.<span class="hljs-number">3</span>=zk3<span class="hljs-selector-class">.us-west</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
-server.<span class="hljs-number">4</span>=zk1<span class="hljs-selector-class">.us-central</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
-server.<span class="hljs-number">5</span>=zk2<span class="hljs-selector-class">.us-central</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
-server.<span class="hljs-number">6</span>=zk3<span class="hljs-selector-class">.us-central</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>:observer
-server.<span class="hljs-number">7</span>=zk1<span class="hljs-selector-class">.us-east</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
-server.<span class="hljs-number">8</span>=zk2<span class="hljs-selector-class">.us-east</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>
-server.<span class="hljs-number">9</span>=zk3<span class="hljs-selector-class">.us-east</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>:observer
-server.<span class="hljs-number">10</span>=zk1<span class="hljs-selector-class">.eu-central</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>:observer
-server.<span class="hljs-number">11</span>=zk2<span class="hljs-selector-class">.eu-central</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>:observer
-server.<span class="hljs-number">12</span>=zk3<span class="hljs-selector-class">.eu-central</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>:observer
-server.<span class="hljs-number">13</span>=zk1<span class="hljs-selector-class">.ap-south</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>:observer
-server.<span class="hljs-number">14</span>=zk2<span class="hljs-selector-class">.ap-south</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>:observer
-server.<span class="hljs-number">15</span>=zk3<span class="hljs-selector-class">.ap-south</span><span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>:<span class="hljs-number">2185</span>:<span class="hljs-number">2186</span>:observer
+<pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
+<span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2185:2186</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2185:2186</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2185:2186</span>
+<span class="hljs-meta">server.4</span>=<span class="hljs-string">zk1.us-central.example.com:2185:2186</span>
+<span class="hljs-meta">server.5</span>=<span class="hljs-string">zk2.us-central.example.com:2185:2186</span>
+<span class="hljs-meta">server.6</span>=<span class="hljs-string">zk3.us-central.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.7</span>=<span class="hljs-string">zk1.us-east.example.com:2185:2186</span>
+<span class="hljs-meta">server.8</span>=<span class="hljs-string">zk2.us-east.example.com:2185:2186</span>
+<span class="hljs-meta">server.9</span>=<span class="hljs-string">zk3.us-east.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.10</span>=<span class="hljs-string">zk1.eu-central.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.11</span>=<span class="hljs-string">zk2.eu-central.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.12</span>=<span class="hljs-string">zk3.eu-central.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.13</span>=<span class="hljs-string">zk1.ap-south.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.14</span>=<span class="hljs-string">zk2.ap-south.example.com:2185:2186:observer</span>
+<span class="hljs-meta">server.15</span>=<span class="hljs-string">zk3.ap-south.example.com:2185:2186:observer</span>
 </code></pre>
 <p>Additionally, ZK observers will need to have:</p>
-<pre><code class="hljs css language-properties"><span class="hljs-attr">peerType</span>=observer
+<pre><code class="hljs css language-properties"><span class="hljs-attr">peerType</span>=<span class="hljs-string">observer</span>
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="starting-the-service"></a><a href="#starting-the-service" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Starting the service</h5>
 <p>Once your global ZooKeeper configuration is in place, you can start up the service using <a href="/docs/zh-CN/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a></p>
@@ -181,16 +181,16 @@ server.<span class="hljs-number">15</span>=zk3<span class="hljs-selector-class">
 <p>Configurable parameters for BookKeeper bookies can be found in the <a href="/docs/zh-CN/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a> file.</p>
 <p>Minimum configuration changes required in <code>conf/bookkeeper.conf</code> are:</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># Change to point to journal disk mount point</span>
-<span class="hljs-attr">journalDirectory</span>=data/bookkeeper/journal
-
-<span class="hljs-comment"># Point to ledger storage disk mount point</span>
-<span class="hljs-attr">ledgerDirectories</span>=data/bookkeeper/ledgers
-
-<span class="hljs-comment"># Point to local ZK quorum</span>
-<span class="hljs-attr">zkServers</span>=zk1.example.com:<span class="hljs-number">2181</span>,zk2.example.com:<span class="hljs-number">2181</span>,zk3.example.com:<span class="hljs-number">2181</span>
-
-<span class="hljs-comment"># Change the ledger manager type</span>
-<span class="hljs-attr">ledgerManagerType</span>=hierarchical
+<span class="hljs-attr">journalDirectory</span>=<span class="hljs-string">data/bookkeeper/journal</span>
+<span class="hljs-comment">
+# Point to ledger storage disk mount point</span>
+<span class="hljs-attr">ledgerDirectories</span>=<span class="hljs-string">data/bookkeeper/ledgers</span>
+<span class="hljs-comment">
+# Point to local ZK quorum</span>
+<span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181</span>
+<span class="hljs-comment">
+# Change the ledger manager type</span>
+<span class="hljs-attr">ledgerManagerType</span>=<span class="hljs-string">hierarchical</span>
 </code></pre>
 <blockquote>
 <p>Consult the official <a href="http://bookkeeper.apache.org">BookKeeper docs</a> for more information about BookKeeper.</p>

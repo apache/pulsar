@@ -1209,6 +1209,10 @@
         
         
         
+        <li><a href="/admin/v2/namespaces/:tenant/:namespace/schemaAutoUpdateCompatibilityStrategy"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>schemaAutoUpdateCompatibilityStrategy</code></a></li>
+        
+        
+        
         <li><a href="/admin/v2/namespaces/:tenant/:namespace/subscriptionAuthMode"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>subscriptionAuthMode</code></a></li>
         
         
@@ -6680,6 +6684,154 @@
               <tr>
                 <td>412</td>
                 <td>Retention Quota must exceed backlog quota</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/v2/namespaces/:tenant/:namespace/schemaAutoUpdateCompatibilityStrategy">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>schemaAutoUpdateCompatibilityStrategy</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>The strategy used to check the compatibility of new schemas, provided by producers, before automatically updating the schema</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Update the strategy used to check the compatibility of new schemas, provided by producers, before automatically updating the schema</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>

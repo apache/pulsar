@@ -1124,7 +1124,7 @@ class Context(object):
     pass
 
   @abstractmethod
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde
     The message will have properties specified if any"""
     pass
@@ -1223,7 +1223,7 @@ class Context(object):
     pass
 
   @abstractmethod
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde
     The message will have properties specified if any"""
     pass
@@ -1578,7 +1578,7 @@ def get_user_config_value(self, key):
             
   <div class="item">
     <div class="name def" id="pulsar.functions.context.Context.publish">
-    <p>def <span class="ident">publish</span>(</p><p>self, topic_name, message, serde_class_name=&#39;serde.IdentitySerDe&#39;, properties=None)</p>
+    <p>def <span class="ident">publish</span>(</p><p>self, topic_name, message, serde_class_name=&#39;serde.IdentitySerDe&#39;, properties=None, compression_type=None)</p>
     </div>
     
 
@@ -1590,7 +1590,7 @@ The message will have properties specified if any</p></div>
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.publish', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.functions.context.Context.publish" class="source">
     <pre><code>@abstractmethod
-def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None):
+def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
   """Publishes message to topic_name by first serializing the message using serde_class_name serde
   The message will have properties specified if any"""
   pass

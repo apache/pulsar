@@ -66,7 +66,7 @@
 <p>When creating a new namespace, it will set to use the default number of bundles. This is set in <code>conf/broker.conf</code>:</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># When a namespace is created without specifying the number of bundle, this</span>
 <span class="hljs-comment"># value will be used as the default</span>
-<span class="hljs-attr">defaultNumberOfNamespaceBundles</span>=<span class="hljs-number">4</span>
+<span class="hljs-attr">defaultNumberOfNamespaceBundles</span>=<span class="hljs-string">4</span>
 </code></pre>
 <p>One can either change the system default, or override it when creating a new namespace:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin namespaces create my-tenant/my-namespace --clusters us-west --bundles 16</span>
@@ -88,25 +88,25 @@
 <p>Since the load for the topics in a bundle might change over time, or could just be hard to predict upfront, bundles can be split in 2 by brokers. The new smaller bundles can then be reassigned to different brokers.</p>
 <p>The splitting happens based on some tunable thresholds. Any existing bundle that exceeds any of the threshold is a candidate to be split. By default the newly split bundles are also immediately offloaded to other brokers, to facilitate the traffic distribution.</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># enable/disable namespace bundle auto split</span>
-<span class="hljs-attr">loadBalancerAutoBundleSplitEnabled</span>=<span class="hljs-literal">true</span>
-
-<span class="hljs-comment"># enable/disable automatic unloading of split bundles</span>
-<span class="hljs-attr">loadBalancerAutoUnloadSplitBundlesEnabled</span>=<span class="hljs-literal">true</span>
-
-<span class="hljs-comment"># maximum topics in a bundle, otherwise bundle split will be triggered</span>
-<span class="hljs-attr">loadBalancerNamespaceBundleMaxTopics</span>=<span class="hljs-number">1000</span>
-
-<span class="hljs-comment"># maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered</span>
-<span class="hljs-attr">loadBalancerNamespaceBundleMaxSessions</span>=<span class="hljs-number">1000</span>
-
-<span class="hljs-comment"># maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered</span>
-<span class="hljs-attr">loadBalancerNamespaceBundleMaxMsgRate</span>=<span class="hljs-number">30000</span>
-
-<span class="hljs-comment"># maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered</span>
-<span class="hljs-attr">loadBalancerNamespaceBundleMaxBandwidthMbytes</span>=<span class="hljs-number">100</span>
-
-<span class="hljs-comment"># maximum number of bundles in a namespace (for auto-split)</span>
-<span class="hljs-attr">loadBalancerNamespaceMaximumBundles</span>=<span class="hljs-number">128</span>
+<span class="hljs-attr">loadBalancerAutoBundleSplitEnabled</span>=<span class="hljs-string">true</span>
+<span class="hljs-comment">
+# enable/disable automatic unloading of split bundles</span>
+<span class="hljs-attr">loadBalancerAutoUnloadSplitBundlesEnabled</span>=<span class="hljs-string">true</span>
+<span class="hljs-comment">
+# maximum topics in a bundle, otherwise bundle split will be triggered</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxTopics</span>=<span class="hljs-string">1000</span>
+<span class="hljs-comment">
+# maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxSessions</span>=<span class="hljs-string">1000</span>
+<span class="hljs-comment">
+# maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxMsgRate</span>=<span class="hljs-string">30000</span>
+<span class="hljs-comment">
+# maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered</span>
+<span class="hljs-attr">loadBalancerNamespaceBundleMaxBandwidthMbytes</span>=<span class="hljs-string">100</span>
+<span class="hljs-comment">
+# maximum number of bundles in a namespace (for auto-split)</span>
+<span class="hljs-attr">loadBalancerNamespaceMaximumBundles</span>=<span class="hljs-string">128</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="automatic-load-shedding"></a><a href="#automatic-load-shedding" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Automatic load shedding</h3>
 <p>In Pulsar's load manager there is support for automatic load shedding. This means that whenever the system recognized a particular broker is overloaded, it will force some traffic to be reassigned to less loaded brokers.</p>
@@ -115,34 +115,34 @@
 <p>Given the selection of bundles to offload is based on traffic (as a proxy measure for cpu, network and memory), broker will unload bundles for at least 15% of traffic.</p>
 <p>The automatic load shedding is enabled by default and can be disabled with this setting:</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># Enable/disable automatic bundle unloading for load-shedding</span>
-<span class="hljs-attr">loadBalancerSheddingEnabled</span>=<span class="hljs-literal">true</span>
+<span class="hljs-attr">loadBalancerSheddingEnabled</span>=<span class="hljs-string">true</span>
 </code></pre>
 <p>There are additional settings that apply to shedding:</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># Load shedding interval. Broker periodically checks whether some traffic should be offload from</span>
 <span class="hljs-comment"># some over-loaded broker to other under-loaded brokers</span>
-<span class="hljs-attr">loadBalancerSheddingIntervalMinutes</span>=<span class="hljs-number">1</span>
-
-<span class="hljs-comment"># Prevent the same topics to be shed and moved to other brokers more that once within this timeframe</span>
-<span class="hljs-attr">loadBalancerSheddingGracePeriodMinutes</span>=<span class="hljs-number">30</span>
+<span class="hljs-attr">loadBalancerSheddingIntervalMinutes</span>=<span class="hljs-string">1</span>
+<span class="hljs-comment">
+# Prevent the same topics to be shed and moved to other brokers more that once within this timeframe</span>
+<span class="hljs-attr">loadBalancerSheddingGracePeriodMinutes</span>=<span class="hljs-string">30</span>
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="broker-overload-thresholds"></a><a href="#broker-overload-thresholds" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker overload thresholds</h4>
 <p>The determinations of when a broker is overloaded is based on threshold of CPU, network and memory usage. Whenever either of those metrics reaches the threshold, it will trigger the shedding (if enabled).</p>
 <p>By default, overload threshold is set at 85%:</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># Usage threshold to determine a broker as over-loaded</span>
-<span class="hljs-attr">loadBalancerBrokerOverloadedThresholdPercentage</span>=<span class="hljs-number">85</span>
+<span class="hljs-attr">loadBalancerBrokerOverloadedThresholdPercentage</span>=<span class="hljs-string">85</span>
 </code></pre>
 <p>The usage stats are gathered by Pulsar from the system metrics.</p>
 <p>In case of network utilization, in some cases the network interface speed reported by Linux is not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps NIC speed for which the OS report 10Gbps speed.</p>
 <p>Because of the incorrect max speed, the Pulsar load manager might think the broker has not reached the NIC capacity, while in fact it's already using all the bandwidth and the traffic is being slowed down.</p>
 <p>There is a setting to correct the max NIC speed:</p>
-<pre><code class="hljs css language-properties"># <span class="hljs-keyword">Override</span> the auto-detection <span class="hljs-keyword">of</span> the network interfaces max speed.
-# This option <span class="hljs-keyword">is</span> useful <span class="hljs-keyword">in</span> some environments (eg: EC2 VMs) <span class="hljs-keyword">where</span> the max speed
-# reported <span class="hljs-keyword">by</span> Linux <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> reflecting the real bandwidth available <span class="hljs-keyword">to</span> the broker.
-# Since the network usage <span class="hljs-keyword">is</span> employed <span class="hljs-keyword">by</span> the load manager <span class="hljs-keyword">to</span> decide when a broker
-# <span class="hljs-keyword">is</span> overloaded, it <span class="hljs-keyword">is</span> important <span class="hljs-keyword">to</span> make sure the info <span class="hljs-keyword">is</span> correct <span class="hljs-keyword">or</span> <span class="hljs-keyword">override</span> it
-# <span class="hljs-keyword">with</span> the right value here. The configured value can be a double (eg: <span class="hljs-number">0.8</span>) <span class="hljs-keyword">and</span> that
-# can be used <span class="hljs-keyword">to</span> trigger load-shedding even before hitting <span class="hljs-keyword">on</span> NIC limits.
-loadBalancerOverrideBrokerNicSpeedGbps=
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Override the auto-detection of the network interfaces max speed.</span>
+<span class="hljs-comment"># This option is useful in some environments (eg: EC2 VMs) where the max speed</span>
+<span class="hljs-comment"># reported by Linux is not reflecting the real bandwidth available to the broker.</span>
+<span class="hljs-comment"># Since the network usage is employed by the load manager to decide when a broker</span>
+<span class="hljs-comment"># is overloaded, it is important to make sure the info is correct or override it</span>
+<span class="hljs-comment"># with the right value here. The configured value can be a double (eg: 0.8) and that</span>
+<span class="hljs-comment"># can be used to trigger load-shedding even before hitting on NIC limits.</span>
+<span class="hljs-attr">loadBalancerOverrideBrokerNicSpeedGbps</span>=<span class="hljs-string"></span>
 </code></pre>
 <p>When the value is empty, Pulsar will use the value reported by the OS.</p>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/2.1.0-incubating/administration-stats"><span class="arrow-prev">← </span><span>Previous</span></a><a class="docs-next button" href="/docs/ja/2.1.0-incubating/administration-proxy"><span>Next</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav docOnPageNav"><ul class="toc-headings"><li><a href="#load-distribution-across-pulsar-brokers">Load distribution across Pulsar brokers</a></li><li><a href="#pulsar-load-manager-architecture">Pulsar load manager architecture</a><ul class="toc-headings"><li><a href="#dynamic-assignment-of-topics-to-brokers">Dynamic assignment of topics to brokers</a></li><li><a href="#assignment-granularity">Assignment granularity</a></li><li><a href="#creating-namespaces-and-bundles">Creating namespaces and bundles</a></li><li><a href="#unloading-topics-and-bundles">Unloading topics and bundles</a></li><li><a href="#namespace-bundles-splitting">Namespace bundles splitting</a></li><li><a href="#automatic-load-shedding">Automatic load shedding</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

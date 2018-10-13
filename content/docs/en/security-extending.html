@@ -78,8 +78,8 @@ type of connection or by passing a certificate chain to use for TLS.</p>
 passed by the client. Broker can support multiple authentication providers
 at the same time.</p>
 <p>In <code>conf/broker.conf</code> it's possible to specify a list of valid providers:</p>
-<pre><code class="hljs css language-properties"># Autentication provider <span class="hljs-keyword">name</span> list, which <span class="hljs-keyword">is</span> comma separated list <span class="hljs-keyword">of</span> <span class="hljs-keyword">class</span> names
-authenticationProviders=
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Autentication provider name list, which is comma separated list of class names</span>
+<span class="hljs-attr">authenticationProviders</span>=<span class="hljs-string"></span>
 </code></pre>
 <p>There is one single interface to implement <code>org.apache.pulsar.broker.authentication.AuthenticationProvider</code>:</p>
 <pre><code class="hljs css language-java"><span class="hljs-comment">/**
@@ -128,8 +128,8 @@ configure a different one through a plugin.</p>
 <p>To provide a custom provider, one needs to implement the
 <code>org.apache.pulsar.broker.authorization.AuthorizationProvider</code> interface, have this class in the
 Pulsar broker classpath and configure it in <code>conf/broker.conf</code>:</p>
-<pre><code class="hljs css language-properties"># Authorization provider fully <span class="hljs-keyword">qualified</span> <span class="hljs-keyword">class</span>-name
-authorizationProvider=org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># Authorization provider fully qualified class-name</span>
+<span class="hljs-attr">authorizationProvider</span>=<span class="hljs-string">org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</span>
 </code></pre>
 <pre><code class="hljs css language-java"><span class="hljs-comment">/**
  * Provider of authorization mechanism
