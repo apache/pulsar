@@ -34,28 +34,17 @@ import java.util.Arrays;
 @SuppressWarnings("unused")
 public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
 
-    private final SchemaCompatibilityStrategy compatibilityStrategy;
-
-    public JsonSchemaCompatibilityCheck () {
-        this(SchemaCompatibilityStrategy.FULL);
-    }
-
-    public JsonSchemaCompatibilityCheck(SchemaCompatibilityStrategy compatibilityStrategy) {
-        this.compatibilityStrategy = compatibilityStrategy;
-    }
-
     @Override
     public SchemaType getSchemaType() {
         return SchemaType.JSON;
     }
 
     @Override
-    public boolean isCompatible(SchemaData from, SchemaData to) {
-
+    public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
         if (isAvroSchema(from)) {
             if (isAvroSchema(to)) {
                 // if both producer and broker have the schema in avro format
-                return isCompatibleAvroSchema(from, to);
+                return isCompatibleAvroSchema(from, to, strategy);
             } else if (isJsonSchema(to)) {
                 // if broker have the schema in avro format but producer sent a schema in the old json format
                 // allow old schema format for backwards compatiblity
@@ -85,13 +74,13 @@ public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
         }
     }
 
-    private boolean isCompatibleAvroSchema(SchemaData from, SchemaData to) {
+    private boolean isCompatibleAvroSchema(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
         Schema.Parser fromParser = new Schema.Parser();
         Schema fromSchema = fromParser.parse(new String(from.getData()));
         Schema.Parser toParser = new Schema.Parser();
         Schema toSchema =  toParser.parse(new String(to.getData()));
 
-        SchemaValidator schemaValidator = createSchemaValidator(this.compatibilityStrategy, true);
+        SchemaValidator schemaValidator = createSchemaValidator(strategy, true);
         try {
             schemaValidator.validate(toSchema, Arrays.asList(fromSchema));
         } catch (SchemaValidationException e) {
@@ -148,8 +137,10 @@ public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
                 return createLatestOrAllValidator(validatorBuilder.canReadStrategy(), onlyLatestValidator);
             case FORWARD:
                 return createLatestOrAllValidator(validatorBuilder.canBeReadStrategy(), onlyLatestValidator);
-            default:
+            case FULL:
                 return createLatestOrAllValidator(validatorBuilder.mutualReadStrategy(), onlyLatestValidator);
+            default:
+                return NeverSchemaValidator.INSTANCE;
         }
     }
 

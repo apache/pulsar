@@ -36,13 +36,11 @@ public class FunctionAssignmentTailer
         private final FunctionRuntimeManager functionRuntimeManager;
         private final Reader<byte[]> reader;
 
-    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager)
+    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager, Reader<byte[]> reader)
             throws PulsarClientException {
         this.functionRuntimeManager = functionRuntimeManager;
 
-        this.reader = functionRuntimeManager.getWorkerService().getClient().newReader()
-                .topic(functionRuntimeManager.getWorkerConfig().getFunctionAssignmentTopic()).readCompacted(true)
-                .startMessageId(MessageId.earliest).create();
+        this.reader = reader;
     }
 
     public void start() {
@@ -66,8 +64,7 @@ public class FunctionAssignmentTailer
         log.info("Stopped function state consumer");
     }
 
-    @Override
-    public void accept(Message<byte[]> msg) {
+    public void processAssignment(Message<byte[]> msg) {
         if(msg.getData()==null || (msg.getData().length==0)) {
             log.info("Received assignment delete: {}", msg.getKey());
             this.functionRuntimeManager.deleteAssignment(msg.getKey());
@@ -82,8 +79,13 @@ public class FunctionAssignmentTailer
                 throw new RuntimeException(e);
             }
             log.info("Received assignment update: {}", assignment);
-            this.functionRuntimeManager.processAssignment(assignment);    
+            this.functionRuntimeManager.processAssignment(assignment);
         }
+    }
+
+    @Override
+    public void accept(Message<byte[]> msg) {
+        processAssignment(msg);
         // receive next request
         receiveOne();
     }

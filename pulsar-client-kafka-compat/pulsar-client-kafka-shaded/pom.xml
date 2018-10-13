@@ -87,6 +87,7 @@
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-*</include>
                   <include>org.apache.pulsar:pulsar-common</include>
+                  <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
