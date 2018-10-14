@@ -263,22 +263,6 @@ public class FunctionApiV2ResourceTest {
                 "Field 'className' cannot be null!");
     }
 
-    @Test
-    public void testRegisterFunctionMissingParallelism() throws IOException {
-        testRegisterFunctionMissingArguments(
-                tenant,
-                namespace,
-                function,
-                mockedInputStream,
-                topicsToSerDeClassName,
-                mockedFormData,
-                outputTopic,
-                outputSerdeClassName,
-                className,
-                null,
-                "Field 'parallelism' must be a Positive Number");
-    }
-
     private void testRegisterFunctionMissingArguments(
             String tenant,
             String namespace,
@@ -564,21 +548,6 @@ public class FunctionApiV2ResourceTest {
             null,
             parallelism,
                 "Field 'className' cannot be null!");
-    }
-    @Test
-    public void testUpdateFunctionMissingParallelism() throws IOException {
-        testUpdateFunctionMissingArguments(
-                tenant,
-                namespace,
-                function,
-                mockedInputStream,
-                topicsToSerDeClassName,
-                mockedFormData,
-                outputTopic,
-                outputSerdeClassName,
-                className,
-                null,
-                "Field 'parallelism' must be a Positive Number");
     }
 
     private void testUpdateFunctionMissingArguments(
