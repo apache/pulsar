@@ -78,7 +78,8 @@ The following commands will ask you a few questions and then create the certific
 > Sometimes it is not possible or makes no sense to match the hostname,
 > such as when the brokers are created with random hostnames, or you
 > plan to connect to the hosts via their IP. In this case, the client
-> should be configured to disable TLS hostname verification.
+> should be configured to disable TLS hostname verification. For more
+> details, see [the host verification section in client configuration](#hostname-verification).
 
 First generate the key.
 ```bash
@@ -146,6 +147,16 @@ When TLS transport encryption is enabled, you need to configure the client to us
 
 As the server certificate you generated above doesn't belong to any of the default trust chains, you also need to either specify the path the **trust cert** (recommended), or tell the client to allow untrusted server certs.
 
+#### Hostname verification
+
+Hostname verification is a TLS security feature whereby a client can refuse to connect to a server if the "CommonName" does not match the hostname to which it is connecting. By default, Pulsar clients disable hostname verification, as it requires that each broker has a DNS record and a unique cert.
+
+Moreover, as the administrator has full control of the certificate authority, it is unlikely that a bad actor would be able to pull off a man-in-the-middle attack. "allowInsecureConnection" allows the client to connect to servers whose cert has not been signed by an approved CA. The client disables it by default, and should always be disabled in production environments. As long as "allowInsecureConnection" is disabled, a man-in-the-middle attack would require that the attacker has access to the CA.
+
+One scenario where you may want to enable hostname verification is where you have multiple proxy nodes behind a VIP, and the VIP has a DNS record, for example, pulsar.mycompany.com. In this case, you can generate a TLS cert with pulsar.mycompany.com as the "CommonName," and then enable hostname verification on the client.
+
+The examples below show hostname verification being disabled for the Java client, though you can be omit this as the client disables it by default. C++/python clients do now allow this to be configured at the moment.
+
 ### CLI tools
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
@@ -158,6 +169,7 @@ brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
 useTls=true
 tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/ca.cert.pem
+tlsEnableHostnameVerification=false
 ```
 
 ### Java client
@@ -169,6 +181,8 @@ PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar+ssl://broker.example.com:6651/")
     .enableTls(true)
     .tlsTrustCertsFilePath("/path/to/ca.cert.pem")
+    .enableTlsHostnameVerification(false) // false by default, in any case
+    .allowTlsInsecureConnection(false) // false by default, in any case
     .build();
 ```
 
@@ -179,7 +193,7 @@ from pulsar import Client
 
 client = Client("pulsar+ssl://broker.example.com:6651/",
                 tls_trust_certs_file_path="/path/to/ca.cert.pem",
-                tls_allow_insecure_connection=False)
+                tls_allow_insecure_connection=False) // defaults to false from v2.2.0 onwards
 ```
 
 ### C++ client
@@ -190,7 +204,7 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 pulsar::ClientConfiguration config;
 config.setUseTls(true);
 config.setTlsTrustCertsFilePath("/path/to/ca.cert.pem");
-config.setTlsAllowInsecureConnection(false);
+config.setTlsAllowInsecureConnection(false); // defaults to false from v2.2.0 onwards
 
 pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
 ```
