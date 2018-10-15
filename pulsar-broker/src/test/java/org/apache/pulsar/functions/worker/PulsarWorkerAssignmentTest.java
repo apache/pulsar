@@ -192,9 +192,8 @@ public class PulsarWorkerAssignmentTest {
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
-        String jarFilePathUrl = Utils.FILE + ":"
-                + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionConfig functionConfig = createFunctionConfig(jarFilePathUrl, tenant, namespacePortion,
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion,
                 functionName, "my.*", sinkTopic, subscriptionName);
         functionConfig.setParallelism(2);
 
@@ -251,7 +250,7 @@ public class PulsarWorkerAssignmentTest {
         // (1) Register functions with 2 instances
         for (int i = 0; i < totalFunctions; i++) {
             String functionName = baseFunctionName + i;
-            functionConfig = createFunctionConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
+            functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
             functionConfig.setParallelism(parallelism);
             // set-auto-ack prop =true
@@ -274,7 +273,7 @@ public class PulsarWorkerAssignmentTest {
         // (2) Update function with prop=auto-ack and Delete 2 functions
         for (int i = 0; i < totalFunctions; i++) {
             String functionName = baseFunctionName + i;
-            functionConfig = createFunctionConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
+            functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
             functionConfig.setParallelism(parallelism);
             // set-auto-ack prop =false
@@ -326,17 +325,10 @@ public class PulsarWorkerAssignmentTest {
         }
     }
 
-    protected static FunctionConfig createFunctionConfig(String jarFile, String tenant, String namespace,
+    protected static FunctionConfig createFunctionConfig(String tenant, String namespace,
                                                          String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
 
-        File file = new File(jarFile);
-        try {
-            Reflections.loadJar(file);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Failed to load user jar " + file, e);
-        }
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
-        Class<?> typeArg = byte[].class;
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -344,10 +336,10 @@ public class PulsarWorkerAssignmentTest {
         functionConfig.setName(functionName);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setParallelism(1);
-        functionConfig.setClassName(IdentityFunction.class.getName());
+        functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
 
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        functionConfig.setInputs(Collections.singleton(sourceTopicPattern));
+        functionConfig.setTopicsPattern(sourceTopicPattern);
         functionConfig.setSubName(subscriptionName);
         functionConfig.setAutoAck(true);
         functionConfig.setOutput(sinkTopic);
