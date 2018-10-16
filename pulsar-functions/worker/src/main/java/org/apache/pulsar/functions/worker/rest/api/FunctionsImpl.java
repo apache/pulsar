@@ -1082,10 +1082,14 @@ public class FunctionsImpl {
     public NarClassLoader extractNarClassLoader(String archive, String pkgUrl, File uploadedInputStreamFileName,
                                                  boolean isSource) {
         if (!StringUtils.isEmpty(archive)) {
+            String builtinArchive = archive;
+            if (archive.startsWith(org.apache.pulsar.functions.utils.Utils.BUILTIN)) {
+                builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
+            }
             if (isSource) {
                 Path path;
                 try {
-                    path = this.worker().getConnectorsManager().getSourceArchive(archive);
+                    path = this.worker().getConnectorsManager().getSourceArchive(builtinArchive);
                 } catch (Exception e) {
                     throw new IllegalArgumentException(String.format("No Source archive %s found", archive));
                 }
@@ -1098,7 +1102,7 @@ public class FunctionsImpl {
             } else {
                 Path path;
                 try {
-                    path = this.worker().getConnectorsManager().getSinkArchive(archive);
+                    path = this.worker().getConnectorsManager().getSinkArchive(builtinArchive);
                 } catch (Exception e) {
                     throw new IllegalArgumentException(String.format("No Sink archive %s found", archive));
                 }
