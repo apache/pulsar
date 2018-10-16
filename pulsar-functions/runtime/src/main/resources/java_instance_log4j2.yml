@@ -98,7 +98,7 @@ Configuration:
   Loggers:
 
     Logger:
-      name: org.apache.pulsar.functions.runtime.shaded.org.apache.bookkeeper
+      name: org.apache.pulsar.shade.org.apache.bookkeeper
       level: "${sys:bk.log.level}"
       additivity: false
       AppenderRef:
