@@ -54,7 +54,7 @@ public class SourceImpl extends BaseResource implements Source {
 
     public SourceImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.source = web.path("/admin/source");
+        this.source = web.path("/admin/v2/source");
     }
 
     @Override
@@ -252,7 +252,7 @@ public class SourceImpl extends BaseResource implements Source {
     @Override
     public List<ConnectorDefinition> getBuiltInSources() throws PulsarAdminException {
         try {
-            Response response = request(source.path("builtinsource")).get();
+            Response response = request(source.path("builtinsources")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }

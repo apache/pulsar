@@ -54,7 +54,7 @@ public class SinkImpl extends BaseResource implements Sink {
 
     public SinkImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.sink = web.path("/admin/sink");
+        this.sink = web.path("/admin/v2/sink");
     }
 
     @Override
@@ -252,7 +252,7 @@ public class SinkImpl extends BaseResource implements Sink {
     @Override
     public List<ConnectorDefinition> getBuiltInSinks() throws PulsarAdminException {
         try {
-            Response response = request(sink.path("builtinsink")).get();
+            Response response = request(sink.path("builtinsinks")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
