@@ -66,7 +66,7 @@ public class TestBasicPresto extends PulsarTestSuite {
         pulsarCluster.stopPrestoWorker();;
     }
 
-    @Test
+    @Test(enabled = false)
     public void testSimpleSQLQuery() throws Exception {
 
         @Cleanup

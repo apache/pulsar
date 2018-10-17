@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -79,7 +80,7 @@ public class CmdSinks extends CmdBase {
         jcommander.addCommand("update", updateSink);
         jcommander.addCommand("delete", deleteSink);
         jcommander.addCommand("localrun", localSinkRunner);
-        jcommander.addCommand("available-sinks", new ListSinks());
+        jcommander.addCommand("available-sinks", new ListBuiltInSinks());
     }
 
     /**
@@ -187,9 +188,9 @@ public class CmdSinks extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(archive)) {
-                admin.functions().createFunctionWithUrl(SinkConfigUtils.convert(sinkConfig), sinkConfig.getArchive());
+                admin.sink().createSinkWithUrl(sinkConfig, sinkConfig.getArchive());
             } else {
-                admin.functions().createFunction(SinkConfigUtils.convert(sinkConfig), sinkConfig.getArchive());
+                admin.sink().createSink(sinkConfig, sinkConfig.getArchive());
             }
             print("Created successfully");
         }
@@ -200,9 +201,9 @@ public class CmdSinks extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(archive)) {
-                admin.functions().updateFunctionWithUrl(SinkConfigUtils.convert(sinkConfig), sinkConfig.getArchive());
+                admin.sink().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive());
             } else {
-                admin.functions().updateFunction(SinkConfigUtils.convert(sinkConfig), sinkConfig.getArchive());
+                admin.sink().updateSink(sinkConfig, sinkConfig.getArchive());
             }
             print("Updated successfully");
         }
@@ -281,6 +282,8 @@ public class CmdSinks extends CmdBase {
         protected Long timeoutMs;
 
         protected SinkConfig sinkConfig;
+
+        protected NarClassLoader classLoader;
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_subsName)) subsName = DEPRECATED_subsName;
@@ -449,7 +452,6 @@ public class CmdSinks extends CmdBase {
             }
 
             // if jar file is present locally then load jar and validate SinkClass in it
-            ClassLoader classLoader = null;
             if (archivePath != null) {
                 if (!fileExists(archivePath)) {
                     throw new ParameterException("Archive file " + archivePath + " does not exist");
@@ -482,14 +484,14 @@ public class CmdSinks extends CmdBase {
                 throws IOException {
             org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder
                     = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
-            Utils.mergeJson(FunctionsImpl.printJson(SinkConfigUtils.convert(sinkConfig)), functionDetailsBuilder);
+            Utils.mergeJson(FunctionsImpl.printJson(SinkConfigUtils.convert(sinkConfig, classLoader)), functionDetailsBuilder);
             return functionDetailsBuilder.build();
         }
 
         protected String validateSinkType(String sinkType) throws IOException {
             Set<String> availableSinks;
             try {
-                availableSinks = admin.functions().getSinks();
+                availableSinks = admin.sink().getBuiltInSinks().stream().map(ConnectorDefinition::getName).collect(Collectors.toSet());
             } catch (PulsarAdminException e) {
                 throw new IOException(e);
             }
@@ -533,16 +535,16 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.functions().deleteFunction(tenant, namespace, name);
+            admin.sink().deleteSink(tenant, namespace, name);
             print("Deleted successfully");
         }
     }
 
     @Parameters(commandDescription = "Get the list of Pulsar IO connector sinks supported by Pulsar cluster")
-    public class ListSinks extends BaseCommand {
+    public class ListBuiltInSinks extends BaseCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().getConnectorsList().stream().filter(x -> isNotBlank(x.getSinkClass()))
+            admin.sink().getBuiltInSinks().stream().filter(x -> isNotBlank(x.getSinkClass()))
                     .forEach(connector -> {
                         System.out.println(connector.getName());
                         System.out.println(WordUtils.wrap(connector.getDescription(), 80));

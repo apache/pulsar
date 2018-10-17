@@ -107,11 +107,11 @@ public class FunctionConfig {
     private Map<String, String> secrets;
     private Runtime runtime;
     private boolean autoAck;
-    private int maxMessageRetries;
+    private int maxMessageRetries = -1;
     private String deadLetterTopic;
     private String subName;
     @isPositiveNumber
-    private int parallelism;
+    private int parallelism = 1;
     @isValidResources
     private Resources resources;
     private String fqfn;

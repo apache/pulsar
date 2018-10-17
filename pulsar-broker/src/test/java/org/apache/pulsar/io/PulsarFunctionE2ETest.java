@@ -26,16 +26,10 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
-import java.io.File;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
@@ -47,29 +41,17 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.DataDigest;
-import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -82,9 +64,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
 
 import jersey.repackaged.com.google.common.collect.Lists;
 
@@ -92,7 +72,7 @@ import jersey.repackaged.com.google.common.collect.Lists;
  * Test Pulsar sink on function
  *
  */
-public class PulsarSinkE2ETest {
+public class PulsarFunctionE2ETest {
     LocalBookkeeperEnsemble bkEnsemble;
 
     ServiceConfiguration config;
@@ -120,7 +100,7 @@ public class PulsarSinkE2ETest {
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarSinkE2ETest.class);
+    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionE2ETest.class);
 
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
@@ -244,13 +224,31 @@ public class PulsarSinkE2ETest {
         return new WorkerService(workerConfig);
     }
 
+    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+        String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(functionName);
+        functionConfig.setParallelism(1);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
+        functionConfig.setSubName(subscriptionName);
+        functionConfig.setTopicsPattern(sourceTopicPattern);
+        functionConfig.setAutoAck(true);
+        functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setOutput(sinkTopic);
+        return functionConfig;
+    }
+
     /**
      * Validates pulsar sink e2e functionality on functions.
      *
      * @throws Exception
      */
     @Test(timeOut = 20000)
-    public void testE2EPulsarSink() throws Exception {
+    public void testE2EPulsarFunction() throws Exception {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -265,17 +263,16 @@ public class PulsarSinkE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create a producer that creates a topic at broker
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(sourceTopic).create();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(sinkTopic).subscriptionName("sub").subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
 
-        String jarFilePathUrl = Utils.FILE + ":"
-                + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 "my.*", sinkTopic, subscriptionName);
-        admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         // try to update function to test: update-function functionality
-        admin.functions().updateFunctionWithUrl(functionDetails, jarFilePathUrl);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
             try {
@@ -290,7 +287,7 @@ public class PulsarSinkE2ETest {
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
-            producer.newMessage().property(propertyKey, propertyValue).value(data.getBytes()).send();
+            producer.newMessage().property(propertyKey, propertyValue).value(data).send();
         }
         retryStrategically((test) -> {
             try {
@@ -301,7 +298,7 @@ public class PulsarSinkE2ETest {
             }
         }, 5, 150);
 
-        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+        Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
         String receivedPropertyValue = msg.getProperty(propertyKey);
         assertEquals(propertyValue, receivedPropertyValue);
 
@@ -313,7 +310,7 @@ public class PulsarSinkE2ETest {
     }
 
     @Test(timeOut = 20000)
-    public void testPulsarSinkStats() throws Exception {
+    public void testPulsarFunctionStats() throws Exception {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -328,16 +325,15 @@ public class PulsarSinkE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create a producer that creates a topic at broker
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(sourceTopic).create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        String jarFilePathUrl = Utils.FILE + ":"
-                + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 "my.*", sinkTopic, subscriptionName);
-        admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         // try to update function to test: update-function functionality
-        admin.functions().updateFunctionWithUrl(functionDetails, jarFilePathUrl);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
             try {
@@ -352,7 +348,7 @@ public class PulsarSinkE2ETest {
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
-            producer.newMessage().property(propertyKey, propertyValue).value(data.getBytes()).send();
+            producer.newMessage().property(propertyKey, propertyValue).value(data).send();
         }
         retryStrategically((test) -> {
             try {
@@ -382,49 +378,6 @@ public class PulsarSinkE2ETest {
         assertEquals(ownerWorkerId, workerId);
     }
 
-    protected static FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
-
-        File file = new File(jarFile);
-        try {
-            Reflections.loadJar(file);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Failed to load user jar " + file, e);
-        }
-        String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
-        Class<?> typeArg = byte[].class;
-
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        functionDetailsBuilder.setTenant(tenant);
-        functionDetailsBuilder.setNamespace(namespace);
-        functionDetailsBuilder.setName(functionName);
-        functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-        functionDetailsBuilder.setParallelism(1);
-        functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
-        functionDetailsBuilder.setProcessingGuarantees(ProcessingGuarantees.EFFECTIVELY_ONCE);
-
-        // set source spec
-        // source spec classname should be empty so that the default pulsar source will be used
-        SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-        sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.FAILOVER);
-        sourceSpecBuilder.setTypeClassName(typeArg.getName());
-        sourceSpecBuilder.setTopicsPattern(sourceTopicPattern);
-        sourceSpecBuilder.setSubscriptionName(subscriptionName);
-        sourceSpecBuilder.putTopicsToSerDeClassName(sourceTopicPattern, "");
-        functionDetailsBuilder.setAutoAck(true);
-        functionDetailsBuilder.setSource(sourceSpecBuilder);
-
-        // set up sink spec
-        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-        // sinkSpecBuilder.setClassName(PulsarSink.class.getName());
-        sinkSpecBuilder.setTopic(sinkTopic);
-        Map<String, Object> sinkConfigMap = Maps.newHashMap();
-        sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfigMap));
-        sinkSpecBuilder.setTypeClassName(typeArg.getName());
-        functionDetailsBuilder.setSink(sinkSpecBuilder);
-
-        return functionDetailsBuilder.build();
-    }
-
     @Test(dataProvider = "validRoleName")
     public void testAuthorization(boolean validRoleName) throws Exception {
 
@@ -443,12 +396,11 @@ public class PulsarSinkE2ETest {
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);
 
-        String jarFilePathUrl = Utils.FILE + ":"
-                + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 "my.*", sinkTopic, subscriptionName);
         try {
-            admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+            admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
             assertTrue(validRoleName);
         } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
             assertFalse(validRoleName);
@@ -466,45 +418,22 @@ public class PulsarSinkE2ETest {
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/output";
         final String functionName = "PulsarSink-test";
+        final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
-        String jarFilePathUrl = Utils.FILE + ":"
-                + IdentityFunction.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
 
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        functionDetailsBuilder.setTenant(tenant);
-        functionDetailsBuilder.setNamespace(namespacePortion);
-        functionDetailsBuilder.setName(functionName);
-        functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-        functionDetailsBuilder.setParallelism(1);
-        functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+                "my.*", sinkTopic, subscriptionName);
 
-        Class<?>[] typeArgs = org.apache.pulsar.functions.utils.Utils.getFunctionTypes(new IdentityFunction(), false);
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-        // set source spec
-        // source spec classname should be empty so that the default pulsar source will be used
-        SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-        sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.FAILOVER);
-        sourceSpecBuilder.putTopicsToSerDeClassName(sinkTopic, TopicSchema.DEFAULT_SERDE);
-        functionDetailsBuilder.setAutoAck(true);
-        functionDetailsBuilder.setSource(sourceSpecBuilder);
+        FunctionDetails functionMetadata = admin.source().getSource(tenant, namespacePortion, functionName);
 
-        // set up sink spec
-        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-        sinkSpecBuilder.setTopic(sinkTopic);
-        Map<String, Object> sinkConfigMap = Maps.newHashMap();
-        sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfigMap));
-        functionDetailsBuilder.setSink(sinkSpecBuilder);
-
-        FunctionDetails functionDetails = functionDetailsBuilder.build();
-        admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
-
-        FunctionDetails functionMetadata = admin.functions().getFunction(tenant, namespacePortion, functionName);
-
-        assertEquals(functionMetadata.getSource().getTypeClassName(), typeArgs[0].getName());
-        assertEquals(functionMetadata.getSink().getTypeClassName(), typeArgs[1].getName());
+        assertEquals(functionMetadata.getSource().getTypeClassName(), String.class.getName());
+        assertEquals(functionMetadata.getSink().getTypeClassName(), String.class.getName());
 
     }
 
@@ -523,13 +452,12 @@ public class PulsarSinkE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create source topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(sourceTopic).create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        String jarFilePathUrl = Utils.FILE + ":"
-                + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, functionName,
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopicName, sinkTopic, subscriptionName);
-        admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
             try {
