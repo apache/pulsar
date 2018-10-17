@@ -43,6 +43,7 @@ import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -59,6 +60,7 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.Lists;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.prometheus.client.jetty.JettyStatisticsCollector;
 
 /**
  * Web Service embedded into Pulsar
@@ -167,11 +169,17 @@ public class WebService implements AutoCloseable {
             handlers.add(0, new ContextHandlerCollection());
             handlers.add(requestLogHandler);
 
+            // Metrics handler
+            StatisticsHandler stats = new StatisticsHandler();
+            stats.setHandler(server.getHandler());
+            new JettyStatisticsCollector(stats).register();
+            handlers.add(stats);
+
             ContextHandlerCollection contexts = new ContextHandlerCollection();
             contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
             HandlerCollection handlerCollection = new HandlerCollection();
-            handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+            handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler, stats });
             server.setHandler(handlerCollection);
 
             server.start();
