@@ -30,6 +30,7 @@ import signal
 import time
 import zipfile
 import json
+import inspect
 
 import pulsar
 
@@ -115,7 +116,8 @@ def main():
      tls_trust_cert_path =  args.tls_trust_cert_path
   pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication, 30, 1, 1, 50000, None, use_tls, tls_trust_cert_path, tls_allow_insecure_connection)
 
-  secrets_provider = util.import_class(str(args.py), str(args.secrets_provider))
+  secrets_provider = util.import_class(os.path.dirname(inspect.getfile(inspect.currentframe())), str(args.secrets_provider))
+  secrets_provider = secrets_provider()
   secrets_provider_config = None
   if args.secrets_provider_config is not None:
     secrets_provider_config = json.loads(str(args.secrets_provider_config))
