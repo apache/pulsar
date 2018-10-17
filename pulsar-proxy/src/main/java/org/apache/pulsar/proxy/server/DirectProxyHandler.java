@@ -64,10 +64,10 @@ public class DirectProxyHandler {
     private final Authentication authentication;
 
     static final Counter opsCounter = Counter
-            .build("pulsar_proxy_ops", "Counter of proxy operations").create().register();
+            .build("pulsar_proxy_binary_ops", "Counter of proxy operations").create().register();
 
     static final Counter bytesCounter = Counter
-            .build("pulsar_proxy_bytes", "Counter of proxy bytes").create().register();
+            .build("pulsar_proxy_binary_bytes", "Counter of proxy bytes").create().register();
 
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl) {
         this.authentication = proxyConnection.getClientAuthentication();
