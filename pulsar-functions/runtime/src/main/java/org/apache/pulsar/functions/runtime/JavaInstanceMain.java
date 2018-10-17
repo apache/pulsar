@@ -95,6 +95,12 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in seconds between healtchecks", required = true)
     protected int expectedHealthCheckInterval;
 
+    @Parameter(names = "--secrets_provider", description = "The classname of the secrets provider", required = true)
+    protected String secretsProviderClassName;
+
+    @Parameter(names = "--secrets_provider_config", description = "The config that needs to be passed to secrets provider", required = false)
+    protected String secretsProviderConfig;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -128,7 +134,8 @@ public class JavaInstanceMain implements AutoCloseable {
                         .clientAuthenticationParameters(clientAuthenticationParameters).useTls(isTrue(useTls))
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
-                        .tlsTrustCertsFilePath(tlsTrustCertFilePath).build());
+                        .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
+                secretsProviderClassName, secretsProviderConfig);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

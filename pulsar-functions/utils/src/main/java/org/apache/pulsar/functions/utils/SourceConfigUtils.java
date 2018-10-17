@@ -94,6 +94,10 @@ public class SourceConfigUtils {
             sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
         }
 
+        if (sourceConfig.getSecrets() != null && !sourceConfig.getSecrets().isEmpty()) {
+            functionDetailsBuilder.setSecretsMap(new Gson().toJson(sourceConfig.getSecrets()));
+        }
+
         if (typeArg != null) {
             sourceSpecBuilder.setTypeClassName(typeArg);
         }

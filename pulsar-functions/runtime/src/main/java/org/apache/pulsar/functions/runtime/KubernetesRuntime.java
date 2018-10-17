@@ -22,6 +22,8 @@ package org.apache.pulsar.functions.runtime;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.Empty;
 import com.google.protobuf.util.JsonFormat;
 import com.squareup.okhttp.Response;
@@ -40,7 +42,9 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -129,7 +133,8 @@ class KubernetesRuntime implements Runtime {
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, pulsarRootDir + "/conf/log4j2.yaml", installUserCodeDependencies);
+                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, pulsarRootDir + "/conf/log4j2.yaml", installUserCodeDependencies,
+                EnvironmentBasedSecretsProvider.class.getName(), null);
         this.prometheusMetricsServerArgs = composePrometheusMetricsServerArgs(prometheusMetricsServerJarFile, expectedMetricsInterval);
         running = false;
         doChecks(instanceConfig.getFunctionDetails());
@@ -519,11 +524,26 @@ class KubernetesRuntime implements Runtime {
         container.setCommand(instanceCommand);
 
         // setup the environment variables for the container
+        List<V1EnvVar> envVars = new LinkedList<>();
         final V1EnvVar envVarPodName = new V1EnvVar();
         envVarPodName.name("POD_NAME")
                 .valueFrom(new V1EnvVarSource()
                         .fieldRef(new V1ObjectFieldSelector()
                                 .fieldPath("metadata.name")));
+        envVars.add(envVarPodName);
+        if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
+            Type type = new TypeToken<Map<String, String>>() {}.getType();
+            Map<String, String> secretsMap = new Gson().fromJson(instanceConfig.getFunctionDetails().getSecretsMap(), type);
+            for (Map.Entry<String, String> entry : secretsMap.entrySet()) {
+                final V1EnvVar secretEnv = new V1EnvVar();
+                secretEnv.name(entry.getValue())
+                        .valueFrom(new V1EnvVarSource()
+                                .secretKeyRef(new V1SecretKeySelector()
+                                        .name(entry.getKey())
+                                        .key(entry.getValue())));
+                envVars.add(secretEnv);
+            }
+        }
         container.setEnv(Arrays.asList(envVarPodName));
 
 

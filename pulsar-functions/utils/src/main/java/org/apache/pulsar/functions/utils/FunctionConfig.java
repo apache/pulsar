@@ -104,6 +104,7 @@ public class FunctionConfig {
     private ProcessingGuarantees processingGuarantees;
     private boolean retainOrdering;
     private Map<String, Object> userConfig;
+    private Map<String, String> secrets;
     private Runtime runtime;
     private boolean autoAck;
     private int maxMessageRetries;

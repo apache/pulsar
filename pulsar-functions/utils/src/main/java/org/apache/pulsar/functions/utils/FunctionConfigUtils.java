@@ -178,6 +178,10 @@ public class FunctionConfigUtils {
             functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
         }
 
+        if (functionConfig.getSecrets() != null && !functionConfig.getSecrets().isEmpty()) {
+            functionDetailsBuilder.setSecretsMap(new Gson().toJson(functionConfig.getSecrets()));
+        }
+
         functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
         functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
         if (functionConfig.getResources() != null) {

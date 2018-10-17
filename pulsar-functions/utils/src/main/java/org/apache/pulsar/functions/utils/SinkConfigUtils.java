@@ -158,6 +158,9 @@ public class SinkConfigUtils {
         if (sinkConfig.getConfigs() != null) {
             sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
         }
+        if (sinkConfig.getSecrets() != null && !sinkConfig.getSecrets().isEmpty()) {
+            functionDetailsBuilder.setSecretsMap(new Gson().toJson(sinkConfig.getSecrets()));
+        }
         if (typeArg != null) {
             sinkSpecBuilder.setTypeClassName(typeArg);
         }

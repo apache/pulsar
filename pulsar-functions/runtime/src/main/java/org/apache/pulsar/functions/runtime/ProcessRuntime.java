@@ -32,6 +32,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 
 import java.io.InputStream;
 import java.util.List;
@@ -75,7 +76,8 @@ class ProcessRuntime implements Runtime {
         this.expectedHealthCheckInterval = expectedHealthCheckInterval;
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, instanceConfig.getInstanceName(), instanceConfig.getPort(), expectedHealthCheckInterval,
-                "java_instance_log4j2.yml", false);
+                "java_instance_log4j2.yml", false,
+                ClearTextSecretsProvider.class.getName(), null);
     }
 
     /**

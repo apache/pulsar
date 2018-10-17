@@ -72,6 +72,7 @@ public class SinkConfig {
     private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
 
     private Map<String, Object> configs;
+    private Map<String, String> secrets;
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;

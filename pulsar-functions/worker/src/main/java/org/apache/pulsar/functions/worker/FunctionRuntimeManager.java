@@ -54,6 +54,7 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.runtime.Runtime;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 
 /**
  * This class managers all aspects of functions assignments and running of function assignments for this worker
@@ -116,7 +117,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getThreadContainerFactory().getThreadGroupName(),
                     workerConfig.getPulsarServiceUrl(),
                     workerConfig.getStateStorageServiceUrl(),
-                    authConfig);
+                    authConfig,
+                    ClearTextSecretsProvider.class.getName(), null);
         } else if (workerConfig.getProcessContainerFactory() != null) {
             this.runtimeFactory = new ProcessRuntimeFactory(
                     workerConfig.getPulsarServiceUrl(),

@@ -160,6 +160,13 @@ public interface Context {
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
 
     /**
+     * Get the secret associated with this key
+     * @param keyToSecret The key that identifies where the secret is located
+     * @return The secret if anything was found or null
+     */
+    String getSecret(String keyToSecret);
+
+    /**
      * Record a user defined metric
      * @param metricName The name of the metric
      * @param value The value of the metric

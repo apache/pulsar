@@ -61,6 +61,7 @@ public class SourceConfig {
     private String schemaType;
 
     private Map<String, Object> configs;
+    private Map<String, String> secrets;
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
