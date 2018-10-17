@@ -684,9 +684,9 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
-                admin.functions().createFunctionWithUrl(FunctionConfigUtils.convert(functionConfig, classLoader), functionConfig.getJar());
+                admin.functions().createFunctionWithUrl(functionConfig, functionConfig.getJar());
             } else {
-                admin.functions().createFunction(FunctionConfigUtils.convert(functionConfig, classLoader), userCodeFile);
+                admin.functions().createFunction(functionConfig, userCodeFile);
             }
 
             print("Created successfully");
@@ -776,9 +776,9 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
-                admin.functions().updateFunctionWithUrl(FunctionConfigUtils.convert(functionConfig, classLoader), functionConfig.getJar());
+                admin.functions().updateFunctionWithUrl(functionConfig, functionConfig.getJar());
             } else {
-                admin.functions().updateFunction(FunctionConfigUtils.convert(functionConfig, classLoader), userCodeFile);
+                admin.functions().updateFunction(functionConfig, userCodeFile);
             }
             print("Updated successfully");
         }

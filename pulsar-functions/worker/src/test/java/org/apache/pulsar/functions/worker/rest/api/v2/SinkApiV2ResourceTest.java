@@ -18,53 +18,25 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.doNothing;
-import static org.powermock.api.mockito.PowerMockito.doThrow;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.assertEquals;
-
-import com.google.common.collect.Lists;
 import com.google.gson.Gson;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
-import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.SinkConfig;
+import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -74,38 +46,61 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyObject;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.doNothing;
+import static org.powermock.api.mockito.PowerMockito.doReturn;
+import static org.powermock.api.mockito.PowerMockito.doThrow;
+import static org.powermock.api.mockito.PowerMockito.*;
+import static org.testng.Assert.assertEquals;
+
 /**
- * Unit test of {@link FunctionApiV2Resource}.
+ * Unit test of {@link SinkApiV2Resource}.
  */
-@PrepareForTest(Utils.class)
+@PrepareForTest({Utils.class, SinkConfigUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 @Slf4j
-public class FunctionApiV2ResourceTest {
+public class SinkApiV2ResourceTest {
 
     @ObjectFactory
     public IObjectFactory getObjectFactory() {
         return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
-    private static final class TestFunction implements Function<String, String> {
+    private static final class TestSink implements Sink<String> {
 
-        @Override
-        public String process(String input, Context context) {
-            return input;
+        @Override public void open(final Map<String, Object> config, SinkContext sinkContext) {
         }
+
+        @Override public void write(Record<String> record) { }
+
+        @Override public void close() { }
     }
 
     private static final String tenant = "test-tenant";
     private static final String namespace = "test-namespace";
-    private static final String function = "test-function";
-    private static final String outputTopic = "test-output-topic";
-    private static final String outputSerdeClassName = TopicSchema.DEFAULT_SERDE;
-    private static final String className = TestFunction.class.getName();
-    private SubscriptionType subscriptionType = SubscriptionType.FAILOVER;
+    private static final String sink = "test-sink";
     private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
     static {
         topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", TopicSchema.DEFAULT_SERDE);
     }
+    private static final String subscriptionName = "test-subscription";
+    private static final String className = TestSink.class.getName();
+    private static final String serde = TopicSchema.DEFAULT_SERDE;
     private static final int parallelism = 1;
 
     private WorkerService mockedWorkerService;
@@ -118,7 +113,7 @@ public class FunctionApiV2ResourceTest {
     private FormDataContentDisposition mockedFormData;
 
     @BeforeMethod
-    public void setup() {
+    public void setup() throws Exception {
         this.mockedManager = mock(FunctionMetaDataManager.class);
         this.mockedFunctionRunTimeManager = mock(FunctionRuntimeManager.class);
         this.mockedRuntimeFactory = mock(RuntimeFactory.class);
@@ -145,6 +140,9 @@ public class FunctionApiV2ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
+        doReturn(null).when(resource).extractNarClassLoader(anyString(), anyString(), anyObject(), anyBoolean());
+        mockStatic(SinkConfigUtils.class);
+        when(SinkConfigUtils.convert(anyObject(), anyObject())).thenReturn(FunctionDetails.newBuilder().build());
     }
 
     //
@@ -152,211 +150,157 @@ public class FunctionApiV2ResourceTest {
     //
 
     @Test
-    public void testRegisterFunctionMissingTenant() throws IOException {
-        testRegisterFunctionMissingArguments(
+    public void testRegisterSinkMissingTenant() throws IOException {
+        testRegisterSinkMissingArguments(
             null,
             namespace,
-            function,
+                sink,
             mockedInputStream,
-            topicsToSerDeClassName,
             mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
+            topicsToSerDeClassName,
             className,
             parallelism,
                 "Tenant is not provided");
     }
 
     @Test
-    public void testRegisterFunctionMissingNamespace() throws IOException {
-        testRegisterFunctionMissingArguments(
+    public void testRegisterSinkMissingNamespace() throws IOException {
+        testRegisterSinkMissingArguments(
             tenant,
             null,
-            function,
+                sink,
             mockedInputStream,
-            topicsToSerDeClassName,
             mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
+            topicsToSerDeClassName,
             className,
             parallelism,
                 "Namespace is not provided");
     }
 
     @Test
-    public void testRegisterFunctionMissingFunctionName() throws IOException {
-        testRegisterFunctionMissingArguments(
+    public void testRegisterSinkMissingFunctionName() throws IOException {
+        testRegisterSinkMissingArguments(
             tenant,
             namespace,
             null,
             mockedInputStream,
-            topicsToSerDeClassName,
             mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
+            topicsToSerDeClassName,
             className,
             parallelism,
                 "Function Name is not provided");
     }
 
     @Test
-    public void testRegisterFunctionMissingPackage() throws IOException {
-        testRegisterFunctionMissingArguments(
+    public void testRegisterSinkMissingPackage() throws IOException {
+        testRegisterSinkMissingArguments(
             tenant,
             namespace,
-            function,
+                sink,
             null,
-            topicsToSerDeClassName,
             mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
+            topicsToSerDeClassName,
             className,
             parallelism,
                 "Function Package is not provided");
     }
 
     @Test
-    public void testRegisterFunctionMissingInputTopics() throws IOException {
-        testRegisterFunctionMissingArguments(
-                tenant,
-                namespace,
-                function,
-                null,
-                null,
-                mockedFormData,
-                outputTopic,
-                outputSerdeClassName,
-                className,
-                parallelism,
-                "No input topic(s) specified for the function");
-    }
-
-    @Test
-    public void testRegisterFunctionMissingPackageDetails() throws IOException {
-        testRegisterFunctionMissingArguments(
+    public void testRegisterSinkMissingPackageDetails() throws IOException {
+        testRegisterSinkMissingArguments(
             tenant,
             namespace,
-            function,
+                sink,
             mockedInputStream,
-            topicsToSerDeClassName,
             null,
-            outputTopic,
-                outputSerdeClassName,
+            topicsToSerDeClassName,
             className,
             parallelism,
                 "Function Package is not provided");
     }
 
-    @Test
-    public void testRegisterFunctionMissingClassName() throws IOException {
-        testRegisterFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            null,
-            parallelism,
-                "Field 'className' cannot be null!");
-    }
-
-    private void testRegisterFunctionMissingArguments(
+    private void testRegisterSinkMissingArguments(
             String tenant,
             String namespace,
-            String function,
+            String sink,
             InputStream inputStream,
-            Map<String, String> topicsToSerDeClassName,
             FormDataContentDisposition details,
-            String outputTopic,
-            String outputSerdeClassName,
+            Map<String, String> inputTopicMap,
             String className,
             Integer parallelism,
             String errorExpected) throws IOException {
-        FunctionConfig functionConfig = new FunctionConfig();
+        SinkConfig sinkConfig = new SinkConfig();
         if (tenant != null) {
-            functionConfig.setTenant(tenant);
+            sinkConfig.setTenant(tenant);
         }
         if (namespace != null) {
-            functionConfig.setNamespace(namespace);
+            sinkConfig.setNamespace(namespace);
         }
-        if (function != null) {
-            functionConfig.setName(function);
+        if (sink != null) {
+            sinkConfig.setName(sink);
         }
-        if (topicsToSerDeClassName != null) {
-            functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        }
-        if (outputTopic != null) {
-            functionConfig.setOutput(outputTopic);
-        }
-        if (outputSerdeClassName != null) {
-            functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        if (inputTopicMap != null) {
+            sinkConfig.setTopicToSerdeClassName(inputTopicMap);
         }
         if (className != null) {
-            functionConfig.setClassName(className);
+            sinkConfig.setClassName(className);
         }
         if (parallelism != null) {
-            functionConfig.setParallelism(parallelism);
+            sinkConfig.setParallelism(parallelism);
         }
-        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
         Response response = resource.registerFunction(
                 tenant,
                 namespace,
-                function,
+                sink,
                 inputStream,
                 details,
                 null,
                 null,
-                new Gson().toJson(functionConfig),
                 null,
                 null,
+                new Gson().toJson(sinkConfig),
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(errorExpected).reason);
     }
 
-    private Response registerDefaultFunction() {
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+    private Response registerDefaultSink() {
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTenant(tenant);
+        sinkConfig.setNamespace(namespace);
+        sinkConfig.setName(sink);
+        sinkConfig.setClassName(className);
+        sinkConfig.setParallelism(parallelism);
+        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
         return resource.registerFunction(
             tenant,
             namespace,
-            function,
+                sink,
             mockedInputStream,
             mockedFormData,
             null,
             null,
-            new Gson().toJson(functionConfig),
             null,
-                null,
+            null,
+            new Gson().toJson(sinkConfig),
                 null);
     }
 
     @Test
-    public void testRegisterExistedFunction() throws IOException {
+    public void testRegisterExistedSink() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        Response response = registerDefaultFunction();
+        Response response = registerDefaultSink();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + function + " already exists").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Function " + sink + " already exists").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
-    public void testRegisterFunctionUploadFailure() throws Exception {
+    public void testRegisterSinkUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
         Utils.uploadToBookeeper(
@@ -364,15 +308,15 @@ public class FunctionApiV2ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
-        Response response = registerDefaultFunction();
+        Response response = registerDefaultSink();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData("upload failure").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
-    public void testRegisterFunctionSuccess() throws Exception {
+    public void testRegisterSinkSuccess() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
         Utils.uploadToBookeeper(
@@ -380,20 +324,20 @@ public class FunctionApiV2ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
         RequestResult rr = new RequestResult()
             .setSuccess(true)
-            .setMessage("function registered");
+            .setMessage("source registered");
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = registerDefaultFunction();
+        Response response = registerDefaultSink();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
 
     @Test
-    public void testRegisterFunctionFailure() throws Exception {
+    public void testRegisterSinkFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
         Utils.uploadToBookeeper(
@@ -401,21 +345,21 @@ public class FunctionApiV2ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
         RequestResult rr = new RequestResult()
             .setSuccess(false)
-            .setMessage("function failed to register");
+            .setMessage("source failed to register");
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = registerDefaultFunction();
+        Response response = registerDefaultSink();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(rr.getMessage()).reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
-    public void testRegisterFunctionInterrupted() throws Exception {
+    public void testRegisterSinkInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
         Utils.uploadToBookeeper(
@@ -423,13 +367,13 @@ public class FunctionApiV2ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
         CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
             new IOException("Function registeration interrupted"));
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = registerDefaultFunction();
+        Response response = registerDefaultSink();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData("Function registeration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
@@ -439,212 +383,158 @@ public class FunctionApiV2ResourceTest {
     //
 
     @Test
-    public void testUpdateFunctionMissingTenant() throws IOException {
-        testUpdateFunctionMissingArguments(
+    public void testUpdateSinkMissingTenant() throws IOException {
+        testUpdateSinkMissingArguments(
             null,
             namespace,
-            function,
+                sink,
             mockedInputStream,
-            topicsToSerDeClassName,
             mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
+            topicsToSerDeClassName,
             className,
             parallelism,
                 "Tenant is not provided");
     }
 
     @Test
-    public void testUpdateFunctionMissingNamespace() throws IOException {
-        testUpdateFunctionMissingArguments(
+    public void testUpdateSinkMissingNamespace() throws IOException {
+        testUpdateSinkMissingArguments(
             tenant,
             null,
-            function,
+                sink,
             mockedInputStream,
-            topicsToSerDeClassName,
             mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
+            topicsToSerDeClassName,
             className,
             parallelism,
                 "Namespace is not provided");
     }
 
     @Test
-    public void testUpdateFunctionMissingFunctionName() throws IOException {
-        testUpdateFunctionMissingArguments(
+    public void testUpdateSinkMissingFunctionName() throws IOException {
+        testUpdateSinkMissingArguments(
             tenant,
             namespace,
             null,
             mockedInputStream,
-            topicsToSerDeClassName,
             mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
+            topicsToSerDeClassName,
             className,
             parallelism,
                 "Function Name is not provided");
     }
 
     @Test
-    public void testUpdateFunctionMissingPackage() throws IOException {
-        testUpdateFunctionMissingArguments(
+    public void testUpdateSinkMissingPackage() throws IOException {
+        testUpdateSinkMissingArguments(
             tenant,
             namespace,
-            function,
+                sink,
             null,
-            topicsToSerDeClassName,
             mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
+            topicsToSerDeClassName,
             className,
             parallelism,
                 "Function Package is not provided");
     }
 
     @Test
-    public void testUpdateFunctionMissingInputTopic() throws IOException {
-        testUpdateFunctionMissingArguments(
-                tenant,
-                namespace,
-                function,
-                mockedInputStream,
-                null,
-                mockedFormData,
-                outputTopic,
-                outputSerdeClassName,
-                className,
-                parallelism,
-                "No input topic(s) specified for the function");
-    }
-
-    @Test
-    public void testUpdateFunctionMissingPackageDetails() throws IOException {
-        testUpdateFunctionMissingArguments(
+    public void testUpdateSinkMissingPackageDetails() throws IOException {
+        testUpdateSinkMissingArguments(
             tenant,
             namespace,
-            function,
+                sink,
             mockedInputStream,
-            topicsToSerDeClassName,
             null,
-            outputTopic,
-                outputSerdeClassName,
+            topicsToSerDeClassName,
             className,
             parallelism,
                 "Function Package is not provided");
     }
 
-    @Test
-    public void testUpdateFunctionMissingClassName() throws IOException {
-        testUpdateFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            mockedFormData,
-            outputTopic,
-                outputSerdeClassName,
-            null,
-            parallelism,
-                "Field 'className' cannot be null!");
-    }
-
-    private void testUpdateFunctionMissingArguments(
+    private void testUpdateSinkMissingArguments(
             String tenant,
             String namespace,
-            String function,
+            String sink,
             InputStream inputStream,
-            Map<String, String> topicsToSerDeClassName,
             FormDataContentDisposition details,
-            String outputTopic,
-            String outputSerdeClassName,
+            Map<String, String> inputTopicsMap,
             String className,
             Integer parallelism,
             String expectedError) throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        FunctionConfig functionConfig = new FunctionConfig();
+        SinkConfig sinkConfig = new SinkConfig();
         if (tenant != null) {
-            functionConfig.setTenant(tenant);
+            sinkConfig.setTenant(tenant);
         }
         if (namespace != null) {
-            functionConfig.setNamespace(namespace);
+            sinkConfig.setNamespace(namespace);
         }
-        if (function != null) {
-            functionConfig.setName(function);
+        if (sink != null) {
+            sinkConfig.setName(sink);
         }
-        if (topicsToSerDeClassName != null) {
-            functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        }
-        if (outputTopic != null) {
-            functionConfig.setOutput(outputTopic);
-        }
-        if (outputSerdeClassName != null) {
-            functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        if (inputTopicsMap != null) {
+            sinkConfig.setTopicToSerdeClassName(inputTopicsMap);
         }
         if (className != null) {
-            functionConfig.setClassName(className);
+            sinkConfig.setClassName(className);
         }
         if (parallelism != null) {
-            functionConfig.setParallelism(parallelism);
+            sinkConfig.setParallelism(parallelism);
         }
-        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
         Response response = resource.updateFunction(
             tenant,
             namespace,
-            function,
+            sink,
             inputStream,
             details,
             null,
             null,
-            new Gson().toJson(functionConfig),
             null,
-                null,
+            null,
+            new Gson().toJson(sinkConfig),
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(expectedError).reason);
     }
 
-    private Response updateDefaultFunction() throws IOException {
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
-        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+    private Response updateDefaultSink() throws IOException {
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTenant(tenant);
+        sinkConfig.setNamespace(namespace);
+        sinkConfig.setName(sink);
+        sinkConfig.setClassName(className);
+        sinkConfig.setParallelism(parallelism);
+        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
 
         return resource.updateFunction(
             tenant,
             namespace,
-            function,
+                sink,
             mockedInputStream,
             mockedFormData,
             null,
             null,
-            new Gson().toJson(functionConfig),
             null,
-                null,
+            null,
+            new Gson().toJson(sinkConfig),
                 null);
     }
 
     @Test
-    public void testUpdateNotExistedFunction() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+    public void testUpdateNotExistedSink() throws IOException {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
-        Response response = updateDefaultFunction();
+        Response response = updateDefaultSink();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + function + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Function " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
-    public void testUpdateFunctionUploadFailure() throws Exception {
+    public void testUpdateSinkUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
         Utils.uploadToBookeeper(
@@ -652,15 +542,15 @@ public class FunctionApiV2ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        Response response = updateDefaultFunction();
+        Response response = updateDefaultSink();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData("upload failure").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
-    public void testUpdateFunctionSuccess() throws Exception {
+    public void testUpdateSinkSuccess() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
         Utils.uploadToBookeeper(
@@ -668,61 +558,58 @@ public class FunctionApiV2ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
             .setSuccess(true)
-            .setMessage("function registered");
+            .setMessage("source registered");
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = updateDefaultFunction();
+        Response response = updateDefaultSink();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
 
     @Test
-    public void testUpdateFunctionWithUrl() throws IOException {
+    public void testUpdateSinkWithUrl() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
 
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         String filePackageUrl = "file://" + fileLocation;
 
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
-        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+        sinkConfig.setTenant(tenant);
+        sinkConfig.setNamespace(namespace);
+        sinkConfig.setName(sink);
+        sinkConfig.setClassName(className);
+        sinkConfig.setParallelism(parallelism);
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
         RequestResult rr = new RequestResult()
                 .setSuccess(true)
-                .setMessage("function registered");
+                .setMessage("source registered");
             CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
             when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
         Response response = resource.updateFunction(
             tenant,
             namespace,
-            function,
+                sink,
             null,
             null,
             filePackageUrl,
             null,
-            new Gson().toJson(functionConfig),
             null,
-                null,
+            null,
+            new Gson().toJson(sinkConfig),
                 null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
 
     @Test
-    public void testUpdateFunctionFailure() throws Exception {
+    public void testUpdateSinkFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
         Utils.uploadToBookeeper(
@@ -730,21 +617,21 @@ public class FunctionApiV2ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
             .setSuccess(false)
-            .setMessage("function failed to register");
+            .setMessage("source failed to register");
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = updateDefaultFunction();
+        Response response = updateDefaultSink();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(rr.getMessage()).reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
-    public void testUpdateFunctionInterrupted() throws Exception {
+    public void testUpdateSinkInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
         Utils.uploadToBookeeper(
@@ -752,134 +639,136 @@ public class FunctionApiV2ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
         CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
             new IOException("Function registeration interrupted"));
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        Response response = updateDefaultFunction();
+        Response response = updateDefaultSink();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData("Function registeration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     //
-    // deregister function
+    // deregister source
     //
 
     @Test
-    public void testDeregisterFunctionMissingTenant() throws Exception {
-        testDeregisterFunctionMissingArguments(
+    public void testDeregisterSinkMissingTenant() throws Exception {
+        testDeregisterSinkMissingArguments(
             null,
             namespace,
-            function,
+                sink,
             "Tenant");
     }
 
     @Test
-    public void testDeregisterFunctionMissingNamespace() throws Exception {
-        testDeregisterFunctionMissingArguments(
+    public void testDeregisterSinkMissingNamespace() throws Exception {
+        testDeregisterSinkMissingArguments(
             tenant,
             null,
-            function,
+                sink,
             "Namespace");
     }
 
     @Test
-    public void testDeregisterFunctionMissingFunctionName() throws Exception {
-        testDeregisterFunctionMissingArguments(
+    public void testDeregisterSinkMissingFunctionName() throws Exception {
+        testDeregisterSinkMissingArguments(
             tenant,
             namespace,
             null,
             "Function Name");
     }
 
-    private void testDeregisterFunctionMissingArguments(
+    private void testDeregisterSinkMissingArguments(
         String tenant,
         String namespace,
-        String function,
+        String sink,
         String missingFieldName
     ) {
         Response response = resource.deregisterFunction(
             tenant,
             namespace,
-            function,
+            sink,
             null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    private Response deregisterDefaultFunction() {
+    private Response deregisterDefaultSink() {
         return resource.deregisterFunction(
             tenant,
             namespace,
-            function,
+                sink,
             null);
     }
 
     @Test
-    public void testDeregisterNotExistedFunction() {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+    public void testDeregisterNotExistedSink() {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
-        Response response = deregisterDefaultFunction();
+        Response response = deregisterDefaultSink();
         assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + function + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Function " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
-    public void testDeregisterFunctionSuccess() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+    public void testDeregisterSinkSuccess() throws Exception {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
             .setSuccess(true)
-            .setMessage("function deregistered");
+            .setMessage("source deregistered");
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(requestResult);
+        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(requestResult);
 
-        Response response = deregisterDefaultFunction();
+        Response response = deregisterDefaultSink();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(rr.toJson(), response.getEntity());
     }
 
     @Test
-    public void testDeregisterFunctionFailure() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+    public void testDeregisterSinkFailure() throws Exception {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
             .setSuccess(false)
-            .setMessage("function failed to deregister");
+            .setMessage("source failed to deregister");
         CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(requestResult);
+        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(requestResult);
 
-        Response response = deregisterDefaultFunction();
+        Response response = deregisterDefaultSink();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(rr.getMessage()).reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
-    public void testDeregisterFunctionInterrupted() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+    public void testDeregisterSinkInterrupted() throws Exception {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
         CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
             new IOException("Function deregisteration interrupted"));
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(requestResult);
+        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(requestResult);
 
-        Response response = deregisterDefaultFunction();
+        Response response = deregisterDefaultSink();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData("Function deregisteration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
 
+    // Source Info doesn't exist. Maybe one day they might be added
     //
     // Get Function Info
     //
 
+    /*
     @Test
     public void testGetFunctionMissingTenant() throws Exception {
         testGetFunctionMissingArguments(
             null,
             namespace,
-            function,
+                source,
             "Tenant");
     }
 
@@ -888,7 +777,7 @@ public class FunctionApiV2ResourceTest {
         testGetFunctionMissingArguments(
             tenant,
             null,
-            function,
+                source,
             "Namespace");
     }
 
@@ -920,21 +809,21 @@ public class FunctionApiV2ResourceTest {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-            function);
+                source);
     }
 
     @Test
     public void testGetNotExistedFunction() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
         Response response = getDefaultFunctionInfo();
         assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + function + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Function " + source + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
     public void testGetFunctionSuccess() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
         SinkSpec sinkSpec = SinkSpec.newBuilder()
                 .setTopic(outputTopic)
@@ -942,7 +831,7 @@ public class FunctionApiV2ResourceTest {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setClassName(className)
                 .setSink(sinkSpec)
-                .setName(function)
+                .setName(source)
                 .setNamespace(namespace)
                 .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
                 .setTenant(tenant)
@@ -955,7 +844,7 @@ public class FunctionApiV2ResourceTest {
             .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("/path/to/package"))
             .setVersion(1234)
             .build();
-        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(metaData);
 
         Response response = getDefaultFunctionInfo();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -1012,64 +901,5 @@ public class FunctionApiV2ResourceTest {
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(new Gson().toJson(functions), response.getEntity());
     }
-
-    @Test
-    public void testDownloadFunctionHttpUrl() throws Exception {
-        String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
-        String testDir = FunctionApiV2ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionsImpl function = new FunctionsImpl(null);
-        Response response = function.downloadFunction(jarHttpUrl);
-        StreamingOutput streamOutput = (StreamingOutput) response.getEntity();
-        File pkgFile = new File(testDir, UUID.randomUUID().toString());
-        OutputStream output = new FileOutputStream(pkgFile);
-        streamOutput.write(output);
-        Assert.assertTrue(pkgFile.exists());
-        if (pkgFile.exists()) {
-            pkgFile.delete();
-        }
-    }
-
-    @Test
-    public void testDownloadFunctionFile() throws Exception {
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        String testDir = FunctionApiV2ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionsImpl function = new FunctionsImpl(null);
-        Response response = function.downloadFunction("file://"+fileLocation);
-        StreamingOutput streamOutput = (StreamingOutput) response.getEntity();
-        File pkgFile = new File(testDir, UUID.randomUUID().toString());
-        OutputStream output = new FileOutputStream(pkgFile);
-        streamOutput.write(output);
-        Assert.assertTrue(pkgFile.exists());
-        if (pkgFile.exists()) {
-            pkgFile.delete();
-        }
-    }
-
-    @Test
-    public void testRegisterFunctionFileUrlWithValidSinkClass() throws IOException {
-        Configurator.setRootLevel(Level.DEBUG);
-
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        String filePackageUrl = "file://" + fileLocation;
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
-
-        RequestResult rr = new RequestResult().setSuccess(true).setMessage("function registered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
-
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
-        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), null, null, null);
-
-        assertEquals(Status.OK.getStatusCode(), response.getStatus());
-    }
+    */
 }
