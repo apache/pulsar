@@ -27,9 +27,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -70,9 +72,11 @@ public class WebServer {
     private final Server server;
     private final ExecutorService webServiceExecutor;
     private final AuthenticationService authenticationService;
+    private final List<String> servletPaths = Lists.newArrayList();
     private final List<Handler> handlers = Lists.newArrayList();
     private final ProxyConfiguration config;
-    protected final int externalServicePort;
+    protected int externalServicePort;
+    private URI serviceURI = null;
 
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
         this.webServiceExecutor = Executors.newFixedThreadPool(32, new DefaultThreadFactory("pulsar-external-web"));
@@ -109,7 +113,7 @@ public class WebServer {
     }
 
     public URI getServiceUri() {
-        return this.server.getURI();
+        return serviceURI;
     }
 
     public void addServlet(String basePath, ServletHolder servletHolder) {
@@ -117,6 +121,13 @@ public class WebServer {
     }
 
     public void addServlet(String basePath, ServletHolder servletHolder, List<Pair<String, Object>> attributes) {
+        Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
+        if (existingPath.isPresent()) {
+            throw new IllegalArgumentException(
+                    String.format("Cannot add servlet at %s, path %s already exists", basePath, existingPath.get()));
+        }
+        servletPaths.add(basePath);
+
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
         context.addServlet(servletHolder, "/*");
@@ -169,6 +180,20 @@ public class WebServer {
 
         try {
             server.start();
+
+            Arrays.stream(server.getConnectors())
+                .filter(c -> c instanceof ServerConnector)
+                .findFirst().ifPresent(c -> {
+                        WebServer.this.externalServicePort = ((ServerConnector) c).getPort();
+                    });
+
+            // server reports URI of first servlet, we want to strip that path off
+            URI reportedURI = server.getURI();
+            serviceURI = new URI(reportedURI.getScheme(),
+                                 null,
+                                 reportedURI.getHost(),
+                                 reportedURI.getPort(),
+                                 null, null, null);
         } catch (Exception e) {
             List<Integer> ports = new ArrayList<>();
             for (Connector c : server.getConnectors()) {
