@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.utils.validation;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.utils.FunctionConfig;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;

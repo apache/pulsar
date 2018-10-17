@@ -26,16 +26,14 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
 public class SourceConfigUtils {
 
-    public static FunctionDetails convert(SourceConfig sourceConfig)
+    public static FunctionDetails convert(SourceConfig sourceConfig, NarClassLoader classLoader)
             throws IllegalArgumentException, IOException {
 
         String sourceClassName = null;
@@ -52,12 +50,8 @@ public class SourceConfigUtils {
                 }
                 sourceClassName = sourceConfig.getClassName(); // server derives the arg-type by loading a class
             } else {
-                sourceClassName = ConnectorUtils.getIOSourceClass(sourceConfig.getArchive());
-
-                try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sourceConfig.getArchive()),
-                        Collections.emptySet())) {
-                    typeArg = getSourceType(sourceClassName, ncl).getName();
-                }
+                sourceClassName = ConnectorUtils.getIOSourceClass(classLoader);
+                typeArg = getSourceType(sourceClassName, classLoader).getName();
             }
         }
 

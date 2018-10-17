@@ -60,7 +60,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                      final @FormDataParam("functionConfig") String functionConfigJson) {
 
         return functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId());
+                functionPkgUrl, functionDetailsJson, functionConfigJson, null, null, clientAppId());
 
     }
 
@@ -77,7 +77,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                    final @FormDataParam("functionConfig") String functionConfigJson) {
 
         return functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId());
+                functionPkgUrl, functionDetailsJson, functionConfigJson, null, null, clientAppId());
 
     }
 
