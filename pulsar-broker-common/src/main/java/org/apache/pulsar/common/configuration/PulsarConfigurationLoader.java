@@ -78,8 +78,15 @@ public class PulsarConfigurationLoader {
         }
     }
 
+    /**
+     * Creates PulsarConfiguration and loads it with populated attribute values from provided Properties object.
+     *
+     * @param properties The properties to populate the attributed from
+     * @throws IOException
+     * @throws IllegalArgumentException
+     */
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    protected static <T extends PulsarConfiguration> T create(Properties properties,
+    public static <T extends PulsarConfiguration> T create(Properties properties,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         checkNotNull(properties);
         T configuration = null;
