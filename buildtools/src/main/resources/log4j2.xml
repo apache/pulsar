@@ -29,7 +29,7 @@
         <Root level="warn">
             <AppenderRef ref="Console" />
         </Root>
-        <Logger name="org.eclipse.jetty" level="info"/>
+        <Logger name="org.eclipse.jetty" level="debug"/>
         <Logger name="javax.servlet" level="debug"/>
         <Logger name="org.eclipse.jetty.client" level="debug"/>
         <Logger name="org.eclipse.jetty.server" level="debug"/>
