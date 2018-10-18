@@ -182,7 +182,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                     Thread.sleep(5000);
                     for (Map.Entry<Thread, StackTraceElement[]> e : Thread.getAllStackTraces().entrySet()) {
                         Thread t = e.getKey();
-                        log.info("\n= {} = state: {} ========================================\n", t, t.getState());
+                        log.info("\n\n= {} = state: {} ========================================", t, t.getState());
                         for (StackTraceElement el : e.getValue()) {
                             log.info(" - {}", el);
                         }
