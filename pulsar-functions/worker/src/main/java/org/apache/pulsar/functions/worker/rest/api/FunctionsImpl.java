@@ -1021,13 +1021,13 @@ public class FunctionsImpl {
             ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name(), clsLoader);
             return FunctionConfigUtils.convert(functionConfig, clsLoader);
         }
-        if (!componentType.equals(SOURCE)) {
+        if (componentType.equals(SOURCE)) {
             SourceConfig sourceConfig = new Gson().fromJson(componentConfigJson, SourceConfig.class);
             NarClassLoader clsLoader = extractNarClassLoader(sourceConfig.getArchive(), functionPkgUrl, uploadedInputStreamAsFile, true);
             ConfigValidation.validateConfig(sourceConfig, FunctionConfig.Runtime.JAVA.name(), clsLoader);
             return SourceConfigUtils.convert(sourceConfig, clsLoader);
         }
-        if (!componentType.equals(SINK)) {
+        if (componentType.equals(SINK)) {
             SinkConfig sinkConfig = new Gson().fromJson(componentConfigJson, SinkConfig.class);
             NarClassLoader clsLoader = extractNarClassLoader(sinkConfig.getArchive(), functionPkgUrl, uploadedInputStreamAsFile, false);
             ConfigValidation.validateConfig(sinkConfig, FunctionConfig.Runtime.JAVA.name(), clsLoader);

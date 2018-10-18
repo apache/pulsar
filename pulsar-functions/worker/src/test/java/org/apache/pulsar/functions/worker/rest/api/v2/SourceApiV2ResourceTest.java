@@ -187,7 +187,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Name is not provided");
+                "Source Name is not provided");
     }
 
     @Test
@@ -300,7 +300,7 @@ public class SourceApiV2ResourceTest {
 
         Response response = registerDefaultSource();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + source + " already exists").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Source " + source + " already exists").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -428,7 +428,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Name is not provided");
+                "Source Name is not provided");
     }
 
     @Test
@@ -542,7 +542,7 @@ public class SourceApiV2ResourceTest {
 
         Response response = updateDefaultSource();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + source + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Source " + source + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -690,7 +690,7 @@ public class SourceApiV2ResourceTest {
             tenant,
             namespace,
             null,
-            " Name");
+            "Source Name");
     }
 
     private void testDeregisterSourceMissingArguments(
@@ -799,7 +799,7 @@ public class SourceApiV2ResourceTest {
             tenant,
             namespace,
             null,
-            " Name");
+            "Source Name");
     }
 
     private void testGetSourceMissingArguments(
