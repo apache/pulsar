@@ -352,11 +352,11 @@
 <dd>
 <div class="block">Create a domain into cluster</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#createFunction-FunctionDetails-java.lang.String-">createFunction(FunctionDetails, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#createFunction-FunctionConfig-java.lang.String-">createFunction(FunctionConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
 <dd>
 <div class="block">Create a new function.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#createFunctionWithUrl-FunctionDetails-java.lang.String-">createFunctionWithUrl(FunctionDetails, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#createFunctionWithUrl-FunctionConfig-java.lang.String-">createFunctionWithUrl(FunctionConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
 <dd>
 <div class="block">
  Create a new function by providing url from which fun-pkg can be downloaded.</div>
@@ -411,6 +411,24 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Schemas.html#createSchema-java.lang.String-PostSchemaPayload-">createSchema(String, PostSchemaPayload)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Schemas.html" title="interface in org.apache.pulsar.client.admin">Schemas</a></dt>
 <dd>
 <div class="block">Create a schema for a given <tt>topic</tt>.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-">createSink(SinkConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Create a new sink.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#createSinkWithUrl-SinkConfig-java.lang.String-">createSinkWithUrl(SinkConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">
+ Create a new sink by providing url from which fun-pkg can be downloaded.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-">createSource(SourceConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Create a new source.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#createSourceWithUrl-SourceConfig-java.lang.String-">createSourceWithUrl(SourceConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">
+ Create a new source by providing url from which fun-pkg can be downloaded.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#createSubscription-java.lang.String-java.lang.String-MessageId-">createSubscription(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
@@ -532,6 +550,14 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Schemas.html#deleteSchema-java.lang.String-">deleteSchema(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Schemas.html" title="interface in org.apache.pulsar.client.admin">Schemas</a></dt>
 <dd>
 <div class="block">Delete the schema associated with a given <tt>topic</tt>.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#deleteSink-java.lang.String-java.lang.String-java.lang.String-">deleteSink(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Delete an existing sink</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#deleteSource-java.lang.String-java.lang.String-java.lang.String-">deleteSource(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Delete an existing source</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#deleteSubscription-java.lang.String-java.lang.String-">deleteSubscription(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
@@ -762,6 +788,14 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#getBrokerWithNamespaceIsolationPolicy-java.lang.String-java.lang.String-">getBrokerWithNamespaceIsolationPolicy(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
 <dd>
 <div class="block">Returns active broker with namespace-isolation policies attached to it.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#getBuiltInSinks--">getBuiltInSinks()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Fetches a list of supported Pulsar IO sinks currently running in cluster mode</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#getBuiltInSources--">getBuiltInSources()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Fetches a list of supported Pulsar IO sources currently running in cluster mode</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Lookup.html#getBundleRange-java.lang.String-">getBundleRange(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Lookup.html" title="interface in org.apache.pulsar.client.admin">Lookup</a></dt>
 <dd>
@@ -1132,13 +1166,45 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#getServiceUrlTls--">getServiceUrlTls()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#getSink-java.lang.String-java.lang.String-java.lang.String-">getSink(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Get the configuration for the specified sink.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#getSinks--">getSinks()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
 <dd>
 <div class="block">Fetches a list of supported Pulsar IO sinks currently running in cluster mode</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#getSinks-java.lang.String-java.lang.String-">getSinks(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Get the list of sinks.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-">getSinkStatus(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Gets the current status of a sink.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-int-">getSinkStatus(String, String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Gets the current status of a sink instance.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-">getSource(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Get the configuration for the specified source.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#getSources--">getSources()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
 <dd>
 <div class="block">Fetches a list of supported Pulsar IO sources currently running in cluster mode</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#getSources-java.lang.String-java.lang.String-">getSources(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Get the list of sources.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#getSourceStatus-java.lang.String-java.lang.String-java.lang.String-">getSourceStatus(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Gets the current status of a source.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#getSourceStatus-java.lang.String-java.lang.String-java.lang.String-int-">getSourceStatus(String, String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Gets the current status of a source instance.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getStats-java.lang.String-">getStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
@@ -1841,6 +1907,22 @@
 <dd>
 <div class="block">Restart all function instances</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-int-">restartSink(String, String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Restart sink instance</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-">restartSink(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Restart all sink instances</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-int-">restartSource(String, String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Restart source instance</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-">restartSource(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Restart all source instances</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#retention_policies">retention_policies</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">RetentionPolicies</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
@@ -2068,6 +2150,12 @@
 <dd>
 <div class="block">Check to see whether the namespace ownership should fallback to the primary brokers</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#sink--">sink()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Sink</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
+<dd>
+<div class="block">Admin interface for Sink management.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.LedgerDetails.html#size">size</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.LedgerDetails.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats.LedgerDetails</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.LedgerInfo.html#size">size</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.LedgerInfo.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.LedgerInfo</a></dt>
@@ -2087,6 +2175,12 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#skipMessagesAsync-java.lang.String-java.lang.String-long-">skipMessagesAsync(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Skip messages on a topic subscription asynchronously.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#source--">source()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Source</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
+<dd>
+<div class="block">Admin interface for Source management.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#splitNamespaceBundle-java.lang.String-java.lang.String-boolean-">splitNamespaceBundle(String, String, boolean)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
@@ -2109,6 +2203,22 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#stopFunction-java.lang.String-java.lang.String-java.lang.String-">stopFunction(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
 <dd>
 <div class="block">Stop all function instances</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-int-">stopSink(String, String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Stop sink instance</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-">stopSink(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Stop all sink instances</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-int-">stopSource(String, String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Stop source instance</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-">stopSource(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Stop all source instances</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html#storageSize">storageSize</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats</a></dt>
 <dd>
@@ -2304,11 +2414,11 @@
 <dd>
 <div class="block">Update a domain into cluster</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionDetails-java.lang.String-">updateFunction(FunctionDetails, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionConfig-java.lang.String-">updateFunction(FunctionConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
 <dd>
 <div class="block">Update the configuration for a function.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#updateFunctionWithUrl-FunctionDetails-java.lang.String-">updateFunctionWithUrl(FunctionDetails, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#updateFunctionWithUrl-FunctionConfig-java.lang.String-">updateFunctionWithUrl(FunctionConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
 <dd>
 <div class="block">Update the configuration for a function.</div>
 </dd>
@@ -2332,6 +2442,22 @@
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Update the admins for a property.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#updateSink-SinkConfig-java.lang.String-">updateSink(SinkConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Update the configuration for a sink.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Sink.html#updateSinkWithUrl-SinkConfig-java.lang.String-">updateSinkWithUrl(SinkConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Sink.html" title="interface in org.apache.pulsar.client.admin">Sink</a></dt>
+<dd>
+<div class="block">Update the configuration for a sink.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#updateSource-SourceConfig-java.lang.String-">updateSource(SourceConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Update the configuration for a source.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Source.html#updateSourceWithUrl-SourceConfig-java.lang.String-">updateSourceWithUrl(SourceConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Source.html" title="interface in org.apache.pulsar.client.admin">Source</a></dt>
+<dd>
+<div class="block">Update the configuration for a source.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Tenants.html#updateTenant-java.lang.String-org.apache.pulsar.common.policies.data.TenantInfo-">updateTenant(String, TenantInfo)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Tenants.html" title="interface in org.apache.pulsar.client.admin">Tenants</a></dt>
 <dd>

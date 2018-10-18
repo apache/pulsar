@@ -92,7 +92,7 @@ $ chmod 444 certs/ca.cert.pem
 <p>The following commands will ask you a few questions and then create the certificates. When asked for the common name, you should match the hostname of the broker. You could also use a wildcard to match a group of broker hostnames, for example <code>*.broker.usw.example.com</code>. This ensures that the same certificate can be reused on multiple machines.</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tips"></a><a href="#tips" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tips</h4>
-<p>Sometimes it is not possible or makes no sense to match the hostname, such as when the brokers are created with random hostnames, or you plan to connect to the hosts via their IP. In this case, the client should be configured to disable TLS hostname verification.</p>
+<p>Sometimes it is not possible or makes no sense to match the hostname, such as when the brokers are created with random hostnames, or you plan to connect to the hosts via their IP. In this case, the client should be configured to disable TLS hostname verification. For more details, see <a href="#hostname-verification">the host verification section in client configuration</a>.</p>
 </blockquote>
 <p>まず鍵を生成します。</p>
 <pre><code class="hljs css language-bash">$ openssl genrsa -out broker.key.pem 2048
@@ -137,6 +137,11 @@ $ chmod 444 certs/ca.cert.pem
 <h2><a class="anchor" aria-hidden="true" id="クライアントの設定"></a><a href="#クライアントの設定" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>クライアントの設定</h2>
 <p>When TLS transport encryption is enabled, you need to configure the client to use <code>https://</code> and port 8443 for the web service URL, and <code>pulsar+ssl://</code> and port 6651 for the broker service URL.</p>
 <p>As the server certificate you generated above doesn't belong to any of the default trust chains, you also need to either specify the path the <strong>trust cert</strong> (recommended), or tell the client to allow untrusted server certs.</p>
+<h4><a class="anchor" aria-hidden="true" id="hostname-verification"></a><a href="#hostname-verification" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hostname verification</h4>
+<p>Hostname verification is a TLS security feature whereby a client can refuse to connect to a server if the &quot;CommonName&quot; does not match the hostname to which it is connecting. By default, Pulsar clients disable hostname verification, as it requires that each broker has a DNS record and a unique cert.</p>
+<p>Moreover, as the administrator has full control of the certificate authority, it is unlikely that a bad actor would be able to pull off a man-in-the-middle attack. &quot;allowInsecureConnection&quot; allows the client to connect to servers whose cert has not been signed by an approved CA. The client disables it by default, and should always be disabled in production environments. As long as &quot;allowInsecureConnection&quot; is disabled, a man-in-the-middle attack would require that the attacker has access to the CA.</p>
+<p>One scenario where you may want to enable hostname verification is where you have multiple proxy nodes behind a VIP, and the VIP has a DNS record, for example, pulsar.mycompany.com. In this case, you can generate a TLS cert with pulsar.mycompany.com as the &quot;CommonName,&quot; and then enable hostname verification on the client.</p>
+<p>The examples below show hostname verification being disabled for the Java client, though you can be omit this as the client disables it by default. C++/python clients do now allow this to be configured at the moment.</p>
 <h3><a class="anchor" aria-hidden="true" id="cli-ツール"></a><a href="#cli-ツール" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI ツール</h3>
 <p><a href="reference-cli-tools#pulsar-admin"><code>pulsar-admin</code></a>、<a href="reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a>、<a href="reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> といった<a href="/docs/ja/next/reference-cli-tools">コマンドラインツール</a>は Pulsar をインストールした場所にある <code>conf/client.conf</code> という設定ファイルを使用します。</p>
 <p>Pulsar の CLI ツールで　TLS トランスポートを使用するにはそのファイルに次のパラメータを追加する必要がります。</p>
@@ -145,6 +150,7 @@ $ chmod 444 certs/ca.cert.pem
 <span class="hljs-attr">useTls</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">tlsAllowInsecureConnection</span>=<span class="hljs-string">false</span>
 <span class="hljs-attr">tlsTrustCertsFilePath</span>=<span class="hljs-string">/path/to/ca.cert.pem</span>
+<span class="hljs-attr">tlsEnableHostnameVerification</span>=<span class="hljs-string">false</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="java-クライアント"></a><a href="#java-クライアント" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java クライアント</h3>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.PulsarClient;
@@ -153,6 +159,8 @@ PulsarClient client = PulsarClient.builder()
     .serviceUrl(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/"</span>)
     .enableTls(<span class="hljs-keyword">true</span>)
     .tlsTrustCertsFilePath(<span class="hljs-string">"/path/to/ca.cert.pem"</span>)
+    .enableTlsHostnameVerification(<span class="hljs-keyword">false</span>) <span class="hljs-comment">// false by default, in any case</span>
+    .allowTlsInsecureConnection(<span class="hljs-keyword">false</span>) <span class="hljs-comment">// false by default, in any case</span>
     .build();
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="python-クライアント"></a><a href="#python-クライアント" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python クライアント</h3>
@@ -160,7 +168,7 @@ PulsarClient client = PulsarClient.builder()
 
 client = Client(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/"</span>,
                 tls_trust_certs_file_path=<span class="hljs-string">"/path/to/ca.cert.pem"</span>,
-                tls_allow_insecure_connection=<span class="hljs-keyword">False</span>)
+                tls_allow_insecure_connection=<span class="hljs-keyword">False</span>) // defaults to false <span class="hljs-keyword">from</span> v2<span class="hljs-number">.2</span><span class="hljs-number">.0</span> onwards
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="c-クライアント"></a><a href="#c-クライアント" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ クライアント</h3>
 <pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
@@ -168,7 +176,7 @@ client = Client(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/
 pulsar::ClientConfiguration config;
 config.setUseTls(<span class="hljs-literal">true</span>);
 config.setTlsTrustCertsFilePath(<span class="hljs-string">"/path/to/ca.cert.pem"</span>);
-config.setTlsAllowInsecureConnection(<span class="hljs-literal">false</span>);
+config.setTlsAllowInsecureConnection(<span class="hljs-literal">false</span>); <span class="hljs-comment">// defaults to false from v2.2.0 onwards</span>
 
 pulsar::<span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/"</span>, config)</span></span>;
 </code></pre>

@@ -121,14 +121,14 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#createFunction-FunctionDetails-java.lang.String-">createFunction</a></span>(FunctionDetails&nbsp;functionDetails,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#createFunction-FunctionConfig-java.lang.String-">createFunction</a></span>(FunctionConfig&nbsp;functionConfig,
               String&nbsp;fileName)</code>
 <div class="block">Create a new function.</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#createFunctionWithUrl-FunctionDetails-java.lang.String-">createFunctionWithUrl</a></span>(FunctionDetails&nbsp;functionDetails,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#createFunctionWithUrl-FunctionConfig-java.lang.String-">createFunctionWithUrl</a></span>(FunctionConfig&nbsp;functionConfig,
                      String&nbsp;pkgUrl)</code>
 <div class="block">
  Create a new function by providing url from which fun-pkg can be downloaded.</div>
@@ -255,14 +255,14 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i17" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionDetails-java.lang.String-">updateFunction</a></span>(FunctionDetails&nbsp;functionDetails,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionConfig-java.lang.String-">updateFunction</a></span>(FunctionConfig&nbsp;functionConfig,
               String&nbsp;fileName)</code>
 <div class="block">Update the configuration for a function.</div>
 </td>
 </tr>
 <tr id="i18" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunctionWithUrl-FunctionDetails-java.lang.String-">updateFunctionWithUrl</a></span>(FunctionDetails&nbsp;functionDetails,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunctionWithUrl-FunctionConfig-java.lang.String-">updateFunctionWithUrl</a></span>(FunctionConfig&nbsp;functionConfig,
                      String&nbsp;pkgUrl)</code>
 <div class="block">Update the configuration for a function.</div>
 </td>
@@ -345,31 +345,31 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="createFunction-FunctionDetails-java.lang.String-">
+<a name="createFunction-FunctionConfig-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>createFunction</h4>
-<pre>void&nbsp;createFunction(FunctionDetails&nbsp;functionDetails,
+<pre>void&nbsp;createFunction(FunctionConfig&nbsp;functionConfig,
                     String&nbsp;fileName)
              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Create a new function.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>functionDetails</code> - the function configuration object</dd>
+<dd><code>functionConfig</code> - the function configuration object</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
 </li>
 </ul>
-<a name="createFunctionWithUrl-FunctionDetails-java.lang.String-">
+<a name="createFunctionWithUrl-FunctionConfig-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>createFunctionWithUrl</h4>
-<pre>void&nbsp;createFunctionWithUrl(FunctionDetails&nbsp;functionDetails,
+<pre>void&nbsp;createFunctionWithUrl(FunctionConfig&nbsp;functionConfig,
                            String&nbsp;pkgUrl)
                     throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block"><pre>
@@ -380,27 +380,27 @@ var activeTableTab = "activeTableTab";
  </pre></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>functionDetails</code> - the function configuration object</dd>
+<dd><code>functionConfig</code> - the function configuration object</dd>
 <dd><code>pkgUrl</code> - url from which pkg can be downloaded</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
 </dl>
 </li>
 </ul>
-<a name="updateFunction-FunctionDetails-java.lang.String-">
+<a name="updateFunction-FunctionConfig-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>updateFunction</h4>
-<pre>void&nbsp;updateFunction(FunctionDetails&nbsp;functionDetails,
+<pre>void&nbsp;updateFunction(FunctionConfig&nbsp;functionConfig,
                     String&nbsp;fileName)
              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Update the configuration for a function.
  <p></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>functionDetails</code> - the function configuration object</dd>
+<dd><code>functionConfig</code> - the function configuration object</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - You don't have admin permission to create the cluster</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Cluster doesn't exist</dd>
@@ -408,13 +408,13 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="updateFunctionWithUrl-FunctionDetails-java.lang.String-">
+<a name="updateFunctionWithUrl-FunctionConfig-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>updateFunctionWithUrl</h4>
-<pre>void&nbsp;updateFunctionWithUrl(FunctionDetails&nbsp;functionDetails,
+<pre>void&nbsp;updateFunctionWithUrl(FunctionConfig&nbsp;functionConfig,
                            String&nbsp;pkgUrl)
                     throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Update the configuration for a function.
@@ -426,7 +426,7 @@ var activeTableTab = "activeTableTab";
  </pre></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>functionDetails</code> - the function configuration object</dd>
+<dd><code>functionConfig</code> - the function configuration object</dd>
 <dd><code>pkgUrl</code> - url from which pkg can be downloaded</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - You don't have admin permission to create the cluster</dd>
