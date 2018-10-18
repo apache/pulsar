@@ -178,10 +178,8 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(r1.readEntity(String.class).trim(), "server1,/foobar");
 
             log.info("IKDEBUG request 2");
-            Response r2 = client.target(webServer.getServiceUri()).path("/server2/blahblah").request().get();
-
-            Thread.sleep(5000);
             new Thread(() -> {
+                    Thread.sleep(5000);
                     for (Map.Entry<Thread, StackTraceElement[]> e : Thread.getAllStackTraces().entrySet()) {
                         Thread t = e.getKey();
                         log.info("\n= {} = state: {} ========================================\n", t, t.getState());
@@ -190,8 +188,8 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                         }
                     }
             }).start();
+            Response r2 = client.target(webServer.getServiceUri()).path("/server2/blahblah").request().get();
 
-            Thread.sleep(1000);
             Assert.assertEquals(r2.getStatus(), Response.Status.OK.getStatusCode());
             Assert.assertEquals(r2.readEntity(String.class).trim(), "server2,/blahblah");
 
