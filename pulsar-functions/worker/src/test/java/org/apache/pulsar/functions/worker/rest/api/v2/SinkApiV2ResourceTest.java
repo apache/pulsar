@@ -195,7 +195,7 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
-                "Function Name is not provided");
+                "Sink Name is not provided");
     }
 
     @Test
@@ -301,7 +301,7 @@ public class SinkApiV2ResourceTest {
 
         Response response = registerDefaultSink();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + sink + " already exists").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Sink " + sink + " already exists").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -426,7 +426,7 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
-                "Function Name is not provided");
+                "Sink Name is not provided");
     }
 
     @Test
@@ -533,7 +533,7 @@ public class SinkApiV2ResourceTest {
 
         Response response = updateDefaultSink();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Sink " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -680,7 +680,7 @@ public class SinkApiV2ResourceTest {
             tenant,
             namespace,
             null,
-            " Name");
+            "Sink Name");
     }
 
     private void testDeregisterSinkMissingArguments(
@@ -789,7 +789,7 @@ public class SinkApiV2ResourceTest {
             tenant,
             namespace,
             null,
-            " Name");
+            "Sink Name");
     }
 
     private void testGetSinkMissingArguments(
