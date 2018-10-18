@@ -804,7 +804,9 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             function,
-            null);
+            null,
+                null,
+                null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -815,7 +817,9 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             function,
-            null);
+            null,
+                null,
+                 null);
     }
 
     @Test
@@ -910,7 +914,9 @@ public class FunctionApiV2ResourceTest {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
-            function);
+            function,
+                null,
+                null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -920,7 +926,9 @@ public class FunctionApiV2ResourceTest {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-            function);
+            function,
+                null,
+                null);
     }
 
     @Test
@@ -991,7 +999,10 @@ public class FunctionApiV2ResourceTest {
     ) {
         Response response = resource.listFunctions(
             tenant,
-            namespace);
+            namespace,
+                true,
+                false,
+                false);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -1000,13 +1011,25 @@ public class FunctionApiV2ResourceTest {
     private Response listDefaultFunctions() {
         return resource.listFunctions(
             tenant,
-            namespace);
+            namespace,
+                true,
+                false,
+                false);
     }
 
     @Test
     public void testListFunctionsSuccess() throws Exception {
         List<String> functions = Lists.newArrayList("test-1", "test-2");
-        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functions);
+        List<FunctionMetaData> metaDataList = new LinkedList<>();
+        FunctionMetaData functionMetaData1 = FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-1").build()
+        ).build();
+        FunctionMetaData functionMetaData2 = FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-2").build()
+        ).build();
+        metaDataList.add(functionMetaData1);
+        metaDataList.add(functionMetaData2);
+        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(metaDataList);
 
         Response response = listDefaultFunctions();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());

@@ -690,6 +690,8 @@ public class SinkApiV2ResourceTest {
         Response response = resource.deregisterFunction(
             tenant,
             namespace,
+            null,
+            null,
             sink,
             null);
 
@@ -701,6 +703,8 @@ public class SinkApiV2ResourceTest {
         return resource.deregisterFunction(
             tenant,
             namespace,
+                null,
+                null,
                 sink,
             null);
     }

@@ -701,7 +701,9 @@ public class SourceApiV2ResourceTest {
         Response response = resource.deregisterFunction(
             tenant,
             namespace,
+            null,
             function,
+            null,
             null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -712,7 +714,9 @@ public class SourceApiV2ResourceTest {
         return resource.deregisterFunction(
             tenant,
             namespace,
+                null,
                 source,
+            null,
             null);
     }
 
