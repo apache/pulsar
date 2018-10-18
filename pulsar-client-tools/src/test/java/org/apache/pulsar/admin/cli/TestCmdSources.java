@@ -36,7 +36,7 @@ import java.nio.file.Files;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.client.admin.Functions;
+import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -80,7 +80,7 @@ public class TestCmdSources {
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\"}";
 
     private PulsarAdmin pulsarAdmin;
-    private Functions functions;
+    private Source source;
     private CmdSources CmdSources;
     private CmdSources.CreateSource createSource;
     private CmdSources.UpdateSource updateSource;
@@ -91,8 +91,8 @@ public class TestCmdSources {
     public void setup() throws Exception {
 
         pulsarAdmin = mock(PulsarAdmin.class);
-        functions = mock(Functions.class);
-        when(pulsarAdmin.functions()).thenReturn(functions);
+        source = mock(Source.class);
+        when(pulsarAdmin.source()).thenReturn(source);
 
         CmdSources = spy(new CmdSources(pulsarAdmin));
         createSource = spy(CmdSources.getCreateSource());
@@ -826,7 +826,7 @@ public class TestCmdSources {
 
         deleteSource.runCmd();
 
-        verify(functions).deleteFunction(eq(PUBLIC_TENANT), eq(NAMESPACE), eq(NAME));
+        verify(source).deleteSource(eq(PUBLIC_TENANT), eq(NAMESPACE), eq(NAME));
     }
 
     @Test
@@ -839,7 +839,7 @@ public class TestCmdSources {
 
         deleteSource.runCmd();
 
-        verify(functions).deleteFunction(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
+        verify(source).deleteSource(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
     }
 
     @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "You must specify a name for the source")
@@ -852,6 +852,6 @@ public class TestCmdSources {
 
         deleteSource.runCmd();
 
-        verify(functions).deleteFunction(eq(TENANT), eq(NAMESPACE), null);
+        verify(source).deleteSource(eq(TENANT), eq(NAMESPACE), null);
     }
 }

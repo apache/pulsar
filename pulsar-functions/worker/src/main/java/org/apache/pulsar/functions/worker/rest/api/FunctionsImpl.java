@@ -27,7 +27,6 @@ import static org.apache.pulsar.functions.utils.Reflections.loadJar;
 import static org.apache.pulsar.functions.utils.Utils.FILE;
 import static org.apache.pulsar.functions.utils.Utils.HTTP;
 import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
-import static org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders.create;
 
 import com.google.gson.Gson;
 
@@ -39,14 +38,9 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLClassLoader;
-import java.nio.file.CopyOption;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -79,6 +73,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
@@ -89,9 +84,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders;
+import org.apache.pulsar.functions.utils.*;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -136,6 +129,7 @@ public class FunctionsImpl {
     public Response registerFunction(final String tenant, final String namespace, final String functionName,
             final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
             final String functionPkgUrl, final String functionDetailsJson, final String functionConfigJson,
+            final String sourceConfigJson, final String sinkConfigJson,
             final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
@@ -173,10 +167,10 @@ public class FunctionsImpl {
         try {
             if (isPkgUrlProvided) {
                 functionDetails = validateUpdateRequestParamsWithPkgUrl(tenant, namespace, functionName, functionPkgUrl,
-                        functionDetailsJson, functionConfigJson);
+                        functionDetailsJson, functionConfigJson, sourceConfigJson, sinkConfigJson);
             } else {
                 functionDetails = validateUpdateRequestParams(tenant, namespace, functionName, uploadedInputStreamAsFile,
-                        fileDetail, functionDetailsJson, functionConfigJson);
+                        fileDetail, functionDetailsJson, functionConfigJson, sourceConfigJson, sinkConfigJson);
             }
         } catch (Exception e) {
             log.error("Invalid register function request @ /{}/{}/{}", tenant, namespace, functionName, e);
@@ -216,7 +210,7 @@ public class FunctionsImpl {
     public Response updateFunction(final String tenant, final String namespace, final String functionName,
             final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
             final String functionPkgUrl, final String functionDetailsJson, final String functionConfigJson,
-            final String clientRole) {
+            final String sourceConfigJson, final String sinkConfigJson, final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -252,10 +246,10 @@ public class FunctionsImpl {
         try {
             if (isPkgUrlProvided) {
                 functionDetails = validateUpdateRequestParamsWithPkgUrl(tenant, namespace, functionName, functionPkgUrl,
-                        functionDetailsJson, functionConfigJson);
+                        functionDetailsJson, functionConfigJson, sourceConfigJson, sinkConfigJson);
             } else {
                 functionDetails = validateUpdateRequestParams(tenant, namespace, functionName, uploadedInputStreamAsFile,
-                        fileDetail, functionDetailsJson, functionConfigJson);
+                        fileDetail, functionDetailsJson, functionConfigJson, sourceConfigJson, sinkConfigJson);
             }
         } catch (Exception e) {
             log.error("Invalid register function request @ /{}/{}/{}", tenant, namespace, functionName, e);
@@ -881,23 +875,24 @@ public class FunctionsImpl {
     }
 
     private FunctionDetails validateUpdateRequestParamsWithPkgUrl(String tenant, String namespace, String functionName,
-            String functionPkgUrl, String functionDetailsJson, String functionConfigJson)
+            String functionPkgUrl, String functionDetailsJson, String functionConfigJson,
+            String sourceConfigJson, String sinkConfigJson)
             throws IllegalArgumentException, IOException, URISyntaxException {
         if (!isFunctionPackageUrlSupported(functionPkgUrl)) {
             throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
         }
         FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                functionDetailsJson, functionConfigJson, functionPkgUrl, null);
+                functionDetailsJson, functionConfigJson, sourceConfigJson, sinkConfigJson, functionPkgUrl, null);
         return functionDetails;
     }
 
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
             File uploadedInputStreamAsFile, FormDataContentDisposition fileDetail, String functionDetailsJson,
-            String functionConfigJson)
+            String functionConfigJson, String sourceConfigJson, String sinkConfigJson)
             throws IllegalArgumentException, IOException, URISyntaxException {
 
         FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                functionDetailsJson, functionConfigJson, null, uploadedInputStreamAsFile);
+                functionDetailsJson, functionConfigJson, sourceConfigJson, sinkConfigJson, null, uploadedInputStreamAsFile);
         if (!isFunctionCodeBuiltin(functionDetails) && (uploadedInputStreamAsFile == null || fileDetail == null)) {
             throw new IllegalArgumentException("Function Package is not provided");
         }
@@ -970,7 +965,8 @@ public class FunctionsImpl {
     }
 
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
-            String functionDetailsJson, String functionConfigJson, String functionPkgUrl, File uploadedInputStreamAsFile) throws IOException, URISyntaxException {
+            String functionDetailsJson, String functionConfigJson, String sourceConfigJson,
+            String sinkConfigJson, String functionPkgUrl, File uploadedInputStreamAsFile) throws IOException, URISyntaxException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -981,11 +977,24 @@ public class FunctionsImpl {
             throw new IllegalArgumentException("Function Name is not provided");
         }
 
-        if (StringUtils.isEmpty(functionDetailsJson) && StringUtils.isEmpty(functionConfigJson)) {
-            throw new IllegalArgumentException("FunctionConfig is not provided");
+        int numDefinitions = 0;
+        if (!StringUtils.isEmpty(functionDetailsJson)) {
+            numDefinitions++;
         }
-        if (!StringUtils.isEmpty(functionDetailsJson) && !StringUtils.isEmpty(functionConfigJson)) {
-            throw new IllegalArgumentException("Only one of FunctionDetails or FunctionConfig should be provided");
+        if (!StringUtils.isEmpty(functionConfigJson)) {
+            numDefinitions++;
+        }
+        if (!StringUtils.isEmpty(sourceConfigJson)) {
+            numDefinitions++;
+        }
+        if (!StringUtils.isEmpty(sinkConfigJson)) {
+            numDefinitions++;
+        }
+        if (numDefinitions == 0) {
+            throw new IllegalArgumentException("Function Info is not provided");
+        }
+        if (numDefinitions > 1) {
+            throw new IllegalArgumentException("Conflicting Info provided");
         }
         if (!StringUtils.isEmpty(functionConfigJson)) {
             FunctionConfig functionConfig = new Gson().fromJson(functionConfigJson, FunctionConfig.class);
@@ -998,6 +1007,18 @@ public class FunctionsImpl {
             }
             ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name(), clsLoader);
             return FunctionConfigUtils.convert(functionConfig, clsLoader);
+        }
+        if (!StringUtils.isEmpty(sourceConfigJson)) {
+            SourceConfig sourceConfig = new Gson().fromJson(sourceConfigJson, SourceConfig.class);
+            NarClassLoader clsLoader = extractNarClassLoader(sourceConfig.getArchive(), functionPkgUrl, uploadedInputStreamAsFile, true);
+            ConfigValidation.validateConfig(sourceConfig, FunctionConfig.Runtime.JAVA.name(), clsLoader);
+            return SourceConfigUtils.convert(sourceConfig, clsLoader);
+        }
+        if (!StringUtils.isEmpty(sinkConfigJson)) {
+            SinkConfig sinkConfig = new Gson().fromJson(sinkConfigJson, SinkConfig.class);
+            NarClassLoader clsLoader = extractNarClassLoader(sinkConfig.getArchive(), functionPkgUrl, uploadedInputStreamAsFile, false);
+            ConfigValidation.validateConfig(sinkConfig, FunctionConfig.Runtime.JAVA.name(), clsLoader);
+            return SinkConfigUtils.convert(sinkConfig, clsLoader);
         }
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
@@ -1056,6 +1077,59 @@ public class FunctionsImpl {
         } else {
             return null;
         }
+    }
+
+    public NarClassLoader extractNarClassLoader(String archive, String pkgUrl, File uploadedInputStreamFileName,
+                                                 boolean isSource) {
+        if (!StringUtils.isEmpty(archive)) {
+            String builtinArchive = archive;
+            if (archive.startsWith(org.apache.pulsar.functions.utils.Utils.BUILTIN)) {
+                builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
+            }
+            if (isSource) {
+                Path path;
+                try {
+                    path = this.worker().getConnectorsManager().getSourceArchive(builtinArchive);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(String.format("No Source archive %s found", archive));
+                }
+                try {
+                    return NarClassLoader.getFromArchive(path.toFile(),
+                            Collections.emptySet());
+                } catch (IOException e) {
+                    throw new IllegalArgumentException(String.format("The source %s is corrupted", archive));
+                }
+            } else {
+                Path path;
+                try {
+                    path = this.worker().getConnectorsManager().getSinkArchive(builtinArchive);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(String.format("No Sink archive %s found", archive));
+                }
+                try {
+                    return NarClassLoader.getFromArchive(path.toFile(),
+                            Collections.emptySet());
+                } catch (IOException e) {
+                    throw new IllegalArgumentException(String.format("The sink %s is corrupted", archive));
+                }
+            }
+        }
+        if (!StringUtils.isEmpty(pkgUrl)) {
+            try {
+                return Utils.extractNarClassloader(pkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
+            } catch (Exception e) {
+                throw new IllegalArgumentException(e.getMessage());
+            }
+        }
+        if (uploadedInputStreamFileName != null) {
+            try {
+                return NarClassLoader.getFromArchive(uploadedInputStreamFileName,
+                        Collections.emptySet());
+            } catch (IOException e) {
+                throw new IllegalArgumentException(e.getMessage());
+            }
+        }
+        return null;
     }
 
     private void validateFunctionClassTypes(ClassLoader classLoader, FunctionDetails.Builder functionDetailsBuilder) {

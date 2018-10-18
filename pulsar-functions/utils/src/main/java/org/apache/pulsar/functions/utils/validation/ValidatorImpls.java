@@ -39,7 +39,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.utils.FunctionConfig;
@@ -727,14 +726,15 @@ public class ValidatorImpls {
         @Override
         public void validateField(String name, Object o, ClassLoader classLoader) {
             SourceConfig sourceConfig = (SourceConfig) o;
-            if (sourceConfig.getArchive().startsWith(Utils.BUILTIN)) {
-                // We don't have to check the archive, since it's provided on the worker itself
+            if (classLoader == null) {
+                // This happens at the cli for builtin. There is no need to check this since
+                // the actual check will be done at serverside
                 return;
             }
 
             String sourceClassName;
             try {
-                sourceClassName = ConnectorUtils.getIOSourceClass(sourceConfig.getArchive());
+                sourceClassName = ConnectorUtils.getIOSourceClass(classLoader);
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e1);
             }
@@ -743,15 +743,14 @@ public class ValidatorImpls {
             Class<?> typeArg = getSourceType(sourceClassName, classLoader);
 
             // Only one of serdeClassName or schemaType should be set
-            if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()
-                    && sourceConfig.getSchemaType() != null && !sourceConfig.getSchemaType().isEmpty()) {
+            if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
                 throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
             }
 
-            if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()) {
+            if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
                 FunctionConfigValidator.validateSerde(sourceConfig.getSerdeClassName(),typeArg, name, classLoader, false);
             }
-            if (sourceConfig.getSchemaType() != null && !sourceConfig.getSchemaType().isEmpty()) {
+            if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
                 FunctionConfigValidator.validateSchema(sourceConfig.getSchemaType(), typeArg, name, classLoader, false);
             }
         }
@@ -761,8 +760,9 @@ public class ValidatorImpls {
         @Override
         public void validateField(String name, Object o, ClassLoader classLoader) {
             SinkConfig sinkConfig = (SinkConfig) o;
-            if (sinkConfig.getArchive().startsWith(Utils.BUILTIN)) {
-                // We don't have to check the archive, since it's provided on the worker itself
+            if (classLoader == null) {
+                // This happens at the cli for builtin. There is no need to check this since
+                // the actual check will be done at serverside
                 return;
             }
 
@@ -779,42 +779,42 @@ public class ValidatorImpls {
             }
 
 
-            try (NarClassLoader clsLoader = NarClassLoader.getFromArchive(new File(sinkConfig.getArchive()),
-                    Collections.emptySet())) {
-                String sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
-                Class<?> typeArg = getSinkType(sinkClassName, clsLoader);
+            String sinkClassName;
+            try {
+                sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
+            } catch (IOException e1) {
+                throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
+            }
+            Class<?> typeArg = getSinkType(sinkClassName, classLoader);
 
-                if (sinkConfig.getTopicToSerdeClassName() != null) {
-                    sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
-                        FunctionConfigValidator.validateSerde(serdeClassName, typeArg, name, clsLoader, true);
-                    });
-                }
+            if (sinkConfig.getTopicToSerdeClassName() != null) {
+                sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
+                    FunctionConfigValidator.validateSerde(serdeClassName, typeArg, name, classLoader, true);
+                });
+            }
 
-                if (sinkConfig.getTopicToSchemaType() != null) {
-                    sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
-                        FunctionConfigValidator.validateSchema(schemaType, typeArg, name, clsLoader, true);
-                    });
-                }
+            if (sinkConfig.getTopicToSchemaType() != null) {
+                sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
+                    FunctionConfigValidator.validateSchema(schemaType, typeArg, name, classLoader, true);
+                });
+            }
 
-                // topicsPattern does not need checks
+            // topicsPattern does not need checks
 
-                if (sinkConfig.getInputSpecs() != null) {
-                    sinkConfig.getInputSpecs().forEach((topicName, consumerSpec) -> {
-                        // Only one is set
-                        if (consumerSpec.getSerdeClassName() != null && !consumerSpec.getSerdeClassName().isEmpty()
-                                && consumerSpec.getSchemaType() != null && !consumerSpec.getSchemaType().isEmpty()) {
-                            throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
-                        }
-                        if (consumerSpec.getSerdeClassName() != null && !consumerSpec.getSerdeClassName().isEmpty()) {
-                            FunctionConfigValidator.validateSerde(consumerSpec.getSerdeClassName(), typeArg, name, clsLoader, true);
-                        }
-                        if (consumerSpec.getSchemaType() != null && !consumerSpec.getSchemaType().isEmpty()) {
-                            FunctionConfigValidator.validateSchema(consumerSpec.getSchemaType(), typeArg, name, clsLoader, true);
-                        }
-                    });
-                }
-            } catch (IOException e) {
-                throw new IllegalArgumentException(e.getMessage());
+            if (sinkConfig.getInputSpecs() != null) {
+                sinkConfig.getInputSpecs().forEach((topicName, consumerSpec) -> {
+                    // Only one is set
+                    if (consumerSpec.getSerdeClassName() != null && !consumerSpec.getSerdeClassName().isEmpty()
+                            && consumerSpec.getSchemaType() != null && !consumerSpec.getSchemaType().isEmpty()) {
+                        throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
+                    }
+                    if (consumerSpec.getSerdeClassName() != null && !consumerSpec.getSerdeClassName().isEmpty()) {
+                        FunctionConfigValidator.validateSerde(consumerSpec.getSerdeClassName(), typeArg, name, classLoader, true);
+                    }
+                    if (consumerSpec.getSchemaType() != null && !consumerSpec.getSchemaType().isEmpty()) {
+                        FunctionConfigValidator.validateSchema(consumerSpec.getSchemaType(), typeArg, name, classLoader, true);
+                    }
+                });
             }
         }
 

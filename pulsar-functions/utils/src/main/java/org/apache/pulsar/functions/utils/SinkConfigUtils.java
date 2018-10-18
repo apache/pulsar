@@ -37,7 +37,7 @@ import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee
 
 public class SinkConfigUtils {
 
-    public static FunctionDetails convert(SinkConfig sinkConfig) throws IOException {
+    public static FunctionDetails convert(SinkConfig sinkConfig, NarClassLoader classLoader) throws IOException {
 
         String sinkClassName = null;
         String typeArg = null;
@@ -53,11 +53,8 @@ public class SinkConfigUtils {
                 }
                 sinkClassName = sinkConfig.getClassName(); // server derives the arg-type by loading a class
             } else {
-                sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
-                try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sinkConfig.getArchive()),
-                        Collections.emptySet())) {
-                    typeArg = Utils.getSinkType(sinkClassName, ncl).getName();
-                }
+                sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
+                typeArg = Utils.getSinkType(sinkClassName, classLoader).getName();
             }
         }
 
