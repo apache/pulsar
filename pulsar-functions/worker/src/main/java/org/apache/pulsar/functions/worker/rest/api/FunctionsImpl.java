@@ -300,7 +300,7 @@ public class FunctionsImpl {
         }
 
         try {
-            checkFunctionSourceSinkArgumentSanity(functionName, sourceName, sinkName);
+            checkFunctionSourceSinkArgumentSanity(functionName, sourceName, sinkName, " Name is not provided");
         } catch (IllegalArgumentException e) {
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
@@ -374,7 +374,12 @@ public class FunctionsImpl {
             return getUnavailableResponse();
         }
 
-        checkFunctionSourceSinkArgumentSanity(functionName, sourceName, sinkName);
+        try {
+            checkFunctionSourceSinkArgumentSanity(functionName, sourceName, sinkName, " Name is not provided");
+        } catch (IllegalArgumentException e) {
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                .entity(new ErrorData(e.getMessage())).build();
+    }
         String subject = getSubject(functionName, sourceName, sinkName);
         String subjectType = getSubjectType(functionName, sourceName, sinkName);
 
@@ -1023,7 +1028,7 @@ public class FunctionsImpl {
             throw new IllegalArgumentException("Function Name is not provided");
         }
 
-        checkFunctionSourceSinkArgumentSanity(functionConfigJson, sourceConfigJson, sinkConfigJson);
+        checkFunctionSourceSinkArgumentSanity(functionConfigJson, sourceConfigJson, sinkConfigJson, " info is not provided");
 
         if (!StringUtils.isEmpty(functionConfigJson)) {
             FunctionConfig functionConfig = new Gson().fromJson(functionConfigJson, FunctionConfig.class);
@@ -1289,7 +1294,7 @@ public class FunctionsImpl {
         return clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
     }
 
-    private void checkFunctionSourceSinkArgumentSanity(Object function, Object source, Object sink) {
+    private void checkFunctionSourceSinkArgumentSanity(Object function, Object source, Object sink, String error) {
         int ndefined = 0;
         String subject = "";
         if (function != null) {
@@ -1305,7 +1310,7 @@ public class FunctionsImpl {
             subject = SINK;
         }
         if (ndefined == 0) {
-            throw new IllegalArgumentException(subject + " info is not provided");
+            throw new IllegalArgumentException(subject + error);
         }
         if (ndefined > 1) {
             throw new IllegalArgumentException("Conflicting info provided");
@@ -1338,7 +1343,7 @@ public class FunctionsImpl {
         return "";
     }
 
-    private String calculateSubjectType(FunctionMetaData functionMetaData) {
+    public String calculateSubjectType(FunctionMetaData functionMetaData) {
         SourceSpec sourceSpec = functionMetaData.getFunctionDetails().getSource();
         SinkSpec sinkSpec = functionMetaData.getFunctionDetails().getSink();
         if (sourceSpec.getInputSpecsCount() == 0) {

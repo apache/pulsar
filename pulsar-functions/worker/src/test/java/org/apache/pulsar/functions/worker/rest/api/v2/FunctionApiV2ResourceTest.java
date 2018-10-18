@@ -21,9 +21,7 @@ package org.apache.pulsar.functions.worker.rest.api.v2;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
@@ -62,6 +60,7 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
@@ -145,6 +144,7 @@ public class FunctionApiV2ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
+        doReturn("Function").when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -791,7 +791,7 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             null,
-            "Function Name");
+            " Name");
     }
 
     private void testDeregisterFunctionMissingArguments(
@@ -902,7 +902,7 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             null,
-            "Function Name");
+            " Name");
     }
 
     private void testGetFunctionMissingArguments(
@@ -968,8 +968,8 @@ public class FunctionApiV2ResourceTest {
         Response response = getDefaultFunctionInfo();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
-            response.getEntity());
+                new Gson().toJson(FunctionConfigUtils.convertFromDetails(functionDetails)),
+                response.getEntity());
     }
 
     //
