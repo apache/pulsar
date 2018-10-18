@@ -58,13 +58,16 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         internalSetup();
 
+        log.info("IKDEBUG setting up backing server1");
         backingServer1 = new Server(0);
         backingServer1.setHandler(newHandler("server1"));
         backingServer1.start();
-
+        log.info("IKDEBUG backing server1 started");
+        log.info("IKDEBUG setting up backing server2");
         backingServer2 = new Server(0);
         backingServer2.setHandler(newHandler("server2"));
         backingServer2.start();
+        log.info("IKDEBUG backing server2 started");
     }
 
     private static AbstractHandler newHandler(String text) {
@@ -101,7 +104,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    /*@Test(expectedExceptions = IllegalArgumentException.class)
     public void testPathNotSpecified() throws Exception {
         Properties props = new Properties();
 
@@ -136,7 +139,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         } finally {
             webServer.stop();
         }
-    }
+        }*/
 
     @Test
     public void testMultipleRedirect() throws Exception {
@@ -150,14 +153,17 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
+        log.info("IKDEBUG properties {}", props);
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
+        log.info("IKDEBUG starting webserver");
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig,
                                                  new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
         webServer.start();
+        log.info("IKDEBUG webserver started");
         try {
             Response r1 = client.target(webServer.getServiceUri()).path("/server1/foobar").request().get();
             Assert.assertEquals(r1.getStatus(), Response.Status.OK.getStatusCode());
@@ -171,7 +177,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
             webServer.stop();
         }
     }
-
+    /*
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testTryingToUseExistingPath() throws Exception {
         Properties props = new Properties();
@@ -295,5 +301,5 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         }
 
     }
-
+    */
 }
