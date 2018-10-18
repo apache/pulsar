@@ -76,6 +76,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
             public void handle(String target, Request baseRequest,
                                HttpServletRequest request,HttpServletResponse response)
                     throws IOException, ServletException {
+                log.info("IKDEBUG handler got request {}", request);
                 response.setContentType("text/plain;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
                 baseRequest.setHandled(true);
