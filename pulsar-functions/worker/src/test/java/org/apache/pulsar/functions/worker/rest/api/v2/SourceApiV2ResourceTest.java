@@ -262,9 +262,8 @@ public class SourceApiV2ResourceTest {
                 details,
                 null,
                 null,
-                null,
                 new Gson().toJson(sourceConfig),
-                null,
+                FunctionsImpl.SOURCE,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -288,9 +287,8 @@ public class SourceApiV2ResourceTest {
             mockedFormData,
             null,
             null,
-            null,
             new Gson().toJson(sourceConfig),
-                null,
+                FunctionsImpl.SOURCE,
                 null);
     }
 
@@ -507,9 +505,8 @@ public class SourceApiV2ResourceTest {
             details,
             null,
             null,
-            null,
             new Gson().toJson(sourceConfig),
-                null,
+                FunctionsImpl.SOURCE,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -534,9 +531,8 @@ public class SourceApiV2ResourceTest {
             mockedFormData,
             null,
             null,
-            null,
             new Gson().toJson(sourceConfig),
-                null,
+                FunctionsImpl.SOURCE,
                 null);
     }
 
@@ -617,9 +613,8 @@ public class SourceApiV2ResourceTest {
             null,
             filePackageUrl,
             null,
-            null,
             new Gson().toJson(sourceConfig),
-                null,
+                FunctionsImpl.SOURCE,
                 null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -707,9 +702,8 @@ public class SourceApiV2ResourceTest {
         Response response = resource.deregisterFunction(
             tenant,
             namespace,
-            null,
             function,
-            null,
+            FunctionsImpl.SOURCE,
             null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -720,9 +714,8 @@ public class SourceApiV2ResourceTest {
         return resource.deregisterFunction(
             tenant,
             namespace,
-                null,
                 source,
-            null,
+            FunctionsImpl.SOURCE,
             null);
     }
 
@@ -818,9 +811,8 @@ public class SourceApiV2ResourceTest {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
-            null,
             source,
-                null);
+                FunctionsImpl.SOURCE);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -830,9 +822,8 @@ public class SourceApiV2ResourceTest {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-                null,
                 source,
-                null);
+                FunctionsImpl.SOURCE);
     }
 
     @Test
@@ -906,9 +897,7 @@ public class SourceApiV2ResourceTest {
         Response response = resource.listFunctions(
             tenant,
             namespace,
-                null,
-                true,
-                null);
+                FunctionsImpl.SOURCE);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -917,10 +906,7 @@ public class SourceApiV2ResourceTest {
     private Response listDefaultSources() {
         return resource.listFunctions(
             tenant,
-            namespace,
-                null,
-                true,
-                null);
+            namespace,FunctionsImpl.SOURCE);
     }
 
     @Test

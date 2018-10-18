@@ -264,9 +264,8 @@ public class SinkApiV2ResourceTest {
                 details,
                 null,
                 null,
-                null,
-                null,
                 new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -289,9 +288,8 @@ public class SinkApiV2ResourceTest {
             mockedFormData,
             null,
             null,
-            null,
-            null,
             new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
                 null);
     }
 
@@ -499,9 +497,8 @@ public class SinkApiV2ResourceTest {
             details,
             null,
             null,
-            null,
-            null,
             new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -525,9 +522,8 @@ public class SinkApiV2ResourceTest {
             mockedFormData,
             null,
             null,
-            null,
-            null,
             new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
                 null);
     }
 
@@ -607,9 +603,8 @@ public class SinkApiV2ResourceTest {
             null,
             filePackageUrl,
             null,
-            null,
-            null,
             new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
                 null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -697,9 +692,8 @@ public class SinkApiV2ResourceTest {
         Response response = resource.deregisterFunction(
             tenant,
             namespace,
-            null,
-            null,
             sink,
+            FunctionsImpl.SINK,
             null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -710,9 +704,8 @@ public class SinkApiV2ResourceTest {
         return resource.deregisterFunction(
             tenant,
             namespace,
-                null,
-                null,
                 sink,
+            FunctionsImpl.SINK,
             null);
     }
 
@@ -808,9 +801,8 @@ public class SinkApiV2ResourceTest {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
-            null,
-            null,
-            sink);
+            sink,
+                FunctionsImpl.SINK);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -820,9 +812,8 @@ public class SinkApiV2ResourceTest {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-                null,
-                null,
-                sink);
+                sink,
+                FunctionsImpl.SINK);
     }
 
     @Test
@@ -901,9 +892,7 @@ public class SinkApiV2ResourceTest {
         Response response = resource.listFunctions(
             tenant,
             namespace,
-                null,
-                null,
-                true);
+                FunctionsImpl.SINK);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -913,9 +902,7 @@ public class SinkApiV2ResourceTest {
         return resource.listFunctions(
             tenant,
             namespace,
-                null,
-                null,
-                true);
+                FunctionsImpl.SINK);
     }
 
     @Test

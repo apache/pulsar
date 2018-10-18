@@ -312,8 +312,7 @@ public class FunctionApiV2ResourceTest {
                 null,
                 null,
                 new Gson().toJson(functionConfig),
-                null,
-                null,
+                FunctionsImpl.FUNCTION,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -340,8 +339,7 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            null,
-                null,
+            FunctionsImpl.FUNCTION,
                 null);
     }
 
@@ -601,8 +599,7 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            null,
-                null,
+            FunctionsImpl.FUNCTION,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -630,8 +627,7 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            null,
-                null,
+            FunctionsImpl.FUNCTION,
                 null);
     }
 
@@ -715,8 +711,7 @@ public class FunctionApiV2ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(functionConfig),
-            null,
-                null,
+            FunctionsImpl.FUNCTION,
                 null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -805,8 +800,7 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             function,
-            null,
-                null,
+            FunctionsImpl.FUNCTION,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -818,8 +812,7 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             function,
-            null,
-                null,
+            FunctionsImpl.FUNCTION,
                  null);
     }
 
@@ -916,8 +909,7 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             function,
-                null,
-                null);
+                FunctionsImpl.FUNCTION);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -928,8 +920,7 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             function,
-                null,
-                null);
+                FunctionsImpl.FUNCTION);
     }
 
     @Test
@@ -1001,9 +992,7 @@ public class FunctionApiV2ResourceTest {
         Response response = resource.listFunctions(
             tenant,
             namespace,
-                true,
-                false,
-                false);
+                FunctionsImpl.FUNCTION);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -1013,9 +1002,7 @@ public class FunctionApiV2ResourceTest {
         return resource.listFunctions(
             tenant,
             namespace,
-                true,
-                false,
-                false);
+                FunctionsImpl.FUNCTION);
     }
 
     @Test
@@ -1115,7 +1102,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), null, null, null);
+                null, new Gson().toJson(functionConfig), FunctionsImpl.FUNCTION, null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }

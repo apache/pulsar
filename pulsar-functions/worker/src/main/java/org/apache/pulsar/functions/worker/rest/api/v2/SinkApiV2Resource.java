@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
+import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
@@ -52,7 +53,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
                                  final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
         return functions.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, null, null, sinkConfigJson, clientAppId());
+                functionPkgUrl, null, sinkConfigJson, FunctionsImpl.SINK, clientAppId());
 
     }
 
@@ -68,7 +69,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
                                final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
         return functions.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, null, null, sinkConfigJson, clientAppId());
+                functionPkgUrl, null, sinkConfigJson, FunctionsImpl.SINK, clientAppId());
 
     }
 
@@ -77,7 +78,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/{sinkName}")
     public Response deregisterSink(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName) {
-        return functions.deregisterFunction(tenant, namespace, null, null, sinkName, clientAppId());
+        return functions.deregisterFunction(tenant, namespace, sinkName, FunctionsImpl.SINK, clientAppId());
     }
 
     @GET
@@ -86,7 +87,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
                                 final @PathParam("namespace") String namespace,
                                 final @PathParam("sinkName") String sinkName)
             throws IOException {
-        return functions.getFunctionInfo(tenant, namespace, null, null, sinkName);
+        return functions.getFunctionInfo(tenant, namespace, sinkName, FunctionsImpl.SINK);
     }
 
     @GET
@@ -111,7 +112,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}")
     public Response listSink(final @PathParam("tenant") String tenant,
                              final @PathParam("namespace") String namespace) {
-        return functions.listFunctions(tenant, namespace, null, null, true);
+        return functions.listFunctions(tenant, namespace, FunctionsImpl.SINK);
 
     }
 

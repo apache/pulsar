@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker.rest.api.v2;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
+import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -60,7 +61,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                      final @FormDataParam("functionConfig") String functionConfigJson) {
 
         return functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, functionConfigJson, null, null, clientAppId());
+                functionPkgUrl, functionDetailsJson, functionConfigJson, FunctionsImpl.FUNCTION, clientAppId());
 
     }
 
@@ -77,7 +78,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                    final @FormDataParam("functionConfig") String functionConfigJson) {
 
         return functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, functionConfigJson, null, null, clientAppId());
+                functionPkgUrl, functionDetailsJson, functionConfigJson, FunctionsImpl.FUNCTION, clientAppId());
 
     }
 
@@ -86,7 +87,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
-        return functions.deregisterFunction(tenant, namespace, functionName, null, null, clientAppId());
+        return functions.deregisterFunction(tenant, namespace, functionName, FunctionsImpl.FUNCTION, clientAppId());
     }
 
     @GET
@@ -96,7 +97,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                     final @PathParam("functionName") String functionName)
             throws IOException {
         return functions.getFunctionInfo(
-            tenant, namespace, functionName, null, null);
+            tenant, namespace, functionName, FunctionsImpl.FUNCTION);
     }
 
     @GET
@@ -123,7 +124,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
         return functions.listFunctions(
-            tenant, namespace, true, null, null);
+            tenant, namespace, FunctionsImpl.FUNCTION);
 
     }
 
