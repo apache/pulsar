@@ -38,6 +38,7 @@ import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
@@ -143,6 +144,7 @@ public class SinkApiV2ResourceTest {
         doReturn(null).when(resource).extractNarClassLoader(anyString(), anyString(), anyObject(), anyBoolean());
         mockStatic(SinkConfigUtils.class);
         when(SinkConfigUtils.convert(anyObject(), anyObject())).thenReturn(FunctionDetails.newBuilder().build());
+        Mockito.doReturn("Sink").when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -678,7 +680,7 @@ public class SinkApiV2ResourceTest {
             tenant,
             namespace,
             null,
-            "Function Name");
+            " Name");
     }
 
     private void testDeregisterSinkMissingArguments(
@@ -715,7 +717,7 @@ public class SinkApiV2ResourceTest {
 
         Response response = deregisterDefaultSink();
         assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Sink " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
