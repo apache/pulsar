@@ -190,6 +190,8 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                         }
                     }
             }).start();
+
+            Thread.sleep(1000);
             Assert.assertEquals(r2.getStatus(), Response.Status.OK.getStatusCode());
             Assert.assertEquals(r2.readEntity(String.class).trim(), "server2,/blahblah");
 
