@@ -338,6 +338,8 @@ public class FunctionsImpl {
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, subject);
         if (!calculateSubjectType(functionMetaData).equals(subjectType)) {
             log.error("{}/{}/{} is not a {}", tenant, namespace, subject, subjectType);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("%s %s doesn't exist", subjectType, subject))).build();
         }
 
         CompletableFuture<RequestResult> completableFuture = functionMetaDataManager.deregisterFunction(tenant,
