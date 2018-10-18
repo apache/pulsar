@@ -179,7 +179,11 @@ public class WebServer {
         // Metrics handler
         StatisticsHandler stats = new StatisticsHandler();
         stats.setHandler(server.getHandler());
-        new JettyStatisticsCollector(stats).register();
+        try {
+            new JettyStatisticsCollector(stats).register();
+        } catch (IllegalArgumentException e) {
+            // Already registered. Eg: in unit tests
+        }
 
         HandlerCollection handlerCollection = new HandlerCollection();
         handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler, stats });

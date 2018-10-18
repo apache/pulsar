@@ -172,7 +172,11 @@ public class WebService implements AutoCloseable {
             // Metrics handler
             StatisticsHandler stats = new StatisticsHandler();
             stats.setHandler(server.getHandler());
-            new JettyStatisticsCollector(stats).register();
+            try {
+                new JettyStatisticsCollector(stats).register();
+            } catch (IllegalArgumentException e) {
+                // Already registered. Eg: in unit tests
+            }
             handlers.add(stats);
 
             ContextHandlerCollection contexts = new ContextHandlerCollection();
