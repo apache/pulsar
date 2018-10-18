@@ -30,6 +30,8 @@
             <AppenderRef ref="Console" />
         </Root>
         <Logger name="org.eclipse.jetty" level="info"/>
+        <Logger name="javax.servlet" level="debug"/>
+        <Logger name="org.eclipse.jetty.client" level="debug"/>
         <Logger name="org.eclipse.jetty.server" level="debug"/>
         <Logger name="org.eclipse.jetty.servlet" level="debug"/>
         <Logger name="org.eclipse.jetty.proxy" level="debug"/>
