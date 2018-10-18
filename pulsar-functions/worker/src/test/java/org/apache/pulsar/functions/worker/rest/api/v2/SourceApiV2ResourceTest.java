@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -26,6 +27,7 @@ import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function.*;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
@@ -49,6 +51,8 @@ import org.testng.annotations.Test;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.io.*;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -774,15 +778,13 @@ public class SourceApiV2ResourceTest {
         assertEquals(new ErrorData("Function deregisteration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    // Source Info doesn't exist. Maybe one day they might be added
     //
-    // Get Function Info
+    // Get Source Info
     //
 
-    /*
     @Test
-    public void testGetFunctionMissingTenant() throws Exception {
-        testGetFunctionMissingArguments(
+    public void testGetSourceMissingTenant() throws Exception {
+        testGetSourceMissingArguments(
             null,
             namespace,
                 source,
@@ -790,8 +792,8 @@ public class SourceApiV2ResourceTest {
     }
 
     @Test
-    public void testGetFunctionMissingNamespace() throws Exception {
-        testGetFunctionMissingArguments(
+    public void testGetSourceMissingNamespace() throws Exception {
+        testGetSourceMissingArguments(
             tenant,
             null,
                 source,
@@ -799,62 +801,68 @@ public class SourceApiV2ResourceTest {
     }
 
     @Test
-    public void testGetFunctionMissingFunctionName() throws Exception {
-        testGetFunctionMissingArguments(
+    public void testGetSourceMissingFunctionName() throws Exception {
+        testGetSourceMissingArguments(
             tenant,
             namespace,
             null,
-            "Function Name");
+            " Name");
     }
 
-    private void testGetFunctionMissingArguments(
+    private void testGetSourceMissingArguments(
         String tenant,
         String namespace,
-        String function,
+        String source,
         String missingFieldName
     ) throws IOException {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
-            function);
+            null,
+            source,
+                null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    private Response getDefaultFunctionInfo() throws IOException {
+    private Response getDefaultSourceInfo() throws IOException {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-                source);
+                null,
+                source,
+                null);
     }
 
     @Test
-    public void testGetNotExistedFunction() throws IOException {
+    public void testGetNotExistedSource() throws IOException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-        Response response = getDefaultFunctionInfo();
+        Response response = getDefaultSourceInfo();
         assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + source + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Source " + source + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
-    public void testGetFunctionSuccess() throws Exception {
+    public void testGetSourceSuccess() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
+        SourceSpec sourceSpec = SourceSpec.newBuilder().setBuiltin("jdbc").build();
         SinkSpec sinkSpec = SinkSpec.newBuilder()
                 .setTopic(outputTopic)
                 .setSerDeClassName(outputSerdeClassName).build();
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
-                .setClassName(className)
+                .setClassName(IdentityFunction.class.getName())
                 .setSink(sinkSpec)
                 .setName(source)
                 .setNamespace(namespace)
-                .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
+                .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
+                .setRuntime(FunctionDetails.Runtime.JAVA)
+                .setAutoAck(true)
                 .setTenant(tenant)
                 .setParallelism(parallelism)
-                .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
-                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
+                .setSource(sourceSpec).build();
         FunctionMetaData metaData = FunctionMetaData.newBuilder()
             .setCreateTime(System.currentTimeMillis())
             .setFunctionDetails(functionDetails)
@@ -863,60 +871,72 @@ public class SourceApiV2ResourceTest {
             .build();
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(metaData);
 
-        Response response = getDefaultFunctionInfo();
+        Response response = getDefaultSourceInfo();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+            new Gson().toJson(SourceConfigUtils.convertFromDetails(functionDetails)),
             response.getEntity());
     }
 
     //
-    // List Functions
+    // List Sources
     //
 
     @Test
-    public void testListFunctionsMissingTenant() throws Exception {
-        testListFunctionsMissingArguments(
+    public void testListSourcesMissingTenant() throws Exception {
+        testListSourcesMissingArguments(
             null,
             namespace,
             "Tenant");
     }
 
     @Test
-    public void testListFunctionsMissingNamespace() throws Exception {
-        testListFunctionsMissingArguments(
+    public void testListSourcesMissingNamespace() throws Exception {
+        testListSourcesMissingArguments(
             tenant,
             null,
             "Namespace");
     }
 
-    private void testListFunctionsMissingArguments(
+    private void testListSourcesMissingArguments(
         String tenant,
         String namespace,
         String missingFieldName
     ) {
         Response response = resource.listFunctions(
             tenant,
-            namespace);
+            namespace,
+                null,
+                true,
+                null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    private Response listDefaultFunctions() {
+    private Response listDefaultSources() {
         return resource.listFunctions(
             tenant,
-            namespace);
+            namespace,
+                null,
+                true,
+                null);
     }
 
     @Test
-    public void testListFunctionsSuccess() throws Exception {
+    public void testListSourcesSuccess() throws Exception {
         List<String> functions = Lists.newArrayList("test-1", "test-2");
-        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functions);
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        functionMetaDataList.add(FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-1").build()
+        ).build());
+        functionMetaDataList.add(FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-2").build()
+        ).build());
+        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
 
-        Response response = listDefaultFunctions();
+        Response response = listDefaultSources();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(new Gson().toJson(functions), response.getEntity());
     }
-    */
 }
