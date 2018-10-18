@@ -78,12 +78,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     public void testCassandraArchiveSink() throws Exception {
         testSink(CassandraSinkTester.createTester(false), false);
     }
-    
+
     @Test(enabled = false)
     public void testHdfsSink() throws Exception {
         testSink(new HdfsSinkTester(), false);
     }
-    
+
     @Test
     public void testJdbcSink() throws Exception {
         testSink(new JdbcSinkTester(), true);
@@ -93,7 +93,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     public void testElasticSearchSink() throws Exception {
         testSink(new ElasticSearchSinkTester(), true);
     }
-    
+
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
         tester.startServiceContainer(pulsarCluster);
         try {
@@ -669,9 +669,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            String functionClass,
                                            Schema<T> inputTopicSchema) throws Exception {
         CommandGenerator generator;
+        log.info("------- INPUT TOPIC: '{}'", inputTopicName);
         if (inputTopicName.endsWith(".*")) {
+            log.info("----- CREATING TOPIC PATTERN FUNCTION --- ");
             generator = CommandGenerator.createTopicPatternGenerator(inputTopicName, functionClass);
         } else {
+            log.info("----- CREATING REGULAR FUNCTION --- ");
             generator = CommandGenerator.createDefaultGenerator(inputTopicName, functionClass);
         }
         generator.setSinkTopic(outputTopicName);
@@ -685,6 +688,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         } else {
             throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
+
+        log.info("---------- Function command: {}", command);
         String[] commands = {
             "sh", "-c", command
         };
@@ -721,6 +726,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--namespace", "default",
             "--name", functionName
         );
+
+        log.info("FUNCTION STATE: {}", result.getStdout());
         assertTrue(result.getStdout().contains("\"name\": \"" + functionName + "\""));
     }
 
@@ -795,7 +802,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         for (int i = 0; i < numMessages; i++) {
-            Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
+            Message<String> msg = consumer.receive(30, TimeUnit.SECONDS);
+            log.info("Received: {}", msg.getValue());
             assertTrue(expectedMessages.contains(msg.getValue()));
             expectedMessages.remove(msg.getValue());
         }
