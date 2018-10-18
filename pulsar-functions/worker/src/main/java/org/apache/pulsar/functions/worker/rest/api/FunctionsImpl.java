@@ -84,6 +84,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.*;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -99,6 +100,10 @@ import net.jodah.typetools.TypeResolver;
 
 @Slf4j
 public class FunctionsImpl {
+
+    private static final String FUNCTION = "Function";
+    private static final String SOURCE = "Source";
+    private static final String SINK = "Sink";
 
     private final Supplier<WorkerService> workerServiceSupplier;
 
@@ -288,43 +293,55 @@ public class FunctionsImpl {
     }
 
     public Response deregisterFunction(final String tenant, final String namespace, final String functionName,
-            String clientRole) {
+            String sourceName, String sinkName, String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
         try {
+            checkFunctionSourceSinkArgumentSanity(functionName, sourceName, sinkName);
+        } catch (IllegalArgumentException e) {
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+        String subject = getSubject(functionName, sourceName, sinkName);
+        String subjectType = getSubjectType(functionName, sourceName, sinkName);
+        try {
             if (!isAuthorizedRole(tenant, clientRole)) {
-                log.error("{}/{}/{} Client [{}] is not admin and authorized to deregister function", tenant, namespace,
-                        functionName, clientRole);
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to deregister {}", tenant, namespace,
+                        subject, clientRole, subjectType);
                 return Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
                         .entity(new ErrorData("client is not authorize to perform operation")).build();
             }
         } catch (PulsarAdminException e) {
-            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, subject, e);
             return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
         // validate parameters
         try {
-            validateDeregisterRequestParams(tenant, namespace, functionName);
+            validateDeregisterRequestParams(tenant, namespace, subject, subjectType);
         } catch (IllegalArgumentException e) {
-            log.error("Invalid deregister function request @ /{}/{}/{}", tenant, namespace, functionName, e);
+            log.error("Invalid deregister {} request @ /{}/{}/{}", subjectType, tenant, namespace, subject, e);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function to deregister does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, subject)) {
+            log.error("{} to deregister does not exist @ /{}/{}/{}", subjectType, tenant, namespace, subject);
             return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+                    .entity(new ErrorData(String.format("%s %s doesn't exist", subjectType, subject))).build();
+        }
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, subject);
+        if (!calculateSubjectType(functionMetaData).equals(subjectType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, subject, subjectType);
         }
 
         CompletableFuture<RequestResult> completableFuture = functionMetaDataManager.deregisterFunction(tenant,
-                namespace, functionName);
+                namespace, subject);
 
         RequestResult requestResult = null;
         try {
@@ -334,12 +351,12 @@ public class FunctionsImpl {
                         .entity(new ErrorData(requestResult.getMessage())).build();
             }
         } catch (ExecutionException e) {
-            log.error("Execution Exception while deregistering function @ /{}/{}/{}", tenant, namespace, functionName,
+            log.error("Execution Exception while deregistering {} @ /{}/{}/{}", subjectType, tenant, namespace, subject,
                     e);
             return Response.serverError().type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getCause().getMessage())).build();
         } catch (InterruptedException e) {
-            log.error("Interrupted Exception while deregistering function @ /{}/{}/{}", tenant, namespace, functionName,
+            log.error("Interrupted Exception while deregistering {} @ /{}/{}/{}", subjectType, tenant, namespace, subject,
                     e);
             return Response.status(Status.REQUEST_TIMEOUT).type(MediaType.APPLICATION_JSON).build();
         }
@@ -347,34 +364,50 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(requestResult.toJson()).build();
     }
 
-    public Response getFunctionInfo(final String tenant, final String namespace, final String functionName)
+    public Response getFunctionInfo(final String tenant, final String namespace, final String functionName,
+                                    final String sourceName, final String sinkName)
             throws IOException {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
+        checkFunctionSourceSinkArgumentSanity(functionName, sourceName, sinkName);
+        String subject = getSubject(functionName, sourceName, sinkName);
+        String subjectType = getSubjectType(functionName, sourceName, sinkName);
+
         // validate parameters
         try {
-            validateGetFunctionRequestParams(tenant, namespace, functionName);
+            validateGetFunctionRequestParams(tenant, namespace, subject, subjectType);
         } catch (IllegalArgumentException e) {
-            log.error("Invalid getFunction request @ /{}/{}/{}", tenant, namespace, functionName, e);
+            log.error("Invalid get {} request @ /{}/{}/{}", subjectType, tenant, namespace, subject, e);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function in getFunction does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, subject)) {
+            log.error("{} does not exist @ /{}/{}/{}", subjectType, tenant, namespace, subject);
             return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+                    .entity(new ErrorData(String.format(subjectType + " %s doesn't exist", subject))).build();
+        }
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, subject);
+        if (!calculateSubjectType(functionMetaData).equals(subjectType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, subject, subjectType);
         }
 
-        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace,
-                functionName);
-        String functionDetailsJson = org.apache.pulsar.functions.utils.Utils
-                .printJson(functionMetaData.getFunctionDetails());
-        return Response.status(Status.OK).entity(functionDetailsJson).build();
+        String retval;
+        if (subjectType.equals(FUNCTION)) {
+            FunctionConfig config = FunctionConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
+            retval = new Gson().toJson(config);
+        } else if (subjectType.equals(SOURCE)) {
+            SourceConfig config = SourceConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
+            retval = new Gson().toJson(config);
+        } else {
+            SinkConfig config = SinkConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
+            retval = new Gson().toJson(config);
+        }
+        return Response.status(Status.OK).entity(retval).build();
     }
 
     public Response getFunctionInstanceStatus(final String tenant, final String namespace, final String functionName,
@@ -485,7 +518,7 @@ public class FunctionsImpl {
 
         // validate parameters
         try {
-            validateGetFunctionRequestParams(tenant, namespace, functionName);
+            validateGetFunctionRequestParams(tenant, namespace, functionName, FUNCTION);
         } catch (IllegalArgumentException e) {
             log.error("Invalid restart-Function request @ /{}/{}/{}", tenant, namespace, functionName, e);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
@@ -519,7 +552,7 @@ public class FunctionsImpl {
 
         // validate parameters
         try {
-            validateGetFunctionRequestParams(tenant, namespace, functionName);
+            validateGetFunctionRequestParams(tenant, namespace, functionName, FUNCTION);
         } catch (IllegalArgumentException e) {
             log.error("Invalid getFunctionStatus request @ /{}/{}/{}", tenant, namespace, functionName, e);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
@@ -552,26 +585,35 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(jsonResponse).build();
     }
 
-    public Response listFunctions(final String tenant, final String namespace) {
+    public Response listFunctions(final String tenant, final String namespace, Boolean listFunctions,
+                                  Boolean listSources, Boolean listSinks) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
+        String subjectType = getSubjectType(listFunctions, listSources, listSinks);
+
         // validate parameters
         try {
             validateListFunctionRequestParams(tenant, namespace);
         } catch (IllegalArgumentException e) {
-            log.error("Invalid listFunctions request @ /{}/{}", tenant, namespace, e);
+            log.error("Invalid list {} request @ /{}/{}", subjectType, tenant, namespace, e);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
-        Collection<String> functionStateList = functionMetaDataManager.listFunctions(tenant, namespace);
+        Collection<FunctionMetaData> functionStateList = functionMetaDataManager.listFunctions(tenant, namespace);
+        List<String> retval = new LinkedList<>();
+        for (FunctionMetaData functionMetaData : functionStateList) {
+            if (calculateSubjectType(functionMetaData).equals(subjectType)) {
+                retval.add(functionMetaData.getFunctionDetails().getName());
+            }
+        }
 
-        return Response.status(Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
+        return Response.status(Status.OK).entity(new Gson().toJson(retval.toArray())).build();
     }
 
     private Response updateRequest(FunctionMetaData functionMetaData, File uploadedInputStreamAsFile) {
@@ -840,13 +882,13 @@ public class FunctionsImpl {
 
     private void validateGetFunctionInstanceRequestParams(String tenant, String namespace, String functionName,
             String instanceId) throws IllegalArgumentException {
-        validateGetFunctionRequestParams(tenant, namespace, functionName);
+        validateGetFunctionRequestParams(tenant, namespace, functionName, FUNCTION);
         if (instanceId == null) {
             throw new IllegalArgumentException("Function Instance Id is not provided");
         }
     }
 
-    private void validateGetFunctionRequestParams(String tenant, String namespace, String functionName)
+    private void validateGetFunctionRequestParams(String tenant, String namespace, String subject, String subjectType)
             throws IllegalArgumentException {
 
         if (tenant == null) {
@@ -855,12 +897,12 @@ public class FunctionsImpl {
         if (namespace == null) {
             throw new IllegalArgumentException("Namespace is not provided");
         }
-        if (functionName == null) {
-            throw new IllegalArgumentException("Function Name is not provided");
+        if (subject == null) {
+            throw new IllegalArgumentException(subjectType + " Name is not provided");
         }
     }
 
-    private void validateDeregisterRequestParams(String tenant, String namespace, String functionName)
+    private void validateDeregisterRequestParams(String tenant, String namespace, String subject, String subjectType)
             throws IllegalArgumentException {
 
         if (tenant == null) {
@@ -869,8 +911,8 @@ public class FunctionsImpl {
         if (namespace == null) {
             throw new IllegalArgumentException("Namespace is not provided");
         }
-        if (functionName == null) {
-            throw new IllegalArgumentException("Function Name is not provided");
+        if (subject == null) {
+            throw new IllegalArgumentException(subjectType + " Name is not provided");
         }
     }
 
@@ -977,25 +1019,8 @@ public class FunctionsImpl {
             throw new IllegalArgumentException("Function Name is not provided");
         }
 
-        int numDefinitions = 0;
-        if (!StringUtils.isEmpty(functionDetailsJson)) {
-            numDefinitions++;
-        }
-        if (!StringUtils.isEmpty(functionConfigJson)) {
-            numDefinitions++;
-        }
-        if (!StringUtils.isEmpty(sourceConfigJson)) {
-            numDefinitions++;
-        }
-        if (!StringUtils.isEmpty(sinkConfigJson)) {
-            numDefinitions++;
-        }
-        if (numDefinitions == 0) {
-            throw new IllegalArgumentException("Function Info is not provided");
-        }
-        if (numDefinitions > 1) {
-            throw new IllegalArgumentException("Conflicting Info provided");
-        }
+        checkFunctionSourceSinkArgumentSanity(functionConfigJson, sourceConfigJson, sinkConfigJson);
+
         if (!StringUtils.isEmpty(functionConfigJson)) {
             FunctionConfig functionConfig = new Gson().fromJson(functionConfigJson, FunctionConfig.class);
             ClassLoader clsLoader = null;
@@ -1258,6 +1283,74 @@ public class FunctionsImpl {
 
     public boolean isSuperUser(String clientRole) {
         return clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
+    }
+
+    private void checkFunctionSourceSinkArgumentSanity(Object function, Object source, Object sink) {
+        int ndefined = 0;
+        String subject = "";
+        if (function != null) {
+            ndefined++;
+            subject = FUNCTION;
+        }
+        if (source != null) {
+            ndefined++;
+            subject = SOURCE;
+        }
+        if (sink != null) {
+            ndefined++;
+            subject = SINK;
+        }
+        if (ndefined == 0) {
+            throw new IllegalArgumentException(subject + " info is not provided");
+        }
+        if (ndefined > 1) {
+            throw new IllegalArgumentException("Conflicting info provided");
+        }
+    }
+
+    private String getSubject(String function, String source, String sink) {
+        if (function != null) {
+            return function;
+        }
+        if (source != null) {
+            return source;
+        }
+        if (sink != null) {
+            return sink;
+        }
+        return "";
+    }
+
+    private String getSubjectType(Object function, Object source, Object sink) {
+        if (function != null) {
+            return FUNCTION;
+        }
+        if (source != null) {
+            return SOURCE;
+        }
+        if (sink != null) {
+            return SINK;
+        }
+        return "";
+    }
+
+    private String calculateSubjectType(FunctionMetaData functionMetaData) {
+        SourceSpec sourceSpec = functionMetaData.getFunctionDetails().getSource();
+        SinkSpec sinkSpec = functionMetaData.getFunctionDetails().getSink();
+        if (sourceSpec.getInputSpecsCount() == 0) {
+            return SOURCE;
+        }
+        // Now its between sink and function
+
+        if (!isEmpty(sinkSpec.getBuiltin())) {
+            // if its built in, its a sink
+            return SINK;
+        }
+
+        if (isEmpty(sinkSpec.getClassName()) || sinkSpec.getClassName().equals(PulsarSink.class.getName())) {
+            return FUNCTION;
+        }
+        return SINK;
     }
 
 }

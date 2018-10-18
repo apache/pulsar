@@ -112,7 +112,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public Response deregisterSource(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("sourceName") String sourceName) {
-        return functions.deregisterFunction(tenant, namespace, sourceName, clientAppId());
+        return functions.deregisterFunction(tenant, namespace, null, sourceName, null, clientAppId());
     }
 
     @GET
@@ -131,7 +131,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                                   final @PathParam("namespace") String namespace,
                                   final @PathParam("sourceName") String sourceName) throws IOException {
         return functions.getFunctionInfo(
-            tenant, namespace, sourceName);
+            tenant, namespace, null, sourceName, null);
     }
 
     @GET
@@ -183,7 +183,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public Response listSources(final @PathParam("tenant") String tenant,
                                 final @PathParam("namespace") String namespace) {
         return functions.listFunctions(
-            tenant, namespace);
+            tenant, namespace, false, true, false);
 
     }
 

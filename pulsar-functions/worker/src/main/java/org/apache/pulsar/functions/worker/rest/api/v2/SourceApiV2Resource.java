@@ -77,7 +77,7 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/{sourceName}")
     public Response deregisterSource(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
-        return functions.deregisterFunction(tenant, namespace, sourceName, clientAppId());
+        return functions.deregisterFunction(tenant, namespace, null, sourceName, null, clientAppId());
     }
 
     @GET
@@ -86,7 +86,7 @@ public class SourceApiV2Resource extends FunctionApiResource {
                                   final @PathParam("namespace") String namespace,
                                   final @PathParam("sourceName") String sourceName)
             throws IOException {
-        return functions.getFunctionInfo(tenant, namespace, sourceName);
+        return functions.getFunctionInfo(tenant, namespace, null, sourceName, null);
     }
 
     @GET
@@ -111,7 +111,7 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}")
     public Response listSources(final @PathParam("tenant") String tenant,
                                 final @PathParam("namespace") String namespace) {
-        return functions.listFunctions(tenant, namespace);
+        return functions.listFunctions(tenant, namespace, false, true, false);
 
     }
 

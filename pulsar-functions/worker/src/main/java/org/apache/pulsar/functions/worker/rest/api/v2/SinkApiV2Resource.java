@@ -77,7 +77,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/{sinkName}")
     public Response deregisterSink(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName) {
-        return functions.deregisterFunction(tenant, namespace, sinkName, clientAppId());
+        return functions.deregisterFunction(tenant, namespace, null, null, sinkName, clientAppId());
     }
 
     @GET
@@ -86,7 +86,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
                                 final @PathParam("namespace") String namespace,
                                 final @PathParam("sinkName") String sinkName)
             throws IOException {
-        return functions.getFunctionInfo(tenant, namespace, sinkName);
+        return functions.getFunctionInfo(tenant, namespace, null, null, sinkName);
     }
 
     @GET
@@ -111,7 +111,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}")
     public Response listSink(final @PathParam("tenant") String tenant,
                              final @PathParam("namespace") String namespace) {
-        return functions.listFunctions(tenant, namespace);
+        return functions.listFunctions(tenant, namespace, false, false, true);
 
     }
 

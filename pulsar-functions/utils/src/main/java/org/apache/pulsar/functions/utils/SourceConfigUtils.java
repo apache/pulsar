@@ -20,6 +20,8 @@
 package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
@@ -27,6 +29,8 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.Map;
 
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
@@ -126,5 +130,41 @@ public class SourceConfigUtils {
         }
 
         return functionDetailsBuilder.build();
+    }
+
+    public static SourceConfig convertFromDetails(FunctionDetails functionDetails) {
+        SourceConfig sourceConfig = new SourceConfig();
+        sourceConfig.setTenant(functionDetails.getTenant());
+        sourceConfig.setNamespace(functionDetails.getNamespace());
+        sourceConfig.setNamespace(functionDetails.getName());
+        sourceConfig.setParallelism(functionDetails.getParallelism());
+        sourceConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        Function.SourceSpec sourceSpec = functionDetails.getSource();
+        if (!StringUtils.isEmpty(sourceSpec.getClassName())) {
+            sourceConfig.setClassName(sourceSpec.getClassName());
+        }
+        if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
+            sourceConfig.setArchive("builtin://" + sourceSpec.getBuiltin());
+        }
+        if (!StringUtils.isEmpty(sourceSpec.getConfigs())) {
+            Type type = new TypeToken<Map<String, String>>() {}.getType();
+            sourceConfig.setConfigs(new Gson().fromJson(sourceSpec.getConfigs(), type));
+        }
+        Function.SinkSpec sinkSpec = functionDetails.getSink();
+        sourceConfig.setTopicName(sinkSpec.getTopic());
+        if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
+            sourceConfig.setSchemaType(sinkSpec.getSchemaType());
+        }
+        if (!StringUtils.isEmpty(sinkSpec.getSerDeClassName())) {
+            sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
+        }
+        if (functionDetails.hasResources()) {
+            Resources resources = new Resources();
+            resources.setCpu(functionDetails.getResources().getCpu());
+            resources.setRam(functionDetails.getResources().getRam());
+            resources.setDisk(functionDetails.getResources().getDisk());
+            sourceConfig.setResources(resources);
+        }
+        return sourceConfig;
     }
 }

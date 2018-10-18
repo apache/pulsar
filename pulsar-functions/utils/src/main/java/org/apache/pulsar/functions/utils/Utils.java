@@ -151,6 +151,15 @@ public class Utils {
         throw new RuntimeException("Unrecognized runtime: " + runtime.name());
     }
 
+    public static FunctionConfig.Runtime convertRuntime(Runtime runtime) {
+        for (FunctionConfig.Runtime type : FunctionConfig.Runtime.values()) {
+            if (type.name().equals(runtime.name())) {
+                return type;
+            }
+        }
+        throw new RuntimeException("Unrecognized runtime: " + runtime.name());
+    }
+
     public static org.apache.pulsar.functions.proto.Function.ProcessingGuarantees convertProcessingGuarantee(
             FunctionConfig.ProcessingGuarantees processingGuarantees) {
         for (org.apache.pulsar.functions.proto.Function.ProcessingGuarantees type : org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.values()) {
@@ -160,6 +169,17 @@ public class Utils {
         }
         throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
     }
+
+    public static FunctionConfig.ProcessingGuarantees convertProcessingGuarantee(
+            org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) {
+        for (FunctionConfig.ProcessingGuarantees type : FunctionConfig.ProcessingGuarantees.values()) {
+            if (type.name().equals(processingGuarantees.name())) {
+                return type;
+            }
+        }
+        throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
+    }
+
 
     public static Class<?> getSourceType(String className, ClassLoader classloader) {
 

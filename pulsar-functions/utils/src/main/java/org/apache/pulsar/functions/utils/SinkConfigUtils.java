@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -29,9 +30,13 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 
@@ -174,5 +179,57 @@ public class SinkConfigUtils {
             functionDetailsBuilder.setResources(bldr.build());
         }
         return functionDetailsBuilder.build();
+    }
+
+    public static SinkConfig convertFromDetails(FunctionDetails functionDetails) {
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTenant(functionDetails.getTenant());
+        sinkConfig.setNamespace(functionDetails.getNamespace());
+        sinkConfig.setName(functionDetails.getName());
+        sinkConfig.setParallelism(functionDetails.getParallelism());
+        sinkConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
+        for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
+            ConsumerConfig consumerConfig = new ConsumerConfig();
+            if (!isEmpty(input.getValue().getSerdeClassName())) {
+                consumerConfig.setSerdeClassName(input.getValue().getSerdeClassName());
+            }
+            if (!isEmpty(input.getValue().getSchemaType())) {
+                consumerConfig.setSchemaType(input.getValue().getSchemaType());
+            }
+            consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
+            consumerConfigMap.put(input.getKey(), consumerConfig);
+        }
+        sinkConfig.setInputSpecs(consumerConfigMap);
+        if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
+            sinkConfig.setSourceSubscriptionName(functionDetails.getSource().getSubscriptionName());
+        }
+        if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.FAILOVER) {
+            sinkConfig.setRetainOrdering(true);
+            sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
+        } else {
+            sinkConfig.setRetainOrdering(false);
+            sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        }
+        sinkConfig.setAutoAck(functionDetails.getAutoAck());
+        sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
+        if (!isEmpty(functionDetails.getSink().getClassName())) {
+            sinkConfig.setClassName(functionDetails.getSink().getClassName());
+        }
+        if (!isEmpty(functionDetails.getSink().getBuiltin())) {
+            sinkConfig.setArchive("builtin://" + functionDetails.getSink().getBuiltin());
+        }
+        if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getSink().getConfigs())) {
+            Type type = new TypeToken<Map<String, String>>() {}.getType();
+            sinkConfig.setConfigs(new Gson().fromJson(functionDetails.getSink().getConfigs(), type));
+        }
+        if (functionDetails.hasResources()) {
+            Resources resources = new Resources();
+            resources.setCpu(functionDetails.getResources().getCpu());
+            resources.setRam(functionDetails.getResources().getRam());
+            resources.setDisk(functionDetails.getResources().getDisk());
+        }
+
+        return sinkConfig;
     }
 }
