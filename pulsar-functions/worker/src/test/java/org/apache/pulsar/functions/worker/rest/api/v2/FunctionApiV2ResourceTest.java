@@ -787,7 +787,7 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             null,
-            " Name");
+            "Function Name");
     }
 
     private void testDeregisterFunctionMissingArguments(
@@ -896,7 +896,7 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             null,
-            " Name");
+            "Function Name");
     }
 
     private void testGetFunctionMissingArguments(
