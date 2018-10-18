@@ -111,7 +111,7 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}")
     public Response listSources(final @PathParam("tenant") String tenant,
                                 final @PathParam("namespace") String namespace) {
-        return functions.listFunctions(tenant, namespace, false, true, false);
+        return functions.listFunctions(tenant, namespace, null, true, null);
 
     }
 

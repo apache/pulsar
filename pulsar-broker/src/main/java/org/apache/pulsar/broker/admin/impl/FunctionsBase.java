@@ -196,7 +196,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
         return functions.listFunctions(
-            tenant, namespace, true, false, false);
+            tenant, namespace, true, null, null);
 
     }
 

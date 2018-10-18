@@ -180,7 +180,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     @Path("/{tenant}/{namespace}")
     public Response listSinks(final @PathParam("tenant") String tenant,
                               final @PathParam("namespace") String namespace) {
-        return functions.listFunctions(tenant, namespace, false, false, true);
+        return functions.listFunctions(tenant, namespace, null, null, true);
 
     }
 

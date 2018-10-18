@@ -111,7 +111,7 @@ public class SinkApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}")
     public Response listSink(final @PathParam("tenant") String tenant,
                              final @PathParam("namespace") String namespace) {
-        return functions.listFunctions(tenant, namespace, false, false, true);
+        return functions.listFunctions(tenant, namespace, null, null, true);
 
     }
 
