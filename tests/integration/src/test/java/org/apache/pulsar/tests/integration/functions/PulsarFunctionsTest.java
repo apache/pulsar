@@ -214,7 +214,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                       boolean builtin) throws Exception {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
-            "functions",
+            "sink",
             "get",
             "--tenant", tenant,
             "--namespace", namespace,
@@ -366,7 +366,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void getSinkInfoNotFound(String tenant, String namespace, String sinkName) throws Exception {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
-            "functions",
+            "sink",
             "get",
             "--tenant", tenant,
             "--namespace", namespace,
@@ -376,7 +376,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             pulsarCluster.getAnyWorker().execCmd(commands);
             fail("Command should have exited with non-zero");
         } catch (ContainerExecException e) {
-            assertTrue(e.getResult().getStderr().contains("Reason: Function " + sinkName + " doesn't exist"));
+            assertTrue(e.getResult().getStderr().contains("Reason: Sink " + sinkName + " doesn't exist"));
         }
     }
 
@@ -465,7 +465,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                         String sourceName) throws Exception {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
-            "functions",
+            "source",
             "get",
             "--tenant", tenant,
             "--namespace", namespace,
@@ -564,7 +564,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void getSourceInfoNotFound(String tenant, String namespace, String sourceName) throws Exception {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
-            "functions",
+            "source",
             "get",
             "--tenant", tenant,
             "--namespace", namespace,
@@ -574,7 +574,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             pulsarCluster.getAnyWorker().execCmd(commands);
             fail("Command should have exited with non-zero");
         } catch (ContainerExecException e) {
-            assertTrue(e.getResult().getStderr().contains("Reason: Function " + sourceName + " doesn't exist"));
+            assertTrue(e.getResult().getStderr().contains("Reason: Source " + sourceName + " doesn't exist"));
         }
     }
 
