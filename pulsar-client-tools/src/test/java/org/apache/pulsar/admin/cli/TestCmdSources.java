@@ -820,7 +820,7 @@ public class TestCmdSources {
     public void testDeleteMissingTenant() throws Exception {
         deleteSource.tenant = null;
         deleteSource.namespace = NAMESPACE;
-        deleteSource.name = NAME;
+        deleteSource.sourceName = NAME;
 
         deleteSource.processArguments();
 
@@ -833,7 +833,7 @@ public class TestCmdSources {
     public void testDeleteMissingNamespace() throws Exception {
         deleteSource.tenant = TENANT;
         deleteSource.namespace = null;
-        deleteSource.name = NAME;
+        deleteSource.sourceName = NAME;
 
         deleteSource.processArguments();
 
@@ -846,7 +846,7 @@ public class TestCmdSources {
     public void testDeleteMissingName() throws Exception {
         deleteSource.tenant = TENANT;
         deleteSource.namespace = NAMESPACE;
-        deleteSource.name = null;
+        deleteSource.sourceName = null;
 
         deleteSource.processArguments();
 

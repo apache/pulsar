@@ -406,7 +406,7 @@ public class PulsarFunctionE2ETest {
             assertFalse(validRoleName);
         }
     }
-    
+
     @Test(timeOut = 20000)
     public void testFunctionStopAndRestartApi() throws Exception {
 
