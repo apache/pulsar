@@ -46,6 +46,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
@@ -144,7 +145,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         if (client != null) {
             client.close();
         }
-        
+
         LOG.info("[{}] Connection closed", remoteAddress);
     }
 
@@ -167,8 +168,11 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
         case ProxyConnectionToBroker:
             // Pass the buffer to the outbound connection and schedule next read
-            // only
-            // if we can write on the connection
+            // only if we can write on the connection
+            DirectProxyHandler.opsCounter.inc();
+            if (msg instanceof ByteBuf) {
+                DirectProxyHandler.bytesCounter.inc(((ByteBuf) msg).readableBytes());
+            }
             directProxyHandler.outboundChannel.writeAndFlush(msg).addListener(this);
             break;
 
@@ -291,7 +295,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                                 service.getWorkerGroup())));
                 return true;
             }
-            
+
             String authMethod = "none";
             if (connect.hasAuthMethodName()) {
                 authMethod = connect.getAuthMethodName();
