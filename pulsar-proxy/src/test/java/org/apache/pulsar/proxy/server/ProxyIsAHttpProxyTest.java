@@ -166,15 +166,15 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         log.info("IKDEBUG webserver started");
         try {
             log.info("IKDEBUG request 1");
+            Response r1 = client.target(webServer.getServiceUri()).path("/server1/foobar").request().get();
+            Assert.assertEquals(r1.getStatus(), Response.Status.OK.getStatusCode());
+            Assert.assertEquals(r1.readEntity(String.class).trim(), "server1,/foobar");
 
+            log.info("IKDEBUG request 2");
             Response r2 = client.target(webServer.getServiceUri()).path("/server2/blahblah").request().get();
             Assert.assertEquals(r2.getStatus(), Response.Status.OK.getStatusCode());
             Assert.assertEquals(r2.readEntity(String.class).trim(), "server2,/blahblah");
 
-            log.info("IKDEBUG request 2");
-            Response r1 = client.target(webServer.getServiceUri()).path("/server1/foobar").request().get();
-            Assert.assertEquals(r1.getStatus(), Response.Status.OK.getStatusCode());
-            Assert.assertEquals(r1.readEntity(String.class).trim(), "server1,/foobar");
 
 
         } finally {
