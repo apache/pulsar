@@ -151,6 +151,9 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         props.setProperty("httpReverseProxy.1.path", "/server2");
         props.setProperty("httpReverseProxy.1.proxyTo", backingServer2.getURI().toString());
 
+        client.target(backingServer1.getURI()).path("/server1").request().get();
+        client.target(backingServer2.getURI()).path("/server2").request().get();
+
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
