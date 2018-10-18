@@ -159,6 +159,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         props.setProperty("servicePort", "0");
         props.setProperty("webServicePort", "0");
 
+        log.info("IKDEBUG numCPU {}", Runtime.getRuntime().availableProcessors());
         log.info("IKDEBUG properties {}", props);
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
@@ -177,18 +178,20 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(r1.readEntity(String.class).trim(), "server1,/foobar");
 
             log.info("IKDEBUG request 2");
-            Future<Response> r2 = client.target(webServer.getServiceUri()).path("/server2/blahblah").request().async().get();
+            Response r2 = client.target(webServer.getServiceUri()).path("/server2/blahblah").request().get();
 
-            Thread.sleep(10000);
-            for (Map.Entry<Thread, StackTraceElement[]> e : Thread.getAllStackTraces().entrySet()) {
-                Thread t = e.getKey();
-                log.info("\n= {} = state: {} ========================================\n", t, t.getState());
-                for (StackTraceElement el : e.getValue()) {
-                    log.info(" - {}", el);
-                }
-            }
-            Assert.assertEquals(r2.get().getStatus(), Response.Status.OK.getStatusCode());
-            Assert.assertEquals(r2.get().readEntity(String.class).trim(), "server2,/blahblah");
+            Thread.sleep(5000);
+            new Thread(() -> {
+                    for (Map.Entry<Thread, StackTraceElement[]> e : Thread.getAllStackTraces().entrySet()) {
+                        Thread t = e.getKey();
+                        log.info("\n= {} = state: {} ========================================\n", t, t.getState());
+                        for (StackTraceElement el : e.getValue()) {
+                            log.info(" - {}", el);
+                        }
+                    }
+            }).start();
+            Assert.assertEquals(r2.getStatus(), Response.Status.OK.getStatusCode());
+            Assert.assertEquals(r2.readEntity(String.class).trim(), "server2,/blahblah");
 
 
 
