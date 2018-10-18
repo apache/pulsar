@@ -45,10 +45,10 @@ public class SourceConfigUtils {
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
-        boolean isBuiltin = sourceConfig.getArchive().startsWith(Utils.BUILTIN);
+        boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(Utils.BUILTIN);
 
         if (!isBuiltin) {
-            if (sourceConfig.getArchive().startsWith(Utils.FILE)) {
+            if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(Utils.FILE)) {
                 if (org.apache.commons.lang3.StringUtils.isBlank(sourceConfig.getClassName())) {
                     throw new IllegalArgumentException("Class-name must be present for archive with file-url");
                 }
@@ -136,7 +136,7 @@ public class SourceConfigUtils {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(functionDetails.getTenant());
         sourceConfig.setNamespace(functionDetails.getNamespace());
-        sourceConfig.setNamespace(functionDetails.getName());
+        sourceConfig.setName(functionDetails.getName());
         sourceConfig.setParallelism(functionDetails.getParallelism());
         sourceConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Function.SourceSpec sourceSpec = functionDetails.getSource();
