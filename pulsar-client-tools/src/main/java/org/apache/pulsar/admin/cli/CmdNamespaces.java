@@ -41,6 +41,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
 @Parameters(commandDescription = "Operations about namespaces")
@@ -880,6 +881,53 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the schema auto-update strategy for a namespace")
+    private class GetSchemaAutoUpdateStrategy extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            System.out.println(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace)
+                               .toString().toUpperCase());
+        }
+    }
+
+    @Parameters(commandDescription = "Set the schema auto-update strategy for a namespace")
+    private class SetSchemaAutoUpdateStrategy extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--compatibility", "-c" },
+                   description = "Compatibility level required for new schemas created via a Producer. "
+                                 + "Possible values (Full, Backward, Forward).")
+        private String strategyParam = null;
+
+        @Parameter(names = { "--disabled" }, description = "Disable automatic schema updates")
+        private boolean disabled = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            SchemaAutoUpdateCompatibilityStrategy strategy = null;
+            String strategyStr = strategyParam != null ? strategyParam.toUpperCase() : "";
+            if (disabled) {
+                strategy = SchemaAutoUpdateCompatibilityStrategy.AutoUpdateDisabled;
+            } else if (strategyStr.equals("FULL")) {
+                strategy = SchemaAutoUpdateCompatibilityStrategy.Full;
+            } else if (strategyStr.equals("BACKWARD")) {
+                strategy = SchemaAutoUpdateCompatibilityStrategy.Backward;
+            } else if (strategyStr.equals("FORWARD")) {
+                strategy = SchemaAutoUpdateCompatibilityStrategy.Forward;
+            } else {
+                throw new PulsarAdminException("Either --compatibility or --disabled must be specified");
+            }
+            admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace, strategy);
+        }
+    }
+
     public CmdNamespaces(PulsarAdmin admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -949,5 +997,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-offload-deletion-lag", new SetOffloadDeletionLag());
         jcommander.addCommand("clear-offload-deletion-lag", new ClearOffloadDeletionLag());
 
+        jcommander.addCommand("get-schema-autoupdate-strategy", new GetSchemaAutoUpdateStrategy());
+        jcommander.addCommand("set-schema-autoupdate-strategy", new SetSchemaAutoUpdateStrategy());
     }
 }
