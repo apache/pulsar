@@ -129,7 +129,7 @@ flexible messaging model and an intuitive client API.</description>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <redirectTestOutputToFile>true</redirectTestOutputToFile>
+    <redirectTestOutputToFile>false</redirectTestOutputToFile>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
     <docker.organization>apachepulsar</docker.organization>
