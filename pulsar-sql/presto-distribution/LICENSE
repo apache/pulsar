@@ -415,10 +415,10 @@ The Apache Software License, Version 2.0
     - metrics-graphite-3.1.0.jar
     - metrics-jvm-3.1.0.jar
   * Prometheus
-    - simpleclient-0.0.23.jar
-    - simpleclient_common-0.0.23.jar
-    - simpleclient_hotspot-0.0.23.jar
-    - simpleclient_servlet-0.0.23.jar
+    - simpleclient-0.5.0.jar
+    - simpleclient_common-0.5.0.jar
+    - simpleclient_hotspot-0.5.0.jar
+    - simpleclient_servlet-0.5.0.jar
   * LZ4
     - lz4-java-1.5.0.jar
   * Bookkeeper
@@ -530,4 +530,3 @@ Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
     - bcpkix-jdk15on-1.55.jar
     - bcprov-jdk15on-1.55.jar
-

@@ -20,15 +20,18 @@
 package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 public class FunctionConfigUtils {
 
@@ -198,5 +201,84 @@ public class FunctionConfigUtils {
             functionDetailsBuilder.setResources(bldr.build());
         }
         return functionDetailsBuilder.build();
+    }
+
+    public static FunctionConfig convertFromDetails(FunctionDetails functionDetails) {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(functionDetails.getTenant());
+        functionConfig.setNamespace(functionDetails.getNamespace());
+        functionConfig.setName(functionDetails.getName());
+        functionConfig.setParallelism(functionDetails.getParallelism());
+        functionConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
+        for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
+            ConsumerConfig consumerConfig = new ConsumerConfig();
+            if (!isEmpty(input.getValue().getSerdeClassName())) {
+                consumerConfig.setSerdeClassName(input.getValue().getSerdeClassName());
+            }
+            if (!isEmpty(input.getValue().getSchemaType())) {
+                consumerConfig.setSchemaType(input.getValue().getSchemaType());
+            }
+            consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
+            consumerConfigMap.put(input.getKey(), consumerConfig);
+        }
+        functionConfig.setInputSpecs(consumerConfigMap);
+        if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
+            functionConfig.setSubName(functionDetails.getSource().getSubscriptionName());
+        }
+        if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.FAILOVER) {
+            functionConfig.setRetainOrdering(true);
+            functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
+        } else {
+            functionConfig.setRetainOrdering(false);
+            functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        }
+        functionConfig.setAutoAck(functionDetails.getAutoAck());
+        functionConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
+        if (!isEmpty(functionDetails.getSink().getTopic())) {
+            functionConfig.setOutput(functionDetails.getSink().getTopic());
+        }
+        if (!isEmpty(functionDetails.getSink().getSerDeClassName())) {
+            functionConfig.setOutputSerdeClassName(functionDetails.getSink().getSerDeClassName());
+        }
+        if (!isEmpty(functionDetails.getSink().getSchemaType())) {
+            functionConfig.setOutputSchemaType(functionDetails.getSink().getSchemaType());
+        }
+        if (!isEmpty(functionDetails.getLogTopic())) {
+            functionConfig.setLogTopic(functionDetails.getLogTopic());
+        }
+        functionConfig.setRuntime(Utils.convertRuntime(functionDetails.getRuntime()));
+        functionConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        if (functionDetails.hasRetryDetails()) {
+            functionConfig.setMaxMessageRetries(functionDetails.getRetryDetails().getMaxMessageRetries());
+            if (!isEmpty(functionDetails.getRetryDetails().getDeadLetterTopic())) {
+                functionConfig.setDeadLetterTopic(functionDetails.getRetryDetails().getDeadLetterTopic());
+            }
+        }
+        Map<String, Object> userConfig;
+        if (!isEmpty(functionDetails.getUserConfig())) {
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            userConfig = new Gson().fromJson(functionDetails.getUserConfig(), type);
+        } else {
+            userConfig = new HashMap<>();
+        }
+        if (userConfig.containsKey(WindowConfig.WINDOW_CONFIG_KEY)) {
+            WindowConfig windowConfig = (WindowConfig) userConfig.get(WindowConfig.WINDOW_CONFIG_KEY);
+            userConfig.remove(WindowConfig.WINDOW_CONFIG_KEY);
+            functionConfig.setClassName(windowConfig.getActualWindowFunctionClassName());
+            functionConfig.setWindowConfig(windowConfig);
+        } else {
+            functionConfig.setClassName(functionDetails.getClassName());
+        }
+        functionConfig.setUserConfig(userConfig);
+
+        if (functionDetails.hasResources()) {
+            Resources resources = new Resources();
+            resources.setCpu(functionDetails.getResources().getCpu());
+            resources.setRam(functionDetails.getResources().getRam());
+            resources.setDisk(functionDetails.getResources().getDisk());
+        }
+
+        return functionConfig;
     }
 }

@@ -50,6 +50,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
+import io.prometheus.client.Counter;
 
 public class DirectProxyHandler {
 
@@ -169,6 +170,10 @@ public class DirectProxyHandler {
                 break;
 
             case HandshakeCompleted:
+                ProxyService.opsCounter.inc();
+                if (msg instanceof ByteBuf) {
+                    ProxyService.bytesCounter.inc(((ByteBuf) msg).readableBytes());
+                }
                 inboundChannel.writeAndFlush(msg).addListener(this);
                 break;
 
