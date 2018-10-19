@@ -25,16 +25,17 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
+import java.io.File;
 import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
+import java.net.MalformedURLException;
+import java.util.*;
 
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.functions.utils.Utils.loadJar;
 
 public class FunctionConfigUtils {
-
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {
 
@@ -276,5 +277,176 @@ public class FunctionConfigUtils {
         }
 
         return functionConfig;
+    }
+
+    private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
+        Class<?>[] typeArgs = Utils.getFunctionTypes(functionConfig, clsLoader);
+        // inputs use default schema, so there is no check needed there
+
+        // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
+        // implements SerDe class
+        if (functionConfig.getCustomSerdeInputs() != null) {
+            functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
+                ValidatorUtils.validateSerde(inputSerializer, typeArgs[0], clsLoader, true);
+            });
+        }
+
+        // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
+        // implements SerDe class
+        if (functionConfig.getCustomSchemaInputs() != null) {
+            functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
+                ValidatorUtils.validateSchema(schemaType, typeArgs[0], clsLoader, true);
+            });
+        }
+
+        // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
+        // implements Schema or SerDe classes
+
+        if (functionConfig.getInputSpecs() != null) {
+            functionConfig.getInputSpecs().forEach((topicName, conf) -> {
+                // Need to make sure that one and only one of schema/serde is set
+                if (!isEmpty(conf.getSchemaType()) && !isEmpty(conf.getSerdeClassName())) {
+                    throw new IllegalArgumentException(
+                            String.format("Only one of schemaType or serdeClassName should be set in inputSpec"));
+                }
+                if (!isEmpty(conf.getSerdeClassName())) {
+                    ValidatorUtils.validateSerde(conf.getSerdeClassName(), typeArgs[0], clsLoader, true);
+                }
+                if (!isEmpty(conf.getSchemaType())) {
+                    ValidatorUtils.validateSchema(conf.getSchemaType(), typeArgs[0], clsLoader, true);
+                }
+            });
+        }
+
+        if (Void.class.equals(typeArgs[1])) {
+            return;
+        }
+
+        // One and only one of outputSchemaType and outputSerdeClassName should be set
+        if (!isEmpty(functionConfig.getOutputSerdeClassName()) && !isEmpty(functionConfig.getOutputSchemaType())) {
+            throw new IllegalArgumentException(
+                    String.format("Only one of outputSchemaType or outputSerdeClassName should be set"));
+        }
+
+        if (!isEmpty(functionConfig.getOutputSchemaType())) {
+            ValidatorUtils.validateSchema(functionConfig.getOutputSchemaType(), typeArgs[1], clsLoader, false);
+        }
+
+        if (!isEmpty(functionConfig.getOutputSerdeClassName())) {
+            ValidatorUtils.validateSerde(functionConfig.getOutputSerdeClassName(), typeArgs[1], clsLoader, false);
+        }
+
+    }
+
+    private static void doPythonChecks(FunctionConfig functionConfig) {
+        if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            throw new RuntimeException("Effectively-once processing guarantees not yet supported in Python");
+        }
+
+        if (functionConfig.getWindowConfig() != null) {
+            throw new IllegalArgumentException("There is currently no support windowing in python");
+        }
+
+        if (functionConfig.getMaxMessageRetries() >= 0) {
+            throw new IllegalArgumentException("Message retries not yet supported in python");
+        }
+    }
+
+    private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic) throws IllegalArgumentException {
+        if (inputTopics.contains(outputTopic)) {
+            throw new IllegalArgumentException(
+                    String.format("Output topic %s is also being used as an input topic (topics must be one or the other)",
+                            outputTopic));
+        }
+    }
+
+    private static void doCommonChecks(FunctionConfig functionConfig) {
+        Collection<String> allInputTopics = collectAllInputTopics(functionConfig);
+        if (allInputTopics.isEmpty()) {
+            throw new RuntimeException("No input topic(s) specified for the function");
+        }
+
+        // Ensure that topics aren't being used as both input and output
+        verifyNoTopicClash(allInputTopics, functionConfig.getOutput());
+
+        WindowConfig windowConfig = functionConfig.getWindowConfig();
+        if (windowConfig != null) {
+            // set auto ack to false since windowing framework is responsible
+            // for acking and not the function framework
+            if (functionConfig.isAutoAck() == true) {
+                throw new IllegalArgumentException("Cannot enable auto ack when using windowing functionality");
+            }
+            WindowConfigUtils.validate(windowConfig);
+        }
+
+        if (functionConfig.getTimeoutMs() != null
+                && functionConfig.getProcessingGuarantees() != null
+                && functionConfig.getProcessingGuarantees() != FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+            throw new IllegalArgumentException("Message timeout can only be specified with processing guarantee is "
+                    + FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE.name());
+        }
+
+        if (functionConfig.getMaxMessageRetries() >= 0
+                && functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            throw new IllegalArgumentException("MaxMessageRetries and Effectively once don't gel well");
+        }
+        if (functionConfig.getMaxMessageRetries() < 0 && !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getDeadLetterTopic())) {
+            throw new IllegalArgumentException("Dead Letter Topic specified, however max retries is set to infinity");
+        }
+    }
+
+    private static Collection<String> collectAllInputTopics(FunctionConfig functionConfig) {
+        List<String> retval = new LinkedList<>();
+        if (functionConfig.getInputs() != null) {
+            retval.addAll(functionConfig.getInputs());
+        }
+        if (functionConfig.getTopicsPattern() != null) {
+            retval.add(functionConfig.getTopicsPattern());
+        }
+        if (functionConfig.getCustomSerdeInputs() != null) {
+            retval.addAll(functionConfig.getCustomSerdeInputs().keySet());
+        }
+        if (functionConfig.getCustomSchemaInputs() != null) {
+            retval.addAll(functionConfig.getCustomSchemaInputs().keySet());
+        }
+        if (functionConfig.getInputSpecs() != null) {
+            retval.addAll(functionConfig.getInputSpecs().keySet());
+        }
+        return retval;
+    }
+
+    public static ClassLoader validate(FunctionConfig functionConfig, String functionPkgUrl, File uploadedInputStreamAsFile) {
+        doCommonChecks(functionConfig);
+        if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
+            ClassLoader classLoader = null;
+            if (org.apache.commons.lang3.StringUtils.isNotBlank(functionPkgUrl)) {
+                try {
+                    classLoader = Utils.extractClassLoader(functionPkgUrl);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("Corrupted Jar File", e);
+                }
+            } else if (uploadedInputStreamAsFile != null) {
+                try {
+                    classLoader = loadJar(uploadedInputStreamAsFile);
+                } catch (MalformedURLException e) {
+                    throw new IllegalArgumentException("Corrupted Jar File", e);
+                }
+            } else {
+                File jarFile = new File(functionConfig.getJar());
+                if (!jarFile.exists()) {
+                    throw new IllegalArgumentException("Jar file does not exist");
+                }
+                try {
+                    classLoader = loadJar(jarFile);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("Corrupted Jar File", e);
+                }
+            }
+            doJavaChecks(functionConfig, classLoader);
+            return classLoader;
+        } else {
+            doPythonChecks(functionConfig);
+            return null;
+        }
     }
 }

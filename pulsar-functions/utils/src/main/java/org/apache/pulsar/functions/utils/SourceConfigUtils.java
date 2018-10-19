@@ -28,8 +28,11 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Map;
 
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
@@ -166,5 +169,36 @@ public class SourceConfigUtils {
             sourceConfig.setResources(resources);
         }
         return sourceConfig;
+    }
+
+    public static NarClassLoader validate(SourceConfig sourceConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
+        NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+        if (classLoader == null) {
+            // This happens at the cli for builtin. There is no need to check this since
+            // the actual check will be done at serverside
+            return null;
+        }
+
+        String sourceClassName;
+        try {
+            sourceClassName = ConnectorUtils.getIOSourceClass(classLoader);
+        } catch (IOException e1) {
+            throw new IllegalArgumentException("Failed to extract source class from archive", e1);
+        }
+
+        Class<?> typeArg = getSourceType(sourceClassName, classLoader);
+
+        // Only one of serdeClassName or schemaType should be set
+        if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
+            throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
+        }
+
+        if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
+            ValidatorUtils.validateSerde(sourceConfig.getSerdeClassName(), typeArg, classLoader, false);
+        }
+        if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
+            ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
+        }
+        return classLoader;
     }
 }

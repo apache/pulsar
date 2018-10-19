@@ -38,10 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Resources;
-import org.apache.pulsar.functions.utils.SourceConfig;
+import org.apache.pulsar.functions.utils.*;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -104,7 +101,7 @@ public class TestCmdSources {
         PowerMockito.doNothing().when(CmdFunctions.class, "startLocalRun", Mockito.any(), Mockito.anyInt(), Mockito.anyInt(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME).getFile();
         WRONG_JAR_PATH = Thread.currentThread().getContextClassLoader().getResource(WRONG_JAR_FILE_NAME).getFile();
-        Thread.currentThread().setContextClassLoader(Reflections.loadJar(new File(JAR_FILE_PATH)));
+        Thread.currentThread().setContextClassLoader(Utils.loadJar(new File(JAR_FILE_PATH)));
     }
 
     public SourceConfig getSourceConfig() {

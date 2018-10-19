@@ -49,7 +49,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
@@ -134,35 +133,6 @@ public final class Utils {
                     out.flush();
                 }
             }
-        }
-    }
-
-    public static ClassLoader validateFileUrl(String destPkgUrl, String downloadPkgDir) throws IOException, URISyntaxException {
-        if (destPkgUrl.startsWith(FILE)) {
-            URL url = new URL(destPkgUrl);
-            File file = new File(url.toURI());
-            if (!file.exists()) {
-                throw new IOException(destPkgUrl + " does not exists locally");
-            }
-            try {
-                return Reflections.loadJar(file);
-            } catch (MalformedURLException e) {
-                throw new IllegalArgumentException(
-                        "Corrupt User PackageFile " + file + " with error " + e.getMessage());
-            }
-        } else if (destPkgUrl.startsWith("http")) {
-            URL website = new URL(destPkgUrl);
-            File tempFile = new File(downloadPkgDir, website.getHost() + UUID.randomUUID().toString());
-            ReadableByteChannel rbc = Channels.newChannel(website.openStream());
-            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                fos.getChannel().transferFrom(rbc, 0, 10);
-            }
-            if (tempFile.exists()) {
-                tempFile.delete();
-            }
-            return null;
-        } else {
-            throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
         }
     }
 

@@ -24,7 +24,6 @@ import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
-import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
@@ -69,25 +68,15 @@ import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.Resources;
-import org.apache.pulsar.functions.proto.Function.RetryDetails;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.*;
-import org.apache.pulsar.functions.utils.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassesValidator;
-import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
 import org.apache.pulsar.functions.windowing.WindowUtils;
 
 @Slf4j
@@ -534,7 +523,7 @@ public class CmdFunctions extends CmdBase {
                 if (jarFilePath != null) {
                     File file = new File(jarFilePath);
                     try {
-                        classLoader = Reflections.loadJar(file);
+                        classLoader = Utils.loadJar(file);
                     } catch (MalformedURLException e) {
                         throw new ParameterException(
                                 "Failed to load user jar " + file + " with error " + e.getMessage());

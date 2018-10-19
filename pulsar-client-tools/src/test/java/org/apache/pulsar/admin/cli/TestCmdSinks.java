@@ -40,10 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Resources;
-import org.apache.pulsar.functions.utils.SinkConfig;
+import org.apache.pulsar.functions.utils.*;
 import org.apache.pulsar.io.cassandra.CassandraStringSink;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
@@ -124,7 +121,7 @@ public class TestCmdSinks {
         }
         JAR_FILE_PATH = file.getFile();
         WRONG_JAR_PATH = Thread.currentThread().getContextClassLoader().getResource(WRONG_JAR_FILE_NAME).getFile();
-        Thread.currentThread().setContextClassLoader(Reflections.loadJar(new File(JAR_FILE_PATH)));
+        Thread.currentThread().setContextClassLoader(Utils.loadJar(new File(JAR_FILE_PATH)));
     }
 
     public SinkConfig getSinkConfig() {
