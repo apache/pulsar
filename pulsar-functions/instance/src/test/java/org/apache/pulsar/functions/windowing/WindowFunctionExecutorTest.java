@@ -218,12 +218,6 @@ public class WindowFunctionExecutorTest {
     @Test
     public void testSettingSlidingCountWindow() throws Exception {
         final Object[][] args = new Object[][]{
-                {-1, 10},
-                {10, -1},
-                {0, 10},
-                {10, 0},
-                {0, 0},
-                {-1, -1},
                 {5, 10},
                 {1, 1},
                 {10, 5},
@@ -231,11 +225,7 @@ public class WindowFunctionExecutorTest {
                 {100, 100},
                 {200, 100},
                 {500, 100},
-                {null, null},
-                {null, 1},
                 {1, null},
-                {null, -1},
-                {-1, null}
         };
 
         for (Object[] arg : args) {
@@ -311,12 +301,6 @@ public class WindowFunctionExecutorTest {
     @Test
     public void testSettingSlidingTimeWindow() throws Exception {
         final Object[][] args = new Object[][]{
-                {-1L, 10L},
-                {10L, -1L},
-                {0L, 10L},
-                {10L, 0L},
-                {0L, 0L},
-                {-1L, -1L},
                 {5L, 10L},
                 {1L, 1L},
                 {10L, 5L},
@@ -324,11 +308,7 @@ public class WindowFunctionExecutorTest {
                 {100L, 100L},
                 {200L, 100L},
                 {500L, 100L},
-                {null, null},
-                {null, 1L},
                 {1L, null},
-                {null, -1L},
-                {-1L, null}
         };
 
         for (Object[] arg : args) {
@@ -400,7 +380,7 @@ public class WindowFunctionExecutorTest {
 
     @Test
     public void testSettingTumblingCountWindow() throws Exception {
-        final Object[] args = new Object[]{-1, 0, 1, 2, 5, 10, null};
+        final Object[] args = new Object[]{1, 2, 5, 10};
 
         for (Object arg : args) {
             Object arg0 = arg;
@@ -454,7 +434,7 @@ public class WindowFunctionExecutorTest {
 
     @Test
     public void testSettingTumblingTimeWindow() throws Exception {
-        final Object[] args = new Object[]{-1L, 0L, 1L, 2L, 5L, 10L, null};
+        final Object[] args = new Object[]{1L, 2L, 5L, 10L};
         for (Object arg : args) {
             Object arg0 = arg;
             try {
@@ -507,7 +487,7 @@ public class WindowFunctionExecutorTest {
 
     @Test
     public void testSettingLagTime() throws Exception {
-        final Object[] args = new Object[]{-1L, 0L, 1L, 2L, 5L, 10L, null};
+        final Object[] args = new Object[]{0L, 1L, 2L, 5L, 10L, null};
         for (Object arg : args) {
             Object arg0 = arg;
             try {
