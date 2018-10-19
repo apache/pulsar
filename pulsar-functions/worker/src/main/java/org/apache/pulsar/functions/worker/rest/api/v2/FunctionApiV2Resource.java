@@ -107,7 +107,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                               final @PathParam("functionName") String functionName,
                                               final @PathParam("instanceId") String instanceId) throws IOException {
         return functions.getFunctionInstanceStatus(
-            tenant, namespace, functionName, instanceId, uri.getRequestUri());
+            tenant, namespace, functionName, FunctionsImpl.FUNCTION, instanceId, uri.getRequestUri());
     }
 
     @GET
@@ -116,7 +116,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                       final @PathParam("namespace") String namespace,
                                       final @PathParam("functionName") String functionName) throws IOException {
         return functions.getFunctionStatus(
-            tenant, namespace, functionName, uri.getRequestUri());
+            tenant, namespace, functionName, FunctionsImpl.FUNCTION, uri.getRequestUri());
     }
 
     @GET
