@@ -75,8 +75,6 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.*;
-import org.apache.pulsar.functions.utils.validation.ConfigValidation;
-import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassesValidator;
 import org.apache.pulsar.functions.windowing.WindowUtils;
 
 @Slf4j
@@ -494,48 +492,18 @@ public class CmdFunctions extends CmdBase {
                         + " be specified for the function. Please specify one.");
             }
 
-            boolean isJarPathUrl = isNotBlank(functionConfig.getJar()) && Utils.isFunctionPackageUrlSupported(functionConfig.getJar());
-            String jarFilePath = null;
-            if (isJarPathUrl) {
-                if (functionConfig.getJar().startsWith(Utils.HTTP)) {
-                    // download jar file if url is http or file is downloadable
-                    File tempPkgFile = null;
-                    try {
-                        tempPkgFile = downloadFromHttpUrl(functionConfig.getJar(), functionConfig.getName());
-                        jarFilePath = tempPkgFile.getAbsolutePath();
-                    } catch (Exception e) {
-                        if (tempPkgFile != null) {
-                            tempPkgFile.deleteOnExit();
-                        }
-                        throw new ParameterException("Failed to download jar from " + functionConfig.getJar()
-                                + ", due to =" + e.getMessage());
-                    }
-                }
-            } else {
-                if (!fileExists(userCodeFile)) {
-                    throw new ParameterException("File " + userCodeFile + " does not exist");
-                }
-                jarFilePath = userCodeFile;
+            if (!isBlank(functionConfig.getJar()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar()) &&
+                    !new File(functionConfig.getJar()).exists()) {
+                throw new ParameterException("The specified jar file does not exist");
             }
-
-            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-
-                if (jarFilePath != null) {
-                    File file = new File(jarFilePath);
-                    try {
-                        classLoader = Utils.loadJar(file);
-                    } catch (MalformedURLException e) {
-                        throw new ParameterException(
-                                "Failed to load user jar " + file + " with error " + e.getMessage());
-                    }
-                    (new ImplementsClassesValidator(Function.class, java.util.function.Function.class))
-                            .validateField("className", functionConfig.getClassName(), classLoader);
-                }
+            if (!isBlank(functionConfig.getPy()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy()) &&
+                    !new File(functionConfig.getPy()).exists()) {
+                throw new ParameterException("The specified jar file does not exist");
             }
 
             try {
                 // Need to load jar and set context class loader before calling
-                ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name(), classLoader);
+                classLoader = FunctionConfigUtils.validate(functionConfig, null, null);
             } catch (Exception e) {
                 throw new IllegalArgumentException(e.getMessage());
             }

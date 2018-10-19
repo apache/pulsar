@@ -189,6 +189,13 @@ public class SourceConfigUtils {
         if (!TopicName.isValid(sourceConfig.getTopicName())) {
             throw new IllegalArgumentException("Topic name is invalid");
         }
+        if (sourceConfig.getParallelism() <= 0) {
+            throw new IllegalArgumentException("Source parallelism should positive number");
+        }
+        if (sourceConfig.getResources() != null) {
+            ResourceConfigUtils.validate(sourceConfig.getResources());
+        }
+
         NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
         if (classLoader == null) {
             // This happens at the cli for builtin. There is no need to check this since
