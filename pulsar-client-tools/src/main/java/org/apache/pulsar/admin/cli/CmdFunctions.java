@@ -697,9 +697,9 @@ public class CmdFunctions extends CmdBase {
     class GetFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(admin.functions().getFunction(tenant, namespace, functionName));
+            FunctionConfig functionConfig = admin.functions().getFunction(tenant, namespace, functionName);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
+            System.out.println(gson.toJson(functionConfig));
         }
     }
 

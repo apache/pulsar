@@ -73,7 +73,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                                    final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         return functions.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, null, sourceConfigJson, null, clientAppId());
+                functionPkgUrl, null, sourceConfigJson, FunctionsImpl.SOURCE, clientAppId());
     }
 
     @PUT
@@ -94,7 +94,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                                  final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         return functions.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, null, sourceConfigJson, null, clientAppId());
+                functionPkgUrl, null, sourceConfigJson, FunctionsImpl.SOURCE, clientAppId());
 
     }
 
@@ -112,7 +112,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public Response deregisterSource(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("sourceName") String sourceName) {
-        return functions.deregisterFunction(tenant, namespace, sourceName, clientAppId());
+        return functions.deregisterFunction(tenant, namespace, sourceName, FunctionsImpl.SOURCE, clientAppId());
     }
 
     @GET
@@ -131,7 +131,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                                   final @PathParam("namespace") String namespace,
                                   final @PathParam("sourceName") String sourceName) throws IOException {
         return functions.getFunctionInfo(
-            tenant, namespace, sourceName);
+            tenant, namespace, sourceName, FunctionsImpl.SOURCE);
     }
 
     @GET
@@ -183,7 +183,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public Response listSources(final @PathParam("tenant") String tenant,
                                 final @PathParam("namespace") String namespace) {
         return functions.listFunctions(
-            tenant, namespace);
+            tenant, namespace, FunctionsImpl.SOURCE);
 
     }
 
