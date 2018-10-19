@@ -398,7 +398,7 @@ public class CmdSources extends CmdBase {
             if (!Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) &&
                 !sourceConfig.getArchive().startsWith(BUILTIN)) {
                 if (!new File(sourceConfig.getArchive()).exists()) {
-                    throw new IllegalArgumentException("Source Archive does not exist");
+                    throw new IllegalArgumentException(String.format("Source Archive %s does not exist", sourceConfig.getArchive()));
                 }
             }
 
