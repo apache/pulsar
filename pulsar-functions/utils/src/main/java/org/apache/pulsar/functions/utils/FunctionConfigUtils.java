@@ -490,7 +490,7 @@ public class FunctionConfigUtils {
                 } catch (MalformedURLException e) {
                     throw new IllegalArgumentException("Corrupted Jar File", e);
                 }
-            } else {
+            } else if (!isEmpty(functionConfig.getJar())) {
                 File jarFile = new File(functionConfig.getJar());
                 if (!jarFile.exists()) {
                     throw new IllegalArgumentException("Jar file does not exist");
@@ -500,6 +500,8 @@ public class FunctionConfigUtils {
                 } catch (Exception e) {
                     throw new IllegalArgumentException("Corrupted Jar File", e);
                 }
+            } else {
+                throw new IllegalArgumentException("Function Package is not provided");
             }
             doJavaChecks(functionConfig, classLoader);
             return classLoader;
