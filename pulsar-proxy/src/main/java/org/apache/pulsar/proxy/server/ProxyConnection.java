@@ -46,6 +46,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
@@ -91,17 +92,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         return client.getCnxPool();
     }
 
-    private static final Gauge activeConnections = Gauge
-            .build("pulsar_proxy_active_connections", "Number of connections currently active in the proxy").create()
-            .register();
 
-    private static final Counter newConnections = Counter
-            .build("pulsar_proxy_new_connections", "Counter of connections being opened in the proxy").create()
-            .register();
-
-    static final Counter rejectedConnections = Counter
-            .build("pulsar_proxy_rejected_connections", "Counter for connections rejected due to throttling").create()
-            .register();
 
     public ProxyConnection(ProxyService proxyService) {
         super(30, TimeUnit.SECONDS);
@@ -112,10 +103,10 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         super.channelRegistered(ctx);
-        activeConnections.inc();
-        if (activeConnections.get() > service.getConfiguration().getMaxConcurrentInboundConnections()) {
+        ProxyService.activeConnections.inc();
+        if (ProxyService.activeConnections.get() > service.getConfiguration().getMaxConcurrentInboundConnections()) {
             ctx.close();
-            rejectedConnections.inc();
+            ProxyService.rejectedConnections.inc();
             return;
         }
     }
@@ -123,13 +114,13 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
         super.channelUnregistered(ctx);
-        activeConnections.dec();
+        ProxyService.activeConnections.dec();
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        newConnections.inc();
+        ProxyService.newConnections.inc();
         LOG.info("[{}] New connection opened", remoteAddress);
     }
 
@@ -144,7 +135,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         if (client != null) {
             client.close();
         }
-        
+
         LOG.info("[{}] Connection closed", remoteAddress);
     }
 
@@ -167,8 +158,11 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
         case ProxyConnectionToBroker:
             // Pass the buffer to the outbound connection and schedule next read
-            // only
-            // if we can write on the connection
+            // only if we can write on the connection
+            ProxyService.opsCounter.inc();
+            if (msg instanceof ByteBuf) {
+                ProxyService.bytesCounter.inc(((ByteBuf) msg).readableBytes());
+            }
             directProxyHandler.outboundChannel.writeAndFlush(msg).addListener(this);
             break;
 
@@ -291,7 +285,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                                 service.getWorkerGroup())));
                 return true;
             }
-            
+
             String authMethod = "none";
             if (connect.hasAuthMethodName()) {
                 authMethod = connect.getAuthMethodName();
