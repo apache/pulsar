@@ -412,7 +412,7 @@ public class FunctionsImpl {
 
         // validate parameters
         try {
-            validateGetFunctionInstanceRequestParams(tenant, namespace, functionName, instanceId);
+            validateGetFunctionInstanceRequestParams(tenant, namespace, functionName, FUNCTION, instanceId);
         } catch (IllegalArgumentException e) {
             log.error("Invalid getFunctionStatus request @ /{}/{}/{}", tenant, namespace, functionName, e);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
@@ -449,18 +449,18 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(jsonResponse).build();
     }
 
-    public Response stopFunctionInstance(final String tenant, final String namespace, final String functionName,
-            final String instanceId, URI uri) {
-        return stopFunctionInstance(tenant, namespace, functionName, instanceId, false, uri);
+    public Response stopFunctionInstance(final String tenant, final String namespace, final String componentName,
+            final String componentType, final String instanceId, URI uri) {
+        return stopFunctionInstance(tenant, namespace, componentName, componentType, instanceId, false, uri);
     }
 
-    public Response restartFunctionInstance(final String tenant, final String namespace, final String functionName,
-            final String instanceId, URI uri) {
-        return stopFunctionInstance(tenant, namespace, functionName, instanceId, true, uri);
+    public Response restartFunctionInstance(final String tenant, final String namespace, final String componentName,
+            final String componentType, final String instanceId, URI uri) {
+        return stopFunctionInstance(tenant, namespace, componentName, componentType, instanceId, true, uri);
     }
 
-    public Response stopFunctionInstance(final String tenant, final String namespace, final String functionName,
-            final String instanceId, boolean restart, URI uri) {
+    public Response stopFunctionInstance(final String tenant, final String namespace, final String componentName,
+            final String componentType, final String instanceId, boolean restart, URI uri) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -468,42 +468,51 @@ public class FunctionsImpl {
 
         // validate parameters
         try {
-            validateGetFunctionInstanceRequestParams(tenant, namespace, functionName, instanceId);
+            validateGetFunctionInstanceRequestParams(tenant, namespace, componentName, componentType, instanceId);
         } catch (IllegalArgumentException e) {
-            log.error("Invalid restart-function request @ /{}/{}/{}", tenant, namespace, functionName, e);
+            log.error("Invalid restart {} request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.error("{} does not exist @ /{}/{}/{}", componentType, tenant, namespace, componentName);
             return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+                    .entity(new ErrorData(String.format("%s %s doesn't exist", componentType, componentName))).build();
+        }
+
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format(componentType + " %s doesn't exist", componentName))).build();
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         try {
-            return functionRuntimeManager.stopFunctionInstance(tenant, namespace, functionName,
+            return functionRuntimeManager.stopFunctionInstance(tenant, namespace, componentName,
                     Integer.parseInt(instanceId), restart, uri);
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {
-            log.error("Failed to restart function: {}/{}/{}/{}", tenant, namespace, functionName, instanceId, e);
+            log.error("Failed to restart {}: {}/{}/{}/{}", componentType, tenant, namespace, componentName, instanceId, e);
             return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
         }
     }
 
-    public Response stopFunctionInstances(final String tenant, final String namespace, final String functionName) {
-        return stopFunctionInstances(tenant, namespace, functionName, false);
+    public Response stopFunctionInstances(final String tenant, final String namespace, final String componentName,
+                                          final String componentType) {
+        return stopFunctionInstances(tenant, namespace, componentName, componentType, false);
     }
 
-    public Response restartFunctionInstances(final String tenant, final String namespace, final String functionName) {
-        return stopFunctionInstances(tenant, namespace, functionName, true);
+    public Response restartFunctionInstances(final String tenant, final String namespace, final String componentName,
+                                             final String componentType) {
+        return stopFunctionInstances(tenant, namespace, componentName, componentType, true);
     }
 
-    public Response stopFunctionInstances(final String tenant, final String namespace, final String functionName,
-            boolean restart) {
+    public Response stopFunctionInstances(final String tenant, final String namespace, final String componentName,
+            final String componentType, boolean restart) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -511,27 +520,34 @@ public class FunctionsImpl {
 
         // validate parameters
         try {
-            validateGetFunctionRequestParams(tenant, namespace, functionName, FUNCTION);
+            validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
         } catch (IllegalArgumentException e) {
-            log.error("Invalid restart-Function request @ /{}/{}/{}", tenant, namespace, functionName, e);
+            log.error("Invalid restart {} request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.error("{} in getFunctionStatus does not exist @ /{}/{}/{}", componentType, tenant, namespace, componentName);
             return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+                    .entity(new ErrorData(String.format("%s %s doesn't exist", componentType, componentName))).build();
+        }
+
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format(componentType + " %s doesn't exist", componentName))).build();
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         try {
-            return functionRuntimeManager.stopFunctionInstances(tenant, namespace, functionName, restart);
+            return functionRuntimeManager.stopFunctionInstances(tenant, namespace, componentName, restart);
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {
-            log.error("Failed to restart function: {}/{}/{}", tenant, namespace, functionName, e);
+            log.error("Failed to restart {}: {}/{}/{}", componentType, tenant, namespace, componentName, e);
             return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
         }
     }
@@ -870,11 +886,11 @@ public class FunctionsImpl {
         }
     }
 
-    private void validateGetFunctionInstanceRequestParams(String tenant, String namespace, String functionName,
-            String instanceId) throws IllegalArgumentException {
-        validateGetFunctionRequestParams(tenant, namespace, functionName, FUNCTION);
+    private void validateGetFunctionInstanceRequestParams(String tenant, String namespace, String componentName,
+            String componentType, String instanceId) throws IllegalArgumentException {
+        validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
         if (instanceId == null) {
-            throw new IllegalArgumentException("Function Instance Id is not provided");
+            throw new IllegalArgumentException(String.format("%s Instance Id is not provided", componentType));
         }
     }
 

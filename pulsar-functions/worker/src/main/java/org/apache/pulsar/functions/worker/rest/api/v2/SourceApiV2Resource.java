@@ -126,7 +126,7 @@ public class SourceApiV2Resource extends FunctionApiResource {
     public Response restartSource(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName,
             final @PathParam("instanceId") String instanceId) {
-        return functions.restartFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri());
+        return functions.restartFunctionInstance(tenant, namespace, sourceName, FunctionsImpl.SOURCE, instanceId, this.uri.getRequestUri());
     }
 
     @POST
@@ -138,7 +138,7 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response restartSource(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
-        return functions.restartFunctionInstances(tenant, namespace, sourceName);
+        return functions.restartFunctionInstances(tenant, namespace, sourceName, FunctionsImpl.SOURCE);
     }
 
     @POST
@@ -151,7 +151,7 @@ public class SourceApiV2Resource extends FunctionApiResource {
     public Response stopSource(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName,
             final @PathParam("instanceId") String instanceId) {
-        return functions.stopFunctionInstance(tenant, namespace, sourceName, instanceId, this.uri.getRequestUri());
+        return functions.stopFunctionInstance(tenant, namespace, sourceName, FunctionsImpl.SOURCE, instanceId, this.uri.getRequestUri());
     }
 
     @POST
@@ -163,7 +163,7 @@ public class SourceApiV2Resource extends FunctionApiResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response stopSource(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
-        return functions.stopFunctionInstances(tenant, namespace, sourceName);
+        return functions.stopFunctionInstances(tenant, namespace, sourceName, FunctionsImpl.SOURCE);
     }
 
     @GET

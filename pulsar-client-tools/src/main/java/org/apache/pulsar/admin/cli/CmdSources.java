@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
@@ -71,6 +72,8 @@ public class CmdSources extends CmdBase {
     private final GetSource getSource;
     private final ListSources listSources;
     private final UpdateSource updateSource;
+    private final RestartSource restartSource;
+    private final StopSource stopSource;
     private final LocalSourceRunner localSourceRunner;
 
     public CmdSources(PulsarAdmin admin) {
@@ -80,6 +83,8 @@ public class CmdSources extends CmdBase {
         deleteSource = new DeleteSource();
         listSources = new ListSources();
         getSource = new GetSource();
+        restartSource = new RestartSource();
+        stopSource = new StopSource();
         localSourceRunner = new LocalSourceRunner();
 
         jcommander.addCommand("create", createSource);
@@ -87,6 +92,8 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("get", getSource);
         jcommander.addCommand("list", listSources);
+        jcommander.addCommand("stop", stopSource);
+        jcommander.addCommand("restart", restartSource);
         jcommander.addCommand("localrun", localSourceRunner);
         jcommander.addCommand("available-sources", new ListBuiltInSources());
     }
@@ -545,6 +552,48 @@ public class CmdSources extends CmdBase {
             List<String> sources = admin.source().listSources(tenant, namespace);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(sources));
+        }
+    }
+
+    @Parameters(commandDescription = "Restart source instance")
+    class RestartSource extends SourceCommand {
+
+        @Parameter(names = "--instance-id", description = "The source instanceId (restart all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.source().restartSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.source().restartSource(tenant, namespace, sourceName);
+            }
+            System.out.println("Restarted successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Temporary stops source instance. (If worker restarts then it reassigns and starts source again")
+    class StopSource extends SourceCommand {
+
+        @Parameter(names = "--instance-id", description = "The source instanceId (stop all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.source().stopSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.source().stopSource(tenant, namespace, sourceName);
+            }
+            System.out.println("Restarted successfully");
         }
     }
 
