@@ -208,7 +208,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'name' cannot be null!")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink name cannot be null")
     public void testMissingName() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setName(null);
@@ -365,7 +365,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
     public void testNegativeParallelism() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setParallelism(-1);
@@ -387,7 +387,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
     public void testZeroParallelism() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setParallelism(0);
@@ -453,7 +453,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar" +
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Sink Archive file /tmp/foo.jar" +
             " does not exist")
     public void testInvalidJar() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
@@ -670,7 +670,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'name' cannot be null!")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink name cannot be null")
     public void testCmdSinkConfigFileMissingName() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setName(null);
@@ -719,7 +719,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
     public void testCmdSinkConfigFileZeroParallelism() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setParallelism(0);
@@ -729,7 +729,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
     public void testCmdSinkConfigFileNegativeParallelism() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setParallelism(-1);
@@ -769,7 +769,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar does not exist")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Sink Archive file /tmp/foo.jar does not exist")
     public void testCmdSinkConfigFileInvalidJar() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive("/tmp/foo.jar");

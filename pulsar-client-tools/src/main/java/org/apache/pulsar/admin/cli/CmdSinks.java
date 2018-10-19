@@ -441,7 +441,7 @@ public class CmdSinks extends CmdBase {
             if (!Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive()) &&
                     !sinkConfig.getArchive().startsWith(BUILTIN)) {
                 if (!new File(sinkConfig.getArchive()).exists()) {
-                    throw new IllegalArgumentException("Sink Archive does not exist");
+                    throw new IllegalArgumentException(String.format("Sink Archive file %s does not exist", sinkConfig.getArchive()));
                 }
             }
 
