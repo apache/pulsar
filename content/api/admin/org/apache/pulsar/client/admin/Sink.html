@@ -149,7 +149,7 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i4" class="altColor">
-<td class="colFirst"><code>Function.FunctionDetails</code></td>
+<td class="colFirst"><code>SinkConfig</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Sink.html#getSink-java.lang.String-java.lang.String-java.lang.String-">getSink</a></span>(String&nbsp;tenant,
        String&nbsp;namespace,
        String&nbsp;sink)</code>
@@ -157,13 +157,6 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i5" class="rowColor">
-<td class="colFirst"><code>List&lt;String&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Sink.html#getSinks-java.lang.String-java.lang.String-">getSinks</a></span>(String&nbsp;tenant,
-        String&nbsp;namespace)</code>
-<div class="block">Get the list of sinks.</div>
-</td>
-</tr>
-<tr id="i6" class="altColor">
 <td class="colFirst"><code>FunctionStatusList</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-">getSinkStatus</a></span>(String&nbsp;tenant,
              String&nbsp;namespace,
@@ -171,13 +164,20 @@ var activeTableTab = "activeTableTab";
 <div class="block">Gets the current status of a sink.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>FunctionStatus</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-int-">getSinkStatus</a></span>(String&nbsp;tenant,
              String&nbsp;namespace,
              String&nbsp;sink,
              int&nbsp;id)</code>
 <div class="block">Gets the current status of a sink instance.</div>
+</td>
+</tr>
+<tr id="i7" class="rowColor">
+<td class="colFirst"><code>List&lt;String&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Sink.html#listSinks-java.lang.String-java.lang.String-">listSinks</a></span>(String&nbsp;tenant,
+         String&nbsp;namespace)</code>
+<div class="block">Get the list of sinks.</div>
 </td>
 </tr>
 <tr id="i8" class="altColor">
@@ -243,15 +243,15 @@ var activeTableTab = "activeTableTab";
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a name="getSinks-java.lang.String-java.lang.String-">
+<a name="listSinks-java.lang.String-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>getSinks</h4>
-<pre>List&lt;String&gt;&nbsp;getSinks(String&nbsp;tenant,
-                      String&nbsp;namespace)
-               throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<h4>listSinks</h4>
+<pre>List&lt;String&gt;&nbsp;listSinks(String&nbsp;tenant,
+                       String&nbsp;namespace)
+                throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get the list of sinks.
  <p>
  Get the list of all the Pulsar Sinks.
@@ -274,10 +274,10 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getSink</h4>
-<pre>Function.FunctionDetails&nbsp;getSink(String&nbsp;tenant,
-                                 String&nbsp;namespace,
-                                 String&nbsp;sink)
-                          throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<pre>SinkConfig&nbsp;getSink(String&nbsp;tenant,
+                   String&nbsp;namespace,
+                   String&nbsp;sink)
+            throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get the configuration for the specified sink.
  <p>
  Response Example:

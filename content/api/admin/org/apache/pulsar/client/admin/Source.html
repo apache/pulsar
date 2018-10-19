@@ -149,7 +149,7 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i4" class="altColor">
-<td class="colFirst"><code>Function.FunctionDetails</code></td>
+<td class="colFirst"><code>SourceConfig</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-">getSource</a></span>(String&nbsp;tenant,
          String&nbsp;namespace,
          String&nbsp;source)</code>
@@ -157,13 +157,6 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i5" class="rowColor">
-<td class="colFirst"><code>List&lt;String&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Source.html#getSources-java.lang.String-java.lang.String-">getSources</a></span>(String&nbsp;tenant,
-          String&nbsp;namespace)</code>
-<div class="block">Get the list of sources.</div>
-</td>
-</tr>
-<tr id="i6" class="altColor">
 <td class="colFirst"><code>FunctionStatusList</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Source.html#getSourceStatus-java.lang.String-java.lang.String-java.lang.String-">getSourceStatus</a></span>(String&nbsp;tenant,
                String&nbsp;namespace,
@@ -171,13 +164,20 @@ var activeTableTab = "activeTableTab";
 <div class="block">Gets the current status of a source.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>FunctionStatus</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Source.html#getSourceStatus-java.lang.String-java.lang.String-java.lang.String-int-">getSourceStatus</a></span>(String&nbsp;tenant,
                String&nbsp;namespace,
                String&nbsp;source,
                int&nbsp;id)</code>
 <div class="block">Gets the current status of a source instance.</div>
+</td>
+</tr>
+<tr id="i7" class="rowColor">
+<td class="colFirst"><code>List&lt;String&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Source.html#listSources-java.lang.String-java.lang.String-">listSources</a></span>(String&nbsp;tenant,
+           String&nbsp;namespace)</code>
+<div class="block">Get the list of sources.</div>
 </td>
 </tr>
 <tr id="i8" class="altColor">
@@ -243,15 +243,15 @@ var activeTableTab = "activeTableTab";
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a name="getSources-java.lang.String-java.lang.String-">
+<a name="listSources-java.lang.String-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>getSources</h4>
-<pre>List&lt;String&gt;&nbsp;getSources(String&nbsp;tenant,
-                        String&nbsp;namespace)
-                 throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<h4>listSources</h4>
+<pre>List&lt;String&gt;&nbsp;listSources(String&nbsp;tenant,
+                         String&nbsp;namespace)
+                  throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get the list of sources.
  <p>
  Get the list of all the Pulsar Sources.
@@ -274,10 +274,10 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getSource</h4>
-<pre>Function.FunctionDetails&nbsp;getSource(String&nbsp;tenant,
-                                   String&nbsp;namespace,
-                                   String&nbsp;source)
-                            throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<pre>SourceConfig&nbsp;getSource(String&nbsp;tenant,
+                       String&nbsp;namespace,
+                       String&nbsp;source)
+                throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get the configuration for the specified source.
  <p>
  Response Example:
