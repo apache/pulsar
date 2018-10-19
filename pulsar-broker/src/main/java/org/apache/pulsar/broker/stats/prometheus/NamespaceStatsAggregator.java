@@ -48,6 +48,8 @@ public class NamespaceStatsAggregator {
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
         TopicStats topicStats = localTopicStats.get();
 
+        printDefaultBrokerStats(stream, cluster);
+
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
 
@@ -151,6 +153,23 @@ public class NamespaceStatsAggregator {
         });
     }
 
+    private static void printDefaultBrokerStats(SimpleTextOutputStream stream, String cluster) {
+        // Print metrics with 0 values. This is necessary to have the available brokers being
+        // reported in the brokers dashboard even if they don't have any topic or traffi
+        metric(stream, cluster, "pulsar_topics_count", 0);
+        metric(stream, cluster, "pulsar_subscriptions_count", 0);
+        metric(stream, cluster, "pulsar_producers_count", 0);
+        metric(stream, cluster, "pulsar_consumers_count", 0);
+        metric(stream, cluster, "pulsar_rate_in", 0);
+        metric(stream, cluster, "pulsar_rate_out", 0);
+        metric(stream, cluster, "pulsar_throughput_in", 0);
+        metric(stream, cluster, "pulsar_throughput_out", 0);
+        metric(stream, cluster, "pulsar_storage_size", 0);
+        metric(stream, cluster, "pulsar_storage_write_rate", 0);
+        metric(stream, cluster, "pulsar_storage_read_rate", 0);
+        metric(stream, cluster, "pulsar_msg_backlog", 0);
+    }
+
     private static void printNamespaceStats(SimpleTextOutputStream stream, String cluster, String namespace,
                                             AggregatedNamespaceStats stats) {
         metric(stream, cluster, namespace, "pulsar_topics_count", stats.topicsCount);
@@ -214,6 +233,15 @@ public class NamespaceStatsAggregator {
                         replStats.replicationBacklog);
             });
         }
+    }
+
+    private static void metric(SimpleTextOutputStream stream, String cluster, String name,
+            long value) {
+        TopicStats.metricType(stream, name);
+        stream.write(name)
+                .write("{cluster=\"").write(cluster).write("\"} ")
+                .write(value).write(' ').write(System.currentTimeMillis())
+                .write('\n');
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String name,

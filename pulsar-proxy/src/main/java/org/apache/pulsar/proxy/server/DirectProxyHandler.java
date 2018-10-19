@@ -63,12 +63,6 @@ public class DirectProxyHandler {
 
     private final Authentication authentication;
 
-    static final Counter opsCounter = Counter
-            .build("pulsar_proxy_binary_ops", "Counter of proxy operations").create().register();
-
-    static final Counter bytesCounter = Counter
-            .build("pulsar_proxy_binary_bytes", "Counter of proxy bytes").create().register();
-
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl) {
         this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
@@ -176,9 +170,9 @@ public class DirectProxyHandler {
                 break;
 
             case HandshakeCompleted:
-                opsCounter.inc();
+                ProxyService.opsCounter.inc();
                 if (msg instanceof ByteBuf) {
-                    bytesCounter.inc(((ByteBuf) msg).readableBytes());
+                    ProxyService.bytesCounter.inc(((ByteBuf) msg).readableBytes());
                 }
                 inboundChannel.writeAndFlush(msg).addListener(this);
                 break;
