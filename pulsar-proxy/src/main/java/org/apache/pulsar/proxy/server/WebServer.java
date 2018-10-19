@@ -174,18 +174,19 @@ public class WebServer {
         ContextHandlerCollection contexts = new ContextHandlerCollection();
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
+        HandlerCollection handlerCollection = new HandlerCollection();
+        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+
         // Metrics handler
         StatisticsHandler stats = new StatisticsHandler();
-        stats.setHandler(server.getHandler());
+        stats.setHandler(handlerCollection);
         try {
             new JettyStatisticsCollector(stats).register();
         } catch (IllegalArgumentException e) {
             // Already registered. Eg: in unit tests
         }
 
-        HandlerCollection handlerCollection = new HandlerCollection();
-        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler, stats });
-        server.setHandler(handlerCollection);
+        server.setHandler(stats);
 
         try {
             server.start();
