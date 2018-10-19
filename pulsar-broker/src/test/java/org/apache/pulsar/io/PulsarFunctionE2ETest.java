@@ -407,36 +407,6 @@ public class PulsarFunctionE2ETest {
         }
     }
 
-    /**
-     * Test to verify: function-server loads jar using file-url and derives type-args classes if not provided
-     * @throws Exception
-     */
-    @Test(timeOut = 20000)
-    public void testFileUrlFunctionWithoutPassingTypeArgs() throws Exception {
-
-        final String namespacePortion = "io";
-        final String replNamespace = tenant + "/" + namespacePortion;
-        final String sinkTopic = "persistent://" + replNamespace + "/output";
-        final String functionName = "PulsarSink-test";
-        final String subscriptionName = "test-sub";
-        admin.namespaces().createNamespace(replNamespace);
-        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
-
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
-
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                "my.*", sinkTopic, subscriptionName);
-
-        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-
-        FunctionDetails functionMetadata = admin.source().getSource(tenant, namespacePortion, functionName);
-
-        assertEquals(functionMetadata.getSource().getTypeClassName(), String.class.getName());
-        assertEquals(functionMetadata.getSink().getTypeClassName(), String.class.getName());
-
-    }
-
     @Test(timeOut = 20000)
     public void testFunctionStopAndRestartApi() throws Exception {
 

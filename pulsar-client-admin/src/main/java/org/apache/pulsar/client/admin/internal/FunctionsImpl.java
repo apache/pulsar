@@ -46,7 +46,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.functions.utils.FunctionConfig;
@@ -80,16 +79,13 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public FunctionDetails getFunction(String tenant, String namespace, String function) throws PulsarAdminException {
+    public FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException {
         try {
              Response response = request(functions.path(tenant).path(namespace).path(function)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-            mergeJson(jsonResponse, functionDetailsBuilder);
-            return functionDetailsBuilder.build();
+            return response.readEntity(FunctionConfig.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

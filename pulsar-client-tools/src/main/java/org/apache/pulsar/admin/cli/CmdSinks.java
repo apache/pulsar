@@ -30,16 +30,14 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import lombok.Getter;
@@ -67,6 +65,8 @@ public class CmdSinks extends CmdBase {
     private final CreateSink createSink;
     private final UpdateSink updateSink;
     private final DeleteSink deleteSink;
+    private final ListSinks listSinks;
+    private final GetSink getSink;
     private final LocalSinkRunner localSinkRunner;
 
     public CmdSinks(PulsarAdmin admin) {
@@ -74,11 +74,15 @@ public class CmdSinks extends CmdBase {
         createSink = new CreateSink();
         updateSink = new UpdateSink();
         deleteSink = new DeleteSink();
+        listSinks = new ListSinks();
+        getSink = new GetSink();
         localSinkRunner = new LocalSinkRunner();
 
         jcommander.addCommand("create", createSink);
         jcommander.addCommand("update", updateSink);
         jcommander.addCommand("delete", deleteSink);
+        jcommander.addCommand("list", listSinks);
+        jcommander.addCommand("get", getSink);
         jcommander.addCommand("localrun", localSinkRunner);
         jcommander.addCommand("available-sinks", new ListBuiltInSinks());
     }
@@ -184,7 +188,7 @@ public class CmdSinks extends CmdBase {
     }
 
     @Parameters(commandDescription = "Submit a Pulsar IO sink connector to run in a Pulsar cluster")
-    protected class CreateSink extends SinkCommand {
+    protected class CreateSink extends SinkDetailsCommand {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(archive)) {
@@ -197,7 +201,7 @@ public class CmdSinks extends CmdBase {
     }
 
     @Parameters(commandDescription = "Update a Pulsar IO sink connector")
-    protected class UpdateSink extends SinkCommand {
+    protected class UpdateSink extends SinkDetailsCommand {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(archive)) {
@@ -209,7 +213,7 @@ public class CmdSinks extends CmdBase {
         }
     }
 
-    abstract class SinkCommand extends BaseCommand {
+    abstract class SinkDetailsCommand extends BaseCommand {
         @Parameter(names = "--tenant", description = "The sink's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The sink's namespace")
@@ -506,25 +510,70 @@ public class CmdSinks extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Stops a Pulsar IO sink connector")
-    protected class DeleteSink extends BaseCommand {
-
-        @Parameter(names = "--tenant", description = "The tenant of the sink")
+    /**
+     * Sink level command
+     */
+    @Getter
+    abstract class SinkCommand extends BaseCommand {
+        @Parameter(names = "--tenant", description = "The sink's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The namespace of the sink")
+        @Parameter(names = "--namespace", description = "The sink's namespace")
         protected String namespace;
 
-        @Parameter(names = "--name", description = "The name of the sink")
-        protected String name;
+        @Parameter(names = "--name", description = "The sink's name")
+        protected String sinkName;
 
         @Override
         void processArguments() throws Exception {
             super.processArguments();
-            if (null == name) {
-                throw new ParameterException(
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
+            }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
+            }
+            if (null == sinkName) {
+                throw new RuntimeException(
                         "You must specify a name for the sink");
             }
+        }
+    }
+
+    @Parameters(commandDescription = "Stops a Pulsar IO sink connector")
+    protected class DeleteSink extends SinkCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            admin.sink().deleteSink(tenant, namespace, sinkName);
+            print("Deleted successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Gets the information about a Pulsar IO sink connector")
+    protected class GetSink extends SinkCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            SinkConfig sinkConfig = admin.sink().getSink(tenant, namespace, sinkName);
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(sinkConfig));
+        }
+    }
+
+    /**
+     * List Sources command
+     */
+    @Parameters(commandDescription = "List all running Pulsar IO sink connectors")
+    protected class ListSinks extends BaseCommand {
+        @Parameter(names = "--tenant", description = "The sink's tenant")
+        protected String tenant;
+
+        @Parameter(names = "--namespace", description = "The sink's namespace")
+        protected String namespace;
+
+        @Override
+        public void processArguments() {
             if (tenant == null) {
                 tenant = PUBLIC_TENANT;
             }
@@ -535,8 +584,9 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.sink().deleteSink(tenant, namespace, name);
-            print("Deleted successfully");
+            List<String> sinks = admin.sink().listSinks(tenant, namespace);
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(sinks));
         }
     }
 

@@ -820,7 +820,7 @@ public class TestCmdSources {
     public void testDeleteMissingTenant() throws Exception {
         deleteSource.tenant = null;
         deleteSource.namespace = NAMESPACE;
-        deleteSource.name = NAME;
+        deleteSource.sourceName = NAME;
 
         deleteSource.processArguments();
 
@@ -833,7 +833,7 @@ public class TestCmdSources {
     public void testDeleteMissingNamespace() throws Exception {
         deleteSource.tenant = TENANT;
         deleteSource.namespace = null;
-        deleteSource.name = NAME;
+        deleteSource.sourceName = NAME;
 
         deleteSource.processArguments();
 
@@ -842,11 +842,11 @@ public class TestCmdSources {
         verify(source).deleteSource(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "You must specify a name for the source")
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "You must specify a name for the source")
     public void testDeleteMissingName() throws Exception {
         deleteSource.tenant = TENANT;
         deleteSource.namespace = NAMESPACE;
-        deleteSource.name = null;
+        deleteSource.sourceName = null;
 
         deleteSource.processArguments();
 

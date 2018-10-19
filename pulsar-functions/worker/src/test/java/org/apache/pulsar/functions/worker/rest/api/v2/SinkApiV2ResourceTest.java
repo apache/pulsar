@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -26,6 +27,8 @@ import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
@@ -38,6 +41,7 @@ import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
@@ -51,6 +55,8 @@ import javax.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -143,6 +149,7 @@ public class SinkApiV2ResourceTest {
         doReturn(null).when(resource).extractNarClassLoader(anyString(), anyString(), anyObject(), anyBoolean());
         mockStatic(SinkConfigUtils.class);
         when(SinkConfigUtils.convert(anyObject(), anyObject())).thenReturn(FunctionDetails.newBuilder().build());
+        Mockito.doReturn("Sink").when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -188,7 +195,7 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
-                "Function Name is not provided");
+                "Sink Name is not provided");
     }
 
     @Test
@@ -257,9 +264,8 @@ public class SinkApiV2ResourceTest {
                 details,
                 null,
                 null,
-                null,
-                null,
                 new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -282,9 +288,8 @@ public class SinkApiV2ResourceTest {
             mockedFormData,
             null,
             null,
-            null,
-            null,
             new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
                 null);
     }
 
@@ -296,7 +301,7 @@ public class SinkApiV2ResourceTest {
 
         Response response = registerDefaultSink();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + sink + " already exists").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Sink " + sink + " already exists").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -421,7 +426,7 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
-                "Function Name is not provided");
+                "Sink Name is not provided");
     }
 
     @Test
@@ -492,9 +497,8 @@ public class SinkApiV2ResourceTest {
             details,
             null,
             null,
-            null,
-            null,
             new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -518,9 +522,8 @@ public class SinkApiV2ResourceTest {
             mockedFormData,
             null,
             null,
-            null,
-            null,
             new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
                 null);
     }
 
@@ -530,7 +533,7 @@ public class SinkApiV2ResourceTest {
 
         Response response = updateDefaultSink();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Sink " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -600,9 +603,8 @@ public class SinkApiV2ResourceTest {
             null,
             filePackageUrl,
             null,
-            null,
-            null,
             new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
                 null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -678,7 +680,7 @@ public class SinkApiV2ResourceTest {
             tenant,
             namespace,
             null,
-            "Function Name");
+            "Sink Name");
     }
 
     private void testDeregisterSinkMissingArguments(
@@ -691,6 +693,7 @@ public class SinkApiV2ResourceTest {
             tenant,
             namespace,
             sink,
+            FunctionsImpl.SINK,
             null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -702,6 +705,7 @@ public class SinkApiV2ResourceTest {
             tenant,
             namespace,
                 sink,
+            FunctionsImpl.SINK,
             null);
     }
 
@@ -711,7 +715,7 @@ public class SinkApiV2ResourceTest {
 
         Response response = deregisterDefaultSink();
         assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Sink " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -757,109 +761,116 @@ public class SinkApiV2ResourceTest {
         assertEquals(new ErrorData("Function deregisteration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    // Source Info doesn't exist. Maybe one day they might be added
     //
-    // Get Function Info
+    // Get Sink Info
     //
 
-    /*
     @Test
-    public void testGetFunctionMissingTenant() throws Exception {
-        testGetFunctionMissingArguments(
+    public void testGetSinkMissingTenant() throws Exception {
+        testGetSinkMissingArguments(
             null,
             namespace,
-                source,
+                sink,
             "Tenant");
     }
 
     @Test
-    public void testGetFunctionMissingNamespace() throws Exception {
-        testGetFunctionMissingArguments(
+    public void testGetSinkMissingNamespace() throws Exception {
+        testGetSinkMissingArguments(
             tenant,
             null,
-                source,
+                sink,
             "Namespace");
     }
 
     @Test
-    public void testGetFunctionMissingFunctionName() throws Exception {
-        testGetFunctionMissingArguments(
+    public void testGetSinkMissingFunctionName() throws Exception {
+        testGetSinkMissingArguments(
             tenant,
             namespace,
             null,
-            "Function Name");
+            "Sink Name");
     }
 
-    private void testGetFunctionMissingArguments(
+    private void testGetSinkMissingArguments(
         String tenant,
         String namespace,
-        String function,
+        String sink,
         String missingFieldName
     ) throws IOException {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
-            function);
+            sink,
+                FunctionsImpl.SINK);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    private Response getDefaultFunctionInfo() throws IOException {
+    private Response getDefaultSinkInfo() throws IOException {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-                source);
+                sink,
+                FunctionsImpl.SINK);
     }
 
     @Test
-    public void testGetNotExistedFunction() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
+    public void testGetNotExistedSink() throws IOException {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
-        Response response = getDefaultFunctionInfo();
+        Response response = getDefaultSinkInfo();
         assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + source + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Sink " + sink + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
-    public void testGetFunctionSuccess() throws Exception {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+    public void testGetSinkSuccess() throws Exception {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        SinkSpec sinkSpec = SinkSpec.newBuilder()
-                .setTopic(outputTopic)
-                .setSerDeClassName(outputSerdeClassName).build();
+        Function.SourceSpec sourceSpec = Function.SourceSpec.newBuilder()
+                .setSubscriptionType(Function.SubscriptionType.SHARED)
+                .setSubscriptionName(subscriptionName)
+                .putInputSpecs("input", Function.ConsumerSpec.newBuilder()
+                .setSerdeClassName(TopicSchema.DEFAULT_SERDE)
+                .setIsRegexPattern(false)
+                .build()).build();
+        Function.SinkSpec sinkSpec = Function.SinkSpec.newBuilder()
+                .setBuiltin("jdbc")
+                .build();
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
-                .setClassName(className)
+                .setClassName(IdentityFunction.class.getName())
                 .setSink(sinkSpec)
-                .setName(source)
+                .setName(sink)
                 .setNamespace(namespace)
-                .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
+                .setProcessingGuarantees(Function.ProcessingGuarantees.ATLEAST_ONCE)
                 .setTenant(tenant)
                 .setParallelism(parallelism)
-                .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
-                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
+                .setRuntime(FunctionDetails.Runtime.JAVA)
+                .setSource(sourceSpec).build();
         FunctionMetaData metaData = FunctionMetaData.newBuilder()
             .setCreateTime(System.currentTimeMillis())
             .setFunctionDetails(functionDetails)
-            .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("/path/to/package"))
+            .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/path/to/package"))
             .setVersion(1234)
             .build();
-        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(metaData);
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink))).thenReturn(metaData);
 
-        Response response = getDefaultFunctionInfo();
+        Response response = getDefaultSinkInfo();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
+            new Gson().toJson(SinkConfigUtils.convertFromDetails(functionDetails)),
             response.getEntity());
     }
 
     //
-    // List Functions
+    // List Sinks
     //
 
     @Test
-    public void testListFunctionsMissingTenant() throws Exception {
-        testListFunctionsMissingArguments(
+    public void testListSinksMissingTenant() throws Exception {
+        testListSinksMissingArguments(
             null,
             namespace,
             "Tenant");
@@ -867,39 +878,70 @@ public class SinkApiV2ResourceTest {
 
     @Test
     public void testListFunctionsMissingNamespace() throws Exception {
-        testListFunctionsMissingArguments(
+        testListSinksMissingArguments(
             tenant,
             null,
             "Namespace");
     }
 
-    private void testListFunctionsMissingArguments(
+    private void testListSinksMissingArguments(
         String tenant,
         String namespace,
         String missingFieldName
     ) {
         Response response = resource.listFunctions(
             tenant,
-            namespace);
+            namespace,
+                FunctionsImpl.SINK);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    private Response listDefaultFunctions() {
+    private Response listDefaultSinks() {
         return resource.listFunctions(
             tenant,
-            namespace);
+            namespace,
+                FunctionsImpl.SINK);
     }
 
     @Test
-    public void testListFunctionsSuccess() throws Exception {
+    public void testListSinksSuccess() throws Exception {
         List<String> functions = Lists.newArrayList("test-1", "test-2");
-        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functions);
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        functionMetaDataList.add(FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-1").build()
+        ).build());
+        functionMetaDataList.add(FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-2").build()
+        ).build());
+        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
 
-        Response response = listDefaultFunctions();
+        Response response = listDefaultSinks();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(new Gson().toJson(functions), response.getEntity());
     }
-    */
+
+    @Test
+    public void testOnlyGetSinks() throws Exception {
+        List<String> functions = Lists.newArrayList("test-3");
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        FunctionMetaData f1 = FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-1").build()).build();
+        functionMetaDataList.add(f1);
+        FunctionMetaData f2 = FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-2").build()).build();
+        functionMetaDataList.add(f2);
+        FunctionMetaData f3 = FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-3").build()).build();
+        functionMetaDataList.add(f3);
+        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
+        doReturn("Source").when(this.resource).calculateSubjectType(f1);
+        doReturn("Function").when(this.resource).calculateSubjectType(f2);
+        doReturn("Sink").when(this.resource).calculateSubjectType(f3);
+
+        Response response = listDefaultSinks();
+        assertEquals(Status.OK.getStatusCode(), response.getStatus());
+        assertEquals(new Gson().toJson(functions), response.getEntity());
+    }
 }

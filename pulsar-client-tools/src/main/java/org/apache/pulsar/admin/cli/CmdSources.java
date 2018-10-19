@@ -28,6 +28,7 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -66,6 +68,8 @@ public class CmdSources extends CmdBase {
 
     private final CreateSource createSource;
     private final DeleteSource deleteSource;
+    private final GetSource getSource;
+    private final ListSources listSources;
     private final UpdateSource updateSource;
     private final LocalSourceRunner localSourceRunner;
 
@@ -74,11 +78,15 @@ public class CmdSources extends CmdBase {
         createSource = new CreateSource();
         updateSource = new UpdateSource();
         deleteSource = new DeleteSource();
+        listSources = new ListSources();
+        getSource = new GetSource();
         localSourceRunner = new LocalSourceRunner();
 
         jcommander.addCommand("create", createSource);
         jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
+        jcommander.addCommand("get", getSource);
+        jcommander.addCommand("list", listSources);
         jcommander.addCommand("localrun", localSourceRunner);
         jcommander.addCommand("available-sources", new ListBuiltInSources());
     }
@@ -184,7 +192,7 @@ public class CmdSources extends CmdBase {
     }
 
     @Parameters(commandDescription = "Submit a Pulsar IO source connector to run in a Pulsar cluster")
-    protected class CreateSource extends SourceCommand {
+    protected class CreateSource extends SourceDetailsCommand {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(this.sourceConfig.getArchive())) {
@@ -197,7 +205,7 @@ public class CmdSources extends CmdBase {
     }
 
     @Parameters(commandDescription = "Update a Pulsar IO source connector")
-    protected class UpdateSource extends SourceCommand {
+    protected class UpdateSource extends SourceDetailsCommand {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive())) {
@@ -209,7 +217,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    abstract class SourceCommand extends BaseCommand {
+    abstract class SourceDetailsCommand extends BaseCommand {
         @Parameter(names = "--tenant", description = "The source's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The source's namespace")
@@ -460,25 +468,70 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Stops a Pulsar IO source connector")
-    protected class DeleteSource extends BaseCommand {
-
-        @Parameter(names = "--tenant", description = "The tenant of a sink or source")
+    /**
+     * Function level command
+     */
+    @Getter
+    abstract class SourceCommand extends BaseCommand {
+        @Parameter(names = "--tenant", description = "The source's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The namespace of a sink or source")
+        @Parameter(names = "--namespace", description = "The source's namespace")
         protected String namespace;
 
-        @Parameter(names = "--name", description = "The name of a sink or source")
-        protected String name;
+        @Parameter(names = "--name", description = "The source's name")
+        protected String sourceName;
 
         @Override
         void processArguments() throws Exception {
             super.processArguments();
-            if (null == name) {
-                throw new ParameterException(
-                        "You must specify a name for the source");
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
             }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
+            }
+            if (null == sourceName) {
+                throw new RuntimeException(
+                            "You must specify a name for the source");
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Stops a Pulsar IO source connector")
+    protected class DeleteSource extends SourceCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            admin.source().deleteSource(tenant, namespace, sourceName);
+            print("Delete source successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Gets the information about a Pulsar IO source connector")
+    protected class GetSource extends SourceCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            SourceConfig sourceConfig = admin.source().getSource(tenant, namespace, sourceName);
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(sourceConfig));
+        }
+    }
+
+    /**
+     * List Sources command
+     */
+    @Parameters(commandDescription = "List all running Pulsar IO source connectors")
+    protected class ListSources extends BaseCommand {
+        @Parameter(names = "--tenant", description = "The sink's tenant")
+        protected String tenant;
+
+        @Parameter(names = "--namespace", description = "The sink's namespace")
+        protected String namespace;
+
+        @Override
+        public void processArguments() {
             if (tenant == null) {
                 tenant = PUBLIC_TENANT;
             }
@@ -489,8 +542,9 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.source().deleteSource(tenant, namespace, name);
-            print("Delete source successfully");
+            List<String> sources = admin.source().listSources(tenant, namespace);
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(sources));
         }
     }
 

@@ -962,7 +962,7 @@ public class TestCmdSinks {
     public void testDeleteMissingTenant() throws Exception {
         deleteSink.tenant = null;
         deleteSink.namespace = NAMESPACE;
-        deleteSink.name = NAME;
+        deleteSink.sinkName = NAME;
 
         deleteSink.processArguments();
 
@@ -975,7 +975,7 @@ public class TestCmdSinks {
     public void testDeleteMissingNamespace() throws Exception {
         deleteSink.tenant = TENANT;
         deleteSink.namespace = null;
-        deleteSink.name = NAME;
+        deleteSink.sinkName = NAME;
 
         deleteSink.processArguments();
 
@@ -984,11 +984,11 @@ public class TestCmdSinks {
         verify(sink).deleteSink(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "You must specify a name for the sink")
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "You must specify a name for the sink")
     public void testDeleteMissingName() throws Exception {
         deleteSink.tenant = TENANT;
         deleteSink.namespace = NAMESPACE;
-        deleteSink.name = null;
+        deleteSink.sinkName = null;
 
         deleteSink.processArguments();
 
