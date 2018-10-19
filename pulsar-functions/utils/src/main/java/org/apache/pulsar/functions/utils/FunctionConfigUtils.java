@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.utils;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
@@ -361,11 +362,50 @@ public class FunctionConfigUtils {
     }
 
     private static void doCommonChecks(FunctionConfig functionConfig) {
-        Collection<String> allInputTopics = collectAllInputTopics(functionConfig);
-        if (allInputTopics.isEmpty()) {
-            throw new RuntimeException("No input topic(s) specified for the function");
+        if (isEmpty(functionConfig.getTenant())) {
+            throw new IllegalArgumentException("Function tenant cannot be null");
+        }
+        if (isEmpty(functionConfig.getNamespace())) {
+            throw new IllegalArgumentException("Function namespace cannot be null");
+        }
+        if (isEmpty(functionConfig.getName())) {
+            throw new IllegalArgumentException("Function name cannot be null");
+        }
+        if (isEmpty(functionConfig.getClassName())) {
+            throw new IllegalArgumentException("Function classname cannot be null");
         }
 
+        Collection<String> allInputTopics = collectAllInputTopics(functionConfig);
+        if (allInputTopics.isEmpty()) {
+            throw new IllegalArgumentException("No input topic(s) specified for the function");
+        }
+        for (String topic : allInputTopics) {
+            if (!TopicName.isValid(topic)) {
+                throw new IllegalArgumentException(String.format("Input topic %s is invalid", topic));
+            }
+        }
+
+        if (!isEmpty(functionConfig.getOutput())) {
+            if (!TopicName.isValid(functionConfig.getOutput())) {
+                throw new IllegalArgumentException(String.format("Output topic %s is invalid", functionConfig.getOutput()));
+            }
+        }
+
+        if (!isEmpty(functionConfig.getLogTopic())) {
+            if (!TopicName.isValid(functionConfig.getLogTopic())) {
+                throw new IllegalArgumentException(String.format("LogTopic topic %s is invalid", functionConfig.getLogTopic()));
+            }
+        }
+
+        if (!isEmpty(functionConfig.getDeadLetterTopic())) {
+            if (!TopicName.isValid(functionConfig.getDeadLetterTopic())) {
+                throw new IllegalArgumentException(String.format("DeadLetter topic %s is invalid", functionConfig.getDeadLetterTopic()));
+            }
+        }
+
+        if (functionConfig.getParallelism() <= 0) {
+            throw new IllegalArgumentException("Function parallelism should positive number");
+        }
         // Ensure that topics aren't being used as both input and output
         verifyNoTopicClash(allInputTopics, functionConfig.getOutput());
 
@@ -377,6 +417,14 @@ public class FunctionConfigUtils {
                 throw new IllegalArgumentException("Cannot enable auto ack when using windowing functionality");
             }
             WindowConfigUtils.validate(windowConfig);
+        }
+
+        if (functionConfig.getResources() != null) {
+            ResourceConfigUtils.validate(functionConfig.getResources());
+        }
+
+        if (functionConfig.getTimeoutMs() != null && functionConfig.getTimeoutMs() <= 0) {
+            throw new IllegalArgumentException("Function timeout must be a positive number");
         }
 
         if (functionConfig.getTimeoutMs() != null
@@ -392,6 +440,17 @@ public class FunctionConfigUtils {
         }
         if (functionConfig.getMaxMessageRetries() < 0 && !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getDeadLetterTopic())) {
             throw new IllegalArgumentException("Dead Letter Topic specified, however max retries is set to infinity");
+        }
+
+        if (functionConfig.getJar() != null) {
+            if (!new File(functionConfig.getJar()).exists()) {
+                throw new IllegalArgumentException("The supplied jar file does not exist");
+            }
+        }
+        if (functionConfig.getPy() != null) {
+            if (!new File(functionConfig.getPy()).exists()) {
+                throw new IllegalArgumentException("The supplied python file does not exist");
+            }
         }
     }
 

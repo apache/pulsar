@@ -40,16 +40,11 @@ import java.util.Map;
 @ToString
 @isValidSourceConfig
 public class SourceConfig {
-    @NotNull
     private String tenant;
-    @NotNull
     private String namespace;
-    @NotNull
     private String name;
     private String className;
 
-    @NotNull
-    @isValidTopicName
     private String topicName;
 
     @ConfigValidationAnnotations.isValidSerde

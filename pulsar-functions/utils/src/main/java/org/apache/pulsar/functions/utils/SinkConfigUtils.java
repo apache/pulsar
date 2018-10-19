@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.utils;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
@@ -233,18 +234,47 @@ public class SinkConfigUtils {
         return sinkConfig;
     }
 
-    public static NarClassLoader validate(SinkConfig sinkConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
+    public static NarClassLoader validate(SinkConfig sinkConfig, Path archivePath, String functionPkgUrl,
+                                          File uploadedInputStreamAsFile) {
+        if (isEmpty(sinkConfig.getTenant())) {
+            throw new IllegalArgumentException("Sink tenant cannot be null");
+        }
+        if (isEmpty(sinkConfig.getNamespace())) {
+            throw new IllegalArgumentException("Sink namespace cannot be null");
+        }
+        if (isEmpty(sinkConfig.getName())) {
+            throw new IllegalArgumentException("Sink name cannot be null");
+        }
+
+        // make we sure we have one source of input
+        Collection<String> allInputs = collectAllInputTopics(sinkConfig);
+        if (allInputs.isEmpty()) {
+            throw new IllegalArgumentException("Must specify at least one topic of input via topicToSerdeClassName, " +
+                    "topicsPattern, topicToSchemaType or inputSpecs");
+        }
+        for (String topic : allInputs) {
+            if (!TopicName.isValid(topic)) {
+                throw new IllegalArgumentException(String.format("Input topic %s is invalid", topic));
+            }
+        }
+
+        if (sinkConfig.getParallelism() <= 0) {
+            throw new IllegalArgumentException("Sink parallelism should positive number");
+        }
+
+        if (sinkConfig.getResources() != null) {
+            ResourceConfigUtils.validate(sinkConfig.getResources());
+        }
+
+        if (sinkConfig.getTimeoutMs() != null && sinkConfig.getTimeoutMs() <= 0) {
+            throw new IllegalArgumentException("Sink timeout must be a positive number");
+        }
+
         NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
         if (classLoader == null) {
             // This happens at the cli for builtin. There is no need to check this since
             // the actual check will be done at serverside
             return null;
-        }
-
-        // make we sure we have one source of input
-        if (collectAllInputTopics(sinkConfig).isEmpty()) {
-            throw new IllegalArgumentException("Must specify at least one topic of input via topicToSerdeClassName, " +
-                    "topicsPattern, topicToSchemaType or inputSpecs");
         }
 
         String sinkClassName;

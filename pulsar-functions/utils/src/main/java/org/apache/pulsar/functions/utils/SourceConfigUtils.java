@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.utils;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
@@ -35,6 +36,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
@@ -172,6 +174,21 @@ public class SourceConfigUtils {
     }
 
     public static NarClassLoader validate(SourceConfig sourceConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
+        if (isEmpty(sourceConfig.getTenant())) {
+            throw new IllegalArgumentException("Source tenant cannot be null");
+        }
+        if (isEmpty(sourceConfig.getNamespace())) {
+            throw new IllegalArgumentException("Source namespace cannot be null");
+        }
+        if (isEmpty(sourceConfig.getName())) {
+            throw new IllegalArgumentException("Source name cannot be null");
+        }
+        if (isEmpty(sourceConfig.getTopicName())) {
+            throw new IllegalArgumentException("Topic name cannot be null");
+        }
+        if (!TopicName.isValid(sourceConfig.getTopicName())) {
+            throw new IllegalArgumentException("Topic name is invalid");
+        }
         NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
         if (classLoader == null) {
             // This happens at the cli for builtin. There is no need to check this since

@@ -28,60 +28,36 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isMapEntryCustom;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isPositiveNumber;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidResources;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidSinkConfig;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
-import org.apache.pulsar.functions.utils.validation.ValidatorImpls;
-
 @Getter
 @Setter
 @Data
 @EqualsAndHashCode
 @ToString
-@isValidSinkConfig
 public class SinkConfig {
 
-
-    @NotNull
     private String tenant;
-    @NotNull
     private String namespace;
-    @NotNull
     private String name;
     private String className;
     private String sourceSubscriptionName;
 
-    @ConfigValidationAnnotations.isListEntryCustom(entryValidatorClasses = {ValidatorImpls.TopicNameValidator.class})
     private Collection<String> inputs;
 
-    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
-            valueValidatorClasses = { ValidatorImpls.SerdeValidator.class })
     private Map<String, String> topicToSerdeClassName;
 
-    @isValidTopicName
     private String topicsPattern;
 
-    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class })
     private Map<String, String> topicToSchemaType;
 
     private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
 
     private Map<String, Object> configs;
-    @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private boolean retainOrdering;
-    @isValidResources
     private Resources resources;
     private boolean autoAck;
-    @isPositiveNumber
     private Long timeoutMs;
 
-    @isFileExists
     private String archive;
 }
