@@ -438,6 +438,13 @@ public class CmdSinks extends CmdBase {
                 throw new ParameterException("Sink archive not specfied");
             }
 
+            if (!Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive()) &&
+                    !sinkConfig.getArchive().startsWith(BUILTIN)) {
+                if (!new File(sinkConfig.getArchive()).exists()) {
+                    throw new IllegalArgumentException("Sink Archive does not exist");
+                }
+            }
+
             try {
                 // Need to load jar and set context class loader before calling
                 String sourcePkgUrl = Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive()) ? sinkConfig.getArchive() : null;

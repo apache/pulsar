@@ -395,6 +395,12 @@ public class CmdSources extends CmdBase {
             if (isBlank(sourceConfig.getArchive())) {
                 throw new ParameterException("Source archive not specfied");
             }
+            if (!Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) &&
+                !sourceConfig.getArchive().startsWith(BUILTIN)) {
+                if (!new File(sourceConfig.getArchive()).exists()) {
+                    throw new IllegalArgumentException("Source Archive does not exist");
+                }
+            }
 
             try {
              // Need to load jar and set context class loader before calling

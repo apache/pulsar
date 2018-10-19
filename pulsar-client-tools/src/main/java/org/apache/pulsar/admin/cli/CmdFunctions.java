@@ -499,7 +499,8 @@ public class CmdFunctions extends CmdBase {
 
             try {
                 // Need to load jar and set context class loader before calling
-                classLoader = FunctionConfigUtils.validate(functionConfig, null, null);
+                String functionPkgUrl = Utils.isFunctionPackageUrlSupported(userCodeFile) ? userCodeFile : null;
+                classLoader = FunctionConfigUtils.validate(functionConfig, functionPkgUrl, null);
             } catch (Exception e) {
                 throw new IllegalArgumentException(e.getMessage());
             }
