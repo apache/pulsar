@@ -281,7 +281,7 @@ The Apache Software License, Version 2.0
     - jetty-server-9.4.11.v20180605.jar
     - jetty-servlet-9.4.11.v20180605.jar
     - jetty-util-9.4.11.v20180605.jar
-    - jetty-util-9.3.11.v20160721.jar
+    - jetty-util-9.4.12.v20180830.jar
   * Javassist
     - javassist-3.22.0-CR2.jar
   * Asynchronous Http Client
