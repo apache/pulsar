@@ -34,6 +34,7 @@ import java.util.*;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.functions.utils.Utils.BUILTIN;
 import static org.apache.pulsar.functions.utils.Utils.loadJar;
 
 public class FunctionConfigUtils {
@@ -442,12 +443,14 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("Dead Letter Topic specified, however max retries is set to infinity");
         }
 
-        if (functionConfig.getJar() != null) {
+        if (!isEmpty(functionConfig.getJar()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
+                && functionConfig.getJar().startsWith(BUILTIN)) {
             if (!new File(functionConfig.getJar()).exists()) {
                 throw new IllegalArgumentException("The supplied jar file does not exist");
             }
         }
-        if (functionConfig.getPy() != null) {
+        if (!isEmpty(functionConfig.getPy()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy())
+                && functionConfig.getPy().startsWith(BUILTIN)) {
             if (!new File(functionConfig.getPy()).exists()) {
                 throw new IllegalArgumentException("The supplied python file does not exist");
             }
