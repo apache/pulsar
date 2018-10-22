@@ -135,9 +135,9 @@ public class SourceApiV2ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        doReturn(null).when(resource).extractNarClassLoader(anyString(), anyString(), anyObject(), anyBoolean());
         mockStatic(SourceConfigUtils.class);
         when(SourceConfigUtils.convert(anyObject(), anyObject())).thenReturn(FunctionDetails.newBuilder().build());
+        when(SourceConfigUtils.validate(any(), any(), any(), any())).thenReturn(null);
         Mockito.doReturn("Source").when(this.resource).calculateSubjectType(any());
     }
 

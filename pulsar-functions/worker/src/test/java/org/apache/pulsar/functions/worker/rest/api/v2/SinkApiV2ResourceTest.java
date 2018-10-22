@@ -146,9 +146,9 @@ public class SinkApiV2ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        doReturn(null).when(resource).extractNarClassLoader(anyString(), anyString(), anyObject(), anyBoolean());
         mockStatic(SinkConfigUtils.class);
         when(SinkConfigUtils.convert(anyObject(), anyObject())).thenReturn(FunctionDetails.newBuilder().build());
+        when(SinkConfigUtils.validate(any(), any(), any(), any())).thenReturn(null);
         Mockito.doReturn("Sink").when(this.resource).calculateSubjectType(any());
     }
 

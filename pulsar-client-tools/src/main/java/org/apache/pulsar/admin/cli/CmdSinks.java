@@ -22,8 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
+import static org.apache.pulsar.functions.utils.Utils.BUILTIN;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -37,6 +36,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -56,7 +56,6 @@ import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.utils.*;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
-import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO sinks (egress data from Pulsar)")
@@ -439,55 +438,18 @@ public class CmdSinks extends CmdBase {
                 throw new ParameterException("Sink archive not specfied");
             }
 
-            boolean isConnectorBuiltin = sinkConfig.getArchive().startsWith(Utils.BUILTIN);
-            boolean isArchivePathUrl = Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive());
-
-            String archivePath = null;
-            if (isArchivePathUrl) {
-                // download jar file if url is http
-                if(sinkConfig.getArchive().startsWith(Utils.HTTP)) {
-                    File tempPkgFile = null;
-                    try {
-                        tempPkgFile = downloadFromHttpUrl(sinkConfig.getArchive(), sinkConfig.getName());
-                        archivePath = tempPkgFile.getAbsolutePath();
-                    } catch(Exception e) {
-                        if(tempPkgFile!=null ) {
-                            tempPkgFile.deleteOnExit();
-                        }
-                        throw new ParameterException("Failed to download archive from " + sinkConfig.getArchive()
-                                + ", due to =" + e.getMessage());
-                    }
-                }
-            } else if (isConnectorBuiltin) {
-                // Ignore local checks when submitting built-in connector
-                archivePath = null;
-            } else {
-                archivePath = sinkConfig.getArchive();
-            }
-
-            // if jar file is present locally then load jar and validate SinkClass in it
-            if (archivePath != null) {
-                if (!fileExists(archivePath)) {
-                    throw new ParameterException("Archive file " + archivePath + " does not exist");
-                }
-
-                try {
-                    ConnectorDefinition connector = ConnectorUtils.getConnectorDefinition(archivePath);
-                    log.info("Connector: {}", connector);
-                } catch (IOException e) {
-                    throw new ParameterException("Connector from " + archivePath + " has error: " + e.getMessage());
-                }
-
-                try {
-                    classLoader = NarClassLoader.getFromArchive(new File(archivePath), Collections.emptySet());
-                } catch (IOException e) {
-                    throw new IllegalArgumentException(e);
+            if (!Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive()) &&
+                    !sinkConfig.getArchive().startsWith(BUILTIN)) {
+                if (!new File(sinkConfig.getArchive()).exists()) {
+                    throw new IllegalArgumentException(String.format("Sink Archive file %s does not exist", sinkConfig.getArchive()));
                 }
             }
 
             try {
                 // Need to load jar and set context class loader before calling
-                ConfigValidation.validateConfig(sinkConfig, FunctionConfig.Runtime.JAVA.name(), classLoader);
+                String sourcePkgUrl = Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive()) ? sinkConfig.getArchive() : null;
+                Path archivePath = (Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive()) || sinkConfig.getArchive().startsWith(BUILTIN)) ? null : new File(sinkConfig.getArchive()).toPath();
+                classLoader = SinkConfigUtils.validate(sinkConfig, archivePath, sourcePkgUrl, null);
             } catch (Exception e) {
                 throw new ParameterException(e.getMessage());
             }
