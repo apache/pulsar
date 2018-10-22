@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.functions.utils;
 
+import org.apache.pulsar.common.functions.Resources;
+
 public class ResourceConfigUtils {
     public static void validate(Resources resources) {
         Double cpu = resources.getCpu();

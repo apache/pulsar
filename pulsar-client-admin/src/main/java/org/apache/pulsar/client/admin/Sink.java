@@ -24,7 +24,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
-import org.apache.pulsar.functions.utils.SinkConfig;
+import org.apache.pulsar.common.io.SinkConfig;
 
 import java.util.List;
 

@@ -19,17 +19,8 @@
 
 package org.apache.pulsar.functions.utils;
 
-import com.google.gson.Gson;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Record;
-import org.mockito.Mockito;
-import org.testng.Assert;
+import org.apache.pulsar.common.functions.WindowConfig;
 import org.testng.annotations.Test;
-
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
 
 import static org.testng.Assert.fail;
 

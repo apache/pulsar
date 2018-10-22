@@ -43,7 +43,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;

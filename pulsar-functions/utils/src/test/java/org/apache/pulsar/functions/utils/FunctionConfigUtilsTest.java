@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.testng.annotations.Test;
