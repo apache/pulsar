@@ -22,8 +22,6 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.HashMap;
 import java.util.Map;
@@ -167,21 +165,10 @@ public class Reflections {
 
     public static Object createInstance(String userClassName, java.io.File jar) {
         try {
-            return createInstance(userClassName, loadJar(jar));
+            return createInstance(userClassName, Utils.loadJar(jar));
         } catch (Exception ex) {
             return null;
         }
-    }
-
-    /**
-     * Load a jar
-     * @param jar file of jar
-     * @return classloader
-     * @throws MalformedURLException
-     */
-    public static ClassLoader loadJar(java.io.File jar) throws MalformedURLException {
-        java.net.URL url = jar.toURI().toURL();
-        return new URLClassLoader(new URL[]{url});
     }
 
     /**
@@ -192,7 +179,7 @@ public class Reflections {
      */
     public static boolean classExistsInJar(java.io.File jar, String fqcn) {
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) loadJar(jar);
+            java.net.URLClassLoader loader = (URLClassLoader) Utils.loadJar(jar);
             Class.forName(fqcn, false, loader);
             loader.close();
             return true;
@@ -224,7 +211,7 @@ public class Reflections {
     public static boolean classInJarImplementsIface(java.io.File jar, String fqcn, Class xface) {
         boolean ret = false;
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) loadJar(jar);
+            java.net.URLClassLoader loader = (URLClassLoader) Utils.loadJar(jar);
             if (xface.isAssignableFrom(Class.forName(fqcn, false, loader))){
                 ret = true;
             }

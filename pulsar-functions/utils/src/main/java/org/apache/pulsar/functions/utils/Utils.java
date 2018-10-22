@@ -21,14 +21,22 @@ package org.apache.pulsar.functions.utils;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.net.ServerSocket;
+import java.net.*;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.UUID;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
 import org.apache.pulsar.io.core.Sink;
@@ -216,5 +224,126 @@ public class Utils {
     public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
         return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(Utils.HTTP)
                 || functionPkgUrl.startsWith(Utils.FILE));
+    }
+
+    /**
+     * Load a jar
+     * @param jar file of jar
+     * @return classloader
+     * @throws MalformedURLException
+     */
+    public static ClassLoader loadJar(File jar) throws MalformedURLException {
+        java.net.URL url = jar.toURI().toURL();
+        return new URLClassLoader(new URL[]{url});
+    }
+
+    public static ClassLoader extractClassLoader(String destPkgUrl) throws IOException, URISyntaxException {
+        if (destPkgUrl.startsWith(FILE)) {
+            URL url = new URL(destPkgUrl);
+            File file = new File(url.toURI());
+            if (!file.exists()) {
+                throw new IOException(destPkgUrl + " does not exists locally");
+            }
+            try {
+                return loadJar(file);
+            } catch (MalformedURLException e) {
+                throw new IllegalArgumentException(
+                        "Corrupt User PackageFile " + file + " with error " + e.getMessage());
+            }
+        } else if (destPkgUrl.startsWith("http")) {
+            URL website = new URL(destPkgUrl);
+            File tempFile = File.createTempFile("function", ".tmp");
+            ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                fos.getChannel().transferFrom(rbc, 0, 10);
+            }
+            if (tempFile.exists()) {
+                tempFile.delete();
+            }
+            return loadJar(tempFile);
+        } else {
+            throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
+        }
+    }
+
+    public static void implementsClass(String className, Class<?> klass, ClassLoader classLoader) {
+        Class<?> objectClass;
+        try {
+            objectClass = loadClass(className, classLoader);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("Cannot find/load class " + className);
+        }
+
+        if (!klass.isAssignableFrom(objectClass)) {
+            throw new IllegalArgumentException(
+                    String.format("%s does not implement %s", className, klass.getName()));
+        }
+    }
+
+    public static Class<?> loadClass(String className, ClassLoader classLoader) throws ClassNotFoundException {
+        Class<?> objectClass;
+        try {
+            objectClass = Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            if (classLoader != null) {
+                objectClass = classLoader.loadClass(className);
+            } else {
+                throw e;
+            }
+        }
+        return objectClass;
+    }
+
+    public static NarClassLoader extractNarClassLoader(Path archivePath, String pkgUrl, File uploadedInputStreamFileName) {
+        if (archivePath != null) {
+            try {
+                return NarClassLoader.getFromArchive(archivePath.toFile(),
+                            Collections.emptySet());
+            } catch (IOException e) {
+                throw new IllegalArgumentException(String.format("The archive %s is corrupted", archivePath));
+            }
+        }
+        if (!StringUtils.isEmpty(pkgUrl)) {
+            if (pkgUrl.startsWith(FILE)) {
+                try {
+                    URL url = new URL(pkgUrl);
+                    File file = new File(url.toURI());
+                    if (!file.exists()) {
+                        throw new IOException(pkgUrl + " does not exists locally");
+                    }
+                    return NarClassLoader.getFromArchive(file, Collections.emptySet());
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(
+                            "Corrupt User PackageFile " + pkgUrl + " with error " + e.getMessage());
+                }
+            } else if (pkgUrl.startsWith("http")) {
+                try {
+                    URL website = new URL(pkgUrl);
+                    File tempFile = File.createTempFile("function", ".tmp");
+                    ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+                    try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                        fos.getChannel().transferFrom(rbc, 0, 10);
+                    }
+                    if (tempFile.exists()) {
+                        tempFile.delete();
+                    }
+                    return NarClassLoader.getFromArchive(tempFile, Collections.emptySet());
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(
+                            "Corrupt User PackageFile " + pkgUrl + " with error " + e.getMessage());
+                }
+            } else {
+                throw new IllegalArgumentException("Unsupported url protocol "+ pkgUrl +", supported url protocols: [file/http/https]");
+            }
+        }
+        if (uploadedInputStreamFileName != null) {
+            try {
+                return NarClassLoader.getFromArchive(uploadedInputStreamFileName,
+                        Collections.emptySet());
+            } catch (IOException e) {
+                throw new IllegalArgumentException(e.getMessage());
+            }
+        }
+        return null;
     }
 }

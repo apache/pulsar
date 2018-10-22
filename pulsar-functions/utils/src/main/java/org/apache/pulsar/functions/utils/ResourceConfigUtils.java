@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils.validation;
 
-import java.util.Map;
+package org.apache.pulsar.functions.utils;
 
-public abstract class Validator {
-    public Validator(Map<String, Object> params) {
+public class ResourceConfigUtils {
+    public static void validate(Resources resources) {
+        Double cpu = resources.getCpu();
+        Long ram = resources.getRam();
+        Long disk = resources.getDisk();
+        com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0.0,
+                "The cpu allocation for the function must be positive");
+        com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0L,
+                "The ram allocation for the function must be positive");
+        com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0L,
+                "The disk allocation for the function must be positive");
     }
-
-    public Validator() {
-    }
-
-    public abstract void validateField(String name, Object o, ClassLoader classLoader);
 }

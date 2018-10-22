@@ -23,10 +23,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.pulsar.functions.utils.Reflections.createInstance;
-import static org.apache.pulsar.functions.utils.Reflections.loadJar;
-import static org.apache.pulsar.functions.utils.Utils.FILE;
-import static org.apache.pulsar.functions.utils.Utils.HTTP;
-import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
 
 import com.google.gson.Gson;
 
@@ -34,7 +30,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.*;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -64,6 +59,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.join;
+import static org.apache.pulsar.functions.utils.Utils.*;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -86,7 +82,6 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.*;
-import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.Utils;
@@ -1040,26 +1035,41 @@ public class FunctionsImpl {
 
         if (componentType.equals(FUNCTION) && !isEmpty(componentConfigJson)) {
             FunctionConfig functionConfig = new Gson().fromJson(componentConfigJson, FunctionConfig.class);
-            ClassLoader clsLoader = null;
-            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                clsLoader = extractClassLoader(functionPkgUrl, uploadedInputStreamAsFile);
-            }
-            if (functionConfig.getRuntime() == null) {
-                throw new IllegalArgumentException("Function Runtime no specified");
-            }
-            ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name(), clsLoader);
+            ClassLoader clsLoader = FunctionConfigUtils.validate(functionConfig, functionPkgUrl, uploadedInputStreamAsFile);
             return FunctionConfigUtils.convert(functionConfig, clsLoader);
         }
         if (componentType.equals(SOURCE)) {
+            Path archivePath = null;
             SourceConfig sourceConfig = new Gson().fromJson(componentConfigJson, SourceConfig.class);
-            NarClassLoader clsLoader = extractNarClassLoader(sourceConfig.getArchive(), functionPkgUrl, uploadedInputStreamAsFile, true);
-            ConfigValidation.validateConfig(sourceConfig, FunctionConfig.Runtime.JAVA.name(), clsLoader);
+            if (!StringUtils.isEmpty(sourceConfig.getArchive())) {
+                String builtinArchive = sourceConfig.getArchive();
+                if (builtinArchive.startsWith(BUILTIN)) {
+                    builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
+                }
+                try {
+                    archivePath = this.worker().getConnectorsManager().getSourceArchive(builtinArchive);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(String.format("No Source archive %s found", archivePath));
+                }
+            }
+            NarClassLoader clsLoader = SourceConfigUtils.validate(sourceConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             return SourceConfigUtils.convert(sourceConfig, clsLoader);
         }
         if (componentType.equals(SINK)) {
+            Path archivePath = null;
             SinkConfig sinkConfig = new Gson().fromJson(componentConfigJson, SinkConfig.class);
-            NarClassLoader clsLoader = extractNarClassLoader(sinkConfig.getArchive(), functionPkgUrl, uploadedInputStreamAsFile, false);
-            ConfigValidation.validateConfig(sinkConfig, FunctionConfig.Runtime.JAVA.name(), clsLoader);
+            if (!StringUtils.isEmpty(sinkConfig.getArchive())) {
+                String builtinArchive = sinkConfig.getArchive();
+                if (builtinArchive.startsWith(BUILTIN)) {
+                    builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
+                }
+                try {
+                    archivePath = this.worker().getConnectorsManager().getSinkArchive(builtinArchive);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(String.format("No Sink archive %s found", archivePath));
+                }
+            }
+            NarClassLoader clsLoader = SinkConfigUtils.validate(sinkConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             return SinkConfigUtils.convert(sinkConfig, clsLoader);
         }
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
@@ -1070,7 +1080,19 @@ public class FunctionsImpl {
         }
         ClassLoader clsLoader = null;
         if (functionDetailsBuilder.getRuntime() == FunctionDetails.Runtime.JAVA) {
-            clsLoader = extractClassLoader(functionPkgUrl, uploadedInputStreamAsFile);
+            if (!isEmpty(functionPkgUrl)) {
+                try {
+                    clsLoader = extractClassLoader(functionPkgUrl);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("Corrupted Jar file", e);
+                }
+            } else {
+                try {
+                    clsLoader = loadJar(uploadedInputStreamAsFile);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("Corrupted Jar file", e);
+                }
+            }
         }
         validateFunctionClassTypes(clsLoader, functionDetailsBuilder);
 
@@ -1105,73 +1127,6 @@ public class FunctionsImpl {
             throw new IllegalArgumentException("Parallelism needs to be set to a positive number");
         }
         return functionDetails;
-    }
-
-    private ClassLoader extractClassLoader(String functionPkgUrl, File uploadedInputStreamAsFile) throws URISyntaxException, IOException {
-        if (isNotBlank(functionPkgUrl)) {
-            return Utils.validateFileUrl(functionPkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
-        } else if (uploadedInputStreamAsFile != null) {
-            try {
-                return loadJar(uploadedInputStreamAsFile);
-            } catch (MalformedURLException e) {
-                throw new IllegalArgumentException("Corrupted Jar File", e);
-            }
-        } else {
-            return null;
-        }
-    }
-
-    public NarClassLoader extractNarClassLoader(String archive, String pkgUrl, File uploadedInputStreamFileName,
-                                                 boolean isSource) {
-        if (!StringUtils.isEmpty(archive)) {
-            String builtinArchive = archive;
-            if (archive.startsWith(org.apache.pulsar.functions.utils.Utils.BUILTIN)) {
-                builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
-            }
-            if (isSource) {
-                Path path;
-                try {
-                    path = this.worker().getConnectorsManager().getSourceArchive(builtinArchive);
-                } catch (Exception e) {
-                    throw new IllegalArgumentException(String.format("No Source archive %s found", archive));
-                }
-                try {
-                    return NarClassLoader.getFromArchive(path.toFile(),
-                            Collections.emptySet());
-                } catch (IOException e) {
-                    throw new IllegalArgumentException(String.format("The source %s is corrupted", archive));
-                }
-            } else {
-                Path path;
-                try {
-                    path = this.worker().getConnectorsManager().getSinkArchive(builtinArchive);
-                } catch (Exception e) {
-                    throw new IllegalArgumentException(String.format("No Sink archive %s found", archive));
-                }
-                try {
-                    return NarClassLoader.getFromArchive(path.toFile(),
-                            Collections.emptySet());
-                } catch (IOException e) {
-                    throw new IllegalArgumentException(String.format("The sink %s is corrupted", archive));
-                }
-            }
-        }
-        if (!StringUtils.isEmpty(pkgUrl)) {
-            try {
-                return Utils.extractNarClassloader(pkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e.getMessage());
-            }
-        }
-        if (uploadedInputStreamFileName != null) {
-            try {
-                return NarClassLoader.getFromArchive(uploadedInputStreamFileName,
-                        Collections.emptySet());
-            } catch (IOException e) {
-                throw new IllegalArgumentException(e.getMessage());
-            }
-        }
-        return null;
     }
 
     private void validateFunctionClassTypes(ClassLoader classLoader, FunctionDetails.Builder functionDetailsBuilder) {
