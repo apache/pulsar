@@ -272,6 +272,12 @@ public class FunctionConfigUtils {
         }
         functionConfig.setUserConfig(userConfig);
 
+        if (!isEmpty(functionDetails.getSecretsMap())) {
+            Type type = new TypeToken<Map<String, String>>() {}.getType();
+            Map<String, String> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+            functionConfig.setSecrets(secretsMap);
+        }
+
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
             resources.setCpu(functionDetails.getResources().getCpu());

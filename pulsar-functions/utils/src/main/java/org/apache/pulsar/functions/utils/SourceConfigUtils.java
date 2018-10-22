@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
@@ -153,6 +154,11 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(sourceSpec.getConfigs())) {
             Type type = new TypeToken<Map<String, String>>() {}.getType();
             sourceConfig.setConfigs(new Gson().fromJson(sourceSpec.getConfigs(), type));
+        }
+        if (!isEmpty(functionDetails.getSecretsMap())) {
+            Type type = new TypeToken<Map<String, String>>() {}.getType();
+            Map<String, String> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+            sourceConfig.setSecrets(secretsMap);
         }
         Function.SinkSpec sinkSpec = functionDetails.getSink();
         sourceConfig.setTopicName(sinkSpec.getTopic());
