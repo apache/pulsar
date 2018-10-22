@@ -155,6 +155,10 @@ class KubernetesRuntime implements Runtime {
         try {
             submitStatefulSet();
         } catch (Exception e) {
+            log.error("Could not submit statefulset for {}/{}/{}, deleting service as well",
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName(), e);
             deleteService();
         }
         running = true;
