@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
- Configuration:
+
+Configuration:
   name: pulsar-functions-kubernetes-prometheus-metrics-server
   monitorInterval: 30
-   Appenders:
-     # Console
+  Appenders:
+    # Console
     Console:
       name: Console
       target: SYSTEM_OUT
