@@ -290,6 +290,8 @@ public class CmdSinks extends CmdBase {
         protected String DEPRECATED_sinkConfigString;
         @Parameter(names = "--sink-config", description = "User defined configs key/values")
         protected String sinkConfigString;
+        @Parameter(names = "--secrets-config", description = "Secrets config key/values")
+        protected String secretsConfig;
         @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
         protected boolean autoAck = true;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
@@ -402,6 +404,12 @@ public class CmdSinks extends CmdBase {
 
             if (null != sinkConfigString) {
                 sinkConfig.setConfigs(parseConfigs(sinkConfigString));
+            }
+
+            if (null != secretsConfig) {
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
+                Map<String, String> secretsMap = new Gson().fromJson(secretsConfig, type);
+                sinkConfig.setSecrets(secretsMap);
             }
 
             sinkConfig.setAutoAck(autoAck);
