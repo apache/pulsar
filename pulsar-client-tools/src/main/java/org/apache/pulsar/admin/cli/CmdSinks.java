@@ -31,6 +31,7 @@ import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
@@ -67,6 +68,9 @@ public class CmdSinks extends CmdBase {
     private final DeleteSink deleteSink;
     private final ListSinks listSinks;
     private final GetSink getSink;
+    private final GetSinkStatus getSinkStatus;
+    private final StopSink stopSink;
+    private final RestartSink restartSink;
     private final LocalSinkRunner localSinkRunner;
 
     public CmdSinks(PulsarAdmin admin) {
@@ -76,6 +80,9 @@ public class CmdSinks extends CmdBase {
         deleteSink = new DeleteSink();
         listSinks = new ListSinks();
         getSink = new GetSink();
+        getSinkStatus = new GetSinkStatus();
+        stopSink = new StopSink();
+        restartSink = new RestartSink();
         localSinkRunner = new LocalSinkRunner();
 
         jcommander.addCommand("create", createSink);
@@ -83,6 +90,9 @@ public class CmdSinks extends CmdBase {
         jcommander.addCommand("delete", deleteSink);
         jcommander.addCommand("list", listSinks);
         jcommander.addCommand("get", getSink);
+        jcommander.addCommand("getstatus", getSinkStatus);
+        jcommander.addCommand("stop", stopSink);
+        jcommander.addCommand("restart", restartSink);
         jcommander.addCommand("localrun", localSinkRunner);
         jcommander.addCommand("available-sinks", new ListBuiltInSinks());
     }
@@ -587,6 +597,65 @@ public class CmdSinks extends CmdBase {
             List<String> sinks = admin.sink().listSinks(tenant, namespace);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(sinks));
+        }
+    }
+
+    @Parameters(commandDescription = "Check the current status of a Pulsar Sink")
+    class GetSinkStatus extends SinkCommand {
+
+        @Parameter(names = "--instance-id", description = "The sink instanceId (Get-status of all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            String json = Utils.printJson(
+                    isBlank(instanceId) ? admin.sink().getSinkStatus(tenant, namespace, sinkName)
+                            : admin.sink().getSinkStatus(tenant, namespace, sinkName,
+                            Integer.parseInt(instanceId)));
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(new JsonParser().parse(json)));
+        }
+    }
+
+    @Parameters(commandDescription = "Restart sink instance")
+    class RestartSink extends SinkCommand {
+
+        @Parameter(names = "--instance-id", description = "The sink instanceId (restart all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.sink().restartSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.sink().restartSink(tenant, namespace, sinkName);
+            }
+            System.out.println("Restarted successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Temporary stops sink instance. (If worker restarts then it reassigns and starts sink again")
+    class StopSink extends SinkCommand {
+
+        @Parameter(names = "--instance-id", description = "The sink instanceId (stop all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.sink().stopSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.sink().stopSink(tenant, namespace, sinkName);
+            }
+            System.out.println("Restarted successfully");
         }
     }
 

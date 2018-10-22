@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
@@ -29,6 +31,7 @@ import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
@@ -69,8 +72,11 @@ public class CmdSources extends CmdBase {
     private final CreateSource createSource;
     private final DeleteSource deleteSource;
     private final GetSource getSource;
+    private final GetSourceStatus getSourceStatus;
     private final ListSources listSources;
     private final UpdateSource updateSource;
+    private final RestartSource restartSource;
+    private final StopSource stopSource;
     private final LocalSourceRunner localSourceRunner;
 
     public CmdSources(PulsarAdmin admin) {
@@ -80,13 +86,19 @@ public class CmdSources extends CmdBase {
         deleteSource = new DeleteSource();
         listSources = new ListSources();
         getSource = new GetSource();
+        getSourceStatus = new GetSourceStatus();
+        restartSource = new RestartSource();
+        stopSource = new StopSource();
         localSourceRunner = new LocalSourceRunner();
 
         jcommander.addCommand("create", createSource);
         jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("get", getSource);
+        jcommander.addCommand("getstatus", getSourceStatus);
         jcommander.addCommand("list", listSources);
+        jcommander.addCommand("stop", stopSource);
+        jcommander.addCommand("restart", restartSource);
         jcommander.addCommand("localrun", localSourceRunner);
         jcommander.addCommand("available-sources", new ListBuiltInSources());
     }
@@ -147,13 +159,13 @@ public class CmdSources extends CmdBase {
         protected String tlsTrustCertFilePath;
 
         private void mergeArgs() {
-            if (!StringUtils.isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
-            if (!StringUtils.isBlank(DEPRECATED_clientAuthPlugin)) clientAuthPlugin = DEPRECATED_clientAuthPlugin;
-            if (!StringUtils.isBlank(DEPRECATED_clientAuthParams)) clientAuthParams = DEPRECATED_clientAuthParams;
+            if (!isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
+            if (!isBlank(DEPRECATED_clientAuthPlugin)) clientAuthPlugin = DEPRECATED_clientAuthPlugin;
+            if (!isBlank(DEPRECATED_clientAuthParams)) clientAuthParams = DEPRECATED_clientAuthParams;
             if (DEPRECATED_useTls != null) useTls = DEPRECATED_useTls;
             if (DEPRECATED_tlsAllowInsecureConnection != null) tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
             if (DEPRECATED_tlsHostNameVerificationEnabled != null) tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
-            if (!StringUtils.isBlank(DEPRECATED_tlsTrustCertFilePath)) tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+            if (!isBlank(DEPRECATED_tlsTrustCertFilePath)) tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
         }
 
         @Override
@@ -280,11 +292,11 @@ public class CmdSources extends CmdBase {
 
         private void mergeArgs() {
             if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
-            if (!StringUtils.isBlank(DEPRECATED_destinationTopicName)) destinationTopicName = DEPRECATED_destinationTopicName;
-            if (!StringUtils.isBlank(DEPRECATED_deserializationClassName)) deserializationClassName = DEPRECATED_deserializationClassName;
-            if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
-            if (!StringUtils.isBlank(DEPRECATED_sourceConfigFile)) sourceConfigFile = DEPRECATED_sourceConfigFile;
-            if (!StringUtils.isBlank(DEPRECATED_sourceConfigString)) sourceConfigString = DEPRECATED_sourceConfigString;
+            if (!isBlank(DEPRECATED_destinationTopicName)) destinationTopicName = DEPRECATED_destinationTopicName;
+            if (!isBlank(DEPRECATED_deserializationClassName)) deserializationClassName = DEPRECATED_deserializationClassName;
+            if (!isBlank(DEPRECATED_className)) className = DEPRECATED_className;
+            if (!isBlank(DEPRECATED_sourceConfigFile)) sourceConfigFile = DEPRECATED_sourceConfigFile;
+            if (!isBlank(DEPRECATED_sourceConfigString)) sourceConfigString = DEPRECATED_sourceConfigString;
         }
 
         @Override
@@ -382,7 +394,7 @@ public class CmdSources extends CmdBase {
         }
 
         protected void validateSourceConfigs(SourceConfig sourceConfig) {
-            if (StringUtils.isBlank(sourceConfig.getArchive())) {
+            if (isBlank(sourceConfig.getArchive())) {
                 throw new ParameterException("Source archive not specfied");
             }
 
@@ -545,6 +557,65 @@ public class CmdSources extends CmdBase {
             List<String> sources = admin.source().listSources(tenant, namespace);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(sources));
+        }
+    }
+
+    @Parameters(commandDescription = "Check the current status of a Pulsar Source")
+    class GetSourceStatus extends SourceCommand {
+
+        @Parameter(names = "--instance-id", description = "The source instanceId (Get-status of all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            String json = Utils.printJson(
+                    isBlank(instanceId) ? admin.source().getSourceStatus(tenant, namespace, sourceName)
+                            : admin.source().getSourceStatus(tenant, namespace, sourceName,
+                            Integer.parseInt(instanceId)));
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(new JsonParser().parse(json)));
+        }
+    }
+
+    @Parameters(commandDescription = "Restart source instance")
+    class RestartSource extends SourceCommand {
+
+        @Parameter(names = "--instance-id", description = "The source instanceId (restart all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.source().restartSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.source().restartSource(tenant, namespace, sourceName);
+            }
+            System.out.println("Restarted successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Temporary stops source instance. (If worker restarts then it reassigns and starts source again")
+    class StopSource extends SourceCommand {
+
+        @Parameter(names = "--instance-id", description = "The source instanceId (stop all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.source().stopSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.source().stopSource(tenant, namespace, sourceName);
+            }
+            System.out.println("Restarted successfully");
         }
     }
 

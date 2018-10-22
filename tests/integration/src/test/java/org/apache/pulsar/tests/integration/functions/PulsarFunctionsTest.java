@@ -154,7 +154,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         // wait for sink to process messages
-        waitForProcessingMessages(tenant, namespace, sinkName, numMessages);
+        waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages);
 
         // validate the sink result
         tester.validateSinkResult(kvs);
@@ -238,7 +238,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void getSinkStatus(String tenant, String namespace, String sinkName) throws Exception {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
-            "functions",
+            "sink",
             "getstatus",
             "--tenant", tenant,
             "--namespace", namespace,
@@ -254,7 +254,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             } catch (ContainerExecException e) {
                 // expected in early iterations
             }
-            log.info("Backoff 1 second until the function is running");
+            log.info("Backoff 1 second until the sink is running");
             TimeUnit.SECONDS.sleep(1);
         }
     }
@@ -482,7 +482,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void getSourceStatus(String tenant, String namespace, String sourceName) throws Exception {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
-            "functions",
+            "source",
             "getstatus",
             "--tenant", tenant,
             "--namespace", namespace,
@@ -518,7 +518,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                    int numMessages) throws Exception {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
-            "functions",
+            "source",
             "getstatus",
             "--tenant", tenant,
             "--namespace", namespace,
@@ -537,6 +537,35 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             }
             log.info("{} ms has elapsed but the source hasn't process {} messages, backoff to wait for another 1 second",
                 stopwatch.elapsed(TimeUnit.MILLISECONDS), numMessages);
+            TimeUnit.SECONDS.sleep(1);
+        }
+    }
+
+    protected void waitForProcessingSinkMessages(String tenant,
+                                                 String namespace,
+                                                 String sinkName,
+                                                 int numMessages) throws Exception {
+        String[] commands = {
+                PulsarCluster.ADMIN_SCRIPT,
+                "sink",
+                "getstatus",
+                "--tenant", tenant,
+                "--namespace", namespace,
+                "--name", sinkName
+        };
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        while (true) {
+            try {
+                ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+                log.info("Get sink status : {}", result.getStdout());
+                if (result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\"")) {
+                    return;
+                }
+            } catch (ContainerExecException e) {
+                // expected for early iterations
+            }
+            log.info("{} ms has elapsed but the sink hasn't process {} messages, backoff to wait for another 1 second",
+                    stopwatch.elapsed(TimeUnit.MILLISECONDS), numMessages);
             TimeUnit.SECONDS.sleep(1);
         }
     }
