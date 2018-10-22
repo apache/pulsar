@@ -24,11 +24,8 @@ import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
-import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -46,7 +43,6 @@ import io.netty.buffer.Unpooled;
 
 import java.io.File;
 import java.lang.reflect.Type;
-import java.net.MalformedURLException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -69,25 +65,12 @@ import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.Resources;
-import org.apache.pulsar.functions.proto.Function.RetryDetails;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.*;
-import org.apache.pulsar.functions.utils.FunctionConfig.ProcessingGuarantees;
-import org.apache.pulsar.functions.utils.validation.ConfigValidation;
-import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassesValidator;
-import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
 import org.apache.pulsar.functions.windowing.WindowUtils;
 
 @Slf4j
@@ -505,48 +488,19 @@ public class CmdFunctions extends CmdBase {
                         + " be specified for the function. Please specify one.");
             }
 
-            boolean isJarPathUrl = isNotBlank(functionConfig.getJar()) && Utils.isFunctionPackageUrlSupported(functionConfig.getJar());
-            String jarFilePath = null;
-            if (isJarPathUrl) {
-                if (functionConfig.getJar().startsWith(Utils.HTTP)) {
-                    // download jar file if url is http or file is downloadable
-                    File tempPkgFile = null;
-                    try {
-                        tempPkgFile = downloadFromHttpUrl(functionConfig.getJar(), functionConfig.getName());
-                        jarFilePath = tempPkgFile.getAbsolutePath();
-                    } catch (Exception e) {
-                        if (tempPkgFile != null) {
-                            tempPkgFile.deleteOnExit();
-                        }
-                        throw new ParameterException("Failed to download jar from " + functionConfig.getJar()
-                                + ", due to =" + e.getMessage());
-                    }
-                }
-            } else {
-                if (!fileExists(userCodeFile)) {
-                    throw new ParameterException("File " + userCodeFile + " does not exist");
-                }
-                jarFilePath = userCodeFile;
+            if (!isBlank(functionConfig.getJar()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar()) &&
+                    !new File(functionConfig.getJar()).exists()) {
+                throw new ParameterException("The specified jar file does not exist");
             }
-
-            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-
-                if (jarFilePath != null) {
-                    File file = new File(jarFilePath);
-                    try {
-                        classLoader = Reflections.loadJar(file);
-                    } catch (MalformedURLException e) {
-                        throw new ParameterException(
-                                "Failed to load user jar " + file + " with error " + e.getMessage());
-                    }
-                    (new ImplementsClassesValidator(Function.class, java.util.function.Function.class))
-                            .validateField("className", functionConfig.getClassName(), classLoader);
-                }
+            if (!isBlank(functionConfig.getPy()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy()) &&
+                    !new File(functionConfig.getPy()).exists()) {
+                throw new ParameterException("The specified jar file does not exist");
             }
 
             try {
                 // Need to load jar and set context class loader before calling
-                ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name(), classLoader);
+                String functionPkgUrl = Utils.isFunctionPackageUrlSupported(userCodeFile) ? userCodeFile : null;
+                classLoader = FunctionConfigUtils.validate(functionConfig, functionPkgUrl, null);
             } catch (Exception e) {
                 throw new IllegalArgumentException(e.getMessage());
             }

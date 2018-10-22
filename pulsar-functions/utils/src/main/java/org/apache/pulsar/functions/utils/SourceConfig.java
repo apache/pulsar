@@ -23,13 +23,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isPositiveNumber;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidResources;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidSourceConfig;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
 
 import java.util.Map;
 
@@ -38,32 +31,22 @@ import java.util.Map;
 @Data
 @EqualsAndHashCode
 @ToString
-@isValidSourceConfig
 public class SourceConfig {
-    @NotNull
     private String tenant;
-    @NotNull
     private String namespace;
-    @NotNull
     private String name;
     private String className;
 
-    @NotNull
-    @isValidTopicName
     private String topicName;
 
-    @ConfigValidationAnnotations.isValidSerde
     private String serdeClassName;
 
     private String schemaType;
 
     private Map<String, Object> configs;
-    @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    @isValidResources
     private Resources resources;
 
-    @isFileExists
     private String archive;
 }

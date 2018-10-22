@@ -42,6 +42,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.FunctionConfig;
@@ -95,6 +96,7 @@ public class CmdFunctionsTest {
     }
 
     private static final String TEST_NAME = "test_name";
+    private static final String JAR_NAME = CmdFunctionsTest.class.getClassLoader().getResource("dummyexamples.jar").getFile();
 
     private PulsarAdmin admin;
     private Functions functions;
@@ -201,7 +203,7 @@ public class CmdFunctionsTest {
             "--name", fnName,
             "--inputs", inputTopicName,
             "--output", outputTopicName,
-            "--jar", "SomeJar.jar",
+            "--jar", JAR_NAME,
             "--auto-ack", "false",
             "--tenant", "sample",
             "--namespace", "ns1",
@@ -273,7 +275,7 @@ public class CmdFunctionsTest {
 
         verify(functions, times(1)).stopFunction(tenant, namespace, fnName);
     }
-    
+
     @Test
     public void testCreateFunctionWithHttpUrl() throws Exception {
         String fnName = TEST_NAME + "-function";
@@ -300,7 +302,7 @@ public class CmdFunctionsTest {
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
 
-        assertTrue(output.contains("Failed to download jar"));
+        assertTrue(output.contains("Corrupted Jar File"));
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
@@ -320,14 +322,14 @@ public class CmdFunctionsTest {
 
         verify(functions, times(1)).getFunctionStatus(tenant, namespace, fnName, instanceId);
     }
-    
+
     @Test
     public void testCreateFunctionWithFileUrl() throws Exception {
         String fnName = TEST_NAME + "-function";
         String inputTopicName = TEST_NAME + "-input-topic";
         String outputTopicName = TEST_NAME + "-output-topic";
 
-        final String url = "file:/usr/temp/myfile.jar";
+        final String url = "file:" + JAR_NAME;
         cmd.run(new String[] {
             "create",
             "--name", fnName,
@@ -371,7 +373,7 @@ public class CmdFunctionsTest {
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
 
-        assertTrue(output.contains("Failed to download archive"));
+        assertTrue(output.contains("Corrupt User PackageFile " + url));
         assertEquals(url, creater.archive);
     }
 
@@ -389,6 +391,7 @@ public class CmdFunctionsTest {
             "--archive", url,
             "--tenant", "sample",
             "--namespace", "ns1",
+            "--destination-topic-name", "input",
         });
 
         CreateSource creater = cmdSources.getCreateSource();
@@ -396,7 +399,7 @@ public class CmdFunctionsTest {
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
 
-        assertTrue(output.contains("Failed to download archive"));
+        assertTrue(output.contains("Corrupt User PackageFile " + url));
         assertEquals(url, creater.archive);
     }
 
@@ -410,7 +413,7 @@ public class CmdFunctionsTest {
             "--name", fnName,
             "--topicsPattern", topicPatterns,
             "--output", outputTopicName,
-            "--jar", "SomeJar.jar",
+            "--jar", JAR_NAME,
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", DummyFunction.class.getName(),
@@ -435,7 +438,7 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
         });
@@ -455,7 +458,7 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--className", DummyFunction.class.getName(),
         });
 
@@ -479,7 +482,7 @@ public class CmdFunctionsTest {
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
                 "--fqfn", fqfn,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--className", DummyFunction.class.getName(),
         });
 
@@ -498,7 +501,7 @@ public class CmdFunctionsTest {
                 "create",
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
@@ -515,7 +518,7 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
                 "create",
                 "--inputs", inputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
@@ -527,7 +530,7 @@ public class CmdFunctionsTest {
 
     }
 
-    
+
     @Test
     public void testCreateWithoutOutputTopic() {
 
@@ -538,7 +541,7 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
                 "create",
                 "--inputs", inputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
@@ -603,7 +606,7 @@ public class CmdFunctionsTest {
             "--name", fnName,
             "--inputs", inputTopicName,
             "--output", outputTopicName,
-            "--jar", "SomeJar.jar",
+            "--jar", JAR_NAME,
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", DummyFunction.class.getName(),
@@ -735,7 +738,7 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
@@ -746,14 +749,14 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
                 "--parallelism", "-1"
         };
 
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "Field 'parallelism' must be a Positive Number");
+        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "Function parallelism should positive number");
 
     }
 
@@ -764,7 +767,7 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
@@ -775,13 +778,13 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", wrongOutputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
         };
 
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "The topic name " + wrongOutputTopicName + " is invalid for field 'output'");
+        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "Output topic " + wrongOutputTopicName + " is invalid");
     }
 
     @Test
@@ -791,7 +794,7 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", DummyFunction.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
@@ -802,13 +805,13 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", DummyFunction.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", cannotLoadClass,
         };
 
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "Cannot find/load class " + cannotLoadClass);
+        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "User class must be in class path");
     }
 
     @Test
@@ -818,7 +821,7 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
@@ -828,7 +831,7 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", inputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", JAR_NAME,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),

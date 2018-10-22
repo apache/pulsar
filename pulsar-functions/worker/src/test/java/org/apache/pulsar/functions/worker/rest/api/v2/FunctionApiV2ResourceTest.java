@@ -261,7 +261,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             null,
             parallelism,
-                "Field 'className' cannot be null!");
+                "Function classname cannot be null");
     }
 
     private void testRegisterFunctionMissingArguments(
@@ -546,7 +546,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             null,
             parallelism,
-                "Field 'className' cannot be null!");
+                "Function classname cannot be null");
     }
 
     private void testUpdateFunctionMissingArguments(

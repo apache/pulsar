@@ -18,22 +18,16 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.util.Collections;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,7 +43,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
@@ -61,25 +54,6 @@ import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 public final class Utils {
 
     private Utils(){}
-
-    public static Object getObject(byte[] byteArr) throws IOException, ClassNotFoundException {
-        Object obj = null;
-        ByteArrayInputStream bis = null;
-        ObjectInputStream ois = null;
-        try {
-            bis = new ByteArrayInputStream(byteArr);
-            ois = new ObjectInputStream(bis);
-            obj = ois.readObject();
-        } finally {
-            if (bis != null) {
-                bis.close();
-            }
-            if (ois != null) {
-                ois.close();
-            }
-        }
-        return obj;
-    }
 
     public static byte[] toByteArray(Object obj) throws IOException {
         byte[] bytes = null;
@@ -136,73 +110,11 @@ public final class Utils {
             }
         }
     }
-
-    public static ClassLoader validateFileUrl(String destPkgUrl, String downloadPkgDir) throws IOException, URISyntaxException {
-        if (destPkgUrl.startsWith(FILE)) {
-            URL url = new URL(destPkgUrl);
-            File file = new File(url.toURI());
-            if (!file.exists()) {
-                throw new IOException(destPkgUrl + " does not exists locally");
-            }
-            try {
-                return Reflections.loadJar(file);
-            } catch (MalformedURLException e) {
-                throw new IllegalArgumentException(
-                        "Corrupt User PackageFile " + file + " with error " + e.getMessage());
-            }
-        } else if (destPkgUrl.startsWith("http")) {
-            URL website = new URL(destPkgUrl);
-            File tempFile = new File(downloadPkgDir, website.getHost() + UUID.randomUUID().toString());
-            ReadableByteChannel rbc = Channels.newChannel(website.openStream());
-            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-                fos.getChannel().transferFrom(rbc, 0, 10);
-            }
-            if (tempFile.exists()) {
-                tempFile.delete();
-            }
-            return null;
-        } else {
-            throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
-        }
-    }
-
-    public static NarClassLoader extractNarClassloader(String destPkgUrl, String downloadPkgDir) throws IOException, URISyntaxException {
-        if (destPkgUrl.startsWith(FILE)) {
-            URL url = new URL(destPkgUrl);
-            File file = new File(url.toURI());
-            if (!file.exists()) {
-                throw new IllegalArgumentException(destPkgUrl + " does not exists locally");
-            }
-            try {
-                return NarClassLoader.getFromArchive(file, Collections.emptySet());
-            } catch (MalformedURLException e) {
-                throw new IllegalArgumentException(
-                        "Corrupt User PackageFile " + file + " with error " + e.getMessage());
-            }
-        } else if (destPkgUrl.startsWith("http")) {
-            URL website = new URL(destPkgUrl);
-            File tempFile = new File(downloadPkgDir, website.getHost() + UUID.randomUUID().toString());
-            if (!tempFile.exists()) {
-                throw new IllegalArgumentException("Could not create local file " + tempFile);
-            }
-            tempFile.deleteOnExit();
-            return NarClassLoader.getFromArchive(tempFile, Collections.emptySet());
-        } else {
-            throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
-        }
-    }
     
     public static void downloadFromHttpUrl(String destPkgUrl, FileOutputStream outputStream) throws IOException {
         URL website = new URL(destPkgUrl);
         ReadableByteChannel rbc = Channels.newChannel(website.openStream());
         outputStream.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
-    }
-
-    public static File downloadFromHttpUrl(String destPkgUrl, String fileName) throws IOException {
-        File tempPkgFile = File.createTempFile(fileName, "function");
-        tempPkgFile.deleteOnExit();
-        downloadFromHttpUrl(destPkgUrl, new FileOutputStream(tempPkgFile));
-        return tempPkgFile;
     }
 
     public static void downloadFromBookkeeper(Namespace namespace,

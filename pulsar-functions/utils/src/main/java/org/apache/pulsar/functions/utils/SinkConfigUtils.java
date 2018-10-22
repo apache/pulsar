@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.utils;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
@@ -31,14 +32,14 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.nio.file.Path;
+import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 
 public class SinkConfigUtils {
 
@@ -59,7 +60,7 @@ public class SinkConfigUtils {
                 sinkClassName = sinkConfig.getClassName(); // server derives the arg-type by loading a class
             } else {
                 sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
-                typeArg = Utils.getSinkType(sinkClassName, classLoader).getName();
+                typeArg = getSinkType(sinkClassName, classLoader).getName();
             }
         }
 
@@ -231,5 +232,107 @@ public class SinkConfigUtils {
         }
 
         return sinkConfig;
+    }
+
+    public static NarClassLoader validate(SinkConfig sinkConfig, Path archivePath, String functionPkgUrl,
+                                          File uploadedInputStreamAsFile) {
+        if (isEmpty(sinkConfig.getTenant())) {
+            throw new IllegalArgumentException("Sink tenant cannot be null");
+        }
+        if (isEmpty(sinkConfig.getNamespace())) {
+            throw new IllegalArgumentException("Sink namespace cannot be null");
+        }
+        if (isEmpty(sinkConfig.getName())) {
+            throw new IllegalArgumentException("Sink name cannot be null");
+        }
+
+        // make we sure we have one source of input
+        Collection<String> allInputs = collectAllInputTopics(sinkConfig);
+        if (allInputs.isEmpty()) {
+            throw new IllegalArgumentException("Must specify at least one topic of input via topicToSerdeClassName, " +
+                    "topicsPattern, topicToSchemaType or inputSpecs");
+        }
+        for (String topic : allInputs) {
+            if (!TopicName.isValid(topic)) {
+                throw new IllegalArgumentException(String.format("Input topic %s is invalid", topic));
+            }
+        }
+
+        if (sinkConfig.getParallelism() <= 0) {
+            throw new IllegalArgumentException("Sink parallelism should positive number");
+        }
+
+        if (sinkConfig.getResources() != null) {
+            ResourceConfigUtils.validate(sinkConfig.getResources());
+        }
+
+        if (sinkConfig.getTimeoutMs() != null && sinkConfig.getTimeoutMs() <= 0) {
+            throw new IllegalArgumentException("Sink timeout must be a positive number");
+        }
+
+        NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+        if (classLoader == null) {
+            // This happens at the cli for builtin. There is no need to check this since
+            // the actual check will be done at serverside
+            return null;
+        }
+
+        String sinkClassName;
+        try {
+            sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
+        } catch (IOException e1) {
+            throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
+        }
+        Class<?> typeArg = getSinkType(sinkClassName, classLoader);
+
+        if (sinkConfig.getTopicToSerdeClassName() != null) {
+            sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
+                ValidatorUtils.validateSerde(serdeClassName, typeArg, classLoader, true);
+            });
+        }
+
+        if (sinkConfig.getTopicToSchemaType() != null) {
+            sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
+                ValidatorUtils.validateSchema(schemaType, typeArg, classLoader, true);
+            });
+        }
+
+        // topicsPattern does not need checks
+
+        if (sinkConfig.getInputSpecs() != null) {
+            sinkConfig.getInputSpecs().forEach((topicName, consumerSpec) -> {
+                // Only one is set
+                if (!isEmpty(consumerSpec.getSerdeClassName()) && !isEmpty(consumerSpec.getSchemaType())) {
+                    throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
+                }
+                if (!isEmpty(consumerSpec.getSerdeClassName())) {
+                    ValidatorUtils.validateSerde(consumerSpec.getSerdeClassName(), typeArg, classLoader, true);
+                }
+                if (!isEmpty(consumerSpec.getSchemaType())) {
+                    ValidatorUtils.validateSchema(consumerSpec.getSchemaType(), typeArg, classLoader, true);
+                }
+            });
+        }
+        return classLoader;
+    }
+
+    private static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {
+        List<String> retval = new LinkedList<>();
+        if (sinkConfig.getInputs() != null) {
+            retval.addAll(sinkConfig.getInputs());
+        }
+        if (sinkConfig.getTopicToSerdeClassName() != null) {
+            retval.addAll(sinkConfig.getTopicToSerdeClassName().keySet());
+        }
+        if (sinkConfig.getTopicsPattern() != null) {
+            retval.add(sinkConfig.getTopicsPattern());
+        }
+        if (sinkConfig.getTopicToSchemaType() != null) {
+            retval.addAll(sinkConfig.getTopicToSchemaType().keySet());
+        }
+        if (sinkConfig.getInputSpecs() != null) {
+            retval.addAll(sinkConfig.getInputSpecs().keySet());
+        }
+        return retval;
     }
 }

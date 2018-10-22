@@ -38,10 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Resources;
-import org.apache.pulsar.functions.utils.SourceConfig;
+import org.apache.pulsar.functions.utils.*;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -104,7 +101,7 @@ public class TestCmdSources {
         PowerMockito.doNothing().when(CmdFunctions.class, "startLocalRun", Mockito.any(), Mockito.anyInt(), Mockito.anyInt(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME).getFile();
         WRONG_JAR_PATH = Thread.currentThread().getContextClassLoader().getResource(WRONG_JAR_FILE_NAME).getFile();
-        Thread.currentThread().setContextClassLoader(Reflections.loadJar(new File(JAR_FILE_PATH)));
+        Thread.currentThread().setContextClassLoader(Utils.loadJar(new File(JAR_FILE_PATH)));
     }
 
     public SourceConfig getSourceConfig() {
@@ -179,7 +176,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'name' cannot be null!")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source name cannot be null")
     public void testMissingName() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setName(null);
@@ -198,7 +195,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'topicName' cannot be null!")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Topic name cannot be null")
     public void testMissingTopicName() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setTopicName(null);
@@ -278,7 +275,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
     public void testNegativeParallelism() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setParallelism(-1);
@@ -297,7 +294,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
     public void testZeroParallelism() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setParallelism(0);
@@ -335,7 +332,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar does not exist")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Source Archive /tmp/foo.jar does not exist")
     public void testInvalidJar() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         String fakeJar = "/tmp/foo.jar";
@@ -550,7 +547,7 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'name' cannot be null!")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source name cannot be null")
     public void testCmdSourceConfigFileMissingName() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setName(null);
@@ -560,7 +557,7 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'topicName' cannot be null!")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Topic name cannot be null")
     public void testCmdSourceConfigFileMissingTopicName() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setTopicName(null);
@@ -590,7 +587,7 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
     public void testCmdSourceConfigFileZeroParallelism() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setParallelism(0);
@@ -600,7 +597,7 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
     public void testCmdSourceConfigFileNegativeParallelism() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setParallelism(-1);
@@ -640,7 +637,7 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar does not exist")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Source Archive /tmp/foo.jar does not exist")
     public void testCmdSourceConfigFileInvalidJar() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setArchive("/tmp/foo.jar");
