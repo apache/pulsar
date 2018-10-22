@@ -143,7 +143,7 @@ std::string ZTSClient::ybase64Encode(const unsigned char *input, int length) {
 char *ZTSClient::base64Decode(const char *input) {
     BIO *bio, *b64;
     size_t length = strlen(input);
-    char *result = (char *)malloc(length);
+    char *result = (char *)calloc(length, sizeof(char));
 
     bio = BIO_new_mem_buf((void *)input, -1);
     b64 = BIO_new(BIO_f_base64());
@@ -159,7 +159,7 @@ char *ZTSClient::base64Decode(const char *input) {
 const std::string ZTSClient::getPrincipalToken() const {
     // construct unsigned principal token
     std::string unsignedTokenString = "v=S1";
-    char host[BUFSIZ];
+    char host[BUFSIZ] = {};
     long long t = (long long)time(NULL);
 
     gethostname(host, sizeof(host));
@@ -176,8 +176,8 @@ const std::string ZTSClient::getPrincipalToken() const {
 
     // signing
     const char *unsignedToken = unsignedTokenString.c_str();
-    unsigned char signature[BUFSIZ];
-    unsigned char hash[SHA256_DIGEST_LENGTH];
+    unsigned char signature[BUFSIZ] = {};
+    unsigned char hash[SHA256_DIGEST_LENGTH] = {};
     unsigned int siglen;
     FILE *fp;
     RSA *privateKey;
@@ -193,10 +193,12 @@ const std::string ZTSClient::getPrincipalToken() const {
         BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
         if (bio == NULL) {
             LOG_ERROR("Failed to create key BIO");
+            free(decodeStr);
             return "";
         }
         privateKey = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL);
         BIO_free(bio);
+        free(decodeStr);
         if (privateKey == NULL) {
             LOG_ERROR("Failed to load privateKey");
             return "";
@@ -224,6 +226,8 @@ const std::string ZTSClient::getPrincipalToken() const {
 
     std::string principalToken = unsignedTokenString + ";s=" + ybase64Encode(signature, siglen);
     LOG_DEBUG("Created signed principal token: " << principalToken);
+
+    RSA_free(privateKey);
 
     return principalToken;
 }
