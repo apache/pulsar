@@ -621,7 +621,7 @@ class KubernetesRuntime implements Runtime {
         args.add("java");
         args.add("-cp");
         args.add(prometheusMetricsServerFile);
-        args.add("-Dlog4j.configurationFile=prometheus_metricsserver_log4j2.yml")
+        args.add("-Dlog4j.configurationFile=prometheus_metricsserver_log4j2.yml");
         args.add("-Xmx" + String.valueOf(prometheusMetricsServerRam));
         args.add(PrometheusMetricsServer.class.getName());
         args.add("--function_details");
