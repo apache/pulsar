@@ -144,7 +144,7 @@ flexible messaging model and an intuitive client API.</description>
     <zookeeper.version>3.4.13</zookeeper.version>
     <netty.version>4.1.22.Final</netty.version>
     <storm.version>1.0.5</storm.version>
-    <jetty.version>9.3.11.v20160721</jetty.version>
+    <jetty.version>9.4.12.v20180830</jetty.version>
     <jersey.version>2.25</jersey.version>
     <athenz.version>1.7.17</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
