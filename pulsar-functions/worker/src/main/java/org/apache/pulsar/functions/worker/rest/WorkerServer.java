@@ -26,8 +26,6 @@ import java.util.TimeZone;
 import javax.servlet.DispatcherType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -55,17 +53,14 @@ import org.glassfish.jersey.servlet.ServletContainer;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
-
 @Slf4j
 public class WorkerServer {
 
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
     private static final String MATCH_ALL = "/*";
-    private static final int NUM_ACCEPTORS = 16;
     private static final int MAX_CONCURRENT_REQUESTS = 1024;
-    private final ExecutorService webServerExecutor;
+    private final ExecutorThreadPool webServerExecutor;
     private Server server;
 
     private static String getErrorMessage(Server server, int port, Exception ex) {
@@ -80,7 +75,8 @@ public class WorkerServer {
     public WorkerServer(WorkerService workerService) {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
-        this.webServerExecutor = Executors.newFixedThreadPool(NUM_ACCEPTORS, new DefaultThreadFactory("function-web"));
+        this.webServerExecutor = new ExecutorThreadPool();
+        this.webServerExecutor.setName("function-web");
         init();
     }
 
@@ -90,7 +86,7 @@ public class WorkerServer {
     }
     
     private void init() {
-        server = new Server(new ExecutorThreadPool(webServerExecutor));
+        server = new Server(webServerExecutor);
 
         List<ServerConnector> connectors = new ArrayList<>();
         ServerConnector connector = new ServerConnector(server, 1, 1);
@@ -167,8 +163,12 @@ public class WorkerServer {
                 log.error("Failed to stop function web-server ", e);
             }
         }
-        if (this.webServerExecutor != null && !this.webServerExecutor.isShutdown()) {
-            this.webServerExecutor.shutdown();
+        if (this.webServerExecutor != null && this.webServerExecutor.isRunning()) {
+            try {
+                this.webServerExecutor.stop();
+            } catch (Exception e) {
+                log.warn("Error stopping function web-server executor", e);
+            }
         }
     }
     

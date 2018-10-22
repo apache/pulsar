@@ -21,7 +21,6 @@ package org.apache.pulsar.proxy.server;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.Lists;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 
 import java.io.IOException;
@@ -34,8 +33,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import javax.servlet.DispatcherType;
 
@@ -72,7 +69,7 @@ public class WebServer {
     private static final String MATCH_ALL = "/*";
 
     private final Server server;
-    private final ExecutorService webServiceExecutor;
+    private final ExecutorThreadPool webServiceExecutor;
     private final AuthenticationService authenticationService;
     private final List<String> servletPaths = Lists.newArrayList();
     private final List<Handler> handlers = Lists.newArrayList();
@@ -81,8 +78,9 @@ public class WebServer {
     private URI serviceURI = null;
 
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
-        this.webServiceExecutor = Executors.newFixedThreadPool(32, new DefaultThreadFactory("pulsar-external-web"));
-        this.server = new Server(new ExecutorThreadPool(webServiceExecutor));
+        this.webServiceExecutor = new ExecutorThreadPool();
+        this.webServiceExecutor.setName("pulsar-external-web");
+        this.server = new Server(webServiceExecutor);
         this.externalServicePort = config.getWebServicePort();
         this.authenticationService = authenticationService;
         this.config = config;
@@ -176,18 +174,19 @@ public class WebServer {
         ContextHandlerCollection contexts = new ContextHandlerCollection();
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
+        HandlerCollection handlerCollection = new HandlerCollection();
+        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+
         // Metrics handler
         StatisticsHandler stats = new StatisticsHandler();
-        stats.setHandler(server.getHandler());
+        stats.setHandler(handlerCollection);
         try {
             new JettyStatisticsCollector(stats).register();
         } catch (IllegalArgumentException e) {
             // Already registered. Eg: in unit tests
         }
 
-        HandlerCollection handlerCollection = new HandlerCollection();
-        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler, stats });
-        server.setHandler(handlerCollection);
+        server.setHandler(stats);
 
         try {
             server.start();
@@ -220,7 +219,7 @@ public class WebServer {
 
     public void stop() throws Exception {
         server.stop();
-        webServiceExecutor.shutdown();
+        webServiceExecutor.stop();
         log.info("Server stopped successfully");
     }
 
