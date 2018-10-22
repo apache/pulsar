@@ -35,6 +35,7 @@ import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.models.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.metrics.PrometheusMetricsServer;
@@ -541,7 +542,7 @@ class KubernetesRuntime implements Runtime {
                         .fieldRef(new V1ObjectFieldSelector()
                                 .fieldPath("metadata.name")));
         envVars.add(envVarPodName);
-        if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
+        if (!StringUtils.isEmpty(instanceConfig.getFunctionDetails().getSecretsMap())) {
             Type type = new TypeToken<Map<String, String>>() {}.getType();
             Map<String, String> secretsMap = new Gson().fromJson(instanceConfig.getFunctionDetails().getSecretsMap(), type);
             for (Map.Entry<String, String> entry : secretsMap.entrySet()) {
