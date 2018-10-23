@@ -372,63 +372,6 @@ public class TestCmdSources {
     }
 
     @Test
-    public void testMissingCpu() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setResources(new Resources(null, RAM, DISK));
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                null,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test
-    public void testMissingRam() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setResources(new Resources(CPU, null, DISK));
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                null,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test
-    public void testMissingDisk() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setResources(new Resources(CPU, RAM, null));
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                null,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test
     public void testMissingConfig() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setConfigs(null);
