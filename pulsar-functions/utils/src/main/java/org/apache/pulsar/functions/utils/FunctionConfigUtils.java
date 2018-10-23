@@ -171,6 +171,10 @@ public class FunctionConfigUtils {
             configs.putAll(functionConfig.getUserConfig());
         }
 
+        if (!isEmpty(functionConfig.getArtifactory())) {
+            functionDetailsBuilder.setArtifactory(functionConfig.getArtifactory());
+        }
+
         // windowing related
         WindowConfig windowConfig = functionConfig.getWindowConfig();
         if (windowConfig != null) {
@@ -274,6 +278,10 @@ public class FunctionConfigUtils {
             functionConfig.setClassName(functionDetails.getClassName());
         }
         functionConfig.setUserConfig(userConfig);
+
+        if (!isEmpty(functionDetails.getArtifactory())) {
+            functionConfig.setArtifactory(functionDetails.getArtifactory());
+        }
 
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();

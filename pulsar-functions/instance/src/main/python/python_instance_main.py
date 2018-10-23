@@ -84,7 +84,11 @@ def main():
 
   if os.path.splitext(str(args.py))[1] == '.whl':
     if args.install_usercode_dependencies:
-      os.system("pip install -t %s %s" % (os.path.dirname(str(args.py)), str(args.py)))
+      cmd = "pip install -t %s" % os.path.dirname(str(args.py))
+      if function_details.artifactory:
+        cmd = cmd + " -i %s" % function_details.artifactory
+      cmd = cmd + " %s" % str(args.py)
+      os.system(cmd)
     else:
       zpfile = zipfile.ZipFile(str(args.py), 'r')
       zpfile.extractall(os.path.dirname(str(args.py)))
