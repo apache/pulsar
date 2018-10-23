@@ -98,7 +98,7 @@ class RuntimeUtils {
                 args.add(pythonDependencyRepository);
             }
             if (!isEmpty(pythonExtraDependencyRepository)) {
-                args.add("--extra-dependency_repository");
+                args.add("--extra_dependency_repository");
                 args.add(pythonExtraDependencyRepository);
             }
             // TODO:- Find a platform independent way of controlling memory for a python application
