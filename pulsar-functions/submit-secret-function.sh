@@ -24,5 +24,5 @@ bin/pulsar-admin functions create \
     --inputs input_topics \
     --jar `pwd`/java-examples/target/pulsar-functions-api-examples.jar \
     --classname org.apache.pulsar.functions.api.examples.SecretsFunction \
-    --secrets-config '{"mysecret":"myrealsecret"}'
+    --secrets-config '{"username":"mysecret"}'
 
