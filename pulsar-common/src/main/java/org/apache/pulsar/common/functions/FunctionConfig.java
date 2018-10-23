@@ -91,8 +91,4 @@ public class FunctionConfig {
     private Long timeoutMs;
     private String jar;
     private String py;
-
-    // Any non-default artifactory that need to be used to download dependencies
-    // This is going to be Runtime specific.
-    private String artifactory;
 }

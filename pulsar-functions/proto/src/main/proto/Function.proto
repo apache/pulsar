@@ -65,7 +65,6 @@ message FunctionDetails {
     Resources resources = 13;
     string packageUrl = 14; //present only if function submitted with package-url
     RetryDetails retryDetails = 15;
-    string artifactory = 16;
 }
 
 message ConsumerSpec {
