@@ -28,7 +28,7 @@ import org.apache.pulsar.functions.api.Function;
 public class SecretsFunction implements Function<String, String> {
     @Override
     public String process(String input, Context context) {
-        String secret = context.getSecret("mysecret");
+        String secret = context.getSecret("username");
         return String.format("%s!", secret);
     }
 }
