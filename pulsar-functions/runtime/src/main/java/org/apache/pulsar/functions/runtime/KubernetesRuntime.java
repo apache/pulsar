@@ -547,15 +547,15 @@ class KubernetesRuntime implements Runtime {
             Map<String, String> secretsMap = new Gson().fromJson(instanceConfig.getFunctionDetails().getSecretsMap(), type);
             for (Map.Entry<String, String> entry : secretsMap.entrySet()) {
                 final V1EnvVar secretEnv = new V1EnvVar();
-                secretEnv.name(entry.getValue())
+                secretEnv.name(entry.getKey())
                         .valueFrom(new V1EnvVarSource()
                                 .secretKeyRef(new V1SecretKeySelector()
-                                        .name(entry.getKey())
-                                        .key(entry.getValue())));
+                                        .name(entry.getValue())
+                                        .key(entry.getKey())));
                 envVars.add(secretEnv);
             }
         }
-        container.setEnv(Arrays.asList(envVarPodName));
+        container.setEnv(envVars);
 
 
         // set container resources
