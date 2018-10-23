@@ -40,6 +40,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.functions.utils.*;
 import org.apache.pulsar.io.cassandra.CassandraStringSink;
 import org.mockito.Mockito;
@@ -472,72 +475,6 @@ public class TestCmdSinks {
                 CPU,
                 RAM,
                 DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingCpu() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setResources(new Resources(null, RAM, DISK));
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                null,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingRam() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setResources(new Resources(CPU, null, DISK));
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                null,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingDisk() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setResources(new Resources(CPU, RAM, null));
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                null,
                 SINK_CONFIG_STRING,
                 sinkConfig
         );

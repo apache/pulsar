@@ -50,7 +50,10 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.utils.*;
@@ -384,9 +387,9 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setArchive(validateSinkType(sinkType));
             }
 
-            org.apache.pulsar.functions.utils.Resources resources = sinkConfig.getResources();
+            Resources resources = sinkConfig.getResources();
             if (resources == null) {
-                resources = new org.apache.pulsar.functions.utils.Resources();
+                resources = new Resources();
             }
             if (cpu != null) {
                 resources.setCpu(cpu);

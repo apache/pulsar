@@ -66,6 +66,9 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
@@ -418,7 +421,7 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setParallelism(parallelism);
             }
 
-            functionConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+            functionConfig.setResources(new Resources(cpu, ram, disk));
 
             if (timeoutMs != null) {
                 functionConfig.setTimeoutMs(timeoutMs);

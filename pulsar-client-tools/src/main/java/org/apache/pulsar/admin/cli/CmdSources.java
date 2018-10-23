@@ -52,11 +52,12 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
+import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.SourceConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
@@ -351,9 +352,9 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setArchive(validateSourceType(sourceType));
             }
 
-            org.apache.pulsar.functions.utils.Resources resources = sourceConfig.getResources();
+            Resources resources = sourceConfig.getResources();
             if (resources == null) {
-                resources = new org.apache.pulsar.functions.utils.Resources();
+                resources = new Resources();
             }
             if (cpu != null) {
                 resources.setCpu(cpu);

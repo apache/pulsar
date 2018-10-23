@@ -43,6 +43,8 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.Slf4jRequestLog;
@@ -87,7 +89,10 @@ public class WebServer {
 
         List<ServerConnector> connectors = Lists.newArrayList();
 
-        ServerConnector connector = new ServerConnector(server, 1, 1);
+        HttpConfiguration http_config = new HttpConfiguration();
+        http_config.setOutputBufferSize(config.getHttpOutputBufferSize());
+
+        ServerConnector connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
         connector.setPort(externalServicePort);
         connectors.add(connector);
 

@@ -16,38 +16,52 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.common.io;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.TreeMap;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-
-import java.util.Map;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
 
 @Getter
 @Setter
 @Data
 @EqualsAndHashCode
 @ToString
-public class SourceConfig {
+public class SinkConfig {
+
     private String tenant;
     private String namespace;
     private String name;
     private String className;
+    private String sourceSubscriptionName;
 
-    private String topicName;
+    private Collection<String> inputs;
 
-    private String serdeClassName;
+    private Map<String, String> topicToSerdeClassName;
 
-    private String schemaType;
+    private String topicsPattern;
+
+    private Map<String, String> topicToSchemaType;
+
+    private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
 
     private Map<String, Object> configs;
     private Map<String, String> secrets;
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
+    private boolean retainOrdering;
     private Resources resources;
+    private boolean autoAck;
+    private Long timeoutMs;
 
     private String archive;
 }

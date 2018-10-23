@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.functions.utils;
 
+import org.apache.pulsar.common.functions.WindowConfig;
+
 public class WindowConfigUtils {
     public static void validate(WindowConfig windowConfig) {
         if (windowConfig.getWindowLengthDurationMs() == null && windowConfig.getWindowLengthCount() == null) {
