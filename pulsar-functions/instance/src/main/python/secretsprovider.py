@@ -33,7 +33,7 @@ class SecretsProvider:
     pass
 
   @abstractmethod
-  def provide_secret(self, path_to_secret):
+  def provide_secret(self, secret_name, path_to_secret):
     """Fetches the secret located at the path"""
     pass
 
@@ -46,7 +46,7 @@ class ClearTextSecretsProvider(SecretsProvider):
   def init(self, config):
     pass
 
-  def provide_secret(self, path_to_secret):
+  def provide_secret(self, secret_name, path_to_secret):
     return path_to_secret
 
 """Implementation that fetches secrets from environment variables"""
@@ -57,5 +57,5 @@ class EnvironmentBasedSecretsProvider(SecretsProvider):
   def init(self, config):
     pass
 
-  def provide_secret(self, path_to_secret):
-    return os.environ.get(path_to_secret)
+  def provide_secret(self, secret_name, path_to_secret):
+    return os.environ.get(secret_name)
