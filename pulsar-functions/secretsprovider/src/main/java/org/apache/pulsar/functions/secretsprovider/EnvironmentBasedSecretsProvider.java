@@ -31,13 +31,15 @@ public class EnvironmentBasedSecretsProvider implements SecretsProvider {
      * Initialize the SecretsProvider
      * @return
      */
+    @Override
     public void init(Map<String, Object> config) { }
 
     /**
      * Fetches a secret
      * @return The actual secret
      */
-    public String provideSecret(String pathToSecret) {
-        return System.getenv(pathToSecret);
+    @Override
+    public String provideSecret(String secretName, String pathToSecret) {
+        return System.getenv(secretName);
     }
 }

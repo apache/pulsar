@@ -31,13 +31,15 @@ public class ClearTextSecretsProvider implements SecretsProvider {
      * Initialize the SecretsProvider
      * @return
      */
+    @Override
     public void init(Map<String, Object> config) { }
 
     /**
      * Fetches a secret
      * @return The actual secret
      */
-    public String provideSecret(String pathToSecret) {
+    @Override
+    public String provideSecret(String secretName, String pathToSecret) {
         return pathToSecret;
     }
 }

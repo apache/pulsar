@@ -37,5 +37,5 @@ public interface SecretsProvider {
      * Fetches a secret
      * @return The actual secret
      */
-    String provideSecret(String pathToSecret);
+    String provideSecret(String secretName, String pathToSecret);
 }
