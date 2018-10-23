@@ -16,19 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.common.functions;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
+@Getter
+@Setter
 @Data
-@Builder
-@NoArgsConstructor
+@EqualsAndHashCode
+@ToString
 @AllArgsConstructor
-public class ConsumerConfig {
-    private String schemaType;
-    private String serdeClassName;
-    private boolean isRegexPattern;
+@NoArgsConstructor
+public class Resources {
+    // Default cpu is 1 core
+    private Double cpu = 1d;
+    // Default memory is 1GB
+    private Long ram = 1073741824l;
+    // Default disk is 10GB
+    private Long disk = 10737418240l;
 }

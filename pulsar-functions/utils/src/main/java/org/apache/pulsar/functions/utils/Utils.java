@@ -33,9 +33,9 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;

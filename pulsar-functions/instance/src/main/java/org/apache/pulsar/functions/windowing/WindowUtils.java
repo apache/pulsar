@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.windowing;
 
-import org.apache.pulsar.functions.utils.WindowConfig;
+import org.apache.pulsar.common.functions.WindowConfig;
 
 public class WindowUtils {
     public static String getFullyQualifiedName(String tenant, String namespace, String name) {

@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 
-import org.apache.pulsar.functions.utils.WindowConfig;
+import org.apache.pulsar.common.functions.WindowConfig;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;

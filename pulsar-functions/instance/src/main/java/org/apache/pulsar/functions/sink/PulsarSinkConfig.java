@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.sink;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
 
 @Getter
 @Setter
