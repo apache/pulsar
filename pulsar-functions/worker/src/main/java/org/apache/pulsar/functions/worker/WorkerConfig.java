@@ -141,6 +141,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private String pulsarAdminUrl;
         private Boolean installUserCodeDependencies;
         private String pythonDependencyRepository;
+        private String pythonExtraDependencyRepository;
         private Map<String, String> customLabels;
         private Integer expectedMetricsCollectionInterval;
     }

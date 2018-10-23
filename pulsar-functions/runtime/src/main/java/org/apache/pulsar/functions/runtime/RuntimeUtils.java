@@ -50,7 +50,8 @@ class RuntimeUtils {
                                            Long expectedHealthCheckInterval,
                                            String javaLog4jFileName,
                                            Boolean installUserCodeDepdendencies,
-                                           String pythonDependencyRepository) throws Exception {
+                                           String pythonDependencyRepository,
+                                           String pythonExtraDependencyRepository) throws Exception {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
@@ -95,6 +96,10 @@ class RuntimeUtils {
             if (!isEmpty(pythonDependencyRepository)) {
                 args.add("--dependency_repository");
                 args.add(pythonDependencyRepository);
+            }
+            if (!isEmpty(pythonExtraDependencyRepository)) {
+                args.add("--extra-dependency_repository");
+                args.add(pythonExtraDependencyRepository);
             }
             // TODO:- Find a platform independent way of controlling memory for a python application
         }
