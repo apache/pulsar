@@ -226,9 +226,9 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
-    public String getSecret(String secretKey) {
-        if (secretsMap.containsKey(secretKey)) {
-            return secretsProvider.provideSecret(secretsMap.get(secretKey));
+    public String getSecret(String secretName) {
+        if (secretsMap.containsKey(secretName)) {
+            return secretsProvider.provideSecret(secretName, secretsMap.get(secretName));
         } else {
             return null;
         }
