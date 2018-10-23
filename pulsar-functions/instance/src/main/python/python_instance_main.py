@@ -72,6 +72,7 @@ def main():
   parser.add_argument('--logging_file', required=True, help='Log file name')
   parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
   parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
+  parser.add_argument('--dependency_repository', required=False, help='For packaged python like wheel files, which repository to pull the dependencies from')
 
   args = parser.parse_args()
   function_details = Function_pb2.FunctionDetails()
@@ -85,8 +86,8 @@ def main():
   if os.path.splitext(str(args.py))[1] == '.whl':
     if args.install_usercode_dependencies:
       cmd = "pip install -t %s" % os.path.dirname(str(args.py))
-      if function_details.artifactory:
-        cmd = cmd + " -i %s" % function_details.artifactory
+      if args.dependency_repository:
+        cmd = cmd + " -i %s" % str(args.dependency_repository)
       cmd = cmd + " %s" % str(args.py)
       os.system(cmd)
     else:

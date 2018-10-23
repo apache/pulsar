@@ -72,7 +72,7 @@ public class KubernetesRuntimeTest {
         this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "logs/functions";
         this.factory = spy(new KubernetesRuntimeFactory(null, null, null, pulsarRootDir,
-            false, true, null, pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null, null));
+            false, true, "myrepo",  null, pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null, null));
         doNothing().when(this.factory).setupClient();
     }
 
@@ -151,6 +151,7 @@ public class KubernetesRuntimeTest {
                 + " --logging_directory " + logDirectory
                 + " --logging_file " + config.getFunctionDetails().getName()
                 + " --install_usercode_dependencies True"
+                + " --dependency_repository myrepo"
                 + " --instance_id " + "$SHARD_ID"
                 + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
