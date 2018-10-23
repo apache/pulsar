@@ -99,8 +99,8 @@ class Context(object):
     pass
 
   @abstractmethod
-  def get_secret(self, key_to_secret):
-    """Returns the secret value associated with the key. None if nothing was found"""
+  def get_secret(self, secret_name):
+    """Returns the secret value associated with the name. None if nothing was found"""
     pass
 
   @abstractmethod
