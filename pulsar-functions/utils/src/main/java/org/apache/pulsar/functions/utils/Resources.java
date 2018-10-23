@@ -28,7 +28,10 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Resources {
-    private Double cpu;
-    private Long ram;
-    private Long disk;
+    // Default cpu is 1 core
+    private Double cpu = 1d;
+    // Default memory is 1GB
+    private Long ram = 1073741824l;
+    // Default disk is 10GB
+    private Long disk = 10737418240l;
 }
