@@ -22,13 +22,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
-import org.apache.pulsar.functions.utils.SourceConfig;
+import org.apache.pulsar.common.io.SourceConfig;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * Admin interface for Source management.
@@ -50,7 +48,7 @@ public interface Source {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<String> getSources(String tenant, String namespace) throws PulsarAdminException;
+    List<String> listSources(String tenant, String namespace) throws PulsarAdminException;
 
     /**
      * Get the configuration for the specified source.
@@ -77,7 +75,7 @@ public interface Source {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Function.FunctionDetails getSource(String tenant, String namespace, String source) throws PulsarAdminException;
+    SourceConfig getSource(String tenant, String namespace, String source) throws PulsarAdminException;
 
     /**
      * Create a new source.

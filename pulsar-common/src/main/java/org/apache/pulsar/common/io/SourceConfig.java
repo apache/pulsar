@@ -16,19 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.common.io;
 
-import lombok.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
+
+import java.util.Map;
 
 @Getter
 @Setter
 @Data
 @EqualsAndHashCode
 @ToString
-@AllArgsConstructor
-@NoArgsConstructor
-public class Resources {
-    private Double cpu;
-    private Long ram;
-    private Long disk;
+public class SourceConfig {
+    private String tenant;
+    private String namespace;
+    private String name;
+    private String className;
+
+    private String topicName;
+
+    private String serdeClassName;
+
+    private String schemaType;
+
+    private Map<String, Object> configs;
+    private int parallelism = 1;
+    private FunctionConfig.ProcessingGuarantees processingGuarantees;
+    private Resources resources;
+
+    private String archive;
 }

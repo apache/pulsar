@@ -22,13 +22,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
-import org.apache.pulsar.functions.utils.SinkConfig;
+import org.apache.pulsar.common.io.SinkConfig;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * Admin interface for Sink management.
@@ -50,7 +48,7 @@ public interface Sink {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<String> getSinks(String tenant, String namespace) throws PulsarAdminException;
+    List<String> listSinks(String tenant, String namespace) throws PulsarAdminException;
 
     /**
      * Get the configuration for the specified sink.
@@ -77,7 +75,7 @@ public interface Sink {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Function.FunctionDetails getSink(String tenant, String namespace, String sink) throws PulsarAdminException;
+    SinkConfig getSink(String tenant, String namespace, String sink) throws PulsarAdminException;
 
     /**
      * Create a new sink.

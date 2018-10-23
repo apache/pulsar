@@ -16,28 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker;
+package org.apache.pulsar.common.functions;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.util.UUID;
+import lombok.*;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-/**
- * Unit test of {@link Utils}.
- */
-public class UtilsTest {
-
-    @Test
-    public void testDownloadFile() throws Exception {
-        String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
-        String testDir = UtilsTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        File pkgFile = new File(testDir, UUID.randomUUID().toString());
-        Utils.downloadFromHttpUrl(jarHttpUrl, new FileOutputStream(pkgFile));
-        Assert.assertTrue(pkgFile.exists());
-        pkgFile.delete();
-    }
-
+@Getter
+@Setter
+@Data
+@EqualsAndHashCode
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+public class Resources {
+    // Default cpu is 1 core
+    private Double cpu = 1d;
+    // Default memory is 1GB
+    private Long ram = 1073741824l;
+    // Default disk is 10GB
+    private Long disk = 10737418240l;
 }

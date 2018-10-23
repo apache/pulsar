@@ -24,8 +24,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import javax.servlet.DispatcherType;
 
@@ -43,6 +41,7 @@ import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -58,7 +57,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.Lists;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
+import io.prometheus.client.jetty.JettyStatisticsCollector;
 
 /**
  * Web Service embedded into Pulsar
@@ -69,19 +68,19 @@ public class WebService implements AutoCloseable {
 
     public static final String ATTRIBUTE_PULSAR_NAME = "pulsar";
     public static final String HANDLER_CACHE_CONTROL = "max-age=3600";
-    public static final int NUM_ACCEPTORS = 32; // make it configurable?
     public static final int MAX_CONCURRENT_REQUESTS = 1024; // make it configurable?
 
     private final PulsarService pulsar;
     private final Server server;
     private final List<Handler> handlers;
-    private final ExecutorService webServiceExecutor;
+    private final ExecutorThreadPool webServiceExecutor;
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = Lists.newArrayList();
         this.pulsar = pulsar;
-        this.webServiceExecutor = Executors.newFixedThreadPool(WebService.NUM_ACCEPTORS, new DefaultThreadFactory("pulsar-web"));
-        this.server = new Server(new ExecutorThreadPool(webServiceExecutor));
+        this.webServiceExecutor = new ExecutorThreadPool();
+        this.webServiceExecutor.setName("pulsar-web");
+        this.server = new Server(webServiceExecutor);
         List<ServerConnector> connectors = new ArrayList<>();
 
         ServerConnector connector = new PulsarServerConnector(server, 1, 1);
@@ -172,7 +171,18 @@ public class WebService implements AutoCloseable {
 
             HandlerCollection handlerCollection = new HandlerCollection();
             handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
-            server.setHandler(handlerCollection);
+
+            // Metrics handler
+            StatisticsHandler stats = new StatisticsHandler();
+            stats.setHandler(handlerCollection);
+            try {
+                new JettyStatisticsCollector(stats).register();
+            } catch (IllegalArgumentException e) {
+                // Already registered. Eg: in unit tests
+            }
+            handlers.add(stats);
+
+            server.setHandler(stats);
 
             server.start();
 
@@ -186,7 +196,7 @@ public class WebService implements AutoCloseable {
     public void close() throws PulsarServerException {
         try {
             server.stop();
-            webServiceExecutor.shutdown();
+            webServiceExecutor.stop();
             log.info("Web service closed");
         } catch (Exception e) {
             throw new PulsarServerException(e);

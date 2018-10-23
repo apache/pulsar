@@ -21,10 +21,9 @@ package org.apache.pulsar.functions.worker.rest.api.v2;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
+import static org.powermock.api.mockito.PowerMockito.doReturn;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
@@ -61,7 +60,8 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
@@ -145,6 +145,7 @@ public class FunctionApiV2ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
+        doReturn("Function").when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -260,7 +261,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             null,
             parallelism,
-                "Field 'className' cannot be null!");
+                "Function classname cannot be null");
     }
 
     private void testRegisterFunctionMissingArguments(
@@ -311,8 +312,7 @@ public class FunctionApiV2ResourceTest {
                 null,
                 null,
                 new Gson().toJson(functionConfig),
-                null,
-                null,
+                FunctionsImpl.FUNCTION,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -339,8 +339,7 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            null,
-                null,
+            FunctionsImpl.FUNCTION,
                 null);
     }
 
@@ -547,7 +546,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             null,
             parallelism,
-                "Field 'className' cannot be null!");
+                "Function classname cannot be null");
     }
 
     private void testUpdateFunctionMissingArguments(
@@ -600,8 +599,7 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            null,
-                null,
+            FunctionsImpl.FUNCTION,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -629,8 +627,7 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            null,
-                null,
+            FunctionsImpl.FUNCTION,
                 null);
     }
 
@@ -714,8 +711,7 @@ public class FunctionApiV2ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(functionConfig),
-            null,
-                null,
+            FunctionsImpl.FUNCTION,
                 null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -804,7 +800,8 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             function,
-            null);
+            FunctionsImpl.FUNCTION,
+                null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -815,7 +812,8 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             function,
-            null);
+            FunctionsImpl.FUNCTION,
+                 null);
     }
 
     @Test
@@ -910,7 +908,8 @@ public class FunctionApiV2ResourceTest {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
-            function);
+            function,
+                FunctionsImpl.FUNCTION);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -920,7 +919,8 @@ public class FunctionApiV2ResourceTest {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-            function);
+            function,
+                FunctionsImpl.FUNCTION);
     }
 
     @Test
@@ -960,8 +960,8 @@ public class FunctionApiV2ResourceTest {
         Response response = getDefaultFunctionInfo();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(
-            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
-            response.getEntity());
+                new Gson().toJson(FunctionConfigUtils.convertFromDetails(functionDetails)),
+                response.getEntity());
     }
 
     //
@@ -991,7 +991,8 @@ public class FunctionApiV2ResourceTest {
     ) {
         Response response = resource.listFunctions(
             tenant,
-            namespace);
+            namespace,
+                FunctionsImpl.FUNCTION);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -1000,13 +1001,46 @@ public class FunctionApiV2ResourceTest {
     private Response listDefaultFunctions() {
         return resource.listFunctions(
             tenant,
-            namespace);
+            namespace,
+                FunctionsImpl.FUNCTION);
     }
 
     @Test
     public void testListFunctionsSuccess() throws Exception {
         List<String> functions = Lists.newArrayList("test-1", "test-2");
-        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functions);
+        List<FunctionMetaData> metaDataList = new LinkedList<>();
+        FunctionMetaData functionMetaData1 = FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-1").build()
+        ).build();
+        FunctionMetaData functionMetaData2 = FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-2").build()
+        ).build();
+        metaDataList.add(functionMetaData1);
+        metaDataList.add(functionMetaData2);
+        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(metaDataList);
+
+        Response response = listDefaultFunctions();
+        assertEquals(Status.OK.getStatusCode(), response.getStatus());
+        assertEquals(new Gson().toJson(functions), response.getEntity());
+    }
+
+    @Test
+    public void testOnlyGetSources() throws Exception {
+        List<String> functions = Lists.newArrayList("test-2");
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        FunctionMetaData f1 = FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-1").build()).build();
+        functionMetaDataList.add(f1);
+        FunctionMetaData f2 = FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-2").build()).build();
+        functionMetaDataList.add(f2);
+        FunctionMetaData f3 = FunctionMetaData.newBuilder().setFunctionDetails(
+                FunctionDetails.newBuilder().setName("test-3").build()).build();
+        functionMetaDataList.add(f3);
+        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
+        doReturn("Source").when(this.resource).calculateSubjectType(f1);
+        doReturn("Function").when(this.resource).calculateSubjectType(f2);
+        doReturn("Sink").when(this.resource).calculateSubjectType(f3);
 
         Response response = listDefaultFunctions();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -1068,7 +1102,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), null, null, null);
+                null, new Gson().toJson(functionConfig), FunctionsImpl.FUNCTION, null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }

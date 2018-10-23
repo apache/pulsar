@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils.validation;
+package org.apache.pulsar.common.functions;
 
-import java.util.Map;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public abstract class Validator {
-    public Validator(Map<String, Object> params) {
-    }
-
-    public Validator() {
-    }
-
-    public abstract void validateField(String name, Object o, ClassLoader classLoader);
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ConsumerConfig {
+    private String schemaType;
+    private String serdeClassName;
+    private boolean isRegexPattern;
 }

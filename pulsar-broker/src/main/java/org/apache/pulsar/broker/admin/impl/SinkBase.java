@@ -72,7 +72,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                                  final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
         return functions.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, null, null, sinkConfigJson, clientAppId());
+                functionPkgUrl, null, sinkConfigJson, FunctionsImpl.SINK, clientAppId());
     }
 
     @PUT
@@ -93,7 +93,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                                final @FormDataParam("sinkConfig") String sinkConfigJson) {
 
         return functions.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, null, null, sinkConfigJson, clientAppId());
+                functionPkgUrl, null, sinkConfigJson, FunctionsImpl.SINK, clientAppId());
 
     }
 
@@ -111,7 +111,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public Response deregisterSink(final @PathParam("tenant") String tenant,
                                    final @PathParam("namespace") String namespace,
                                    final @PathParam("sinkName") String sinkName) {
-        return functions.deregisterFunction(tenant, namespace, sinkName, clientAppId());
+        return functions.deregisterFunction(tenant, namespace, sinkName, FunctionsImpl.SINK, clientAppId());
     }
 
     @GET
@@ -129,7 +129,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public Response getSinkInfo(final @PathParam("tenant") String tenant,
                                 final @PathParam("namespace") String namespace,
                                 final @PathParam("sinkName") String sinkName) throws IOException {
-        return functions.getFunctionInfo(tenant, namespace, sinkName);
+        return functions.getFunctionInfo(tenant, namespace, sinkName, FunctionsImpl.SINK);
     }
 
     @GET
@@ -148,7 +148,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
                                           final @PathParam("sinkName") String sinkName,
                                           final @PathParam("instanceId") String instanceId) throws IOException {
         return functions.getFunctionInstanceStatus(
-            tenant, namespace, sinkName, instanceId, uri.getRequestUri());
+            tenant, namespace, sinkName, FunctionsImpl.SINK, instanceId, uri.getRequestUri());
     }
 
     @GET
@@ -164,7 +164,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public Response getSinkStatus(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace,
                                   final @PathParam("sinkName") String sinkName) throws IOException {
-        return functions.getFunctionStatus(tenant, namespace, sinkName, uri.getRequestUri());
+        return functions.getFunctionStatus(tenant, namespace, sinkName, FunctionsImpl.SINK, uri.getRequestUri());
     }
 
     @GET
@@ -180,7 +180,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     @Path("/{tenant}/{namespace}")
     public Response listSinks(final @PathParam("tenant") String tenant,
                               final @PathParam("namespace") String namespace) {
-        return functions.listFunctions(tenant, namespace);
+        return functions.listFunctions(tenant, namespace, FunctionsImpl.SINK);
 
     }
 
@@ -194,7 +194,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public Response restartSink(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName,
             final @PathParam("instanceId") String instanceId) {
-        return functions.restartFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri());
+        return functions.restartFunctionInstance(tenant, namespace, sinkName, FunctionsImpl.SINK, instanceId, uri.getRequestUri());
     }
 
     @POST
@@ -206,7 +206,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response restartSink(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName) {
-        return functions.restartFunctionInstances(tenant, namespace, sinkName);
+        return functions.restartFunctionInstances(tenant, namespace, sinkName, FunctionsImpl.SINK);
     }
 
     @POST
@@ -219,7 +219,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     public Response stopSink(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName,
             final @PathParam("instanceId") String instanceId) {
-        return functions.stopFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri());
+        return functions.stopFunctionInstance(tenant, namespace, sinkName, FunctionsImpl.SINK, instanceId, uri.getRequestUri());
     }
 
     @POST
@@ -231,7 +231,7 @@ public class SinkBase extends AdminResource implements Supplier<WorkerService> {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response stopSink(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sinkName") String sinkName) {
-        return functions.stopFunctionInstances(tenant, namespace, sinkName);
+        return functions.stopFunctionInstances(tenant, namespace, sinkName, FunctionsImpl.SINK);
     }
 
     @GET

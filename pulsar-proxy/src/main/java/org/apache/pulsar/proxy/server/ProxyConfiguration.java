@@ -28,6 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
 import com.google.common.collect.Sets;
@@ -132,6 +133,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     // Http redirects to redirect to non-pulsar services
     private Set<HttpReverseProxyConfig> httpReverseProxyConfigs = Sets.newHashSet();
+
+    // Http output buffer size. The amount of data that will be buffered for http requests
+    // before it is flushed to the channel. A larger buffer size may result in higher http throughput
+    // though it may take longer for the client to see data.
+    // If using HTTP streaming via the reverse proxy, this should be set to the minimum value, 1,
+    // so that clients see the data as soon as possible.
+    @FieldContext(minValue = 1)
+    private int httpOutputBufferSize = 32*1024;
 
     private Properties properties = new Properties();
 
@@ -446,6 +455,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
         this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
+    }
+
+    public int getHttpOutputBufferSize() {
+        return httpOutputBufferSize;
+    }
+
+    public void setHttpOutputBufferSize(int httpOutputBufferSize) {
+        this.httpOutputBufferSize = httpOutputBufferSize;
     }
 
     public Set<HttpReverseProxyConfig> getHttpReverseProxyConfigs() {

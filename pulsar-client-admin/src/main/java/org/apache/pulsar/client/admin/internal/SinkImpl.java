@@ -27,10 +27,9 @@ import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
-import org.apache.pulsar.functions.utils.SinkConfig;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -44,8 +43,6 @@ import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class SinkImpl extends BaseResource implements Sink {
@@ -58,7 +55,7 @@ public class SinkImpl extends BaseResource implements Sink {
     }
 
     @Override
-    public List<String> getSinks(String tenant, String namespace) throws PulsarAdminException {
+    public List<String> listSinks(String tenant, String namespace) throws PulsarAdminException {
         try {
             Response response = request(sink.path(tenant).path(namespace)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
@@ -72,16 +69,13 @@ public class SinkImpl extends BaseResource implements Sink {
     }
 
     @Override
-    public FunctionDetails getSink(String tenant, String namespace, String sinkName) throws PulsarAdminException {
+    public SinkConfig getSink(String tenant, String namespace, String sinkName) throws PulsarAdminException {
         try {
              Response response = request(sink.path(tenant).path(namespace).path(sinkName)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-            mergeJson(jsonResponse, functionDetailsBuilder);
-            return functionDetailsBuilder.build();
+            return response.readEntity(SinkConfig.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

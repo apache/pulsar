@@ -16,19 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.functions.utils;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.functions.Resources;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ConsumerConfig {
-    private String schemaType;
-    private String serdeClassName;
-    private boolean isRegexPattern;
+public class ResourceConfigUtils {
+    public static void validate(Resources resources) {
+        Double cpu = resources.getCpu();
+        Long ram = resources.getRam();
+        Long disk = resources.getDisk();
+        com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0.0,
+                "The cpu allocation for the function must be positive");
+        com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0L,
+                "The ram allocation for the function must be positive");
+        com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0L,
+                "The disk allocation for the function must be positive");
+    }
 }

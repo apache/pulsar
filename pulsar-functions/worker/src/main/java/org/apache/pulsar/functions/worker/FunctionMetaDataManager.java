@@ -141,8 +141,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * @param namespace the namespace
      * @return a list of function names
      */
-    public synchronized Collection<String> listFunctions(String tenant, String namespace) {
-        List<String> ret = new LinkedList<>();
+    public synchronized Collection<FunctionMetaData> listFunctions(String tenant, String namespace) {
+        List<FunctionMetaData> ret = new LinkedList<>();
 
         if (!this.functionMetaDataMap.containsKey(tenant)) {
             return ret;
@@ -152,7 +152,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             return ret;
         }
         for (FunctionMetaData functionMetaData : this.functionMetaDataMap.get(tenant).get(namespace).values()) {
-            ret.add(functionMetaData.getFunctionDetails().getName());
+            ret.add(functionMetaData);
         }
         return ret;
     }

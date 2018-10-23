@@ -20,14 +20,24 @@
 package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
+import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.nio.file.Path;
+import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
@@ -41,10 +51,10 @@ public class SourceConfigUtils {
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
-        boolean isBuiltin = sourceConfig.getArchive().startsWith(Utils.BUILTIN);
+        boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(Utils.BUILTIN);
 
         if (!isBuiltin) {
-            if (sourceConfig.getArchive().startsWith(Utils.FILE)) {
+            if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(Utils.FILE)) {
                 if (org.apache.commons.lang3.StringUtils.isBlank(sourceConfig.getClassName())) {
                     throw new IllegalArgumentException("Class-name must be present for archive with file-url");
                 }
@@ -126,5 +136,94 @@ public class SourceConfigUtils {
         }
 
         return functionDetailsBuilder.build();
+    }
+
+    public static SourceConfig convertFromDetails(FunctionDetails functionDetails) {
+        SourceConfig sourceConfig = new SourceConfig();
+        sourceConfig.setTenant(functionDetails.getTenant());
+        sourceConfig.setNamespace(functionDetails.getNamespace());
+        sourceConfig.setName(functionDetails.getName());
+        sourceConfig.setParallelism(functionDetails.getParallelism());
+        sourceConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        Function.SourceSpec sourceSpec = functionDetails.getSource();
+        if (!StringUtils.isEmpty(sourceSpec.getClassName())) {
+            sourceConfig.setClassName(sourceSpec.getClassName());
+        }
+        if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
+            sourceConfig.setArchive("builtin://" + sourceSpec.getBuiltin());
+        }
+        if (!StringUtils.isEmpty(sourceSpec.getConfigs())) {
+            Type type = new TypeToken<Map<String, String>>() {}.getType();
+            sourceConfig.setConfigs(new Gson().fromJson(sourceSpec.getConfigs(), type));
+        }
+        Function.SinkSpec sinkSpec = functionDetails.getSink();
+        sourceConfig.setTopicName(sinkSpec.getTopic());
+        if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
+            sourceConfig.setSchemaType(sinkSpec.getSchemaType());
+        }
+        if (!StringUtils.isEmpty(sinkSpec.getSerDeClassName())) {
+            sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
+        }
+        if (functionDetails.hasResources()) {
+            Resources resources = new Resources();
+            resources.setCpu(functionDetails.getResources().getCpu());
+            resources.setRam(functionDetails.getResources().getRam());
+            resources.setDisk(functionDetails.getResources().getDisk());
+            sourceConfig.setResources(resources);
+        }
+        return sourceConfig;
+    }
+
+    public static NarClassLoader validate(SourceConfig sourceConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
+        if (isEmpty(sourceConfig.getTenant())) {
+            throw new IllegalArgumentException("Source tenant cannot be null");
+        }
+        if (isEmpty(sourceConfig.getNamespace())) {
+            throw new IllegalArgumentException("Source namespace cannot be null");
+        }
+        if (isEmpty(sourceConfig.getName())) {
+            throw new IllegalArgumentException("Source name cannot be null");
+        }
+        if (isEmpty(sourceConfig.getTopicName())) {
+            throw new IllegalArgumentException("Topic name cannot be null");
+        }
+        if (!TopicName.isValid(sourceConfig.getTopicName())) {
+            throw new IllegalArgumentException("Topic name is invalid");
+        }
+        if (sourceConfig.getParallelism() <= 0) {
+            throw new IllegalArgumentException("Source parallelism should positive number");
+        }
+        if (sourceConfig.getResources() != null) {
+            ResourceConfigUtils.validate(sourceConfig.getResources());
+        }
+
+        NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+        if (classLoader == null) {
+            // This happens at the cli for builtin. There is no need to check this since
+            // the actual check will be done at serverside
+            return null;
+        }
+
+        String sourceClassName;
+        try {
+            sourceClassName = ConnectorUtils.getIOSourceClass(classLoader);
+        } catch (IOException e1) {
+            throw new IllegalArgumentException("Failed to extract source class from archive", e1);
+        }
+
+        Class<?> typeArg = getSourceType(sourceClassName, classLoader);
+
+        // Only one of serdeClassName or schemaType should be set
+        if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
+            throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
+        }
+
+        if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
+            ValidatorUtils.validateSerde(sourceConfig.getSerdeClassName(), typeArg, classLoader, false);
+        }
+        if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
+            ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
+        }
+        return classLoader;
     }
 }
