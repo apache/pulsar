@@ -161,10 +161,10 @@ public interface Context {
 
     /**
      * Get the secret associated with this key
-     * @param keyToSecret The key that identifies where the secret is located
+     * @param secretName The name of the secret
      * @return The secret if anything was found or null
      */
-    String getSecret(String keyToSecret);
+    String getSecret(String secretName);
 
     /**
      * Record a user defined metric
