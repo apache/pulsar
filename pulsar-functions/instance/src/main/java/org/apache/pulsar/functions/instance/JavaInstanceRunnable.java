@@ -240,7 +240,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 instanceConfig.getInstanceName(),
                 jarFile);
         } catch (FileNotFoundException e) {
-            log.info("For Function {} Loading as NAR failed with {}; treating it as Jar instead", instanceConfig, e);
             // create the function class loader
             fnCache.registerFunctionInstance(
                     instanceConfig.getFunctionId(),
