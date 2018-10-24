@@ -696,6 +696,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "topicName")
     public void persistentTopics(String topicName) throws Exception {
+        final String subName = topicName;
         assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList());
 
         final String persistentTopicName = "persistent://prop-xyz/ns1/" + topicName;
@@ -708,48 +709,48 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
-        Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName("my-sub")
+        Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Exclusive).subscribe();
 
-        assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList("my-sub"));
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
 
         publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 10);
 
         TopicStats topicStats = admin.topics().getStats(persistentTopicName);
-        assertEquals(topicStats.subscriptions.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
-        assertEquals(topicStats.subscriptions.get("my-sub").consumers.size(), 1);
-        assertEquals(topicStats.subscriptions.get("my-sub").msgBacklog, 10);
+        assertEquals(topicStats.subscriptions.keySet(), Sets.newTreeSet(Lists.newArrayList(subName)));
+        assertEquals(topicStats.subscriptions.get(subName).consumers.size(), 1);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
         assertEquals(topicStats.publishers.size(), 0);
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName);
-        assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList(Codec.encode(subName))));
 
-        List<Message<byte[]>> messages = admin.topics().peekMessages(persistentTopicName, "my-sub", 3);
+        List<Message<byte[]>> messages = admin.topics().peekMessages(persistentTopicName, subName, 3);
         assertEquals(messages.size(), 3);
         for (int i = 0; i < 3; i++) {
             String expectedMessage = "message-" + i;
             assertEquals(messages.get(i).getData(), expectedMessage.getBytes());
         }
 
-        messages = admin.topics().peekMessages(persistentTopicName, "my-sub", 15);
+        messages = admin.topics().peekMessages(persistentTopicName, subName, 15);
         assertEquals(messages.size(), 10);
         for (int i = 0; i < 10; i++) {
             String expectedMessage = "message-" + i;
             assertEquals(messages.get(i).getData(), expectedMessage.getBytes());
         }
 
-        admin.topics().skipMessages(persistentTopicName, "my-sub", 5);
+        admin.topics().skipMessages(persistentTopicName, subName, 5);
         topicStats = admin.topics().getStats(persistentTopicName);
-        assertEquals(topicStats.subscriptions.get("my-sub").msgBacklog, 5);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 5);
 
-        admin.topics().skipAllMessages(persistentTopicName, "my-sub");
+        admin.topics().skipAllMessages(persistentTopicName, subName);
         topicStats = admin.topics().getStats(persistentTopicName);
-        assertEquals(topicStats.subscriptions.get("my-sub").msgBacklog, 0);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 0);
 
         consumer.close();
         client.close();
 
-        admin.topics().deleteSubscription(persistentTopicName, "my-sub");
+        admin.topics().deleteSubscription(persistentTopicName, subName);
 
         assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList());
         topicStats = admin.topics().getStats(persistentTopicName);
@@ -757,7 +758,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.publishers.size(), 0);
 
         try {
-            admin.topics().skipAllMessages(persistentTopicName, "my-sub");
+            admin.topics().skipAllMessages(persistentTopicName, subName);
         } catch (NotFoundException e) {
         }
 

@@ -30,6 +30,7 @@ import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.util.*;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
@@ -49,9 +50,11 @@ class RuntimeUtils {
                                            Integer grpcPort,
                                            Long expectedHealthCheckInterval,
                                            String javaLog4jFileName,
-                                           Boolean installUserCodeDepdendencies,
                                            String secretsProviderClassName,
-                                           String secretsProviderConfig) throws Exception {
+                                           String secretsProviderConfig,
+                                           Boolean installUserCodeDepdendencies,
+                                           String pythonDependencyRepository,
+                                           String pythonExtraDependencyRepository) throws Exception {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
@@ -92,6 +95,14 @@ class RuntimeUtils {
             if (installUserCodeDepdendencies != null && installUserCodeDepdendencies) {
                 args.add("--install_usercode_dependencies");
                 args.add("True");
+            }
+            if (!isEmpty(pythonDependencyRepository)) {
+                args.add("--dependency_repository");
+                args.add(pythonDependencyRepository);
+            }
+            if (!isEmpty(pythonExtraDependencyRepository)) {
+                args.add("--extra_dependency_repository");
+                args.add(pythonExtraDependencyRepository);
             }
             // TODO:- Find a platform independent way of controlling memory for a python application
         }
