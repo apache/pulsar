@@ -136,7 +136,7 @@ class KubernetesRuntime implements Runtime {
                 logConfigFile = "kubernetes_instance_log4j2.yml";
                 break;
             case PYTHON:
-                logConfigFile = pulsarRootDir + "/conf/functions-logging/kubernetes_logging_config.ini";
+                logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
         }
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
