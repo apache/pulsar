@@ -73,13 +73,13 @@ The steps to run the example:
 6. You can check the flink taskexecutor `.out` file. The `.out` file will print the counts at the end of each time window as long as words are floating in, e.g.:
 
     ```shell
-PulsarConsumerSourceWordCount.WordWithCount(word=hello, count=200)
-PulsarConsumerSourceWordCount.WordWithCount(word=again, count=200)
-PulsarConsumerSourceWordCount.WordWithCount(word=test, count=200)
-PulsarConsumerSourceWordCount.WordWithCount(word=world, count=200)
-PulsarConsumerSourceWordCount.WordWithCount(word=hello, count=100)
-PulsarConsumerSourceWordCount.WordWithCount(word=again, count=100)
-PulsarConsumerSourceWordCount.WordWithCount(word=test, count=100)
+    PulsarConsumerSourceWordCount.WordWithCount(word=hello, count=200)
+    PulsarConsumerSourceWordCount.WordWithCount(word=again, count=200)
+    PulsarConsumerSourceWordCount.WordWithCount(word=test, count=200)
+    PulsarConsumerSourceWordCount.WordWithCount(word=world, count=200)
+    PulsarConsumerSourceWordCount.WordWithCount(word=hello, count=100)
+    PulsarConsumerSourceWordCount.WordWithCount(word=again, count=100)
+    PulsarConsumerSourceWordCount.WordWithCount(word=test, count=100)
     ```
 
 Alternatively, when you run the flink word count example at step 4, you can choose dump the result to another pulsar topic.
