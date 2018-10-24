@@ -143,7 +143,7 @@ std::string ZTSClient::ybase64Encode(const unsigned char *input, int length) {
 char *ZTSClient::base64Decode(const char *input) {
     BIO *bio, *b64;
     size_t length = strlen(input);
-    char *result = (char *)calloc(length, sizeof(char));
+    char *result = (char *)malloc(length);
 
     bio = BIO_new_mem_buf((void *)input, -1);
     b64 = BIO_new(BIO_f_base64());
@@ -151,8 +151,10 @@ char *ZTSClient::base64Decode(const char *input) {
 
     BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
     int decodeStrLen = BIO_read(bio, result, length);
-    if(decodeStrLen > 0) {
+    if (decodeStrLen > 0) {
         result[decodeStrLen] = '\0';
+    } else {
+        result[0] = '\0';
     }
     BIO_free_all(bio);
 
@@ -191,6 +193,12 @@ const std::string ZTSClient::getPrincipalToken() const {
             return "";
         }
         char *decodeStr = base64Decode(privateKeyUri_.data.c_str());
+
+        if (strlen(decodeStr) == 0) {
+            LOG_ERROR("Failed to decode privateKey");
+            free(decodeStr);
+            return "";
+        }
 
         BIO *bio = BIO_new_mem_buf((void *)decodeStr, -1);
         BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
