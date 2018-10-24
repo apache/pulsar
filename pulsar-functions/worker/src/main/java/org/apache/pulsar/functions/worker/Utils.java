@@ -18,12 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
@@ -78,6 +73,11 @@ public final class Utils {
 
     public static String getUniquePackageName(String packageName) {
         return String.format("%s-%s", UUID.randomUUID().toString(), packageName);
+    }
+
+    public static void uploadToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace) throws IOException {
+        FileInputStream uploadedInputStream = new FileInputStream(sourceFile);
+        uploadToBookeeper(dlogNamespace, uploadedInputStream, packagePath);
     }
 
     public static void uploadToBookeeper(Namespace dlogNamespace,
