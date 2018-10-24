@@ -105,6 +105,8 @@ class KubernetesRuntime implements Runtime {
                       String jobNamespace,
                       Map<String, String> customLabels,
                       Boolean installUserCodeDependencies,
+                      String pythonDependencyRepository,
+                      String pythonExtraDependencyRepository,
                       String pulsarDockerImageName,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
@@ -138,7 +140,8 @@ class KubernetesRuntime implements Runtime {
                 break;
         }
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, logConfigFile, installUserCodeDependencies);
+                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, logConfigFile,
+                installUserCodeDependencies, pythonDependencyRepository, pythonExtraDependencyRepository);
         this.prometheusMetricsServerArgs = composePrometheusMetricsServerArgs(prometheusMetricsServerJarFile, expectedMetricsInterval);
         running = false;
         doChecks(instanceConfig.getFunctionDetails());

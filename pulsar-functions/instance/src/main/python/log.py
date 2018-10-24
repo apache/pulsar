@@ -52,7 +52,7 @@ class LogTopicHandler(logging.Handler):
 
   def emit(self, record):
     msg = self.format(record)
-    self.producer.send_async(str(msg), None)
+    self.producer.send_async(str(msg).encode('utf-8'), None)
 
 def mkdir_p(path):
   try:

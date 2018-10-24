@@ -84,7 +84,7 @@ class ProcessRuntime implements Runtime {
         }
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, instanceConfig.getInstanceName(), instanceConfig.getPort(), expectedHealthCheckInterval,
-                logConfigFile, false);
+                logConfigFile, false, null, null);
     }
 
     /**
