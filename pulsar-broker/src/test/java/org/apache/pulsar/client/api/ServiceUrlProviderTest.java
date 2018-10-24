@@ -52,7 +52,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
     }
 
     @DataProvider(name = "cluster")
-    public Object[][] codecProvider() {
+    public Object[][] clusterProvider() {
         return new Object[][] { {Boolean.TRUE}, {Boolean.FALSE} };
     }
 

@@ -23,11 +23,34 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 
 import org.apache.pulsar.common.util.Codec;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test
 public class TopicNameTest {
 
+    @DataProvider(name = "cluster")
+    public Object[][] clusterProvider() {
+        return new Object[][] { {Boolean.TRUE}, {Boolean.FALSE} };
+    }
+
+    @Test(dataProvider = "cluster")
+    public void testClientWithSpecialCharTopicName(boolean isCluster) throws Exception {
+
+        final String cluster = "test";
+        final String topicLocalName = "`~!@#$%^&*()-_+=[]://{}|\\;:'\"<>,./?-my-topic";
+        final String topic = "persistent://my-property/" + (isCluster ? cluster + "/" : "") + "my-ns/" + topicLocalName;
+
+        TopicName topicName = TopicName.get(topic);
+        Assert.assertEquals(topicName.getTenant(), "my-property");
+        Assert.assertEquals(topicName.getNamespacePortion(), "my-ns");
+        Assert.assertEquals(topicName.getLocalName(), topicLocalName);
+        if(isCluster) {
+            Assert.assertEquals(topicName.getCluster(), "test");    
+        }
+    }
+    
     @Test
     void topic() {
         try {
