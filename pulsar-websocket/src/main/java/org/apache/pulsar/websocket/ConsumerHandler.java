@@ -223,7 +223,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             ConsumerAck ack = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerAck.class);
             msgId = MessageId.fromByteArray(Base64.getDecoder().decode(ack.messageId));
             int partitionIndex = Integer.parseInt(msgId.toString().split(":")[2]);
-            if(partitionIndex > -1)
+            if (partitionIndex > -1)
                 msgId = new TopicMessageIdImpl(topic.getPartition(partitionIndex).toString(), topic.toString(), msgId);
         } catch (IOException e) {
             log.warn("Failed to deserialize message id: {}", message, e);
