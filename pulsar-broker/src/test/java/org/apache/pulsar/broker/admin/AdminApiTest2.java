@@ -138,8 +138,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testIncrementPartitionsOfTopic() throws Exception {
         final String topicName = "increment-partitionedTopic";
-        final String subName1 = topicName + "-my-sub-1";
-        final String subName2 = topicName + "-my-sub-2";
+        final String subName1 = topicName + "-my-sub-1/encode";
+        final String subName2 = topicName + "-my-sub-2/encode";
         final int startPartitions = 4;
         final int newPartitions = 8;
         final String partitionedTopicName = "persistent://prop-xyz/ns1/" + topicName;
