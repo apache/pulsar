@@ -414,7 +414,22 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setParallelism(parallelism);
             }
 
-            functionConfig.setResources(new Resources(cpu, ram, disk));
+            Resources resources = functionConfig.getResources();
+            if (resources == null) {
+                resources = new Resources();
+            }
+            if (cpu != null) {
+                resources.setCpu(cpu);
+            }
+
+            if (ram != null) {
+                resources.setRam(ram);
+            }
+
+            if (disk != null) {
+                resources.setDisk(disk);
+            }
+            functionConfig.setResources(resources);
 
             if (timeoutMs != null) {
                 functionConfig.setTimeoutMs(timeoutMs);
