@@ -150,7 +150,10 @@ char *ZTSClient::base64Decode(const char *input) {
     bio = BIO_push(b64, bio);
 
     BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
-    BIO_read(bio, result, length);
+    int decodeStrLen = BIO_read(bio, result, length);
+    if(decodeStrLen > 0) {
+        result[decodeStrLen] = '\0';
+    }
     BIO_free_all(bio);
 
     return result;
