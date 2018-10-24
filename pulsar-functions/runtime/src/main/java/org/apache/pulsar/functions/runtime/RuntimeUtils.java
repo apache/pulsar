@@ -50,7 +50,6 @@ class RuntimeUtils {
                                            Integer grpcPort,
                                            Long expectedHealthCheckInterval,
                                            String logConfigFile,
-                                           String javaLog4jFileName,
                                            String secretsProviderClassName,
                                            String secretsProviderConfig,
                                            Boolean installUserCodeDepdendencies,
