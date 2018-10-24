@@ -46,6 +46,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String pulsarRootDir;
     private final Boolean submittingInsidePod;
     private final Boolean installUserCodeDependencies;
+    private final String pythonDependencyRepository;
+    private final String pythonExtraDependencyRepository;
     private final Map<String, String> customLabels;
     private final String pulsarAdminUri;
     private final String pulsarServiceUri;
@@ -66,6 +68,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String pulsarRootDir,
                                     Boolean submittingInsidePod,
                                     Boolean installUserCodeDependencies,
+                                    String pythonDependencyRepository,
+                                    String pythonExtraDependencyRepository,
                                     Map<String, String> customLabels,
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
@@ -90,6 +94,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
         this.submittingInsidePod = submittingInsidePod;
         this.installUserCodeDependencies = installUserCodeDependencies;
+        this.pythonDependencyRepository = pythonDependencyRepository;
+        this.pythonExtraDependencyRepository = pythonExtraDependencyRepository;
         this.customLabels = customLabels;
         this.pulsarServiceUri = pulsarServiceUri;
         this.pulsarAdminUri = pulsarAdminUri;
@@ -128,6 +134,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             jobNamespace,
             customLabels,
             installUserCodeDependencies,
+            pythonDependencyRepository,
+            pythonExtraDependencyRepository,
             pulsarDockerImageName,
             pulsarRootDir,
             instanceConfig,
