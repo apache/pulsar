@@ -145,11 +145,12 @@ public class KubernetesRuntimeTest {
 
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 30);
+        assertEquals(args.size(), 32);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + pulsarRootDir + "/" + userJarFile
                 + " --logging_directory " + logDirectory
                 + " --logging_file " + config.getFunctionDetails().getName()
+                + " --logging_config_file " + args.get(9)
                 + " --install_usercode_dependencies True"
                 + " --dependency_repository myrepo"
                 + " --extra_dependency_repository anotherrepo"
@@ -158,7 +159,7 @@ public class KubernetesRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(27)
+                + " --max_buffered_tuples 1024 --port " + args.get(29)
                 + " --expected_healthcheck_interval -1";
         assertEquals(String.join(" ", args), expectedArgs);
     }
