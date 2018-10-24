@@ -243,7 +243,7 @@ public class FunctionsImpl {
                 Utils.uploadToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), file, worker().getDlogNamespace());
             } else {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
-                        uploadedInputStreamAsFile.getName()));
+                        fileDetail.getName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
                 Utils.uploadToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
