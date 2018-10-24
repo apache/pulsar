@@ -177,7 +177,9 @@ public abstract class NamespacesBase extends AdminResource {
 
         boolean isEmpty;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).isEmpty();
+            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).isEmpty()
+                    && getPartitionedTopicList("persistent").isEmpty()
+                    && getPartitionedTopicList("non-persistent").isEmpty();
         } catch (Exception e) {
             throw new RestException(e);
         }
