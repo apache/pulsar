@@ -23,11 +23,16 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Sets;
+
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class ServiceUrlProviderTest extends ProducerConsumerBase {
@@ -44,6 +49,53 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider(name = "cluster")
+    public Object[][] codecProvider() {
+        return new Object[][] { {Boolean.TRUE}, {Boolean.FALSE} };
+    }
+
+    @Test(dataProvider = "cluster")
+    public void testClientWithSpecialCharTopicName(boolean isCluster) throws Exception {
+
+        final String cluster = "test";
+        final String topicLocalName = "`~!@#$%^&*()-_+=[]://{}|\\;:'\"<>,./?-my-topic";
+        final String topic = "persistent://my-property/" + (isCluster ? cluster + "/" : "") + "my-ns/" + topicLocalName;
+
+        TopicName topicName = TopicName.get(topic);
+        Assert.assertEquals(topicName.getTenant(), "my-property");
+        Assert.assertEquals(topicName.getNamespacePortion(), "my-ns");
+        Assert.assertEquals(topicName.getLocalName(), topicLocalName);
+        if(isCluster) {
+            Assert.assertEquals(topicName.getCluster(), "test");    
+        }
+        
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscriber-name")
+                .subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        Assert.assertEquals(consumer.getTopic(), topic);
+        Assert.assertEquals(producer.getTopic(), topic);
+        
+
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Message<byte[]> msg = null;
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = 0; i < 10; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+
+        producer.close();
+        consumer.close();
     }
 
     @Test

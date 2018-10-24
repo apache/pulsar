@@ -139,6 +139,15 @@ public class TopicName implements ServiceUnitId {
 
 
             parts = Splitter.on("/").limit(4).splitToList(rest);
+            if (parts.size() == 4) {
+                try {
+                    NamedEntity.checkName(parts.get(2));
+                } catch (IllegalArgumentException ie) {
+                    // It happens when topic-local-name has "/" in the name and cluster doesn't present into the
+                    // topic-name
+                    parts = Splitter.on("/").limit(3).splitToList(rest);
+                }
+            }
             if (parts.size() == 3) {
                 // New topic name without cluster name
                 this.tenant = parts.get(0);
