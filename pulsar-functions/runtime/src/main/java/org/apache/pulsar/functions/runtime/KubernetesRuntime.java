@@ -135,14 +135,20 @@ class KubernetesRuntime implements Runtime {
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
-        String secretsProviderClassName;
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            secretsProviderClassName = EnvironmentBasedSecretsProvider.class.getName();
-        } else {
-            secretsProviderClassName = "secretsprovider.EnvironmentBasedSecretsProvider";
+        String logConfigFile = null;
+        String secretsProviderClassName = null;
+        switch (instanceConfig.getFunctionDetails().getRuntime()) {
+            case JAVA:
+                logConfigFile = "kubernetes_instance_log4j2.yml";
+                secretsProviderClassName = EnvironmentBasedSecretsProvider.class.getName();
+                break;
+            case PYTHON:
+                logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
+                secretsProviderClassName = "secretsprovider.EnvironmentBasedSecretsProvider";
+                break;
         }
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, "kubernetes_instance_log4j2.yml",
+                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, logConfigFile,
                 secretsProviderClassName, null, installUserCodeDependencies, pythonDependencyRepository, pythonExtraDependencyRepository);
         this.prometheusMetricsServerArgs = composePrometheusMetricsServerArgs(prometheusMetricsServerJarFile, expectedMetricsInterval);
         running = false;

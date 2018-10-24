@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.runtime;
 
 import static org.testng.Assert.assertEquals;
 
-import com.google.gson.Gson;
 import com.google.protobuf.util.JsonFormat;
 
 import java.util.HashMap;
@@ -144,12 +143,13 @@ public class ProcessRuntimeTest {
         assertEquals(args.size(), 26);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
-                + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
+                + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName()
+                + " --logging_config_file " + args.get(9) + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(21)
+                + " --max_buffered_tuples 1024 --port " + args.get(23)
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider secretsprovider.ClearTextSecretsProvider";
         assertEquals(String.join(" ", args), expectedArgs);

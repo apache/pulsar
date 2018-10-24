@@ -75,16 +75,21 @@ class ProcessRuntime implements Runtime {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
         this.expectedHealthCheckInterval = expectedHealthCheckInterval;
-        String secretsProviderClassName;
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            secretsProviderClassName = ClearTextSecretsProvider.class.getName();
-        } else {
-            secretsProviderClassName = "secretsprovider.ClearTextSecretsProvider";
+        String logConfigFile = null;
+        String secretsProviderClassName = null;
+        switch (instanceConfig.getFunctionDetails().getRuntime()) {
+            case JAVA:
+                logConfigFile = "java_instance_log4j2.yml";
+                secretsProviderClassName = ClearTextSecretsProvider.class.getName();
+                break;
+            case PYTHON:
+                logConfigFile = System.getenv("PULSAR_HOME") + "/conf/functions-logging/logging_config.ini";
+                secretsProviderClassName = "secretsprovider.ClearTextSecretsProvider";
+                break;
         }
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, instanceConfig.getInstanceName(), instanceConfig.getPort(), expectedHealthCheckInterval,
-                "java_instance_log4j2.yml",
-                secretsProviderClassName, null, false, null, null);
+                logConfigFile, secretsProviderClassName, null, false, null, null);
     }
 
     /**
