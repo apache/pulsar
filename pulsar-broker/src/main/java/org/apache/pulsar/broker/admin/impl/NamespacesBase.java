@@ -63,6 +63,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -177,7 +178,9 @@ public abstract class NamespacesBase extends AdminResource {
 
         boolean isEmpty;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).isEmpty();
+            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).isEmpty()
+                    && getPartitionedTopicList(TopicDomain.persistent).isEmpty()
+                    && getPartitionedTopicList(TopicDomain.non_persistent).isEmpty();
         } catch (Exception e) {
             throw new RestException(e);
         }
