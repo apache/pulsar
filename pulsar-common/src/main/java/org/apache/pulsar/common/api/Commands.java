@@ -1116,7 +1116,6 @@ public class Commands {
         return (ByteBufPair) ByteBufPair.get(headers, metadataAndPayload);
     }
 
-    @VisibleForTesting
     public static int getCurrentProtocolVersion() {
         // Return the last ProtocolVersion enum value
         return ProtocolVersion.values()[ProtocolVersion.values().length - 1].getNumber();
