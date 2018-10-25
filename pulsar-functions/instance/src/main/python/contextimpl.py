@@ -132,7 +132,7 @@ class ContextImpl(pulsar.Context):
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
         max_pending_messages=100000,
-        compression_type=compression_type
+        compression_type=pulsar_compression_type
       )
 
     if serde_class_name not in self.publish_serializers:
