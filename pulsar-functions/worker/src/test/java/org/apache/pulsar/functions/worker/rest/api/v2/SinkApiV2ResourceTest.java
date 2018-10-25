@@ -52,6 +52,7 @@ import org.testng.annotations.Test;
 
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -307,10 +308,10 @@ public class SinkApiV2ResourceTest {
     public void testRegisterSinkUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+            any(File.class),
+            any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
@@ -323,10 +324,10 @@ public class SinkApiV2ResourceTest {
     public void testRegisterSinkSuccess() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
@@ -344,10 +345,10 @@ public class SinkApiV2ResourceTest {
     public void testRegisterSinkFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
@@ -366,10 +367,10 @@ public class SinkApiV2ResourceTest {
     public void testRegisterSinkInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
@@ -539,10 +540,10 @@ public class SinkApiV2ResourceTest {
     public void testUpdateSinkUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -555,10 +556,10 @@ public class SinkApiV2ResourceTest {
     public void testUpdateSinkSuccess() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -613,10 +614,10 @@ public class SinkApiV2ResourceTest {
     public void testUpdateSinkFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -635,10 +636,10 @@ public class SinkApiV2ResourceTest {
     public void testUpdateSinkInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 

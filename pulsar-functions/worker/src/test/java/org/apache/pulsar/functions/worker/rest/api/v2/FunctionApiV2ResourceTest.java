@@ -358,10 +358,10 @@ public class FunctionApiV2ResourceTest {
     public void testRegisterFunctionUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+            any(File.class),
+            any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -644,10 +644,10 @@ public class FunctionApiV2ResourceTest {
     public void testUpdateFunctionUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+            any(File.class),
+            any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 

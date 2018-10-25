@@ -75,7 +75,7 @@ public final class Utils {
         return String.format("%s-%s", UUID.randomUUID().toString(), packageName);
     }
 
-    public static void uploadToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace) throws IOException {
+    public static void uploadFileToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace) throws IOException {
         FileInputStream uploadedInputStream = new FileInputStream(sourceFile);
         uploadToBookeeper(dlogNamespace, uploadedInputStream, packagePath);
     }

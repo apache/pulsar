@@ -307,10 +307,10 @@ public class SourceApiV2ResourceTest {
     public void testRegisterSourceUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
@@ -323,10 +323,10 @@ public class SourceApiV2ResourceTest {
     public void testRegisterSourceSuccess() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
@@ -344,10 +344,10 @@ public class SourceApiV2ResourceTest {
     public void testRegisterSourceFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
@@ -366,10 +366,10 @@ public class SourceApiV2ResourceTest {
     public void testRegisterSourceInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
@@ -549,10 +549,10 @@ public class SourceApiV2ResourceTest {
     public void testUpdateSourceUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -565,10 +565,10 @@ public class SourceApiV2ResourceTest {
     public void testUpdateSourceSuccess() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -624,10 +624,10 @@ public class SourceApiV2ResourceTest {
     public void testUpdateSourceFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -646,10 +646,10 @@ public class SourceApiV2ResourceTest {
     public void testUpdateSourceInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
-        Utils.uploadToBookeeper(
-            any(Namespace.class),
-            any(InputStream.class),
-            anyString());
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 

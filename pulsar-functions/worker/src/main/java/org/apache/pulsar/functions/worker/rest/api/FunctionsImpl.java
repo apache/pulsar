@@ -233,20 +233,20 @@ public class FunctionsImpl {
                         sinkOrSource.getName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(sinkOrSource.getName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
+                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
             } else if (isPkgUrlProvided) {
                 File file = extractFileFromPkg(functionPkgUrl);
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         file.getName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(file.getName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), file, worker().getDlogNamespace());
+                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), file, worker().getDlogNamespace());
             } else {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         fileDetail.getName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
             }
         } else {
             // For pulsar managed schedulers, the pkgUrl/builtin stuff should be copied to bk
@@ -258,7 +258,7 @@ public class FunctionsImpl {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName, fileDetail.getFileName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
                 log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
-                Utils.uploadToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
             }
         }
         return packageLocationMetaDataBuilder;
