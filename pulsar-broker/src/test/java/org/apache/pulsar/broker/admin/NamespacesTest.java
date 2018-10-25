@@ -622,6 +622,19 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // Ok, namespace not empty
             assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
         }
+        // delete the topic from ZK
+        mockZookKeeper.delete("/managed-ledgers/" + topicName.getPersistenceNamingEncoding(), -1);
+
+        ZkUtils.createFullPathOptimistic(mockZookKeeper, "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(),
+                new byte[0], null, null);
+        try {
+            namespaces.deleteNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), false);
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok, namespace not empty
+            assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
+        }
+        mockZookKeeper.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(), -1);
 
         testNs = this.testGlobalNamespaces.get(0);
         // setup ownership to localhost
@@ -640,15 +653,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(namespaces.getTenantNamespaces(this.testTenant), nsList);
 
         testNs = this.testLocalNamespaces.get(1);
-        try {
-            namespaces.deleteNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), false);
-            fail("should have failed");
-        } catch (RestException e) {
-            // Ok
-        }
-
-        // delete the topic from ZK
-        mockZookKeeper.delete("/managed-ledgers/" + topicName.getPersistenceNamingEncoding(), -1);
         // ensure refreshed topics list in the cache
         pulsar.getLocalZkCacheService().managedLedgerListCache().clearTree();
         // setup ownership to localhost
