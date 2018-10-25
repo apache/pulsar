@@ -46,7 +46,11 @@ public class SourceConfig {
     private String schemaType;
 
     private Map<String, Object> configs;
-    private Map<String, String> secrets;
+    // This is a map of secretName(aka how the secret is going to be
+    // accessed in the function via context) to an object that
+    // encapsulates how the secret is fetched by the underlying
+    // secrets provider
+    private Map<String, Object> secrets;
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private Resources resources;

@@ -409,8 +409,8 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setUserConfig(userConfigMap);
             }
             if (null != secretsConfig) {
-                Type type = new TypeToken<Map<String, String>>() {}.getType();
-                Map<String, String> secretsMap = new Gson().fromJson(secretsConfig, type);
+                Type type = new TypeToken<Map<String, Object>>() {}.getType();
+                Map<String, Object> secretsMap = new Gson().fromJson(secretsConfig, type);
                 functionConfig.setSecrets(secretsMap);
             }
             if (functionConfig.getUserConfig() == null) {
