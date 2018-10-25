@@ -75,6 +75,8 @@ class IdentitySerDe(SerDe):
   def serialize(self, input):
     if type(input) in self._types:
       return str(input).encode('utf-8')
+    if type(input) == bytes:
+      return input
     raise TypeError
 
   def deserialize(self, input_bytes):
@@ -83,4 +85,4 @@ class IdentitySerDe(SerDe):
         return typ(input_bytes.decode('utf-8'))
       except:
         pass
-    raise TypeError
+    return input_bytes
