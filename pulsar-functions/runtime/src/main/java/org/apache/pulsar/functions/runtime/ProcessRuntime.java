@@ -73,9 +73,18 @@ class ProcessRuntime implements Runtime {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
         this.expectedHealthCheckInterval = expectedHealthCheckInterval;
+        String logConfigFile = null;
+        switch (instanceConfig.getFunctionDetails().getRuntime()) {
+            case JAVA:
+                logConfigFile = "java_instance_log4j2.yml";
+                break;
+            case PYTHON:
+                logConfigFile = System.getenv("PULSAR_HOME") + "/conf/functions-logging/logging_config.ini";
+                break;
+        }
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, instanceConfig.getInstanceName(), instanceConfig.getPort(), expectedHealthCheckInterval,
-                "java_instance_log4j2.yml", false, null, null);
+                logConfigFile, false, null, null);
     }
 
     /**
