@@ -49,12 +49,12 @@ def import_class(from_path, full_class_name):
       return None
 
 def import_class_from_path(from_path, full_class_name):
-  Log.info('Trying to import %s from path %s' % (full_class_name, from_path))
+  Log.debug('Trying to import %s from path %s' % (full_class_name, from_path))
   split = full_class_name.split('.')
   classname_path = '.'.join(split[:-1])
   class_name = full_class_name.split('.')[-1]
   if from_path not in sys.path:
-    Log.info("Add a new dependency to the path: %s" % from_path)
+    Log.debug("Add a new dependency to the path: %s" % from_path)
     sys.path.insert(0, from_path)
   if not classname_path:
     mod = importlib.import_module(class_name)
