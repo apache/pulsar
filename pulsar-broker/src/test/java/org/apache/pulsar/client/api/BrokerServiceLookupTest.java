@@ -126,7 +126,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     }
 
     /**
-     * UsecaseL Multiple Broker => Lookup Redirection test
+     * Usecase Multiple Broker => Lookup Redirection test
      *
      * 1. Broker1 is a leader 2. Lookup request reaches to Broker2 which redirects to leader (Broker1) with
      * authoritative = false 3. Leader (Broker1) finds out least loaded broker as Broker2 and redirects request to
@@ -143,7 +143,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setBrokerServicePort(PortManager.nextFreePort());
         conf2.setBrokerServicePortTls(PortManager.nextFreePort());
-        conf2.setAdvertisedAddress("localhost");
         conf2.setWebServicePort(PortManager.nextFreePort());
         conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
