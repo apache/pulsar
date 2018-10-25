@@ -7,7 +7,7 @@ This is the first release of Pulsar as an Apache Top Level Project
 
 This is a feature release, including several new features, improvements and fixes for  issues reported for 2.1.1-incubating.
  
-* [Pulsar Java Client Interceptors](https://github.com/apache/pulsar/pull/2627) 
+* [Pulsar Java Client Interceptors](https://github.com/apache/pulsar/pull/2471)
 
 * [Integration of functions and io with schema registry](https://github.com/apache/pulsar/pull/2266) 
 
