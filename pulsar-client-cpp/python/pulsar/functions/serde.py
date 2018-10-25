@@ -77,7 +77,7 @@ class IdentitySerDe(SerDe):
       return str(input).encode('utf-8')
     if type(input) == bytes:
       return input
-    raise TypeError
+    raise TypeError("IdentitySerde cannot serialize object of type %s" % type(input))
 
   def deserialize(self, input_bytes):
     for typ in self._types:
