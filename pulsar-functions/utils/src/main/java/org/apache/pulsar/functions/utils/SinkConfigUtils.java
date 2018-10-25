@@ -232,8 +232,8 @@ public class SinkConfigUtils {
             sinkConfig.setConfigs(new Gson().fromJson(functionDetails.getSink().getConfigs(), type));
         }
         if (!isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, String>>() {}.getType();
-            Map<String, String> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             sinkConfig.setSecrets(secretsMap);
         }
         if (functionDetails.hasResources()) {

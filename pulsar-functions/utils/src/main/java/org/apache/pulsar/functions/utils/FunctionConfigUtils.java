@@ -280,8 +280,8 @@ public class FunctionConfigUtils {
         functionConfig.setUserConfig(userConfig);
 
         if (!isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, String>>() {}.getType();
-            Map<String, String> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             functionConfig.setSecrets(secretsMap);
         }
 

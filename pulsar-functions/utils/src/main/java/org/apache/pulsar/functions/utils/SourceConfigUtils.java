@@ -161,8 +161,8 @@ public class SourceConfigUtils {
             sourceConfig.setConfigs(new Gson().fromJson(sourceSpec.getConfigs(), type));
         }
         if (!isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, String>>() {}.getType();
-            Map<String, String> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             sourceConfig.setSecrets(secretsMap);
         }
         Function.SinkSpec sinkSpec = functionDetails.getSink();
