@@ -451,8 +451,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String replicatorPrefix = "pulsar.repl";
     // Replicator producer queue size;
     private int replicationProducerQueueSize = 1000;
-    // Enable TLS when talking with other clusters to replicate messages
+    // @deprecated - Use brokerClientTlsEnabled instead.
+    @Deprecated
     private boolean replicationTlsEnabled = false;
+    // Enable TLS when talking with other brokers in the same cluster (admin operation) or different clusters (replication)
+    private boolean brokerClientTlsEnabled = false;
 
     // Default message retention time
     private int defaultRetentionTimeInMinutes = 0;
@@ -1528,13 +1531,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setReplicationProducerQueueSize(int replicationProducerQueueSize) {
         this.replicationProducerQueueSize = replicationProducerQueueSize;
     }
-
+    
+    @Deprecated
     public boolean isReplicationTlsEnabled() {
         return replicationTlsEnabled;
     }
-
+    
+    @Deprecated
     public void setReplicationTlsEnabled(boolean replicationTlsEnabled) {
         this.replicationTlsEnabled = replicationTlsEnabled;
+    }
+
+    public boolean isBrokerClientTlsEnabled() {
+        return brokerClientTlsEnabled || replicationTlsEnabled;
+    }
+
+    public void setBrokerClientTlsEnabled(boolean brokerClientTlsEnabled) {
+        this.brokerClientTlsEnabled = brokerClientTlsEnabled;
     }
 
     public List<String> getBootstrapNamespaces() {
