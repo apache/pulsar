@@ -237,7 +237,7 @@ class PythonInstance(object):
       Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
 
   def actual_execution(self):
-    Log.info("Started Thread for executing the function")
+    Log.debug("Started Thread for executing the function")
     while True:
       msg = self.queue.get(True)
       if isinstance(msg, InternalQuitMessage):
@@ -321,7 +321,7 @@ class PythonInstance(object):
   def setup_producer(self):
     if self.instance_config.function_details.sink.topic != None and \
             len(self.instance_config.function_details.sink.topic) > 0:
-      Log.info("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
+      Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
