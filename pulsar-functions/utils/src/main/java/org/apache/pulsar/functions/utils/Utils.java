@@ -238,18 +238,23 @@ public class Utils {
     }
 
     public static ClassLoader extractClassLoader(String destPkgUrl) throws IOException, URISyntaxException {
+        File file = extractFileFromPkg(destPkgUrl);
+        try {
+            return loadJar(file);
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException(
+                    "Corrupt User PackageFile " + file + " with error " + e.getMessage());
+        }
+    }
+
+    public static File extractFileFromPkg(String destPkgUrl) throws IOException, URISyntaxException {
         if (destPkgUrl.startsWith(FILE)) {
             URL url = new URL(destPkgUrl);
             File file = new File(url.toURI());
             if (!file.exists()) {
                 throw new IOException(destPkgUrl + " does not exists locally");
             }
-            try {
-                return loadJar(file);
-            } catch (MalformedURLException e) {
-                throw new IllegalArgumentException(
-                        "Corrupt User PackageFile " + file + " with error " + e.getMessage());
-            }
+            return file;
         } else if (destPkgUrl.startsWith("http")) {
             URL website = new URL(destPkgUrl);
             File tempFile = File.createTempFile("function", ".tmp");
@@ -260,7 +265,7 @@ public class Utils {
             if (tempFile.exists()) {
                 tempFile.delete();
             }
-            return loadJar(tempFile);
+            return tempFile;
         } else {
             throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
         }

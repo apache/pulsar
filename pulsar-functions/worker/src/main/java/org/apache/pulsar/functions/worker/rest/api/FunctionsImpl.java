@@ -194,22 +194,76 @@ public class FunctionsImpl {
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
                 .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
 
-        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder();
-        boolean isBuiltin = isFunctionCodeBuiltin(functionDetails);
-        if (isBuiltin) {
-            packageLocationMetaDataBuilder.setPackagePath("builtin://" + getFunctionCodeBuiltin(functionDetails));
-        } else {
-            packageLocationMetaDataBuilder.setPackagePath(isPkgUrlProvided ? functionPkgUrl
-                    : createPackagePath(tenant, namespace, componentName, fileDetail.getFileName()));
-            if (!isPkgUrlProvided) {
-                packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
-            }
+
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
+        try {
+            packageLocationMetaDataBuilder = getFunctionPackageLocation(functionDetails, componentType,
+                functionPkgUrl, fileDetail, uploadedInputStreamAsFile);
+        } catch (Exception e) {
+            return Response.serverError().type(MediaType.APPLICATION_JSON).entity(new ErrorData(e.getMessage()))
+                    .build();
         }
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-        return (isPkgUrlProvided || isBuiltin) ? updateRequest(functionMetaDataBuilder.build())
-                : updateRequest(functionMetaDataBuilder.build(), uploadedInputStreamAsFile);
+        return updateRequest(functionMetaDataBuilder.build());
     }
+
+    private PackageLocationMetaData.Builder getFunctionPackageLocation(FunctionDetails functionDetails,
+                                                                       String componentType, String functionPkgUrl,
+                                                                       final FormDataContentDisposition fileDetail,
+                                                                       File uploadedInputStreamAsFile) throws Exception {
+        String tenant = functionDetails.getTenant();
+        String namespace = functionDetails.getNamespace();
+        String componentName = functionDetails.getName();
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder();
+        boolean isBuiltin = isFunctionCodeBuiltin(functionDetails);
+        boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
+        if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
+            // For externally managed schedulers, the pkgUrl/builtin stuff should be copied to bk
+            if (isBuiltin) {
+                File sinkOrSource;
+                if (componentType.equals(SOURCE)) {
+                    String archiveName = functionDetails.getSource().getBuiltin();
+                    sinkOrSource = worker().getConnectorsManager().getSourceArchive(archiveName).toFile();
+                } else {
+                    String archiveName = functionDetails.getSink().getBuiltin();
+                    sinkOrSource = worker().getConnectorsManager().getSinkArchive(archiveName).toFile();
+                }
+                packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
+                        sinkOrSource.getName()));
+                packageLocationMetaDataBuilder.setOriginalFileName(sinkOrSource.getName());
+                log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
+                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
+            } else if (isPkgUrlProvided) {
+                File file = extractFileFromPkg(functionPkgUrl);
+                packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
+                        file.getName()));
+                packageLocationMetaDataBuilder.setOriginalFileName(file.getName());
+                log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
+                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), file, worker().getDlogNamespace());
+            } else {
+                packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
+                        fileDetail.getName()));
+                packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getName());
+                log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
+                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+            }
+        } else {
+            // For pulsar managed schedulers, the pkgUrl/builtin stuff should be copied to bk
+            if (isBuiltin) {
+                packageLocationMetaDataBuilder.setPackagePath("builtin://" + getFunctionCodeBuiltin(functionDetails));
+            } else if (isPkgUrlProvided) {
+                packageLocationMetaDataBuilder.setPackagePath(functionPkgUrl);
+            } else {
+                packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName, fileDetail.getFileName()));
+                packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
+                log.info("Uploading {} package to {}", componentType, packageLocationMetaDataBuilder.getPackagePath());
+                Utils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), uploadedInputStreamAsFile, worker().getDlogNamespace());
+            }
+        }
+        return packageLocationMetaDataBuilder;
+    }
+
 
     public Response updateFunction(final String tenant, final String namespace, final String componentName,
             final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
@@ -273,22 +327,17 @@ public class FunctionsImpl {
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
                 .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
 
-        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder();
-
-        boolean isBuiltin = isFunctionCodeBuiltin(functionDetails);
-        if (isBuiltin) {
-            packageLocationMetaDataBuilder.setPackagePath("builtin://" + getFunctionCodeBuiltin(functionDetails));
-        } else {
-            packageLocationMetaDataBuilder.setPackagePath(isPkgUrlProvided ? functionPkgUrl
-                    : createPackagePath(tenant, namespace, componentName, fileDetail.getFileName()));
-            if (!isPkgUrlProvided) {
-                packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
-            }
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
+        try {
+            packageLocationMetaDataBuilder = getFunctionPackageLocation(functionDetails, componentType,
+                    functionPkgUrl, fileDetail, uploadedInputStreamAsFile);
+        } catch (Exception e) {
+            return Response.serverError().type(MediaType.APPLICATION_JSON).entity(new ErrorData(e.getMessage()))
+                    .build();
         }
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-        return (isPkgUrlProvided || isBuiltin) ? updateRequest(functionMetaDataBuilder.build())
-                : updateRequest(functionMetaDataBuilder.build(), uploadedInputStreamAsFile);
+        return updateRequest(functionMetaDataBuilder.build());
     }
 
     public Response deregisterFunction(final String tenant, final String namespace, final String componentName,
@@ -631,22 +680,6 @@ public class FunctionsImpl {
         }
 
         return Response.status(Status.OK).entity(new Gson().toJson(retval.toArray())).build();
-    }
-
-    private Response updateRequest(FunctionMetaData functionMetaData, File uploadedInputStreamAsFile) {
-        // Upload to bookkeeper
-        try {
-            log.info("Uploading function package to {}", functionMetaData.getPackageLocation());
-            FileInputStream uploadedInputStream = new FileInputStream(uploadedInputStreamAsFile);
-
-            Utils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream,
-                    functionMetaData.getPackageLocation().getPackagePath());
-        } catch (IOException e) {
-            log.error("Error uploading file {}", functionMetaData.getPackageLocation(), e);
-            return Response.serverError().type(MediaType.APPLICATION_JSON).entity(new ErrorData(e.getMessage()))
-                    .build();
-        }
-        return updateRequest(functionMetaData);
     }
 
     private Response updateRequest(FunctionMetaData functionMetaData) {
