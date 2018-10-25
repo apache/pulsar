@@ -141,11 +141,16 @@ std::string ZTSClient::ybase64Encode(const unsigned char *input, int length) {
 }
 
 char *ZTSClient::base64Decode(const char *input) {
-    if (input == NULL || strlen(input) == 0) {
+    if (input == NULL) {
         return NULL;
     }
-    BIO *bio, *b64;
+
     size_t length = strlen(input);
+    if (length == 0) {
+        return NULL;
+    }
+
+    BIO *bio, *b64;
     char *result = (char *)malloc(length);
 
     bio = BIO_new_mem_buf((void *)input, -1);
@@ -154,14 +159,14 @@ char *ZTSClient::base64Decode(const char *input) {
 
     BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
     int decodeStrLen = BIO_read(bio, result, length);
+    BIO_free_all(bio);
     if (decodeStrLen > 0) {
         result[decodeStrLen] = '\0';
-    } else {
-        return NULL;
-    }
-    BIO_free_all(bio);
+        return result;
+    } 
+    free(result);
 
-    return result;
+    return NULL;
 }
 
 const std::string ZTSClient::getPrincipalToken() const {
