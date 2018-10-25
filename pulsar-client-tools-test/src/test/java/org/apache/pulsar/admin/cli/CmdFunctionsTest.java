@@ -812,6 +812,193 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreateFunctionWithCpu() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        final String url = "file:" + JAR_NAME;
+        cmd.run(new String[] {
+                "create",
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", url,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+                "--cpu", "5.0"
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals(fnName, creater.getFunctionName());
+        assertEquals(inputTopicName, creater.getInputs());
+        assertEquals(outputTopicName, creater.getOutput());
+        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 5.0);
+        // Disk/Ram should be default
+        assertEquals(creater.getFunctionConfig().getResources().getRam(), new Long(1073741824l));
+        assertEquals(creater.getFunctionConfig().getResources().getDisk(), new Long(10737418240l));
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateFunctionWithRam() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        final String url = "file:" + JAR_NAME;
+        cmd.run(new String[] {
+                "create",
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", url,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+                "--ram", "5656565656"
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals(fnName, creater.getFunctionName());
+        assertEquals(inputTopicName, creater.getInputs());
+        assertEquals(outputTopicName, creater.getOutput());
+        assertEquals(creater.getFunctionConfig().getResources().getRam(), new Long(5656565656l));
+        // cpu/disk should be default
+        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 1.0);
+        assertEquals(creater.getFunctionConfig().getResources().getDisk(), new Long(10737418240l));
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateFunctionWithDisk() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        final String url = "file:" + JAR_NAME;
+        cmd.run(new String[] {
+                "create",
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", url,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+                "--disk", "8080808080808080"
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals(fnName, creater.getFunctionName());
+        assertEquals(inputTopicName, creater.getInputs());
+        assertEquals(outputTopicName, creater.getOutput());
+        assertEquals(creater.getFunctionConfig().getResources().getDisk(), new Long(8080808080808080l));
+        // cpu/Ram should be default
+        assertEquals(creater.getFunctionConfig().getResources().getRam(), new Long(1073741824l));
+        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 1.0);
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+
+    @Test
+    public void testUpdateFunctionWithCpu() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        final String url = "file:" + JAR_NAME;
+        cmd.run(new String[] {
+                "update",
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", url,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+                "--cpu", "5.0"
+        });
+
+        UpdateFunction updater = cmd.getUpdater();
+
+        assertEquals(fnName, updater.getFunctionName());
+        assertEquals(inputTopicName, updater.getInputs());
+        assertEquals(outputTopicName, updater.getOutput());
+        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 5.0);
+        // Disk/Ram should be default
+        assertEquals(updater.getFunctionConfig().getResources().getRam(), new Long(1073741824l));
+        assertEquals(updater.getFunctionConfig().getResources().getDisk(), new Long(10737418240l));
+        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testUpdateFunctionWithRam() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        final String url = "file:" + JAR_NAME;
+        cmd.run(new String[] {
+                "update",
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", url,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+                "--ram", "5656565656"
+        });
+
+        UpdateFunction updater = cmd.getUpdater();
+
+        assertEquals(fnName, updater.getFunctionName());
+        assertEquals(inputTopicName, updater.getInputs());
+        assertEquals(outputTopicName, updater.getOutput());
+        assertEquals(updater.getFunctionConfig().getResources().getRam(), new Long(5656565656l));
+        // cpu/disk should be default
+        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
+        assertEquals(updater.getFunctionConfig().getResources().getDisk(), new Long(10737418240l));
+        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testUpdateFunctionWithDisk() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        final String url = "file:" + JAR_NAME;
+        cmd.run(new String[] {
+                "update",
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", url,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+                "--disk", "8080808080808080"
+        });
+
+        UpdateFunction updater = cmd.getUpdater();
+
+        assertEquals(fnName, updater.getFunctionName());
+        assertEquals(inputTopicName, updater.getInputs());
+        assertEquals(outputTopicName, updater.getOutput());
+        assertEquals(updater.getFunctionConfig().getResources().getDisk(), new Long(8080808080808080l));
+        // cpu/Ram should be default
+        assertEquals(updater.getFunctionConfig().getResources().getRam(), new Long(1073741824l));
+        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
+        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
     public void TestCreateSameInOutTopic() throws Exception {
 
         String[] correctArgs = new String[]{
