@@ -143,26 +143,26 @@ public class FunctionActioner implements AutoCloseable {
         String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
         boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
 
-        if (isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
-            URL url = new URL(pkgLocation);
-            File pkgFile = new File(url.toURI());
-            packageFile = pkgFile.getAbsolutePath();
-        } else if (isFunctionCodeBuiltin(functionDetails)) {
-            File pkgFile = getBuiltinArchive(functionDetails);
-            packageFile = pkgFile.getAbsolutePath();
-        } else if (runtimeFactory.externallyManaged()) {
+        if (runtimeFactory.externallyManaged()) {
             packageFile = pkgLocation;
         } else {
-            File pkgDir = new File(
-                    workerConfig.getDownloadDirectory(),
-                    getDownloadPackagePath(functionMetaData, instanceId));
-            pkgDir.mkdirs();
-
-            File pkgFile = new File(
-                    pkgDir,
-                    new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
-            downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
-            packageFile = pkgFile.getAbsolutePath();
+            if (isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
+                URL url = new URL(pkgLocation);
+                File pkgFile = new File(url.toURI());
+                packageFile = pkgFile.getAbsolutePath();
+            } else if (isFunctionCodeBuiltin(functionDetails)) {
+                File pkgFile = getBuiltinArchive(functionDetails);
+                packageFile = pkgFile.getAbsolutePath();
+            } else {
+                File pkgDir = new File(workerConfig.getDownloadDirectory(),
+                        getDownloadPackagePath(functionMetaData, instanceId));
+                pkgDir.mkdirs();
+                File pkgFile = new File(
+                        pkgDir,
+                        new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
+                downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
+                packageFile = pkgFile.getAbsolutePath();
+            }
         }
 
         InstanceConfig instanceConfig = new InstanceConfig();
