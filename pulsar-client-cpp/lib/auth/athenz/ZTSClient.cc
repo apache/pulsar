@@ -146,7 +146,7 @@ char *ZTSClient::base64Decode(const char *input) {
     }
 
     size_t length = strlen(input);
-    if (length == 0) {
+    if (length == 0) {
         return NULL;
     }
 
@@ -163,7 +163,7 @@ char *ZTSClient::base64Decode(const char *input) {
     if (decodeStrLen > 0) {
         result[decodeStrLen] = '\0';
         return result;
-    } 
+    }
     free(result);
 
     return NULL;
