@@ -201,7 +201,7 @@ class PythonInstance(object):
       else:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
       self.input_serdes[topic] = serde_kclass()
-      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       if consumer_conf.isRegexPattern:
         self.consumers[topic] = self.pulsar_client.subscribe(
           re.compile(str(topic)), subscription_name,
