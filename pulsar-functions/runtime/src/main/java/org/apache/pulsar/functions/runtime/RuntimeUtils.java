@@ -48,7 +48,7 @@ class RuntimeUtils {
                                            String shardId,
                                            Integer grpcPort,
                                            Long expectedHealthCheckInterval,
-                                           String javaLog4jFileName,
+                                           String logConfigFile,
                                            Boolean installUserCodeDepdendencies,
                                            String pythonDependencyRepository,
                                            String pythonExtraDependencyRepository) throws Exception {
@@ -61,7 +61,7 @@ class RuntimeUtils {
             // Keep the same env property pointing to the Java instance file so that it can be picked up
             // by the child process and manually added to classpath
             args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
-            args.add("-Dlog4j.configurationFile=" + javaLog4jFileName);
+            args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + String.format(
                     "%s/%s",
                     logDirectory,
@@ -88,6 +88,9 @@ class RuntimeUtils {
             args.add(logDirectory);
             args.add("--logging_file");
             args.add(instanceConfig.getFunctionDetails().getName());
+            // set logging config file
+            args.add("--logging_config_file");
+            args.add(logConfigFile);
             // `installUserCodeDependencies` is only valid for python runtime
             if (installUserCodeDepdendencies != null && installUserCodeDepdendencies) {
                 args.add("--install_usercode_dependencies");
