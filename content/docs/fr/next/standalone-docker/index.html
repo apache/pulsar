@@ -52,7 +52,7 @@
   -p 6650:6650 \
   -p 8080:8080 \
   -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:2.1.1-incubating \
+  apachepulsar/pulsar:2.2.0 \
   bin/pulsar standalone
 </code></pre>
 <p>A few things to note about this command: * <code>-v $PWD/data:/pulsar/data</code>: This will make the process inside the container to store the data and metadata in the filesystem outside the container, in order to not start &quot;fresh&quot; every time the container is restarted.</p>

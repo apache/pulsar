@@ -52,7 +52,7 @@
   -p 6650:6650 \
   -p 8080:8080 \
   -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:2.1.1-incubating \
+  apachepulsar/pulsar:2.2.0 \
   bin/pulsar standalone
 </code></pre>
 <p>有关此命令的一些注意事项： * <code>-v $PWD/data:/pulsar/data</code>: 这将使容器内的进程将数据和元数据存储在容器外的文件系统中，为了在每次重新启动容器时都不是“新的”。</p>
