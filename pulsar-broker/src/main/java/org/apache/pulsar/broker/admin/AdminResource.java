@@ -40,12 +40,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.naming.Constants;
-import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
-import org.apache.pulsar.common.naming.NamespaceBundles;
-import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.*;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -483,11 +478,11 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected List<String> getPartitionedTopicList(String domain) {
+    protected List<String> getPartitionedTopicList(TopicDomain topicDomain) {
         List<String> partitionedTopics = Lists.newArrayList();
 
         try {
-            String partitionedTopicPath = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain);
+            String partitionedTopicPath = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), topicDomain.value());
             List<String> topics = globalZk().getChildren(partitionedTopicPath, false);
             partitionedTopics = topics.stream()
                     .map(s -> String.format("persistent://%s/%s", namespaceName.toString(), decode(s)))

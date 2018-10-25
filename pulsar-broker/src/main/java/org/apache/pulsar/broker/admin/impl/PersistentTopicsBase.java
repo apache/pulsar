@@ -168,7 +168,7 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Failed to get partitioned topic list for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
-        return getPartitionedTopicList(domain());
+        return getPartitionedTopicList(TopicDomain.getEnum(domain()));
     }
 
     protected Map<String, Set<AuthAction>> internalGetPermissionsOnTopic() {
