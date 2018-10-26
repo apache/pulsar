@@ -23,25 +23,22 @@ set -e
 GITTAG=#TAG#
 PYTHONVER=#PYTHONVER#
 
-BOOST_VERSION=1.67
-
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-
-brew install openssl git boost@$BOOST_VERSION pkg-config jsoncpp cmake protobuf260
-
-brew link --force boost@$BOOST_VERSION
+BOOST_VERSION=1.68
 
 if [ "$PYTHONVER" = "PYTHON2" ]
 then
-	brew install python@2 boost-python@$BOOST_VERSION
-
+	brew unlink boost-python3
+	brew unlink python
 	brew link --force boost-python@$BOOST_VERSION
+	brew link --force python@2
 fi
 
 if [ "$PYTHONVER" = "PYTHON3" ]
 then
-	brew install python boost-python3
+	brew unlink boost-python@$BOOST_VERSION
+	brew unlink python@2
 	brew link --force boost-python3
+	brew link --force python
 fi
 
 brew link --force protobuf260

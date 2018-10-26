@@ -18,14 +18,9 @@
 # under the License.
 #
 
-
 set -e
 
 printf "== Generate python 2.7 osx packages ==\n"
-
-cd osx-10.11-python2.7
-sh generate-wheel-file.sh
-cd ..
 
 cd osx-10.12-python2.7
 sh generate-wheel-file.sh
@@ -35,16 +30,20 @@ cd osx-10.13-python2.7
 sh generate-wheel-file.sh
 cd ..
 
-printf "== Generate python 3.6 osx packages ==\n"
-
-cd osx-10.11-python3.6
+cd osx-10.14-python2.7
 sh generate-wheel-file.sh
 cd ..
 
-cd osx-10.12-python3.6
+printf "== Generate python 3.7 osx packages ==\n"
+
+cd osx-10.12-python3.7
 sh generate-wheel-file.sh
 cd ..
 
-cd osx-10.13-python3.6
+cd osx-10.13-python3.7
+sh generate-wheel-file.sh
+cd ..
+
+cd osx-10.14-python3.7
 sh generate-wheel-file.sh
 cd ..
