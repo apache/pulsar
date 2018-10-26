@@ -221,10 +221,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         MessageId msgId;
         try {
             ConsumerAck ack = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerAck.class);
-            msgId = MessageId.fromByteArray(Base64.getDecoder().decode(ack.messageId));
-            int partitionIndex = Integer.parseInt(msgId.toString().split(":")[2]);
-            if (partitionIndex > -1)
-                msgId = new TopicMessageIdImpl(topic.getPartition(partitionIndex).toString(), topic.toString(), msgId);
+            msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(ack.messageId), topic);
         } catch (IOException e) {
             log.warn("Failed to deserialize message id: {}", message, e);
             close(WebSocketError.FailedToDeserializeFromJSON);
