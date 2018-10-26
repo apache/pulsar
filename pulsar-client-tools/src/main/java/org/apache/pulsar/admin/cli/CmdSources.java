@@ -274,6 +274,8 @@ public class CmdSources extends CmdBase {
         @Parameter(names = "--source-config-file", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
         protected String sourceConfigFile;
+        @Parameter(names = "--secrets-config", description = "Secrets config key/values")
+        protected String secretsConfig;
         @Parameter(names = "--cpu", description = "The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime)")
         protected Double cpu;
         @Parameter(names = "--ram", description = "The RAM (in bytes) that need to be allocated per source instance (applicable only to the process and Docker runtimes)")
@@ -369,6 +371,12 @@ public class CmdSources extends CmdBase {
 
             if (null != sourceConfigString) {
                 sourceConfig.setConfigs(parseConfigs(sourceConfigString));
+            }
+
+            if (null != secretsConfig) {
+                Type type = new TypeToken<Map<String, Object>>() {}.getType();
+                Map<String, Object> secretsMap = new Gson().fromJson(secretsConfig, type);
+                sourceConfig.setSecrets(secretsMap);
             }
 
             inferMissingArguments(sourceConfig);
