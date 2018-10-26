@@ -57,6 +57,7 @@ message FunctionDetails {
     string logTopic = 5;
     ProcessingGuarantees processingGuarantees = 6;
     string userConfig = 7;
+    string secretsMap = 16;
     Runtime runtime = 8;
     bool autoAck = 9;
     int32 parallelism = 10;

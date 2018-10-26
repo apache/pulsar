@@ -98,6 +98,10 @@ public class SourceConfigUtils {
             sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
         }
 
+        if (sourceConfig.getSecrets() != null && !sourceConfig.getSecrets().isEmpty()) {
+            functionDetailsBuilder.setSecretsMap(new Gson().toJson(sourceConfig.getSecrets()));
+        }
+
         if (typeArg != null) {
             sourceSpecBuilder.setTypeClassName(typeArg);
         }
@@ -155,6 +159,11 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(sourceSpec.getConfigs())) {
             Type type = new TypeToken<Map<String, String>>() {}.getType();
             sourceConfig.setConfigs(new Gson().fromJson(sourceSpec.getConfigs(), type));
+        }
+        if (!isEmpty(functionDetails.getSecretsMap())) {
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+            sourceConfig.setSecrets(secretsMap);
         }
         Function.SinkSpec sinkSpec = functionDetails.getSink();
         sourceConfig.setTopicName(sinkSpec.getTopic());
