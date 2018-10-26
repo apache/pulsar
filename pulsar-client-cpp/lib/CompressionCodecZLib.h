@@ -23,10 +23,10 @@
 #include <zlib.h>
 #include <boost/thread/mutex.hpp>
 
-namespace pulsar {
-
 // Make symbol visible to unit tests
 #pragma GCC visibility push(default)
+
+namespace pulsar {
 
 class CompressionCodecZLib : public CompressionCodec {
    public:
@@ -35,8 +35,8 @@ class CompressionCodecZLib : public CompressionCodec {
     bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
 };
 
-#pragma GCC visibility pop
-
 }  // namespace pulsar
+
+#pragma GCC visibility pop
 
 #endif /* LIB_COMPRESSIONCODECZLIB_H_ */
