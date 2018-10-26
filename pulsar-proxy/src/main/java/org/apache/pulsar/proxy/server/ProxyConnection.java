@@ -208,6 +208,14 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             return;
         }
 
+        int protocolVersionToAdvertise = getProtocolVersionToAdvertise(connect);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "[{}] Protocol version to advertise to broker is {}, clientProtocolVersion={}, proxyProtocolVersion={}",
+                    remoteAddress, protocolVersionToAdvertise, remoteEndpointProtocolVersion,
+                    Commands.getCurrentProtocolVersion());
+        }
+
         if (!authenticateAndCreateClient(connect)) {
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, "Failed to authenticate"));
             close();
@@ -219,7 +227,8 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // connection
             // there and just pass bytes in both directions
             state = State.ProxyConnectionToBroker;
-            directProxyHandler = new DirectProxyHandler(service, this, connect.getProxyToBrokerUrl());
+            directProxyHandler = new DirectProxyHandler(service, this, connect.getProxyToBrokerUrl(),
+                    protocolVersionToAdvertise);
             cancelKeepAliveTask();
         } else {
             // Client is doing a lookup, we can consider the handshake complete
@@ -227,7 +236,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
             lookupProxyHandler = new LookupProxyHandler(service, this);
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
+            ctx.writeAndFlush(Commands.newConnected(protocolVersionToAdvertise));
         }
     }
 
@@ -285,10 +294,11 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             ClientConfigurationData clientConf = createClientConfiguration();
             this.clientAuthentication = clientConf.getAuthentication();
 
+            final int protocolVersion = getProtocolVersionToAdvertise(connect);
             if (!service.getConfiguration().isAuthenticationEnabled()) {
                 this.client = new PulsarClientImpl(clientConf, service.getWorkerGroup(),
-                        new ProxyConnectionPool(clientConf, service.getWorkerGroup(), () -> new ClientCnx(clientConf,
-                                service.getWorkerGroup())));
+                        new ProxyConnectionPool(clientConf, service.getWorkerGroup(),
+                                () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersion)));
                 return true;
             }
             
@@ -313,7 +323,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 this.clientAuthData = authData;
                 this.clientAuthMethod = authMethod;
             }
-            this.client = createClient(clientConf, this.clientAuthData, this.clientAuthMethod);
+            this.client = createClient(clientConf, this.clientAuthData, this.clientAuthMethod, protocolVersion);
 
             return true;
         } catch (Exception e) {
@@ -323,10 +333,14 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     }
 
     private PulsarClientImpl createClient(final ClientConfigurationData clientConf, final String clientAuthData,
-            final String clientAuthMethod) throws PulsarClientException {
+            final String clientAuthMethod, final int protocolVersion) throws PulsarClientException {
         return new PulsarClientImpl(clientConf, service.getWorkerGroup(),
                 new ProxyConnectionPool(clientConf, service.getWorkerGroup(), () -> new ProxyClientCnx(clientConf,
-                        service.getWorkerGroup(), clientAuthRole, clientAuthData, clientAuthMethod)));
+                        service.getWorkerGroup(), clientAuthRole, clientAuthData, clientAuthMethod, protocolVersion)));
+    }
+
+    private static int getProtocolVersionToAdvertise(CommandConnect connect) {
+        return Math.min(connect.getProtocolVersion(), Commands.getCurrentProtocolVersion());
     }
 
     long newRequestId() {
