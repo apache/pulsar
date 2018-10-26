@@ -165,6 +165,9 @@ public class SinkConfigUtils {
         if (sinkConfig.getConfigs() != null) {
             sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
         }
+        if (sinkConfig.getSecrets() != null && !sinkConfig.getSecrets().isEmpty()) {
+            functionDetailsBuilder.setSecretsMap(new Gson().toJson(sinkConfig.getSecrets()));
+        }
         if (typeArg != null) {
             sinkSpecBuilder.setTypeClassName(typeArg);
         }
@@ -227,6 +230,11 @@ public class SinkConfigUtils {
         if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getSink().getConfigs())) {
             Type type = new TypeToken<Map<String, String>>() {}.getType();
             sinkConfig.setConfigs(new Gson().fromJson(functionDetails.getSink().getConfigs(), type));
+        }
+        if (!isEmpty(functionDetails.getSecretsMap())) {
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+            sinkConfig.setSecrets(secretsMap);
         }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
