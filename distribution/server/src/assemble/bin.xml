@@ -44,7 +44,7 @@
       <directory>${basedir}/licenses</directory>
     </fileSet>
     <fileSet>
-      <directory>${basedir}/../../pulsar-functions/runtime/target/python-instance</directory>
+      <directory>${basedir}/../../pulsar-functions/instance/target/python-instance</directory>
       <outputDirectory>instances/python-instance</outputDirectory>
     </fileSet>
     <fileSet>
