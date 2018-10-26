@@ -25,12 +25,18 @@
 
 namespace pulsar {
 
+// Make symbol visible to unit tests
+#pragma GCC visibility push(default)
+
 class CompressionCodecZLib : public CompressionCodec {
    public:
     SharedBuffer encode(const SharedBuffer& raw);
 
     bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
 };
+
+#pragma GCC visibility pop
+
 }  // namespace pulsar
 
 #endif /* LIB_COMPRESSIONCODECZLIB_H_ */
