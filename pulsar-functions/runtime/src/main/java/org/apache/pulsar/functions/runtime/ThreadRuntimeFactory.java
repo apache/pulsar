@@ -58,25 +58,19 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
 
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
                                 AuthenticationConfig authConfig, String secretsProviderClassName,
-                                String secretsProviderConfig) throws Exception {
+                                Map<String, String> secretsProviderConfig) throws Exception {
         this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig), storageServiceUrl, secretsProviderClassName, secretsProviderConfig);
     }
 
     @VisibleForTesting
     public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
-                                String secretsProviderClassName, String secretsProviderConfig) {
+                                String secretsProviderClassName, Map<String, String> secretsProviderConfig) {
         try {
             secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        if (!StringUtils.isEmpty(secretsProviderConfig)) {
-            Type type = new TypeToken<Map<String, Object>>() {}.getType();
-            Map<String, Object> secretsProviderConfigMap = new Gson().fromJson(secretsProviderConfig, type);
-            secretsProvider.init(secretsProviderConfigMap);
-        } else {
-            secretsProvider.init(new HashMap<>());
-        }
+        secretsProvider.init(secretsProviderConfig);
 
         this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(threadGroupName);

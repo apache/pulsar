@@ -32,14 +32,14 @@ public class ClearTextSecretsProvider implements SecretsProvider {
      * @return
      */
     @Override
-    public void init(Map<String, Object> config) { }
+    public void init(Map<String, String> config) { }
 
     /**
      * Fetches a secret
      * @return The actual secret
      */
     @Override
-    public String provideSecret(String secretName, String pathToSecret) {
-        return pathToSecret;
+    public String provideSecret(String secretName, Object pathToSecret) {
+        return pathToSecret.toString();
     }
 }

@@ -114,7 +114,7 @@ class ContextImpl(pulsar.Context):
   def get_secret(self, secret_key):
     if not secret_key in self.secrets_map:
       return None
-    return self.secrets_provider.get_secret(secret_key, self.secrets_map[secret_key])
+    return self.secrets_provider.provide_secret(secret_key, self.secrets_map[secret_key])
 
   def record_metric(self, metric_name, metric_value):
     if not metric_name in self.current_accumulated_metrics:

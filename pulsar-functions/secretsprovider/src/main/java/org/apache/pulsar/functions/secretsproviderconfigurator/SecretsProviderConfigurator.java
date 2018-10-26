@@ -16,7 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.secretsprovider;
+package org.apache.pulsar.functions.secretsproviderconfigurator;
+
+import io.kubernetes.client.models.V1Container;
+import org.apache.pulsar.functions.proto.Function;
 
 import java.util.Map;
 
@@ -26,16 +29,31 @@ import java.util.Map;
  * message, what are our operating constraints, etc can be accessed by the
  * executing function
  */
-public interface SecretsProvider {
+public interface SecretsProviderConfigurator {
     /**
-     * Initialize the SecretsProvider
+     * Initialize the SecretsProviderConfigurator
      * @return
      */
     void init(Map<String, String> config);
 
     /**
-     * Fetches a secret
-     * @return The actual secret
+     * Return the Secrets Provider Classname
      */
-    String provideSecret(String secretName, Object pathToSecret);
+    String getSecretsProviderClassName(Function.FunctionDetails functionDetails);
+
+    /**
+     * Return the secrets provider config
+     */
+    Map<String, String> getSecretsProviderConfig(Function.FunctionDetails functionDetails);
+
+    /**
+     * Attaches any secrets specific stuff to the k8 container for kubernetes runtime
+     */
+    void configureKubernetesRuntimeSecretsProvider(V1Container container, Function.FunctionDetails functionDetails);
+
+    /**
+     * Attaches any secrets specific stuff to the k8 container for kubernetes runtime
+     */
+    void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, Function.FunctionDetails functionDetails);
+
 }

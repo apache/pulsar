@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 
 import java.util.Map;
 
@@ -56,6 +57,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String prometheusMetricsServerJarFile;
+    private final SecretsProviderConfigurator secretsProviderConfigurator;
     private final String logDirectory = "logs/functions";
     private final Integer expectedMetricsInterval;
     private AppsV1Api appsClient;
@@ -75,7 +77,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String pulsarAdminUri,
                                     String stateStorageServiceUri,
                                     AuthenticationConfig authConfig,
-                                    Integer expectedMetricsInterval) {
+                                    Integer expectedMetricsInterval,
+                                    SecretsProviderConfigurator secretsProviderConfigurator) {
         this.k8Uri = k8Uri;
         if (!isEmpty(jobNamespace)) {
             this.jobNamespace = jobNamespace;
@@ -105,6 +108,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.pythonInstanceFile = this.pulsarRootDir + "/instances/python-instance/python_instance_main.py";
         this.prometheusMetricsServerJarFile = this.pulsarRootDir + "/instances/PrometheusMetricsServer.jar";
         this.expectedMetricsInterval = expectedMetricsInterval == null ? -1 : expectedMetricsInterval;
+        this.secretsProviderConfigurator = secretsProviderConfigurator;
     }
 
     @Override
@@ -148,6 +152,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             pulsarAdminUri,
             stateStorageServiceUri,
             authConfig,
+            secretsProviderConfigurator,
             expectedMetricsInterval);
     }
 

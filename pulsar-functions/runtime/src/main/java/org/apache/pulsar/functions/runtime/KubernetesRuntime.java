@@ -44,6 +44,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 
 import java.lang.reflect.Type;
 import java.util.*;
@@ -102,6 +103,7 @@ class KubernetesRuntime implements Runtime {
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
     private final String pulsarAdminUrl;
+    private final SecretsProviderConfigurator secretsProviderConfigurator;
     private boolean running;
 
 
@@ -124,6 +126,7 @@ class KubernetesRuntime implements Runtime {
                       String pulsarAdminUrl,
                       String stateStorageServiceUrl,
                       AuthenticationConfig authConfig,
+                      SecretsProviderConfigurator secretsProviderConfigurator,
                       Integer expectedMetricsInterval) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
@@ -135,21 +138,24 @@ class KubernetesRuntime implements Runtime {
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
+        this.secretsProviderConfigurator = secretsProviderConfigurator;
         String logConfigFile = null;
-        String secretsProviderClassName = null;
+        String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
+        String secretsProviderConfig = null;
+        if (secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()) != null) {
+            secretsProviderConfig = new Gson().toJson(secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
+        }
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 logConfigFile = "kubernetes_instance_log4j2.yml";
-                secretsProviderClassName = EnvironmentBasedSecretsProvider.class.getName();
                 break;
             case PYTHON:
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
-                secretsProviderClassName = "secretsprovider.EnvironmentBasedSecretsProvider";
                 break;
         }
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, logConfigFile,
-                secretsProviderClassName, null, installUserCodeDependencies, pythonDependencyRepository, pythonExtraDependencyRepository);
+                secretsProviderClassName, secretsProviderConfig, installUserCodeDependencies, pythonDependencyRepository, pythonExtraDependencyRepository);
         this.prometheusMetricsServerArgs = composePrometheusMetricsServerArgs(prometheusMetricsServerJarFile, expectedMetricsInterval);
         running = false;
         doChecks(instanceConfig.getFunctionDetails());
@@ -543,28 +549,15 @@ class KubernetesRuntime implements Runtime {
         container.setCommand(instanceCommand);
 
         // setup the environment variables for the container
-        List<V1EnvVar> envVars = new LinkedList<>();
         final V1EnvVar envVarPodName = new V1EnvVar();
         envVarPodName.name("POD_NAME")
                 .valueFrom(new V1EnvVarSource()
                         .fieldRef(new V1ObjectFieldSelector()
                                 .fieldPath("metadata.name")));
-        envVars.add(envVarPodName);
-        if (!StringUtils.isEmpty(instanceConfig.getFunctionDetails().getSecretsMap())) {
-            Type type = new TypeToken<Map<String, String>>() {}.getType();
-            Map<String, String> secretsMap = new Gson().fromJson(instanceConfig.getFunctionDetails().getSecretsMap(), type);
-            for (Map.Entry<String, String> entry : secretsMap.entrySet()) {
-                final V1EnvVar secretEnv = new V1EnvVar();
-                secretEnv.name(entry.getKey())
-                        .valueFrom(new V1EnvVarSource()
-                                .secretKeyRef(new V1SecretKeySelector()
-                                        .name(entry.getValue())
-                                        .key(entry.getKey())));
-                envVars.add(secretEnv);
-            }
-        }
-        container.setEnv(envVars);
+        container.addEnvItem(envVarPodName);
 
+        // Configure secrets
+        secretsProviderConfigurator.configureKubernetesRuntimeSecretsProvider(container, instanceConfig.getFunctionDetails());
 
         // set container resources
         final V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();

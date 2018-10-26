@@ -103,7 +103,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private final TopicSchema topicSchema;
 
     private final SecretsProvider secretsProvider;
-    private final Map<String, String> secretsMap;
+    private final Map<String, Object> secretsMap;
 
     @Getter
     @Setter
@@ -133,7 +133,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         this.secretsProvider = secretsProvider;
         if (!StringUtils.isEmpty(config.getFunctionDetails().getSecretsMap())) {
             secretsMap = new Gson().fromJson(config.getFunctionDetails().getSecretsMap(),
-                    new TypeToken<Map<String, String>>() {
+                    new TypeToken<Map<String, Object>>() {
                     }.getType());
         } else {
             secretsMap = new HashMap<>();
