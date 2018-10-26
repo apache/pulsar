@@ -309,4 +309,13 @@ public interface ClientBuilder extends Cloneable {
      * @param unit time unit for {@code statsInterval}
      */
     ClientBuilder keepAliveInterval(int keepAliveIntervalSeconds, TimeUnit unit);
+
+    /**
+     * Set the duration of time to wait for a connection to a broker to be established. If the duration
+     * passes without a response from the broker, the connection attempt is dropped.
+     *
+     * @param duration the duration to wait
+     * @param unit the time unit in which the duration is defined
+     */
+    ClientBuilder connectionTimeout(int duration, TimeUnit unit);
 }
