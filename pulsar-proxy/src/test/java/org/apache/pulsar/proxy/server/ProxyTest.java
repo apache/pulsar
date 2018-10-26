@@ -24,7 +24,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -35,8 +39,16 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -191,6 +203,52 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                 assertEquals("message-" + i, new String(msg.getValue(), UTF_8));
             }
         }
+    }
+
+    @Test
+    private void testProtocolVersionAdvertisement() throws Exception {
+        final String url = "pulsar://localhost:" + proxyConfig.getServicePort();
+        final String topic = "persistent://sample/test/local/protocol-version-advertisement";
+        final String sub = "my-sub";
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl(url);
+        PulsarClient client = getClientActiveConsumerChangeNotSupported(conf);
+
+        Producer<byte[]> producer = client.newProducer().topic(topic).create();
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(sub)
+                .subscriptionType(SubscriptionType.Failover).subscribe();
+
+        for (int i = 0; i < 10; i++) {
+            producer.send("test-msg".getBytes());
+        }
+
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
+            checkNotNull(msg);
+            consumer.acknowledge(msg);
+        }
+
+        producer.close();
+        consumer.close();
+        client.close();
+    }
+
+    private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
+            throws Exception {
+        ThreadFactory threadFactory = new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon());
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
+
+        ConnectionPool cnxPool = new ConnectionPool(conf, eventLoopGroup, () -> {
+            return new ClientCnx(conf, eventLoopGroup, ProtocolVersion.v11_VALUE) {
+                @Override
+                protected void handleActiveConsumerChange(CommandActiveConsumerChange change) {
+                    throw new UnsupportedOperationException();
+                }
+            };
+        });
+
+        return new PulsarClientImpl(conf, eventLoopGroup, cnxPool);
     }
 
 }
