@@ -358,7 +358,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                 + "/my-sub?subscriptionType=Failover";
         final String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/" + topic + "/";
         final String readerUri = "ws://localhost:" + port + "/ws/v2/reader/persistent/" + topic;
-        System.out.println(consumerUri+", "+producerUri);
+        System.out.println(consumerUri + ", " + producerUri);
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
         URI readUri = URI.create(readerUri);
@@ -421,6 +421,47 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         } finally {
             stopWebSocketClient(consumeClient1, produceClient);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void consumeMessagesInPartitionedTopicTest() throws Exception {
+        final String namespace = "my-property/my-ns";
+        final String topic = namespace + "/" + "my-topic7";
+        admin.topics().createPartitionedTopic("persistent://" + topic, 3);
+
+        final String subscription = "my-sub";
+        final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+        final String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/" + topic;
+
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
+
+        WebSocketClient consumeClient = new WebSocketClient();
+        WebSocketClient produceClient = new WebSocketClient();
+
+        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+
+        try {
+            produceClient.start();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            producerFuture.get();
+            produceSocket.sendMessage(100);
+        } finally {
+            stopWebSocketClient(produceClient);
+        }
+
+        Thread.sleep(500);
+
+        try {
+            consumeClient.start();
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            consumerFuture.get();
+        } finally {
+            stopWebSocketClient(consumeClient);
         }
     }
 
