@@ -21,10 +21,9 @@ package org.apache.pulsar.functions.secretsprovider;
 import java.util.Map;
 
 /**
- * Context provides contextual information to the executing function.
- * Features like which message id we are handling, whats the topic name of the
- * message, what are our operating constraints, etc can be accessed by the
- * executing function
+ * This file defines the SecretsProvider interface. This interface is used by the function
+ * instances/containers to actually fetch the secrets. What SecretsProvider to use is
+ * decided by the SecretsProviderConfigurator
  */
 public interface SecretsProvider {
     /**

@@ -26,17 +26,17 @@ import io.kubernetes.client.models.V1EnvVarSource;
 import io.kubernetes.client.models.V1SecretKeySelector;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 
 import java.lang.reflect.Type;
 import java.util.Map;
 
 /**
- * Context provides contextual information to the executing function.
- * Features like which message id we are handling, whats the topic name of the
- * message, what are our operating constraints, etc can be accessed by the
- * executing function
+ * This file defines the SecretsProviderConfigurator that will be used by default for running in Kubernetes.
+ * As such this implementation is strictly when workers are configured to use kubernetes runtime.
+ * We use kubernetes in built secrets and bind them as environment variables within the function container
+ * to ensure that the secrets are availble to the function at runtime. Then we plug in the
+ * EnvironmentBasedSecretsConfig as the secrets provider who knows how to read these environment variables
  */
 public class KubernetesSecretsProviderConfigurator implements SecretsProviderConfigurator {
     @Override
@@ -77,7 +77,7 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
 
     @Override
     public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, Function.FunctionDetails functionDetails) {
-        // noop
+        throw new RuntimeException("KubernetesSecretsProviderConfigurator should only be setup for Kubernetes Runtime");
     }
 
     @Override

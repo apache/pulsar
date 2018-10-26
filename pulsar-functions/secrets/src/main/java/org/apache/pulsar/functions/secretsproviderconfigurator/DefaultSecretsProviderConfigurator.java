@@ -27,10 +27,10 @@ import java.lang.reflect.Type;
 import java.util.Map;
 
 /**
- * Context provides contextual information to the executing function.
- * Features like which message id we are handling, whats the topic name of the
- * message, what are our operating constraints, etc can be accessed by the
- * executing function
+ * This is a barebones version of a secrets provider which wires in ClearTextSecretsProvider
+ * to the function instances/containers.
+ * While this is the default configurator, it is highly recommended that for real-security
+ * you use some alternate provider.
  */
 public class DefaultSecretsProviderConfigurator implements SecretsProviderConfigurator {
     @Override

@@ -18,13 +18,9 @@
  */
 package org.apache.pulsar.functions.secretsprovider;
 
-import java.util.Map;
-
 /**
- * Context provides contextual information to the executing function.
- * Features like which message id we are handling, whats the topic name of the
- * message, what are our operating constraints, etc can be accessed by the
- * executing function
+ * This defines a very simple Secrets Provider that looks up environment variable
+ * thats named the same as secretName and fetches it.
  */
 public class EnvironmentBasedSecretsProvider implements SecretsProvider {
 

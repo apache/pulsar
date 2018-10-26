@@ -18,13 +18,9 @@
  */
 package org.apache.pulsar.functions.secretsprovider;
 
-import java.util.Map;
-
 /**
- * Context provides contextual information to the executing function.
- * Features like which message id we are handling, whats the topic name of the
- * message, what are our operating constraints, etc can be accessed by the
- * executing function
+ * This file defines a very basic clear text secrets provider which treats
+ * the secrets as being passed in cleartext.
  */
 public class ClearTextSecretsProvider implements SecretsProvider {
         /**

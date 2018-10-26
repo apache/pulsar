@@ -25,10 +25,9 @@ import java.lang.reflect.Type;
 import java.util.Map;
 
 /**
- * Context provides contextual information to the executing function.
- * Features like which message id we are handling, whats the topic name of the
- * message, what are our operating constraints, etc can be accessed by the
- * executing function
+ * This file defines the SecretsProviderConfigurator interface. This interface is used by the function_workers
+ * to choose the SecretProvider class name(if any) and its associated config at the time of starting
+ * the function instances.
  */
 public interface SecretsProviderConfigurator {
     /**
@@ -38,7 +37,9 @@ public interface SecretsProviderConfigurator {
     default void init(Map<String, String> config) {}
 
     /**
-     * Return the Secrets Provider Classname
+     * Return the Secrets Provider Classname. This will be passed to the cmdline
+     * of the instance and should contain the logic of connecting with the secrets
+     * provider and obtaining secrets
      */
     String getSecretsProviderClassName(Function.FunctionDetails functionDetails);
 
@@ -53,7 +54,7 @@ public interface SecretsProviderConfigurator {
     void configureKubernetesRuntimeSecretsProvider(V1Container container, Function.FunctionDetails functionDetails);
 
     /**
-     * Attaches any secrets specific stuff to the k8 container for kubernetes runtime
+     * Attaches any secrets specific stuff to the ProcessBuilder for process runtime
      */
     void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, Function.FunctionDetails functionDetails);
 
