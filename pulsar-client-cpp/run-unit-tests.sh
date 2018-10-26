@@ -88,6 +88,10 @@ if [ $RES -eq 0 ]; then
     python pulsar_test.py
     RES=$?
 
+    echo "---- Running Python Function Instance unit tests"
+    bash /pulsar/pulsar-functions/instance/src/scripts/run_python_instance_tests.sh
+    RES=$?
+
     popd
     popd
 
