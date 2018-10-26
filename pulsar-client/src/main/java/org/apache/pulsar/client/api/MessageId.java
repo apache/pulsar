@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import java.io.Serializable;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.TopicName;
 
 /**
  * Opaque unique identifier of a single message
@@ -47,6 +48,10 @@ public interface MessageId extends Comparable<MessageId>, Serializable {
      */
     public static MessageId fromByteArray(byte[] data) throws IOException {
         return MessageIdImpl.fromByteArray(data);
+    }
+
+    public static MessageId fromByteArrayWithTopic(byte[] data, TopicName topicName) throws IOException {
+        return MessageIdImpl.fromByteArrayWithTopic(data, topicName);
     }
 
     public static final MessageId earliest = new MessageIdImpl(-1, -1, -1);
