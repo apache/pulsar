@@ -337,7 +337,7 @@ public class TopicName implements ServiceUnitId {
     public String getSchemaName() {
         return getTenant()
             + "/" + getNamespacePortion()
-            + "/" + getLocalName();
+            + "/" + getEncodedLocalName();
     }
 
     @Override
