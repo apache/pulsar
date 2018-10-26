@@ -258,8 +258,6 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_userConfigString;
         @Parameter(names = "--user-config", description = "User-defined config key/values")
         protected String userConfigString;
-        @Parameter(names = "--secrets-config", description = "Secrets config key/values")
-        protected String secretsConfig;
         @Parameter(names = "--retainOrdering", description = "Function consumes and processes messages in order", hidden = true)
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
@@ -407,11 +405,6 @@ public class CmdFunctions extends CmdBase {
                 Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
-            }
-            if (null != secretsConfig) {
-                Type type = new TypeToken<Map<String, Object>>() {}.getType();
-                Map<String, Object> secretsMap = new Gson().fromJson(secretsConfig, type);
-                functionConfig.setSecrets(secretsMap);
             }
             if (functionConfig.getUserConfig() == null) {
                 functionConfig.setUserConfig(new HashMap<>());
