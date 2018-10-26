@@ -76,7 +76,7 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left">同步发送</td><td style="text-align:left">发送消息后，producer等待broker的确认。如果没有收到确认，producer会认为发送失败。</td></tr>
-<tr><td style="text-align:left">异步发送</td><td style="text-align:left">异步发送 然后，客户端将在后台将消息发送给broker。 如果队列已满（ <a href="/docs/zh-CN/2.1.0-incubating/reference-configuration#broker">配置</a>的最大数量），根据传入producer的参数，producer可能阻塞或者直接返回失败。</td></tr>
+<tr><td style="text-align:left">异步发送</td><td style="text-align:left">Producer将会把消息放入blocking队列，然后马上返回。 然后，客户端将在后台将消息发送给broker。 如果队列已满（ <a href="/docs/zh-CN/2.1.0-incubating/reference-configuration#broker">配置</a>的最大数量），根据传入producer的参数，producer可能阻塞或者直接返回失败。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="压缩"></a><a href="#压缩" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>压缩</h3>
@@ -100,181 +100,197 @@
 <tr><td style="text-align:left">异步接收</td><td style="text-align:left">异步接收立即返回future值---例如java中的 <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>，一旦新消息可用，他即刻完成。</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="acknowledgement"></a><a href="#acknowledgement" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Acknowledgement</h3>
-<p>When a consumer has successfully processed a message, it needs to send an acknowledgement to the broker so that the broker can discard the message (otherwise it <a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">stores</a> the message).</p>
-<p>Messages can be acknowledged either one by one or cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message will not be re-delivered to that consumer.</p>
+<h3><a class="anchor" aria-hidden="true" id="确认"></a><a href="#确认" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>确认</h3>
+<p>消费者成功处理了消息，需要发送确认给broker，以让broker丢掉这条消息（否则它将<a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">存储</a>着此消息）。</p>
+<p>消息的确认可以一个接一个，也可以累积一起。 累积确认时，消费者只需要确认最后一条他收到的消息。 所有之前（包含此条）的消息，都不会被再次重发给那个消费者。</p>
 <blockquote>
-<p>Cumulative acknowledgement cannot be used with <a href="#subscription-modes">shared subscription mode</a>, because shared mode involves multiple consumers having access to the same subscription.</p>
-</blockquote>
-<h3><a class="anchor" aria-hidden="true" id="listeners"></a><a href="#listeners" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Listeners</h3>
-<p>Client libraries can provide their own listener implementations for consumers. The <a href="/docs/zh-CN/2.1.0-incubating/client-libraries-java">Java client</a>, for example, provides a <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/MessageListener">MesssageListener</a>
- interface. In this interface, the <code>received</code> method is called whenever a new message is received.</p>
+<p>累积消息确认不能用于shared 订阅模式，因为shared订阅为同一个订阅引入了多个消费者。</p> </blockquote></p>
+<h3><a class="anchor" aria-hidden="true" id="监听"></a><a href="#监听" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>监听</h3>
+<p>客户端类库提供了自身对于consumer监听的实现。 举一个 <a href="/docs/zh-CN/2.1.0-incubating/client-libraries-java">Java客户端</a>的例子，它提供了 <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/MessageListener">MesssageListener</a>
+ 接口。 在这个接口中，一旦接受到新的消息，<code>received</code>方法将被调用。</p>
 <h2><a class="anchor" aria-hidden="true" id="topics"></a><a href="#topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Topics</h2>
-<p>As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#producer">producers</a> to <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#consumer">consumers</a>. Topic names are URLs that have a well-defined structure:</p>
-<pre><code class="hljs css language-http">{persistent|non-persistent}://tenant/namespace/topic
-</code></pre>
-<table>
-<thead>
-<tr><th style="text-align:left">Topic name component</th><th style="text-align:left">Description</th></tr>
-</thead>
-<tbody>
-<tr><td style="text-align:left"><code>persistent</code> / <code>non-persistent</code></td><td style="text-align:left">This identifies the type of topic. Pulsar supports two kind of topics: <a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">persistent</a> and <a href="#non-persistent-topics">non-persistent</a> (persistent is the default, so if you don't specify a type the topic will be persistent). With persistent topics, all messages are durably <a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">persisted</a> on disk (that means on multiple disks unless the broker is standalone), whereas data for <a href="#non-persistent-topics">non-persistent</a> topics isn't persisted to storage disks.</td></tr>
-<tr><td style="text-align:left"><code>tenant</code></td><td style="text-align:left">The topic's tenant within the instance. Tenants are essential to multi-tenancy in Pulsar and can be spread across clusters.</td></tr>
-<tr><td style="text-align:left"><code>namespace</code></td><td style="text-align:left">The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the <a href="#namespaces">namespace</a> level. Each tenant can have multiple namespaces.</td></tr>
-<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.</td></tr>
-</tbody>
-</table>
-<blockquote>
-<h4><a class="anchor" aria-hidden="true" id="no-need-to-explicitly-create-new-topics"></a><a href="#no-need-to-explicitly-create-new-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No need to explicitly create new topics</h4>
-<p>You don't need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar will automatically create that topic under the <a href="#namespaces">namespace</a> provided in the <a href="#topics">topic name</a>.</p>
+<p>和其他的发布订阅系统一样，Pulsar中的topic是被命名的通道，用做从<a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#producer">producer</a>到 <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#consumer">consumer</a>传输消息。 Topic的名称为符合良好结构的URL。</p>
+<pre><code class="hljs css language-http"></code></pre>
 </blockquote>
-<h2><a class="anchor" aria-hidden="true" id="namespaces"></a><a href="#namespaces" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Namespaces</h2>
-<p>A namespace is a logical nomenclature within a tenant. A tenant can create multiple namespaces via the <a href="/docs/zh-CN/2.1.0-incubating/admin-api-namespaces#create">admin API</a>. For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic <code>my-tenant/app1</code> is a namespace for the application <code>app1</code> for <code>my-tenant</code>. You can create any number of <a href="#topics">topics</a> under the namespace.</p>
-<h2><a class="anchor" aria-hidden="true" id="subscription-modes"></a><a href="#subscription-modes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Subscription modes</h2>
-<p>A subscription is a named configuration rule that determines how messages are delivered to consumers. There are three available subscription modes in Pulsar: <a href="#exclusive">exclusive</a>, <a href="#shared">shared</a>, and <a href="#failover">failover</a>. These modes are illustrated in the figure below.</p>
-<p><img src="/docs/assets/pulsar-subscription-modes.png" alt="Subscription modes"></p>
-<h3><a class="anchor" aria-hidden="true" id="exclusive"></a><a href="#exclusive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exclusive</h3>
-<p>In <em>exclusive</em> mode, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.</p>
-<p>In the diagram above, only <strong>Consumer-A</strong> is allowed to consume messages.</p>
-<blockquote>
-<p>Exclusive mode is the default subscription mode.</p>
-</blockquote>
-<p><img src="/docs/assets/pulsar-exclusive-subscriptions.png" alt="Exclusive subscriptions"></p>
-<h3><a class="anchor" aria-hidden="true" id="shared"></a><a href="#shared" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Shared</h3>
-<p>In <em>shared</em> or <em>round robin</em> mode, multiple consumers can attach to the same subscription. Messages are delivered in a round robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.</p>
-<p>In the diagram above, <strong>Consumer-B-1</strong> and <strong>Consumer-B-2</strong> are able to subscribe to the topic, but <strong>Consumer-C-1</strong> and others could as well.</p>
-<blockquote>
-<h4><a class="anchor" aria-hidden="true" id="limitations-of-shared-mode"></a><a href="#limitations-of-shared-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Limitations of shared mode</h4>
-<p>There are two important things to be aware of when using shared mode: * Message ordering is not guaranteed. * You cannot use cumulative acknowledgment with shared mode.</p>
-</blockquote>
-<p><img src="/docs/assets/pulsar-shared-subscriptions.png" alt="Shared subscriptions"></p>
-<h3><a class="anchor" aria-hidden="true" id="failover"></a><a href="#failover" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Failover</h3>
-<p>In <em>failover</em> mode, multiple consumers can attach to the same subscription. The consumers will be lexically sorted by the consumer's name and the first consumer will initially be the only one receiving messages. This consumer is called the <em>master consumer</em>.</p>
-<p>When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.</p>
-<p>In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-1 disconnected.</p>
-<p><img src="/docs/assets/pulsar-failover-subscriptions.png" alt="Failover subscriptions"></p>
-<h2><a class="anchor" aria-hidden="true" id="多主题订阅"></a><a href="#多主题订阅" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多主题订阅</h2>
-<p>When a consumer subscribes to a Pulsar topic, by default it subscribes to one specific topic, such as <code>persistent://public/default/my-topic</code>. As of Pulsar version 1.23.0-incubating, however, Pulsar consumers can simultaneously subscribe to multiple topics. You can define a list of topics in two ways:</p>
-<ul>
-<li>On the basis of a <a href="https://en.wikipedia.org/wiki/Regular_expression"><strong>reg</strong>ular <strong>ex</strong>pression</a> (regex), for example <code>persistent://public/default/finance-.*</code></li>
-<li>By explicitly defining a list of topics</li>
-</ul>
-<blockquote>
-<p>When subscribing to multiple topics by regex, all topics must be in the same <a href="#namespaces">namespace</a></p>
-</blockquote>
-<p>When subscribing to multiple topics, the Pulsar client will automatically make a call to the Pulsar API to discover the topics that match the regex pattern/list and then subscribe to all of them. If any of the topics don't currently exist, the consumer will auto-subscribe to them once the topics are created.</p>
-<blockquote>
-<h4><a class="anchor" aria-hidden="true" id="no-ordering-guarantees"></a><a href="#no-ordering-guarantees" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No ordering guarantees</h4>
-<p>When a consumer subscribes to multiple topics, all ordering guarantees normally provided by Pulsar on single topics do not hold. If your use case for Pulsar involves any strict ordering requirements, we would strongly recommend against using this feature.</p>
-</blockquote>
-<p>Here are some multi-topic subscription examples for Java:</p>
-<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.regex.Pattern;
+<p>{persistent|non-persistent}://tenant/namespace/topic</p>
+<pre><code class="hljs">
+| Topic名称组成                       | Description                                                                                                                                                                                                                                                                                                           |
+|:------------------------------- |:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <span class="hljs-code">`persistent`</span> / <span class="hljs-code">`non-persistent`</span> | 定义了topic类型。 Pulsar支持两种不同topic：[<span class="hljs-string">持久</span>](<span class="hljs-link">/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage</span>)和 [<span class="hljs-string">非持久</span>](<span class="hljs-link">#non-persistent-topics</span>)（默认是持久类型，如果你没有指明类型，topic将会是持久类型）。 持久topic的所有消息都会[<span class="hljs-string"></span>](<span class="hljs-link">/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage</span>)持久化<span class="xml"><span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span></span>到硬盘上（这意味着多块硬盘，除非是单机模式的broker），反之，[<span class="hljs-string">非持久</span>](<span class="hljs-link">#non-persistent-topics</span>)topic的数据不会存储到硬盘上。 |
+| <span class="hljs-code">`tenant`</span>                        | 实例中topic的租户。tenant是Pulsar多租户的基本要素，可以被跨集群的传播。                                                                                                                                                                                                                                                                          |
+| <span class="hljs-code">`namespace`</span>                     | Topic的管理单元，充当关联topic组的管理机制。 大多数的topic配置在[<span class="hljs-string">namespace</span>](<span class="hljs-link">#namespaces</span>)层面生效。 每个tenant可以有多个namespace。                                                                                                                                                                                                                         |
+| <span class="hljs-code">`topic`</span>                         | 名称的最后组成部分，topic的命名很自由，没有什么特殊的含义。                                                                                                                                                                                                                                                                                      |
 
-<span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Consumer;
-<span class="hljs-keyword">import</span> org.apache.pulsar.client.api.PulsarClient;
+<span class="hljs-quote">&gt; #### 不需要显式的创建topic</span>
+<span class="hljs-quote">&gt; 
+&gt; 你并不需要显式的创建topic。 如果客户端尝试从一个还不存在的topic写或者接受消息，pulsar将会按在[topic名称](#topics)提供的[namespace](#namespaces)下自动创建topic。</span>
 
-PulsarClient pulsarClient = <span class="hljs-comment">// Instantiate Pulsar client object</span>
+<span class="hljs-section">## Namespaces</span>
 
-<span class="hljs-comment">// Subscribe to all topics in a namespace</span>
-Pattern allTopicsInNamespace = Pattern.compile(<span class="hljs-string">"persistent://public/default/.*"</span>);
-Consumer allTopicsConsumer = pulsarClient.subscribe(allTopicsInNamespace, <span class="hljs-string">"subscription-1"</span>);
+命名空间是租户内部逻辑上的命名术语。 一个租户可以通过[<span class="hljs-string">admin API</span>](<span class="hljs-link">/docs/zh-CN/2.1.0-incubating/admin-api-namespaces#create</span>)创建多个命名空间。 例如，一个对接多个应用的租户，可以为每个应用创建不同的namespace。 Namespace使得程序可以以层级的方式创建和管理topic Topic<span class="hljs-code">`my-tenant/app1`</span> ，它的namespace是<span class="hljs-code">`app1`</span>这个应用，对应的租户是 <span class="hljs-code">`my-tenant`</span>。 你可以在namespace下创建任意数量的[<span class="hljs-string">topic</span>](<span class="hljs-link">#topics</span>)。
 
-<span class="hljs-comment">// Subscribe to a subsets of topics in a namespace, based on regex</span>
-Pattern someTopicsInNamespace = Pattern.compile(<span class="hljs-string">"persistent://public/default/foo.*"</span>);
-Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, <span class="hljs-string">"subscription-1"</span>);
-</code></pre>
-<p>For code examples, see:</p>
+<span class="hljs-section">## 订阅模型</span>
+
+订阅是命名好的配置规则，指导消息如何投递给消费者。 Pulsar有三种订阅模式：[<span class="hljs-string">exclusive</span>](<span class="hljs-link">#exclusive</span>)，[<span class="hljs-string">shared</span>](<span class="hljs-link">#shared</span>)，[<span class="hljs-string">failover</span>](<span class="hljs-link">#failover</span>)。 下图展示了这三种模式：
+
+![<span class="hljs-string">订阅模型</span>](<span class="hljs-link">assets/pulsar-subscription-modes.png</span>)
+
+<span class="hljs-section">### Exclusive</span>
+
+<span class="hljs-emphasis">*独占*</span>模式，只能有一个消费者绑定到订阅上。 如果多于一个消费者尝试以同样方式去订阅主题，消费者将会收到错误。
+
+上面的图中，只有<span class="hljs-strong">**Consumer A**</span>可以消费。
+
+<span class="hljs-quote">&gt; Exclusive模式为默认订阅模式。</span>
+
+![<span class="hljs-string">独占订阅</span>](<span class="hljs-link">assets/pulsar-exclusive-subscriptions.png</span>)
+
+<span class="hljs-section">### Shared（共享）</span>
+
+<span class="hljs-emphasis">*shared*</span>或者<span class="hljs-emphasis">*round robin*</span>模式中，多个消费者可以绑定到同一个订阅上。 消息通过round robin轮询机制分发给不同的消费者，并且每个消息仅会被分发给一个消费者。 当消费者断开连接，所有被发送给他，但没有被确认的消息将被重新安排，分发给其它存活的消费者。
+
+第一幅图中，<span class="hljs-strong">**Consumer-B-1**</span>和<span class="hljs-strong">**Consumer-B-2**</span>都可以订阅主题，其实<span class="hljs-strong">**Consumer-C-1**</span>或者其它Consumer也可以订阅。
+
+<span class="hljs-quote">&gt; #### Shared模式的限制</span>
+<span class="hljs-quote">&gt; 
+&gt; 使用shared模式时，需要重点注意以下两点： * 消息的顺序无法保证。 * 你不可以使用累积确认。</span>
+
+![<span class="hljs-string">共享订阅</span>](<span class="hljs-link">assets/pulsar-shared-subscriptions.png</span>)
+
+<span class="hljs-section">### Failover（灾备）</span>
+
+<span class="hljs-emphasis">*Failover*</span>模式中，多个consumer可以绑定到同一个subscription。 Consumer将会按字典顺序排序，第一个consumer被初始化为唯一接受消息的消费者。 这个consumer被称为<span class="hljs-emphasis">*master consumer*</span>。
+
+当master consumer断开时，所有的消息（未被确认和后续进入的）将会被分发给队列中的下一个consumer。
+
+第一幅图中，Consumer-C-1是master consumer，当Consumer-C-1断开连接时，由于Consumer-C-2在队列中下一个位置，那么它将会开始接收消息。
+
+![<span class="hljs-string">灾备订阅</span>](<span class="hljs-link">assets/pulsar-failover-subscriptions.png</span>)
+
+<span class="hljs-section">## 多主题订阅</span>
+
+当consumer订阅pulsar的主题时，它默认指定订阅了一个主题，例如：<span class="hljs-code">`persistent://public/default/my-topic`</span>。 从Pulsar的1.23.0-incubating的版本开始，Pulsar消费者可以同时订阅多个topic。 你可以用以下两种方式定义topic的列表：
+
+<span class="hljs-bullet">* </span>通过最基础的 [<span class="hljs-string">正则表达式</span>](<span class="hljs-link">https://en.wikipedia.org/wiki/Regular_expression</span>)（regex），例如 <span class="hljs-code">`persistent://public/default/finance-.*`</span>
+<span class="hljs-bullet">* </span>通过明确指定的topic列表
+
+<span class="hljs-quote">&gt; 通过正则订阅多主题时，所有的主题必须在同一个[namespace](#namespaces)。</span>
+
+当订阅多主题时，Pulsar客户端会自动调用Pulsar的API来发现匹配表达式或者列表的所有topic，然后全部订阅。 如果此时有暂不存在的topic，那么一旦这些topic被创建，conusmer会自动订阅。
+
+<span class="hljs-quote">&gt; #### 不能保证顺序性</span>
+<span class="hljs-quote">&gt; 
+&gt; 当消费者订阅多主题时，Pulsar所提供对单一主题订阅的顺序保证，就hold不住了。 如果你在使用Pulsar的时候，遇到必须保证顺序的需求，我们强烈建议不要使用此特性。</span>
+
+下面是多主题订阅在java中的例子：
+
+<span class="hljs-code">```java
+import java.util.regex.Pattern;
+
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClient;
+
+PulsarClient pulsarClient = // Instantiate Pulsar client object
+
+// Subscribe to all topics in a namespace
+Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default/.*");
+Consumer allTopicsConsumer = pulsarClient.subscribe(allTopicsInNamespace, "subscription-1");
+
+// Subscribe to a subsets of topics in a namespace, based on regex
+Pattern someTopicsInNamespace = Pattern.compile("persistent://public/default/foo.*");
+Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, "subscription-1");
+</span></code></pre>
+<p>代码例子，请见：</p>
 <ul>
 <li><a href="/docs/zh-CN/2.1.0-incubating/client-libraries-java#multi-topic-subscriptions">Java</a></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="partitioned-topics"></a><a href="#partitioned-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Partitioned topics</h2>
-<p>Normal topics can be served only by a single broker, which limits the topic's maximum throughput. <em>Partitioned topics</em> are a special type of topic that be handled by multiple brokers, which allows for much higher throughput.</p>
-<p>Behind the scenes, a partitioned topic is actually implemented as N internal topics, where N is the number of partitions. When publishing messages to a partitioned topic, each message is routed to one of several brokers. The distribution of partitions across brokers is handled automatically by Pulsar.</p>
-<p>The diagram below illustrates this:</p>
-<p><img src="/docs/assets/partitioning.png" alt=""></p>
-<p>Here, the topic <strong>Topic1</strong> has five partitions (<strong>P0</strong> through <strong>P4</strong>) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).</p>
-<p>Messages for this topic are broadcast to two consumers. The <a href="#routing-modes">routing mode</a> determines both which broker handles each partition, while the <a href="#subscription-modes">subscription mode</a> determines which messages go to which consumers.</p>
-<p>Decisions about routing and subscription modes can be made separately in most cases. In general, throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.</p>
-<p>There is no difference between partitioned topics and normal topics in terms of how subscription modes work, as partitioning only determines what happens between when a message is published by a producer and processed and acknowledged by a consumer.</p>
-<p>Partitioned topics need to be explicitly created via the <a href="/docs/zh-CN/2.1.0-incubating/admin-api-overview">admin API</a>. The number of partitions can be specified when creating the topic.</p>
-<h3><a class="anchor" aria-hidden="true" id="routing-modes"></a><a href="#routing-modes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Routing modes</h3>
-<p>When publishing to partitioned topics, you must specify a <em>routing mode</em>. The routing mode determines which partition---that is, which internal topic---each message should be published to.</p>
-<p>There are three routing modes available by default:</p>
+<p>通常一个topic仅被一个broker服务，这限制了topic的最大吞吐量。 <em>分区topic</em>是特殊的topic类型，他可以被多个broker处理，这让topic有更高的吞吐量。</p>
+<p>其实在背后，分区的topic通过N个内部topic实现，N是分区的数量。 当向分区的topic发送消息，每条消息被路由到其中一个broker。 Pulsar自动处理跨broker的分区分布。</p>
+<p>下图对此做了阐明：</p>
+<p><img src="assets/partitioning.png" alt=""></p>
+<p>此处，<strong>Topic1</strong>有5个分区（<strong>P0</strong>到<strong>P4</strong>），分布在三个broker上。 因为分区多于broker数量，其中有两个broker要处理两个分区。第三个broker则只处理一个。（再次强调，分区的分布是Pulsar自动处理的）。</p>
+<p>这个topic的消息被广播给两个consumer。 <a href="#routing-modes">路由模式</a>决定哪个broker处理哪个partition，<a href="#subscription-modes">订阅模式</a>决定哪条消息送到哪个consumer。</p>
+<p>大多数境况下，路由和订阅模式可以分开制定。 通常来讲，吞吐能力的要求，决定了 分区/路由 的方式。订阅模式则应该由应用的语义来做决定。</p>
+<p>分区topic和普通topic，对于订阅模式如何工作，没有任何不同。分区只是决定了从生产者生产消息到消费者处理及确认消息过程中发生的事情。</p>
+<p>分区topic需要通过<a href="/docs/zh-CN/2.1.0-incubating/admin-api-overview">admin API</a>指定创建。创建的时候可以指明分区的数量。</p>
+<h3><a class="anchor" aria-hidden="true" id="路由模式"></a><a href="#路由模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>路由模式</h3>
+<p>当发布消息到分区topic，你必须要指定<em>路由模式</em>。路由模式决定了每条消息被发布到的分区---其实是内部主题。</p>
+<p>下面是三种默认可用的路由模式：</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Mode</th><th style="text-align:left">Description</th><th style="text-align:left">Ordering guarantee</th></tr>
+<tr><th style="text-align:left">Mode</th><th style="text-align:left">Description</th><th style="text-align:left">顺序保证</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">Key hash</td><td style="text-align:left">If a key property has been specified on the message, the partitioned producer will hash the key and assign it to a particular partition.</td><td style="text-align:left">Per-key-bucket ordering</td></tr>
-<tr><td style="text-align:left">Single default partition</td><td style="text-align:left">If no key is provided, each producer's message will be routed to a dedicated partition, initially random selected</td><td style="text-align:left">Per-producer ordering</td></tr>
-<tr><td style="text-align:left">Round robin distribution</td><td style="text-align:left">If no key is provided, all messages will be routed to different partitions in round-robin fashion to achieve maximum throughput.</td><td style="text-align:left">None</td></tr>
+<tr><td style="text-align:left">Key hash</td><td style="text-align:left">如果message指定了key，producer将会把key hash，然后把他分配给指定分区</td><td style="text-align:left">同一个key下有序</td></tr>
+<tr><td style="text-align:left">单一默认分区</td><td style="text-align:left">如果没有key，每个生产者的消息将会被路由分发给专用的分区。初始时候随机选择</td><td style="text-align:left">同一个生产者下有序</td></tr>
+<tr><td style="text-align:left">Round robin分发</td><td style="text-align:left">如果没有key，所有的消息通过round-robin方式被路由到不同的分区，以达到最大的生产能力</td><td style="text-align:left">无</td></tr>
 </tbody>
 </table>
-<p>In addition to these default modes, you can also create a custom routing mode if you're using the <a href="/docs/zh-CN/2.1.0-incubating/client-libraries-java">Java client</a> by implementing the <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/MessageRouter">MessageRouter</a>
- interface.</p>
-<h2><a class="anchor" aria-hidden="true" id="non-persistent-topics"></a><a href="#non-persistent-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Non-persistent topics</h2>
-<p>By default, Pulsar persistently stores <em>all</em> unacknowledged messages on multiple <a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">BookKeeper</a> bookies (storage nodes). Data for messages on persistent topics can thus survive broker restarts and subscriber failover.</p>
-<p>Pulsar also, however, supports <strong>non-persistent topics</strong>, which are topics on which messages are <em>never</em> persisted to disk and live only in memory. When using non-persistent delivery, killing a Pulsar broker or disconnecting a subscriber to a topic means that all in-transit messages are lost on that (non-persistent) topic, meaning that clients may see message loss.</p>
+<p>这些默认的模式之外，你还可以创建客制化的路由模式，如果你在使用<a href="/docs/zh-CN/2.1.0-incubating/client-libraries-java">Java client</a>，可以通过实现MessageRouter接口来做客制化。</p>
+<h2><a class="anchor" aria-hidden="true" id="非持久topic"></a><a href="#非持久topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>非持久topic</h2>
+<p>默认的，Pulsar保存<em>所有</em>没有确认的消息到多个<a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">BookKeeper</a>的bookies中（存储节点）。持久topic的消息数据可以在broker重启或者订阅者出问题的情况下存活下来。 Data for messages on persistent topics can thus survive broker restarts and subscriber failover.</p>
+<p>Pulsar also, however, supports <strong>non-persistent topics</strong>, which are topics on which messages are <em>never</em> persisted to disk and live only in memory. Pulsar也提供了非持久topic。非持久topic的消息不会被保存在硬盘上，只存活于内存中。当使用非持久topic分发时，杀掉Pulsar的broker或者关闭订阅者，此topic（ non-persistent)）上所有的瞬时消息都会丢失，意味着客户端可能会遇到消息缺失。</p>
 <p>Non-persistent topics have names of this form (note the <code>non-persistent</code> in the name):</p>
 <pre><code class="hljs css language-http">non-persistent://tenant/namespace/topic
 </code></pre>
 <blockquote>
-<p>For more info on using non-persistent topics, see the <a href="/docs/zh-CN/2.1.0-incubating/cookbooks-non-persistent">Non-persistent messaging cookbook</a>.</p>
+<p>如何使用非持久topic的更多信息，请参考 <a href="/docs/zh-CN/2.1.0-incubating/cookbooks-non-persistent">Non-persistent messaging cookbook</a></p>
 </blockquote>
-<p>In non-persistent topics, brokers immediately deliver messages to all connected subscribers <em>without persisting them</em> in <a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">BookKeeper</a>. If a subscriber is disconnected, the broker will not be able to deliver those in-transit messages, and subscribers will never be able to receive those messages again. Eliminating the persistent storage step makes messaging on non-persistent topics slightly faster than on persistent topics in some cases, but with the caveat that some of the core benefits of Pulsar are lost.</p>
+<p>非持久topic中，broker会立即发布消息给所有连接的订阅者，而不会在<a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">BookKeeper</a>中<em>存储</em>。 如果有一个订阅者断开连接，broker将无法重发这些瞬时消息，订阅者将永远也不能收到这些消息了。 去掉持久化存储的步骤，在某些情况下，使得非持久topic的消息比持久topic稍微变快。但是同时，Pulsar的一些核心优势也丧失掉了。</p>
 <blockquote>
-<p>With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're <em>certain</em> that your use case requires it and can sustain it.</p>
+<p>非持久topic，消息数据仅存活在内存。 如果broker挂掉或者因其他情况不能从内存取到，你的消息数据就可能丢失。 只有在真的<em>确信</em>你的使用场景符合，并且你可以忍受时，才可去使用非持久topic。</p>
 </blockquote>
-<p>By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's <a href="/docs/zh-CN/2.1.0-incubating/reference-configuration#broker-enableNonPersistentTopics">configuration</a>. You can manage non-persistent topics using the <a href="referencereference--pulsar-admin/#topics-1"><code>pulsar-admin topics</code></a> interface.</p>
-<h3><a class="anchor" aria-hidden="true" id="performance"></a><a href="#performance" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Performance</h3>
-<p>Non-persistent messaging is usually faster than persistent messaging because brokers don't persist messages and immediately send acks back to the producer as soon as that message is deliver to all connected subscribers. Producers thus see comparatively low publish latency with non-persistent topic.</p>
-<h3><a class="anchor" aria-hidden="true" id="client-api"></a><a href="#client-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client API</h3>
-<p>Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with <code>non-persistent</code>. All three subscription modes---<a href="#exclusive">exclusive</a>, <a href="#shared">shared</a>, and <a href="#failover">failover</a>---are supported for non-persistent topics.</p>
-<p>Here's an example <a href="/docs/zh-CN/2.1.0-incubating/client-libraries-java#consumers">Java consumer</a> for a non-persistent topic:</p>
+<p>默认非持久topic在broker上是开启的。 你可以通过broker的<a href="/docs/zh-CN/2.1.0-incubating/reference-configuration#broker-enableNonPersistentTopics">配置</a>关闭。 你可以通过使用<a href="referencereference--pulsar-admin/#topics-1"><code>pulsar-admin-topics</code></a>接口管理非持久topic。</p>
+<h3><a class="anchor" aria-hidden="true" id="性能"></a><a href="#性能" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>性能</h3>
+<p>非持久消息通常比持久消息更快，因为broker无须持久化消息，当消息被分发给所有订阅者时，会立即发送ack给producer。 非持久topic让producer有更低的发布延迟。</p>
+<h3><a class="anchor" aria-hidden="true" id="客户端api"></a><a href="#客户端api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端API</h3>
+<p>Producer和consumer以连接持久topic同样的方式连接到非持久topic。重要的区别是，topic的名称必须以<code>non-persistent</code>开头。 三种订阅模式--<a href="#exclusive">exclusive</a>，<a href="#shared">shared</a>，<a href="#failover">failover</a>对于非持久topic都是支持的。</p>
+<p>下面是一个非持久topic的<a href="/docs/zh-CN/2.1.0-incubating/client-libraries-java#consumers">java consumer</a>例子：</p>
 <pre><code class="hljs css language-java">PulsarClient client = PulsarClient.create(<span class="hljs-string">"pulsar://localhost:6650"</span>);
 String npTopic = <span class="hljs-string">"non-persistent://public/default/my-topic"</span>;
 String subscriptionName = <span class="hljs-string">"my-subscription-name"</span>;
 
 Consumer consumer = client.subscribe(npTopic, subscriptionName);
 </code></pre>
-<p>Here's an example <a href="/docs/zh-CN/2.1.0-incubating/client-libraries-java#producer">Java producer</a> for the same non-persistent topic:</p>
+<p>这里还有一个非持久topic的<a href="/docs/zh-CN/2.1.0-incubating/client-libraries-java#producer">java producer</a>例子：</p>
 <pre><code class="hljs css language-java">Producer producer = client.createProducer(npTopic);
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="message-retention-and-expiry"></a><a href="#message-retention-and-expiry" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Message retention and expiry</h2>
-<p>By default, Pulsar message brokers:</p>
+<p>Pulsar broker默认如下：</p>
 <ul>
-<li>immediately delete <em>all</em> messages that have been acknowledged by a consumer, and</li>
-<li><a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">persistently store</a> all unacknowledged messages in a message backlog.</li>
+<li>立即删除<em>所有</em>已经被cunsumer确认过的的消息</li>
+<li>以消息backlog的形式，<a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">持久保存</a>所有的未被确认消息</li>
 </ul>
-<p>Pulsar has two features, however, that enable you to override this default behavior:</p>
+<p>Pulsar有两个特性，让你可以覆盖上面的默认行为。</p>
 <ul>
-<li>Message <strong>retention</strong> enables you to store messages that have been acknowledged by a consumer</li>
-<li>Message <strong>expiry</strong> enables you to set a time to live (TTL) for messages that have not yet been acknowledged</li>
+<li>消息<strong>存留</strong>让你可以保存consumer确认过的消息</li>
+<li>消息<strong>过期</strong>让你可以给未被确认的消息设置存活时长（TTL）</li>
 </ul>
 <blockquote>
-<p>All message retention and expiry is managed at the <a href="#namespaces">namespace</a> level. For a how-to, see the <a href="/docs/zh-CN/2.1.0-incubating/cookbooks-retention-expiry">Message retention and expiry</a> cookbook.</p>
+<p>所有消息存留和过期在<a href="#namespaces">namespace</a>层面管理。具体操作请查看 <a href="/docs/zh-CN/2.1.0-incubating/cookbooks-retention-expiry">Message retention and expiry</a></p>
 </blockquote>
-<p>The diagram below illustrates both concepts:</p>
-<p><img src="/docs/assets/retention-expiry.png" alt="Message retention and expiry"></p>
-<p>With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a namespace dicates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, <em>all</em> of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.</p>
-<p>With message expiry, shown at the bottom, some messages are <span style="color: #bb3b3e;">deleted</span>, even though they <span style="color: #337db6;">haven't been acknowledged</span>, because they've expired according to the <span style="color: #e39441;">TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven't been acknowledged but are 10 minutes old).</p>
+<p>下图说明了这两种概念：</p>
+<p><img src="assets/retention-expiry.png" alt="Message retention and expiry"></p>
+<p>图中上面的是消息存留，<span style="color: #89b557;">存留规则</span>会被用于某namespace下所有的topic，指明哪些消息会被持久存储，即使已经被确认过。 没有被留存规则覆盖的消息将会被<span style="color: #bb3b3e;">删除</span>。 没有留存规则的话，<em>所有</em>被<span style="color: #19967d;">确认</span>的消息都会被删除。</p>
+<p>图中下面的是消息过期，有些消息即使还<span style="color: #337db6;">没有被确认</span>，也被<span style="color: #bb3b3e;">删除</span>掉了。因为根据设置在<span style="color: #e39441;">namespace上的TTL</span>，他们已经过期了。（例如，TTL为5分钟，过了十分钟消息还没被确认）</p>
 <h2><a class="anchor" aria-hidden="true" id="message-deduplication"></a><a href="#message-deduplication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Message deduplication</h2>
-<p>Message <strong>duplication</strong> occurs when a message is <a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">persisted</a> by Pulsar more than once. Message <strong><em>de</em>duplication</strong> is an optional Pulsar feature that prevents unnecessary message duplication by processing each message only once, <em>even if the message is received more than once</em>.</p>
-<p>The following diagram illustrates what happens when message deduplication is disabled vs. enabled:</p>
-<p><img src="/docs/assets/message-deduplication.png" alt="Pulsar message deduplication"></p>
-<p>Message deduplication is disabled in the scenario shown at the top. Here, a producer publishes message 1 on a topic; the message reaches a Pulsar broker and is <a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">persisted</a> to BookKeeper. The producer then sends message 1 again (in this case due to some retry logic), and the message is received by the broker and stored in BookKeeper again, which means that duplication has occurred.</p>
-<p>In the second scenario at the bottom, the producer publishes message 1, which is received by the broker and persisted, as in the first scenario. When the producer attempts to publish the message again, however, the broker knows that it has already seen message 1 and thus does not persist the message.</p>
+<p>当消息被Pulsar<a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">持久化</a>多于一次的时候，消息就会<strong>重复</strong>。 消息<strong><em>去重</em></strong>是Pulsar可选的特性，阻止不必要的消息重复，每条消息仅处理一次，<em>即使消息被接收多次</em></p>
+<p>下图展示了开启和关闭消息去重的场景：</p>
+<p><img src="assets/message-deduplication.png" alt="Pulsar消息去重"></p>
+<p>最上面的场景中，消息去重被关闭。 Producer发布消息1到一个topic，消息到达broker后，被<a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">持久化</a>到BookKeeper。 然后producer又发送了消息1（可能因为某些重试逻辑），然后消息被接收后又持久化在BookKeeper，这意味着消息重复发生了。</p>
+<p>在第二个场景中，producer发送了消息1，消息被broker接收然后持久化，和第一个场景是一样的。 当producer再次发送消息时，broker知道已经收到个消息1，所以不会再持久化消息1.</p>
 <blockquote>
-<p>Message deduplication is handled at the namespace level. For more instructions, see the <a href="/docs/zh-CN/2.1.0-incubating/cookbooks-deduplication">message deduplication cookbook</a>.</p>
+<p>消息去重在命名空间层面处理。更多介绍请参考 <a href="/docs/zh-CN/2.1.0-incubating/cookbooks-deduplication">message deduplication cookbook</a>.</p>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="producer-idempotency"></a><a href="#producer-idempotency" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer idempotency</h3>
-<p>The other available approach to message deduplication is to ensure that each message is <em>only produced once</em>. This approach is typically called <strong>producer idempotency</strong>. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the <a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#broker">broker</a> level, which means that you don't need to modify your Pulsar client code. Instead, you only need to make administrative changes (see the <a href="/docs/zh-CN/2.1.0-incubating/cookbooks-deduplication">Managing message deduplication</a> cookbook for a guide).</p>
-<h3><a class="anchor" aria-hidden="true" id="deduplication-and-effectively-once-semantics"></a><a href="#deduplication-and-effectively-once-semantics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deduplication and effectively-once semantics</h3>
-<p>Message deduplication makes Pulsar an ideal messaging system to be used in conjunction with stream processing engines (SPEs) and other systems seeking to provide <a href="https://streaml.io/blog/exactly-once">effectively-once</a> processing semantics. Messaging systems that don't offer automatic message deduplication require the SPE or other system to guarantee deduplication, which means that strict message ordering comes at the cost of burdening the application with the responsibility of deduplication. With Pulsar, strict ordering guarantees come at no application-level cost.</p>
+<h3><a class="anchor" aria-hidden="true" id="生产者幂等"></a><a href="#生产者幂等" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者幂等</h3>
+<p>消息去重的另外一种方法是确保每条消息<em>仅生产一次</em>。 这种方法通常被叫做<strong>生产者幂等</strong>。 这种方式的缺点是，把消息去重的工作推给了应用去做。 在Pulsar中，去重被<a href="/docs/zh-CN/2.1.0-incubating/reference-terminology#broker">broker</a>处理的，这意味着你不需要修改你的客户端代码。 你只需要做一些管理上的变化（参考<a href="/docs/zh-CN/2.1.0-incubating/cookbooks-deduplication">Managing message deduplication</a> ）</p>
+<h3><a class="anchor" aria-hidden="true" id="去重和实际一次语义"></a><a href="#去重和实际一次语义" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>去重和实际一次语义</h3>
+<p>消息去重，使Pulsar成为与流处理引擎（SPE）或者其他寻求<a href="https://streaml.io/blog/exactly-once">实际一次</a>处理语义的系统连接的完美消息系统。 消息系统若不提供自动消息去重，则需要SPE或者其他系统保证去重。这意味着严格的消息顺序来自于让程序承担额外的去重工作。 使用Pulsar，严格的顺序保证不会带来任何应用层面的代价。</p>
 <blockquote>
-<p>More in-depth information can be found in <a href="https://streaml.io/blog/pulsar-effectively-once/">this post</a> on the <a href="https://streaml.io/blog">Streamlio blog</a></p>
+<p>更深入的信息可以参考 <a href="https://streaml.io/blog">Streamlio blog</a>上的<a href="https://streaml.io/blog/pulsar-effectively-once/">此篇博文</a></p>
 </blockquote>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.1.0-incubating/concepts-overview"><span class="arrow-prev">← </span><span>上一页</span></a><a class="docs-next button" href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview"><span>下一页</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav docOnPageNav"><ul class="toc-headings"><li><a href="#messages">Messages</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#发送模式">发送模式</a></li><li><a href="#压缩">压缩</a></li><li><a href="#批处理">批处理</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#接收模式">接收模式</a></li><li><a href="#acknowledgement">Acknowledgement</a></li><li><a href="#listeners">Listeners</a></li></ul></li><li><a href="#topics">Topics</a></li><li><a href="#namespaces">Namespaces</a></li><li><a href="#subscription-modes">Subscription modes</a><ul class="toc-headings"><li><a href="#exclusive">Exclusive</a></li><li><a href="#shared">Shared</a></li><li><a href="#failover">Failover</a></li></ul></li><li><a href="#多主题订阅">多主题订阅</a></li><li><a href="#partitioned-topics">Partitioned topics</a><ul class="toc-headings"><li><a href="#routing-modes">Routing modes</a></li></ul></li><li><a href="#non-persistent-topics">Non-persistent topics</a><ul class="toc-headings"><li><a href="#performance">Performance</a></li><li><a href="#client-api">Client API</a></li></ul></li><li><a href="#message-retention-and-expiry">Message retention and expiry</a></li><li><a href="#message-deduplication">Message deduplication</a><ul class="toc-headings"><li><a href="#producer-idempotency">Producer idempotency</a></li><li><a href="#deduplication-and-effectively-once-semantics">Deduplication and effectively-once semantics</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.1.0-incubating/concepts-overview"><span class="arrow-prev">← </span><span>上一页</span></a><a class="docs-next button" href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview"><span>下一页</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav docOnPageNav"><ul class="toc-headings"><li><a href="#messages">Messages</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#发送模式">发送模式</a></li><li><a href="#压缩">压缩</a></li><li><a href="#批处理">批处理</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#接收模式">接收模式</a></li><li><a href="#确认">确认</a></li><li><a href="#监听">监听</a></li></ul></li><li><a href="#topics">Topics</a></li><li><a href="#partitioned-topics">Partitioned topics</a><ul class="toc-headings"><li><a href="#路由模式">路由模式</a></li></ul></li><li><a href="#非持久topic">非持久topic</a><ul class="toc-headings"><li><a href="#性能">性能</a></li><li><a href="#客户端api">客户端API</a></li></ul></li><li><a href="#message-retention-and-expiry">Message retention and expiry</a></li><li><a href="#message-deduplication">Message deduplication</a><ul class="toc-headings"><li><a href="#生产者幂等">生产者幂等</a></li><li><a href="#去重和实际一次语义">去重和实际一次语义</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
