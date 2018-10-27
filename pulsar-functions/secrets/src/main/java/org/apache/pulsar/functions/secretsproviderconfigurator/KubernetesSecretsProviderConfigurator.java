@@ -56,6 +56,9 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
         return null;
     }
 
+    // Kubernetes secrets can be exposed as volume mounts or as environment variables in the pods. We are currently using the
+    // environment variables way. Essentially the secretName/secretPath is attached as secretRef to the environment variables
+    // of a pod and kubernetes magically makes the secret pointed to by this combination available as a env variable.
     @Override
     public void configureKubernetesRuntimeSecretsProvider(V1Container container, Function.FunctionDetails functionDetails) {
         if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
