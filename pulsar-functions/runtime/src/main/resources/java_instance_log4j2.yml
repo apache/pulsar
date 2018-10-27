@@ -44,7 +44,7 @@ Configuration:
       name: RollingFile
       fileName: "${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.log"
       filePattern: "${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
-      immediateFlush: false
+      immediateFlush: true
       PatternLayout:
         Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
       Policies:
@@ -72,7 +72,7 @@ Configuration:
       name: BkRollingFile
       fileName: "${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.bk"
       filePattern: "${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.bk-%d{MM-dd-yyyy}-%i.log.gz"
-      immediateFlush: false
+      immediateFlush: true
       PatternLayout:
         Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
       Policies:
