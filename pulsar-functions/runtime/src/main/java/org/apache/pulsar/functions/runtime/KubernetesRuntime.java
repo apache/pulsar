@@ -66,7 +66,7 @@ class KubernetesRuntime implements Runtime {
     private static final Integer GRPC_PORT = 9093;
     private static final Integer PROMETHEUS_PORT = 9094;
     private static final Double prometheusMetricsServerCpu = 0.1;
-    private static final Long prometheusMetricsServerRam = 250000000l;
+    private static final Long prometheusMetricsServerRam = 125000000l;
     public static final Pattern VALID_POD_NAME_REGEX =
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                     Pattern.CASE_INSENSITIVE);
