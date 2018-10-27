@@ -30,12 +30,15 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Mock implementation of ReadHandle.
  */
 @Slf4j
 class PulsarMockReadHandle implements ReadHandle {
+   
     private final PulsarMockBookKeeper bk;
     private final long ledgerId;
     private final LedgerMetadata metadata;

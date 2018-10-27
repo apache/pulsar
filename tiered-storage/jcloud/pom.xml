@@ -41,7 +41,7 @@
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>jclouds-shaded</artifactId>
-      <version>${project.version}</version>
+      <version>${project.version}</version> 
       <exclusions>
         <exclusion>
           <groupId>com.google.code.gson</groupId>

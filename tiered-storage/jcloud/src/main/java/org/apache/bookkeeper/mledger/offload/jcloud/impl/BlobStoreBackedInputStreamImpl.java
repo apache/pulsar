@@ -23,7 +23,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
-import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader.VersionCheck;
+import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.options.GetOptions;
@@ -119,7 +119,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
         log.debug("Seeking to {} on {}/{}, current position {}", position, bucket, key, cursor);
         if (position >= bufferOffsetStart && position <= bufferOffsetEnd) {
             long newIndex = position - bufferOffsetStart;
-            buffer.readerIndex((int)newIndex);
+            buffer.readerIndex((int) newIndex);
         } else {
             this.cursor = position;
             buffer.clear();

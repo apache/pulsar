@@ -42,12 +42,12 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat.State;
-import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
-import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,8 +110,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         if (messageEntryId > segmentMetadata.getLastEntryId()) {
             log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
                 messageEntryId, segmentMetadata.getLastEntryId());
-            throw new IndexOutOfBoundsException("Entry index: " + messageEntryId +
-                " beyond lastEntryId: " + segmentMetadata.getLastEntryId());
+            throw new IndexOutOfBoundsException("Entry index: " + messageEntryId
+                + " beyond lastEntryId: " + segmentMetadata.getLastEntryId());
         }
         // find the greatest mapping Id whose entryId <= messageEntryId
         return this.indexEntries.floorEntry(messageEntryId).getValue();
@@ -216,7 +216,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         private long ctime;
         private State state;
         private Map<String, byte[]> customMetadata = Maps.newHashMap();
-        private TreeMap<Long, ArrayList<BookieSocketAddress>> ensembles = new TreeMap<Long, ArrayList<BookieSocketAddress>>();
+        private TreeMap<Long, ArrayList<BookieSocketAddress>> ensembles =
+                new TreeMap<Long, ArrayList<BookieSocketAddress>>();
 
         InternalLedgerMetadata(LedgerMetadataFormat ledgerMetadataFormat) {
             this.ensembleSize = ledgerMetadataFormat.getEnsembleSize();
@@ -340,7 +341,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         }
         this.segmentMetadata = parseLedgerMetadata(metadataBytes);
 
-        for (int i = 0; i < indexEntryCount; i ++) {
+        for (int i = 0; i < indexEntryCount; i++) {
             long entryId = dis.readLong();
             this.indexEntries.putIfAbsent(entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(),
                                                                             dis.readLong(), dataHeaderLength));

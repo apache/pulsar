@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
+import java.util.Properties;
+
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
@@ -26,9 +28,12 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-public class BlobStoreTestBase {
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
+public class BlobStoreTestBase {
+
+    private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);
     public final static String BUCKET = "pulsar-unittest";
 
     protected BlobStoreContext context = null;
@@ -58,7 +63,18 @@ public class BlobStoreTestBase {
                 .credentials(System.getProperty("GCSID"), System.getProperty("GCSKey"))
                 .build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
+        } else if (Boolean.parseBoolean(System.getProperty("testRealAzure", "false"))) {
+           log.info("TestReal Azure, bucket: {}", BUCKET);
+            // To use this, must config credentials using "storageAccountName" as AzureID,
+            // and "storageAccountKey" as AzureKey. And bucket should exist in default region. e.g.
+            //        props.setProperty("AzureID", "<Your storage account name>");  
+            //        props.setProperty("AzureKey", "<Your storage account primary access key>");
+            context = ContextBuilder.newBuilder("azureblob")
+                    .credentials(System.getProperty("AzureStorageID"), System.getProperty("AzureStorageKey"))
+                    .buildView(BlobStoreContext.class);
+            blobStore = context.getBlobStore();
         } else {
+            log.info("Test Transient, bucket: {}", BUCKET);
             context = ContextBuilder.newBuilder("transient").build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
             boolean create = blobStore.createContainerInLocation(null, BUCKET);
@@ -69,8 +85,9 @@ public class BlobStoreTestBase {
     @AfterMethod
     public void tearDown() {
         if (blobStore != null &&
-            (!Boolean.parseBoolean(System.getProperty("testRealGCS", "false")) &&
-             !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")))) {
+            (!Boolean.parseBoolean(System.getProperty("testRealAWS", "false")) &&
+             !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")) && 
+             !Boolean.parseBoolean(System.getProperty("testRealAzure", "false")))) {
             blobStore.deleteContainer(BUCKET);
         }
 
