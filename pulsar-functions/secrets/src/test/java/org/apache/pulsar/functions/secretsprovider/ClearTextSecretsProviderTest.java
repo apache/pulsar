@@ -16,23 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.functions.secretsprovider;
 
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 /**
- * This file defines a very basic clear text secrets provider which treats
- * the secrets as being passed in cleartext.
+ * Unit test of {@link Exceptions}.
  */
-public class ClearTextSecretsProvider implements SecretsProvider {
-        /**
-     * Fetches a secret
-     * @return The actual secret
-     */
-    @Override
-    public String provideSecret(String secretName, Object pathToSecret) {
-        if (pathToSecret != null) {
-            return pathToSecret.toString();
-        } else {
-            return null;
-        }
+public class ClearTextSecretsProviderTest {
+
+    @Test
+    public void testConfigValidation() throws Exception {
+        ClearTextSecretsProvider provider = new ClearTextSecretsProvider();
+        Assert.assertEquals(provider.provideSecret("SecretName", "SecretValue"), "SecretValue");
+        Assert.assertEquals(provider.provideSecret("SecretName", ""), "");
+        Assert.assertEquals(provider.provideSecret("SecretName", null), null);
     }
 }

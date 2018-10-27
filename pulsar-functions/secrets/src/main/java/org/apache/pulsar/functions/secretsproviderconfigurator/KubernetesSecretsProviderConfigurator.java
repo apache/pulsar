@@ -84,4 +84,14 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
     public Type getSecretObjectType() {
         return new TypeToken<Map<String, String>>() {}.getType();
     }
+
+    @Override
+    public void validateSecretMap(Map<String, Object> secretMap) {
+        for (Object object : secretMap.values()) {
+            Map<String, String> kubernetesSecret = (Map<String, String>)object;
+            if (kubernetesSecret.size() != 1) {
+                throw new IllegalArgumentException("Kubernetes Secret map only takes one value");
+            }
+        }
+    }
 }

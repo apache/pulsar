@@ -64,4 +64,9 @@ public interface SecretsProviderConfigurator {
      */
     Type getSecretObjectType();
 
+    /**
+     * Do config checks to see whether the secrets provided are conforming
+     */
+    default void validateSecretMap(Map<String, Object> secretMap) {}
+
 }
