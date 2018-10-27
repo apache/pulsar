@@ -55,8 +55,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         private String jobNamespace;
         private String pulsarDockerImageName;
         private String pulsarRootDir;
-        private String pulsarAdminUri;
-        private String pulsarServiceUri;
+        private String pulsarAdminUrl;
+        private String pulsarServiceUrl;
         private String pythonDependencyRepository;
         private String pythonExtraDependencyRepository;
         private String changeConfigMap;
@@ -113,8 +113,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
         this.kubernetesInfo.setPythonDependencyRepository(pythonDependencyRepository);
         this.kubernetesInfo.setPythonExtraDependencyRepository(pythonExtraDependencyRepository);
-        this.kubernetesInfo.setPulsarServiceUri(pulsarServiceUri);
-        this.kubernetesInfo.setPulsarAdminUri(pulsarAdminUri);
+        this.kubernetesInfo.setPulsarServiceUrl(pulsarServiceUri);
+        this.kubernetesInfo.setPulsarAdminUrl(pulsarAdminUri);
         this.kubernetesInfo.setChangeConfigMap(changeConfigMap);
         this.kubernetesInfo.setChangeConfigMapNamespace(changeConfigMapNamespace);
         this.submittingInsidePod = submittingInsidePod;
@@ -165,8 +165,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             logDirectory,
             codePkgUrl,
             originalCodeFileName,
-            this.kubernetesInfo.getPulsarServiceUri(),
-            this.kubernetesInfo.getPulsarAdminUri(),
+            this.kubernetesInfo.getPulsarServiceUrl(),
+            this.kubernetesInfo.getPulsarAdminUrl(),
             stateStorageServiceUri,
             authConfig,
                 expectedMetricsCollectionInterval);
@@ -230,7 +230,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     void overRideKubernetesConfig(Map<String, String> data) throws Exception {
-        for (Field field : KubernetesInfo.class.getFields()) {
+        for (Field field : KubernetesInfo.class.getDeclaredFields()) {
+            field.setAccessible(true);
             if (data.containsKey(field.getName()) && !data.get(field.getName()).equals(field.get(kubernetesInfo))) {
                 log.info("Kubernetes Config {} changed from {} to {}", field.getName(), field.get(kubernetesInfo), data.get(field.getName()));
                 field.set(kubernetesInfo, data.get(field.getName()));
