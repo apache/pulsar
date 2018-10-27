@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":17,"i1":6};
+var methods = {"i0":17,"i1":17,"i2":6};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -157,6 +157,11 @@ extends Comparable&lt;<a href="../../../../../org/apache/pulsar/client/api/Messa
 </td>
 </tr>
 <tr id="i1" class="rowColor">
+<td class="colFirst"><code>static <a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageId.html#fromByteArrayWithTopic-byte:A-TopicName-">fromByteArrayWithTopic</a></span>(byte[]&nbsp;data,
+                      TopicName&nbsp;topicName)</code>&nbsp;</td>
+</tr>
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>byte[]</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageId.html#toByteArray--">toByteArray</a></span>()</code>
 <div class="block">Serialize the message ID into a byte array</div>
@@ -223,7 +228,7 @@ extends Comparable&lt;<a href="../../../../../org/apache/pulsar/client/api/Messa
 <a name="fromByteArray-byte:A-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>fromByteArray</h4>
 <pre>static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;fromByteArray(byte[]&nbsp;data)
@@ -234,6 +239,21 @@ extends Comparable&lt;<a href="../../../../../org/apache/pulsar/client/api/Messa
 <dd><code>data</code> - byte array containing the serialized message id</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the de-serialized messageId object</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code>IOException</code></dd>
+</dl>
+</li>
+</ul>
+<a name="fromByteArrayWithTopic-byte:A-TopicName-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>fromByteArrayWithTopic</h4>
+<pre>static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;fromByteArrayWithTopic(byte[]&nbsp;data,
+                                        TopicName&nbsp;topicName)
+                                 throws IOException</pre>
+<dl>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code>IOException</code></dd>
 </dl>
