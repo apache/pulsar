@@ -221,7 +221,7 @@ The benefit of native functions is that they don't have any dependencies beyond 
 
 ## The Pulsar Functions SDK
 
-If you'd like a Pulsar Function to have access to a [context object](#function-context), you can use the **Pulsar Functions SDK**, available for both [Java](functions-api.md#functions-for-java) and [Pythnon](functions-api.md#functions-for-python).
+If you'd like a Pulsar Function to have access to a [context object](#function-context), you can use the **Pulsar Functions SDK**, available for both [Java](functions-api.md#functions-for-java) and [Python](functions-api.md#functions-for-python).
 
 ### Java
 
