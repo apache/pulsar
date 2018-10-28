@@ -152,6 +152,9 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     }
     private KubernetesContainerFactory kubernetesContainerFactory;
 
+    private String secretsProviderConfiguratorClassName;
+    private Map<String, String> secretsProviderConfiguratorConfig;
+
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
     }

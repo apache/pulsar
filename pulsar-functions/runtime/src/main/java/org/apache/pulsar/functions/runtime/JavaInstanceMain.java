@@ -22,18 +22,24 @@ package org.apache.pulsar.functions.runtime;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.StringConverter;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.Empty;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 
+import java.lang.reflect.Type;
+import java.util.Map;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -95,6 +101,12 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in seconds between healtchecks", required = true)
     protected int expectedHealthCheckInterval;
 
+    @Parameter(names = "--secrets_provider", description = "The classname of the secrets provider", required = false)
+    protected String secretsProviderClassName;
+
+    @Parameter(names = "--secrets_provider_config", description = "The config that needs to be passed to secrets provider", required = false)
+    protected String secretsProviderConfig;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -122,13 +134,24 @@ public class JavaInstanceMain implements AutoCloseable {
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
 
+        Map<String, String> secretsProviderConfigMap = null;
+        if (!StringUtils.isEmpty(secretsProviderConfig)) {
+            Type type = new TypeToken<Map<String, String>>() {}.getType();
+            secretsProviderConfigMap = new Gson().fromJson(secretsProviderConfig, type);
+        }
+
+        if (StringUtils.isEmpty(secretsProviderClassName)) {
+            secretsProviderClassName = ClearTextSecretsProvider.class.getName();
+        }
+
         containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageServiceUrl,
                 AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthenticationPlugin)
                         .clientAuthenticationParameters(clientAuthenticationParameters).useTls(isTrue(useTls))
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
-                        .tlsTrustCertsFilePath(tlsTrustCertFilePath).build());
+                        .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
+                secretsProviderClassName, secretsProviderConfigMap);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

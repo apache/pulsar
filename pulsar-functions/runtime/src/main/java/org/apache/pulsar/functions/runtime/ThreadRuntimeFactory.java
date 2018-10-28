@@ -21,18 +21,27 @@ package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
+import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
+
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Thread based function container factory implementation.
@@ -44,15 +53,25 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private final FunctionCacheManager fnCache;
     private final PulsarClient pulsarClient;
     private final String storageServiceUrl;
+    private final SecretsProvider secretsProvider;
     private volatile boolean closed;
 
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
-            AuthenticationConfig authConfig) throws Exception {
-        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig), storageServiceUrl);
+                                AuthenticationConfig authConfig, String secretsProviderClassName,
+                                Map<String, String> secretsProviderConfig) throws Exception {
+        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig), storageServiceUrl, secretsProviderClassName, secretsProviderConfig);
     }
 
     @VisibleForTesting
-    public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl) {
+    public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
+                                String secretsProviderClassName, Map<String, String> secretsProviderConfig) {
+        try {
+            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        secretsProvider.init(secretsProviderConfig);
+
         this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
@@ -90,7 +109,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             threadGroup,
             jarFile,
             pulsarClient,
-            storageServiceUrl);
+            storageServiceUrl,
+            secretsProvider);
     }
 
     @Override

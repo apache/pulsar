@@ -54,6 +54,10 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.runtime.Runtime;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.utils.Reflections;
 
 /**
  * This class managers all aspects of functions assignments and running of function assignments for this worker
@@ -104,6 +108,14 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.workerService = workerService;
         this.functionAdmin = workerService.getFunctionAdmin();
 
+        SecretsProviderConfigurator secretsProviderConfigurator;
+        if (!StringUtils.isEmpty(workerConfig.getSecretsProviderConfiguratorClassName())) {
+            secretsProviderConfigurator = (SecretsProviderConfigurator) Reflections.createInstance(workerConfig.getSecretsProviderConfiguratorClassName(), ClassLoader.getSystemClassLoader());
+        } else {
+            secretsProviderConfigurator = new DefaultSecretsProviderConfigurator();
+        }
+        secretsProviderConfigurator.init(workerConfig.getSecretsProviderConfiguratorConfig());
+
         AuthenticationConfig authConfig = AuthenticationConfig.builder()
                 .clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
                 .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters())
@@ -116,7 +128,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getThreadContainerFactory().getThreadGroupName(),
                     workerConfig.getPulsarServiceUrl(),
                     workerConfig.getStateStorageServiceUrl(),
-                    authConfig);
+                    authConfig,
+                    ClearTextSecretsProvider.class.getName(), null);
         } else if (workerConfig.getProcessContainerFactory() != null) {
             this.runtimeFactory = new ProcessRuntimeFactory(
                     workerConfig.getPulsarServiceUrl(),
@@ -124,7 +137,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     authConfig,
                     workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
                     workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
-                    workerConfig.getProcessContainerFactory().getLogDirectory());
+                    workerConfig.getProcessContainerFactory().getLogDirectory(),
+                    secretsProviderConfigurator);
         } else if (workerConfig.getKubernetesContainerFactory() != null){
             this.runtimeFactory = new KubernetesRuntimeFactory(
                     workerConfig.getKubernetesContainerFactory().getK8Uri(),
@@ -142,7 +156,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     authConfig,
                     workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval() == null ? -1 : workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval(),
                     workerConfig.getKubernetesContainerFactory().getChangeConfigMap(),
-                    workerConfig.getKubernetesContainerFactory().getChangeConfigMapNamespace());
+                    workerConfig.getKubernetesContainerFactory().getChangeConfigMapNamespace(),
+                    secretsProviderConfigurator);
         } else {
             throw new RuntimeException("Either Thread, Process or Kubernetes Container Factory need to be set");
         }
