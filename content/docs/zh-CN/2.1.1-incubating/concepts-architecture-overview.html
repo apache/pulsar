@@ -49,7 +49,7 @@
 <p>在Pulsar集群</p>
 <ul>
 <li>一个或者多个brokers负责处理和负载均衡从生产者源源不断发送出的消息，并将他们发送给消费者。它与配置存储交互来处理相应的任务，它将消息存储在BookKeeper实例中(aka bookies)。它依赖ZooKeeper集群处理特定的任务，等等。</li>
-<li>一个BookKeeper集群由一个或者多个bookies组成，bookies负责消息的<a href="#persistent-storage">持久存储</a>。</li>
+<li>A BookKeeper cluster consisting of one or more bookies handles <a href="#persistent-storage">persistent storage</a> of messages.</li>
 <li>一个ZooKeeper集群专门用于这个集群的操作。</li>
 </ul>
 <p>下图是Pulsar集群的一个说明：</p>

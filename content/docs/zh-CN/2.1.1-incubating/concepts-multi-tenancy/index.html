@@ -46,23 +46,23 @@
               }
             });
         </script></nav></div><div class="container mainContainer docMainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Multi Tenancy</h1></header><article><div><span><p>Pulsar从底层就是作为多租户系统来创建的。 为了支持多租户，Pulsar有着租户的概念， 租户可以被跨集群传播，每个租户都可以使用他们自己的<a href="/docs/zh-CN/2.1.1-incubating/security-overview">认证和鉴权</a>scheme。 租户也是存储配额的管理单元，, <a href="/docs/zh-CN/2.1.1-incubating/cookbooks-retention-expiry#time-to-live-ttl">message TTL</a>，同时也是可被管理的规则隔离。</p>
-<p>Pulsar多租户的属性在topic的URL上可以明显的被反映到。URL有着这样的结构：</p>
+<p>Pulsar多租户的天性，在topic的URL映射上充分显现，结构如下：</p>
 <pre><code class="hljs css language-http">persistent://tenant/namespace/topic
 </code></pre>
-<p>As you can see, the tenant is the most basic unit of categorization for topics (more fundamental than the namespace and topic name).</p>
+<p>正如您所看到的, 租户是topic的最基本的分类单元 (比namespace和topic名称更基本)。</p>
 <h2><a class="anchor" aria-hidden="true" id="tenants"></a><a href="#tenants" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tenants</h2>
-<p>To each tenant in a Pulsar instance you can assign:</p>
+<p>对于Pulsar实例中的每个租户，你可以分配给他：</p>
 <ul>
-<li>An <a href="/docs/zh-CN/2.1.1-incubating/security-authorization">authorization</a> scheme</li>
-<li>The set of <a href="/docs/zh-CN/2.1.1-incubating/reference-terminology#cluster">clusters</a> to which the tenant's configuration applies</li>
+<li><a href="/docs/zh-CN/2.1.1-incubating/security-authorization">授权</a>scheme</li>
+<li>租户配置适用的<a href="/docs/zh-CN/2.1.1-incubating/reference-terminology#cluster">cluster</a>集合</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="namespaces"></a><a href="#namespaces" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Namespaces</h2>
-<p>Tenants and namespaces are two key concepts of Pulsar to support multi-tenancy.</p>
+<p>租户和namespace是Pulsar支持多租户的两个关键概念。</p>
 <ul>
-<li>Pulsar is provisioned for specified tenants with appropriate capacity allocated to the tenant.</li>
-<li>A namespace is the administrative unit nomenclature within a tenant. The configuration policies set on a namespace apply to all the topics created in that namespace. A tenant may create multiple namespaces via self-administration using the REST API and the <a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin"><code>pulsar-admin</code></a> CLI tool. 例如，一个对接多个应用的租户，可以为每个应用创建不同的namespace。</li>
+<li>Pulsar为指定租户配置了适当的容量分配。</li>
+<li>Namespace是租户中管理单元的命名。 命名空间上设置的配置策略，适用于该命名空间中创建的所有主题。 租户可以通过自我管理，使用 REST API 和 <a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin"><code>pulsar-admin</code></a> CLI 工具, 创建多个命名空间。 例如，一个对接多个应用的租户，可以为每个应用创建不同的namespace。</li>
 </ul>
-<p>Names for topics in the same namespace will look like this:</p>
+<p>同一命名空间中主题的名称如下所示:</p>
 <pre><code class="hljs css language-http">persistent://tenant/app1/topic-1
 
 persistent://tenant/app1/topic-2
