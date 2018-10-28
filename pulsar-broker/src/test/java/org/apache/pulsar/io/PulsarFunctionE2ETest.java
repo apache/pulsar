@@ -367,10 +367,9 @@ public class PulsarFunctionE2ETest {
         assertEquals(numInstances, 1);
 
         FunctionStatus stats = functionStats.getFunctionStatusListList().get(0);
-        Map<String, DataDigest> metricsData = stats.getMetrics().getMetricsMap();
 
-        double count = metricsData.get(JavaInstanceRunnable.METRICS_TOTAL_PROCESSED).getCount();
-        double success = metricsData.get(JavaInstanceRunnable.METRICS_TOTAL_SUCCESS).getCount();
+        double count = stats.getNumProcessed();
+        double success = stats.getNumSuccessfullyProcessed();
         String ownerWorkerId = stats.getWorkerId();
         assertEquals((int) count, totalMsgs);
         assertEquals((int) success, totalMsgs);
