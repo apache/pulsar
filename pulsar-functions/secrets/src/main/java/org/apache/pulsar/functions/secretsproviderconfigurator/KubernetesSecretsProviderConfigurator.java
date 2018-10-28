@@ -39,6 +39,8 @@ import java.util.Map;
  * EnvironmentBasedSecretsConfig as the secrets provider who knows how to read these environment variables
  */
 public class KubernetesSecretsProviderConfigurator implements SecretsProviderConfigurator {
+    private static String ID_KEY = "id";
+    private static String KEY_KEY = "key";
     @Override
     public String getSecretsProviderClassName(Function.FunctionDetails functionDetails) {
         switch (functionDetails.getRuntime()) {
@@ -71,8 +73,8 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
                 secretEnv.name(entry.getKey())
                         .valueFrom(new V1EnvVarSource()
                                 .secretKeyRef(new V1SecretKeySelector()
-                                        .name(kv.entrySet().iterator().next().getKey())
-                                        .key(kv.entrySet().iterator().next().getValue())));
+                                        .name(kv.get(ID_KEY))
+                                        .key(kv.get(KEY_KEY))));
                 container.addEnvItem(secretEnv);
             }
         }
@@ -88,12 +90,23 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
         return new TypeToken<Map<String, String>>() {}.getType();
     }
 
+    // The secret object should be of type Map<String, String> and it should contain "id" and "key"
     @Override
     public void validateSecretMap(Map<String, Object> secretMap) {
         for (Object object : secretMap.values()) {
-            Map<String, String> kubernetesSecret = (Map<String, String>)object;
-            if (kubernetesSecret.size() != 1) {
-                throw new IllegalArgumentException("Kubernetes Secret map only takes one value");
+            if (object instanceof Map) {
+                Map<String, String> kubernetesSecret = (Map<String, String>) object;
+                if (kubernetesSecret.size() < 2) {
+                    throw new IllegalArgumentException("Kubernetes Secret should contain id and key");
+                }
+                if (!kubernetesSecret.containsKey(ID_KEY)) {
+                    throw new IllegalArgumentException("Kubernetes Secret should contain id information");
+                }
+                if (!kubernetesSecret.containsKey(KEY_KEY)) {
+                    throw new IllegalArgumentException("Kubernetes Secret should contain key information");
+                }
+            } else {
+                throw new IllegalArgumentException("Kubernetes Secret should be a Map containing id/key pairs");
             }
         }
     }

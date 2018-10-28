@@ -36,7 +36,7 @@ public class KubernetesSecretsProviderConfiguratorTest {
             HashMap<String, Object> map = new HashMap<String, Object>();
             map.put("secretname", "randomsecret");
             provider.validateSecretMap(map);
-            Assert.fail("Non comforming secret object should not validate");
+            Assert.fail("Non conforming secret object should not validate");
         } catch (Exception e) {
         }
         try {
@@ -45,8 +45,18 @@ public class KubernetesSecretsProviderConfiguratorTest {
             map1.put("secretname", "secretvalue");
             map.put("secretname", map1);
             provider.validateSecretMap(map);
+            Assert.fail("Non conforming secret object should not validate");
         } catch (Exception e) {
-            Assert.fail("Comforming secret object should validate");
+        }
+        try {
+            HashMap<String, Object> map = new HashMap<String, Object>();
+            HashMap<String, String> map1 = new HashMap<String, String>();
+            map1.put("id", "secretvalue");
+            map1.put("key", "secretvalue");
+            map.put("secretname", map1);
+            provider.validateSecretMap(map);
+        } catch (Exception e) {
+            Assert.fail("Conforming secret object should validate");
         }
     }
 }
