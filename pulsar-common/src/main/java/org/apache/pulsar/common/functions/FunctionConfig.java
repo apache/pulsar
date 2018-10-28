@@ -82,7 +82,8 @@ public class FunctionConfig {
     // This is a map of secretName(aka how the secret is going to be
     // accessed in the function via context) to an object that
     // encapsulates how the secret is fetched by the underlying
-    // secrets provider
+    // secrets provider. The type of an value here can be found by the
+    // SecretProviderConfigurator.getSecretObjectType() method.
     private Map<String, Object> secrets;
     private Runtime runtime;
     private boolean autoAck;
