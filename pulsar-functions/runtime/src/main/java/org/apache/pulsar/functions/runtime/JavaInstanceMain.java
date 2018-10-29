@@ -37,6 +37,8 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
+import org.apache.pulsar.functions.utils.Reflections;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -144,6 +146,14 @@ public class JavaInstanceMain implements AutoCloseable {
             secretsProviderClassName = ClearTextSecretsProvider.class.getName();
         }
 
+        SecretsProvider secretsProvider;
+        try {
+            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        secretsProvider.init(secretsProviderConfigMap);
+
         containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageServiceUrl,
                 AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthenticationPlugin)
@@ -151,7 +161,7 @@ public class JavaInstanceMain implements AutoCloseable {
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                secretsProviderClassName, secretsProviderConfigMap);
+                secretsProvider);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

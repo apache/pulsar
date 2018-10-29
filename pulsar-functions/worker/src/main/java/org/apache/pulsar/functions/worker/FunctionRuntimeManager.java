@@ -129,7 +129,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getPulsarServiceUrl(),
                     workerConfig.getStateStorageServiceUrl(),
                     authConfig,
-                    ClearTextSecretsProvider.class.getName(), null);
+                    new ClearTextSecretsProvider());
         } else if (workerConfig.getProcessContainerFactory() != null) {
             this.runtimeFactory = new ProcessRuntimeFactory(
                     workerConfig.getPulsarServiceUrl(),
