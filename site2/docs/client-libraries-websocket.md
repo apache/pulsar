@@ -273,7 +273,7 @@ Here's an example Python producer that sends a simple message to a Pulsar [topic
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/producer/persistent/public/default/my-topic'
+TOPIC = 'ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'
 
 ws = websocket.create_connection(TOPIC)
 
