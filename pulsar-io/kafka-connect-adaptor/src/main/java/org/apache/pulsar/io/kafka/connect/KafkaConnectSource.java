@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -74,20 +75,24 @@ public class KafkaConnectSource implements Source<byte[]> {
         });
 
         // get the source class name from config and create source task from reflection
-        sourceTask = ((Class<? extends SourceTask>)config.get(TaskConfig.TASK_CLASS_CONFIG))
+        sourceTask = ((Class<? extends SourceTask>)Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG)))
             .asSubclass(SourceTask.class)
             .getDeclaredConstructor()
             .newInstance();
 
+
         // initialize the key and value converter
-        keyConverter = ((Class<? extends Converter>)config.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG))
+        keyConverter = ((Class<? extends Converter>)Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG)))
             .asSubclass(Converter.class)
             .getDeclaredConstructor()
             .newInstance();
-        valueConverter = ((Class<? extends Converter>)config.get(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG))
+        valueConverter = ((Class<? extends Converter>)Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG)))
             .asSubclass(Converter.class)
             .getDeclaredConstructor()
             .newInstance();
+
+        keyConverter.configure(config, true);
+        valueConverter.configure(config, false);
 
         offsetStore = new PulsarOffsetBackingStore();
         offsetStore.configure(new PulsarKafkaWorkerConfig(stringConfig));
@@ -117,7 +122,12 @@ public class KafkaConnectSource implements Source<byte[]> {
         while (true) {
             if (currentBatch == null) {
                 flushFuture = new CompletableFuture<>();
-                currentBatch = sourceTask.poll().iterator();
+                List<SourceRecord> recordList =  sourceTask.poll();
+                if (recordList == null) {
+                    Thread.sleep(1000);
+                    continue;
+                }
+                currentBatch = recordList.iterator();
             }
             if (currentBatch.hasNext()) {
                 return processSourceRecord(currentBatch.next());
@@ -126,7 +136,7 @@ public class KafkaConnectSource implements Source<byte[]> {
                 synchronized (this) {
                     hasOutstandingRecords = !outstandingRecords.isEmpty();
                 }
-                if (hasOutstandingRecords) {
+                if (!hasOutstandingRecords) {
                     // there is no records any more, then waiting for the batch to complete writing
                     // to sink and the offsets are committed as well
                     flushFuture.get();
@@ -161,7 +171,7 @@ public class KafkaConnectSource implements Source<byte[]> {
 
             @Override
             public Optional<Long> getEventTime() {
-                return Optional.of(srcRecord.timestamp());
+                return Optional.ofNullable(srcRecord.timestamp());
             }
 
             @Override
@@ -201,6 +211,11 @@ public class KafkaConnectSource implements Source<byte[]> {
                 if (flushFuture != null) {
                     flushFuture.completeExceptionally(new Exception("Sink Error"));
                 }
+            }
+
+            @Override
+            public Optional<String> getDestinationTopic() {
+                return Optional.of(srcRecord.topic());
             }
         };
     }
