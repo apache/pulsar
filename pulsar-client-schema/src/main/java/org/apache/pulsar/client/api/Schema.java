@@ -28,6 +28,7 @@ import org.apache.pulsar.client.impl.schema.DoubleSchema;
 import org.apache.pulsar.client.impl.schema.FloatSchema;
 import org.apache.pulsar.client.impl.schema.IntSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.LongSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.client.impl.schema.ShortSchema;
@@ -102,6 +103,17 @@ public interface Schema<T> {
 
     static <T> Schema<T> JSON(Class<T> clazz) {
         return JSONSchema.of(clazz);
+    }
+
+    /**
+     * Key Value Schema whose underneath schemas are AvroSchema.
+     */
+    static Schema<?> KeyValue(Class key, Class value) {
+        return new KeyValueSchema<>(AvroSchema.of(key), AvroSchema.of(value));
+    }
+
+    static Schema<?> KeyValue(Schema key, Schema value) {
+        return new KeyValueSchema(key, value);
     }
 
     @Deprecated
