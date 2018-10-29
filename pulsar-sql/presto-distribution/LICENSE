@@ -217,7 +217,6 @@ The Apache Software License, Version 2.0
     - jackson-datatype-jdk8-2.9.7.jar
     - jackson-datatype-joda-2.9.7.jar
     - jackson-datatype-jsr310-2.9.7.jar
-    - jackson-annotations-2.8.4.jar
     - jackson-core-2.9.7.jar
     - jackson-core-asl-1.9.13.jar
     - jackson-databind-2.9.7.jar
