@@ -389,7 +389,6 @@ class PythonInstance(object):
     status.serializationExceptions = self.total_stats.nserialization_exceptions
     status.averageLatency = self.total_stats.compute_latency()
     status.lastInvocationTime = self.total_stats.lastinvocationtime
-    status.metrics.CopyFrom(self.get_metrics())
     return status
 
   def join(self):
