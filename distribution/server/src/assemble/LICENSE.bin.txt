@@ -339,7 +339,7 @@ The Apache Software License, Version 2.0
     - commons-beanutils-commons-beanutils-core-1.8.0.jar
     - commons-cli-commons-cli-1.2.jar
     - commons-codec-commons-codec-1.10.jar
-    - commons-collections-commons-collections-3.2.1.jar
+    - commons-collections-commons-collections-3.2.2.jar
     - commons-configuration-commons-configuration-1.6.jar
     - commons-digester-commons-digester-1.8.jar
     - commons-io-commons-io-2.5.jar
