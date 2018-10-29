@@ -19,13 +19,48 @@
 package org.apache.pulsar.client.api;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 
 public final class AuthenticationFactory {
+
+    /**
+     * Create an authentication provider for token based authentication.
+     *
+     * @param token
+     *            the client auth token
+     */
+    public static Authentication token(String token) {
+        return new AuthenticationToken(token);
+    }
+
+    /**
+     * Create an authentication provider for token based authentication.
+     *
+     * @param tokenSupplier
+     *            a supplier of the client auth token
+     */
+    public static Authentication token(Supplier<String> tokenSupplier) {
+        return new AuthenticationToken(tokenSupplier);
+    }
+
+    /**
+     * Create an authentication provider for TLS based authentication.
+     *
+     * @param certFilePath
+     *            the path to the TLS client public key
+     * @param keyFilePath
+     *            the path to the TLS client private key
+     */
+    public static Authentication TLS(String certFilePath, String keyFilePath) {
+        return new AuthenticationTls(certFilePath, keyFilePath);
+    }
 
     /**
      * Create an instance of the Authentication-Plugin
