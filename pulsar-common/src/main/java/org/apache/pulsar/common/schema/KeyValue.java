@@ -22,12 +22,12 @@ package org.apache.pulsar.common.schema;
  * A simple KeyValue class
  */
 public class KeyValue<K, V> {
-    private K key;
-    private V value;
+    private final K key;
+    private final V value;
 
     public KeyValue(K key, V value) {
-        setKey(key);
-        setValue(value);
+        this.key = key;
+        this.value = value;
     }
 
     public K getKey() {
@@ -36,13 +36,5 @@ public class KeyValue<K, V> {
 
     public V getValue() {
         return value;
-    }
-
-    public void setKey(K key) {
-        this.key = key;
-    }
-
-    public void setValue(V value) {
-        this.value = value;
     }
 }

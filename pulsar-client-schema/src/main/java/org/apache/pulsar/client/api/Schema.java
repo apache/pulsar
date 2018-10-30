@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
@@ -34,7 +36,9 @@ import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.client.impl.schema.ShortSchema;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchema;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Message schema definition
@@ -106,13 +110,29 @@ public interface Schema<T> {
     }
 
     /**
-     * Key Value Schema whose underneath schemas are AvroSchema.
+     * Key Value Schema using passed in schema type, support JSON and AVRO currently.
      */
-    static Schema<?> KeyValue(Class key, Class value) {
-        return new KeyValueSchema<>(AvroSchema.of(key), AvroSchema.of(value));
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, SchemaType type) {
+        checkArgument(SchemaType.JSON == type || SchemaType.AVRO == type);
+        if (SchemaType.JSON == type) {
+            return new KeyValueSchema(JSONSchema.of(key), JSONSchema.of(value));
+        } else {
+            // AVRO
+            return new KeyValueSchema(AvroSchema.of(key), AvroSchema.of(value));
+        }
     }
 
-    static Schema<?> KeyValue(Schema key, Schema value) {
+    /**
+     * Key Value Schema whose underneath key and value schemas are JSONSchema.
+     */
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value) {
+        return new KeyValueSchema(JSONSchema.of(key), JSONSchema.of(value));
+    }
+
+    /**
+     * Key Value Schema using passed in key and value schemas.
+     */
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value) {
         return new KeyValueSchema(key, value);
     }
 

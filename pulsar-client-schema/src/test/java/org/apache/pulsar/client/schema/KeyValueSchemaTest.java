@@ -23,6 +23,8 @@ import static org.testng.Assert.assertEquals;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Color;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
@@ -35,22 +37,62 @@ import org.testng.annotations.Test;
 public class KeyValueSchemaTest {
 
     @Test
-    public void testSchemaCreate() {
+    public void testAvroSchemaCreate() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(Foo.class);
         AvroSchema<Bar> barSchema = AvroSchema.of(Bar.class);
 
-        Schema keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
-        Schema keyValueSchema2 = Schema.KeyValue(Foo.class, Bar.class);
+        Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(Foo.class, Bar.class, SchemaType.AVRO);
 
         assertEquals(keyValueSchema1.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
         assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
 
-        String schemaInfo1 = new String(keyValueSchema1.getSchemaInfo().getSchema());
-        String schemaInfo2 = new String(keyValueSchema1.getSchemaInfo().getSchema());
+        assertEquals(((KeyValueSchema<Foo, Bar>)keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
+            SchemaType.AVRO);
+        assertEquals(((KeyValueSchema<Foo, Bar>)keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
+            SchemaType.AVRO);
+        assertEquals(((KeyValueSchema<Foo, Bar>)keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
+            SchemaType.AVRO);
+        assertEquals(((KeyValueSchema<Foo, Bar>)keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
+            SchemaType.AVRO);
 
+        String schemaInfo1 = new String(keyValueSchema1.getSchemaInfo().getSchema());
+        String schemaInfo2 = new String(keyValueSchema2.getSchemaInfo().getSchema());
         assertEquals(schemaInfo1, schemaInfo2);
     }
 
+    @Test
+    public void testJsonSchemaCreate() {
+        JSONSchema<Foo> fooSchema = JSONSchema.of(Foo.class);
+        JSONSchema<Bar> barSchema = JSONSchema.of(Bar.class);
+
+        Schema<KeyValue<Foo, Bar>> keyValueSchema1 = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<Foo, Bar>> keyValueSchema2 = Schema.KeyValue(Foo.class, Bar.class, SchemaType.JSON);
+        Schema<KeyValue<Foo, Bar>> keyValueSchema3 = Schema.KeyValue(Foo.class, Bar.class);
+
+        assertEquals(keyValueSchema1.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
+        assertEquals(keyValueSchema2.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
+        assertEquals(keyValueSchema3.getSchemaInfo().getType(), SchemaType.KEY_VALUE);
+
+        assertEquals(((KeyValueSchema<Foo, Bar>)keyValueSchema1).getKeySchema().getSchemaInfo().getType(),
+            SchemaType.JSON);
+        assertEquals(((KeyValueSchema<Foo, Bar>)keyValueSchema1).getValueSchema().getSchemaInfo().getType(),
+            SchemaType.JSON);
+        assertEquals(((KeyValueSchema<Foo, Bar>)keyValueSchema2).getKeySchema().getSchemaInfo().getType(),
+            SchemaType.JSON);
+        assertEquals(((KeyValueSchema<Foo, Bar>)keyValueSchema2).getValueSchema().getSchemaInfo().getType(),
+            SchemaType.JSON);
+        assertEquals(((KeyValueSchema<Foo, Bar>)keyValueSchema3).getKeySchema().getSchemaInfo().getType(),
+            SchemaType.JSON);
+        assertEquals(((KeyValueSchema<Foo, Bar>)keyValueSchema3).getValueSchema().getSchemaInfo().getType(),
+            SchemaType.JSON);
+
+        String schemaInfo1 = new String(keyValueSchema1.getSchemaInfo().getSchema());
+        String schemaInfo2 = new String(keyValueSchema2.getSchemaInfo().getSchema());
+        String schemaInfo3 = new String(keyValueSchema3.getSchemaInfo().getSchema());
+        assertEquals(schemaInfo1, schemaInfo2);
+        assertEquals(schemaInfo1, schemaInfo3);
+    }
 
     @Test
     public void testSchemaEncodeAndDecode() {

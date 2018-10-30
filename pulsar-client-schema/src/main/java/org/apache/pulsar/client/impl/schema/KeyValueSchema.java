@@ -32,9 +32,9 @@ import org.apache.pulsar.common.schema.SchemaType;
 @Slf4j
 public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     @Getter
-    private Schema<K> keySchema;
+    private final Schema<K> keySchema;
     @Getter
-    private Schema<V> valueSchema;
+    private final Schema<V> valueSchema;
 
     // schemaInfo combined by KeySchemaInfo and ValueSchemaInfo:
     //   [keyInfo.length][keyInfo][valueInfo.length][ValueInfo]
