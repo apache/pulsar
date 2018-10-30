@@ -6,10 +6,10 @@ sidebar_label: Tiered Storage
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
-Tiered storage currently uses [Apache Jclouds](https://jclouds.apache.org) to supports
-[Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short)
-for long term storage. With Jclouds, it is easy to add support for more
-[cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
+Tiered storage currently uses [Apache Jclouds](https://jclouds.apache.org) to support the following [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) for long term storage.
+ - [Amazon S3](https://aws.amazon.com/s3/) 
+ - [Google Cloud Storage](https://cloud.google.com/storage/)
+With Jclouds, it is easy to add support for many more
 
 ## When should I use Tiered Storage?
 
@@ -39,18 +39,18 @@ There is also some other knobs to configure, like the bucket region, the max blo
 
 Currently we support driver of types:
 
-- `aws-s3`: [Simple Cloud Storage Service](https://aws.amazon.com/s3/)
-- `google-cloud-storage`: [Google Cloud Storage](https://cloud.google.com/storage/)
+ - `AWS_S3`: [Amazon S3](https://aws.amazon.com/s3/) 
+ - `GOOGLE_CLOUD_STORAGE`: [Google Cloud Storage](https://cloud.google.com/storage/)
 
 > Driver names are case-insensitive for driver's name. There is a third driver type, `s3`, which is identical to `aws-s3`,
 > though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if
 > using a S3 compatible data store, other than AWS.
 
 ```conf
-managedLedgerOffloadDriver=aws-s3
+managedLedgerOffloadDriver=AWS_S3
 ```
 
-### "aws-s3" Driver configuration
+### Tiered Storage Provider configuration
 
 #### Bucket and Region
 
@@ -60,7 +60,7 @@ You can use buckets to organize your data and control access to your data,
 but unlike directories and folders, you cannot nest buckets.
 
 ```conf
-s3ManagedLedgerOffloadBucket=pulsar-topic-offload
+Bucket=pulsar-topic-offload
 ```
 
 Bucket Region is the region where bucket located. Bucket Region is not a required
@@ -69,8 +69,11 @@ but a recommended configuration. If it is not configured, It will use the defaul
 With AWS S3, the default region is `US East (N. Virginia)`. Page
 [AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html) contains more information.
 
+For Google Cloud Storage, buckets by default are created in the `us multi-regional location`, 
+page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
+
 ```conf
-s3ManagedLedgerOffloadRegion=eu-west-3
+Region=eu-west-3
 ```
 
 #### Authentication with AWS
@@ -121,25 +124,6 @@ Pulsar also provides some knobs to configure the size of requests sent to AWS S3
 
 In both cases, these should not be touched unless you know what you are doing.
 
-### "google-cloud-storage" Driver configuration
-
-Buckets are the basic containers that hold your data. Everything that you store in
-Cloud Storage must be contained in a bucket. You can use buckets to organize your data and
-control access to your data, but unlike directories and folders, you cannot nest buckets.
-
-```conf
-gcsManagedLedgerOffloadBucket=pulsar-topic-offload
-```
-
-Bucket Region is the region where bucket located. Bucket Region is not a required but
-a recommended configuration. If it is not configured, It will use the default region.
-
-Regarding GCS, buckets are default created in the `us multi-regional location`, 
-page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
-
-```conf
-gcsManagedLedgerOffloadRegion=europe-west3
-```
 
 #### Authentication with GCS
 
@@ -217,4 +201,3 @@ null
 
 Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
 ````
-
