@@ -32,32 +32,34 @@ import io.netty.channel.EventLoopGroup;
 
 public class ProxyClientCnx extends ClientCnx {
 
-	String clientAuthRole;
-	String clientAuthData;
-	String clientAuthMethod;
-	
-	public ProxyClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, String clientAuthRole,
-			String clientAuthData, String clientAuthMethod) {
-		super(conf, eventLoopGroup);
-		this.clientAuthRole = clientAuthRole;
-		this.clientAuthData = clientAuthData;
-		this.clientAuthMethod = clientAuthMethod;
-	}
-    
-	@Override
-	protected ByteBuf newConnectCommand() throws PulsarClientException {
-	    if (log.isDebugEnabled()) {
+    String clientAuthRole;
+    String clientAuthData;
+    String clientAuthMethod;
+    int protocolVersion;
+
+    public ProxyClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, String clientAuthRole,
+            String clientAuthData, String clientAuthMethod, int protocolVersion) {
+        super(conf, eventLoopGroup);
+        this.clientAuthRole = clientAuthRole;
+        this.clientAuthData = clientAuthData;
+        this.clientAuthMethod = clientAuthMethod;
+        this.protocolVersion = protocolVersion;
+    }
+
+    @Override
+    protected ByteBuf newConnectCommand() throws PulsarClientException {
+        if (log.isDebugEnabled()) {
             log.debug(
                     "New Connection opened via ProxyClientCnx with params clientAuthRole = {}, clientAuthData = {}, clientAuthMethod = {}",
                     clientAuthRole, clientAuthData, clientAuthMethod);
-	    }
-	    String authData = null;
+        }
+        String authData = null;
         if (authentication.getAuthData().hasDataFromCommand()) {
             authData = authentication.getAuthData().getCommandData();
         }
-        return Commands.newConnect(authentication.getAuthMethodName(), authData,
+        return Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion,
                 getPulsarClientVersion(), proxyToTargetBrokerAddress, clientAuthRole, clientAuthData, clientAuthMethod);
     }
-	
+
     private static final Logger log = LoggerFactory.getLogger(ProxyClientCnx.class);
 }

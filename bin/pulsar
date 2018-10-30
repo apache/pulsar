@@ -94,7 +94,7 @@ fi
 # find the python instance location
 if [ ! -f "${PY_INSTANCE_FILE}" ]; then
     # didn't find a released python instance, then search the built python instance
-    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/runtime/target/python-instance/python_instance_main.py"
+    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/instance/target/python-instance/python_instance_main.py"
     if [ -z "${BUILT_PY_INSTANCE_FILE}" ]; then
         echo "\nCouldn't find pulsar-functions python instance.";
         echo "Make sure you've run 'mvn package'\n";

@@ -74,6 +74,7 @@ import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
@@ -794,12 +795,19 @@ public class PulsarService implements AutoCloseable {
     public synchronized PulsarAdmin getAdminClient() throws PulsarServerException {
         if (this.adminClient == null) {
             try {
-                String adminApiUrl = webAddress(config);
-                this.adminClient = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
+                ServiceConfiguration conf = this.getConfiguration();
+                String adminApiUrl = conf.isBrokerClientTlsEnabled() ? webAddressTls(config) : webAddress(config);
+                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
                         .authentication( //
-                                this.getConfiguration().getBrokerClientAuthenticationPlugin(), //
-                                this.getConfiguration().getBrokerClientAuthenticationParameters()) //
-                        .build();
+                                conf.getBrokerClientAuthenticationPlugin(), //
+                                conf.getBrokerClientAuthenticationParameters());
+                
+                if (conf.isBrokerClientTlsEnabled()) {
+                    builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                    builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
+                }
+                
+                this.adminClient = builder.build();
                 LOG.info("Admin api url: " + adminApiUrl);
             } catch (Exception e) {
                 throw new PulsarServerException(e);

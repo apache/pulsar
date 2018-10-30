@@ -25,7 +25,9 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.io.File;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,8 +44,9 @@ import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.sink.PulsarSink;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -205,16 +208,43 @@ public class PulsarFunctionTlsTest {
 
         String jarFilePathUrl = String.format("%s:%s", Utils.FILE,
                 PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath());
-        FunctionDetails functionDetails = PulsarSinkE2ETest.createSinkConfig(jarFilePathUrl, tenant, namespacePortion,
+        FunctionConfig functionConfig = createFunctionConfig(jarFilePathUrl, tenant, namespacePortion,
                 functionName, "my.*", sinkTopic, subscriptionName);
 
         try {
-            functionAdmin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+            functionAdmin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
             fail("Authentication should pass but call should fail with function already exist");
         } catch (PulsarAdminException e) {
             assertTrue(e.getMessage().contains("already exists"));
         }
 
+    }
+
+    protected static FunctionConfig createFunctionConfig(String jarFile, String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+
+        File file = new File(jarFile);
+        try {
+            Utils.loadJar(file);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException("Failed to load user jar " + file, e);
+        }
+        String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
+        Class<?> typeArg = byte[].class;
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(functionName);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setParallelism(1);
+        functionConfig.setClassName(IdentityFunction.class.getName());
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
+        functionConfig.setSubName(subscriptionName);
+        functionConfig.setTopicsPattern(sourceTopicPattern);
+        functionConfig.setAutoAck(true);
+        functionConfig.setOutput(sinkTopic);
+
+        return functionConfig;
     }
 
 }

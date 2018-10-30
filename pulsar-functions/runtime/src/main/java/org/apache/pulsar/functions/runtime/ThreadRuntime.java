@@ -113,13 +113,7 @@ class ThreadRuntime implements Runtime {
         }
         FunctionStatus.Builder functionStatusBuilder = javaInstanceRunnable.getFunctionStatus();
         functionStatusBuilder.setRunning(true);
-        getMetrics().handle((metrics, e) -> {
-            if (e == null) {
-                functionStatusBuilder.setMetrics(metrics);
-            }
-            statsFuture.complete(functionStatusBuilder.build());
-            return null;
-        });
+        statsFuture.complete(functionStatusBuilder.build());
         return statsFuture;
     }
 

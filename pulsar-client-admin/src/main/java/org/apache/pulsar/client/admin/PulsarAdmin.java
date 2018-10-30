@@ -32,21 +32,7 @@ import javax.ws.rs.client.WebTarget;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.pulsar.client.admin.internal.BookiesImpl;
-import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
-import org.apache.pulsar.client.admin.internal.BrokersImpl;
-import org.apache.pulsar.client.admin.internal.ClustersImpl;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
-import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
-import org.apache.pulsar.client.admin.internal.LookupImpl;
-import org.apache.pulsar.client.admin.internal.NamespacesImpl;
-import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
-import org.apache.pulsar.client.admin.internal.SchemasImpl;
-import org.apache.pulsar.client.admin.internal.TopicsImpl;
-import org.apache.pulsar.client.admin.internal.WorkerImpl;
-import org.apache.pulsar.client.admin.internal.TenantsImpl;
-import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
-import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
+import org.apache.pulsar.client.admin.internal.*;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -85,6 +71,8 @@ public class PulsarAdmin implements Closeable {
     private final String serviceUrl;
     private final Lookup lookups;
     private final Functions functions;
+    private final Source source;
+    private final Sink sink;
     private final Worker worker;
     private final Schemas schemas;
     protected final WebTarget root;
@@ -189,6 +177,8 @@ public class PulsarAdmin implements Closeable {
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, useTls);
         this.functions = new FunctionsImpl(root, auth);
+        this.source = new SourceImpl(root, auth);
+        this.sink = new SinkImpl(root, auth);
         this.worker = new WorkerImpl(root, auth);
         this.schemas = new SchemasImpl(root, auth);
         this.bookies = new BookiesImpl(root, auth);
@@ -355,6 +345,22 @@ public class PulsarAdmin implements Closeable {
      */
     public Functions functions() {
         return functions;
+    }
+
+    /**
+     *
+     * @return the source management object
+     */
+    public Source source() {
+        return source;
+    }
+
+    /**
+     *
+     * @return the sink management object
+     */
+    public Sink sink() {
+        return sink;
     }
 
     /**

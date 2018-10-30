@@ -314,23 +314,23 @@ The Apache Software License, Version 2.0
  * Jackson
      - org.codehaus.jackson-jackson-core-asl-1.9.13.jar
      - org.codehaus.jackson-jackson-mapper-asl-1.9.13.jar
-     - com.fasterxml.jackson.core-jackson-annotations-2.8.4.jar
-     - com.fasterxml.jackson.core-jackson-core-2.8.4.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.8.4.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.8.4.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.8.4.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.8.4.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.8.4.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.8.4.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.9.7.jar
+     - com.fasterxml.jackson.core-jackson-core-2.9.7.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.9.7.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.9.7.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.9.7.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.7.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.7.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.7.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.3.3.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.0.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
  * Guava -- com.google.guava-guava-21.0.jar
  * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.0.jar
  * Swagger
-    - io.swagger-swagger-annotations-1.5.20.jar
-    - io.swagger-swagger-core-1.5.20.jar
-    - io.swagger-swagger-models-1.5.20.jar
+    - io.swagger-swagger-annotations-1.5.21.jar
+    - io.swagger-swagger-core-1.5.21.jar
+    - io.swagger-swagger-models-1.5.21.jar
  * DataSketches
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
@@ -339,7 +339,7 @@ The Apache Software License, Version 2.0
     - commons-beanutils-commons-beanutils-core-1.8.0.jar
     - commons-cli-commons-cli-1.2.jar
     - commons-codec-commons-codec-1.10.jar
-    - commons-collections-commons-collections-3.2.1.jar
+    - commons-collections-commons-collections-3.2.2.jar
     - commons-configuration-commons-configuration-1.6.jar
     - commons-digester-commons-digester-1.8.jar
     - commons-io-commons-io-2.5.jar
@@ -353,10 +353,12 @@ The Apache Software License, Version 2.0
     - io.netty-netty-all-4.1.22.Final.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.7.Final.jar
  * Prometheus client
-    - io.prometheus-simpleclient-0.0.23.jar
-    - io.prometheus-simpleclient_common-0.0.23.jar
-    - io.prometheus-simpleclient_hotspot-0.0.23.jar
-    - io.prometheus-simpleclient_servlet-0.0.23.jar
+    - io.prometheus-simpleclient-0.5.0.jar
+    - io.prometheus-simpleclient_common-0.5.0.jar
+    - io.prometheus-simpleclient_hotspot-0.5.0.jar
+    - io.prometheus-simpleclient_servlet-0.5.0.jar
+    - io.prometheus-simpleclient_log4j2-0.5.0.jar
+    - io.prometheus-simpleclient_jetty-0.5.0.jar
  * Bean Validation API -- javax.validation-validation-api-1.1.0.Final.jar
  * Log4J
     - log4j-log4j-1.2.17.jar
@@ -393,23 +395,24 @@ The Apache Software License, Version 2.0
     - org.asynchttpclient-async-http-client-2.1.0-alpha26.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.1.0-alpha26.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.3.11.v20160721.jar
-    - org.eclipse.jetty-jetty-continuation-9.3.11.v20160721.jar
-    - org.eclipse.jetty-jetty-http-9.3.11.v20160721.jar
-    - org.eclipse.jetty-jetty-io-9.3.11.v20160721.jar
-    - org.eclipse.jetty-jetty-proxy-9.3.11.v20160721.jar
-    - org.eclipse.jetty-jetty-security-9.3.11.v20160721.jar
-    - org.eclipse.jetty-jetty-server-9.3.11.v20160721.jar
-    - org.eclipse.jetty-jetty-servlet-9.3.11.v20160721.jar
-    - org.eclipse.jetty-jetty-servlets-9.3.11.v20160721.jar
-    - org.eclipse.jetty-jetty-util-9.3.11.v20160721.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.3.11.v20160721.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.3.11.v20160721.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.3.11.v20160721.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.3.11.v20160721.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.3.11.v20160721.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.3.11.v20160721.jar
- * SnakeYaml -- org.yaml-snakeyaml-1.15.jar
+    - org.eclipse.jetty-jetty-client-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-continuation-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-http-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-io-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-proxy-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-security-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-server-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-servlet-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-servlets-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-util-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-xml-9.4.12.v20180830.jar
+    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.12.v20180830.jar
+    - org.eclipse.jetty.websocket-websocket-api-9.4.12.v20180830.jar
+    - org.eclipse.jetty.websocket-websocket-client-9.4.12.v20180830.jar
+    - org.eclipse.jetty.websocket-websocket-common-9.4.12.v20180830.jar
+    - org.eclipse.jetty.websocket-websocket-server-9.4.12.v20180830.jar
+    - org.eclipse.jetty.websocket-websocket-servlet-9.4.12.v20180830.jar
+ * SnakeYaml -- org.yaml-snakeyaml-1.23.jar
  * RocksDB - org.rocksdb-rocksdbjni-5.13.3.jar
  * HttpClient
     - org.apache.httpcomponents-httpclient-4.5.5.jar
@@ -499,7 +502,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
     - javax.annotation-javax.annotation-api-1.2.jar
  * Java Servlet API -- javax.servlet-javax.servlet-api-3.1.0.jar
- * WebSocket Server API -- javax.websocket-javax.websocket-api-1.0.jar
+ * WebSocket Server API -- javax.websocket-javax.websocket-client-api-1.0.jar
  * Java Web Service REST API -- javax.ws.rs-javax.ws.rs-api-2.1.jar
  * HK2 - Dependency Injection Kernel
     - org.glassfish.hk2-hk2-api-2.5.0-b30.jar

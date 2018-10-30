@@ -29,7 +29,7 @@ import lombok.ToString;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.instance.Utils;
 
 @Builder
 @Getter

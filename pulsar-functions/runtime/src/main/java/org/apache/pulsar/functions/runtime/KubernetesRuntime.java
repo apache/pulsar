@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
+import com.google.protobuf.util.JsonFormat;
 import com.squareup.okhttp.Response;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -34,6 +35,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.metrics.PrometheusMetricsServer;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
@@ -41,6 +43,7 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -61,6 +64,9 @@ class KubernetesRuntime implements Runtime {
     private static final String ENV_SHARD_ID = "SHARD_ID";
     private static final int maxJobNameSize = 55;
     private static final Integer GRPC_PORT = 9093;
+    private static final Integer PROMETHEUS_PORT = 9094;
+    private static final Double prometheusMetricsServerCpu = 0.1;
+    private static final Long prometheusMetricsServerRam = 125000000l;
     public static final Pattern VALID_POD_NAME_REGEX =
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                     Pattern.CASE_INSENSITIVE);
@@ -74,10 +80,12 @@ class KubernetesRuntime implements Runtime {
                     "node.alpha.kubernetes.io/unreachable"
             )
     );
+    private static final long GRPC_TIMEOUT_SECS = 5;
 
     // The thread that invokes the function
     @Getter
     private List<String> processArgs;
+    private List<String> prometheusMetricsServerArgs;
     @Getter
     private ManagedChannel[] channel;
     private InstanceControlGrpc.InstanceControlFutureStub[] stub;
@@ -96,17 +104,22 @@ class KubernetesRuntime implements Runtime {
                       CoreV1Api coreClient,
                       String jobNamespace,
                       Map<String, String> customLabels,
+                      Boolean installUserCodeDependencies,
+                      String pythonDependencyRepository,
+                      String pythonExtraDependencyRepository,
                       String pulsarDockerImageName,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
                       String instanceFile,
+                      String prometheusMetricsServerJarFile,
                       String logDirectory,
                       String userCodePkgUrl,
                       String originalCodeFileName,
                       String pulsarServiceUrl,
                       String pulsarAdminUrl,
                       String stateStorageServiceUrl,
-                      AuthenticationConfig authConfig) throws Exception {
+                      AuthenticationConfig authConfig,
+                      Integer expectedMetricsInterval) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -117,8 +130,19 @@ class KubernetesRuntime implements Runtime {
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
+        String logConfigFile = null;
+        switch (instanceConfig.getFunctionDetails().getRuntime()) {
+            case JAVA:
+                logConfigFile = "kubernetes_instance_log4j2.yml";
+                break;
+            case PYTHON:
+                logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
+                break;
+        }
         this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, "conf/log4j2.yaml");
+                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, logConfigFile,
+                installUserCodeDependencies, pythonDependencyRepository, pythonExtraDependencyRepository);
+        this.prometheusMetricsServerArgs = composePrometheusMetricsServerArgs(prometheusMetricsServerJarFile, expectedMetricsInterval);
         running = false;
         doChecks(instanceConfig.getFunctionDetails());
     }
@@ -189,7 +213,7 @@ class KubernetesRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<FunctionStatus> response = stub[instanceId].getFunctionStatus(Empty.newBuilder().build());
+        ListenableFuture<FunctionStatus> response = stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getFunctionStatus(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
             @Override
             public void onFailure(Throwable throwable) {
@@ -376,6 +400,14 @@ class KubernetesRuntime implements Runtime {
         );
     }
 
+    protected List<String> getPrometheusMetricsServerCommand() {
+        return Arrays.asList(
+                "sh",
+                "-c",
+                String.join(" ", prometheusMetricsServerArgs)
+        );
+    }
+
     private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
         return Arrays.asList(
                 pulsarRootDir + "/bin/pulsar-admin",
@@ -425,10 +457,7 @@ class KubernetesRuntime implements Runtime {
 
         // set up pod meta
         final V1ObjectMeta templateMetaData = new V1ObjectMeta().labels(getLabels(instanceConfig.getFunctionDetails()));
-        /*
-        TODO:- Figure out the metrics collection later.
         templateMetaData.annotations(getPrometheusAnnotations());
-        */
         podTemplateSpec.setMetadata(templateMetaData);
 
         final List<String> command = getExecutorCommand();
@@ -444,7 +473,7 @@ class KubernetesRuntime implements Runtime {
     private Map<String, String> getPrometheusAnnotations() {
         final Map<String, String> annotations = new HashMap<>();
         annotations.put("prometheus.io/scrape", "true");
-        annotations.put("prometheus.io/port", "8080");
+        annotations.put("prometheus.io/port", String.valueOf(PROMETHEUS_PORT));
         return annotations;
     }
 
@@ -469,8 +498,10 @@ class KubernetesRuntime implements Runtime {
         // https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/#taint-based-evictions
         podSpec.setTolerations(getTolerations());
 
-        podSpec.containers(Collections.singletonList(
-                getContainer(instanceCommand, resource)));
+        List<V1Container> containers = new LinkedList<>();
+        containers.add(getFunctionContainer(instanceCommand, resource));
+        containers.add(getPrometheusContainer());
+        podSpec.containers(containers);
 
         return podSpec;
     }
@@ -490,7 +521,7 @@ class KubernetesRuntime implements Runtime {
         return tolerations;
     }
 
-    private V1Container getContainer(List<String> instanceCommand, Function.Resources resource) {
+    private V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
         final V1Container container = new V1Container().name("pulsarfunction");
 
         // set up the container images
@@ -517,16 +548,57 @@ class KubernetesRuntime implements Runtime {
         container.setResources(resourceRequirements);
 
         // set container ports
-        container.setPorts(getContainerPorts());
+        container.setPorts(getFunctionContainerPorts());
 
         return container;
     }
 
-    private List<V1ContainerPort> getContainerPorts() {
+    private V1Container getPrometheusContainer() {
+        final V1Container container = new V1Container().name("prometheusmetricsserver");
+
+        // set up the container images
+        container.setImage(pulsarDockerImageName);
+
+        // set up the container command
+        container.setCommand(getPrometheusMetricsServerCommand());
+
+        // setup the environment variables for the container
+        final V1EnvVar envVarPodName = new V1EnvVar();
+        envVarPodName.name("POD_NAME")
+                .valueFrom(new V1EnvVarSource()
+                        .fieldRef(new V1ObjectFieldSelector()
+                                .fieldPath("metadata.name")));
+        container.setEnv(Arrays.asList(envVarPodName));
+
+
+        // set container resources
+        final V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();
+        final Map<String, Quantity> requests = new HashMap<>();
+        requests.put("memory", Quantity.fromString(Long.toString(prometheusMetricsServerRam)));
+        requests.put("cpu", Quantity.fromString(Double.toString(prometheusMetricsServerCpu)));
+        resourceRequirements.setRequests(requests);
+        container.setResources(resourceRequirements);
+
+        // set container ports
+        container.setPorts(getPrometheusContainerPorts());
+
+        return container;
+    }
+
+    private List<V1ContainerPort> getFunctionContainerPorts() {
         List<V1ContainerPort> ports = new ArrayList<>();
         final V1ContainerPort port = new V1ContainerPort();
         port.setName("grpc");
         port.setContainerPort(GRPC_PORT);
+        ports.add(port);
+        return ports;
+    }
+
+    private List<V1ContainerPort> getPrometheusContainerPorts() {
+        List<V1ContainerPort> ports = new ArrayList<>();
+        final V1ContainerPort port = new V1ContainerPort();
+        port.setName("prometheus");
+        port.setContainerPort(PROMETHEUS_PORT);
         ports.add(port);
         return ports;
     }
@@ -553,5 +625,25 @@ class KubernetesRuntime implements Runtime {
         if (jobName.length() > maxJobNameSize) {
             throw new RuntimeException("Kubernetes job name size should be less than " + maxJobNameSize);
         }
+    }
+
+    private List<String> composePrometheusMetricsServerArgs(String prometheusMetricsServerFile,
+                                                            Integer expectedMetricsInterval) throws Exception {
+        List<String> args = new LinkedList<>();
+        args.add("java");
+        args.add("-cp");
+        args.add(prometheusMetricsServerFile);
+        args.add("-Dlog4j.configurationFile=prometheus_metricsserver_log4j2.yml");
+        args.add("-Xmx" + String.valueOf(prometheusMetricsServerRam));
+        args.add(PrometheusMetricsServer.class.getName());
+        args.add("--function_details");
+        args.add("'" + JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails()) + "'");
+        args.add("--prometheus_port");
+        args.add(String.valueOf(PROMETHEUS_PORT));
+        args.add("--grpc_port");
+        args.add(String.valueOf(GRPC_PORT));
+        args.add("--collection_interval");
+        args.add(String.valueOf(expectedMetricsInterval));
+        return args;
     }
 }

@@ -24,6 +24,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.LogContainerCmd;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.core.command.LogContainerResultCallback;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -101,6 +102,12 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
 
         }
         return sb.toString();
+    }
+
+    public void putFile(String path, byte[] contents) throws Exception {
+        String base64contents = Base64.getEncoder().encodeToString(contents);
+        String cmd = String.format("echo %s | base64 -d > %s", base64contents, path);
+        execCmd("bash", "-c", cmd);
     }
 
     public ContainerExecResult execCmd(String... commands) throws Exception {

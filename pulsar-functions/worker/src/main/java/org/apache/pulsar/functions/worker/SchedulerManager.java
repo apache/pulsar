@@ -18,21 +18,23 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
-
+import com.google.common.base.Stopwatch;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -88,19 +90,46 @@ public class SchedulerManager implements AutoCloseable {
         this.scheduler = Reflections.createInstance(workerConfig.getSchedulerClassName(), IScheduler.class,
                 Thread.currentThread().getContextClassLoader());
 
-        try {
-            this.producer = pulsarClient.newProducer().topic(this.workerConfig.getFunctionAssignmentTopic())
-                    .enableBatching(false).blockIfQueueFull(true).compressionType(CompressionType.LZ4).
-                    sendTimeout(0, TimeUnit.MILLISECONDS).create();
-        } catch (PulsarClientException e) {
-            log.error("Failed to create producer to function assignment topic "
-                    + this.workerConfig.getFunctionAssignmentTopic(), e);
-            throw new RuntimeException(e);
-        }
-
+        this.producer = createProducer(pulsarClient, workerConfig);
         this.executorService = executor;
         
         scheduleCompaction(executor, workerConfig.getTopicCompactionFrequencySec());
+    }
+
+    private static Producer<byte[]> createProducer(PulsarClient client, WorkerConfig config) {
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        for (int i = 0; i < 6; i++) {
+            try {
+                return client.newProducer().topic(config.getFunctionAssignmentTopic())
+                    .enableBatching(false)
+                    .blockIfQueueFull(true)
+                    .compressionType(CompressionType.LZ4)
+                    .sendTimeout(0, TimeUnit.MILLISECONDS)
+                    .createAsync().get(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                log.error("Interrupted at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                log.error("Encountered exceptions at creating producer for topic {}",
+                    config.getFunctionAssignmentTopic(), e);
+                throw new RuntimeException(e);
+            } catch (TimeoutException e) {
+                try {
+                    log.info("Can't create a producer on assignment topic {} in {} seconds, retry in 10 seconds ...",
+                        stopwatch.elapsed(TimeUnit.SECONDS));
+                    TimeUnit.SECONDS.sleep(10);
+                } catch (InterruptedException e1) {
+                    log.error("Interrupted at creating producer to topic {}", config.getFunctionAssignmentTopic(), e);
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+                continue;
+            }
+        }
+        throw new RuntimeException("Can't create a producer on assignment topic "
+            + config.getFunctionAssignmentTopic() + " in " + stopwatch.elapsed(TimeUnit.SECONDS)
+            + " seconds, fail fast ...");
     }
 
     public Future<?> schedule() {
@@ -112,7 +141,7 @@ public class SchedulerManager implements AutoCloseable {
                         invokeScheduler();
                     } catch (Exception e) {
                         log.warn("Failed to invoke scheduler", e);
-                        schedule();
+                        throw e;
                     }
                 }
             }
@@ -140,6 +169,7 @@ public class SchedulerManager implements AutoCloseable {
         Map<String, Function.Instance> allInstances = computeAllInstances(allFunctions, functionRuntimeManager.getRuntimeFactory().externallyManaged());
         Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager
                 .getCurrentAssignments();
+
         //delete assignments of functions and instances that don't exist anymore
         Iterator<Map.Entry<String, Map<String, Assignment>>> it = workerIdToAssignments.entrySet().iterator();
         while (it.hasNext()) {
@@ -164,6 +194,7 @@ public class SchedulerManager implements AutoCloseable {
 
                 if (!assignment.getInstance().equals(instance)) {
                     functionMap.put(fullyQualifiedInstanceId, assignment.toBuilder().setInstance(instance).build());
+                    publishNewAssignment(assignment.toBuilder().setInstance(instance).build().toBuilder().build(), false);
                 }
             }
             if (functionMap.isEmpty()) {
@@ -172,15 +203,27 @@ public class SchedulerManager implements AutoCloseable {
         }
 
         List<Assignment> currentAssignments = workerIdToAssignments
-                .entrySet().stream()
-                .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream()).collect(Collectors.toList());
+                .entrySet()
+                .stream()
+                .filter(workerIdToAssignmentEntry -> {
+                    String workerId = workerIdToAssignmentEntry.getKey();
+                    // remove assignments to workers that don't exist / died for now.
+                    // wait for failure detector to unassign them in the future for re-scheduling
+                    if (!currentMembership.contains(workerId)) {
+                        return false;
+                    }
+
+                    return true;
+                })
+                .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream())
+                .collect(Collectors.toList());
 
         Pair<List<Function.Instance>, List<Assignment>> unassignedInstances = this.getUnassignedFunctionInstances(workerIdToAssignments,
                 allInstances);
 
         List<Assignment> assignments = this.scheduler.schedule(unassignedInstances.getLeft(), currentAssignments, currentMembership);
         assignments.addAll(unassignedInstances.getRight());
-        
+
         if (log.isDebugEnabled()) {
             log.debug("New assignments computed: {}", assignments);
         }
@@ -209,7 +252,7 @@ public class SchedulerManager implements AutoCloseable {
         try {
             String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
             // publish empty message with instance-id key so, compactor can delete and skip delivery of this instance-id
-            // message 
+            // message
             producer.newMessage().key(fullyQualifiedInstanceId)
                     .value(deleted ? "".getBytes() : assignment.toByteArray()).sendAsync().get();
         } catch (Exception e) {

@@ -39,6 +39,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.WebApplicationException;
@@ -62,6 +63,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -73,6 +75,7 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
@@ -175,7 +178,9 @@ public abstract class NamespacesBase extends AdminResource {
 
         boolean isEmpty;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).isEmpty();
+            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).isEmpty()
+                    && getPartitionedTopicList(TopicDomain.persistent).isEmpty()
+                    && getPartitionedTopicList(TopicDomain.non_persistent).isEmpty();
         } catch (Exception e) {
             throw new RestException(e);
         }
@@ -1647,6 +1652,54 @@ public abstract class NamespacesBase extends AdminResource {
         } catch (Exception e) {
             log.error("[{}] Failed to update offloadDeletionLag configuration for namespace {}",
                       clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected SchemaAutoUpdateCompatibilityStrategy internalGetSchemaAutoUpdateCompatibilityStrategy() {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        return getNamespacePolicies(namespaceName).schema_auto_update_compatibility_strategy;
+    }
+
+    protected void internalSetSchemaAutoUpdateCompatibilityStrategy(SchemaAutoUpdateCompatibilityStrategy strategy) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        mutatePolicy((policies) -> {
+                policies.schema_auto_update_compatibility_strategy = strategy;
+                return policies;
+            }, (policies) -> policies.schema_auto_update_compatibility_strategy,
+            "schemaAutoUpdateCompatibilityStrategy");
+    }
+
+
+    private <T> void mutatePolicy(Function<Policies, Policies> policyTransformation,
+                                  Function<Policies, T> getter,
+                                  String policyName) {
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+            policies = policyTransformation.apply(policies);
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            log.info("[{}] Successfully updated {} configuration: namespace={}, value={}",
+                     clientAppId(), policyName, namespaceName, getter.apply(policies));
+
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update {} configuration for namespace {}: does not exist",
+                     clientAppId(), policyName, namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update {} configuration for namespace {}: concurrent modification",
+                     clientAppId(), policyName, namespaceName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
+        } catch (Exception e) {
+            log.error("[{}] Failed to update {} configuration for namespace {}",
+                      clientAppId(), policyName, namespaceName, e);
             throw new RestException(e);
         }
     }

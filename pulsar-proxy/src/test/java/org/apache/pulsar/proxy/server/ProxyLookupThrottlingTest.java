@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -73,11 +74,11 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
                 .connectionsPerBroker(5).ioThreads(5).build();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
-        Producer<byte[]> producer1 = client.newProducer().topic("persistent://sample/test/local/producer-topic")
+        Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
                 .create();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         try {
-            Producer<byte[]> producer2 = client.newProducer().topic("persistent://sample/test/local/producer-topic")
+            Producer<byte[]> producer2 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
                     .create();
             Assert.fail("Should have failed since can't acquire LookupRequestSemaphore");
         } catch (Exception ex) {
@@ -86,7 +87,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 1.0d);
         proxyService.getLookupRequestSemaphore().release();
         try {
-            Producer<byte[]> producer3 = client.newProducer().topic("persistent://sample/test/local/producer-topic")
+            Producer<byte[]> producer3 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
                     .create();
         } catch (Exception ex) {
             Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");

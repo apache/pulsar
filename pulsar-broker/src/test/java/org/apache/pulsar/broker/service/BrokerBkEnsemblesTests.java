@@ -70,8 +70,7 @@ public class BrokerBkEnsemblesTests {
 
     LocalBookkeeperEnsemble bkEnsemble;
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    protected final int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+    protected int BROKER_WEBSERVICE_PORT;
 
     private final int numberOfBookies;
 
@@ -86,6 +85,8 @@ public class BrokerBkEnsemblesTests {
     @BeforeMethod
     protected void setup() throws Exception {
         try {
+            int ZOOKEEPER_PORT = PortManager.nextFreePort();
+            BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
             // start local bookie and zookeeper
             bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
             bkEnsemble.start();
@@ -337,6 +338,33 @@ public class BrokerBkEnsemblesTests {
 
         producer.close();
         consumer.close();
+        client.close();
+    }
+
+    @Test(timeOut=20000)
+    public void testTopicWithWildCardChar() throws Exception {
+        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        final String ns1 = "prop/usc/topicWithSpecialChar";
+        try {
+            admin.namespaces().createNamespace(ns1);
+        } catch (Exception e) {
+
+        }
+        
+        final String topic1 = "persistent://"+ns1+"/`~!@#$%^&*()-_+=[]://{}|\\;:'\"<>,./?-30e04524";
+        final String subName1 = "c1";
+        final byte[] content = "test".getBytes();
+
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
+        org.apache.pulsar.client.api.Producer<byte[]> producer = client.newProducer().topic(topic1).create();
+
+        producer.send(content);
+        Message<byte[]> msg = consumer.receive();
+        Assert.assertEquals(msg.getData(), content);
+        consumer.close();
+        producer.close();
         client.close();
     }
 

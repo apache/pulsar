@@ -21,13 +21,12 @@ package org.apache.pulsar.tests.integration.topologies;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.DataProvider;
 
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
 
 @Slf4j
-public abstract class PulsarClusterTestBase {
+public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     @DataProvider(name = "ServiceUrlAndTopics")
     public static Object[][] serviceUrlAndTopics() {
@@ -111,37 +110,5 @@ public abstract class PulsarClusterTestBase {
             pulsarCluster.stop();
         }
     }
-
-    public static String randomName(int numChars) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < numChars; i++) {
-            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
-        }
-        return sb.toString();
-    }
-
-    protected static String generateNamespaceName() {
-        return "ns-" + randomName(8);
-    }
-
-    protected static String generateTopicName(String topicPrefix, boolean isPersistent) {
-        return generateTopicName("default", topicPrefix, isPersistent);
-    }
-
-    protected static String generateTopicName(String namespace, String topicPrefix, boolean isPersistent) {
-        String topicName = new StringBuilder(topicPrefix)
-                .append("-")
-                .append(randomName(8))
-                .append("-")
-                .append(System.currentTimeMillis())
-                .toString();
-        if (isPersistent) {
-            return "persistent://public/" + namespace + "/" + topicName;
-        } else {
-            return "non-persistent://public/" + namespace + "/" + topicName;
-        }
-    }
-
-
 
 }

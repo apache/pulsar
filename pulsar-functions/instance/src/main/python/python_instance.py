@@ -26,13 +26,17 @@ import base64
 import os
 import signal
 import time
-import Queue
+try:
+  import Queue as queue
+except:
+  import queue
 import threading
 from functools import partial
 from collections import namedtuple
 from threading import Timer
 import traceback
 import sys
+import re
 
 import pulsar
 import contextimpl
@@ -48,6 +52,20 @@ InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_
 InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
 InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
 DEFAULT_SERIALIZER = "serde.IdentitySerDe"
+
+PY3 = sys.version_info[0] >= 3
+
+def base64ify(bytes_or_str):
+    if PY3 and isinstance(bytes_or_str, str):
+        input_bytes = bytes_or_str.encode('utf8')
+    else:
+        input_bytes = bytes_or_str
+
+    output_bytes = base64.urlsafe_b64encode(input_bytes)
+    if PY3:
+        return output_bytes.decode('ascii')
+    else:
+        return output_bytes
 
 # We keep track of the following metrics
 class Stats(object):
@@ -117,7 +135,7 @@ class PythonInstance(object):
   def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, expected_healthcheck_interval, user_code, pulsar_client):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
-    self.queue = Queue.Queue(max_buffered_tuples)
+    self.queue = queue.Queue(max_buffered_tuples)
     self.log_topic_handler = None
     if function_details.logTopic is not None and function_details.logTopic != "":
       self.log_topic_handler = log.LogTopicHandler(str(function_details.logTopic), pulsar_client)
@@ -169,7 +187,7 @@ class PythonInstance(object):
       else:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
       self.input_serdes[topic] = serde_kclass()
-      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
@@ -183,10 +201,10 @@ class PythonInstance(object):
       else:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
       self.input_serdes[topic] = serde_kclass()
-      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       if consumer_conf.isRegexPattern:
-        self.consumers[topic] = self.pulsar_client.subscribe_pattern(
-          str(topic), subscription_name,
+        self.consumers[topic] = self.pulsar_client.subscribe(
+          re.compile(str(topic)), subscription_name,
           consumer_type=mode,
           message_listener=partial(self.message_listener, self.input_serdes[topic]),
           unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
@@ -219,7 +237,7 @@ class PythonInstance(object):
       Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
 
   def actual_execution(self):
-    Log.info("Started Thread for executing the function")
+    Log.debug("Started Thread for executing the function")
     while True:
       msg = self.queue.get(True)
       if isinstance(msg, InternalQuitMessage):
@@ -276,12 +294,12 @@ class PythonInstance(object):
       if self.producer is None:
         self.setup_producer()
       try:
-        output_bytes = bytes(self.output_serde.serialize(output))
+        output_bytes = self.output_serde.serialize(output)
       except:
         self.current_stats.nserialization_exceptions += 1
         self.total_stats.nserialization_exceptions += 1
       if output_bytes is not None:
-        props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64.b64encode(msg.message.message_id().serialize())}
+        props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
         try:
           self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message), properties=props)
         except Exception as e:
@@ -303,7 +321,7 @@ class PythonInstance(object):
   def setup_producer(self):
     if self.instance_config.function_details.sink.topic != None and \
             len(self.instance_config.function_details.sink.topic) > 0:
-      Log.info("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
+      Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
@@ -370,7 +388,6 @@ class PythonInstance(object):
     status.serializationExceptions = self.total_stats.nserialization_exceptions
     status.averageLatency = self.total_stats.compute_latency()
     status.lastInvocationTime = self.total_stats.lastinvocationtime
-    status.metrics.CopyFrom(self.get_metrics())
     return status
 
   def join(self):

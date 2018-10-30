@@ -20,17 +20,34 @@ package org.apache.pulsar.client.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 public class SimpleSchemaTest extends ProducerConsumerBase {
 
+    @DataProvider(name = "schemaValidationModes")
+    public static Object[][] schemaValidationModes() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    private final boolean schemaValidationEnforced;
+
+    @Factory(dataProvider = "schemaValidationModes")
+    public SimpleSchemaTest(boolean schemaValidationEnforced) {
+        this.schemaValidationEnforced = schemaValidationEnforced;
+    }
+
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setSchemaValidationEnforced(schemaValidationEnforced);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -130,10 +147,27 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             p.send(new V1Data(0));
         }
 
-        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create()) {
-            Assert.fail("Shouldn't be able to connect to a schema'd topic with no schema");
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.BYTES).topic(topic).create()) {
+            if (!schemaValidationEnforced) {
+                p.send("junkdata".getBytes(UTF_8));
+            } else {
+                Assert.fail("Shouldn't be able to connect to a schema'd topic with no schema"
+                    + " if SchemaValidationEnabled is enabled");
+            }
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            if (schemaValidationEnforced) {
+                Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            } else {
+                Assert.fail("Shouldn't throw IncompatibleSchemaException"
+                    + " if SchemaValidationEnforced is disabled");
+            }
+        }
+
+        // if using AUTO_PRODUCE_BYTES, producer can connect but the publish will fail
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topic).create()) {
+            p.send("junkdata".getBytes(UTF_8));
+        } catch (PulsarClientException e) {
+            assertTrue(e.getCause() instanceof SchemaSerializationException);
         }
     }
 

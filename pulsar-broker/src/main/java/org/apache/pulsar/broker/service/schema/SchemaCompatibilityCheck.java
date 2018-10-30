@@ -28,9 +28,10 @@ public interface SchemaCompatibilityCheck {
      *
      * @param from the current schema i.e. schema that the broker has
      * @param to the future schema i.e. the schema sent by the producer
+     * @param strategy the strategy to use when comparing schemas
      * @return whether the schemas are compatible
      */
-    boolean isCompatible(SchemaData from, SchemaData to);
+    boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy);
 
     SchemaCompatibilityCheck DEFAULT = new SchemaCompatibilityCheck() {
         @Override
@@ -39,8 +40,12 @@ public interface SchemaCompatibilityCheck {
         }
 
         @Override
-        public boolean isCompatible(SchemaData from, SchemaData to) {
-            return true;
+        public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
+            if (strategy == SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE) {
+                return false;
+            } else {
+                return true;
+            }
         }
     };
 }

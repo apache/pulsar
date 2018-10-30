@@ -20,13 +20,14 @@ package org.apache.pulsar.broker.admin;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.common.util.Codec.decode;
 
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
@@ -39,6 +40,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -480,5 +482,26 @@ public abstract class AdminResource extends PulsarWebResource {
             log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected List<String> getPartitionedTopicList(TopicDomain topicDomain) {
+        List<String> partitionedTopics = Lists.newArrayList();
+
+        try {
+            String partitionedTopicPath = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), topicDomain.value());
+            List<String> topics = globalZk().getChildren(partitionedTopicPath, false);
+            partitionedTopics = topics.stream()
+                    .map(s -> String.format("persistent://%s/%s", namespaceName.toString(), decode(s)))
+                    .collect(Collectors.toList());
+        } catch (KeeperException.NoNodeException e) {
+            // NoNode means there are no partitioned topics in this domain for this namespace
+        } catch (Exception e) {
+            log.error("[{}] Failed to get partitioned topic list for namespace {}", clientAppId(),
+                    namespaceName.toString(), e);
+            throw new RestException(e);
+        }
+
+        partitionedTopics.sort(null);
+        return partitionedTopics;
     }
 }

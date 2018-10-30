@@ -139,7 +139,16 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private Boolean submittingInsidePod;
         private String pulsarServiceUrl;
         private String pulsarAdminUrl;
+        private Boolean installUserCodeDependencies;
+        private String pythonDependencyRepository;
+        private String pythonExtraDependencyRepository;
         private Map<String, String> customLabels;
+        private Integer expectedMetricsCollectionInterval = 30;
+        // Kubernetes Runtime will periodically checkback on
+        // this configMap if defined and if there are any changes
+        // to the kubernetes specific stuff, we apply those changes
+        private String changeConfigMap;
+        private String changeConfigMapNamespace;
     }
     private KubernetesContainerFactory kubernetesContainerFactory;
 

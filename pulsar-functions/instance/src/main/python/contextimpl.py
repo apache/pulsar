@@ -75,7 +75,7 @@ class ContextImpl(pulsar.Context):
     return self.current_message_id
 
   def get_current_message_topic_name(self):
-    return self.current_topic_name
+    return self.current_input_topic_name
 
   def get_function_name(self):
     return self.instance_config.function_details.name
@@ -118,17 +118,21 @@ class ContextImpl(pulsar.Context):
   def get_output_serde_class_name(self):
     return self.instance_config.function_details.outputSerdeClassName
 
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe"):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
     # Just make sure that user supplied values are properly typed
     topic_name = str(topic_name)
     serde_class_name = str(serde_class_name)
+    pulsar_compression_type = pulsar._pulsar.CompressionType.NONE
+    if compression_type is not None:
+      pulsar_compression_type = compression_type
     if topic_name not in self.publish_producers:
       self.publish_producers[topic_name] = self.pulsar_client.create_producer(
         topic_name,
         block_if_queue_full=True,
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
-        max_pending_messages=100000
+        max_pending_messages=100000,
+        compression_type=pulsar_compression_type
       )
 
     if serde_class_name not in self.publish_serializers:
@@ -136,7 +140,7 @@ class ContextImpl(pulsar.Context):
       self.publish_serializers[serde_class_name] = serde_klass()
 
     output_bytes = bytes(self.publish_serializers[serde_class_name].serialize(message))
-    self.publish_producers[topic_name].send_async(output_bytes, None)
+    self.publish_producers[topic_name].send_async(output_bytes, None, properties=properties)
 
   def ack(self, msgid, topic):
     if topic not in self.consumers:

@@ -49,12 +49,13 @@ message FunctionStatus {
     // expressed in ms since epoch
     int64 lastInvocationTime = 13;
     string instanceId = 14;
-    MetricsData metrics = 15;
+    MetricsData metrics = 15 [deprecated=true];
     // owner of function-instance
     string workerId = 16;
 }
 
 message FunctionStatusList {
+    string error = 2;
     repeated FunctionStatus functionStatusList = 1;
 }
 

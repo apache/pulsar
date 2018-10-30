@@ -26,7 +26,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.assertEquals;
 
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
@@ -39,12 +38,12 @@ import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.client.admin.Functions;
+import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Resources;
-import org.apache.pulsar.functions.utils.SinkConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.functions.utils.*;
 import org.apache.pulsar.io.cassandra.CassandraStringSink;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
@@ -97,7 +96,7 @@ public class TestCmdSinks {
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 0000 2018\"}";
 
     private PulsarAdmin pulsarAdmin;
-    private Functions functions;
+    private Sink sink;
     private CmdSinks cmdSinks;
     private CmdSinks.CreateSink createSink;
     private CmdSinks.UpdateSink updateSink;
@@ -108,8 +107,8 @@ public class TestCmdSinks {
     public void setup() throws Exception {
 
         pulsarAdmin = mock(PulsarAdmin.class);
-        functions = mock(Functions.class);
-        when(pulsarAdmin.functions()).thenReturn(functions);
+        sink = mock(Sink.class);
+        when(pulsarAdmin.sink()).thenReturn(sink);
 
         cmdSinks = spy(new CmdSinks(pulsarAdmin));
         createSink = spy(cmdSinks.getCreateSink());
@@ -125,7 +124,7 @@ public class TestCmdSinks {
         }
         JAR_FILE_PATH = file.getFile();
         WRONG_JAR_PATH = Thread.currentThread().getContextClassLoader().getResource(WRONG_JAR_FILE_NAME).getFile();
-        Thread.currentThread().setContextClassLoader(Reflections.loadJar(new File(JAR_FILE_PATH)));
+        Thread.currentThread().setContextClassLoader(Utils.loadJar(new File(JAR_FILE_PATH)));
     }
 
     public SinkConfig getSinkConfig() {
@@ -212,7 +211,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'name' cannot be null!")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink name cannot be null")
     public void testMissingName() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setName(null);
@@ -369,7 +368,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
     public void testNegativeParallelism() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setParallelism(-1);
@@ -391,7 +390,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
     public void testZeroParallelism() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setParallelism(0);
@@ -435,7 +434,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "The 'twitter' connector does not provide a sink implementation")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Failed to extract sink class from archive")
     public void testInvalidJarWithNoSource() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setArchive(WRONG_JAR_PATH);
@@ -457,7 +456,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar" +
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Sink Archive file /tmp/foo.jar" +
             " does not exist")
     public void testInvalidJar() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
@@ -476,72 +475,6 @@ public class TestCmdSinks {
                 CPU,
                 RAM,
                 DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingCpu() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setResources(new Resources(null, RAM, DISK));
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                null,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingRam() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setResources(new Resources(CPU, null, DISK));
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                null,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingDisk() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setResources(new Resources(CPU, RAM, null));
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                null,
                 SINK_CONFIG_STRING,
                 sinkConfig
         );
@@ -674,7 +607,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'name' cannot be null!")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink name cannot be null")
     public void testCmdSinkConfigFileMissingName() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setName(null);
@@ -723,7 +656,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
     public void testCmdSinkConfigFileZeroParallelism() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setParallelism(0);
@@ -733,7 +666,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
     public void testCmdSinkConfigFileNegativeParallelism() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setParallelism(-1);
@@ -773,7 +706,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar does not exist")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Sink Archive file /tmp/foo.jar does not exist")
     public void testCmdSinkConfigFileInvalidJar() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive("/tmp/foo.jar");
@@ -783,7 +716,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "The 'twitter' connector does not provide a sink implementation")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Failed to extract sink class from archive")
     public void testCmdSinkConfigFileInvalidJarNoSink() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive(WRONG_JAR_PATH);
@@ -963,38 +896,38 @@ public class TestCmdSinks {
     public void testDeleteMissingTenant() throws Exception {
         deleteSink.tenant = null;
         deleteSink.namespace = NAMESPACE;
-        deleteSink.name = NAME;
+        deleteSink.sinkName = NAME;
 
         deleteSink.processArguments();
 
         deleteSink.runCmd();
 
-        verify(functions).deleteFunction(eq(PUBLIC_TENANT), eq(NAMESPACE), eq(NAME));
+        verify(sink).deleteSink(eq(PUBLIC_TENANT), eq(NAMESPACE), eq(NAME));
     }
 
     @Test
     public void testDeleteMissingNamespace() throws Exception {
         deleteSink.tenant = TENANT;
         deleteSink.namespace = null;
-        deleteSink.name = NAME;
+        deleteSink.sinkName = NAME;
 
         deleteSink.processArguments();
 
         deleteSink.runCmd();
 
-        verify(functions).deleteFunction(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
+        verify(sink).deleteSink(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "You must specify a name for the sink")
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "You must specify a name for the sink")
     public void testDeleteMissingName() throws Exception {
         deleteSink.tenant = TENANT;
         deleteSink.namespace = NAMESPACE;
-        deleteSink.name = null;
+        deleteSink.sinkName = null;
 
         deleteSink.processArguments();
 
         deleteSink.runCmd();
 
-        verify(functions).deleteFunction(eq(TENANT), eq(NAMESPACE), null);
+        verify(sink).deleteSink(eq(TENANT), eq(NAMESPACE), null);
     }
 }
