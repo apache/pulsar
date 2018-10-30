@@ -80,6 +80,11 @@ public class PulsarClusterMetadataSetup {
                 "--zookeeper" }, description = "Local ZooKeeper quorum connection string", required = true)
         private String zookeeper;
 
+        @Parameter(names = {
+            "--zookeeper-session-timeout-ms"
+        }, description = "Local zookeeper session timeout ms")
+        private int zkSessionTimeoutMillis = 30000;
+
         @Parameter(names = { "-gzk",
                 "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = false, hidden = true)
         private String globalZookeeper;
@@ -126,13 +131,16 @@ public class PulsarClusterMetadataSetup {
         log.info("Setting up cluster {} with zk={} configuration-store ={}", arguments.cluster, arguments.zookeeper,
                 arguments.configurationStore);
         ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
-        ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
-        ZooKeeper configStoreZk = zkfactory.create(arguments.configurationStore, SessionType.ReadWrite, 30000).get();
+        ZooKeeper localZk = zkfactory.create(
+            arguments.zookeeper, SessionType.ReadWrite, arguments.zkSessionTimeoutMillis).get();
+        ZooKeeper configStoreZk = zkfactory.create(
+            arguments.configurationStore, SessionType.ReadWrite, arguments.zkSessionTimeoutMillis).get();
 
         // Format BookKeeper metadata
         ServerConfiguration bkConf = new ServerConfiguration();
         bkConf.setLedgerManagerFactoryClass(HierarchicalLedgerManagerFactory.class);
         bkConf.setZkServers(arguments.zookeeper);
+        bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
         if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
                 && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
             throw new IOException("Failed to initialize BookKeeper metadata");
