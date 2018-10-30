@@ -314,6 +314,7 @@ public interface ClientBuilder extends Cloneable {
      * Set the duration of time to wait for a connection to a broker to be established. If the duration
      * passes without a response from the broker, the connection attempt is dropped.
      *
+     * @since 2.3.0
      * @param duration the duration to wait
      * @param unit the time unit in which the duration is defined
      */

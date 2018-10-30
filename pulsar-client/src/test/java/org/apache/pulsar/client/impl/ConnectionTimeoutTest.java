@@ -38,25 +38,22 @@ public class ConnectionTimeoutTest {
     @Test
     public void testLowTimeout() throws Exception {
         long startNanos = System.nanoTime();
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(blackholeBroker)
-                .connectionTimeout(1, TimeUnit.MILLISECONDS).build()) {
-            client.newProducer().topic("foo").create();
-            Assert.fail("Shouldn't be able to connect to anything");
-        } catch (PulsarClientException pse) {
-            Assert.assertEquals(pse.getCause().getCause().getClass(), ConnectTimeoutException.class);
-            Assert.assertTrue((System.nanoTime() - startNanos) < TimeUnit.SECONDS.toNanos(3));
-        }
-    }
 
-    @Test
-    public void testHighTimeout() throws Exception {
-        try (PulsarClient client = PulsarClient.builder().serviceUrl(blackholeBroker)
-                .connectionTimeout(24, TimeUnit.HOURS).build()) {
-            CompletableFuture<Producer<byte[]>> f = client.newProducer().topic("foo").createAsync();
+        try (PulsarClient clientLow = PulsarClient.builder().serviceUrl(blackholeBroker)
+                .connectionTimeout(1, TimeUnit.MILLISECONDS).build();
+             PulsarClient clientDefault = PulsarClient.builder().serviceUrl(blackholeBroker).build()) {
+            CompletableFuture<?> lowFuture = clientLow.newProducer().topic("foo").createAsync();
+            CompletableFuture<?> defaultFuture = clientDefault.newProducer().topic("foo").createAsync();
 
-            Thread.sleep(12000); // sleep for 12 seconds (default timeout is 10)
-
-            Assert.assertFalse(f.isDone());
+            try {
+                lowFuture.get();
+                Assert.fail("Shouldn't be able to connect to anything");
+            } catch (Exception e) {
+                Assert.assertFalse(defaultFuture.isDone());
+                Assert.assertEquals(e.getCause().getCause().getCause().getClass(),
+                                    ConnectTimeoutException.class);
+                Assert.assertTrue((System.nanoTime() - startNanos) < TimeUnit.SECONDS.toNanos(3));
+            }
         }
     }
 }
