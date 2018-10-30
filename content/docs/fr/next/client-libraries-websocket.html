@@ -277,7 +277,7 @@
 <p>Here's an example Python producer that sends a simple message to a Pulsar <a href="/docs/fr/next/reference-terminology#topic">topic</a>:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> websocket, base64, json
 
-TOPIC = <span class="hljs-string">'ws://localhost:8080/ws/producer/persistent/public/default/my-topic'</span>
+TOPIC = <span class="hljs-string">'ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'</span>
 
 ws = websocket.create_connection(TOPIC)
 

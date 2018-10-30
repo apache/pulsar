@@ -3841,7 +3841,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "403" : {
@@ -6467,10 +6467,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -6793,12 +6793,12 @@
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -6808,16 +6808,16 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "underLoaded" : {
           "type" : "boolean"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "overLoaded" : {
+          "type" : "boolean"
         },
         "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "memory" : {
@@ -6984,13 +6984,13 @@
           "type" : "number",
           "format" : "double"
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -7692,13 +7692,13 @@
             "type" : "string"
           }
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
