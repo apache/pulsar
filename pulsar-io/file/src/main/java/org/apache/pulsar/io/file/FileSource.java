@@ -36,7 +36,7 @@ import org.apache.pulsar.io.core.SourceContext;
  */
 public class FileSource extends PushSource<byte[]> {
 
-    private static ExecutorService executor;
+    private ExecutorService executor;
     private final BlockingQueue<File> workQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<File> inProcess = new LinkedBlockingQueue<>();
     private final BlockingQueue<File> recentlyProcessed = new LinkedBlockingQueue<>();
