@@ -145,13 +145,13 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
             Thread.sleep(7900);  // Should pull the same file 5 times?
             
             for (File produced : producedFiles) {
-                verify(workQueue, atLeast(5)).offer(produced);
-                verify(inProcess, atLeast(5)).add(produced);
-                verify(inProcess, atLeast(5)).remove(produced);
-                verify(recentlyProcessed, atLeast(5)).add(produced);
+                verify(workQueue, atLeast(4)).offer(produced);
+                verify(inProcess, atLeast(4)).add(produced);
+                verify(inProcess, atLeast(4)).remove(produced);
+                verify(recentlyProcessed, atLeast(4)).add(produced);
             }
             
-            verify(recentlyProcessed, atLeast(6)).take(); 
+            verify(recentlyProcessed, atLeast(5)).take(); 
         } catch (InterruptedException | ExecutionException e) {
             fail("Unable to generate files" + e.getLocalizedMessage());
         } 

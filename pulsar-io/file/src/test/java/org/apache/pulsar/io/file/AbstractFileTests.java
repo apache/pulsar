@@ -59,7 +59,14 @@ public abstract class AbstractFileTests {
     
     @BeforeMethod
     public void init() throws IOException {
-        cleanUp();
+        
+        // Create the directory we are going to read from
+        Path directory = Paths.get(TMP_DIR);
+        
+        if (!Files.exists(directory, LinkOption.NOFOLLOW_LINKS)) {
+            Files.createDirectory(directory, getPermissions());
+        }
+        
         workQueue = Mockito.spy(new LinkedBlockingQueue<>());
         inProcess = Mockito.spy(new LinkedBlockingQueue<>());         
         recentlyProcessed = Mockito.spy(new LinkedBlockingQueue<>());
@@ -69,7 +76,11 @@ public abstract class AbstractFileTests {
     
     @AfterMethod
     public void tearDown() throws Exception {
+        // Shutdown all of the processing threads
         stopThreads();
+        
+        // Delete the directory and all the files
+        cleanUp();
     }
     
     protected static final void cleanUp() throws IOException {

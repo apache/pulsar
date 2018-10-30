@@ -23,13 +23,10 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import lombok.Data;
-
-import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.file.utils.GZipFiles;
 import org.apache.pulsar.io.file.utils.ZipFiles;
@@ -73,8 +70,9 @@ public class FileConsumerThread extends Thread {
     }
 
     private void consumeFile(File file) {
+        final AtomicInteger idx = new AtomicInteger(1);
         try (Stream<String> lines = getLines(file)) {
-             lines.forEachOrdered(line -> process(line));
+             lines.forEachOrdered(line -> process(file, idx.getAndIncrement(), line));
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -103,13 +101,8 @@ public class FileConsumerThread extends Thread {
         }
     }
 
-    private void process(String line) {
-        source.consume(new FileRecord(null, line.getBytes()));
+    private void process(File srcFile, int lineNumber, String line) {
+        source.consume(new FileRecord(srcFile, lineNumber, line.getBytes()));
     }
 
-    @Data
-    static private class FileRecord implements Record<byte[]> {
-        private final Optional<String> key;
-        private final byte[] value;
-    }
 }
