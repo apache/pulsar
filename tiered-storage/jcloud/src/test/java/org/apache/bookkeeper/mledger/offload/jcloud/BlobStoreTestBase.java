@@ -63,16 +63,6 @@ public class BlobStoreTestBase {
                 .credentials(System.getProperty("GCSID"), System.getProperty("GCSKey"))
                 .build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
-        } else if (Boolean.parseBoolean(System.getProperty("testRealAzure", "false"))) {
-           log.info("TestReal Azure, bucket: {}", BUCKET);
-            // To use this, must config credentials using "storageAccountName" as AzureID,
-            // and "storageAccountKey" as AzureKey. And bucket should exist in default region. e.g.
-            //        props.setProperty("AzureID", "<Your storage account name>");  
-            //        props.setProperty("AzureKey", "<Your storage account primary access key>");
-            context = ContextBuilder.newBuilder("azureblob")
-                    .credentials(System.getProperty("AzureStorageID"), System.getProperty("AzureStorageKey"))
-                    .buildView(BlobStoreContext.class);
-            blobStore = context.getBlobStore();
         } else {
             log.info("Test Transient, bucket: {}", BUCKET);
             context = ContextBuilder.newBuilder("transient").build(BlobStoreContext.class);
@@ -86,8 +76,7 @@ public class BlobStoreTestBase {
     public void tearDown() {
         if (blobStore != null &&
             (!Boolean.parseBoolean(System.getProperty("testRealAWS", "false")) &&
-             !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")) && 
-             !Boolean.parseBoolean(System.getProperty("testRealAzure", "false")))) {
+             !Boolean.parseBoolean(System.getProperty("testRealGCS", "false")))) {
             blobStore.deleteContainer(BUCKET);
         }
 

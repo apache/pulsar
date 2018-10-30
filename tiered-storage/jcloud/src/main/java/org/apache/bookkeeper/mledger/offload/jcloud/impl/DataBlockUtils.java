@@ -48,7 +48,7 @@ public class DataBlockUtils {
         void check(String key, Blob blob) throws IOException;
     }
 
-    public static final String METADATA_FORMAT_VERSION_KEY = "ManagedLedgerOffloaderFormatVersion";
+    public static final String METADATA_FORMAT_VERSION_KEY = "S3ManagedLedgerOffloaderFormatVersion";
     static final String CURRENT_VERSION = String.valueOf(1);
 
     public static String dataBlockOffloadKey(long ledgerId, UUID uuid) {
