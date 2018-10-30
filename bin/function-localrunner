@@ -21,7 +21,6 @@
 BINDIR=$(dirname "$0")
 export PULSAR_HOME=`cd $BINDIR/..;pwd`
 
-DEFAULT_CLIENT_CONF=$PULSAR_HOME/conf/client.conf
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
 
 # functions related variables
@@ -86,9 +85,6 @@ else
     add_maven_deps_to_classpath
 fi
 
-if [ -z "$PULSAR_CLIENT_CONF" ]; then
-    PULSAR_CLIENT_CONF=$DEFAULT_CLIENT_CONF
-fi
 if [ -z "$PULSAR_LOG_CONF" ]; then
     PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
 fi
