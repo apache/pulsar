@@ -60,12 +60,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client</artifactId>
       <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>pulsar-client-original</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
