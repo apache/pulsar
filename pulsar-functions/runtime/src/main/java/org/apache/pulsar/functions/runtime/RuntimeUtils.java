@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime;
 
 import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -49,6 +50,8 @@ class RuntimeUtils {
                                            Integer grpcPort,
                                            Long expectedHealthCheckInterval,
                                            String logConfigFile,
+                                           String secretsProviderClassName,
+                                           String secretsProviderConfig,
                                            Boolean installUserCodeDepdendencies,
                                            String pythonDependencyRepository,
                                            String pythonExtraDependencyRepository) throws Exception {
@@ -150,6 +153,13 @@ class RuntimeUtils {
         }
         args.add("--expected_healthcheck_interval");
         args.add(String.valueOf(expectedHealthCheckInterval));
+
+        args.add("--secrets_provider");
+        args.add(secretsProviderClassName);
+        if (!StringUtils.isEmpty(secretsProviderConfig)) {
+            args.add("--secrets_provider_config");
+            args.add(secretsProviderConfig);
+        }
         return args;
     }
 }

@@ -314,23 +314,23 @@ The Apache Software License, Version 2.0
  * Jackson
      - org.codehaus.jackson-jackson-core-asl-1.9.13.jar
      - org.codehaus.jackson-jackson-mapper-asl-1.9.13.jar
-     - com.fasterxml.jackson.core-jackson-annotations-2.8.4.jar
-     - com.fasterxml.jackson.core-jackson-core-2.8.4.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.8.4.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.8.4.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.8.4.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.8.4.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.8.4.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.8.4.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.9.7.jar
+     - com.fasterxml.jackson.core-jackson-core-2.9.7.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.9.7.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.9.7.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.9.7.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.7.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.7.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.7.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.3.3.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.0.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
  * Guava -- com.google.guava-guava-21.0.jar
  * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.0.jar
  * Swagger
-    - io.swagger-swagger-annotations-1.5.20.jar
-    - io.swagger-swagger-core-1.5.20.jar
-    - io.swagger-swagger-models-1.5.20.jar
+    - io.swagger-swagger-annotations-1.5.21.jar
+    - io.swagger-swagger-core-1.5.21.jar
+    - io.swagger-swagger-models-1.5.21.jar
  * DataSketches
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
@@ -339,7 +339,7 @@ The Apache Software License, Version 2.0
     - commons-beanutils-commons-beanutils-core-1.8.0.jar
     - commons-cli-commons-cli-1.2.jar
     - commons-codec-commons-codec-1.10.jar
-    - commons-collections-commons-collections-3.2.1.jar
+    - commons-collections-commons-collections-3.2.2.jar
     - commons-configuration-commons-configuration-1.6.jar
     - commons-digester-commons-digester-1.8.jar
     - commons-io-commons-io-2.5.jar
@@ -412,7 +412,7 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty.websocket-websocket-common-9.4.12.v20180830.jar
     - org.eclipse.jetty.websocket-websocket-server-9.4.12.v20180830.jar
     - org.eclipse.jetty.websocket-websocket-servlet-9.4.12.v20180830.jar
- * SnakeYaml -- org.yaml-snakeyaml-1.15.jar
+ * SnakeYaml -- org.yaml-snakeyaml-1.23.jar
  * RocksDB - org.rocksdb-rocksdbjni-5.13.3.jar
  * HttpClient
     - org.apache.httpcomponents-httpclient-4.5.5.jar

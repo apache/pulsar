@@ -99,6 +99,11 @@ class Context(object):
     pass
 
   @abstractmethod
+  def get_secret(self, secret_name):
+    """Returns the secret value associated with the name. None if nothing was found"""
+    pass
+
+  @abstractmethod
   def record_metric(self, metric_name, metric_value):
     """Records the metric_value. metric_value has to satisfy isinstance(metric_value, numbers.Number)"""
     pass
