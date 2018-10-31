@@ -40,6 +40,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.*;
 
 import static org.apache.pulsar.functions.utils.Utils.*;
@@ -158,7 +159,7 @@ public class LocalRunner {
         }
 
         try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, stateStorageServiceUrl, authConfig, null, null,
-                null)) {
+                null, new DefaultSecretsProviderConfigurator())) {
             List<RuntimeSpawner> spawners = new LinkedList<>();
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
