@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
@@ -37,6 +38,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     private final String pulsarServiceUrl;
     private final String stateStorageServiceUrl;
     private AuthenticationConfig authConfig;
+    private SecretsProviderConfigurator secretsProviderConfigurator;
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
     private String logDirectory;
@@ -47,10 +49,12 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  AuthenticationConfig authConfig,
                                  String javaInstanceJarFile,
                                  String pythonInstanceFile,
-                                 String logDirectory) {
+                                 String logDirectory,
+                                 SecretsProviderConfigurator secretsProviderConfigurator) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
+        this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
         this.logDirectory = logDirectory;
@@ -113,6 +117,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             pulsarServiceUrl,
             stateStorageServiceUrl,
             authConfig,
+            secretsProviderConfigurator,
             expectedHealthCheckInterval);
     }
 

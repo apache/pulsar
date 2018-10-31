@@ -49,6 +49,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.Builder;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
@@ -110,6 +111,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Source source;
     private Sink sink;
 
+    private final SecretsProvider secretsProvider;
+
     public static final String METRICS_TOTAL_PROCESSED = "__total_processed__";
     public static final String METRICS_TOTAL_SUCCESS = "__total_successfully_processed__";
     public static final String METRICS_TOTAL_SYS_EXCEPTION = "__total_system_exceptions__";
@@ -122,13 +125,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 FunctionCacheManager fnCache,
                                 String jarFile,
                                 PulsarClient pulsarClient,
-                                String stateStorageServiceUrl) {
+                                String stateStorageServiceUrl,
+                                SecretsProvider secretsProvider) {
         this.instanceConfig = instanceConfig;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.stats = new FunctionStats();
+        this.secretsProvider = secretsProvider;
     }
 
     /**
@@ -173,7 +178,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
-        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics);
+        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics, secretsProvider);
     }
 
     /**

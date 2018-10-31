@@ -152,6 +152,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     }
     private KubernetesContainerFactory kubernetesContainerFactory;
 
+    // The classname of the secrets provider configurator.
+    private String secretsProviderConfiguratorClassName;
+    // Any config the secret provider configurator might need. This is passed on
+    // to the init method of the secretproviderconfigurator
+    private Map<String, String> secretsProviderConfiguratorConfig;
+
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
     }
