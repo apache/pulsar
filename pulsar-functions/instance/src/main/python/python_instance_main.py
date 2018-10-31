@@ -102,6 +102,19 @@ def main():
       zpfile = zipfile.ZipFile(str(args.py), 'r')
       zpfile.extractall(os.path.dirname(str(args.py)))
     sys.path.insert(0, os.path.dirname(str(args.py)))
+  elif os.path.splitext(str(args.py))[1] == '.zip':
+    # Assumig zip file with format func.zip
+    # extract to folder function
+    # internal dir format 
+    # "func/src"
+    # "func/requirements.txt"
+    # "func/deps"
+    # run pip install to target folder  deps folder
+    zpfile = zipfile.ZipFile(str(args.py), 'r')
+    zpfile.extractall(os.path.dirname(str(args.py)))
+    cmd = "pip install -t %s -r %s/requirements.txt --no-index --find-links %s/deps" % (os.path.dirname(str(args.py), os.path.dirname(str(args.py), os.path.dirname(str(args.py))
+    os.system(cmd)
+    sys.path.insert(0, os.path.splitext(str(args.py))[1] + "/" + "src"))
 
   log_file = os.path.join(args.logging_directory,
                           util.getFullyQualifiedFunctionName(function_details.tenant, function_details.namespace, function_details.name),
