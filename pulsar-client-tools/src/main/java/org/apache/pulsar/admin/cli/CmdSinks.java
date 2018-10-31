@@ -165,7 +165,7 @@ public class CmdSinks extends CmdBase {
         }
 
         @Override
-        void runCmd() throws Exception {
+        public void runCmd() throws Exception {
             // merge deprecated args with new args
             mergeArgs();
             List<String> localRunArgs = new LinkedList<>();

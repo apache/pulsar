@@ -169,7 +169,7 @@ public class CmdSources extends CmdBase {
         }
 
         @Override
-        void runCmd() throws Exception {
+        public void runCmd() throws Exception {
             // merge deprecated args with new args
             mergeArgs();
 

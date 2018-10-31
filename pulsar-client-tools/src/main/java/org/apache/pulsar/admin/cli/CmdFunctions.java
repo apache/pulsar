@@ -65,7 +65,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
-import org.apache.pulsar.functions.utils.*;
+import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.windowing.WindowUtils;
 
 @Slf4j
