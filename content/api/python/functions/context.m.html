@@ -991,6 +991,7 @@ table {
     <li class="mono"><a href="#pulsar.functions.context.Context.get_message_id">get_message_id</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_output_serde_class_name">get_output_serde_class_name</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_output_topic">get_output_topic</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.get_secret">get_secret</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_user_config_map">get_user_config_map</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_user_config_value">get_user_config_value</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.publish">publish</a></li>
@@ -1119,6 +1120,11 @@ class Context(object):
     pass
 
   @abstractmethod
+  def get_secret(self, secret_name):
+    """Returns the secret value associated with the name. None if nothing was found"""
+    pass
+
+  @abstractmethod
   def record_metric(self, metric_name, metric_value):
     """Records the metric_value. metric_value has to satisfy isinstance(metric_value, numbers.Number)"""
     pass
@@ -1215,6 +1221,11 @@ class Context(object):
   @abstractmethod
   def get_user_config_map(self):
     """Returns the entire user-defined config as a dict (the dict will be empty if no user-defined config is supplied)"""
+    pass
+
+  @abstractmethod
+  def get_secret(self, secret_name):
+    """Returns the secret value associated with the name. None if nothing was found"""
     pass
 
   @abstractmethod
@@ -1522,6 +1533,29 @@ def get_output_serde_class_name(self):
     <pre><code>@abstractmethod
 def get_output_topic(self):
   """Returns the output topic of function"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.get_secret">
+    <p>def <span class="ident">get_secret</span>(</p><p>self, secret_name)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Returns the secret value associated with the name. None if nothing was found</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.get_secret', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.get_secret" class="source">
+    <pre><code>@abstractmethod
+def get_secret(self, secret_name):
+  """Returns the secret value associated with the name. None if nothing was found"""
   pass
 </code></pre>
   </div>

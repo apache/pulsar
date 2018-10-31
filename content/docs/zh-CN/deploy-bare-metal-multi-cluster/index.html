@@ -194,11 +194,11 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.2.0
 </code></pre>
 <p>As you can see from the example above, the following needs to be specified:</p>
 <ul>
-<li>The name of the cluster</li>
-<li>The local ZooKeeper connection string for the cluster</li>
+<li>集群的名称</li>
+<li>集群对本地zookeeper的连接串</li>
 <li>The configuration store connection string for the entire instance</li>
-<li>The web service URL for the cluster</li>
-<li>A broker service URL enabling interaction with the <a href="/docs/zh-CN/reference-terminology#broker">brokers</a> in the cluster</li>
+<li>集群的web服务URL</li>
+<li>Broker服务的URL，来开启和集群中<a href="/docs/zh-CN/reference-terminology#broker">broker</a>的交互</li>
 </ul>
 <p>If you're using <a href="/docs/zh-CN/security-tls-transport">TLS</a>, you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.</p>
 <p>Make sure to run <code>initialize-cluster-metadata</code> for each cluster in your instance.</p>
