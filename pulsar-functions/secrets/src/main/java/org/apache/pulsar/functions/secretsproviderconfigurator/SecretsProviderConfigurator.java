@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.secretsproviderconfigurator;
 
-import io.kubernetes.client.models.V1Container;
+import io.kubernetes.client.models.V1PodSpec;
 import org.apache.pulsar.functions.proto.Function;
 
 import java.lang.reflect.Type;
@@ -51,7 +51,7 @@ public interface SecretsProviderConfigurator {
     /**
      * Attaches any secrets specific stuff to the k8 container for kubernetes runtime
      */
-    void configureKubernetesRuntimeSecretsProvider(V1Container container, Function.FunctionDetails functionDetails);
+    void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, Function.FunctionDetails functionDetails);
 
     /**
      * Attaches any secrets specific stuff to the ProcessBuilder for process runtime
