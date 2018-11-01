@@ -22,7 +22,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.util.UUID;
 
-import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -30,42 +29,6 @@ import org.testng.annotations.Test;
  * Unit test of {@link Utils}.
  */
 public class UtilsTest {
-
-    @Test
-    public void testValidateLocalFileUrl() throws Exception {
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        String testDir = UtilsTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        try {
-            // eg: fileLocation : /dir/fileName.jar (invalid)
-            Utils.validateFileUrl(fileLocation, testDir);
-            Assert.fail("should fail with invalid url: without protocol");
-        } catch (IllegalArgumentException ie) {
-            // Ok.. expected exception
-        }
-        String fileLocationWithProtocol = "file://" + fileLocation;
-        // eg: fileLocation : file:///dir/fileName.jar (valid)
-        Utils.validateFileUrl(fileLocationWithProtocol, testDir);
-        // eg: fileLocation : file:/dir/fileName.jar (valid)
-        fileLocationWithProtocol = "file:" + fileLocation;
-        Utils.validateFileUrl(fileLocationWithProtocol, testDir);
-    }
-
-    @Test
-    public void testValidateHttpFileUrl() throws Exception {
-
-        String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
-        String testDir = UtilsTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        Utils.validateFileUrl(jarHttpUrl, testDir);
-
-        jarHttpUrl = "http://_invalidurl_.com";
-        try {
-            // eg: fileLocation : /dir/fileName.jar (invalid)
-            Utils.validateFileUrl(jarHttpUrl, testDir);
-            Assert.fail("should fail with invalid url: without protocol");
-        } catch (Exception ie) {
-            // Ok.. expected exception
-        }
-    }
 
     @Test
     public void testDownloadFile() throws Exception {

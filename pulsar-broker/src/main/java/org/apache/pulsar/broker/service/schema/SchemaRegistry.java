@@ -30,11 +30,13 @@ public interface SchemaRegistry extends AutoCloseable {
 
     CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, SchemaVersion version);
 
-    CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema);
+    CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
+                                                       SchemaCompatibilityStrategy strategy);
 
     CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user);
 
-    CompletableFuture<Boolean> isCompatibleWithLatestVersion(String schemaId, SchemaData schema);
+    CompletableFuture<Boolean> isCompatibleWithLatestVersion(String schemaId, SchemaData schema,
+                                                             SchemaCompatibilityStrategy strategy);
 
     SchemaVersion versionFromBytes(byte[] version);
 

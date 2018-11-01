@@ -18,8 +18,43 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+
 public enum SchemaCompatibilityStrategy {
+    /**
+     * Always incompatible
+     */
+    ALWAYS_INCOMPATIBLE,
+
+    /**
+     * Messages written by a new schema can be read by an old schema
+     */
     BACKWARD,
+
+    /**
+     * Messages written by an old schema can be read be a new schema
+     */
     FORWARD,
-    FULL
+
+    /**
+     * Equivalent to both FORWARD and BACKWARD
+     */
+    FULL;
+
+    public static SchemaCompatibilityStrategy fromAutoUpdatePolicy(SchemaAutoUpdateCompatibilityStrategy strategy) {
+        if (strategy == null) {
+            return SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE;
+        }
+        switch (strategy) {
+        case Backward:
+            return BACKWARD;
+        case Forward:
+            return FORWARD;
+        case Full:
+            return FULL;
+        case AutoUpdateDisabled:
+        default:
+            return ALWAYS_INCOMPATIBLE;
+        }
+    }
 }

@@ -26,10 +26,34 @@ std::string MessageId_str(const MessageId& msgId) {
     return ss.str();
 }
 
-std::string MessageId_serialize(const MessageId& msgId) {
+bool MessageId_eq(const MessageId& a, const MessageId& b) {
+    return a == b;
+}
+
+bool MessageId_ne(const MessageId& a, const MessageId& b) {
+    return a != b;
+}
+
+bool MessageId_lt(const MessageId& a, const MessageId& b) {
+    return a < b;
+}
+
+bool MessageId_le(const MessageId& a, const MessageId& b) {
+    return a <= b;
+}
+
+bool MessageId_gt(const MessageId& a, const MessageId& b) {
+    return a > b;
+}
+
+bool MessageId_ge(const MessageId& a, const MessageId& b) {
+    return a >= b;
+}
+
+boost::python::object MessageId_serialize(const MessageId& msgId) {
     std::string serialized;
     msgId.serialize(serialized);
-    return serialized;
+    return boost::python::object(boost::python::handle<>(PyBytes_FromStringAndSize(serialized.c_str(), serialized.length())));
 }
 
 std::string Message_str(const Message& msg) {
@@ -72,6 +96,12 @@ void export_message() {
 
     class_<MessageId>("MessageId")
             .def("__str__", &MessageId_str)
+            .def("__eq__", &MessageId_eq)
+            .def("__ne__", &MessageId_ne)
+            .def("__le__", &MessageId_le)
+            .def("__lt__", &MessageId_lt)
+            .def("__ge__", &MessageId_ge)
+            .def("__gt__", &MessageId_gt)
             .add_static_property("earliest", make_getter(&_MessageId_earliest))
             .add_static_property("latest", make_getter(&_MessageId_latest))
             .def("serialize", &MessageId_serialize)

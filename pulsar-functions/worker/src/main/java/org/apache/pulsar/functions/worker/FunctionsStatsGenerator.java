@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.eclipse.jetty.util.ConcurrentHashSet;
@@ -37,11 +38,13 @@ public class FunctionsStatsGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(FunctionsStatsGenerator.class);
 
-    private static Set<String> METRIC_TYPES = new ConcurrentHashSet<>();
-
     public static void generate(WorkerService workerService, String cluster, SimpleTextOutputStream out) {
-        if (workerService != null) {
-            METRIC_TYPES.forEach(metric -> metricType(out, metric));
+        // only when worker service is initialized, we generate the stats. otherwise we will get bunch of NPE.
+        if (workerService != null && workerService.isInitialized()) {
+            // kubernetes runtime factory doesn't support stats collection through worker service
+            if (workerService.getFunctionRuntimeManager().getRuntimeFactory() instanceof KubernetesRuntimeFactory) {
+                return;
+            }
 
             Map<String, FunctionRuntimeInfo> functionRuntimes
                     = workerService.getFunctionRuntimeManager().getFunctionRuntimeInfos();
@@ -98,11 +101,7 @@ public class FunctionsStatsGenerator {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace,
                                String functionName, String metricName, int instanceId, double value) {
-        if (!METRIC_TYPES.contains(metricName)) {
-            metricType(stream, metricName);
-            METRIC_TYPES.add(metricName);
-        }
-
+        metricType(stream, metricName);
         stream.write(metricName).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",name=\"").write(functionName).write("\",instanceId=\"").write(instanceId).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');

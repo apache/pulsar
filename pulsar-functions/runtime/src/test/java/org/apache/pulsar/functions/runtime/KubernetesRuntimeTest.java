@@ -24,6 +24,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -32,6 +33,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.powermock.api.mockito.PowerMockito.doNothing;
+import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
 
 /**
@@ -52,6 +55,7 @@ public class KubernetesRuntimeTest {
 
     private final KubernetesRuntimeFactory factory;
     private final String userJarFile;
+    private final String pulsarRootDir;
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String pulsarServiceUrl;
@@ -60,15 +64,19 @@ public class KubernetesRuntimeTest {
     private final String logDirectory;
 
     public KubernetesRuntimeTest() throws Exception {
-        this.userJarFile = "/Users/user/UserJar.jar";
+        this.userJarFile = "UserJar.jar";
+        this.pulsarRootDir = "/pulsar";
         this.javaInstanceJarFile = "/pulsar/instances/java-instance.jar";
         this.pythonInstanceFile = "/pulsar/instances/python-instance/python_instance_main.py";
         this.pulsarServiceUrl = "pulsar://localhost:6670";
         this.pulsarAdminUrl = "http://localhost:8080";
         this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "logs/functions";
-        this.factory = new KubernetesRuntimeFactory(null, null, null, null,
-            false, pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null);
+        this.factory = spy(new KubernetesRuntimeFactory(null, null, null, pulsarRootDir,
+            false, true, "myrepo", "anotherrepo",
+                null, pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null, null,
+                null, null, new DefaultSecretsProviderConfigurator()));
+        doNothing().when(this.factory).setupClient();
     }
 
     @AfterMethod
@@ -116,21 +124,22 @@ public class KubernetesRuntimeTest {
 
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 28);
+        assertEquals(args.size(), 30);
         String expectedArgs = "java -cp " + javaInstanceJarFile
                 + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
-                + " -Dlog4j.configurationFile=conf/log4j2.yaml "
+                + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.yml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionDetailsUtils.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
-                + " --jar " + userJarFile + " --instance_id "
+                + " --jar " + pulsarRootDir + "/" + userJarFile + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(23)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
-                + " --expected_healthcheck_interval -1";
+                + " --expected_healthcheck_interval -1"
+                + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -140,16 +149,23 @@ public class KubernetesRuntimeTest {
 
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 24);
+        assertEquals(args.size(), 34);
         String expectedArgs = "python " + pythonInstanceFile
-                + " --py " + userJarFile + " --logging_directory "
-                + logDirectory + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
-                + "$SHARD_ID" + " --function_id " + config.getFunctionId()
+                + " --py " + pulsarRootDir + "/" + userJarFile
+                + " --logging_directory " + logDirectory
+                + " --logging_file " + config.getFunctionDetails().getName()
+                + " --logging_config_file " + args.get(9)
+                + " --install_usercode_dependencies True"
+                + " --dependency_repository myrepo"
+                + " --extra_dependency_repository anotherrepo"
+                + " --instance_id " + "$SHARD_ID"
+                + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(21)
-                + " --expected_healthcheck_interval -1";
+                + " --max_buffered_tuples 1024 --port " + args.get(29)
+                + " --expected_healthcheck_interval -1"
+                + " --secrets_provider secretsprovider.ClearTextSecretsProvider";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

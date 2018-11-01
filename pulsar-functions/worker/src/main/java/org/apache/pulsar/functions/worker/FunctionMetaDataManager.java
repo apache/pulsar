@@ -82,13 +82,11 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     /**
      * Initializes the FunctionMetaDataManager.  Does the following:
-     * 1. Restores from snapshot if one exists
-     * 2. Sends out initialize marker to FMT and consume messages until the initialize marker is consumed
+     * 1. Consume all existing function meta data upon start to establish existing state
      */
     public void initialize() {
         log.info("/** Initializing Function Metadata Manager **/");
         try {
-
             Reader<byte[]> reader = pulsarClient.newReader()
                     .topic(this.workerConfig.getFunctionMetadataTopic())
                     .startMessageId(MessageId.earliest)
@@ -143,8 +141,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * @param namespace the namespace
      * @return a list of function names
      */
-    public synchronized Collection<String> listFunctions(String tenant, String namespace) {
-        List<String> ret = new LinkedList<>();
+    public synchronized Collection<FunctionMetaData> listFunctions(String tenant, String namespace) {
+        List<FunctionMetaData> ret = new LinkedList<>();
 
         if (!this.functionMetaDataMap.containsKey(tenant)) {
             return ret;
@@ -154,7 +152,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             return ret;
         }
         for (FunctionMetaData functionMetaData : this.functionMetaDataMap.get(tenant).get(namespace).values()) {
-            ret.add(functionMetaData.getFunctionDetails().getName());
+            ret.add(functionMetaData);
         }
         return ret;
     }

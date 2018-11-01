@@ -286,6 +286,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Speculative reads are initiated if a read request doesn't complete within
     // a certain time Using a value of 0, is disabling the speculative reads
     private int bookkeeperClientSpeculativeReadTimeoutInMillis = 0;
+    // Use older Bookkeeper wire protocol with bookie
+    private boolean bookkeeperUseV2WireProtocol = true;
     // Enable bookies health check. Bookies that have more than the configured
     // number of failure within the interval will be quarantined for some time.
     // During this period, new ledgers won't be created on these bookies
@@ -449,8 +451,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String replicatorPrefix = "pulsar.repl";
     // Replicator producer queue size;
     private int replicationProducerQueueSize = 1000;
-    // Enable TLS when talking with other clusters to replicate messages
+    // @deprecated - Use brokerClientTlsEnabled instead.
+    @Deprecated
     private boolean replicationTlsEnabled = false;
+    // Enable TLS when talking with other brokers in the same cluster (admin operation) or different clusters (replication)
+    private boolean brokerClientTlsEnabled = false;
 
     // Default message retention time
     private int defaultRetentionTimeInMinutes = 0;
@@ -470,6 +475,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Interval between checks to see if topics with compaction policies need to be compacted
     private int brokerServiceCompactionMonitorIntervalInSeconds = 60;
 
+    private boolean isSchemaValidationEnforced = false;
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
             "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
@@ -1097,6 +1103,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.bookkeeperClientSpeculativeReadTimeoutInMillis = bookkeeperClientSpeculativeReadTimeoutInMillis;
     }
 
+    public boolean isBookkeeperUseV2WireProtocol() {
+        return bookkeeperUseV2WireProtocol;
+    }
+
+    public void setBookkeeperUseV2WireProtocol(boolean bookkeeperUseV2WireProtocol) {
+        this.bookkeeperUseV2WireProtocol = bookkeeperUseV2WireProtocol;
+    }
+
     public boolean isBookkeeperClientHealthCheckEnabled() {
         return bookkeeperClientHealthCheckEnabled;
     }
@@ -1517,13 +1531,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setReplicationProducerQueueSize(int replicationProducerQueueSize) {
         this.replicationProducerQueueSize = replicationProducerQueueSize;
     }
-
+    
+    @Deprecated
     public boolean isReplicationTlsEnabled() {
         return replicationTlsEnabled;
     }
-
+    
+    @Deprecated
     public void setReplicationTlsEnabled(boolean replicationTlsEnabled) {
         this.replicationTlsEnabled = replicationTlsEnabled;
+    }
+
+    public boolean isBrokerClientTlsEnabled() {
+        return brokerClientTlsEnabled || replicationTlsEnabled;
+    }
+
+    public void setBrokerClientTlsEnabled(boolean brokerClientTlsEnabled) {
+        this.brokerClientTlsEnabled = brokerClientTlsEnabled;
     }
 
     public List<String> getBootstrapNamespaces() {
@@ -1646,6 +1670,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setExposeConsumerLevelMetricsInPrometheus(boolean exposeConsumerLevelMetricsInPrometheus) {
         this.exposeConsumerLevelMetricsInPrometheus = exposeConsumerLevelMetricsInPrometheus;
+    }
+
+    public boolean isSchemaValidationEnforced() {
+        return isSchemaValidationEnforced;
+    }
+
+    public void setSchemaValidationEnforced(boolean enforced) {
+        this.isSchemaValidationEnforced = enforced;
     }
 
     public String getSchemaRegistryStorageClassName() {

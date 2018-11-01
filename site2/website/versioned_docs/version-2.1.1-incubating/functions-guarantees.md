@@ -19,7 +19,7 @@ You can set the processing guarantees for a Pulsar Function when you create the 
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --processing-guarantees EFFECTIVELY_ONCE \
+  --processingGuarantees EFFECTIVELY_ONCE \
   # Other function configs
 ```
 
@@ -37,6 +37,6 @@ You can change the processing guarantees applied to a function once it's already
 
 ```bash
 $ bin/pulsar-admin functions update \
-  --processing-guarantees ATMOST_ONCE \
+  --processingGuarantees ATMOST_ONCE \
   # Other function configs
 ```

@@ -44,7 +44,7 @@
       <directory>${basedir}/licenses</directory>
     </fileSet>
     <fileSet>
-      <directory>${basedir}/../../pulsar-functions/runtime/target/python-instance</directory>
+      <directory>${basedir}/../../pulsar-functions/instance/target/python-instance</directory>
       <outputDirectory>instances/python-instance</outputDirectory>
     </fileSet>
     <fileSet>
@@ -78,6 +78,11 @@
     <file>
       <source>${basedir}/../../pulsar-functions/runtime-all/target/java-instance.jar</source>
       <destName>java-instance.jar</destName>
+      <outputDirectory>instances</outputDirectory>
+    </file>
+    <file>
+      <source>${basedir}/../../pulsar-functions/metrics/target/PrometheusMetricsServer.jar</source>
+      <destName>PrometheusMetricsServer.jar</destName>
       <outputDirectory>instances</outputDirectory>
     </file>
     <file>

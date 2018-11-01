@@ -235,7 +235,7 @@ Here, the `process` method defines the processing logic of the Pulsar Function. 
 ```bash
 $ bin/pulsar-admin functions create \
   --py reverse.py \
-  --class-name reverse \
+  --classname reverse \
   --inputs persistent://public/default/backwards \
   --output persistent://public/default/forwards \
   --tenant public \

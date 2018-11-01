@@ -82,13 +82,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_producers_count");
-        assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).value, 1.0);
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.size(), 3);
         assertEquals(cm.get(1).value, 1.0);
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(2).value, 1.0);
+        assertEquals(cm.get(2).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(2).tags.get("namespace"), "my-property/use/my-ns");
 
         cm = (List<Metric>) metrics.get("topic_load_times_count");
         assertEquals(cm.size(), 1);
@@ -126,10 +126,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_producers_count");
-        assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).value, 2.0);
-        assertEquals(cm.get(0).tags.get("topic"), null);
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.size(), 2);
+        assertEquals(cm.get(1).value, 2.0);
+        assertEquals(cm.get(1).tags.get("topic"), null);
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
 
         p1.close();
         p2.close();

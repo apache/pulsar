@@ -35,9 +35,9 @@ public class ReplicatorTlsTest extends ReplicatorTestBase {
     @Override
     @BeforeClass
     void setup() throws Exception {
-        config1.setReplicationTlsEnabled(true);
-        config2.setReplicationTlsEnabled(true);
-        config3.setReplicationTlsEnabled(true);
+        config1.setBrokerClientTlsEnabled(true);
+        config2.setBrokerClientTlsEnabled(true);
+        config3.setBrokerClientTlsEnabled(true);
         super.setup();
     }
 

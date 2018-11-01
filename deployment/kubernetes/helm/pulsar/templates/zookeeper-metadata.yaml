@@ -46,9 +46,9 @@ spec:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeperMetadata.component }}"
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-      {{- if .Values.zookeeper_metadata.resources }}
+      {{- if .Values.zookeeperMetadata.resources }}
         resources:
-{{ toYaml .Values.zookeeper_metadata.resources | indent 10 }}
+{{ toYaml .Values.zookeeperMetadata.resources | indent 10 }}
       {{- end }}
         command: ["sh", "-c"]
         args:

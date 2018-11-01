@@ -169,7 +169,7 @@ This product contains a forked and modified version of Tomcat Native
 ----------------------------------------------------------------------------------------------------
 
 Jetty Web Container
-Copyright 1995-2016 Mort Bay Consulting Pty Ltd.
+Copyright 1995-2018 Mort Bay Consulting Pty Ltd.
 
 The Jetty Web Container is Copyright Mort Bay Consulting Pty Ltd
 unless otherwise noted.

@@ -99,7 +99,7 @@ public class FunctionStats {
             if (totalSuccessfullyProcessed <= 0) {
                 return 0;
             } else {
-                return totalLatencyMs / totalSuccessfullyProcessed;
+                return totalLatencyMs / (double) totalSuccessfullyProcessed;
             }
         }
         

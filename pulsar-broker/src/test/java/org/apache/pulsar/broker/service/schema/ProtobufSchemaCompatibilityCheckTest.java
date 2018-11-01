@@ -21,17 +21,7 @@ package org.apache.pulsar.broker.service.schema;
 public class ProtobufSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilityTest{
 
     @Override
-    public SchemaCompatibilityCheck getBackwardsCompatibleSchemaCheck() {
-        return new ProtobufSchemaCompatibilityCheck(SchemaCompatibilityStrategy.BACKWARD);
-    }
-
-    @Override
-    public SchemaCompatibilityCheck getForwardCompatibleSchemaCheck() {
-        return new ProtobufSchemaCompatibilityCheck(SchemaCompatibilityStrategy.FORWARD);
-    }
-
-    @Override
-    public SchemaCompatibilityCheck getFullCompatibleSchemaCheck() {
-        return new ProtobufSchemaCompatibilityCheck(SchemaCompatibilityStrategy.FULL);
+    public SchemaCompatibilityCheck getSchemaCheck() {
+        return new ProtobufSchemaCompatibilityCheck();
     }
 }

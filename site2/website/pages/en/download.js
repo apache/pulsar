@@ -21,7 +21,11 @@ function distUrl(version, type) {
 }
 
 function archiveUrl(version, type) {
-    return `https://archive.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
+    if (version.includes('incubating')) {
+        return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
+    } else {
+        return `https://archive.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
+    }
 }
 
 class Download extends React.Component {

@@ -467,7 +467,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }, null);
 
-        counter.await();
+        counter.await(ledger.getConfig().getMetadataOperationsTimeoutSeconds(), TimeUnit.SECONDS);
 
         if (result.exception != null) {
             throw result.exception;
@@ -652,7 +652,15 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long getNumberOfEntries() {
-        return getNumberOfEntries(Range.closedOpen(readPosition, ledger.getLastPosition().getNext()));
+        if (readPosition.compareTo(ledger.getLastPosition().getNext()) > 0) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Read position {} is ahead of last position {}. There are no entries to read",
+                        ledger.getName(), name, readPosition, ledger.getLastPosition());
+            }
+            return 0;
+        } else {
+            return getNumberOfEntries(Range.closedOpen(readPosition, ledger.getLastPosition().getNext()));
+        }
     }
 
     @Override

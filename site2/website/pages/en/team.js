@@ -57,7 +57,6 @@ class Team extends React.Component {
                 <tr>
                   <th><translate>Name</translate></th>
                   <th><translate>Apache Id</translate></th>
-                  <th><translate>Organization</translate></th>
                   <th><translate>Roles</translate></th>
                 </tr>
               </thead>
@@ -67,29 +66,7 @@ class Team extends React.Component {
                     <tr key={c.apacheId}>
                       <td>{c.name}</td>
                       <td>{c.apacheId}</td>
-                      <td>{c.org}</td>
                       <td>{c.roles}</td>
-                    </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-
-            <h2><translate>Mentors</translate></h2>
-            <p><translate>The following people are the mentors of this incubator project</translate></p>
-            <table className="versions">
-              <thead>
-                <tr>
-                  <th><translate>Name</translate></th>
-                  <th><translate>Apache Id</translate></th>
-                </tr>
-              </thead>
-              <tbody>
-                {team.mentors.map(
-                  m => (
-                    <tr key={m.apacheId}>
-                      <td>{m.name}</td>
-                      <td>{m.apacheId}</td>
                     </tr>
                   )
                 )}

@@ -61,7 +61,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         .withValidation(Field::isRequired);
 
     public static final Field SERVICE_URL = Field.create(CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.service.url")
-        .withDisplayName("Kafka broker addresses")
+        .withDisplayName("Pulsar broker addresses")
         .withType(Type.STRING)
         .withWidth(Width.LONG)
         .withImportance(Importance.HIGH)

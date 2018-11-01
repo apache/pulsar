@@ -39,6 +39,13 @@ public class FloatSchema implements Schema<Float> {
         .setSchema(new byte[0]);
 
     @Override
+    public void validate(byte[] message) {
+        if (message.length != 4) {
+            throw new SchemaSerializationException("Size of data received by FloatSchema is not 4");
+        }
+    }
+
+    @Override
     public byte[] encode(Float message) {
         if (null == message) {
             return null;
@@ -58,9 +65,7 @@ public class FloatSchema implements Schema<Float> {
         if (null == bytes) {
             return null;
         }
-        if (bytes.length != 4) {
-            throw new SchemaSerializationException("Size of data received by FloatSchema is not 4");
-        }
+        validate(bytes);
         int value = 0;
         for (byte b : bytes) {
             value <<= 8;
