@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.secretsproviderconfigurator;
 
 import com.google.gson.reflect.TypeToken;
-import io.kubernetes.client.models.V1Container;
+import io.kubernetes.client.models.V1PodSpec;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 
@@ -51,7 +51,7 @@ public class DefaultSecretsProviderConfigurator implements SecretsProviderConfig
     }
 
     @Override
-    public void configureKubernetesRuntimeSecretsProvider(V1Container container, Function.FunctionDetails functionDetails) {
+    public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, Function.FunctionDetails functionDetails) {
         // noop
     }
 
