@@ -130,16 +130,25 @@ class BKManagedStateContext(StateContext):
         self.__table__ = self.__client__.table(table_name=table_name)
 
     def incr(self, key, amount):
-        # TODO: need to add the counter interfaces in bookkeeper python client
-        return
+        return self.__table__.incr_str(key, amount)
 
     def get_amount(self, key):
-        # TODO: need to add the counter interfaces in bookkeeper python client
-        return
+        try:
+            kv = self.__table__.get_str(key)
+            if kv is not None:
+                return kv.number_value
+            else:
+                return None
+        except KeyNotFoundError:
+            return None
 
     def get_value(self, key):
         try:
-            return self.__table__.get_str(key)
+            kv = self.__table__.get_str(key)
+            if kv is not None:
+                return kv.value
+            else:
+                return None
         except KeyNotFoundError:
             return None
 

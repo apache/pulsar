@@ -53,7 +53,11 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         getFunctionStatus(functionName, numMessages);
 
         // get state
-        queryState(functionName, "hello");
+        queryState(functionName, "hello", numMessages);
+        queryState(functionName, "test", numMessages);
+        for (int i = 0; i < numMessages; i++) {
+            queryState(functionName, "message-" + i, 1);
+        }
 
         // delete function
         deleteFunction(functionName);
@@ -170,7 +174,8 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"numSuccessfullyProcessed\": \"" + numMessages + "\""));
     }
 
-    private static void queryState(String functionName, String key) throws Exception {
+    private static void queryState(String functionName, String key, int amount)
+        throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -181,7 +186,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
             "--key", key,
             "--storage-service-url", "bk://localhost:4181"
         );
-        assertTrue(result.getStdout().contains("false"));
+        assertTrue(result.getStdout().contains("value = " + amount));
     }
 
     private static void publishAndConsumeMessages(String inputTopic,
