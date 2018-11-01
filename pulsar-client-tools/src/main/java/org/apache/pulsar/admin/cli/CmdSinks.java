@@ -35,6 +35,7 @@ import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -55,7 +56,6 @@ import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.utils.*;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
@@ -165,18 +165,24 @@ public class CmdSinks extends CmdBase {
         }
 
         @Override
-        void runCmd() throws Exception {
+        public void runCmd() throws Exception {
             // merge deprecated args with new args
             mergeArgs();
-
-            CmdFunctions.startLocalRun(createSinkConfigProto2(sinkConfig), sinkConfig.getParallelism(),
-                    0, brokerServiceUrl, null,
-                    AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
-                            .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
-                            .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
-                            .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
-                            .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                    sinkConfig.getArchive(), admin);
+            List<String> localRunArgs = new LinkedList<>();
+            localRunArgs.add(System.getenv("PULSAR_HOME") + "/bin/function-localrunner");
+            localRunArgs.add("--sinkConfig");
+            localRunArgs.add(new Gson().toJson(sinkConfig));
+            for (Field field : this.getClass().getDeclaredFields()) {
+                if (field.getName().startsWith("DEPRECATED")) continue;
+                Object value = field.get(this);
+                if (value != null) {
+                    localRunArgs.add("--" + field.getName());
+                    localRunArgs.add(value.toString());
+                }
+            }
+            ProcessBuilder processBuilder = new ProcessBuilder(localRunArgs).inheritIO();
+            Process process = processBuilder.start();
+            process.waitFor();
         }
 
         @Override
