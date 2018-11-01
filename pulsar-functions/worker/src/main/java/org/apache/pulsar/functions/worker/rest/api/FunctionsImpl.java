@@ -29,13 +29,20 @@ import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -87,7 +94,10 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.utils.*;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.SinkConfigUtils;
+import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.functions.utils.StateUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.Utils;
@@ -135,9 +145,9 @@ public class FunctionsImpl {
     }
 
     public Response registerFunction(final String tenant, final String namespace, final String componentName,
-            final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
-            final String functionPkgUrl, final String functionDetailsJson, final String componentConfigJson,
-            final String componentType, final String clientRole) {
+                                     final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
+                                     final String functionPkgUrl, final String functionDetailsJson, final String componentConfigJson,
+                                     final String componentType, final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -366,7 +376,7 @@ public class FunctionsImpl {
         // delete state table
         if (null != worker().getStateStoreAdminClient()) {
             final String tableNs = StateUtils.getStateNamespace(tenant, namespace);
-            final String tableName = functionName;
+            final String tableName = componentName;
             try {
                 FutureUtils.result(worker().getStateStoreAdminClient().deleteStream(tableNs, tableName));
             } catch (NamespaceNotFoundException | StreamNotFoundException e) {
