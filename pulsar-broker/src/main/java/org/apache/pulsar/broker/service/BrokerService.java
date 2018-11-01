@@ -74,6 +74,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -424,7 +425,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             // make broker-node unavailable from the cluster
             if (pulsar.getLoadManager() != null) {
-                pulsar.getLoadManager().get().disableBroker();
+                try {
+                    pulsar.getLoadManager().get().disableBroker();
+                } catch (PulsarServerException.NotFoundException ne) {
+                    log.warn("Broker load-manager znode doesn't exist ", ne);
+                    // still continue and release bundle ownership as broker's registration node doesn't exist.
+                }
             }
 
             // unload all namespace-bundles gracefully
