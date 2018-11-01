@@ -324,7 +324,6 @@ public class TwoPhaseCompactor extends Compactor {
                                  bkf.complete(null);
                              }
                          }, null);
-        serialized.release();
         return bkf;
     }
 
