@@ -23,11 +23,15 @@ import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONF
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -35,8 +39,15 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -196,4 +207,42 @@ public class BrokersBase extends AdminResource {
             conf.getZkLedgersRootPath());
     }
 
+    @GET
+    @Path("/health")
+    @ApiOperation(value = "Run a healthcheck against the broker")
+    @ApiResponses(value = { @ApiResponse(code = 200, message = "Everything is OK"),
+                            @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Cluster doesn't exist") })
+    public void healthcheck(@Suspended AsyncResponse asyncResponse) throws Exception {
+        validateSuperUserAccess();
+        pulsar().getExecutor().submit(() -> {
+                String heartbeatNamespace = NamespaceService.getHeartbeatNamespace(
+                        pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
+                String topic = String.format("persistent://%s/healthcheck", heartbeatNamespace);
+                try {
+                    PulsarClient client = pulsar().getClient();
+
+                    try (Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create();
+                         Reader<String> consumer = client.newReader(Schema.STRING)
+                            .topic(topic).startMessageId(MessageId.latest).create()) {
+
+                        String messageStr = UUID.randomUUID().toString();
+                        producer.send(messageStr);
+
+                        while (true) {
+                            Message m = consumer.readNext(10, TimeUnit.SECONDS);
+                            if (m == null) {
+                                throw new IllegalStateException("Healthcheck didn't receive message back");
+                            }
+                            if (m.getValue().equals(messageStr)) {
+                                asyncResponse.resume("ok");
+                                return;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    asyncResponse.resume(new RestException(e));
+                }
+            });
+    }
 }
