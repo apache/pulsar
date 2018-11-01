@@ -42,6 +42,8 @@ import java.util.*;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 
@@ -326,6 +328,15 @@ public class SinkConfigUtils {
             });
         }
         return classLoader;
+    }
+
+    public static void inferMissingArguments(SinkConfig sinkConfig) {
+        if (sinkConfig.getTenant() == null) {
+            sinkConfig.setTenant(PUBLIC_TENANT);
+        }
+        if (sinkConfig.getNamespace() == null) {
+            sinkConfig.setNamespace(DEFAULT_NAMESPACE);
+        }
     }
 
     private static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {

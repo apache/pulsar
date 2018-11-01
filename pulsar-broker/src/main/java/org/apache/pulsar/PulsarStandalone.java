@@ -282,7 +282,7 @@ public class PulsarStandalone implements AutoCloseable {
             workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort());
             if (!this.isNoStreamStorage()) {
                 // only set the state storage service url when state is enabled.
-                workerConfig.setStateStorageServiceUrl("bk://127.0.0.1:" + this.getStreamStoragePort());
+                // workerConfig.setStateStorageServiceUrl("bk://127.0.0.1:" + this.getStreamStoragePort());
             }
             String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                 config.getAdvertisedAddress());

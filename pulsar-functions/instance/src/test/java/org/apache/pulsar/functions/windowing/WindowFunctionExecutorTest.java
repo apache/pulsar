@@ -24,6 +24,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 
 import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.functions.utils.WindowConfigUtils;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -521,7 +522,7 @@ public class WindowFunctionExecutorTest {
 
                 if (arg0 == null) {
                     Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getMaxLagMs(),
-                            new Long(testWindowedPulsarFunction.DEFAULT_MAX_LAG_MS));
+                            new Long(WindowConfigUtils.DEFAULT_MAX_LAG_MS));
                 } else if((Long) arg0 < 0) {
                     fail(String.format("Window lag cannot be less than zero -- lagTime: %s", arg0));
                 } else {
@@ -572,7 +573,7 @@ public class WindowFunctionExecutorTest {
 
                 if (arg0 == null) {
                     Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getWatermarkEmitIntervalMs(),
-                            new Long(testWindowedPulsarFunction.DEFAULT_WATERMARK_EVENT_INTERVAL_MS));
+                            new Long(WindowConfigUtils.DEFAULT_WATERMARK_EVENT_INTERVAL_MS));
                 } else if ((Long) arg0 <= 0) {
                     fail(String.format("Watermark interval cannot be zero or less -- watermarkInterval: "
                             + "%s", arg0));
