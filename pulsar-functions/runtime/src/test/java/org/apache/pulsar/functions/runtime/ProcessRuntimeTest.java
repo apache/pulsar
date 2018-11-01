@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.kubernetes.client.models.V1Container;
+import io.kubernetes.client.models.V1PodSpec;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
@@ -70,7 +71,7 @@ public class ProcessRuntimeTest {
         }
 
         @Override
-        public void configureKubernetesRuntimeSecretsProvider(V1Container container, FunctionDetails functionDetails) {
+        public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, FunctionDetails functionDetails) {
         }
 
         @Override

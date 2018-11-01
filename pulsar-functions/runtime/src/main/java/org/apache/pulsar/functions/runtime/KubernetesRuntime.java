@@ -76,6 +76,7 @@ class KubernetesRuntime implements Runtime {
     public static final Pattern VALID_POD_NAME_REGEX =
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                     Pattern.CASE_INSENSITIVE);
+    private static final String PULSARFUNCTIONS_CONTAINER_NAME = "pulsarfunction";
 
     private final AppsV1Api appsClient;
     private final CoreV1Api coreClient;
@@ -521,6 +522,9 @@ class KubernetesRuntime implements Runtime {
         containers.add(getPrometheusContainer());
         podSpec.containers(containers);
 
+        // Configure secrets
+        secretsProviderConfigurator.configureKubernetesRuntimeSecretsProvider(podSpec, PULSARFUNCTIONS_CONTAINER_NAME, instanceConfig.getFunctionDetails());
+
         return podSpec;
     }
 
@@ -540,7 +544,7 @@ class KubernetesRuntime implements Runtime {
     }
 
     private V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
-        final V1Container container = new V1Container().name("pulsarfunction");
+        final V1Container container = new V1Container().name(PULSARFUNCTIONS_CONTAINER_NAME);
 
         // set up the container images
         container.setImage(pulsarDockerImageName);
@@ -555,9 +559,6 @@ class KubernetesRuntime implements Runtime {
                         .fieldRef(new V1ObjectFieldSelector()
                                 .fieldPath("metadata.name")));
         container.addEnvItem(envVarPodName);
-
-        // Configure secrets
-        secretsProviderConfigurator.configureKubernetesRuntimeSecretsProvider(container, instanceConfig.getFunctionDetails());
 
         // set container resources
         final V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();
