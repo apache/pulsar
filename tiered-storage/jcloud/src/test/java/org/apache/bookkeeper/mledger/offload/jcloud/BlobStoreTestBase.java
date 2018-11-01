@@ -28,9 +28,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 public class BlobStoreTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);

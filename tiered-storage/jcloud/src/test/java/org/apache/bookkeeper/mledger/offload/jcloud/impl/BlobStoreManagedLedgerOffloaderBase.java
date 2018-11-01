@@ -53,7 +53,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 public abstract class BlobStoreManagedLedgerOffloaderBase {
 
-    public final static String BUCKET = "davids-tiered-storage-test";
+    public final static String BUCKET = "pulsar-unittest";
     protected static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     protected static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
     

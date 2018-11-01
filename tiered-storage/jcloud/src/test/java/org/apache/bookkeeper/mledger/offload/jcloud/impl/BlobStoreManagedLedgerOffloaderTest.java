@@ -79,7 +79,7 @@ import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
 class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloaderBase {
-    
+
     private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderTest.class);
 
     BlobStoreManagedLedgerOffloaderTest() throws Exception {
@@ -90,18 +90,18 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     private LedgerOffloader getOffloader() throws IOException {
         return getOffloader(BUCKET);
     }
-    
+
     private LedgerOffloader getOffloader(String bucket) throws IOException {
         TieredStorageConfiguration tsc = getConfiguration(bucket);
         return BlobStoreManagedLedgerOffloader.create(tsc, new HashMap<String,String>(), scheduler);
     }
-    
+
     private LedgerOffloader getOffloader(TieredStorageConfiguration spiedConfig) throws IOException {  
         // Clear out the actual blob store instance, so the Spied blob store is used instead
         BlobStoreRepository.clear(); 
         return BlobStoreManagedLedgerOffloader.create(spiedConfig, Collections.emptyMap(), scheduler);
     }
-    
+
     @BeforeMethod
     public final void init() {
         /*
@@ -112,11 +112,11 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
          * of an actual BlobStore or vice-versa.
          */
         BlobStoreRepository.clear();
-        
+
         // Create the actual blob store that we use for validation.
         blobStore = config.getBlobStore();
     }
-    
+
     @Test(timeOut = 600000)  // 10 minutes.
     public void testHappyCase() throws Exception {
         LedgerOffloader offloader = getOffloader();
@@ -125,12 +125,12 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
 
     @Test(timeOut = 600000)  // 10 minutes.
     public void testBucketDoesNotExist() throws Exception {
-        
+
         if (provider == JCloudBlobStoreProvider.TRANSIENT) {
             // Skip this test, since it isn't applicable.
             return;
         }
-        
+
         LedgerOffloader offloader = getOffloader("some-non-existant-bucket-name");
         try {
             offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
@@ -145,7 +145,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     public void testOffloadAndRead() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
         LedgerOffloader offloader = getOffloader();
-        
+
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
 
@@ -183,12 +183,12 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
             Mockito
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).initiateMultipartUpload(any(), any(), any());
-            
+
             TieredStorageConfiguration spiedConfig = mock(TieredStorageConfiguration.class,
                     delegatesTo(config));
-            
+
             when(spiedConfig.getBlobStore()).thenReturn(spiedBlobStore); 
-            
+
             LedgerOffloader offloader = getOffloader(spiedConfig);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception when initiateMultipartUpload");
@@ -212,12 +212,12 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
             Mockito
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).uploadMultipartPart(any(), anyInt(), any());
-            
+
             TieredStorageConfiguration spiedConfig = mock(TieredStorageConfiguration.class,
                     delegatesTo(config));
-            
+
             when(spiedConfig.getBlobStore()).thenReturn(spiedBlobStore); 
-            
+
             LedgerOffloader offloader = getOffloader(spiedConfig);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception for when uploadPart");
@@ -244,12 +244,12 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
             Mockito
                 .doNothing()
                 .when(spiedBlobStore).abortMultipartUpload(any());
-            
+
             TieredStorageConfiguration spiedConfig = mock(TieredStorageConfiguration.class,
                     delegatesTo(config));
-            
+
             when(spiedConfig.getBlobStore()).thenReturn(spiedBlobStore); 
-            
+
             LedgerOffloader offloader = getOffloader(spiedConfig);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();           
 
@@ -275,12 +275,12 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
             Mockito
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).putBlob(any(), any());
-            
+
             TieredStorageConfiguration spiedConfig = mock(TieredStorageConfiguration.class,
                     delegatesTo(config));
-            
+
             when(spiedConfig.getBlobStore()).thenReturn(spiedBlobStore); 
-            
+
             LedgerOffloader offloader = getOffloader(spiedConfig);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
 
@@ -312,7 +312,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
         }
 
         LedgerOffloader offloader = getOffloader();
-        
+
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
 
@@ -339,7 +339,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
             }
         }
     }
-    
+
     @Test
     public void testOffloadReadInvalidEntryIds() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
@@ -368,7 +368,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
         ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
         LedgerOffloader offloader = getOffloader();
-        
+
         // verify object exist after offload
         offloader.offload(readHandle, uuid, new HashMap<>()).get();
         Assert.assertTrue(blobStore.blobExists(BUCKET, DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid)));
@@ -393,9 +393,9 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
 
         TieredStorageConfiguration spiedConfig = mock(TieredStorageConfiguration.class,
                 delegatesTo(config));
-        
+
         when(spiedConfig.getBlobStore()).thenReturn(spiedBlobStore); 
-        
+
         LedgerOffloader offloader = getOffloader(spiedConfig);
 
         try {
@@ -428,7 +428,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
 
         UUID uuid = UUID.randomUUID();
         LedgerOffloader offloader = getOffloader();
-        
+
         try {
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Shouldn't have been able to offload");
@@ -441,7 +441,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     public void testReadUnknownDataVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         LedgerOffloader offloader = getOffloader();
-        
+
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
 
@@ -480,7 +480,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     public void testReadUnknownIndexVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         LedgerOffloader offloader = getOffloader();
-        
+
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
 

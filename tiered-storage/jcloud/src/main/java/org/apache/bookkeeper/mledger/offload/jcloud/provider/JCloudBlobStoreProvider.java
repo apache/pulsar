@@ -80,21 +80,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         @Override
         public void buildCredentials(TieredStorageConfiguration config) {
-            if (config.getProviderCredentials() == null) {
-                AWSCredentials awsCredentials = null;
-                try {
-                    DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();
-                    awsCredentials = creds.getCredentials();
-                } catch (Exception e) {
-                    // allowed, some mock s3 service do not need credential
-                    log.warn("Exception when get credentials for s3 ", e);
-                }
-                if (awsCredentials != null) {
-                    config.setProviderCredentials(
-                            new Credentials(awsCredentials.getAWSAccessKeyId(),
-                                            awsCredentials.getAWSSecretKey()));
-                }
-            }
+            AWS_CREDENTIAL_BUILDER.buildCredentials(config);
         }
     },
 
@@ -123,6 +109,48 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                     throw new IllegalArgumentException(ioe);
                 }
             }
+        }
+    },
+
+    S3("s3", null) {
+        @Override
+        public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
+            VALIDATION.validate(config);
+        }
+
+        @Override
+        public void buildCredentials(TieredStorageConfiguration config) {
+            AWS_CREDENTIAL_BUILDER.buildCredentials(config);
+        }
+
+        @Override
+        public BlobStore getBlobStore(TieredStorageConfiguration config) {
+//            if (!BlobStoreRepository.containsKey(config.getBlobStoreLocation())) {
+                BlobStore bs = null;
+
+                if (config.getProviderCredentials() != null) {
+                    bs = ContextBuilder.newBuilder("s3")
+                            .credentials(config.getProviderCredentials().identity,
+                                         config.getProviderCredentials().credential)
+                            .overrides(config.getOverrides())
+                            .endpoint(config.getServiceEndpoint())
+                            .buildView(BlobStoreContext.class)
+                            .getBlobStore();
+                } else {
+                    bs = ContextBuilder.newBuilder(config.getProviderMetadata())
+                            .overrides(config.getOverrides())
+                            .endpoint(config.getServiceEndpoint())
+                            .buildView(BlobStoreContext.class)
+                            .getBlobStore();
+                }
+
+                if (bs != null) {
+                    if (!bs.containerExists(config.getBucket())) {
+                        bs.createContainerInLocation(null, config.getBucket());
+                    }
+                }
+//            }
+            return bs;
         }
     },
 
@@ -211,14 +239,14 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             BlobStore bs = null;
 
             if (config.getProviderCredentials() != null) {
-                bs = ContextBuilder.newBuilder(config.getProvider().getDriver().toLowerCase())
+                bs = ContextBuilder.newBuilder(config.getProviderMetadata())
                         .credentials(config.getProviderCredentials().identity,
                                      config.getProviderCredentials().credential)
                         .overrides(config.getOverrides())
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
             } else {
-                bs = ContextBuilder.newBuilder(config.getProvider().getDriver().toLowerCase())
+                bs = ContextBuilder.newBuilder(config.getProviderMetadata())
                         .overrides(config.getOverrides())
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
@@ -229,5 +257,23 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
             }
         }
         return BlobStoreRepository.get(config.getBlobStoreLocation());
+    };
+
+    static final CredentialBuilder AWS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
+        if (config.getProviderCredentials() == null) {
+            AWSCredentials awsCredentials = null;
+            try {
+                DefaultAWSCredentialsProviderChain creds = DefaultAWSCredentialsProviderChain.getInstance();
+                awsCredentials = creds.getCredentials();
+            } catch (Exception e) {
+                // allowed, some mock s3 service do not need credential
+                log.warn("Exception when get credentials for s3 ", e);
+            }
+            if (awsCredentials != null) {
+                config.setProviderCredentials(
+                        new Credentials(awsCredentials.getAWSAccessKeyId(),
+                                        awsCredentials.getAWSSecretKey()));
+            }
+        }
     };
 }
