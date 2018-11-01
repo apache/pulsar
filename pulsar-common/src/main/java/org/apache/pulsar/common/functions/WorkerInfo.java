@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker;
+package org.apache.pulsar.common.functions;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
