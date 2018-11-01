@@ -38,6 +38,8 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
@@ -234,5 +236,14 @@ public class SourceConfigUtils {
             ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
         }
         return classLoader;
+    }
+
+    public static void inferMissingArguments(SourceConfig sourceConfig) {
+        if (sourceConfig.getTenant() == null) {
+            sourceConfig.setTenant(PUBLIC_TENANT);
+        }
+        if (sourceConfig.getNamespace() == null) {
+            sourceConfig.setNamespace(DEFAULT_NAMESPACE);
+        }
     }
 }

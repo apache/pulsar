@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.SinkConfigUtils.inferMissingArguments;
 import static org.apache.pulsar.functions.utils.Utils.BUILTIN;
 
 import com.beust.jcommander.Parameter;
@@ -430,15 +431,6 @@ public class CmdSinks extends CmdBase {
         protected Map<String, Object> parseConfigs(String str) {
             Type type = new TypeToken<Map<String, String>>(){}.getType();
             return new Gson().fromJson(str, type);
-        }
-
-        protected void inferMissingArguments(SinkConfig sinkConfig) {
-            if (sinkConfig.getTenant() == null) {
-                sinkConfig.setTenant(PUBLIC_TENANT);
-            }
-            if (sinkConfig.getNamespace() == null) {
-                sinkConfig.setNamespace(DEFAULT_NAMESPACE);
-            }
         }
 
         protected void validateSinkConfigs(SinkConfig sinkConfig) {

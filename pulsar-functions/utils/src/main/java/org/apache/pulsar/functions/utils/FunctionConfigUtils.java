@@ -35,9 +35,12 @@ import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.util.*;
 
+import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.BUILTIN;
 import static org.apache.pulsar.functions.utils.Utils.loadJar;
 
@@ -293,6 +296,51 @@ public class FunctionConfigUtils {
         }
 
         return functionConfig;
+    }
+
+    public static void inferMissingArguments(FunctionConfig functionConfig) {
+        if (StringUtils.isEmpty(functionConfig.getName())) {
+            inferMissingFunctionName(functionConfig);
+        }
+        if (StringUtils.isEmpty(functionConfig.getTenant())) {
+            inferMissingTenant(functionConfig);
+        }
+        if (StringUtils.isEmpty(functionConfig.getNamespace())) {
+            inferMissingNamespace(functionConfig);
+        }
+
+        if (functionConfig.getParallelism() == 0) {
+            functionConfig.setParallelism(1);
+        }
+
+        if (functionConfig.getJar() != null) {
+            functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        } else if (functionConfig.getPy() != null) {
+            functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+        }
+
+        WindowConfig windowConfig = functionConfig.getWindowConfig();
+        if (windowConfig != null) {
+            WindowConfigUtils.inferMissingArguments(windowConfig);
+            functionConfig.setAutoAck(false);
+        }
+    }
+
+    private static void inferMissingFunctionName(FunctionConfig functionConfig) {
+        String[] domains = functionConfig.getClassName().split("\\.");
+        if (domains.length == 0) {
+            functionConfig.setName(functionConfig.getClassName());
+        } else {
+            functionConfig.setName(domains[domains.length - 1]);
+        }
+    }
+
+    private static void inferMissingTenant(FunctionConfig functionConfig) {
+        functionConfig.setTenant(PUBLIC_TENANT);
+    }
+
+    private static void inferMissingNamespace(FunctionConfig functionConfig) {
+        functionConfig.setNamespace(DEFAULT_NAMESPACE);
     }
 
     private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
