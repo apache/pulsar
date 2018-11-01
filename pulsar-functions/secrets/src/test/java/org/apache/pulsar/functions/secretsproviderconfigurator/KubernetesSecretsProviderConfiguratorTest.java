@@ -51,7 +51,7 @@ public class KubernetesSecretsProviderConfiguratorTest {
         try {
             HashMap<String, Object> map = new HashMap<String, Object>();
             HashMap<String, String> map1 = new HashMap<String, String>();
-            map1.put("id", "secretvalue");
+            map1.put("path", "secretvalue");
             map1.put("key", "secretvalue");
             map.put("secretname", map1);
             provider.validateSecretMap(map);
