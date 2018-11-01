@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.storm;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-
-import com.google.common.base.Preconditions;
 
 /**
  * Class used to specify pulsar spout configuration
@@ -75,7 +74,7 @@ public class PulsarSpoutConfiguration extends PulsarStormConfiguration {
      * @param mapper
      */
     public void setMessageToValuesMapper(MessageToValuesMapper mapper) {
-        this.messageToValuesMapper = Preconditions.checkNotNull(mapper);
+        this.messageToValuesMapper = Objects.requireNonNull(mapper);
     }
 
     /**
