@@ -274,38 +274,6 @@ public class CmdFunctionsTest {
     }
 
     @Test
-    public void testCreateFunctionWithHttpUrl() throws Exception {
-        String fnName = TEST_NAME + "-function";
-        String inputTopicName = TEST_NAME + "-input-topic";
-        String outputTopicName = TEST_NAME + "-output-topic";
-
-        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
-        consoleOutputCapturer.start();
-
-        final String url = "http://localhost:1234/test";
-        cmd.run(new String[] {
-            "create",
-            "--name", fnName,
-            "--inputs", inputTopicName,
-            "--output", outputTopicName,
-            "--jar", url,
-            "--tenant", "sample",
-            "--namespace", "ns1",
-            "--className", DummyFunction.class.getName(),
-        });
-
-        CreateFunction creater = cmd.getCreater();
-
-        consoleOutputCapturer.stop();
-        String output = consoleOutputCapturer.getStderr();
-
-        assertTrue(output.contains("Corrupted Jar File"));
-        assertEquals(fnName, creater.getFunctionName());
-        assertEquals(inputTopicName, creater.getInputs());
-        assertEquals(outputTopicName, creater.getOutput());
-    }
-
-    @Test
     public void testGetFunctionStatus() throws Exception {
         String fnName = TEST_NAME + "-function";
         String tenant = "sample";
@@ -729,89 +697,6 @@ public class CmdFunctionsTest {
     }
 
     @Test
-    public void TestCreateFunctionParallelism() throws Exception{
-
-        String[] correctArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-                "--parallelism", "1"
-        };
-
-        String[] incorrectArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-                "--parallelism", "-1"
-        };
-
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "Function parallelism should positive number");
-
-    }
-
-    @Test
-    public void TestCreateTopicName() throws Exception {
-
-        String[] correctArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        };
-
-        String wrongOutputTopicName = TEST_NAME + "-output-topic/test:";
-        String[] incorrectArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", wrongOutputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        };
-
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "Output topic " + wrongOutputTopicName + " is invalid");
-    }
-
-    @Test
-    public void TestCreateClassName() throws Exception {
-
-        String[] correctArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", DummyFunction.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        };
-
-        String cannotLoadClass = "com.test.Function";
-        String[] incorrectArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", DummyFunction.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", cannotLoadClass,
-        };
-
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "User class must be in class path");
-    }
-
-    @Test
     public void testCreateFunctionWithCpu() throws Exception {
         String fnName = TEST_NAME + "-function";
         String inputTopicName = TEST_NAME + "-input-topic";
@@ -996,35 +881,6 @@ public class CmdFunctionsTest {
         assertEquals(updater.getFunctionConfig().getResources().getRam(), new Long(1073741824l));
         assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString());
-    }
-
-    @Test
-    public void TestCreateSameInOutTopic() throws Exception {
-
-        String[] correctArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        };
-
-        String[] incorrectArgs = new String[]{
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", inputTopicName,
-                "--jar", JAR_NAME,
-                "--tenant", "sample",
-                "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
-        };
-
-        testValidateFunctionsConfigs(correctArgs, incorrectArgs,
-                "Output topic " + inputTopicName
-                        + " is also being used as an input topic (topics must be one or the other)");
-
     }
 
 
