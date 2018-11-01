@@ -36,7 +36,7 @@ import java.util.Map;
  * EnvironmentBasedSecretsConfig as the secrets provider who knows how to read these environment variables
  */
 public class KubernetesSecretsProviderConfigurator implements SecretsProviderConfigurator {
-    private static String ID_KEY = "id";
+    private static String ID_KEY = "path";
     private static String KEY_KEY = "key";
     @Override
     public String getSecretsProviderClassName(Function.FunctionDetails functionDetails) {
