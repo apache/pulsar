@@ -39,6 +39,7 @@ import org.apache.kafka.connect.storage.OffsetBackingStore;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
 import org.apache.kafka.connect.storage.OffsetStorageWriter;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
@@ -47,7 +48,7 @@ import org.apache.pulsar.io.core.SourceContext;
  * A pulsar source that runs
  */
 @Slf4j
-public class KafkaConnectSource implements Source<byte[]> {
+public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
     // kafka connect related variables
     private SourceTaskContext sourceTaskContext;
@@ -118,11 +119,11 @@ public class KafkaConnectSource implements Source<byte[]> {
     }
 
     @Override
-    public Record<byte[]> read() throws Exception {
+    public Record<KeyValue<byte[], byte[]>> read() throws Exception {
         while (true) {
             if (currentBatch == null) {
                 flushFuture = new CompletableFuture<>();
-                List<SourceRecord> recordList =  sourceTask.poll();
+                List<SourceRecord> recordList = sourceTask.poll();
                 if (recordList == null) {
                     Thread.sleep(1000);
                     continue;
@@ -147,10 +148,10 @@ public class KafkaConnectSource implements Source<byte[]> {
         }
     }
 
-    private synchronized Record<byte[]> processSourceRecord(final SourceRecord srcRecord) {
+    private synchronized Record<KeyValue<byte[], byte[]>> processSourceRecord(final SourceRecord srcRecord) {
         outstandingRecords.put(srcRecord, srcRecord);
         offsetWriter.offset(srcRecord.sourcePartition(), srcRecord.sourceOffset());
-        return new Record<byte[]>() {
+        return new Record<KeyValue<byte[], byte[]>>() {
             @Override
             public Optional<String> getKey() {
                 byte[] keyBytes = keyConverter.fromConnectData(
@@ -159,9 +160,12 @@ public class KafkaConnectSource implements Source<byte[]> {
             }
 
             @Override
-            public byte[] getValue() {
-                return valueConverter.fromConnectData(
+            public KeyValue<byte[], byte[]> getValue() {
+                byte[] keyBytes = keyConverter.fromConnectData(
+                    srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
+                byte[] valueBytes = valueConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
+                return new KeyValue(keyBytes, valueBytes);
             }
 
             @Override
