@@ -124,8 +124,7 @@ class RuntimeUtils {
         args.add(String.valueOf(grpcPort));
 
         // state storage configs
-        if (null != stateStorageServiceUrl
-                && instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+        if (null != stateStorageServiceUrl) {
             args.add("--state_storage_serviceurl");
             args.add(stateStorageServiceUrl);
         }
