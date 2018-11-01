@@ -27,6 +27,8 @@ namespace pulsar {
  */
 class TopicMetadata {
    public:
+    virtual ~TopicMetadata() {}
+
     virtual int getNumPartitions() const = 0;
 };
 }  // namespace pulsar

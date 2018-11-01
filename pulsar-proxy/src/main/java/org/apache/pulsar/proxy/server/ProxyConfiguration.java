@@ -18,15 +18,26 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
 import com.google.common.collect.Sets;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ProxyConfiguration implements PulsarConfiguration {
+    private final static Logger log = LoggerFactory.getLogger(ProxyConfiguration.class);
 
     // Local-Zookeeper quorum connection string
     private String zookeeperServers;
@@ -119,7 +130,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
     // Specify whether Client certificates are required for TLS
     // Reject the Connection if the Client Certificate is not trusted.
     private boolean tlsRequireTrustedClientCertOnConnect = false;
-    
+
+    // Http redirects to redirect to non-pulsar services
+    private Set<HttpReverseProxyConfig> httpReverseProxyConfigs = Sets.newHashSet();
+
+    // Http output buffer size. The amount of data that will be buffered for http requests
+    // before it is flushed to the channel. A larger buffer size may result in higher http throughput
+    // though it may take longer for the client to see data.
+    // If using HTTP streaming via the reverse proxy, this should be set to the minimum value, 1,
+    // so that clients see the data as soon as possible.
+    @FieldContext(minValue = 1)
+    private int httpOutputBufferSize = 32*1024;
+
     private Properties properties = new Properties();
 
     public boolean forwardAuthorizationCredentials() {
@@ -370,6 +392,29 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setProperties(Properties properties) {
         this.properties = properties;
+
+        Map<String, Map<String, String>> redirects = new HashMap<>();
+        Pattern redirectPattern = Pattern.compile("^httpReverseProxy\\.([^\\.]*)\\.(.+)$");
+        Map<String, List<Matcher>> groups = properties.stringPropertyNames().stream()
+            .map((s) -> redirectPattern.matcher(s))
+            .filter(Matcher::matches)
+            .collect(Collectors.groupingBy((m) -> m.group(1))); // group by name
+
+        groups.entrySet().forEach((e) -> {
+                Map<String, String> keyToFullKey = e.getValue().stream().collect(
+                        Collectors.toMap(m -> m.group(2), m -> m.group(0)));
+                if (!keyToFullKey.containsKey("path")) {
+                    throw new IllegalArgumentException(
+                            String.format("httpReverseProxy.%s.path must be specified exactly once", e.getKey()));
+                }
+                if (!keyToFullKey.containsKey("proxyTo")) {
+                    throw new IllegalArgumentException(
+                            String.format("httpReverseProxy.%s.proxyTo must be specified exactly once", e.getKey()));
+                }
+                httpReverseProxyConfigs.add(new HttpReverseProxyConfig(e.getKey(),
+                                                    properties.getProperty(keyToFullKey.get("path")),
+                                                    properties.getProperty(keyToFullKey.get("proxyTo"))));
+            });
     }
 
     public Set<String> getTlsProtocols() {
@@ -410,5 +455,50 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
         this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
+    }
+
+    public int getHttpOutputBufferSize() {
+        return httpOutputBufferSize;
+    }
+
+    public void setHttpOutputBufferSize(int httpOutputBufferSize) {
+        this.httpOutputBufferSize = httpOutputBufferSize;
+    }
+
+    public Set<HttpReverseProxyConfig> getHttpReverseProxyConfigs() {
+        return httpReverseProxyConfigs;
+    }
+
+    public void setHttpReverseProxyConfigs(Set<HttpReverseProxyConfig> reverseProxyConfigs) {
+        this.httpReverseProxyConfigs = reverseProxyConfigs;
+    }
+
+    public static class HttpReverseProxyConfig {
+        private final String name;
+        private final String path;
+        private final String proxyTo;
+
+        HttpReverseProxyConfig(String name, String path, String proxyTo) {
+            this.name = name;
+            this.path = path;
+            this.proxyTo = proxyTo;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public String getProxyTo() {
+            return proxyTo;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("HttpReverseProxyConfig(%s, path=%s, proxyTo=%s)", name, path, proxyTo);
+        }
     }
 }

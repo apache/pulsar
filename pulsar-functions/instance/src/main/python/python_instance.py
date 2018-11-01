@@ -36,6 +36,7 @@ from collections import namedtuple
 from threading import Timer
 import traceback
 import sys
+import re
 
 import pulsar
 import contextimpl
@@ -143,6 +144,7 @@ class PythonInstance(object):
                expected_healthcheck_interval,
                user_code,
                pulsar_client,
+               secrets_provider,
                state_storage_serviceurl):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
@@ -169,6 +171,7 @@ class PythonInstance(object):
     self.last_health_check_ts = time.time()
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
     self.expected_healthcheck_interval = expected_healthcheck_interval
+    self.secrets_provider = secrets_provider
     self.state_context = state_context.NullStateContext()
 
   def health_check(self):
@@ -203,7 +206,7 @@ class PythonInstance(object):
       else:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
       self.input_serdes[topic] = serde_kclass()
-      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
@@ -217,10 +220,10 @@ class PythonInstance(object):
       else:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
       self.input_serdes[topic] = serde_kclass()
-      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       if consumer_conf.isRegexPattern:
-        self.consumers[topic] = self.pulsar_client.subscribe_pattern(
-          str(topic), subscription_name,
+        self.consumers[topic] = self.pulsar_client.subscribe(
+          re.compile(str(topic)), subscription_name,
           consumer_type=mode,
           message_listener=partial(self.message_listener, self.input_serdes[topic]),
           unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
@@ -242,8 +245,7 @@ class PythonInstance(object):
     except:
       self.function_purefunction = function_kclass
 
-    self.contextimpl = contextimpl.ContextImpl(
-      self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers, self.state_context)
+    self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers, self.secrets_provider, self.state_context)
     # Now launch a thread that does execution
     self.exeuction_thread = threading.Thread(target=self.actual_execution)
     self.exeuction_thread.start()
@@ -254,7 +256,7 @@ class PythonInstance(object):
       Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
 
   def actual_execution(self):
-    Log.info("Started Thread for executing the function")
+    Log.debug("Started Thread for executing the function")
     while True:
       msg = self.queue.get(True)
       if isinstance(msg, InternalQuitMessage):
@@ -311,7 +313,7 @@ class PythonInstance(object):
       if self.producer is None:
         self.setup_producer()
       try:
-        output_bytes = bytes(self.output_serde.serialize(output))
+        output_bytes = self.output_serde.serialize(output)
       except:
         self.current_stats.nserialization_exceptions += 1
         self.total_stats.nserialization_exceptions += 1
@@ -338,7 +340,7 @@ class PythonInstance(object):
   def setup_producer(self):
     if self.instance_config.function_details.sink.topic != None and \
             len(self.instance_config.function_details.sink.topic) > 0:
-      Log.info("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
+      Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
@@ -411,7 +413,6 @@ class PythonInstance(object):
     status.serializationExceptions = self.total_stats.nserialization_exceptions
     status.averageLatency = self.total_stats.compute_latency()
     status.lastInvocationTime = self.total_stats.lastinvocationtime
-    status.metrics.CopyFrom(self.get_metrics())
     return status
 
   def join(self):

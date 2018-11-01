@@ -98,7 +98,7 @@ public class WordCountFunction implements Function<String, Void> {
 ```bash
 $ bin/pulsar-admin functions create \
   --jar target/my-jar-with-dependencies.jar \
-  --classname org.example.functions.WordCountFunction \
+  --className org.example.functions.WordCountFunction \
   --tenant public \
   --namespace default \
   --name word-count \
@@ -149,7 +149,7 @@ $ bin/pulsar-functions localrun \
   --inputs persistent://public/default/test_src \
   --output persistent://public/default/test_result \
   --jar examples/api-examples.jar \
-  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction
+  --className org.apache.pulsar.functions.api.examples.ExclamationFunction
 ```
 
 ## Fully Qualified Function Name (FQFN)
@@ -173,7 +173,7 @@ If you're supplying a YAML configuration, you must specify a path to the file on
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --function-config-file ./my-function.yaml
+  --functionConfigFile ./my-function.yaml
 ```
 
 And here's an example `my-function.yaml` file:
@@ -278,7 +278,7 @@ If you run a Pulsar Function in **local run** mode, it will run on the machine f
 ```bash
 $ bin/pulsar-admin functions localrun \
   --py myfunc.py \
-  --classname myfunc.SomeFunction \
+  --className myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
@@ -287,7 +287,7 @@ By default, the function will connect to a Pulsar cluster running on the same ma
 
 ```bash
 $ bin/pulsar-admin functions localrun \
-  --broker-service-url pulsar://my-cluster-host:6650 \
+  --brokerServiceUrl pulsar://my-cluster-host:6650 \
   # Other function parameters
 ```
 
@@ -298,7 +298,7 @@ When you run a Pulsar Function in **cluster mode**, the function code will be up
 ```bash
 $ bin/pulsar-admin functions create \
   --py myfunc.py \
-  --classname myfunc.SomeFunction \
+  --className myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
@@ -317,7 +317,7 @@ $ bin/pulsar-admin functions create \
   --tenant public \
   --namespace default \
   --py func.py \
-  --classname func.ParallelFunction \
+  --className func.ParallelFunction \
   --parallelism 5
 ```
 
@@ -336,7 +336,7 @@ Here's an example function creation command that allocates 8 cores, 8 GB of RAM,
 ```bash
 $ bin/pulsar-admin functions create \
   --jar target/my-functions.jar \
-  --classname org.example.functions.MyFunction \
+  --className org.example.functions.MyFunction \
   --cpu 8 \
   --ram 8589934592 \
   --disk 10737418240
@@ -351,7 +351,7 @@ Pulsar Functions created using the [Pulsar Functions SDK](#the-pulsar-functions-
 ```bash
 $ bin/pulsar-admin functions create \
   --name my-func-1 \
-  --log-topic persistent://public/default/my-func-1-log \
+  --logTopic persistent://public/default/my-func-1-log \
   # Other configs
 ```
 
@@ -379,7 +379,7 @@ Here's an example of passing a user configuration to a function:
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --user-config '{"key-1":"value-1","key-2","value-2"}' \
+  --userConfig '{"key-1":"value-1","key-2","value-2"}' \
   # Other configs
 ```
 
@@ -417,7 +417,7 @@ $ bin/pulsar-admin functions trigger \
   --tenant public \
   --namespace default \
   --name reverse-func \
-  --trigger-value "snoitcnuf raslup ot emoclew"
+  --triggerValue "snoitcnuf raslup ot emoclew"
 ```
 
 That should return `welcome to pulsar functions` as the console output.
@@ -439,7 +439,7 @@ This command, for example, would run a function in [cluster mode](#cluster-run-m
 ```bash
 $ bin/pulsar-admin functions create \
   --name my-effectively-once-function \
-  --processing-guarantees EFFECTIVELY_ONCE \
+  --processingGuarantees EFFECTIVELY_ONCE \
   # Other function configs
 ```
 

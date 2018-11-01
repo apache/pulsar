@@ -467,7 +467,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }, null);
 
-        counter.await();
+        counter.await(ledger.getConfig().getMetadataOperationsTimeoutSeconds(), TimeUnit.SECONDS);
 
         if (result.exception != null) {
             throw result.exception;

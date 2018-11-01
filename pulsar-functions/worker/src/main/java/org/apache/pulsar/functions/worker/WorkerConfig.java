@@ -140,9 +140,23 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private String pulsarServiceUrl;
         private String pulsarAdminUrl;
         private Boolean installUserCodeDependencies;
+        private String pythonDependencyRepository;
+        private String pythonExtraDependencyRepository;
         private Map<String, String> customLabels;
+        private Integer expectedMetricsCollectionInterval = 30;
+        // Kubernetes Runtime will periodically checkback on
+        // this configMap if defined and if there are any changes
+        // to the kubernetes specific stuff, we apply those changes
+        private String changeConfigMap;
+        private String changeConfigMapNamespace;
     }
     private KubernetesContainerFactory kubernetesContainerFactory;
+
+    // The classname of the secrets provider configurator.
+    private String secretsProviderConfiguratorClassName;
+    // Any config the secret provider configurator might need. This is passed on
+    // to the init method of the secretproviderconfigurator
+    private Map<String, String> secretsProviderConfiguratorConfig;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

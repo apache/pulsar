@@ -48,12 +48,13 @@ class AccumulatedMetricDatum(object):
       self.min = value
 
 class ContextImpl(pulsar.Context):
-  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, state_context):
+  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider, state_context):
     self.instance_config = instance_config
     self.log = logger
     self.pulsar_client = pulsar_client
     self.user_code_dir = os.path.dirname(user_code)
     self.consumers = consumers
+    self.secrets_provider = secrets_provider
     self.state_context = state_context
     self.current_accumulated_metrics = {}
     self.accumulated_metrics = {}
@@ -65,6 +66,9 @@ class ContextImpl(pulsar.Context):
     self.user_config = json.loads(instance_config.function_details.userConfig) \
       if instance_config.function_details.userConfig \
       else []
+    self.secrets_map = json.loads(instance_config.function_details.secretsMap) \
+      if instance_config.function_details.secretsMap \
+      else {}
 
   # Called on a per message basis to set the context for the current message
   def set_current_message_context(self, msgid, topic):
@@ -76,7 +80,7 @@ class ContextImpl(pulsar.Context):
     return self.current_message_id
 
   def get_current_message_topic_name(self):
-    return self.current_topic_name
+    return self.current_input_topic_name
 
   def get_function_name(self):
     return self.instance_config.function_details.name
@@ -108,6 +112,11 @@ class ContextImpl(pulsar.Context):
   def get_user_config_map(self):
     return self.user_config
 
+  def get_secret(self, secret_key):
+    if not secret_key in self.secrets_map:
+      return None
+    return self.secrets_provider.provide_secret(secret_key, self.secrets_map[secret_key])
+
   def record_metric(self, metric_name, metric_value):
     if not metric_name in self.current_accumulated_metrics:
       self.current_accumulated_metrics[metric_name] = AccumulatedMetricDatum()
@@ -119,17 +128,21 @@ class ContextImpl(pulsar.Context):
   def get_output_serde_class_name(self):
     return self.instance_config.function_details.outputSerdeClassName
 
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe"):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
     # Just make sure that user supplied values are properly typed
     topic_name = str(topic_name)
     serde_class_name = str(serde_class_name)
+    pulsar_compression_type = pulsar._pulsar.CompressionType.NONE
+    if compression_type is not None:
+      pulsar_compression_type = compression_type
     if topic_name not in self.publish_producers:
       self.publish_producers[topic_name] = self.pulsar_client.create_producer(
         topic_name,
         block_if_queue_full=True,
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
-        max_pending_messages=100000
+        max_pending_messages=100000,
+        compression_type=pulsar_compression_type
       )
 
     if serde_class_name not in self.publish_serializers:
@@ -137,7 +150,7 @@ class ContextImpl(pulsar.Context):
       self.publish_serializers[serde_class_name] = serde_klass()
 
     output_bytes = bytes(self.publish_serializers[serde_class_name].serialize(message))
-    self.publish_producers[topic_name].send_async(output_bytes, None)
+    self.publish_producers[topic_name].send_async(output_bytes, None, properties=properties)
 
   def ack(self, msgid, topic):
     if topic not in self.consumers:

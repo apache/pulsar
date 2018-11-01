@@ -21,18 +21,18 @@ package org.apache.pulsar.proxy.server;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.Lists;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
+import io.prometheus.client.jetty.JettyStatisticsCollector;
 
 import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimeZone;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import javax.servlet.DispatcherType;
 
@@ -43,6 +43,8 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.Slf4jRequestLog;
@@ -50,6 +52,7 @@ import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -68,22 +71,28 @@ public class WebServer {
     private static final String MATCH_ALL = "/*";
 
     private final Server server;
-    private final ExecutorService webServiceExecutor;
+    private final ExecutorThreadPool webServiceExecutor;
     private final AuthenticationService authenticationService;
+    private final List<String> servletPaths = Lists.newArrayList();
     private final List<Handler> handlers = Lists.newArrayList();
     private final ProxyConfiguration config;
-    protected final int externalServicePort;
+    protected int externalServicePort;
+    private URI serviceURI = null;
 
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
-        this.webServiceExecutor = Executors.newFixedThreadPool(32, new DefaultThreadFactory("pulsar-external-web"));
-        this.server = new Server(new ExecutorThreadPool(webServiceExecutor));
+        this.webServiceExecutor = new ExecutorThreadPool();
+        this.webServiceExecutor.setName("pulsar-external-web");
+        this.server = new Server(webServiceExecutor);
         this.externalServicePort = config.getWebServicePort();
         this.authenticationService = authenticationService;
         this.config = config;
 
         List<ServerConnector> connectors = Lists.newArrayList();
 
-        ServerConnector connector = new ServerConnector(server, 1, 1);
+        HttpConfiguration http_config = new HttpConfiguration();
+        http_config.setOutputBufferSize(config.getHttpOutputBufferSize());
+
+        ServerConnector connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
         connector.setPort(externalServicePort);
         connectors.add(connector);
 
@@ -109,7 +118,7 @@ public class WebServer {
     }
 
     public URI getServiceUri() {
-        return this.server.getURI();
+        return serviceURI;
     }
 
     public void addServlet(String basePath, ServletHolder servletHolder) {
@@ -117,6 +126,13 @@ public class WebServer {
     }
 
     public void addServlet(String basePath, ServletHolder servletHolder, List<Pair<String, Object>> attributes) {
+        Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
+        if (existingPath.isPresent()) {
+            throw new IllegalArgumentException(
+                    String.format("Cannot add servlet at %s, path %s already exists", basePath, existingPath.get()));
+        }
+        servletPaths.add(basePath);
+
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
         context.addServlet(servletHolder, "/*");
@@ -165,10 +181,34 @@ public class WebServer {
 
         HandlerCollection handlerCollection = new HandlerCollection();
         handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
-        server.setHandler(handlerCollection);
+
+        // Metrics handler
+        StatisticsHandler stats = new StatisticsHandler();
+        stats.setHandler(handlerCollection);
+        try {
+            new JettyStatisticsCollector(stats).register();
+        } catch (IllegalArgumentException e) {
+            // Already registered. Eg: in unit tests
+        }
+
+        server.setHandler(stats);
 
         try {
             server.start();
+
+            Arrays.stream(server.getConnectors())
+                .filter(c -> c instanceof ServerConnector)
+                .findFirst().ifPresent(c -> {
+                        WebServer.this.externalServicePort = ((ServerConnector) c).getPort();
+                    });
+
+            // server reports URI of first servlet, we want to strip that path off
+            URI reportedURI = server.getURI();
+            serviceURI = new URI(reportedURI.getScheme(),
+                                 null,
+                                 reportedURI.getHost(),
+                                 reportedURI.getPort(),
+                                 null, null, null);
         } catch (Exception e) {
             List<Integer> ports = new ArrayList<>();
             for (Connector c : server.getConnectors()) {
@@ -184,7 +224,7 @@ public class WebServer {
 
     public void stop() throws Exception {
         server.stop();
-        webServiceExecutor.shutdown();
+        webServiceExecutor.stop();
         log.info("Server stopped successfully");
     }
 

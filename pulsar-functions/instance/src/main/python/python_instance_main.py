@@ -29,6 +29,8 @@ import sys
 import signal
 import time
 import zipfile
+import json
+import inspect
 
 import pulsar
 
@@ -71,8 +73,13 @@ def main():
   parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
   parser.add_argument('--logging_directory', required=True, help='Logging Directory')
   parser.add_argument('--logging_file', required=True, help='Log file name')
+  parser.add_argument('--logging_config_file', required=True, help='Config file for logging')
   parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
+  parser.add_argument('--secrets_provider', required=False, help='The classname of the secrets provider')
+  parser.add_argument('--secrets_provider_config', required=False, help='The config that needs to be passed to secrets provider')
   parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
+  parser.add_argument('--dependency_repository', required=False, help='For packaged python like wheel files, which repository to pull the dependencies from')
+  parser.add_argument('--extra_dependency_repository', required=False, help='For packaged python like wheel files, any extra repository to pull the dependencies from')
   parser.add_argument('--state_storage_serviceurl', required=False, help='Managed State Storage Service Url')
 
   args = parser.parse_args()
@@ -86,7 +93,13 @@ def main():
 
   if os.path.splitext(str(args.py))[1] == '.whl':
     if args.install_usercode_dependencies:
-      os.system("pip install -t %s %s" % (os.path.dirname(str(args.py)), str(args.py)))
+      cmd = "pip install -t %s" % os.path.dirname(str(args.py))
+      if args.dependency_repository:
+        cmd = cmd + " -i %s" % str(args.dependency_repository)
+      if args.extra_dependency_repository:
+        cmd = cmd + " --extra-index-url %s" % str(args.extra_dependency_repository)
+      cmd = cmd + " %s" % str(args.py)
+      os.system(cmd)
     else:
       zpfile = zipfile.ZipFile(str(args.py), 'r')
       zpfile.extractall(os.path.dirname(str(args.py)))
@@ -95,8 +108,7 @@ def main():
   log_file = os.path.join(args.logging_directory,
                           util.getFullyQualifiedFunctionName(function_details.tenant, function_details.namespace, function_details.name),
                           "%s-%s.log" % (args.logging_file, args.instance_id))
-  log.init_rotating_logger(level=logging.INFO, logfile=log_file,
-                           max_files=5, max_bytes=10 * 1024 * 1024)
+  log.init_logger(logging.INFO, log_file, args.logging_config_file)
 
   Log.info("Starting Python instance with %s" % str(args))
 
@@ -118,6 +130,16 @@ def main():
   if args.state_storage_serviceurl is not None:
     state_storage_serviceurl = str(args.state_storage_serviceurl)
 
+  secrets_provider = None
+  if args.secrets_provider is not None:
+    secrets_provider = util.import_class(os.path.dirname(inspect.getfile(inspect.currentframe())), str(args.secrets_provider))
+  else:
+    secrets_provider = util.import_class(os.path.dirname(inspect.getfile(inspect.currentframe())), "secretsprovider.ClearTextSecretsProvider")
+  secrets_provider = secrets_provider()
+  secrets_provider_config = None
+  if args.secrets_provider_config is not None:
+    secrets_provider_config = json.loads(str(args.secrets_provider_config))
+  secrets_provider.init(secrets_provider_config)
 
   pyinstance = python_instance.PythonInstance(str(args.instance_id), str(args.function_id),
                                               str(args.function_version), function_details,
@@ -125,6 +147,7 @@ def main():
                                               int(args.expected_healthcheck_interval),
                                               str(args.py),
                                               pulsar_client,
+                                              secrets_provider,
                                               state_storage_serviceurl)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)

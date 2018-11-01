@@ -37,28 +37,18 @@ import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import com.google.common.collect.ImmutableMap;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.io.core.SinkContext;
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
 import org.mockito.ArgumentMatcher;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -169,7 +159,8 @@ public class PulsarSinkTest {
         PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
 
         try {
-            pulsarSink.initializeSchema();
+            Schema schema = pulsarSink.initializeSchema();
+            assertEquals(schema, (Schema)null);
         } catch (Exception ex) {
             ex.printStackTrace();
             assertEquals(ex, null);

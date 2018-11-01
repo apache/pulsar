@@ -35,6 +35,7 @@ popd
 cp $PULSAR_PATH/distribution/server/target/apache-pulsar-$VERSION-src.tar.gz $DEST_PATH
 cp $PULSAR_PATH/distribution/server/target/apache-pulsar-$VERSION-bin.tar.gz $DEST_PATH
 cp $PULSAR_PATH/distribution/io/target/apache-pulsar-io-connectors-$VERSION-bin.tar.gz $DEST_PATH
+cp $PULSAR_PATH/distribution/offloaders/target/apache-pulsar-offloaders-$VERSION-bin.tar.gz $DEST_PATH
 
 mkdir $DEST_PATH/RPMS
 cp -r $PULSAR_PATH/pulsar-client-cpp/pkg/rpm/RPMS/x86_64/* $DEST_PATH/RPMS

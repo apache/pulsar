@@ -99,13 +99,19 @@ class Context(object):
     pass
 
   @abstractmethod
+  def get_secret(self, secret_name):
+    """Returns the secret value associated with the name. None if nothing was found"""
+    pass
+
+  @abstractmethod
   def record_metric(self, metric_name, metric_value):
     """Records the metric_value. metric_value has to satisfy isinstance(metric_value, numbers.Number)"""
     pass
 
   @abstractmethod
-  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe"):
-    """Publishes message to topic_name by first serializing the message using serde_class_name serde"""
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe", properties=None, compression_type=None):
+    """Publishes message to topic_name by first serializing the message using serde_class_name serde
+    The message will have properties specified if any"""
     pass
 
   @abstractmethod

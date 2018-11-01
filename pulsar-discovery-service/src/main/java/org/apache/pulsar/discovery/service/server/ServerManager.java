@@ -23,10 +23,7 @@ import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import javax.net.ssl.SSLContext;
 import javax.servlet.Servlet;
 
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -48,21 +45,20 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
-
 /**
  * Manages web-service startup/stop on jetty server.
  *
  */
 public class ServerManager {
     private final Server server;
-    private final ExecutorService webServiceExecutor;
+    private final ExecutorThreadPool webServiceExecutor;
     private final List<Handler> handlers = Lists.newArrayList();
     protected final int externalServicePort;
 
     public ServerManager(ServiceConfig config) {
-        this.webServiceExecutor = Executors.newFixedThreadPool(32, new DefaultThreadFactory("pulsar-external-web"));
-        this.server = new Server(new ExecutorThreadPool(webServiceExecutor));
+        this.webServiceExecutor = new ExecutorThreadPool();
+        this.webServiceExecutor.setName("pulsar-external-web");
+        this.server = new Server(webServiceExecutor);
         this.externalServicePort = config.getWebServicePort();
 
         List<ServerConnector> connectors = Lists.newArrayList();
@@ -134,7 +130,7 @@ public class ServerManager {
 
     public void stop() throws Exception {
         server.stop();
-        webServiceExecutor.shutdown();
+        webServiceExecutor.stop();
         log.info("Server stopped successfully");
     }
     

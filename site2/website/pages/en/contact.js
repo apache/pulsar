@@ -18,19 +18,19 @@ class Contact extends React.Component {
       {
         email: 'users@pulsar.apache.org',
         desc: 'User-related discussions',
-        subscribe: 'mailto:users@pulsar.apache.org',
+        subscribe: 'mailto:users-subscribe@pulsar.apache.org',
         unsubscribe: 'mailto:users-unsubscribe@pulsar.apache.org',
         archives: 'http://mail-archives.apache.org/mod_mbox/pulsar-users/'
       },
       {
         email: 'dev@pulsar.apache.org',
         desc: 'Development-related discussions',
-        subscribe: 'mailto:dev@pulsar.apache.org',
+        subscribe: 'mailto:dev-subscribe@pulsar.apache.org',
         unsubscribe: 'mailto:dev-unsubscribe@pulsar.apache.org',
         archives: 'http://mail-archives.apache.org/mod_mbox/pulsar-dev/'
       },
       {
-        email: 'dev@pulsar.apache.org',
+        email: 'commits@pulsar.apache.org',
         desc: 'All commits to the Pulsar repository',
         subscribe: 'mailto:commits-subscribe@pulsar.apache.org',
         unsubscribe: 'mailto:commits-unsubscribe@pulsar.apache.org',

@@ -61,7 +61,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
 
-    ConsumerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+    public ConsumerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ConsumerConfigurationData<T>(), schema);
     }
 

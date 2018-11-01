@@ -49,6 +49,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
@@ -101,12 +102,16 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     private final TopicSchema topicSchema;
 
+    private final SecretsProvider secretsProvider;
+    private final Map<String, Object> secretsMap;
+
     @Getter
     @Setter
     private StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
-    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics) {
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
+                       SecretsProvider secretsProvider) {
         this.config = config;
         this.logger = logger;
         this.currentAccumulatedMetrics = new ConcurrentHashMap<>();
@@ -124,6 +129,14 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             userConfigs = new Gson().fromJson(config.getFunctionDetails().getUserConfig(),
                     new TypeToken<Map<String, Object>>() {
                     }.getType());
+        }
+        this.secretsProvider = secretsProvider;
+        if (!StringUtils.isEmpty(config.getFunctionDetails().getSecretsMap())) {
+            secretsMap = new Gson().fromJson(config.getFunctionDetails().getSecretsMap(),
+                    new TypeToken<Map<String, Object>>() {
+                    }.getType());
+        } else {
+            secretsMap = new HashMap<>();
         }
     }
 
@@ -210,6 +223,15 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     @Override
     public Map<String, Object> getUserConfigMap() {
         return userConfigs;
+    }
+
+    @Override
+    public String getSecret(String secretName) {
+        if (secretsMap.containsKey(secretName)) {
+            return secretsProvider.provideSecret(secretName, secretsMap.get(secretName));
+        } else {
+            return null;
+        }
     }
 
     private void ensureStateEnabled() {

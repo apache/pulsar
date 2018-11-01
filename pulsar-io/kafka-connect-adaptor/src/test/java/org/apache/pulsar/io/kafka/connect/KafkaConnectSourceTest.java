@@ -18,33 +18,19 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.kafka.connect.file.FileStreamSourceTask.FILENAME_FIELD;
 import static org.apache.kafka.connect.file.FileStreamSourceTask.POSITION_FIELD;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 import java.io.File;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
-import org.apache.kafka.connect.file.FileStreamSourceTask;
 import org.apache.kafka.connect.runtime.TaskConfig;
-import org.apache.kafka.connect.source.SourceRecord;
-import org.apache.kafka.connect.util.Callback;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.AfterMethod;
@@ -70,9 +56,9 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         super.internalSetup();
         super.producerBaseSetup();
 
-        config.put(TaskConfig.TASK_CLASS_CONFIG, org.apache.kafka.connect.file.FileStreamSourceTask.class);
-        config.put(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG, org.apache.kafka.connect.storage.StringConverter.class);
-        config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, org.apache.kafka.connect.storage.StringConverter.class);
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
+        config.put(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, "org.apache.kafka.connect.storage.StringConverter");
 
         this.offsetTopicName = "persistent://my-property/my-ns/kafka-connect-source-offset";
         config.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
