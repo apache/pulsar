@@ -20,7 +20,6 @@ package org.apache.pulsar.admin.cli;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
@@ -67,7 +66,6 @@ import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.windowing.WindowUtils;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -479,7 +477,7 @@ public class CmdFunctions extends CmdBase {
             }
 
             // infer default vaues
-            inferMissingArguments(functionConfig);
+            FunctionConfigUtils.inferMissingArguments(functionConfig);
 
             // check if configs are valid
             validateFunctionConfigs(functionConfig);
@@ -513,55 +511,6 @@ public class CmdFunctions extends CmdBase {
             } catch (Exception e) {
                 throw new IllegalArgumentException(e.getMessage());
             }
-        }
-
-        private void inferMissingArguments(FunctionConfig functionConfig) {
-            if (StringUtils.isEmpty(functionConfig.getName())) {
-                inferMissingFunctionName(functionConfig);
-            }
-            if (StringUtils.isEmpty(functionConfig.getTenant())) {
-                inferMissingTenant(functionConfig);
-            }
-            if (StringUtils.isEmpty(functionConfig.getNamespace())) {
-                inferMissingNamespace(functionConfig);
-            }
-
-            if (functionConfig.getParallelism() == 0) {
-                functionConfig.setParallelism(1);
-            }
-
-            if (functionConfig.getJar() != null) {
-                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-            } else if (functionConfig.getPy() != null) {
-                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
-            }
-
-            WindowConfig windowConfig = functionConfig.getWindowConfig();
-            if (windowConfig != null) {
-                WindowUtils.inferDefaultConfigs(windowConfig);
-                functionConfig.setAutoAck(false);
-            }
-        }
-
-        private void inferMissingFunctionName(FunctionConfig functionConfig) {
-            if (isNull(functionConfig.getClassName())) {
-                throw new ParameterException("You must specify a class name for the function");
-            }
-
-            String[] domains = functionConfig.getClassName().split("\\.");
-            if (domains.length == 0) {
-                functionConfig.setName(functionConfig.getClassName());
-            } else {
-                functionConfig.setName(domains[domains.length - 1]);
-            }
-        }
-
-        private void inferMissingTenant(FunctionConfig functionConfig) {
-            functionConfig.setTenant(PUBLIC_TENANT);
-        }
-
-        private void inferMissingNamespace(FunctionConfig functionConfig) {
-            functionConfig.setNamespace(DEFAULT_NAMESPACE);
         }
     }
 
