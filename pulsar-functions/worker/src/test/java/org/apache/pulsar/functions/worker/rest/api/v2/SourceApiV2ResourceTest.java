@@ -24,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Record;
@@ -34,7 +33,6 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
@@ -218,7 +216,7 @@ public class SourceApiV2ResourceTest {
             className,
             parallelism,
                 null,
-                "Function Package is not provided");
+                "Source Package is not provided");
     }
 
     @Test
@@ -234,7 +232,7 @@ public class SourceApiV2ResourceTest {
             className,
             parallelism,
                 null,
-                "Function Package is not provided");
+                "zip file is empty");
     }
 
     @Test
@@ -284,7 +282,7 @@ public class SourceApiV2ResourceTest {
                 className,
                 parallelism,
                 "http://localhost:1234/test",
-                "Corrupt User PackageFile " + "http://localhost:1234/test");
+                "Corrupt User PackageFile " + "http://localhost:1234/test with error Connection refused (Connection refused)");
     }
 
     private void testRegisterSourceMissingArguments(
@@ -511,7 +509,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                "Source Package is not provided");
     }
 
     @Test
@@ -526,7 +524,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                "zip file is empty");
     }
 
     @Test
@@ -640,7 +638,7 @@ public class SourceApiV2ResourceTest {
             tenant,
             namespace,
                 source,
-            mockedInputStream,
+                new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
             null,
@@ -699,8 +697,7 @@ public class SourceApiV2ResourceTest {
     public void testUpdateSourceWithUrl() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
 
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        String filePackageUrl = "file://" + fileLocation;
+        String filePackageUrl = "file://" + JAR_FILE_PATH;
 
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTopicName(outputTopic);
