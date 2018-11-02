@@ -71,7 +71,6 @@ public class TestCmdSources {
             = FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
     private static final Integer PARALLELISM = 1;
     private static final String JAR_FILE_NAME = "dummy.nar";
-    private static final String WRONG_JAR_FILE_NAME = "wrong_dummy.nar";
     private String JAR_FILE_PATH;
     private static final Double CPU = 100.0;
     private static final Long RAM = 1024L * 1024L;
