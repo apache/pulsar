@@ -56,8 +56,7 @@ import org.testng.annotations.Test;
 @Slf4j
 @PrepareForTest({CmdFunctions.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*", "org.apache.pulsar.functions.api.*" })
-public class PulsarWorkerAssignmentTest.java
-        TestCmdSinks {
+public class TestCmdSinks {
 
     @ObjectFactory
     public IObjectFactory getObjectFactory() {
