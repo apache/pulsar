@@ -73,7 +73,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link SourceApiV2Resource}.
  */
-@PrepareForTest({Utils.class, ConnectorUtils.class})
+@PrepareForTest({Utils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 @Slf4j
 public class SourceApiV2ResourceTest {
@@ -151,10 +151,6 @@ public class SourceApiV2ResourceTest {
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
         Mockito.doReturn("Source").when(this.resource).calculateSubjectType(any());
-
-        mockStatic(ConnectorUtils.class);
-        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
-        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
     }
 
     //
