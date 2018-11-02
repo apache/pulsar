@@ -281,7 +281,7 @@ public class SourceApiV2ResourceTest {
             String className,
             Integer parallelism,
             String pkgUrl,
-            String errorExpected) throws IOException {
+            String errorExpected) {
         SourceConfig sourceConfig = new SourceConfig();
         if (tenant != null) {
             sourceConfig.setTenant(tenant);
