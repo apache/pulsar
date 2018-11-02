@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.zookeeper.aspectj;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Lists;
 import org.apache.bookkeeper.util.MathUtils;
@@ -83,16 +84,16 @@ public class ClientCnxnAspect {
     }
 
     private void processEvent(ProceedingJoinPoint joinPoint) {
-        long startTimeMs = getStartTime(joinPoint.getArgs()[0]);
-        if (startTimeMs == -1) {
+        long startTimeNano = getStartTime(joinPoint.getArgs()[0]);
+        if (startTimeNano == -1) {
             // couldn't find start time
             return;
         }
         Record request = getEventType(joinPoint.getArgs()[0]);
 
         if (request != null) {
-            long timeElapsed = (MathUtils.now() - startTimeMs);
-            notifyListeners(checkType(request), timeElapsed);
+            long timeElapsed = (MathUtils.nowInNano() - startTimeNano);
+            notifyListeners(checkType(request), TimeUnit.NANOSECONDS.toMicros(timeElapsed));
         }
     }
 
@@ -156,7 +157,7 @@ public class ClientCnxnAspect {
                 if (zooworker != null
                         && zooworker.getClass().getName().equals("org.apache.bookkeeper.zookeeper.ZooWorker")) {
                     Field timeField = Class.forName("org.apache.bookkeeper.zookeeper.ZooWorker")
-                            .getDeclaredField("startTimeMs");
+                            .getDeclaredField("startTimeNanos");
                     timeField.setAccessible(true);
                     long startTime = (long) timeField.get(zooworker);
                     return startTime;
