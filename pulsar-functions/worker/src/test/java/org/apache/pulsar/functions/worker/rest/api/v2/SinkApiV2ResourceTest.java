@@ -167,6 +167,7 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
+                null,
                 "Tenant is not provided");
     }
 
@@ -181,6 +182,7 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
+                null,
                 "Namespace is not provided");
     }
 
@@ -195,6 +197,7 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
+                null,
                 "Sink Name is not provided");
     }
 
@@ -209,6 +212,7 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
+                null,
                 "Function Package is not provided");
     }
 
@@ -223,7 +227,23 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
+                null,
                 "Function Package is not provided");
+    }
+
+    @Test
+    public void testRegisterSinkHttpUrl() throws IOException {
+        testRegisterSinkMissingArguments(
+                tenant,
+                namespace,
+                sink,
+                null,
+                null,
+                topicsToSerDeClassName,
+                className,
+                parallelism,
+                "http://localhost:1234/test",
+                "Corrupt User PackageFile " + "http://localhost:1234/test");
     }
 
     private void testRegisterSinkMissingArguments(
@@ -235,6 +255,7 @@ public class SinkApiV2ResourceTest {
             Map<String, String> inputTopicMap,
             String className,
             Integer parallelism,
+            String pkgUrl,
             String errorExpected) throws IOException {
         SinkConfig sinkConfig = new SinkConfig();
         if (tenant != null) {
@@ -262,7 +283,7 @@ public class SinkApiV2ResourceTest {
                 sink,
                 inputStream,
                 details,
-                null,
+                pkgUrl,
                 null,
                 new Gson().toJson(sinkConfig),
                 FunctionsImpl.SINK,
