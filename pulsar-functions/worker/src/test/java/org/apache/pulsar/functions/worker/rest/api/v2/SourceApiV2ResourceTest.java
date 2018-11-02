@@ -26,7 +26,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function.*;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
@@ -36,8 +35,7 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
-import org.apache.pulsar.io.core.Source;
-import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.twitter.TwitterFireHose;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -51,9 +49,9 @@ import org.testng.annotations.Test;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.io.*;
+import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Matchers.*;
@@ -69,8 +67,8 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link SourceApiV2Resource}.
  */
-@PrepareForTest({Utils.class,SourceConfigUtils.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
+@PrepareForTest({Utils.class})
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 @Slf4j
 public class SourceApiV2ResourceTest {
 
@@ -79,24 +77,17 @@ public class SourceApiV2ResourceTest {
         return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
-    private static final class TestSource implements Source<String> {
-
-        @Override public void open(final Map<String, Object> config, SourceContext sourceContext) {
-        }
-
-        @Override public Record<String> read() { return null; }
-
-        @Override public void close() { }
-    }
-
     private static final String tenant = "test-tenant";
     private static final String namespace = "test-namespace";
     private static final String source = "test-source";
     private static final String outputTopic = "test-output-topic";
     private static final String outputSerdeClassName = TopicSchema.DEFAULT_SERDE;
-    private static final String className = TestSource.class.getName();
-    private static final String serde = TopicSchema.DEFAULT_SERDE;
+    private static final String className = TwitterFireHose.class.getName();
     private static final int parallelism = 1;
+    private static final String JAR_FILE_NAME = "pulsar-io-twitter.nar";
+    private static final String INVALID_JAR_FILE_NAME = "pulsar-io-cassandra.nar";
+    private String JAR_FILE_PATH;
+    private String INVALID_JAR_FILE_PATH;
 
     private WorkerService mockedWorkerService;
     private FunctionMetaDataManager mockedManager;
@@ -124,6 +115,13 @@ public class SourceApiV2ResourceTest {
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
         when(mockedWorkerService.isInitialized()).thenReturn(true);
 
+        URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
+        if (file == null)  {
+            throw new RuntimeException("Failed to file required test archive: " + JAR_FILE_NAME);
+        }
+        JAR_FILE_PATH = file.getFile();
+        INVALID_JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(INVALID_JAR_FILE_NAME).getFile();
+
         // worker config
         WorkerConfig workerConfig = new WorkerConfig()
             .setWorkerId("test")
@@ -135,9 +133,6 @@ public class SourceApiV2ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        mockStatic(SourceConfigUtils.class);
-        when(SourceConfigUtils.convert(anyObject(), anyObject())).thenReturn(FunctionDetails.newBuilder().build());
-        when(SourceConfigUtils.validate(any(), any(), any(), any())).thenReturn(null);
         Mockito.doReturn("Source").when(this.resource).calculateSubjectType(any());
     }
 
@@ -157,6 +152,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Tenant is not provided");
     }
 
@@ -172,11 +168,12 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Namespace is not provided");
     }
 
     @Test
-    public void testRegisterSourceMissingFunctionName() throws IOException {
+    public void testRegisterSourceMissingSourceName() throws IOException {
         testRegisterSourceMissingArguments(
             tenant,
             namespace,
@@ -187,6 +184,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Source Name is not provided");
     }
 
@@ -202,7 +200,8 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                null,
+                "Source Package is not provided");
     }
 
     @Test
@@ -217,7 +216,58 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                null,
+                "zip file is empty");
+    }
+
+    @Test
+    public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
+        FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
+        testRegisterSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                inputStream,
+                null,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                null,
+                "Failed to extract source class from archive");
+    }
+
+    @Test
+    public void testRegisterSourceNoOutputTopic() throws IOException {
+        FileInputStream inputStream = new FileInputStream(JAR_FILE_PATH);
+        testRegisterSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                inputStream,
+                mockedFormData,
+                null,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                null,
+                "Topic name cannot be null");
+    }
+
+    @Test
+    public void testRegisterSourceHttpUrl() throws IOException {
+        testRegisterSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                null,
+                null,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                "http://localhost:1234/test",
+                "Corrupt User PackageFile " + "http://localhost:1234/test with error Connection refused (Connection refused)");
     }
 
     private void testRegisterSourceMissingArguments(
@@ -230,7 +280,8 @@ public class SourceApiV2ResourceTest {
             String outputSerdeClassName,
             String className,
             Integer parallelism,
-            String errorExpected) throws IOException {
+            String pkgUrl,
+            String errorExpected) {
         SourceConfig sourceConfig = new SourceConfig();
         if (tenant != null) {
             sourceConfig.setTenant(tenant);
@@ -260,7 +311,7 @@ public class SourceApiV2ResourceTest {
                 function,
                 inputStream,
                 details,
-                null,
+                pkgUrl,
                 null,
                 new Gson().toJson(sourceConfig),
                 FunctionsImpl.SOURCE,
@@ -270,7 +321,7 @@ public class SourceApiV2ResourceTest {
         Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(errorExpected).reason);
     }
 
-    private Response registerDefaultSource() {
+    private Response registerDefaultSource() throws IOException {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -283,7 +334,7 @@ public class SourceApiV2ResourceTest {
             tenant,
             namespace,
                 source,
-            mockedInputStream,
+            new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
             null,
@@ -443,7 +494,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                "Source Package is not provided");
     }
 
     @Test
@@ -458,7 +509,52 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                "zip file is empty");
+    }
+
+    @Test
+    public void testUpdateSourceMissingTopicName() throws IOException {
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                "Topic name cannot be null");
+    }
+
+    @Test
+    public void testUpdateSourceNegativeParallelism() throws IOException {
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                -2,
+                "Source parallelism should positive number");
+    }
+
+    @Test
+    public void testUpdateSourceZeroParallelism() throws IOException {
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                0,
+                "Source parallelism should positive number");
     }
 
     private void testUpdateSourceMissingArguments(
@@ -527,7 +623,7 @@ public class SourceApiV2ResourceTest {
             tenant,
             namespace,
                 source,
-            mockedInputStream,
+                new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
             null,
@@ -586,8 +682,7 @@ public class SourceApiV2ResourceTest {
     public void testUpdateSourceWithUrl() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
 
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        String filePackageUrl = "file://" + fileLocation;
+        String filePackageUrl = "file://" + JAR_FILE_PATH;
 
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTopicName(outputTopic);
