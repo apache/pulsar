@@ -26,7 +26,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -39,8 +38,6 @@ import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.io.cassandra.CassandraStringSink;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.SinkContext;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -65,7 +62,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -214,7 +210,7 @@ public class SinkApiV2ResourceTest {
             className,
             parallelism,
                 null,
-                "Function Package is not provided");
+                "Sink Package is not provided");
     }
 
     @Test
@@ -229,7 +225,7 @@ public class SinkApiV2ResourceTest {
             className,
             parallelism,
                 null,
-                "Function Package is not provided");
+                "zip file is empty");
     }
 
     @Test
@@ -245,7 +241,7 @@ public class SinkApiV2ResourceTest {
                 className,
                 parallelism,
                 null,
-                "Function Package is not provided");
+                "Failed to extract sink class from archive");
     }
 
     @Test
@@ -260,7 +256,7 @@ public class SinkApiV2ResourceTest {
                 className,
                 parallelism,
                 null,
-                "Function Package is not provided");
+                "Must specify at least one topic of input via topicToSerdeClassName, topicsPattern, topicToSchemaType or inputSpecs");
     }
 
     @Test
@@ -275,7 +271,7 @@ public class SinkApiV2ResourceTest {
                 className,
                 -2,
                 null,
-                "Namespace is not provided");
+                "Sink parallelism should positive number");
     }
 
     @Test
@@ -290,7 +286,7 @@ public class SinkApiV2ResourceTest {
                 className,
                 0,
                 null,
-                "Namespace is not provided");
+                "Sink parallelism should positive number");
     }
 
     @Test
@@ -305,7 +301,7 @@ public class SinkApiV2ResourceTest {
                 className,
                 parallelism,
                 "http://localhost:1234/test",
-                "Corrupt User PackageFile " + "http://localhost:1234/test");
+                "Corrupt User PackageFile " + "http://localhost:1234/test with error Connection refused (Connection refused)");
     }
 
     private void testRegisterSinkMissingArguments(
@@ -355,7 +351,7 @@ public class SinkApiV2ResourceTest {
         Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(errorExpected).reason);
     }
 
-    private Response registerDefaultSink() {
+    private Response registerDefaultSink() throws IOException {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant(tenant);
         sinkConfig.setNamespace(namespace);
@@ -367,7 +363,7 @@ public class SinkApiV2ResourceTest {
             tenant,
             namespace,
                 sink,
-            mockedInputStream,
+                new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
             null,
@@ -523,7 +519,7 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                "Sink Package is not provided");
     }
 
     @Test
@@ -537,7 +533,7 @@ public class SinkApiV2ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                "zip file is empty");
     }
 
     private void testUpdateSinkMissingArguments(
@@ -601,7 +597,7 @@ public class SinkApiV2ResourceTest {
             tenant,
             namespace,
                 sink,
-            mockedInputStream,
+                new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
             null,
@@ -660,8 +656,7 @@ public class SinkApiV2ResourceTest {
     public void testUpdateSinkWithUrl() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
 
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        String filePackageUrl = "file://" + fileLocation;
+        String filePackageUrl = "file://" + JAR_FILE_PATH;
 
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
