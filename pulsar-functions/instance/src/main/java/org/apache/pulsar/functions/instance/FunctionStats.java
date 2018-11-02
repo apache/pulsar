@@ -61,7 +61,7 @@ public class FunctionStats {
             .register();
 
     static final Summary statProcessLatency = Summary.build()
-            .name("__function_process_latency__").help("Process latency in milliseconds.")
+            .name("__function_process_latency_ms__").help("Process latency in milliseconds.")
             .quantile(0.5, 0.01)
             .quantile(0.9, 0.01)
             .quantile(0.99, 0.01)
