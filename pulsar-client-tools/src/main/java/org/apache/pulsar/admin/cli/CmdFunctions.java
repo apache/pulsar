@@ -65,7 +65,6 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -297,9 +296,6 @@ public class CmdFunctions extends CmdBase {
         protected String deadLetterTopic;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
-        // The classLoader associated with this function defn
-        protected ClassLoader classLoader;
-
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
@@ -476,9 +472,6 @@ public class CmdFunctions extends CmdBase {
                 userCodeFile = functionConfig.getPy();
             }
 
-            // infer default vaues
-            FunctionConfigUtils.inferMissingArguments(functionConfig);
-
             // check if configs are valid
             validateFunctionConfigs(functionConfig);
         }
@@ -501,15 +494,7 @@ public class CmdFunctions extends CmdBase {
             }
             if (!isBlank(functionConfig.getPy()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy()) &&
                     !new File(functionConfig.getPy()).exists()) {
-                throw new ParameterException("The specified jar file does not exist");
-            }
-
-            try {
-                // Need to load jar and set context class loader before calling
-                String functionPkgUrl = Utils.isFunctionPackageUrlSupported(userCodeFile) ? userCodeFile : null;
-                classLoader = FunctionConfigUtils.validate(functionConfig, functionPkgUrl, null);
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e.getMessage());
+                throw new ParameterException("The specified python file does not exist");
             }
         }
     }

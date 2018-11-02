@@ -56,10 +56,10 @@ public class SinkConfigUtils {
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
-        boolean isBuiltin = sinkConfig.getArchive().startsWith(Utils.BUILTIN);
+        boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(Utils.BUILTIN);
 
         if (!isBuiltin) {
-            if (sinkConfig.getArchive().startsWith(Utils.FILE)) {
+            if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(Utils.FILE)) {
                 if (isBlank(sinkConfig.getClassName())) {
                     throw new IllegalArgumentException("Class-name must be present for archive with file-url");
                 }
@@ -286,9 +286,7 @@ public class SinkConfigUtils {
 
         NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
         if (classLoader == null) {
-            // This happens at the cli for builtin. There is no need to check this since
-            // the actual check will be done at serverside
-            return null;
+            throw new IllegalArgumentException("Sink Package is not provided");
         }
 
         String sinkClassName;

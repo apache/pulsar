@@ -210,9 +210,7 @@ public class SourceConfigUtils {
 
         NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
         if (classLoader == null) {
-            // This happens at the cli for builtin. There is no need to check this since
-            // the actual check will be done at serverside
-            return null;
+            throw new IllegalArgumentException("Source Package is not provided");
         }
 
         String sourceClassName;

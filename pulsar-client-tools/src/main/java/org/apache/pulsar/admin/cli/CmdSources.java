@@ -22,7 +22,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.SourceConfigUtils.inferMissingArguments;
 import static org.apache.pulsar.functions.utils.Utils.BUILTIN;
 
 import com.beust.jcommander.Parameter;
@@ -38,7 +37,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
@@ -54,13 +52,10 @@ import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
@@ -296,8 +291,6 @@ public class CmdSources extends CmdBase {
 
         protected SourceConfig sourceConfig;
 
-        protected NarClassLoader classLoader;
-
         private void mergeArgs() {
             if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
             if (!isBlank(DEPRECATED_destinationTopicName)) destinationTopicName = DEPRECATED_destinationTopicName;
@@ -380,8 +373,6 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setConfigs(parseConfigs(sourceConfigString));
             }
 
-            inferMissingArguments(sourceConfig);
-
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);
         }
@@ -402,23 +393,6 @@ public class CmdSources extends CmdBase {
                     throw new IllegalArgumentException(String.format("Source Archive %s does not exist", sourceConfig.getArchive()));
                 }
             }
-
-            try {
-             // Need to load jar and set context class loader before calling
-                String sourcePkgUrl = Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) ? sourceConfig.getArchive() : null;
-                Path archivePath = (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) || sourceConfig.getArchive().startsWith(BUILTIN)) ? null : new File(sourceConfig.getArchive()).toPath();
-                classLoader = SourceConfigUtils.validate(sourceConfig, archivePath, sourcePkgUrl, null);
-            } catch (Exception e) {
-                throw new ParameterException(e.getMessage());
-            }
-        }
-
-        protected org.apache.pulsar.functions.proto.Function.FunctionDetails createSourceConfigProto2(SourceConfig sourceConfig)
-                throws IOException {
-            org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder
-                    = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
-            Utils.mergeJson(FunctionsImpl.printJson(SourceConfigUtils.convert(sourceConfig, classLoader)), functionDetailsBuilder);
-            return functionDetailsBuilder.build();
         }
 
         protected String validateSourceType(String sourceType) throws IOException {

@@ -165,6 +165,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Tenant is not provided");
     }
 
@@ -181,6 +182,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Namespace is not provided");
     }
 
@@ -197,6 +199,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Function Name is not provided");
     }
 
@@ -213,6 +216,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Function Package is not provided");
     }
 
@@ -229,6 +233,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
                 className,
                 parallelism,
+                null,
                 "No input topic(s) specified for the function");
     }
 
@@ -245,6 +250,7 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Function Package is not provided");
     }
 
@@ -261,7 +267,94 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             null,
             parallelism,
+                null,
                 "Function classname cannot be null");
+    }
+
+    @Test
+    public void testRegisterFunctionWrongClassName() throws IOException {
+        testRegisterFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                topicsToSerDeClassName,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                "UnknownClass",
+                parallelism,
+                null,
+                "User class must be in class path");
+    }
+
+    @Test
+    public void testRegisterFunctionWrongParallelism() throws IOException {
+        testRegisterFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                topicsToSerDeClassName,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                -2,
+                null,
+                "Function parallelism should positive number");
+    }
+
+    @Test
+    public void testRegisterFunctionSameInputOutput() throws IOException {
+        testRegisterFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                topicsToSerDeClassName,
+                mockedFormData,
+                topicsToSerDeClassName.keySet().iterator().next(),
+                outputSerdeClassName,
+                className,
+                parallelism,
+                null,
+                "Output topic " + topicsToSerDeClassName.keySet().iterator().next()
+                        + " is also being used as an input topic (topics must be one or the other)");
+    }
+
+    @Test
+    public void testRegisterFunctionWrongOutputTopic() throws IOException {
+        testRegisterFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                topicsToSerDeClassName,
+                mockedFormData,
+                function + "-output-topic/test:",
+                outputSerdeClassName,
+                className,
+                parallelism,
+                null,
+                "Output topic " + function + "-output-topic/test:" + " is invalid");
+    }
+
+    @Test
+    public void testRegisterFunctionHttpUrl() throws IOException {
+        testRegisterFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                null,
+                topicsToSerDeClassName,
+                null,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                "http://localhost:1234/test",
+                "Corrupted Jar File");
     }
 
     private void testRegisterFunctionMissingArguments(
@@ -275,6 +368,7 @@ public class FunctionApiV2ResourceTest {
             String outputSerdeClassName,
             String className,
             Integer parallelism,
+            String functionPkgUrl,
             String errorExpected) throws IOException {
         FunctionConfig functionConfig = new FunctionConfig();
         if (tenant != null) {
@@ -309,7 +403,7 @@ public class FunctionApiV2ResourceTest {
                 function,
                 inputStream,
                 details,
-                null,
+                functionPkgUrl,
                 null,
                 new Gson().toJson(functionConfig),
                 FunctionsImpl.FUNCTION,

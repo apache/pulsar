@@ -1058,7 +1058,7 @@ public class FunctionsImpl {
 
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String componentName,
             String functionDetailsJson, String componentConfigJson, String componentType,
-            String functionPkgUrl, File uploadedInputStreamAsFile) throws IOException, URISyntaxException {
+            String functionPkgUrl, File uploadedInputStreamAsFile) throws IOException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -1071,12 +1071,14 @@ public class FunctionsImpl {
 
         if (componentType.equals(FUNCTION) && !isEmpty(componentConfigJson)) {
             FunctionConfig functionConfig = new Gson().fromJson(componentConfigJson, FunctionConfig.class);
+            FunctionConfigUtils.inferMissingArguments(functionConfig);
             ClassLoader clsLoader = FunctionConfigUtils.validate(functionConfig, functionPkgUrl, uploadedInputStreamAsFile);
             return FunctionConfigUtils.convert(functionConfig, clsLoader);
         }
         if (componentType.equals(SOURCE)) {
             Path archivePath = null;
             SourceConfig sourceConfig = new Gson().fromJson(componentConfigJson, SourceConfig.class);
+            SourceConfigUtils.inferMissingArguments(sourceConfig);
             if (!StringUtils.isEmpty(sourceConfig.getArchive())) {
                 String builtinArchive = sourceConfig.getArchive();
                 if (builtinArchive.startsWith(BUILTIN)) {
@@ -1094,6 +1096,7 @@ public class FunctionsImpl {
         if (componentType.equals(SINK)) {
             Path archivePath = null;
             SinkConfig sinkConfig = new Gson().fromJson(componentConfigJson, SinkConfig.class);
+            SinkConfigUtils.inferMissingArguments(sinkConfig);
             if (!StringUtils.isEmpty(sinkConfig.getArchive())) {
                 String builtinArchive = sinkConfig.getArchive();
                 if (builtinArchive.startsWith(BUILTIN)) {
