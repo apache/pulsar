@@ -22,7 +22,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.BUILTIN;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -37,13 +36,13 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.google.protobuf.util.JsonFormat;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,9 +55,7 @@ import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.utils.io.Connectors;
+import org.apache.pulsar.common.functions.Utils;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO Sources (ingress data into Pulsar)")
@@ -187,22 +184,8 @@ public class CmdSources extends CmdBase {
         }
 
         @Override
-        protected String validateSourceType(String sourceType) throws IOException {
-            // Validate the connector source type from the locally available connectors
-            String pulsarHome = System.getenv("PULSAR_HOME");
-            if (pulsarHome == null) {
-                pulsarHome = Paths.get("").toAbsolutePath().toString();
-            }
-            String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
-            Connectors connectors = ConnectorUtils.searchForConnectors(connectorsDir);
-
-            if (!connectors.getSources().containsKey(sourceType)) {
-                throw new ParameterException("Invalid source type '" + sourceType + "' -- Available sources are: "
-                        + connectors.getSources().keySet());
-            }
-
-            // Source type is a valid built-in connector type. For local-run we'll fill it up with its own archive path
-            return connectors.getSources().get(sourceType).toString();
+        protected String validateSourceType(String sourceType) {
+            return sourceType;
         }
     }
 
@@ -388,7 +371,7 @@ public class CmdSources extends CmdBase {
                 throw new ParameterException("Source archive not specfied");
             }
             if (!Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) &&
-                !sourceConfig.getArchive().startsWith(BUILTIN)) {
+                !sourceConfig.getArchive().startsWith(Utils.BUILTIN)) {
                 if (!new File(sourceConfig.getArchive()).exists()) {
                     throw new IllegalArgumentException(String.format("Source Archive %s does not exist", sourceConfig.getArchive()));
                 }
@@ -501,7 +484,7 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(
+            String json = JsonFormat.printer().print(
                     isBlank(instanceId) ? admin.source().getSourceStatus(tenant, namespace, sourceName)
                             : admin.source().getSourceStatus(tenant, namespace, sourceName,
                             Integer.parseInt(instanceId)));

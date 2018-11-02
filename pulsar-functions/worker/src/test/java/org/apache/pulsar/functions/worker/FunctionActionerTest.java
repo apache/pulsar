@@ -38,7 +38,7 @@ import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.testng.annotations.Test;
-import static org.apache.pulsar.functions.utils.Utils.FILE;
+import static org.apache.pulsar.common.functions.Utils.FILE;
 
 /**
  * Unit test of {@link FunctionActioner}.

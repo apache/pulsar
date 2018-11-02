@@ -901,10 +901,10 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(new StreamingOutput() {
             @Override
             public void write(final OutputStream output) throws IOException {
-                if (path.startsWith(HTTP)) {
+                if (path.startsWith(org.apache.pulsar.common.functions.Utils.HTTP)) {
                     URL url = new URL(path);
                     IOUtils.copy(url.openStream(), output);
-                } else if (path.startsWith(FILE)) {
+                } else if (path.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
                     URL url = new URL(path);
                     File file;
                     try {
@@ -970,7 +970,7 @@ public class FunctionsImpl {
             String functionPkgUrl, String functionDetailsJson, String componentConfigJson,
             String componentType)
             throws IllegalArgumentException, IOException, URISyntaxException {
-        if (!isFunctionPackageUrlSupported(functionPkgUrl)) {
+        if (!org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
             throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
         }
         FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, componentName,
@@ -1081,7 +1081,7 @@ public class FunctionsImpl {
             SourceConfigUtils.inferMissingArguments(sourceConfig);
             if (!StringUtils.isEmpty(sourceConfig.getArchive())) {
                 String builtinArchive = sourceConfig.getArchive();
-                if (builtinArchive.startsWith(BUILTIN)) {
+                if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
                     builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
                 }
                 try {
@@ -1099,7 +1099,7 @@ public class FunctionsImpl {
             SinkConfigUtils.inferMissingArguments(sinkConfig);
             if (!StringUtils.isEmpty(sinkConfig.getArchive())) {
                 String builtinArchive = sinkConfig.getArchive();
-                if (builtinArchive.startsWith(BUILTIN)) {
+                if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
                     builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
                 }
                 try {
