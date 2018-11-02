@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.google.common.collect.EvictingQueue;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Function stats.
@@ -35,132 +33,74 @@ import java.util.Map;
 @Getter
 @Setter
 public class FunctionStats {
+
+    /** Declare Prometheus stats **/
+
+    static final Counter statTotalProcessed = Counter.build()
+            .name("__function_total_processed__")
+            .help("Total number of messages processed.")
+            .labelNames("tenant", "namespace", "name")
+            .register();
+
+    static final Counter statTotalProcessedSuccessfully = Counter.build()
+            .name("__function_total_successfully_processed__")
+            .help("Total number of messages processed successfully.")
+            .labelNames("tenant", "namespace", "name")
+            .register();
+
+    static final Counter statTotalSysExceptions = Counter.build()
+            .name("__function_total_system_exceptions__")
+            .help("Total number of system exceptions.")
+            .labelNames("tenant", "namespace", "name")
+            .register();
+
+    static final Counter statTotalUserExceptions = Counter.build()
+            .name("__function_total_user_exceptions__")
+            .help("Total number of user exceptions.")
+            .labelNames("tenant", "namespace", "name")
+            .register();
+
+    static final Summary statProcessLatency = Summary.build()
+            .name("__function_process_latency__").help("Process latency in milliseconds.")
+            .quantile(0.5, 0.01)
+            .quantile(0.9, 0.01)
+            .quantile(0.99, 0.01)
+            .quantile(0.999, 0.01)
+            .labelNames("tenant", "namespace", "name")
+            .register();
+
+    @Getter
+    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions = EvictingQueue.create(10);
+    @Getter
+    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions = EvictingQueue.create(10);
+
     @Getter
     @Setter
-    class Stats {
-        private long totalProcessed;
-        private long totalSuccessfullyProcessed;
-        private long totalUserExceptions;
-        private List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions =
-                new LinkedList<>();
-        private long totalSystemExceptions;
-        private List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions =
-                new LinkedList<>();
-        private Map<String, Long> totalDeserializationExceptions = new HashMap<>();
-        private long totalSerializationExceptions;
-        private long totalLatencyMs;
-        private long lastInvocationTime;
+    private long lastInvocationTime = 0;
 
-        public void incrementProcessed(long processedAt) {
-            totalProcessed++;
-            lastInvocationTime = processedAt;
-        }
-        public void incrementSuccessfullyProcessed(long latency) {
-            totalSuccessfullyProcessed++;
-            totalLatencyMs += latency;
-        }
-        public void incrementUserExceptions(Exception ex) {
-            InstanceCommunication.FunctionStatus.ExceptionInformation info =
+    public void addUserException(Exception ex) {
+        InstanceCommunication.FunctionStatus.ExceptionInformation info =
                     InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
                     .setExceptionString(ex.getMessage()).setMsSinceEpoch(System.currentTimeMillis()).build();
-            latestUserExceptions.add(info);
-            if (latestUserExceptions.size() > 10) {
-                latestUserExceptions.remove(0);
-            }
-            totalUserExceptions++;
-        }
-        public void incrementSystemExceptions(Exception ex) {
-            InstanceCommunication.FunctionStatus.ExceptionInformation info =
-                    InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
-                            .setExceptionString(ex.getMessage()).setMsSinceEpoch(System.currentTimeMillis()).build();
-            latestSystemExceptions.add(info);
-            if (latestSystemExceptions.size() > 10) {
-                latestSystemExceptions.remove(0);
-            }
-            totalSystemExceptions++;
-        }
-        public void incrementDeserializationExceptions(String topic) {
-            if (!totalDeserializationExceptions.containsKey(topic)) {
-                totalDeserializationExceptions.put(topic, 0l);
-            }
-            totalDeserializationExceptions.put(topic, totalDeserializationExceptions.get(topic) + 1);
-        }
-        public void incrementSerializationExceptions() { totalSerializationExceptions++; }
-        public void reset() {
-            totalProcessed = 0;
-            totalSuccessfullyProcessed = 0;
-            totalUserExceptions = 0;
-            totalSystemExceptions = 0;
-            totalDeserializationExceptions.clear();
-            totalSerializationExceptions = 0;
-            totalLatencyMs = 0;
-        }
-        public double computeLatency() {
-            if (totalSuccessfullyProcessed <= 0) {
-                return 0;
-            } else {
-                return totalLatencyMs / (double) totalSuccessfullyProcessed;
-            }
-        }
-        
-        public void update(Stats stats) {
-            if (stats == null) {
-                return;
-            }
-            this.totalProcessed = stats.totalProcessed;
-            this.totalSuccessfullyProcessed = stats.totalSuccessfullyProcessed;
-            this.totalUserExceptions = stats.totalUserExceptions;
-            this.latestUserExceptions.clear();
-            this.latestSystemExceptions.clear();
-            this.totalDeserializationExceptions.clear();
-            this.latestUserExceptions.addAll(stats.latestUserExceptions);
-            this.latestSystemExceptions.addAll(stats.latestSystemExceptions);
-            this.totalDeserializationExceptions.putAll(stats.totalDeserializationExceptions);
-            this.totalSystemExceptions = stats.totalSystemExceptions;
-            this.latestSystemExceptions = stats.latestSystemExceptions;
-            this.totalSerializationExceptions = stats.totalSerializationExceptions;
-            this.totalLatencyMs = stats.totalLatencyMs;
-            this.lastInvocationTime = stats.lastInvocationTime;
-        }
+        latestUserExceptions.add(info);
     }
 
-    private Stats currentStats;
-    private Stats totalStats;
-    private Stats stats;
-    
-    public FunctionStats() {
-        currentStats = new Stats();
-        stats = new Stats();
-        totalStats = new Stats();
+    public void addSystemException(Exception ex) {
+        InstanceCommunication.FunctionStatus.ExceptionInformation info =
+                InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
+                        .setExceptionString(ex.getMessage()).setMsSinceEpoch(System.currentTimeMillis()).build();
+        latestSystemExceptions.add(info);
+
     }
 
-    public void incrementProcessed(long processedAt) {
-        currentStats.incrementProcessed(processedAt);
-        totalStats.incrementProcessed(processedAt);
-    }
-
-    public void incrementSuccessfullyProcessed(long latency) {
-        currentStats.incrementSuccessfullyProcessed(latency);
-        totalStats.incrementSuccessfullyProcessed(latency);
-    }
-    public void incrementUserExceptions(Exception ex) {
-        currentStats.incrementUserExceptions(ex);
-        totalStats.incrementUserExceptions(ex);
-    }
-    public void incrementSystemExceptions(Exception ex) {
-        currentStats.incrementSystemExceptions(ex);
-        totalStats.incrementSystemExceptions(ex);
-    }
-    public void incrementDeserializationExceptions(String topic) {
-        currentStats.incrementDeserializationExceptions(topic);
-        totalStats.incrementDeserializationExceptions(topic);
-    }
-    public void incrementSerializationExceptions() {
-        currentStats.incrementSerializationExceptions();
-        totalStats.incrementSerializationExceptions();
-    }
-    public void resetCurrent() {
-        stats.update(currentStats);
-        currentStats.reset();
+    public void reset() {
+        statTotalProcessed.clear();
+        statTotalProcessedSuccessfully.clear();
+        statTotalSysExceptions.clear();
+        statTotalUserExceptions.clear();
+        statProcessLatency.clear();
+        latestUserExceptions.clear();
+        latestSystemExceptions.clear();
+        lastInvocationTime = 0;
     }
 }

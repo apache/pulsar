@@ -65,7 +65,6 @@ assignmentWriteMaxRetries: 60
 instanceLivenessCheckFreqMs: 30000
 # Frequency how often worker performs compaction on function-topics
 topicCompactionFrequencySec: 1800
-metricsSamplingPeriodSec: 60
 
 
 ###############################

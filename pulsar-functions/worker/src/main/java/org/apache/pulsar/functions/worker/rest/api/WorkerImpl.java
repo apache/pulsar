@@ -168,9 +168,7 @@ public class WorkerImpl {
                 Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
                 if (functionRuntime != null) {
                     try {
-                        InstanceCommunication.MetricsData metricsData = workerService.getWorkerConfig()
-                                .getMetricsSamplingPeriodSec() > 0 ? functionRuntime.getMetrics().get()
-                                : functionRuntime.getAndResetMetrics().get();
+                        InstanceCommunication.MetricsData metricsData = functionRuntime.getMetrics().get();
 
                         String tenant = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
                                 .getFunctionDetails().getTenant();

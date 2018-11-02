@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.instance;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.netty.buffer.ByteBuf;
+import io.prometheus.client.Summary;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -112,14 +113,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Sink sink;
 
     private final SecretsProvider secretsProvider;
-
-    public static final String METRICS_TOTAL_PROCESSED = "__total_processed__";
-    public static final String METRICS_TOTAL_SUCCESS = "__total_successfully_processed__";
-    public static final String METRICS_TOTAL_SYS_EXCEPTION = "__total_system_exceptions__";
-    public static final String METRICS_TOTAL_USER_EXCEPTION = "__total_user_exceptions__";
-    public static final String METRICS_TOTAL_DESERIALIZATION_EXCEPTION = "__total_deserialization_exceptions__";
-    public static final String METRICS_TOTAL_SERIALIZATION_EXCEPTION = "__total_serialization_exceptions__";
-    public static final String METRICS_AVG_LATENCY = "__avg_latency_ms__";
+    private final String[] metricsLabels;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
@@ -134,6 +128,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.stats = new FunctionStats();
         this.secretsProvider = secretsProvider;
+        this.metricsLabels = new String[]{
+                instanceConfig.getFunctionDetails().getTenant(),
+                instanceConfig.getFunctionDetails().getNamespace(),
+                instanceConfig.getFunctionDetails().getName()
+        };
     }
 
     /**
@@ -205,23 +204,31 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     }
                 }
 
-                // process the message
-                long processAt = System.currentTimeMillis();
-                stats.incrementProcessed(processAt);
                 addLogTopicHandler();
                 JavaExecutionResult result;
 
+                // set last invocation time
+                stats.setLastInvocationTime(System.currentTimeMillis());
+
+                // start time for process latency stat
+                Summary.Timer requestTimer = FunctionStats.statProcessLatency.labels(metricsLabels).startTimer();
+
+                // process the message
                 result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
+
+                // register end time
+                requestTimer.observeDuration();
+                // increment total processed
+                FunctionStats.statTotalProcessed.labels(metricsLabels).inc();
 
                 removeLogTopicHandler();
 
-                long doneProcessing = System.currentTimeMillis();
                 if (log.isDebugEnabled()) {
                     log.debug("Got result: {}", result.getResult());
                 }
 
                 try {
-                    processResult(currentRecord, result, processAt, doneProcessing);
+                    processResult(currentRecord, result);
                 } catch (Exception e) {
                     log.warn("Failed to process result of message {}", currentRecord, e);
                     currentRecord.fail();
@@ -307,18 +314,19 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void processResult(Record srcRecord,
-                               JavaExecutionResult result,
-                               long startTime, long endTime) throws Exception {
+                               JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", srcRecord, result.getUserException());
-            stats.incrementUserExceptions(result.getUserException());
+            FunctionStats.statTotalUserExceptions.labels(metricsLabels).inc();
+            stats.addUserException(result.getUserException() );
             srcRecord.fail();
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", srcRecord, result.getSystemException());
-            stats.incrementSystemExceptions(result.getSystemException());
+            FunctionStats.statTotalSysExceptions.labels(metricsLabels).inc();
+            stats.addSystemException(result.getSystemException());
             throw result.getSystemException();
         } else {
-            stats.incrementSuccessfullyProcessed(endTime - startTime);
+            FunctionStats.statTotalProcessedSuccessfully.labels(metricsLabels).inc();
             if (result.getResult() != null) {
                 sendOutputMessage(srcRecord, result.getResult());
             } else {
@@ -398,7 +406,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
         InstanceCommunication.MetricsData.Builder bldr = createMetricsDataBuilder();
-        stats.resetCurrent();
+        stats.reset();
         if (javaInstance != null) {
             InstanceCommunication.MetricsData userMetrics =  javaInstance.getAndResetMetrics();
             if (userMetrics != null) {
@@ -420,42 +428,39 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     public void resetMetrics() {
-        stats.resetCurrent();
+        stats.reset();
         javaInstance.resetMetrics();
     }
 
     private Builder createMetricsDataBuilder() {
         InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
-        addSystemMetrics(METRICS_TOTAL_PROCESSED, stats.getStats().getTotalProcessed(), bldr);
-        addSystemMetrics(METRICS_TOTAL_SUCCESS, stats.getStats().getTotalSuccessfullyProcessed(),
+        addSystemMetrics(FunctionStats.statTotalProcessed.describe().get(0).name, FunctionStats.statTotalProcessed.labels(metricsLabels).get(), bldr);
+        addSystemMetrics(FunctionStats.statTotalProcessedSuccessfully.describe().get(0).name, FunctionStats.statTotalProcessedSuccessfully.labels(metricsLabels).get(), bldr);
+        addSystemMetrics(FunctionStats.statTotalSysExceptions.describe().get(0).name, FunctionStats.statTotalSysExceptions.labels(metricsLabels).get(), bldr);
+        addSystemMetrics(FunctionStats.statTotalUserExceptions.describe().get(0).name, FunctionStats.statTotalUserExceptions.labels(metricsLabels).get(), bldr);
+        addSystemMetrics(FunctionStats.statProcessLatency.describe().get(0).name,
+                FunctionStats.statProcessLatency.labels(metricsLabels).get().count == 0.0
+                        ? 0 : FunctionStats.statProcessLatency.labels(metricsLabels).get().sum / FunctionStats.statProcessLatency.labels(metricsLabels).get().count,
                 bldr);
-        addSystemMetrics(METRICS_TOTAL_SYS_EXCEPTION, stats.getStats().getTotalSystemExceptions(), bldr);
-        addSystemMetrics(METRICS_TOTAL_USER_EXCEPTION, stats.getStats().getTotalUserExceptions(), bldr);
-        stats.getStats().getTotalDeserializationExceptions().forEach((topic, count) -> {
-            addSystemMetrics(METRICS_TOTAL_DESERIALIZATION_EXCEPTION + topic, count, bldr);
-        });
-        addSystemMetrics(METRICS_TOTAL_SERIALIZATION_EXCEPTION,
-                stats.getStats().getTotalSerializationExceptions(), bldr);
-        addSystemMetrics(METRICS_AVG_LATENCY, stats.getStats().computeLatency(), bldr);
         return bldr;
     }
 
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
-        functionStatusBuilder.setNumProcessed(stats.getTotalStats().getTotalProcessed());
-        functionStatusBuilder.setNumSuccessfullyProcessed(stats.getTotalStats().getTotalSuccessfullyProcessed());
-        functionStatusBuilder.setNumUserExceptions(stats.getTotalStats().getTotalUserExceptions());
-        stats.getTotalStats().getLatestUserExceptions().forEach(ex -> {
+        functionStatusBuilder.setNumProcessed((long)FunctionStats.statTotalProcessed.labels(metricsLabels).get());
+        functionStatusBuilder.setNumSuccessfullyProcessed((long)FunctionStats.statTotalProcessedSuccessfully.labels(metricsLabels).get());
+        functionStatusBuilder.setNumUserExceptions((long)FunctionStats.statTotalUserExceptions.labels(metricsLabels).get());
+        stats.getLatestSystemExceptions().forEach(ex -> {
             functionStatusBuilder.addLatestUserExceptions(ex);
         });
-        functionStatusBuilder.setNumSystemExceptions(stats.getTotalStats().getTotalSystemExceptions());
-        stats.getTotalStats().getLatestSystemExceptions().forEach(ex -> {
+        functionStatusBuilder.setNumSystemExceptions((long) FunctionStats.statTotalSysExceptions.labels(metricsLabels).get());
+        stats.getLatestSystemExceptions().forEach(ex -> {
             functionStatusBuilder.addLatestSystemExceptions(ex);
         });
-        functionStatusBuilder.putAllDeserializationExceptions(stats.getTotalStats().getTotalDeserializationExceptions());
-        functionStatusBuilder.setSerializationExceptions(stats.getTotalStats().getTotalSerializationExceptions());
-        functionStatusBuilder.setAverageLatency(stats.getTotalStats().computeLatency());
-        functionStatusBuilder.setLastInvocationTime(stats.getTotalStats().getLastInvocationTime());
+        functionStatusBuilder.setAverageLatency(
+                FunctionStats.statProcessLatency.labels(metricsLabels).get().count == 0.0
+                        ? 0 : FunctionStats.statProcessLatency.labels(metricsLabels).get().sum / FunctionStats.statProcessLatency.labels(metricsLabels).get().count);
+        functionStatusBuilder.setLastInvocationTime(stats.getLastInvocationTime());
         return functionStatusBuilder;
     }
 

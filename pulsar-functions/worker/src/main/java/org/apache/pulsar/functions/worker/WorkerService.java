@@ -184,12 +184,6 @@ public class WorkerService {
 
             this.connectorsManager = new ConnectorsManager(workerConfig);
 
-            int metricsSamplingPeriodSec = this.workerConfig.getMetricsSamplingPeriodSec();
-            if (metricsSamplingPeriodSec > 0) {
-                this.statsUpdater.scheduleAtFixedRate(() -> this.functionRuntimeManager.updateRates(),
-                        metricsSamplingPeriodSec, metricsSamplingPeriodSec, TimeUnit.SECONDS);
-            }
-
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
             throw new RuntimeException(t);
