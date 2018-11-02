@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Record;
@@ -33,11 +34,13 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.twitter.TwitterFireHose;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -51,6 +54,7 @@ import org.testng.annotations.Test;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.io.*;
+import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +73,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link SourceApiV2Resource}.
  */
-@PrepareForTest({Utils.class})
+@PrepareForTest({Utils.class, ConnectorUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 @Slf4j
 public class SourceApiV2ResourceTest {
@@ -94,11 +98,13 @@ public class SourceApiV2ResourceTest {
     private static final String source = "test-source";
     private static final String outputTopic = "test-output-topic";
     private static final String outputSerdeClassName = TopicSchema.DEFAULT_SERDE;
-    private static final String className = TestSource.class.getName();
+    private static final String className = TwitterFireHose.class.getName();
     private static final String serde = TopicSchema.DEFAULT_SERDE;
     private static final int parallelism = 1;
     private static final String JAR_FILE_NAME = "pulsar-io-twitter.nar";
     private static final String INVALID_JAR_FILE_NAME = "pulsar-io-cassandra.nar";
+    private String JAR_FILE_PATH;
+    private String INVALID_JAR_FILE_PATH;
 
     private WorkerService mockedWorkerService;
     private FunctionMetaDataManager mockedManager;
@@ -126,6 +132,13 @@ public class SourceApiV2ResourceTest {
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
         when(mockedWorkerService.isInitialized()).thenReturn(true);
 
+        URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
+        if (file == null)  {
+            throw new RuntimeException("Failed to file required test archive: " + JAR_FILE_NAME);
+        }
+        JAR_FILE_PATH = file.getFile();
+        INVALID_JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(INVALID_JAR_FILE_NAME).getFile();
+
         // worker config
         WorkerConfig workerConfig = new WorkerConfig()
             .setWorkerId("test")
@@ -138,6 +151,10 @@ public class SourceApiV2ResourceTest {
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
         Mockito.doReturn("Source").when(this.resource).calculateSubjectType(any());
+
+        mockStatic(ConnectorUtils.class);
+        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
     }
 
     //
@@ -226,7 +243,7 @@ public class SourceApiV2ResourceTest {
 
     @Test
     public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
-        FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_NAME);
+        FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
         testRegisterSourceMissingArguments(
                 tenant,
                 namespace,
@@ -243,12 +260,12 @@ public class SourceApiV2ResourceTest {
 
     @Test
     public void testRegisterSourceNoOutputTopic() throws IOException {
-        FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_NAME);
+        FileInputStream inputStream = new FileInputStream(JAR_FILE_PATH);
         testRegisterSourceMissingArguments(
                 tenant,
                 namespace,
                 source,
-                mockedInputStream,
+                inputStream,
                 mockedFormData,
                 null,
                 outputSerdeClassName,
@@ -325,7 +342,7 @@ public class SourceApiV2ResourceTest {
         Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(errorExpected).reason);
     }
 
-    private Response registerDefaultSource() {
+    private Response registerDefaultSource() throws IOException {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -338,7 +355,7 @@ public class SourceApiV2ResourceTest {
             tenant,
             namespace,
                 source,
-            mockedInputStream,
+            new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
             null,
