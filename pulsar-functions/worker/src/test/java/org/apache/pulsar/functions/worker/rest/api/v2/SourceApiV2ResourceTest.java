@@ -74,7 +74,7 @@ import static org.testng.Assert.assertEquals;
  * Unit test of {@link SourceApiV2Resource}.
  */
 @PrepareForTest({Utils.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 @Slf4j
 public class SourceApiV2ResourceTest {
 
