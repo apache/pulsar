@@ -34,30 +34,32 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 @Setter
 public class FunctionStats {
 
+    private static final String[] metricsLabelNames = {"tenant", "namespace", "name"};
+
     /** Declare Prometheus stats **/
 
     static final Counter statTotalProcessed = Counter.build()
             .name("__function_total_processed__")
             .help("Total number of messages processed.")
-            .labelNames("tenant", "namespace", "name")
+            .labelNames(metricsLabelNames)
             .register();
 
     static final Counter statTotalProcessedSuccessfully = Counter.build()
             .name("__function_total_successfully_processed__")
             .help("Total number of messages processed successfully.")
-            .labelNames("tenant", "namespace", "name")
+            .labelNames(metricsLabelNames)
             .register();
 
     static final Counter statTotalSysExceptions = Counter.build()
             .name("__function_total_system_exceptions__")
             .help("Total number of system exceptions.")
-            .labelNames("tenant", "namespace", "name")
+            .labelNames(metricsLabelNames)
             .register();
 
     static final Counter statTotalUserExceptions = Counter.build()
             .name("__function_total_user_exceptions__")
             .help("Total number of user exceptions.")
-            .labelNames("tenant", "namespace", "name")
+            .labelNames(metricsLabelNames)
             .register();
 
     static final Summary statProcessLatency = Summary.build()
@@ -66,7 +68,7 @@ public class FunctionStats {
             .quantile(0.9, 0.01)
             .quantile(0.99, 0.01)
             .quantile(0.999, 0.01)
-            .labelNames("tenant", "namespace", "name")
+            .labelNames(metricsLabelNames)
             .register();
 
     @Getter
