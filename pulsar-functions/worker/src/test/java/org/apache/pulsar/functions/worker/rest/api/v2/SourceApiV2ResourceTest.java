@@ -69,7 +69,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link SourceApiV2Resource}.
  */
-@PrepareForTest({Utils.class,SourceConfigUtils.class})
+@PrepareForTest({Utils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 @Slf4j
 public class SourceApiV2ResourceTest {
@@ -97,6 +97,8 @@ public class SourceApiV2ResourceTest {
     private static final String className = TestSource.class.getName();
     private static final String serde = TopicSchema.DEFAULT_SERDE;
     private static final int parallelism = 1;
+    private static final String JAR_FILE_NAME = "pulsar-io-twitter.nar";
+    private static final String INVALID_JAR_FILE_NAME = "pulsar-io-cassandra.nar";
 
     private WorkerService mockedWorkerService;
     private FunctionMetaDataManager mockedManager;
@@ -135,9 +137,6 @@ public class SourceApiV2ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        mockStatic(SourceConfigUtils.class);
-        when(SourceConfigUtils.convert(anyObject(), anyObject())).thenReturn(FunctionDetails.newBuilder().build());
-        when(SourceConfigUtils.validate(any(), any(), any(), any())).thenReturn(null);
         Mockito.doReturn("Source").when(this.resource).calculateSubjectType(any());
     }
 
@@ -157,6 +156,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Tenant is not provided");
     }
 
@@ -172,11 +172,12 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Namespace is not provided");
     }
 
     @Test
-    public void testRegisterSourceMissingFunctionName() throws IOException {
+    public void testRegisterSourceMissingSourceName() throws IOException {
         testRegisterSourceMissingArguments(
             tenant,
             namespace,
@@ -187,6 +188,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Source Name is not provided");
     }
 
@@ -202,6 +204,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Function Package is not provided");
     }
 
@@ -217,7 +220,58 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Function Package is not provided");
+    }
+
+    @Test
+    public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
+        FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_NAME);
+        testRegisterSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                inputStream,
+                null,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                null,
+                "Failed to extract source class from archive");
+    }
+
+    @Test
+    public void testRegisterSourceNoOutputTopic() throws IOException {
+        FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_NAME);
+        testRegisterSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                null,
+                "Topic name cannot be null");
+    }
+
+    @Test
+    public void testRegisterSourceHttpUrl() throws IOException {
+        testRegisterSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                null,
+                null,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                "http://localhost:1234/test",
+                "Corrupt User PackageFile " + "http://localhost:1234/test");
     }
 
     private void testRegisterSourceMissingArguments(
@@ -230,6 +284,7 @@ public class SourceApiV2ResourceTest {
             String outputSerdeClassName,
             String className,
             Integer parallelism,
+            String pkgUrl,
             String errorExpected) throws IOException {
         SourceConfig sourceConfig = new SourceConfig();
         if (tenant != null) {
@@ -260,7 +315,7 @@ public class SourceApiV2ResourceTest {
                 function,
                 inputStream,
                 details,
-                null,
+                pkgUrl,
                 null,
                 new Gson().toJson(sourceConfig),
                 FunctionsImpl.SOURCE,
@@ -459,6 +514,51 @@ public class SourceApiV2ResourceTest {
             className,
             parallelism,
                 "Function Package is not provided");
+    }
+
+    @Test
+    public void testUpdateSourceMissingTopicName() throws IOException {
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                "Topic name cannot be null");
+    }
+
+    @Test
+    public void testUpdateSourceNegativeParallelism() throws IOException {
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                -2,
+                "Source parallelism should positive number");
+    }
+
+    @Test
+    public void testUpdateSourceZeroParallelism() throws IOException {
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                0,
+                "Source parallelism should positive number");
     }
 
     private void testUpdateSourceMissingArguments(
