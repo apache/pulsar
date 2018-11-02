@@ -30,7 +30,6 @@ import java.util.Random;
 public class ExclamationFunction implements Function<String, String> {
     @Override
     public String process(String input, Context context) throws InterruptedException {
-        Thread.sleep(100);
         return String.format("%s!", input);
     }
 }
