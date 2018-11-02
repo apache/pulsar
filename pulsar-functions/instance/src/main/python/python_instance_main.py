@@ -97,7 +97,10 @@ def main():
       if args.extra_dependency_repository:
         cmd = cmd + " --extra-index-url %s" % str(args.extra_dependency_repository)
       cmd = cmd + " %s" % str(args.py)
-      os.system(cmd)
+      retval = os.system(cmd)
+      if retval != 0:
+        print "Could not install user depedencies"
+        sys.exit(1)
     else:
       zpfile = zipfile.ZipFile(str(args.py), 'r')
       zpfile.extractall(os.path.dirname(str(args.py)))
@@ -116,7 +119,10 @@ def main():
     requirements_txt_file = os.path.join(os.path.dirname(str(args.py)), basename, "requirements.txt")
     deps_file = os.path.join(os.path.dirname(str(args.py)), basename, "deps")
     cmd = "pip install -t %s -r %s --no-index --find-links %s" % (os.path.dirname(str(args.py)), requirements_txt_file, deps_file)
-    os.system(cmd)
+    retval = os.system(cmd)
+    if retval != 0:
+      print "Could not install user depedencies specified by the zip file"
+      sys.exit(1)
     sys.path.insert(0, os.path.join(os.path.dirname(str(args.py)), basename, "src"))
 
   log_file = os.path.join(args.logging_directory,
