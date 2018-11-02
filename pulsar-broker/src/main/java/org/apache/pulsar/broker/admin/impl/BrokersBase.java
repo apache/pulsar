@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.GET;
@@ -215,34 +218,82 @@ public class BrokersBase extends AdminResource {
                             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public void healthcheck(@Suspended AsyncResponse asyncResponse) throws Exception {
         validateSuperUserAccess();
-        pulsar().getExecutor().submit(() -> {
-                String heartbeatNamespace = NamespaceService.getHeartbeatNamespace(
-                        pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
-                String topic = String.format("persistent://%s/healthcheck", heartbeatNamespace);
-                try {
-                    PulsarClient client = pulsar().getClient();
+        String heartbeatNamespace = NamespaceService.getHeartbeatNamespace(
+                pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
+        String topic = String.format("persistent://%s/healthcheck", heartbeatNamespace);
 
-                    try (Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create();
-                         Reader<String> consumer = client.newReader(Schema.STRING)
-                            .topic(topic).startMessageId(MessageId.latest).create()) {
+        PulsarClient client = pulsar().getClient();
 
-                        String messageStr = UUID.randomUUID().toString();
-                        producer.send(messageStr);
+        String messageStr = UUID.randomUUID().toString();
+        CompletableFuture<Producer<String>> producerFuture =
+            client.newProducer(Schema.STRING).topic(topic).createAsync();
+        CompletableFuture<Reader<String>> readerFuture = client.newReader(Schema.STRING)
+            .topic(topic).startMessageId(MessageId.latest).createAsync();
 
-                        while (true) {
-                            Message m = consumer.readNext(10, TimeUnit.SECONDS);
-                            if (m == null) {
-                                throw new IllegalStateException("Healthcheck didn't receive message back");
-                            }
-                            if (m.getValue().equals(messageStr)) {
-                                asyncResponse.resume("ok");
-                                return;
-                            }
-                        }
+        CompletableFuture<Void> completePromise = new CompletableFuture<>();
+
+        CompletableFuture.allOf(producerFuture, readerFuture).whenComplete(
+                (ignore, exception) -> {
+                    if (exception != null) {
+                        completePromise.completeExceptionally(exception);
+                    } else {
+                        producerFuture.thenCompose((producer) -> producer.sendAsync(messageStr))
+                            .whenComplete((ignore2, exception2) -> {
+                                    if (exception2 != null) {
+                                        completePromise.completeExceptionally(exception2);
+                                    }
+                                });
+
+                        healthcheckReadLoop(readerFuture, completePromise, messageStr);
                     }
-                } catch (Exception e) {
-                    asyncResponse.resume(new RestException(e));
+                });
+
+        completePromise.whenComplete((ignore, exception) -> {
+                producerFuture.thenAccept((producer) -> {
+                        producer.closeAsync().whenComplete((ignore2, exception2) -> {
+                                if (exception2 != null) {
+                                    LOG.warn("Error closing producer for healthcheck", exception2);
+                                }
+                            });
+                    });
+                readerFuture.thenAccept((reader) -> {
+                        reader.closeAsync().whenComplete((ignore2, exception2) -> {
+                                if (exception2 != null) {
+                                    LOG.warn("Error closing reader for healthcheck", exception2);
+                                }
+                            });
+                    });
+                if (exception != null) {
+                    asyncResponse.resume(new RestException(exception));
+                } else {
+                    asyncResponse.resume("ok");
                 }
             });
     }
+
+    private void healthcheckReadLoop(CompletableFuture<Reader<String>> readerFuture,
+                                     CompletableFuture<?> completablePromise,
+                                     String messageStr) {
+        readerFuture.thenAccept((reader) -> {
+                CompletableFuture<Message<String>> readFuture = reader.readNextAsync()
+                    .whenComplete((m, exception) -> {
+                            if (exception != null) {
+                                completablePromise.completeExceptionally(exception);
+                            } else if (m.getValue().equals(messageStr)) {
+                                completablePromise.complete(null);
+                            } else {
+                                healthcheckReadLoop(readerFuture, completablePromise, messageStr);
+                            }
+                        });
+                // timeout read after 10 seconds
+                ScheduledFuture<?> timeout = pulsar().getExecutor().schedule(() -> {
+                        readFuture.completeExceptionally(new TimeoutException("Timed out reading"));
+                    }, 10, TimeUnit.SECONDS);
+                // don't leave timeout dangling
+                readFuture.whenComplete((ignore, exception) -> {
+                        timeout.cancel(false);
+                    });
+            });
+    }
 }
+
