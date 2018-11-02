@@ -76,13 +76,21 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String EXCLAMATION_PYTHON_CLASS =
         "exclamation.ExclamationFunction";
 
-    public static final String EXCLAMATION_PYTHON_FILE = "exclamation_function.py";
+    public static final String EXCLAMATION_PYTHONZIP_CLASS =
+            "exclamation";
 
-    protected static String getExclamationClass(Runtime runtime) {
+    public static final String EXCLAMATION_PYTHON_FILE = "exclamation_function.py";
+    public static final String EXCLAMATION_PYTHONZIP_FILE = "exclamation.zip";
+
+    protected static String getExclamationClass(Runtime runtime, boolean pyZip) {
         if (Runtime.JAVA == runtime) {
             return EXCLAMATION_JAVA_CLASS;
         } else if (Runtime.PYTHON == runtime) {
-            return EXCLAMATION_PYTHON_CLASS;
+            if (pyZip) {
+                return EXCLAMATION_PYTHONZIP_CLASS;
+            } else {
+                return EXCLAMATION_PYTHON_CLASS;
+            }
         } else {
             throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
