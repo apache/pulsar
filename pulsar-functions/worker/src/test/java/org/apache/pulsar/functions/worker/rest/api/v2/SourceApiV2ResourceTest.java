@@ -26,7 +26,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function.*;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
@@ -36,8 +35,6 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
-import org.apache.pulsar.io.core.Source;
-import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.twitter.TwitterFireHose;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
@@ -55,7 +52,6 @@ import java.io.*;
 import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Matchers.*;
@@ -81,23 +77,12 @@ public class SourceApiV2ResourceTest {
         return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
-    private static final class TestSource implements Source<String> {
-
-        @Override public void open(final Map<String, Object> config, SourceContext sourceContext) {
-        }
-
-        @Override public Record<String> read() { return null; }
-
-        @Override public void close() { }
-    }
-
     private static final String tenant = "test-tenant";
     private static final String namespace = "test-namespace";
     private static final String source = "test-source";
     private static final String outputTopic = "test-output-topic";
     private static final String outputSerdeClassName = TopicSchema.DEFAULT_SERDE;
     private static final String className = TwitterFireHose.class.getName();
-    private static final String serde = TopicSchema.DEFAULT_SERDE;
     private static final int parallelism = 1;
     private static final String JAR_FILE_NAME = "pulsar-io-twitter.nar";
     private static final String INVALID_JAR_FILE_NAME = "pulsar-io-cassandra.nar";
