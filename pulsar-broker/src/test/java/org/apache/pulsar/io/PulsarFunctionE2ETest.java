@@ -359,7 +359,6 @@ public class PulsarFunctionE2ETest {
         }, 5, 200);
 
         FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
-        functionRuntimeManager.updateRates();
         FunctionStatusList functionStats = functionRuntimeManager.getAllFunctionStatus(tenant, namespacePortion,
                 functionName, null);
 
