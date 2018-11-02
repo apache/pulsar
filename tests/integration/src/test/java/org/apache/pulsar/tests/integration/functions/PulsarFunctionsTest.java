@@ -613,25 +613,30 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test(enabled = false)
     public void testPythonExclamationFunction() throws Exception {
-        testExclamationFunction(Runtime.PYTHON, false);
+        testExclamationFunction(Runtime.PYTHON, false, false);
+    }
+
+    @Test(enabled = false)
+    public void testPythonExclamationZipFunction() throws Exception {
+        testExclamationFunction(Runtime.PYTHON, false, true);
     }
 
     @Test(enabled = false)
     public void testPythonExclamationTopicPatternFunction() throws Exception {
-        testExclamationFunction(Runtime.PYTHON, true);
+        testExclamationFunction(Runtime.PYTHON, true, false);
     }
 
     @Test
     public void testJavaExclamationFunction() throws Exception {
-        testExclamationFunction(Runtime.JAVA, false);
+        testExclamationFunction(Runtime.JAVA, false, false);
     }
 
     @Test
     public void testJavaExclamationTopicPatternFunction() throws Exception {
-        testExclamationFunction(Runtime.JAVA, true);
+        testExclamationFunction(Runtime.JAVA, true, false);
     }
 
-    private void testExclamationFunction(Runtime runtime, boolean isTopicPattern) throws Exception {
+    private void testExclamationFunction(Runtime runtime, boolean isTopicPattern, boolean pyZip) throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
             // python can only run on process mode
             return;
@@ -660,7 +665,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
         submitExclamationFunction(
-            runtime, inputTopicName, outputTopicName, functionName);
+            runtime, inputTopicName, outputTopicName, functionName, pyZip);
 
         // get function info
         getFunctionInfoSuccess(functionName);
@@ -681,13 +686,15 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     private static void submitExclamationFunction(Runtime runtime,
                                                   String inputTopicName,
                                                   String outputTopicName,
-                                                  String functionName) throws Exception {
+                                                  String functionName,
+                                                  boolean pyZip) throws Exception {
         submitFunction(
             runtime,
             inputTopicName,
             outputTopicName,
             functionName,
-            getExclamationClass(runtime),
+            pyZip,
+            getExclamationClass(runtime, pyZip),
             Schema.STRING);
     }
 
@@ -695,6 +702,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            String inputTopicName,
                                            String outputTopicName,
                                            String functionName,
+                                           boolean pyZip,
                                            String functionClass,
                                            Schema<T> inputTopicSchema) throws Exception {
         CommandGenerator generator;
@@ -713,7 +721,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             command = generator.generateCreateFunctionCommand();
         } else if (Runtime.PYTHON == runtime) {
             generator.setRuntime(runtime);
-            command = generator.generateCreateFunctionCommand(EXCLAMATION_PYTHON_FILE);
+            if (pyZip) {
+                command = generator.generateCreateFunctionCommand(EXCLAMATION_PYTHONZIP_FILE);
+            } else {
+                command = generator.generateCreateFunctionCommand(EXCLAMATION_PYTHON_FILE);
+            }
         } else {
             throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
@@ -860,7 +872,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
         submitFunction(
-            Runtime.JAVA, inputTopicName, outputTopicName, functionName,
+            Runtime.JAVA, inputTopicName, outputTopicName, functionName, false,
             AutoSchemaFunction.class.getName(),
             Schema.AVRO(CustomObject.class));
 
