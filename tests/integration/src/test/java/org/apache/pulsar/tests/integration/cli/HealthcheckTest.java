@@ -91,13 +91,14 @@ public class HealthcheckTest {
         assertHealthcheckFailure();
     }
 
-    @Test
-    public void testBrokerDown() throws Exception {
-        for (BrokerContainer b : pulsarCluster.getBrokers()) {
-            b.execCmd("pkill", "-STOP", "-f", "PulsarBrokerStarter");
-        }
-        assertHealthcheckFailure();
-    }
+    // Disabled until PulsarAdmin can time out (#2891)
+    // @Test
+    // public void testBrokerDown() throws Exception {
+    //     for (BrokerContainer b : pulsarCluster.getBrokers()) {
+    //         b.execCmd("pkill", "-STOP", "-f", "PulsarBrokerStarter");
+    //     }
+    //     assertHealthcheckFailure();
+    // }
 
     @Test
     public void testBookKeeperDown() throws Exception {
