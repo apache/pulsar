@@ -164,72 +164,6 @@ public class TestCmdSinks {
     }
 
     @Test
-    public void testMissingTenant() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setTenant(PUBLIC_TENANT);
-        testCmdSinkCliMissingArgs(
-                null,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingNamespace() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setNamespace(DEFAULT_NAMESPACE);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                null,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink name cannot be null")
-    public void testMissingName() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setName(null);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                null,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
     public void testMissingInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setInputSpecs(new HashMap<>());
@@ -299,27 +233,6 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Must specify at least one topic of input via topicToSerdeClassName, topicsPattern, topicToSchemaType or inputSpecs")
-    public void testMissingAllInputTopics() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                null,
-                null,
-                null,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
     @Test
     public void testMissingProcessingGuarantees() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
@@ -363,51 +276,7 @@ public class TestCmdSinks {
                 sinkConfig
         );
     }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
-    public void testNegativeParallelism() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setParallelism(-1);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                -1,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
-    public void testZeroParallelism() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setParallelism(0);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                0,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
+    
     @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
     public void testMissingArchive() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
@@ -422,28 +291,6 @@ public class TestCmdSinks {
                 PROCESSING_GUARANTEES,
                 PARALLELISM,
                 null,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Failed to extract sink class from archive")
-    public void testInvalidJarWithNoSource() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setArchive(WRONG_JAR_PATH);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                WRONG_JAR_PATH,
                 CPU,
                 RAM,
                 DISK,
@@ -584,36 +431,6 @@ public class TestCmdSinks {
     }
 
     @Test
-    public void testCmdSinkConfigFileMissingTenant() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setTenant(null);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setTenant(PUBLIC_TENANT);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test
-    public void testCmdSinkConfigFileMissingNamespace() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setNamespace(null);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setNamespace(DEFAULT_NAMESPACE);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink name cannot be null")
-    public void testCmdSinkConfigFileMissingName() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setName(null);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setName(null);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test
     public void testCmdSinkConfigFileMissingTopicToSerdeClassName() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
 
@@ -629,19 +446,6 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Must specify at least one topic of input via topicToSerdeClassName, topicsPattern, topicToSchemaType or inputSpecs")
-    public void testCmdSinkConfigFileMissingAllInput() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setInputs(null);
-        testSinkConfig.setTopicToSchemaType(null);
-        testSinkConfig.setTopicToSerdeClassName(null);
-        testSinkConfig.setTopicsPattern(null);
-        testSinkConfig.setInputSpecs(null);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
     @Test
     public void testCmdSinkConfigFileMissingConfig() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
@@ -649,26 +453,6 @@ public class TestCmdSinks {
 
         SinkConfig expectedSinkConfig = getSinkConfig();
         expectedSinkConfig.setConfigs(null);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
-    public void testCmdSinkConfigFileZeroParallelism() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setParallelism(0);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setParallelism(0);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink parallelism should positive number")
-    public void testCmdSinkConfigFileNegativeParallelism() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setParallelism(-1);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setParallelism(-1);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
@@ -709,16 +493,6 @@ public class TestCmdSinks {
 
         SinkConfig expectedSinkConfig = getSinkConfig();
         expectedSinkConfig.setArchive("/tmp/foo.jar");
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Failed to extract sink class from archive")
-    public void testCmdSinkConfigFileInvalidJarNoSink() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setArchive(WRONG_JAR_PATH);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setArchive(WRONG_JAR_PATH);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
