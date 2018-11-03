@@ -421,6 +421,48 @@ public class SinkApiV2ResourceTest {
     }
 
     @Test
+    public void testRegisterSinkConflictingFields() throws Exception {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
+        String actualTenant = "DIFFERENT_TENANT";
+        String actualNamespace = "DIFFERENT_NAMESPACE";
+        String actualName = "DIFFERENT_NAME";
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
+
+        RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("source registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTenant(tenant);
+        sinkConfig.setNamespace(namespace);
+        sinkConfig.setName(sink);
+        sinkConfig.setClassName(className);
+        sinkConfig.setParallelism(parallelism);
+        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+        Response response = resource.registerFunction(
+                actualTenant,
+                actualNamespace,
+                actualName,
+                new FileInputStream(JAR_FILE_PATH),
+                mockedFormData,
+                null,
+                null,
+                new Gson().toJson(sinkConfig),
+                FunctionsImpl.SINK,
+                null);
+        assertEquals(Status.OK.getStatusCode(), response.getStatus());
+    }
+
+    @Test
     public void testRegisterSinkFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
