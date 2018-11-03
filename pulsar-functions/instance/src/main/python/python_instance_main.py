@@ -99,7 +99,7 @@ def main():
       cmd = cmd + " %s" % str(args.py)
       retval = os.system(cmd)
       if retval != 0:
-        print "Could not install user depedencies"
+        print("Could not install user depedencies")
         sys.exit(1)
     else:
       zpfile = zipfile.ZipFile(str(args.py), 'r')
@@ -121,7 +121,7 @@ def main():
     cmd = "pip install -t %s -r %s --no-index --find-links %s" % (os.path.dirname(str(args.py)), requirements_txt_file, deps_file)
     retval = os.system(cmd)
     if retval != 0:
-      print "Could not install user depedencies specified by the zip file"
+      print("Could not install user depedencies specified by the zip file")
       sys.exit(1)
     sys.path.insert(0, os.path.join(os.path.dirname(str(args.py)), basename, "src"))
 
