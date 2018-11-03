@@ -36,6 +36,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
+import com.google.protobuf.util.JsonFormat;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -64,7 +65,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.common.functions.Utils;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -616,7 +617,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(
+            String json = JsonFormat.printer().print(
                     isBlank(instanceId) ? admin.functions().getFunctionStatus(tenant, namespace, functionName)
                             : admin.functions().getFunctionStatus(tenant, namespace, functionName,
                                     Integer.parseInt(instanceId)));
