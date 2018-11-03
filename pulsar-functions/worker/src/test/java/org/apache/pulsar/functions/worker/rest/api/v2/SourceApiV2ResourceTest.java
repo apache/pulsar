@@ -392,6 +392,49 @@ public class SourceApiV2ResourceTest {
     }
 
     @Test
+    public void testRegisterSourceConflictingFields() throws Exception {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
+        String actualTenant = "DIFFERENT_TENANT";
+        String actualNamespace = "DIFFERENT_NAMESPACE";
+        String actualName = "DIFFERENT_NAME";
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
+
+        RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("source registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        SourceConfig sourceConfig = new SourceConfig();
+        sourceConfig.setTenant(tenant);
+        sourceConfig.setNamespace(namespace);
+        sourceConfig.setName(source);
+        sourceConfig.setClassName(className);
+        sourceConfig.setParallelism(parallelism);
+        sourceConfig.setTopicName(outputTopic);
+        sourceConfig.setSerdeClassName(outputSerdeClassName);
+        Response response = resource.registerFunction(
+                actualTenant,
+                actualNamespace,
+                actualName,
+                new FileInputStream(JAR_FILE_PATH),
+                mockedFormData,
+                null,
+                null,
+                new Gson().toJson(sourceConfig),
+                FunctionsImpl.SOURCE,
+                null);
+        assertEquals(Status.OK.getStatusCode(), response.getStatus());
+    }
+
+    @Test
     public void testRegisterSourceFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
