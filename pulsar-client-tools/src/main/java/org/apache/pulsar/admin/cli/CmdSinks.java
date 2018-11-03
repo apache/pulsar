@@ -22,7 +22,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.BUILTIN;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -37,10 +36,10 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.google.protobuf.util.JsonFormat;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,9 +52,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.functions.utils.*;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.utils.io.Connectors;
+import org.apache.pulsar.common.functions.Utils;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO sinks (egress data from Pulsar)")
@@ -183,22 +180,8 @@ public class CmdSinks extends CmdBase {
         }
 
         @Override
-        protected String validateSinkType(String sinkType) throws IOException {
-            // Validate the connector sink type from the locally available connectors
-            String pulsarHome = System.getenv("PULSAR_HOME");
-            if (pulsarHome == null) {
-                pulsarHome = Paths.get("").toAbsolutePath().toString();
-            }
-            String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
-            Connectors connectors = ConnectorUtils.searchForConnectors(connectorsDir);
-
-            if (!connectors.getSinks().containsKey(sinkType)) {
-                throw new ParameterException("Invalid sink type '" + sinkType + "' -- Available sinks are: "
-                        + connectors.getSinks().keySet());
-            }
-
-            // Sink type is a valid built-in connector type. For local-run we'll fill it up with its own archive path
-            return connectors.getSinks().get(sinkType).toString();
+        protected String validateSinkType(String sinkType) {
+            return sinkType;
         }
     }
 
@@ -432,7 +415,7 @@ public class CmdSinks extends CmdBase {
             }
 
             if (!Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive()) &&
-                    !sinkConfig.getArchive().startsWith(BUILTIN)) {
+                    !sinkConfig.getArchive().startsWith(Utils.BUILTIN)) {
                 if (!new File(sinkConfig.getArchive()).exists()) {
                     throw new IllegalArgumentException(String.format("Sink Archive file %s does not exist", sinkConfig.getArchive()));
                 }
@@ -545,7 +528,7 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(
+            String json = JsonFormat.printer().print(
                     isBlank(instanceId) ? admin.sink().getSinkStatus(tenant, namespace, sinkName)
                             : admin.sink().getSinkStatus(tenant, namespace, sinkName,
                             Integer.parseInt(instanceId)));
