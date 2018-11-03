@@ -212,7 +212,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.setLastInvocationTime(System.currentTimeMillis());
 
                 // start time for process latency stat
-                Summary.Timer requestTimer = FunctionStats.statProcessLatency.labels(metricsLabels).startTimer();
+                Summary.Timer requestTimer = stats.statProcessLatency.labels(metricsLabels).startTimer();
 
                 // process the message
                 result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
@@ -220,7 +220,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // register end time
                 requestTimer.observeDuration();
                 // increment total processed
-                FunctionStats.statTotalProcessed.labels(metricsLabels).inc();
+                stats.statTotalProcessed.labels(metricsLabels).inc();
 
                 removeLogTopicHandler();
 
@@ -238,7 +238,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } catch (Throwable t) {
             log.error("[{}] Uncaught exception in Java Instance", functionName, t);
             deathException = t;
-            FunctionStats.statTotalSysExceptions.labels(metricsLabels).inc();
+            stats.statTotalSysExceptions.labels(metricsLabels).inc();
             stats.addSystemException(t);
             return;
         } finally {
@@ -320,11 +320,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", srcRecord, result.getUserException());
-            FunctionStats.statTotalUserExceptions.labels(metricsLabels).inc();
+            stats.statTotalUserExceptions.labels(metricsLabels).inc();
             stats.addUserException(result.getUserException() );
             srcRecord.fail();
         } else {
-            FunctionStats.statTotalProcessedSuccessfully.labels(metricsLabels).inc();
+            stats.statTotalProcessedSuccessfully.labels(metricsLabels).inc();
             if (result.getResult() != null) {
                 sendOutputMessage(srcRecord, result.getResult());
             } else {
@@ -432,32 +432,32 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Builder createMetricsDataBuilder() {
         InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
-        addSystemMetrics("__total_processed__", FunctionStats.statTotalProcessed.labels(metricsLabels).get(), bldr);
-        addSystemMetrics("__total_successfully_processed__", FunctionStats.statTotalProcessedSuccessfully.labels(metricsLabels).get(), bldr);
-        addSystemMetrics("__total_system_exceptions__",  FunctionStats.statTotalSysExceptions.labels(metricsLabels).get(), bldr);
-        addSystemMetrics("__total_user_exceptions__", FunctionStats.statTotalUserExceptions.labels(metricsLabels).get(), bldr);
+        addSystemMetrics("__total_processed__", stats.statTotalProcessed.labels(metricsLabels).get(), bldr);
+        addSystemMetrics("__total_successfully_processed__", stats.statTotalProcessedSuccessfully.labels(metricsLabels).get(), bldr);
+        addSystemMetrics("__total_system_exceptions__",  stats.statTotalSysExceptions.labels(metricsLabels).get(), bldr);
+        addSystemMetrics("__total_user_exceptions__", stats.statTotalUserExceptions.labels(metricsLabels).get(), bldr);
         addSystemMetrics("__avg_latency_ms__",
-                FunctionStats.statProcessLatency.labels(metricsLabels).get().count <= 0.0
-                        ? 0 : FunctionStats.statProcessLatency.labels(metricsLabels).get().sum / FunctionStats.statProcessLatency.labels(metricsLabels).get().count,
+                stats.statProcessLatency.labels(metricsLabels).get().count <= 0.0
+                        ? 0 : stats.statProcessLatency.labels(metricsLabels).get().sum / stats.statProcessLatency.labels(metricsLabels).get().count,
                 bldr);
         return bldr;
     }
 
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
-        functionStatusBuilder.setNumProcessed((long)FunctionStats.statTotalProcessed.labels(metricsLabels).get());
-        functionStatusBuilder.setNumSuccessfullyProcessed((long)FunctionStats.statTotalProcessedSuccessfully.labels(metricsLabels).get());
-        functionStatusBuilder.setNumUserExceptions((long)FunctionStats.statTotalUserExceptions.labels(metricsLabels).get());
+        functionStatusBuilder.setNumProcessed((long)stats.statTotalProcessed.labels(metricsLabels).get());
+        functionStatusBuilder.setNumSuccessfullyProcessed((long)stats.statTotalProcessedSuccessfully.labels(metricsLabels).get());
+        functionStatusBuilder.setNumUserExceptions((long)stats.statTotalUserExceptions.labels(metricsLabels).get());
         stats.getLatestUserExceptions().forEach(ex -> {
             functionStatusBuilder.addLatestUserExceptions(ex);
         });
-        functionStatusBuilder.setNumSystemExceptions((long) FunctionStats.statTotalSysExceptions.labels(metricsLabels).get());
+        functionStatusBuilder.setNumSystemExceptions((long) stats.statTotalSysExceptions.labels(metricsLabels).get());
         stats.getLatestSystemExceptions().forEach(ex -> {
             functionStatusBuilder.addLatestSystemExceptions(ex);
         });
         functionStatusBuilder.setAverageLatency(
-                FunctionStats.statProcessLatency.labels(metricsLabels).get().count == 0.0
-                        ? 0 : FunctionStats.statProcessLatency.labels(metricsLabels).get().sum / FunctionStats.statProcessLatency.labels(metricsLabels).get().count);
+                stats.statProcessLatency.labels(metricsLabels).get().count == 0.0
+                        ? 0 : stats.statProcessLatency.labels(metricsLabels).get().sum / stats.statProcessLatency.labels(metricsLabels).get().count);
         functionStatusBuilder.setLastInvocationTime(stats.getLastInvocationTime());
         return functionStatusBuilder;
     }

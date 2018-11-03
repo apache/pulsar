@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import com.google.common.collect.EvictingQueue;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 import lombok.Getter;
@@ -38,38 +39,17 @@ public class FunctionStats {
 
     /** Declare Prometheus stats **/
 
-    static final Counter statTotalProcessed = Counter.build()
-            .name("__function_total_processed__")
-            .help("Total number of messages processed.")
-            .labelNames(metricsLabelNames)
-            .register();
+    final Counter statTotalProcessed;
 
-    static final Counter statTotalProcessedSuccessfully = Counter.build()
-            .name("__function_total_successfully_processed__")
-            .help("Total number of messages processed successfully.")
-            .labelNames(metricsLabelNames)
-            .register();
+    final Counter statTotalProcessedSuccessfully;
 
-    static final Counter statTotalSysExceptions = Counter.build()
-            .name("__function_total_system_exceptions__")
-            .help("Total number of system exceptions.")
-            .labelNames(metricsLabelNames)
-            .register();
+    final Counter statTotalSysExceptions;
 
-    static final Counter statTotalUserExceptions = Counter.build()
-            .name("__function_total_user_exceptions__")
-            .help("Total number of user exceptions.")
-            .labelNames(metricsLabelNames)
-            .register();
+    final Counter statTotalUserExceptions;
 
-    static final Summary statProcessLatency = Summary.build()
-            .name("__function_process_latency_ms__").help("Process latency in milliseconds.")
-            .quantile(0.5, 0.01)
-            .quantile(0.9, 0.01)
-            .quantile(0.99, 0.01)
-            .quantile(0.999, 0.01)
-            .labelNames(metricsLabelNames)
-            .register();
+    final Summary statProcessLatency;
+
+    CollectorRegistry functionCollectorRegistry;
 
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions = EvictingQueue.create(10);
@@ -79,6 +59,45 @@ public class FunctionStats {
     @Getter
     @Setter
     private long lastInvocationTime = 0;
+
+    public FunctionStats() {
+        // Declare function local collector registry so that it will not clash with other function instances'
+        // metrics collection especially in threaded mode
+        functionCollectorRegistry = new CollectorRegistry();
+
+        statTotalProcessed = Counter.build()
+                .name("__function_total_processed__")
+                .help("Total number of messages processed.")
+                .labelNames(metricsLabelNames)
+                .register(functionCollectorRegistry);
+
+        statTotalProcessedSuccessfully = Counter.build()
+                .name("__function_total_successfully_processed__")
+                .help("Total number of messages processed successfully.")
+                .labelNames(metricsLabelNames)
+                .register(functionCollectorRegistry);
+
+        statTotalSysExceptions = Counter.build()
+                .name("__function_total_system_exceptions__")
+                .help("Total number of system exceptions.")
+                .labelNames(metricsLabelNames)
+                .register(functionCollectorRegistry);
+
+        statTotalUserExceptions = Counter.build()
+                .name("__function_total_user_exceptions__")
+                .help("Total number of user exceptions.")
+                .labelNames(metricsLabelNames)
+                .register(functionCollectorRegistry);
+
+        statProcessLatency = Summary.build()
+                .name("__function_process_latency_ms__").help("Process latency in milliseconds.")
+                .quantile(0.5, 0.01)
+                .quantile(0.9, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(0.999, 0.01)
+                .labelNames(metricsLabelNames)
+                .register(functionCollectorRegistry);
+    }
 
     public void addUserException(Exception ex) {
         InstanceCommunication.FunctionStatus.ExceptionInformation info =
