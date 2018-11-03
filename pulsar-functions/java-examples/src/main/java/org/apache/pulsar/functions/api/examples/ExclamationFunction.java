@@ -21,15 +21,13 @@ package org.apache.pulsar.functions.api.examples;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
-import java.util.Random;
-
 /**
  * The classic Exclamation Function that appends an exclamation at the end
  * of the input
  */
 public class ExclamationFunction implements Function<String, String> {
     @Override
-    public String process(String input, Context context) throws InterruptedException {
+    public String process(String input, Context context) {
         return String.format("%s!", input);
     }
 }
