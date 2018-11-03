@@ -131,7 +131,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.metricsLabels = new String[]{
                 instanceConfig.getFunctionDetails().getTenant(),
                 instanceConfig.getFunctionDetails().getNamespace(),
-                instanceConfig.getFunctionDetails().getName()
+                instanceConfig.getFunctionDetails().getName(),
+                String.valueOf(instanceConfig.getInstanceId())
         };
     }
 
@@ -237,6 +238,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } catch (Throwable t) {
             log.error("[{}] Uncaught exception in Java Instance", functionName, t);
             deathException = t;
+            FunctionStats.statTotalSysExceptions.labels(metricsLabels).inc();
+            stats.addSystemException(t);
             return;
         } finally {
             log.info("Closing instance");
@@ -320,11 +323,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             FunctionStats.statTotalUserExceptions.labels(metricsLabels).inc();
             stats.addUserException(result.getUserException() );
             srcRecord.fail();
-        } else if (result.getSystemException() != null) {
-            log.info("Encountered system exception when processing message {}", srcRecord, result.getSystemException());
-            FunctionStats.statTotalSysExceptions.labels(metricsLabels).inc();
-            stats.addSystemException(result.getSystemException());
-            throw result.getSystemException();
         } else {
             FunctionStats.statTotalProcessedSuccessfully.labels(metricsLabels).inc();
             if (result.getResult() != null) {
@@ -434,12 +432,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Builder createMetricsDataBuilder() {
         InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
-        addSystemMetrics(FunctionStats.statTotalProcessed.describe().get(0).name, FunctionStats.statTotalProcessed.labels(metricsLabels).get(), bldr);
-        addSystemMetrics(FunctionStats.statTotalProcessedSuccessfully.describe().get(0).name, FunctionStats.statTotalProcessedSuccessfully.labels(metricsLabels).get(), bldr);
-        addSystemMetrics(FunctionStats.statTotalSysExceptions.describe().get(0).name, FunctionStats.statTotalSysExceptions.labels(metricsLabels).get(), bldr);
-        addSystemMetrics(FunctionStats.statTotalUserExceptions.describe().get(0).name, FunctionStats.statTotalUserExceptions.labels(metricsLabels).get(), bldr);
-        addSystemMetrics(FunctionStats.statProcessLatency.describe().get(0).name,
-                FunctionStats.statProcessLatency.labels(metricsLabels).get().count == 0.0
+        addSystemMetrics("__total_processed__", FunctionStats.statTotalProcessed.labels(metricsLabels).get(), bldr);
+        addSystemMetrics("__total_successfully_processed__", FunctionStats.statTotalProcessedSuccessfully.labels(metricsLabels).get(), bldr);
+        addSystemMetrics("__total_system_exceptions__",  FunctionStats.statTotalSysExceptions.labels(metricsLabels).get(), bldr);
+        addSystemMetrics("__total_user_exceptions__", FunctionStats.statTotalUserExceptions.labels(metricsLabels).get(), bldr);
+        addSystemMetrics("__avg_latency_ms__",
+                FunctionStats.statProcessLatency.labels(metricsLabels).get().count <= 0.0
                         ? 0 : FunctionStats.statProcessLatency.labels(metricsLabels).get().sum / FunctionStats.statProcessLatency.labels(metricsLabels).get().count,
                 bldr);
         return bldr;
@@ -450,7 +448,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         functionStatusBuilder.setNumProcessed((long)FunctionStats.statTotalProcessed.labels(metricsLabels).get());
         functionStatusBuilder.setNumSuccessfullyProcessed((long)FunctionStats.statTotalProcessedSuccessfully.labels(metricsLabels).get());
         functionStatusBuilder.setNumUserExceptions((long)FunctionStats.statTotalUserExceptions.labels(metricsLabels).get());
-        stats.getLatestSystemExceptions().forEach(ex -> {
+        stats.getLatestUserExceptions().forEach(ex -> {
             functionStatusBuilder.addLatestUserExceptions(ex);
         });
         functionStatusBuilder.setNumSystemExceptions((long) FunctionStats.statTotalSysExceptions.labels(metricsLabels).get());

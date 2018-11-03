@@ -34,7 +34,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 @Setter
 public class FunctionStats {
 
-    private static final String[] metricsLabelNames = {"tenant", "namespace", "name"};
+    private static final String[] metricsLabelNames = {"tenant", "namespace", "name", "instance_id"};
 
     /** Declare Prometheus stats **/
 
@@ -87,7 +87,7 @@ public class FunctionStats {
         latestUserExceptions.add(info);
     }
 
-    public void addSystemException(Exception ex) {
+    public void addSystemException(Throwable ex) {
         InstanceCommunication.FunctionStatus.ExceptionInformation info =
                 InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
                         .setExceptionString(ex.getMessage()).setMsSinceEpoch(System.currentTimeMillis()).build();
