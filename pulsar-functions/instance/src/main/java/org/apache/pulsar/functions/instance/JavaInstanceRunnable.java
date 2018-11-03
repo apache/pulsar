@@ -34,6 +34,8 @@ import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
+import org.apache.bookkeeper.stream.proto.StorageType;
+import org.apache.bookkeeper.stream.proto.StreamConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -59,6 +61,7 @@ import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.StateUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -270,11 +273,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             return;
         }
 
-        String tableNs = String.format(
-                "%s_%s",
-                instanceConfig.getFunctionDetails().getTenant(),
-                instanceConfig.getFunctionDetails().getNamespace()
-        ).replace('-', '_');
+        String tableNs = StateUtils.getStateNamespace(
+            instanceConfig.getFunctionDetails().getTenant(),
+            instanceConfig.getFunctionDetails().getNamespace()
+        );
         String tableName = instanceConfig.getFunctionDetails().getName();
 
         StorageClientSettings settings = StorageClientSettings.newBuilder()
@@ -282,19 +284,24 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 .clientName("function-" + tableNs + "/" + tableName)
                 .build();
 
-        // TODO (sijie): provide a better way to provision the state table for functions
+        // we defer creation of the state table until a java instance is running here.
         try (StorageAdminClient storageAdminClient = StorageClientBuilder.newBuilder()
                 .withSettings(settings)
                 .buildAdmin()) {
+            StreamConfiguration streamConf = StreamConfiguration.newBuilder(DEFAULT_STREAM_CONF)
+                .setInitialNumRanges(4)
+                .setMinNumRanges(4)
+                .setStorageType(StorageType.TABLE)
+                .build();
             try {
                 result(storageAdminClient.getStream(tableNs, tableName));
             } catch (NamespaceNotFoundException nnfe) {
                 result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
-                        .setDefaultStreamConf(DEFAULT_STREAM_CONF)
+                        .setDefaultStreamConf(streamConf)
                         .build()));
-                result(storageAdminClient.createStream(tableNs, tableName, DEFAULT_STREAM_CONF));
+                result(storageAdminClient.createStream(tableNs, tableName, streamConf));
             } catch (StreamNotFoundException snfe) {
-                result(storageAdminClient.createStream(tableNs, tableName, DEFAULT_STREAM_CONF));
+                result(storageAdminClient.createStream(tableNs, tableName, streamConf));
             }
         }
 
