@@ -38,8 +38,6 @@ import java.util.*;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
 import static org.apache.pulsar.functions.utils.Utils.loadJar;
 
@@ -299,13 +297,13 @@ public class FunctionConfigUtils {
 
     public static void inferMissingArguments(FunctionConfig functionConfig) {
         if (StringUtils.isEmpty(functionConfig.getName())) {
-            inferMissingFunctionName(functionConfig);
+            org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
         }
         if (StringUtils.isEmpty(functionConfig.getTenant())) {
-            inferMissingTenant(functionConfig);
+            org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
         }
         if (StringUtils.isEmpty(functionConfig.getNamespace())) {
-            inferMissingNamespace(functionConfig);
+            org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
         }
 
         if (functionConfig.getParallelism() == 0) {
@@ -323,23 +321,6 @@ public class FunctionConfigUtils {
             WindowConfigUtils.inferMissingArguments(windowConfig);
             functionConfig.setAutoAck(false);
         }
-    }
-
-    private static void inferMissingFunctionName(FunctionConfig functionConfig) {
-        String[] domains = functionConfig.getClassName().split("\\.");
-        if (domains.length == 0) {
-            functionConfig.setName(functionConfig.getClassName());
-        } else {
-            functionConfig.setName(domains[domains.length - 1]);
-        }
-    }
-
-    private static void inferMissingTenant(FunctionConfig functionConfig) {
-        functionConfig.setTenant(PUBLIC_TENANT);
-    }
-
-    private static void inferMissingNamespace(FunctionConfig functionConfig) {
-        functionConfig.setNamespace(DEFAULT_NAMESPACE);
     }
 
     private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {

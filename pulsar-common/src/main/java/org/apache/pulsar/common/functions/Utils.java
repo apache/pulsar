@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.common.functions;
 
+import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.io.SourceConfig;
+
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 
 public class Utils {
     public static String HTTP = "http";
@@ -28,5 +33,40 @@ public class Utils {
     public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
         return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(HTTP)
                 || functionPkgUrl.startsWith(FILE));
+    }
+
+    public static void inferMissingFunctionName(FunctionConfig functionConfig) {
+        String[] domains = functionConfig.getClassName().split("\\.");
+        if (domains.length == 0) {
+            functionConfig.setName(functionConfig.getClassName());
+        } else {
+            functionConfig.setName(domains[domains.length - 1]);
+        }
+    }
+
+    public static void inferMissingTenant(FunctionConfig functionConfig) {
+        functionConfig.setTenant(PUBLIC_TENANT);
+    }
+
+    public static void inferMissingNamespace(FunctionConfig functionConfig) {
+        functionConfig.setNamespace(DEFAULT_NAMESPACE);
+    }
+
+    public static void inferMissingArguments(SourceConfig sourceConfig) {
+        if (sourceConfig.getTenant() == null) {
+            sourceConfig.setTenant(PUBLIC_TENANT);
+        }
+        if (sourceConfig.getNamespace() == null) {
+            sourceConfig.setNamespace(DEFAULT_NAMESPACE);
+        }
+    }
+
+    public static void inferMissingArguments(SinkConfig sinkConfig) {
+        if (sinkConfig.getTenant() == null) {
+            sinkConfig.setTenant(PUBLIC_TENANT);
+        }
+        if (sinkConfig.getNamespace() == null) {
+            sinkConfig.setNamespace(DEFAULT_NAMESPACE);
+        }
     }
 }

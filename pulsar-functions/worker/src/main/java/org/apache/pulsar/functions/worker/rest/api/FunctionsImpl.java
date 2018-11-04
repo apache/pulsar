@@ -1118,7 +1118,7 @@ public class FunctionsImpl {
             sourceConfig.setTenant(tenant);
             sourceConfig.setNamespace(namespace);
             sourceConfig.setName(componentName);
-            SourceConfigUtils.inferMissingArguments(sourceConfig);
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
             if (!StringUtils.isEmpty(sourceConfig.getArchive())) {
                 String builtinArchive = sourceConfig.getArchive();
                 if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
@@ -1140,7 +1140,7 @@ public class FunctionsImpl {
             sinkConfig.setTenant(tenant);
             sinkConfig.setNamespace(namespace);
             sinkConfig.setName(componentName);
-            SinkConfigUtils.inferMissingArguments(sinkConfig);
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
             if (!StringUtils.isEmpty(sinkConfig.getArchive())) {
                 String builtinArchive = sinkConfig.getArchive();
                 if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
