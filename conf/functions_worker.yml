@@ -81,7 +81,7 @@ processContainerFactory:
   # change the python instance location only when you put the python instance jar in a different location
   pythonInstanceLocation:
   # change the extra dependencies location:
-  extraFunctionDependenciesLocation:
+  extraFunctionDependenciesDir:
 #kubernetesContainerFactory:
 #  # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
 #  k8Uri:

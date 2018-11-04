@@ -123,7 +123,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private String pythonInstanceLocation;
         private String logDirectory;
         // the directory for dropping extra function dependencies
-        private String extraFunctionDependenciesLocation;
+        private String extraFunctionDependenciesDir;
     }
     private ProcessContainerFactory processContainerFactory;
 

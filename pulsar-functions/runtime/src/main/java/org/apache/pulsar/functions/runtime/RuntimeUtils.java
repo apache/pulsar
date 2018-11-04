@@ -43,7 +43,7 @@ class RuntimeUtils {
 
     public static List<String> composeArgs(InstanceConfig instanceConfig,
                                            String instanceFile,
-                                           String instanceDepsDir, /* extra dependencies for running instances */
+                                           String extraDependenciesDir, /* extra dependencies for running instances */
                                            String logDirectory,
                                            String originalCodeFileName,
                                            String pulsarServiceUrl,
@@ -64,16 +64,16 @@ class RuntimeUtils {
             args.add("-cp");
 
             String classpath = instanceFile;
-            if (StringUtils.isNotEmpty(instanceDepsDir)) {
-                classpath = classpath + ":" + instanceDepsDir + "/*";
+            if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+                classpath = classpath + ":" + extraDependenciesDir + "/*";
             }
             args.add(classpath);
 
             // Keep the same env property pointing to the Java instance file so that it can be picked up
             // by the child process and manually added to classpath
             args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
-            if (StringUtils.isNotEmpty(instanceDepsDir)) {
-                args.add(String.format("-D%s=%s", FUNCTIONS_EXTRA_DEPS_PROPERTY, instanceDepsDir));
+            if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+                args.add(String.format("-D%s=%s", FUNCTIONS_EXTRA_DEPS_PROPERTY, extraDependenciesDir));
             }
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + String.format(
@@ -94,9 +94,9 @@ class RuntimeUtils {
             args.add("--jar");
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
-            // add `instanceDepsDir` to python package searching path
-            if (StringUtils.isNotEmpty(instanceDepsDir)) {
-                args.add("PYTHONPATH=${PYTHONPATH}:" + instanceDepsDir);
+            // add `extraDependenciesDir` to python package searching path
+            if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+                args.add("PYTHONPATH=${PYTHONPATH}:" + extraDependenciesDir);
             }
             args.add("python");
             args.add(instanceFile);
