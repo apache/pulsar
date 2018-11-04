@@ -43,6 +43,14 @@
     <fileSet>
       <directory>${basedir}/licenses</directory>
     </fileSet>
+    <!-- created `instances/deps` directory -->
+    <fileSet>
+      <directory>.</directory>
+      <outputDirectory>instances/deps</outputDirectory>
+      <excludes>
+        <exclude>*/**</exclude>
+      </excludes>
+    </fileSet>
     <fileSet>
       <directory>${basedir}/../../pulsar-functions/instance/target/python-instance</directory>
       <outputDirectory>instances/python-instance</outputDirectory>

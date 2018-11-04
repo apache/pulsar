@@ -170,8 +170,15 @@ public class LocalRunner {
             serviceUrl = brokerServiceUrl;
         }
 
-        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, stateStorageServiceUrl, authConfig, null, null,
-                null, new DefaultSecretsProviderConfigurator())) {
+        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
+            serviceUrl,
+            stateStorageServiceUrl,
+            authConfig,
+            null, /* java instance jar file */
+            null, /* python instance file */
+            null, /* log directory */
+            null, /* extra dependencies dir */
+            new DefaultSecretsProviderConfigurator())) {
             List<RuntimeSpawner> spawners = new LinkedList<>();
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
