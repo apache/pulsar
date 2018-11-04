@@ -28,6 +28,7 @@ import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1ConfigMap;
 import io.kubernetes.client.util.Config;
+import java.nio.file.Paths;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -64,6 +65,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         private String pulsarServiceUrl;
         private String pythonDependencyRepository;
         private String pythonExtraDependencyRepository;
+        private String extraDependenciesDir;
         private String changeConfigMap;
         private String changeConfigMapNamespace;
     }
@@ -76,6 +78,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final AuthenticationConfig authConfig;
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
+    private final String extraDependenciesDir;
     private final String prometheusMetricsServerJarFile;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private final String logDirectory = "logs/functions";
@@ -92,6 +95,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     Boolean installUserCodeDependencies,
                                     String pythonDependencyRepository,
                                     String pythonExtraDependencyRepository,
+                                    String extraDependenciesDir,
                                     Map<String, String> customLabels,
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
@@ -118,6 +122,17 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.kubernetesInfo.setPulsarRootDir("/pulsar");
         }
+        if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+            if (Paths.get(extraDependenciesDir).isAbsolute()) {
+                this.extraDependenciesDir = extraDependenciesDir;
+            } else {
+                this.extraDependenciesDir = this.kubernetesInfo.getPulsarRootDir()
+                    + "/" + extraDependenciesDir;
+            }
+        } else {
+            this.extraDependenciesDir = this.kubernetesInfo.getPulsarRootDir() + "/instances/deps";
+        }
+        this.kubernetesInfo.setExtraDependenciesDir(extraDependenciesDir);
         this.kubernetesInfo.setPythonDependencyRepository(pythonDependencyRepository);
         this.kubernetesInfo.setPythonExtraDependencyRepository(pythonExtraDependencyRepository);
         this.kubernetesInfo.setPulsarServiceUrl(pulsarServiceUri);
@@ -169,6 +184,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.kubernetesInfo.getPulsarRootDir(),
             instanceConfig,
             instanceFile,
+            extraDependenciesDir,
             prometheusMetricsServerJarFile,
             logDirectory,
             codePkgUrl,

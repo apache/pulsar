@@ -69,6 +69,7 @@ class ProcessRuntime implements Runtime {
 
     ProcessRuntime(InstanceConfig instanceConfig,
                    String instanceFile,
+                   String extraDependenciesDir,
                    String logDirectory,
                    String codeFile,
                    String pulsarServiceUrl,
@@ -94,9 +95,24 @@ class ProcessRuntime implements Runtime {
                 logConfigFile = System.getenv("PULSAR_HOME") + "/conf/functions-logging/logging_config.ini";
                 break;
         }
-        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, instanceConfig.getInstanceName(), instanceConfig.getPort(), expectedHealthCheckInterval,
-                logConfigFile, secretsProviderClassName, secretsProviderConfig, false, null, null);
+        this.processArgs = RuntimeUtils.composeArgs(
+            instanceConfig,
+            instanceFile,
+            extraDependenciesDir,
+            logDirectory,
+            codeFile,
+            pulsarServiceUrl,
+            stateStorageServiceUrl,
+            authConfig,
+            instanceConfig.getInstanceName(),
+            instanceConfig.getPort(),
+            expectedHealthCheckInterval,
+            logConfigFile,
+            secretsProviderClassName,
+            secretsProviderConfig,
+            false,
+            null,
+            null);
     }
 
     /**

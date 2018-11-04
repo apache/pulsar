@@ -23,7 +23,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.Empty;
 import com.google.protobuf.util.JsonFormat;
 import com.squareup.okhttp.Response;
@@ -32,10 +31,32 @@ import io.grpc.ManagedChannelBuilder;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.models.*;
+import io.kubernetes.client.models.V1Container;
+import io.kubernetes.client.models.V1ContainerPort;
+import io.kubernetes.client.models.V1DeleteOptions;
+import io.kubernetes.client.models.V1EnvVar;
+import io.kubernetes.client.models.V1EnvVarSource;
+import io.kubernetes.client.models.V1LabelSelector;
+import io.kubernetes.client.models.V1ObjectFieldSelector;
+import io.kubernetes.client.models.V1ObjectMeta;
+import io.kubernetes.client.models.V1PodSpec;
+import io.kubernetes.client.models.V1PodTemplateSpec;
+import io.kubernetes.client.models.V1ResourceRequirements;
+import io.kubernetes.client.models.V1Service;
+import io.kubernetes.client.models.V1ServicePort;
+import io.kubernetes.client.models.V1ServiceSpec;
+import io.kubernetes.client.models.V1StatefulSet;
+import io.kubernetes.client.models.V1StatefulSetSpec;
+import io.kubernetes.client.models.V1Toleration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.metrics.PrometheusMetricsServer;
@@ -43,11 +64,8 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
-import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 
-import java.lang.reflect.Type;
-import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -119,6 +137,7 @@ class KubernetesRuntime implements Runtime {
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
                       String instanceFile,
+                      String extraDependenciesDir,
                       String prometheusMetricsServerJarFile,
                       String logDirectory,
                       String userCodePkgUrl,
@@ -154,9 +173,24 @@ class KubernetesRuntime implements Runtime {
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
         }
-        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, logConfigFile,
-                secretsProviderClassName, secretsProviderConfig, installUserCodeDependencies, pythonDependencyRepository, pythonExtraDependencyRepository);
+        this.processArgs = RuntimeUtils.composeArgs(
+            instanceConfig,
+            instanceFile,
+            extraDependenciesDir,
+            logDirectory,
+            this.originalCodeFileName,
+            pulsarServiceUrl,
+            stateStorageServiceUrl,
+            authConfig,
+            "$" + ENV_SHARD_ID,
+            GRPC_PORT,
+            -1l,
+            logConfigFile,
+            secretsProviderClassName,
+            secretsProviderConfig,
+            installUserCodeDependencies,
+            pythonDependencyRepository,
+            pythonExtraDependencyRepository);
         this.prometheusMetricsServerArgs = composePrometheusMetricsServerArgs(prometheusMetricsServerJarFile, expectedMetricsInterval);
         running = false;
         doChecks(instanceConfig.getFunctionDetails());
@@ -443,7 +477,6 @@ class KubernetesRuntime implements Runtime {
     private static String setShardIdEnvironmentVariableCommand() {
         return String.format("%s=${POD_NAME##*-} && echo shardId=${%s}", ENV_SHARD_ID, ENV_SHARD_ID);
     }
-
 
     private V1StatefulSet createStatefulSet() {
         final String jobName = createJobName(instanceConfig.getFunctionDetails());

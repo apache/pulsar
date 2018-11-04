@@ -139,6 +139,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
                     workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
                     workerConfig.getProcessContainerFactory().getLogDirectory(),
+                    workerConfig.getProcessContainerFactory().getExtraFunctionDependenciesDir(),
                     secretsProviderConfigurator);
         } else if (workerConfig.getKubernetesContainerFactory() != null){
             this.runtimeFactory = new KubernetesRuntimeFactory(
@@ -150,6 +151,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getKubernetesContainerFactory().getInstallUserCodeDependencies(),
                     workerConfig.getKubernetesContainerFactory().getPythonDependencyRepository(),
                     workerConfig.getKubernetesContainerFactory().getPythonExtraDependencyRepository(),
+                    workerConfig.getKubernetesContainerFactory().getExtraFunctionDependenciesDir(),
                     workerConfig.getKubernetesContainerFactory().getCustomLabels(),
                     StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarServiceUrl()) ? workerConfig.getPulsarServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarServiceUrl(),
                     StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl()) ? workerConfig.getPulsarWebServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl(),
