@@ -235,7 +235,7 @@ if err != nil {
 
 defer consumer.Close()
 
-for cm := range channel {
+for cm := range msgChannel {
     msg := cm.Message
 
     fmt.Printf("Message ID: %s", msg.ID())
