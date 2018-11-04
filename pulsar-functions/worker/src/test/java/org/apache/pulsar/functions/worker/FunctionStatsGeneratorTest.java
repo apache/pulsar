@@ -87,10 +87,10 @@ public class FunctionStatsGeneratorTest {
         CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture = new CompletableFuture<>();
         InstanceCommunication.MetricsData metricsData = InstanceCommunication.MetricsData.newBuilder()
                 .putMetrics(
-                        "__total_processed__",
+                        "__function_total_processed__",
                         InstanceCommunication.MetricsData.DataDigest.newBuilder()
                                 .setCount(100.0).setMax(200.0).setSum(300.0).setMin(0.0).build())
-                .putMetrics("__avg_latency_ms__",
+                .putMetrics("__function_process_latency_ms__",
                         InstanceCommunication.MetricsData.DataDigest.newBuilder()
                                 .setCount(10.0).setMax(20.0).setSum(30.0).setMin(0.0).build())
                 .build();
@@ -126,56 +126,57 @@ public class FunctionStatsGeneratorTest {
 
         Assert.assertEquals(metrics.size(), 8);
 
-        Metric m = metrics.get("pulsar_function__total_processed__count");
+        System.out.println("metrics: " + metrics);
+        Metric m = metrics.get("__function_total_processed__count");
         assertEquals(m.tags.get("cluster"), "default");
         assertEquals(m.tags.get("instanceId"), "0");
         assertEquals(m.tags.get("name"), "func-1");
         assertEquals(m.tags.get("namespace"), "test-tenant/test-namespace");
         assertEquals(m.value, 100.0);
 
-        m = metrics.get("pulsar_function__total_processed__max");
+        m = metrics.get("__function_total_processed__max");
         assertEquals(m.tags.get("cluster"), "default");
         assertEquals(m.tags.get("instanceId"), "0");
         assertEquals(m.tags.get("name"), "func-1");
         assertEquals(m.tags.get("namespace"), "test-tenant/test-namespace");
         assertEquals(m.value, 200.0);
 
-        m = metrics.get("pulsar_function__total_processed__sum");
+        m = metrics.get("__function_total_processed__sum");
         assertEquals(m.tags.get("cluster"), "default");
         assertEquals(m.tags.get("instanceId"), "0");
         assertEquals(m.tags.get("name"), "func-1");
         assertEquals(m.tags.get("namespace"), "test-tenant/test-namespace");
         assertEquals(m.value, 300.0);
 
-        m = metrics.get("pulsar_function__total_processed__min");
+        m = metrics.get("__function_total_processed__min");
         assertEquals(m.tags.get("cluster"), "default");
         assertEquals(m.tags.get("instanceId"), "0");
         assertEquals(m.tags.get("name"), "func-1");
         assertEquals(m.tags.get("namespace"), "test-tenant/test-namespace");
         assertEquals(m.value, 0.0);
 
-        m = metrics.get("pulsar_function__avg_latency_ms__count");
+        m = metrics.get("__function_process_latency_ms__count");
         assertEquals(m.tags.get("cluster"), "default");
         assertEquals(m.tags.get("instanceId"), "0");
         assertEquals(m.tags.get("name"), "func-1");
         assertEquals(m.tags.get("namespace"), "test-tenant/test-namespace");
         assertEquals(m.value, 10.0);
 
-        m = metrics.get("pulsar_function__avg_latency_ms__max");
+        m = metrics.get("__function_process_latency_ms__max");
         assertEquals(m.tags.get("cluster"), "default");
         assertEquals(m.tags.get("instanceId"), "0");
         assertEquals(m.tags.get("name"), "func-1");
         assertEquals(m.tags.get("namespace"), "test-tenant/test-namespace");
         assertEquals(m.value, 20.0);
 
-        m = metrics.get("pulsar_function__avg_latency_ms__sum");
+        m = metrics.get("__function_process_latency_ms__sum");
         assertEquals(m.tags.get("cluster"), "default");
         assertEquals(m.tags.get("instanceId"), "0");
         assertEquals(m.tags.get("name"), "func-1");
         assertEquals(m.tags.get("namespace"), "test-tenant/test-namespace");
         assertEquals(m.value, 30.0);
 
-        m = metrics.get("pulsar_function__avg_latency_ms__min");
+        m = metrics.get("__function_process_latency_ms__min");
         assertEquals(m.tags.get("cluster"), "default");
         assertEquals(m.tags.get("instanceId"), "0");
         assertEquals(m.tags.get("name"), "func-1");

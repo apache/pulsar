@@ -77,7 +77,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String clientAuthenticationParameters;
     // Frequency how often worker performs compaction on function-topics
     private long topicCompactionFrequencySec = 30 * 60; // 30 minutes
-    private int metricsSamplingPeriodSec = 60;
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
