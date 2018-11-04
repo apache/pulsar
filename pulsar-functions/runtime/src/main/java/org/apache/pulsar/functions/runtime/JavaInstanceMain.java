@@ -29,6 +29,8 @@ import com.google.protobuf.util.JsonFormat;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.prometheus.client.exporter.HTTPServer;
+import io.prometheus.client.hotspot.DefaultExports;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -192,6 +194,10 @@ public class JavaInstanceMain implements AutoCloseable {
                 }
             }
         });
+
+        // registering jvm metrics to prometheus
+        DefaultExports.initialize();
+
         log.info("Starting runtimeSpawner");
         runtimeSpawner.start();
 
