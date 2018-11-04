@@ -138,6 +138,12 @@ public class JavaInstanceMain implements AutoCloseable {
 
         Map<String, String> secretsProviderConfigMap = null;
         if (!StringUtils.isEmpty(secretsProviderConfig)) {
+            if (secretsProviderConfig.charAt(0) == '\'') {
+                secretsProviderConfig = secretsProviderConfig.substring(1);
+            }
+            if (secretsProviderConfig.charAt(secretsProviderConfig.length() - 1) == '\'') {
+                secretsProviderConfig = secretsProviderConfig.substring(0, secretsProviderConfig.length() - 1);
+            }
             Type type = new TypeToken<Map<String, String>>() {}.getType();
             secretsProviderConfigMap = new Gson().fromJson(secretsProviderConfig, type);
         }

@@ -20,16 +20,20 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.google.protobuf.util.JsonFormat;
+import io.kubernetes.client.models.V1PodSpec;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +57,50 @@ public class KubernetesRuntimeTest {
         topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
         topicsToSchema.put("persistent://sample/standalone/ns1/test_src",
                 ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
+    }
+
+    class TestSecretProviderConfigurator implements SecretsProviderConfigurator {
+
+        @Override
+        public void init(Map<String, String> config) {
+
+        }
+
+        @Override
+        public String getSecretsProviderClassName(FunctionDetails functionDetails) {
+            if (functionDetails.getRuntime() == FunctionDetails.Runtime.JAVA) {
+                return ClearTextSecretsProvider.class.getName();
+            } else {
+                return "secretsprovider.ClearTextSecretsProvider";
+            }
+        }
+
+        @Override
+        public Map<String, String> getSecretsProviderConfig(FunctionDetails functionDetails) {
+            HashMap<String, String> map = new HashMap<>();
+            map.put("Somevalue", "myvalue");
+            return map;
+        }
+
+        @Override
+        public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, FunctionDetails functionDetails) {
+
+        }
+
+        @Override
+        public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, FunctionDetails functionDetails) {
+
+        }
+
+        @Override
+        public Type getSecretObjectType() {
+            return null;
+        }
+
+        @Override
+        public void validateSecretMap(Map<String, Object> secretMap) {
+
+        }
     }
 
     private KubernetesRuntimeFactory factory;
@@ -102,7 +150,7 @@ public class KubernetesRuntimeTest {
             null,
             null,
             null,
-            new DefaultSecretsProviderConfigurator()));
+            new TestSecretProviderConfigurator()));
         doNothing().when(factory).setupClient();
         return factory;
     }
@@ -173,12 +221,12 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 31;
+            totalArgs = 33;
             portArg = 24;
         } else {
             extraDepsEnv = "";
             portArg = 23;
-            totalArgs = 30;
+            totalArgs = 32;
         }
 
         assertEquals(args.size(), totalArgs,
@@ -199,7 +247,8 @@ public class KubernetesRuntimeTest {
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval -1"
-                + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider";
+                + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
+                + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -232,12 +281,12 @@ public class KubernetesRuntimeTest {
         String pythonPath;
         int configArg;
         if (null == extraDepsDir) {
-            totalArgs = 34;
+            totalArgs = 36;
             portArg = 29;
             configArg = 9;
             pythonPath = "";
         } else {
-            totalArgs = 35;
+            totalArgs = 37;
             portArg = 30;
             configArg = 10;
             pythonPath = "PYTHONPATH=${PYTHONPATH}:" + extraDepsDir + " ";
@@ -260,7 +309,8 @@ public class KubernetesRuntimeTest {
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg)
                 + " --expected_healthcheck_interval -1"
-                + " --secrets_provider secretsprovider.ClearTextSecretsProvider";
+                + " --secrets_provider secretsprovider.ClearTextSecretsProvider"
+                + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
