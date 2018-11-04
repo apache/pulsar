@@ -260,6 +260,7 @@ class PythonInstance(object):
           log.add_handler(self.saved_log_handler)
         if successfully_executed:
           self.process_result(output_object, msg)
+          Stats.stat_total_processed_successfully.labels(*self.metrics_labels).inc()
 
       except Exception as e:
         Log.error("Uncaught exception in Python instance: %s" % e);
@@ -329,11 +330,11 @@ class PythonInstance(object):
     # Now add system metrics as well
     self.add_system_metrics("__total_processed__", Stats.stat_total_processed.labels(*self.metrics_labels)._value.get(), metrics)
     self.add_system_metrics("__total_successfully_processed__", Stats.stat_total_processed_successfully.labels(*self.metrics_labels)._value.get(), metrics)
-    self.add_system_metrics("__total_system_exceptions__", Stats.stat_total_sys_exceptions._value.labels(*self.metrics_labels).get(), metrics)
-    self.add_system_metrics("__total_user_exceptions__", Stats.stat_total_user_exceptions._value.labels(*self.metrics_labels).get(), metrics)
+    self.add_system_metrics("__total_system_exceptions__", Stats.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
+    self.add_system_metrics("__total_user_exceptions__", Stats.stat_total_user_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
     self.add_system_metrics("__avg_latency_ms__",
-                            0.0 if Stats.stats_process_latency_ms._count.labels(*self.metrics_labels).get() <= 0.0
-                            else Stats.stats_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stats_process_latency_ms._count.labels(*self.metrics_labels).get(),
+                            0.0 if Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get() <= 0.0
+                            else Stats.stats_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get(),
                             metrics)
     return metrics
 
