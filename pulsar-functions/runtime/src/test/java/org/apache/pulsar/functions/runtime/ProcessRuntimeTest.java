@@ -181,7 +181,7 @@ public class ProcessRuntimeTest {
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
-                + " --secrets_provider_config {\"Config\":\"Value\"}";
+                + " --secrets_provider_config '{\"Config\":\"Value\"}'";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -203,7 +203,7 @@ public class ProcessRuntimeTest {
                 + " --max_buffered_tuples 1024 --port " + args.get(23)
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider secretsprovider.ClearTextSecretsProvider"
-                + " --secrets_provider_config {\"Config\":\"Value\"}";
+                + " --secrets_provider_config '{\"Config\":\"Value\"}'";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

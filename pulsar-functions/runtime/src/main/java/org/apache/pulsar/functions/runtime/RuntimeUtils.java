@@ -158,7 +158,7 @@ class RuntimeUtils {
         args.add(secretsProviderClassName);
         if (!StringUtils.isEmpty(secretsProviderConfig)) {
             args.add("--secrets_provider_config");
-            args.add(secretsProviderConfig);
+            args.add("'" + secretsProviderConfig + "'");
         }
         return args;
     }

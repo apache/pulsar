@@ -154,6 +154,11 @@ def main():
   secrets_provider = secrets_provider()
   secrets_provider_config = None
   if args.secrets_provider_config is not None:
+    args.secrets_provider_config = str(args.secrets_provider_config)
+    if args.secrets_provider_config[0] == '\'':
+      args.secrets_provider_config = args.secrets_provider_config[1:]
+    if args.secrets_provider_config[-1] == '\'':
+      args.secrets_provider_config = args.secrets_provider_config[:-1]
     secrets_provider_config = json.loads(str(args.secrets_provider_config))
   secrets_provider.init(secrets_provider_config)
 
