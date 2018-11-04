@@ -236,12 +236,4 @@ public class SourceConfigUtils {
         return classLoader;
     }
 
-    public static void inferMissingArguments(SourceConfig sourceConfig) {
-        if (sourceConfig.getTenant() == null) {
-            sourceConfig.setTenant(PUBLIC_TENANT);
-        }
-        if (sourceConfig.getNamespace() == null) {
-            sourceConfig.setNamespace(DEFAULT_NAMESPACE);
-        }
-    }
 }
