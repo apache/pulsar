@@ -65,7 +65,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         super(functionRuntimeType);
     }
 
-    @Test(enabled = false)
+    @Test
     public void testKafkaSink() throws Exception {
         testSink(new KafkaSinkTester(), true, new KafkaSourceTester());
     }
@@ -85,7 +85,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testSink(new HdfsSinkTester(), false);
     }
 
-    @Test(enabled = false)
+    @Test
     public void testJdbcSink() throws Exception {
         testSink(new JdbcSinkTester(), true);
     }
@@ -632,12 +632,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testExclamationFunction(Runtime.PYTHON, true, false, false);
     }
 
-    @Test(enabled = false)
+    @Test
     public void testJavaExclamationFunction() throws Exception {
         testExclamationFunction(Runtime.JAVA, false, false, false);
     }
 
-    @Test(enabled = false)
+    @Test
     public void testJavaExclamationTopicPatternFunction() throws Exception {
         testExclamationFunction(Runtime.JAVA, true, false, false);
     }
@@ -941,7 +941,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(result.getStderr().isEmpty());
     }
 
-    @Test(enabled = false)
+    @Test
     public void testAutoSchemaFunction() throws Exception {
         String inputTopicName = "test-autoschema-input-" + randomName(8);
         String outputTopicName = "test-autoshcema-output-" + randomName(8);
