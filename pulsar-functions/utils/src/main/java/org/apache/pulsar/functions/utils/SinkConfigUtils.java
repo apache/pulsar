@@ -328,15 +328,6 @@ public class SinkConfigUtils {
         return classLoader;
     }
 
-    public static void inferMissingArguments(SinkConfig sinkConfig) {
-        if (sinkConfig.getTenant() == null) {
-            sinkConfig.setTenant(PUBLIC_TENANT);
-        }
-        if (sinkConfig.getNamespace() == null) {
-            sinkConfig.setNamespace(DEFAULT_NAMESPACE);
-        }
-    }
-
     private static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {
         List<String> retval = new LinkedList<>();
         if (sinkConfig.getInputs() != null) {

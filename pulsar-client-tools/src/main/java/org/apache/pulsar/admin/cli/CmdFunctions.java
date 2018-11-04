@@ -478,6 +478,18 @@ public class CmdFunctions extends CmdBase {
         }
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
+            if (StringUtils.isEmpty(functionConfig.getClassName())) {
+                throw new IllegalArgumentException("No Function Classname specified");
+            }
+            if (StringUtils.isEmpty(functionConfig.getName())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getTenant())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getNamespace())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
+            }
 
             if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"

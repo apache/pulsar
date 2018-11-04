@@ -414,6 +414,8 @@ public class CmdSinks extends CmdBase {
                 throw new ParameterException("Sink archive not specfied");
             }
 
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+
             if (!Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive()) &&
                     !sinkConfig.getArchive().startsWith(Utils.BUILTIN)) {
                 if (!new File(sinkConfig.getArchive()).exists()) {
