@@ -43,6 +43,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.powermock.api.mockito.PowerMockito;
@@ -111,12 +112,6 @@ public class CmdFunctionsTest {
         public String process(String input, Context context) throws Exception {
             return null;
         }
-    }
-
-    private String generateCustomSerdeInputs(String topic, String serde) {
-        Map<String, String> map = new HashMap<>();
-        map.put(topic, serde);
-        return new Gson().toJson(map);
     }
 
     @BeforeMethod
@@ -308,6 +303,32 @@ public class CmdFunctionsTest {
         CreateFunction creater = cmd.getCreater();
 
         assertEquals(fnName, creater.getFunctionName());
+        assertEquals(inputTopicName, creater.getInputs());
+        assertEquals(outputTopicName, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateFunctionWithoutBasicArguments() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        final String url = "file:" + JAR_NAME;
+        cmd.run(new String[] {
+                "create",
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", url,
+                "--className", IdentityFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals("IdentityFunction", creater.getFunctionConfig().getName());
+        assertEquals("public", creater.getFunctionConfig().getTenant());
+        assertEquals("default", creater.getFunctionConfig().getNamespace());
+
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
