@@ -80,6 +80,8 @@ processContainerFactory:
   javaInstanceJarLocation:
   # change the python instance location only when you put the python instance jar in a different location
   pythonInstanceLocation:
+  # change the extra dependencies location:
+  extraFunctionDependenciesLocation:
 #kubernetesContainerFactory:
 #  # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
 #  k8Uri:
@@ -102,6 +104,9 @@ processContainerFactory:
 #  pulsarAdminUrl:
 #  # the custom labels that function worker uses to select the nodes for pods
 #  customLabels:
+#  # the directory for dropping extra function dependencies
+#  # if it is not an absolute path, it is relative to `pulsarRootDir`
+#  extraFunctionDependenciesDir:
 
 ############################################
 # security settings for worker service

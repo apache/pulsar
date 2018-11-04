@@ -42,6 +42,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
     private String logDirectory;
+    private String extraDependenciesDir;
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
@@ -50,6 +51,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  String javaInstanceJarFile,
                                  String pythonInstanceFile,
                                  String logDirectory,
+                                 String extraDependenciesDir,
                                  SecretsProviderConfigurator secretsProviderConfigurator) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
@@ -57,6 +59,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
+        this.extraDependenciesDir = extraDependenciesDir;
         this.logDirectory = logDirectory;
 
         // if things are not specified, try to figure out by env properties
@@ -92,6 +95,19 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             }
         }
         this.logDirectory = this.logDirectory + "/functions";
+
+        if (this.extraDependenciesDir == null) {
+            String envProcessContainerExtraDependenciesDir =
+                System.getProperty("pulsar.functions.extra.dependencies.dir");
+            if (null != envProcessContainerExtraDependenciesDir) {
+                log.info("Extra dependencies location is not defined using"
+                    + " the location defined in system environment : {}", envProcessContainerExtraDependenciesDir);
+                this.extraDependenciesDir = envProcessContainerExtraDependenciesDir;
+            } else {
+                log.info("No extra dependencies location is defined in either"
+                    + " function worker config or system environment");
+            }
+        }
     }
 
     @Override
@@ -112,6 +128,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         return new ProcessRuntime(
             instanceConfig,
             instanceFile,
+            extraDependenciesDir,
             logDirectory,
             codeFile,
             pulsarServiceUrl,

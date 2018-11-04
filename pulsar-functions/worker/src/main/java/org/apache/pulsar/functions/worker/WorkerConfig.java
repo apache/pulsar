@@ -103,7 +103,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     
     private Properties properties = new Properties();
 
-
     @Data
     @Setter
     @Getter
@@ -123,6 +122,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private String javaInstanceJarLocation;
         private String pythonInstanceLocation;
         private String logDirectory;
+        // the directory for dropping extra function dependencies
+        private String extraFunctionDependenciesLocation;
     }
     private ProcessContainerFactory processContainerFactory;
 
@@ -142,6 +143,9 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private Boolean installUserCodeDependencies;
         private String pythonDependencyRepository;
         private String pythonExtraDependencyRepository;
+        // the directory for dropping extra function dependencies.
+        // If it is not absolute path, it is relative to `pulsarRootDir`
+        private String extraFunctionDependenciesDir;
         private Map<String, String> customLabels;
         private Integer expectedMetricsCollectionInterval = 30;
         // Kubernetes Runtime will periodically checkback on

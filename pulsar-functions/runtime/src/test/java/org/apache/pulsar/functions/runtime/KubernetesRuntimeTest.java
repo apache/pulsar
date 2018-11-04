@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.google.protobuf.util.JsonFormat;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
@@ -36,6 +37,7 @@ import java.util.Map;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.expectThrows;
 
 /**
  * Unit test of {@link ThreadRuntime}.
@@ -53,7 +55,7 @@ public class KubernetesRuntimeTest {
                 ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
     }
 
-    private final KubernetesRuntimeFactory factory;
+    private KubernetesRuntimeFactory factory;
     private final String userJarFile;
     private final String pulsarRootDir;
     private final String javaInstanceJarFile;
@@ -72,16 +74,37 @@ public class KubernetesRuntimeTest {
         this.pulsarAdminUrl = "http://localhost:8080";
         this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "logs/functions";
-        this.factory = spy(new KubernetesRuntimeFactory(null, null, null, pulsarRootDir,
-            false, true, "myrepo", "anotherrepo",
-                null, pulsarServiceUrl, pulsarAdminUrl, stateStorageServiceUrl, null, null,
-                null, null, new DefaultSecretsProviderConfigurator()));
-        doNothing().when(this.factory).setupClient();
     }
 
     @AfterMethod
     public void tearDown() {
-        this.factory.close();
+        if (null != this.factory) {
+            this.factory.close();
+        }
+    }
+
+    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir) throws Exception {
+        KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory(
+            null,
+            null,
+            null,
+            pulsarRootDir,
+            false,
+            true,
+            "myrepo",
+            "anotherrepo",
+            extraDepsDir,
+            null,
+            pulsarServiceUrl,
+            pulsarAdminUrl,
+            stateStorageServiceUrl,
+            null,
+            null,
+            null,
+            null,
+            new DefaultSecretsProviderConfigurator()));
+        doNothing().when(factory).setupClient();
+        return factory;
     }
 
     FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime) {
@@ -122,11 +145,48 @@ public class KubernetesRuntimeTest {
     public void testJavaConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
+        factory = createKubernetesRuntimeFactory(null);
+
+        verifyJavaInstance(config, pulsarRootDir + "/instances/deps");
+    }
+
+    @Test
+    public void testJavaConstructorWithDeps() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
+
+        String extraDepsDir = "/path/to/deps/dir";
+
+        factory = createKubernetesRuntimeFactory(extraDepsDir);
+
+        verifyJavaInstance(config, extraDepsDir);
+    }
+
+
+    private void verifyJavaInstance(InstanceConfig config, String depsDir) throws Exception {
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 30);
-        String expectedArgs = "java -cp " + javaInstanceJarFile
+
+        String classpath = javaInstanceJarFile;
+        String extraDepsEnv;
+        int portArg;
+        int totalArgs;
+        if (null != depsDir) {
+            extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
+            classpath = classpath + ":" + depsDir + "/*";
+            totalArgs = 31;
+            portArg = 24;
+        } else {
+            extraDepsEnv = "";
+            portArg = 23;
+            totalArgs = 30;
+        }
+
+        assertEquals(args.size(), totalArgs,
+            "Actual args : " + StringUtils.join(args, " "));
+
+        String expectedArgs = "java -cp " + classpath
                 + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
+                + extraDepsEnv
                 + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.yml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionDetailsUtils.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
@@ -136,7 +196,7 @@ public class KubernetesRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(23)
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval -1"
                 + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider";
@@ -147,14 +207,49 @@ public class KubernetesRuntimeTest {
     public void testPythonConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
 
+        factory = createKubernetesRuntimeFactory(null);
+
+        verifyPythonInstance(config, pulsarRootDir + "/instances/deps");
+    }
+
+    @Test
+    public void testPythonConstructorWithDeps() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
+
+        String extraDepsDir = "/path/to/deps/dir";
+
+        factory = createKubernetesRuntimeFactory(extraDepsDir);
+
+        verifyPythonInstance(config, extraDepsDir);
+    }
+
+    private void verifyPythonInstance(InstanceConfig config, String extraDepsDir) throws Exception {
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 34);
-        String expectedArgs = "python " + pythonInstanceFile
+
+        int totalArgs;
+        int portArg;
+        String pythonPath;
+        int configArg;
+        if (null == extraDepsDir) {
+            totalArgs = 34;
+            portArg = 29;
+            configArg = 9;
+            pythonPath = "";
+        } else {
+            totalArgs = 35;
+            portArg = 30;
+            configArg = 10;
+            pythonPath = "PYTHONPATH=${PYTHONPATH}:" + extraDepsDir + " ";
+        }
+
+        assertEquals(args.size(), totalArgs,
+            "Actual args : " + StringUtils.join(args, " "));
+        String expectedArgs = pythonPath + "python " + pythonInstanceFile
                 + " --py " + pulsarRootDir + "/" + userJarFile
                 + " --logging_directory " + logDirectory
                 + " --logging_file " + config.getFunctionDetails().getName()
-                + " --logging_config_file " + args.get(9)
+                + " --logging_config_file " + args.get(configArg)
                 + " --install_usercode_dependencies True"
                 + " --dependency_repository myrepo"
                 + " --extra_dependency_repository anotherrepo"
@@ -163,7 +258,7 @@ public class KubernetesRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(29)
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg)
                 + " --expected_healthcheck_interval -1"
                 + " --secrets_provider secretsprovider.ClearTextSecretsProvider";
         assertEquals(String.join(" ", args), expectedArgs);

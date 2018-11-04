@@ -20,6 +20,8 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.google.protobuf.util.JsonFormat;
+import java.util.LinkedList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -27,8 +29,6 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
-
-import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -39,8 +39,11 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @Slf4j
 class RuntimeUtils {
 
+    private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
+
     public static List<String> composeArgs(InstanceConfig instanceConfig,
                                            String instanceFile,
+                                           String instanceDepsDir, /* extra dependencies for running instances */
                                            String logDirectory,
                                            String originalCodeFileName,
                                            String pulsarServiceUrl,
@@ -59,11 +62,19 @@ class RuntimeUtils {
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
             args.add("-cp");
-            args.add(instanceFile);
+
+            String classpath = instanceFile;
+            if (StringUtils.isNotEmpty(instanceDepsDir)) {
+                classpath = classpath + ":" + instanceDepsDir + "/*";
+            }
+            args.add(classpath);
 
             // Keep the same env property pointing to the Java instance file so that it can be picked up
             // by the child process and manually added to classpath
             args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
+            if (StringUtils.isNotEmpty(instanceDepsDir)) {
+                args.add(String.format("-D%s=%s", FUNCTIONS_EXTRA_DEPS_PROPERTY, instanceDepsDir));
+            }
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + String.format(
                     "%s/%s",
@@ -83,6 +94,10 @@ class RuntimeUtils {
             args.add("--jar");
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
+            // add `instanceDepsDir` to python package searching path
+            if (StringUtils.isNotEmpty(instanceDepsDir)) {
+                args.add("PYTHONPATH=${PYTHONPATH}:" + instanceDepsDir);
+            }
             args.add("python");
             args.add(instanceFile);
             args.add("--py");
