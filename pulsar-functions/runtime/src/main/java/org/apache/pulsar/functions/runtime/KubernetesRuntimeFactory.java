@@ -204,12 +204,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         KubernetesRuntime.doChecks(functionDetails);
-        if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, Object>>() {
-            }.getType();
-            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
-            secretsProviderConfigurator.validateSecretMap(secretsMap);
-        }
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, functionDetails);
     }
 
     @VisibleForTesting
