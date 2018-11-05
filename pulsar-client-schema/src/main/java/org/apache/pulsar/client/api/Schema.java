@@ -123,6 +123,11 @@ public interface Schema<T> {
     }
 
     /**
+     * Schema that can be used to encode/decode KeyValue.
+     */
+    Schema<KeyValue<byte[], byte[]>> KV_BYTES = new KeyValueSchema(BYTES, BYTES);
+
+    /**
      * Key Value Schema whose underneath key and value schemas are JSONSchema.
      */
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value) {

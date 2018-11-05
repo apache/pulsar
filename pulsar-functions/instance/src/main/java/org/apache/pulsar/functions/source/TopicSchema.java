@@ -31,6 +31,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
@@ -102,6 +103,8 @@ public class TopicSchema {
             return SchemaType.STRING;
         } else if (isProtobufClass(clazz)) {
             return SchemaType.PROTOBUF;
+        } else if (KeyValue.class.equals(clazz)) {
+            return SchemaType.KEY_VALUE;
         } else {
             return DEFAULT_SCHEMA_TYPE;
         }
@@ -125,6 +128,9 @@ public class TopicSchema {
 
         case JSON:
             return JSONSchema.of(clazz);
+
+        case KEY_VALUE:
+            return (Schema<T>)Schema.KV_BYTES;
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());

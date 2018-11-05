@@ -38,7 +38,7 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
     // schemaInfo combined by KeySchemaInfo and ValueSchemaInfo:
     //   [keyInfo.length][keyInfo][valueInfo.length][ValueInfo]
-    private SchemaInfo schemaInfo;
+    private final SchemaInfo schemaInfo;
 
     public KeyValueSchema(Schema<K> keySchema,
                           Schema<V> valueSchema) {
