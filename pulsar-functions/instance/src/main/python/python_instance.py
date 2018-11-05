@@ -107,10 +107,10 @@ class Stats(object):
   def reset(self):
     self.latest_user_exception.clear()
     self.latest_sys_exception.clear()
-    self.stat_total_processed._value.set(0.0)
-    self.stat_total_processed_successfully._value.set(0.0)
-    self.stat_total_user_exceptions._value.set(0.0)
-    self.stat_total_sys_exceptions._value.set(0.0)
+    self.stat_total_processed.labels(*self.metrics_labels)._value.set(0.0)
+    self.stat_total_processed_successfully.labels(*self.metrics_labels)._value.set(0.0)
+    self.stat_total_user_exceptions.labels(*self.metrics_labels)._value.set(0.0)
+    self.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.set(0.0)
     self.stats_process_latency_ms._sum.set(0)
     self.stats_process_latency_ms._count.set(0);
     self.last_invocation_time = 0.0
