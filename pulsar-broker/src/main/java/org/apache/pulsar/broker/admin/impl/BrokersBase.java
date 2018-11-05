@@ -245,6 +245,15 @@ public class BrokersBase extends AdminResource {
                                 });
 
                         healthcheckReadLoop(readerFuture, completePromise, messageStr);
+
+                        // timeout read loop after 10 seconds
+                        ScheduledFuture<?> timeout = pulsar().getExecutor().schedule(() -> {
+                                completePromise.completeExceptionally(new TimeoutException("Timed out reading"));
+                            }, 10, TimeUnit.SECONDS);
+                        // don't leave timeout dangling
+                        completePromise.whenComplete((ignore2, exception2) -> {
+                                timeout.cancel(false);
+                            });
                     }
                 });
 
@@ -285,14 +294,6 @@ public class BrokersBase extends AdminResource {
                                 healthcheckReadLoop(readerFuture, completablePromise, messageStr);
                             }
                         });
-                // timeout read after 10 seconds
-                ScheduledFuture<?> timeout = pulsar().getExecutor().schedule(() -> {
-                        readFuture.completeExceptionally(new TimeoutException("Timed out reading"));
-                    }, 10, TimeUnit.SECONDS);
-                // don't leave timeout dangling
-                readFuture.whenComplete((ignore, exception) -> {
-                        timeout.cancel(false);
-                    });
             });
     }
 }
