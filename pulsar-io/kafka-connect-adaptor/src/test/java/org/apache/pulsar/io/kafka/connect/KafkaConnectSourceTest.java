@@ -99,8 +99,6 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         os.flush();
         log.info("write 2 lines.");
 
-        // offset of second line
-        long offset = tempFile.getTotalSpace();
         String line2 = "This is the second line\n";
         os.write(line2.getBytes());
         os.flush();
@@ -112,10 +110,25 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         String readBack1 = new String(record.getValue().getValue());
         assertTrue(line1.contains(readBack1));
         assertEquals(record.getValue().getKey(), null);
+        log.info("read line1: {}", readBack1);
+        record.ack();
 
         record = kafkaConnectSource.read();
         String readBack2 = new String(record.getValue().getValue());
         assertTrue(line2.contains(readBack2));
         assertEquals(record.getValue().getKey(), null);
+        log.info("read line2: {}", readBack2);
+        record.ack();
+
+        String line3 = "This is the 3rd line\n";
+        os.write(line3.getBytes());
+        os.flush();
+
+        record = kafkaConnectSource.read();
+        String readBack3 = new String(record.getValue().getValue());
+        assertTrue(line3.contains(readBack3));
+        assertEquals(record.getValue().getKey(), null);
+        log.info("read line3: {}", readBack3);
+        record.ack();
     }
 }
