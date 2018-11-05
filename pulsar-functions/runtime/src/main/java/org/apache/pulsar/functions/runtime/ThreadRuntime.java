@@ -60,6 +60,14 @@ class ThreadRuntime implements Runtime {
         if (instanceConfig.getFunctionDetails().getRuntime() != Function.FunctionDetails.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
         }
+
+        // if collector registry is not set, create one for this thread.
+        // since each thread / instance will needs its own collector registry for metrics collection
+        CollectorRegistry instanceCollectorRegistry = collectorRegistry;
+        if (instanceCollectorRegistry == null) {
+            instanceCollectorRegistry = new CollectorRegistry();
+        }
+
         this.javaInstanceRunnable = new JavaInstanceRunnable(
             instanceConfig,
             fnCache,
@@ -67,7 +75,7 @@ class ThreadRuntime implements Runtime {
             pulsarClient,
             stateStorageServiceUrl,
             secretsProvider,
-            collectorRegistry);
+            instanceCollectorRegistry);
         this.threadGroup = threadGroup;
     }
 
