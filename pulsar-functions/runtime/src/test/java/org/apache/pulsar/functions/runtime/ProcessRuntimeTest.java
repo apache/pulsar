@@ -303,21 +303,10 @@ public class ProcessRuntimeTest {
         ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
         List<String> args = container.getProcessArgs();
 
-        int totalArgs;
-        int portArg;
-        String pythonPath;
-        int configArg;
-        if (null == extraDepsDir) {
-            totalArgs = 30;
-            portArg = 23;
-            configArg = 9;
-            pythonPath = "";
-        } else {
-            totalArgs = 31;
-            portArg = 24;
-            configArg = 10;
-            pythonPath = "PYTHONPATH=${PYTHONPATH}:" + extraDepsDir + " ";
-        }
+        int totalArgs = 30;
+        int portArg = 23;
+        String pythonPath = "";
+        int configArg = 9;
 
         assertEquals(args.size(), totalArgs);
         String expectedArgs = pythonPath + "python " + pythonInstanceFile

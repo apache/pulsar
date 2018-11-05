@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
@@ -99,9 +100,10 @@ class ProcessRuntime implements Runtime {
         this.processArgs = RuntimeUtils.composeArgs(
             instanceConfig,
             instanceFile,
-            // DONT SET extra dependencies here, since process runtime is using Java ProcessBuilder,
+            // DONT SET extra dependencies here (for python runtime),
+            // since process runtime is using Java ProcessBuilder,
             // we have to set the environment variable via ProcessBuilder
-            null,
+            FunctionDetails.Runtime.JAVA == instanceConfig.getFunctionDetails().getRuntime() ? extraDependenciesDir : null,
             logDirectory,
             codeFile,
             pulsarServiceUrl,
