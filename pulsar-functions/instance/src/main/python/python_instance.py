@@ -104,15 +104,15 @@ class Stats(object):
     if len(self.latest_sys_exception) > 10:
       self.latest_sys_exception.pop(0)
 
-  def reset(self):
-    self.latest_user_exception.clear()
-    self.latest_sys_exception.clear()
-    self.stat_total_processed._value.set(0.0)
-    self.stat_total_processed_successfully._value.set(0.0)
-    self.stat_total_user_exceptions._value.set(0.0)
-    self.stat_total_sys_exceptions._value.set(0.0)
-    self.stats_process_latency_ms._sum.set(0)
-    self.stats_process_latency_ms._count.set(0);
+  def reset(self, metrics_labels):
+    self.latest_user_exception = []
+    self.latest_sys_exception = []
+    self.stat_total_processed.labels(*metrics_labels)._value.set(0.0)
+    self.stat_total_processed_successfully.labels(*metrics_labels)._value.set(0.0)
+    self.stat_total_user_exceptions.labels(*metrics_labels)._value.set(0.0)
+    self.stat_total_sys_exceptions.labels(*metrics_labels)._value.set(0.0)
+    self.stats_process_latency_ms.labels(*metrics_labels)._sum.set(0)
+    self.stats_process_latency_ms.labels(*metrics_labels)._count.set(0);
     self.last_invocation_time = 0.0
 
 class PythonInstance(object):
@@ -321,7 +321,7 @@ class PythonInstance(object):
     return metrics
 
   def reset_metrics(self):
-    self.stats.reset()
+    self.stats.reset(self.metrics_labels)
     self.contextimpl.reset_metrics()
 
   def get_metrics(self):
