@@ -151,6 +151,7 @@ Here's a more involved example usage of a producer:
 import (
     "context"
     "fmt"
+    "log"
 
     "github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
