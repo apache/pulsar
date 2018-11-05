@@ -217,16 +217,19 @@ public class KubernetesRuntimeTest {
         String classpath = javaInstanceJarFile;
         String extraDepsEnv;
         int portArg;
+        int metricsPortArg;
         int totalArgs;
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 33;
+            totalArgs = 35;
             portArg = 24;
+            metricsPortArg = 26;
         } else {
             extraDepsEnv = "";
             portArg = 23;
-            totalArgs = 32;
+            totalArgs = 34;
+            metricsPortArg = 25;
         }
 
         assertEquals(args.size(), totalArgs,
@@ -244,7 +247,7 @@ public class KubernetesRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(portArg)
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval -1"
                 + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
@@ -280,15 +283,18 @@ public class KubernetesRuntimeTest {
         int portArg;
         String pythonPath;
         int configArg;
+        int metricsPortArg;
         if (null == extraDepsDir) {
-            totalArgs = 36;
+            totalArgs = 38;
             portArg = 29;
             configArg = 9;
             pythonPath = "";
+            metricsPortArg = 31;
         } else {
-            totalArgs = 37;
+            totalArgs = 39;
             portArg = 30;
             configArg = 10;
+            metricsPortArg = 32;
             pythonPath = "PYTHONPATH=${PYTHONPATH}:" + extraDepsDir + " ";
         }
 
@@ -307,7 +313,7 @@ public class KubernetesRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(portArg)
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --expected_healthcheck_interval -1"
                 + " --secrets_provider secretsprovider.ClearTextSecretsProvider"
                 + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
