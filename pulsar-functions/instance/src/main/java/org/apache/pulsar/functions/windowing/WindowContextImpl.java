@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.windowing;
 import org.apache.pulsar.functions.api.Context;
 import org.slf4j.Logger;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -86,6 +87,26 @@ public class WindowContextImpl implements WindowContext {
     @Override
     public Logger getLogger() {
         return this.getLogger();
+    }
+
+    @Override
+    public void incrCounter(String key, long amount) {
+        this.context.incrCounter(key, amount);
+    }
+
+    @Override
+    public long getCounter(String key) {
+        return this.context.getCounter(key);
+    }
+
+    @Override
+    public void putState(String key, ByteBuffer value) {
+        this.context.putState(key, value);
+    }
+
+    @Override
+    public ByteBuffer getState(String key) {
+        return this.context.getState(key);
     }
 
     @Override
