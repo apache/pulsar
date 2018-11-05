@@ -216,15 +216,6 @@ public class JavaInstanceMain implements AutoCloseable {
         log.info("Starting runtimeSpawner");
         runtimeSpawner.start();
 
-        // registering jvm metrics to prometheus
-//        (new StandardExports()).register(collectorRegistry);
-//        (new MemoryPoolsExports()).register(collectorRegistry);
-//        (new BufferPoolsExports()).register(collectorRegistry);
-//        (new GarbageCollectorExports()).register(collectorRegistry);
-//        (new ThreadExports()).register(collectorRegistry);
-//        (new ClassLoadingExports()).register(collectorRegistry);
-//        (new VersionInfoExports()).register(collectorRegistry);
-
         // starting metrics server
         log.info("Starting metrics server on port {}", metrics_port);
         metricsServer = new HTTPServer(new InetSocketAddress(metrics_port), collectorRegistry, true);
