@@ -561,6 +561,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         if (StringUtils.isNotEmpty(brokerZnodePath)) {
             try {
                 pulsar.getZkClient().delete(brokerZnodePath, -1);
+            } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
+                throw new PulsarServerException.NotFoundException(e);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }
