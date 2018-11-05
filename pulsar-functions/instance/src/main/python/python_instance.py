@@ -31,20 +31,19 @@ try:
 except:
   import queue
 import threading
-from functools import partial
-from collections import namedtuple
-from threading import Timer
-from prometheus_client import Counter, Summary
-import traceback
 import sys
 import re
-
 import pulsar
 import contextimpl
 import Function_pb2
 import log
 import util
 import InstanceCommunication_pb2
+
+from functools import partial
+from collections import namedtuple
+from threading import Timer
+from function_stats import Stats
 
 Log = log.Log
 # Equivalent of the InstanceConfig in Java
@@ -67,53 +66,6 @@ def base64ify(bytes_or_str):
         return output_bytes.decode('ascii')
     else:
         return output_bytes
-
-# We keep track of the following metrics
-class Stats(object):
-  metrics_label_names = ['tenant', 'namespace', 'name', 'instance_id']
-
-  TOTAL_PROCESSED = '__function_total_processed__'
-  TOTAL_SUCCESSFULLY_PROCESSED = '__function_total_successfully_processed__'
-  TOTAL_SYSTEM_EXCEPTIONS = '__function_total_system_exceptions__'
-  TOTAL_USER_EXCEPTIONS = '__function_total_user_exceptions__'
-  PROCESS_LATENCY_MS = '__function_process_latency_ms__'
-
-  # Declare Prometheus
-  stat_total_processed = Counter(TOTAL_PROCESSED, 'Total number of messages processed.', metrics_label_names)
-  stat_total_processed_successfully = Counter(TOTAL_SUCCESSFULLY_PROCESSED,
-                                              'Total number of messages processed successfully.', metrics_label_names)
-  stat_total_sys_exceptions = Counter(TOTAL_SYSTEM_EXCEPTIONS, 'Total number of system exceptions.',
-                                      metrics_label_names)
-  stat_total_user_exceptions = Counter(TOTAL_USER_EXCEPTIONS, 'Total number of user exceptions.',
-                                       metrics_label_names)
-
-  stats_process_latency_ms = Summary(PROCESS_LATENCY_MS, 'Process latency in milliseconds.', metrics_label_names)
-
-  latest_user_exception = []
-  latest_sys_exception = []
-
-  last_invocation_time = 0.0
-
-  def add_user_exception(self):
-    self.latest_sys_exception.append((traceback.format_exc(), int(time.time() * 1000)))
-    if len(self.latest_sys_exception) > 10:
-      self.latest_sys_exception.pop(0)
-
-  def add_sys_exception(self):
-    self.latest_sys_exception.append((traceback.format_exc(), int(time.time() * 1000)))
-    if len(self.latest_sys_exception) > 10:
-      self.latest_sys_exception.pop(0)
-
-  def reset(self, metrics_labels):
-    self.latest_user_exception = []
-    self.latest_sys_exception = []
-    self.stat_total_processed.labels(*metrics_labels)._value.set(0.0)
-    self.stat_total_processed_successfully.labels(*metrics_labels)._value.set(0.0)
-    self.stat_total_user_exceptions.labels(*metrics_labels)._value.set(0.0)
-    self.stat_total_sys_exceptions.labels(*metrics_labels)._value.set(0.0)
-    self.stats_process_latency_ms.labels(*metrics_labels)._sum.set(0)
-    self.stats_process_latency_ms.labels(*metrics_labels)._count.set(0);
-    self.last_invocation_time = 0.0
 
 class PythonInstance(object):
   def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, expected_healthcheck_interval, user_code, pulsar_client, secrets_provider):
@@ -210,7 +162,9 @@ class PythonInstance(object):
     except:
       self.function_purefunction = function_kclass
 
-    self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers, self.secrets_provider)
+    self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client,
+                                               self.user_code, self.consumers,
+                                               self.secrets_provider, self.metrics_labels)
     # Now launch a thread that does execution
     self.execution_thread = threading.Thread(target=self.actual_execution)
     self.execution_thread.start()

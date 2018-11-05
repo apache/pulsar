@@ -33,7 +33,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Gauge;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -110,8 +114,12 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
+    Map<String, Gauge> userMetrics = new HashMap<>();
+    private final CollectorRegistry collectorRegistry;
+    private final String[] metricsLabels;
+
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
-                       SecretsProvider secretsProvider) {
+                       SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels) {
         this.config = config;
         this.logger = logger;
         this.currentAccumulatedMetrics = new ConcurrentHashMap<>();
@@ -138,6 +146,9 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         } else {
             secretsMap = new HashMap<>();
         }
+
+        this.collectorRegistry = collectorRegistry;
+        this.metricsLabels = metricsLabels;
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -320,6 +331,14 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public void recordMetric(String metricName, double value) {
+        userMetrics.computeIfAbsent(metricName,
+                s -> Gauge.build()
+                .name("pulsar_function_user_metric_" + metricName)
+                        .help("Pulsar Function user metric " + metricName + ".")
+                .labelNames(FunctionStats.metricsLabelNames)
+                .register(collectorRegistry));
+
+        userMetrics.get(metricName).labels(metricsLabels).set(value);
         currentAccumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
         currentAccumulatedMetrics.get(metricName).update(value);
     }
@@ -331,6 +350,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     public void resetMetrics() {
+        userMetrics.values().forEach(gauge -> gauge.clear());
         this.accumulatedMetrics.clear();
         this.accumulatedMetrics.putAll(currentAccumulatedMetrics);
         this.currentAccumulatedMetrics.clear();

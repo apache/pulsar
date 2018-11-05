@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.instance;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.netty.buffer.ByteBuf;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Summary;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -116,6 +117,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Sink sink;
 
     private final SecretsProvider secretsProvider;
+
+    private CollectorRegistry collectorRegistry;
     private final String[] metricsLabels;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
@@ -123,14 +126,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 String jarFile,
                                 PulsarClient pulsarClient,
                                 String stateStorageServiceUrl,
-                                SecretsProvider secretsProvider) {
+                                SecretsProvider secretsProvider,
+                                CollectorRegistry collectorRegistry) {
         this.instanceConfig = instanceConfig;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
-        this.stats = new FunctionStats();
+        this.stats = new FunctionStats(collectorRegistry);
         this.secretsProvider = secretsProvider;
+        this.collectorRegistry = collectorRegistry;
         this.metricsLabels = new String[]{
                 instanceConfig.getFunctionDetails().getTenant(),
                 instanceConfig.getFunctionDetails().getNamespace(),
@@ -181,7 +186,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
-        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics, secretsProvider);
+        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics, secretsProvider, collectorRegistry, metricsLabels);
     }
 
     /**
