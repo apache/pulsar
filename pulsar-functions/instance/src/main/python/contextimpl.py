@@ -132,7 +132,6 @@ class ContextImpl(pulsar.Context):
     if metric_name not in self.user_metrics_labels:
       self.user_metrics_labels[metric_name] = self.metrics_labels + [metric_name]
     self.user_metrics_gauge.labels(*self.user_metrics_labels[metric_name]).set(metric_value)
-
     if not metric_name in self.accumulated_metrics:
       self.accumulated_metrics[metric_name] = AccumulatedMetricDatum()
     self.accumulated_metrics[metric_name].update(metric_value)
@@ -180,8 +179,8 @@ class ContextImpl(pulsar.Context):
 
   def reset_metrics(self):
     # TODO: Make it thread safe
-    for gauge in self.user_metrics.values():
-      gauge.labels(*self.user_metrics_labels).set(0.0)
+    for labels in self.user_metrics_labels.values():
+      self.user_metrics_gauge.labels(*labels).set(0.0)
     self.accumulated_metrics.clear()
 
   def get_metrics(self):
