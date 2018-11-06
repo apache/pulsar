@@ -317,15 +317,15 @@ class PythonInstance(object):
     stat_process_latency_ms_sum = Stats.stat_process_latency_ms.labels(*self.metrics_labels)._sum.get()
     stat_last_invocation = Stats.stat_last_invocation.labels(*self.metrics_labels)._value.get()
 
-    status.numProcessed =  total_processed if sys.version_info.major >= 3 else long(total_processed)
-    status.numSuccessfullyProcessed = stat_total_processed_successfully if sys.version_info.major >= 3 else long(stat_total_processed_successfully)
-    status.numUserExceptions = stat_total_user_exceptions if sys.version_info.major >= 3 else long(stat_total_user_exceptions)
+    status.numProcessed =  int(total_processed) if sys.version_info.major >= 3 else long(total_processed)
+    status.numSuccessfullyProcessed = int(stat_total_processed_successfully) if sys.version_info.major >= 3 else long(stat_total_processed_successfully)
+    status.numUserExceptions = int(stat_total_user_exceptions) if sys.version_info.major >= 3 else long(stat_total_user_exceptions)
     status.instanceId = self.instance_config.instance_id
     for ex, tm in self.stats.latest_user_exception:
       to_add = status.latestUserExceptions.add()
       to_add.exceptionString = ex
       to_add.msSinceEpoch = tm
-    status.numSystemExceptions = stat_total_sys_exceptions if sys.version_info.major >= 3 else long(stat_total_sys_exceptions)
+    status.numSystemExceptions = int(stat_total_sys_exceptions) if sys.version_info.major >= 3 else long(stat_total_sys_exceptions)
     for ex, tm in self.stats.latest_sys_exception:
       to_add = status.latestSystemExceptions.add()
       to_add.exceptionString = ex
@@ -333,7 +333,7 @@ class PythonInstance(object):
     status.averageLatency = 0.0 \
       if stat_process_latency_ms_count <= 0.0 \
       else stat_process_latency_ms_sum / stat_process_latency_ms_count
-    status.lastInvocationTime = stat_last_invocation if sys.version_info.major >= 3 else long(stat_last_invocation)
+    status.lastInvocationTime = int(stat_last_invocation) if sys.version_info.major >= 3 else long(stat_last_invocation)
     return status
 
   def join(self):
