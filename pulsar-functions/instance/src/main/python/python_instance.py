@@ -93,7 +93,7 @@ class PythonInstance(object):
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
     self.expected_healthcheck_interval = expected_healthcheck_interval
     self.secrets_provider = secrets_provider
-    self.metrics_labels = [function_details.tenant, 
+    self.metrics_labels = [function_details.tenant,
                            "%s/%s" % (function_details.tenant, function_details.namespace),
                            function_details.name, instance_id, cluster_name]
 
@@ -287,14 +287,16 @@ class PythonInstance(object):
     # First get any user metrics
     metrics = self.contextimpl.get_metrics()
     # Now add system metrics as well
-    self.add_system_metrics("__total_processed__", Stats.stat_total_processed.labels(*self.metrics_labels)._value.get(), metrics)
-    self.add_system_metrics("__total_successfully_processed__", Stats.stat_total_processed_successfully.labels(*self.metrics_labels)._value.get(), metrics)
-    self.add_system_metrics("__total_system_exceptions__", Stats.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
-    self.add_system_metrics("__total_user_exceptions__", Stats.stat_total_user_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
-    self.add_system_metrics("__avg_latency_ms__",
+    self.add_system_metrics(Stats.TOTAL_PROCESSED, Stats.stat_total_processed.labels(*self.metrics_labels)._value.get(), metrics)
+    self.add_system_metrics(Stats.TOTAL_SUCCESSFULLY_PROCESSED, Stats.stat_total_processed_successfully.labels(*self.metrics_labels)._value.get(), metrics)
+    self.add_system_metrics(Stats.TOTAL_SYSTEM_EXCEPTIONS, Stats.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
+    self.add_system_metrics(Stats.TOTAL_USER_EXCEPTIONS, Stats.stat_total_user_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
+    self.add_system_metrics(Stats.PROCESS_LATENCY_MS,
                             0.0 if Stats.stat_process_latency_ms.labels(*self.metrics_labels)._count.get() <= 0.0
                             else Stats.stat_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stat_process_latency_ms.labels(*self.metrics_labels)._count.get(),
                             metrics)
+    self.add_system_metrics(Stats.TOTAL_RECEIVED, Stats.stat_total_received.labels(*self.metrics_labels)._value.get(), metrics)
+    self.add_system_metrics(Stats.LAST_INVOCATION, Stats.stat_last_invocation.labels(*self.metrics_labels)._value.get(), metrics)
     return metrics
 
   def add_system_metrics(self, metric_name, value, metrics):
