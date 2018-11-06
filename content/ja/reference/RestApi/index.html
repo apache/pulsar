@@ -754,6 +754,10 @@
         
         
         
+        <li><a href="/admin/v2/brokers/health"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>brokers<span class="slash">/</span>health</code></a></li>
+        
+        
+        
         <li><a href="/admin/v2/brokers/internal-configuration"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>brokers<span class="slash">/</span>internal-configuration</code></a></li>
         
         
@@ -1900,6 +1904,54 @@
               <tr>
                 <td>412</td>
                 <td>Configuration can't be updated dynamically</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/v2/brokers/health">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>brokers<span class="slash">/</span>health</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Run a healthcheck against the broker</p>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>Everything is OK</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Cluster doesn't exist</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>

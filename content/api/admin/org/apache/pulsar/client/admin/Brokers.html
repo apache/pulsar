@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -151,6 +151,12 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i5" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Brokers.html#healthcheck--">healthcheck</a></span>()</code>
+<div class="block">Run a healthcheck on the broker.</div>
+</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Brokers.html#updateDynamicConfiguration-java.lang.String-java.lang.String-">updateDynamicConfiguration</a></span>(String&nbsp;configName,
                           String&nbsp;configValue)</code>
@@ -287,7 +293,7 @@ var activeTableTab = "activeTableTab";
 <a name="getInternalConfigurationData--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getInternalConfigurationData</h4>
 <pre>InternalConfigurationData&nbsp;getInternalConfigurationData()
@@ -297,6 +303,22 @@ var activeTableTab = "activeTableTab";
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>internal configuration data.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="healthcheck--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>healthcheck</h4>
+<pre>void&nbsp;healthcheck()
+          throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Run a healthcheck on the broker.</div>
+<dl>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code>an</code> - exception if the healthcheck fails.</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
 </dl>
 </li>
