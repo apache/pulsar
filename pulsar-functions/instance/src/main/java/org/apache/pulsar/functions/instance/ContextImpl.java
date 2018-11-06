@@ -98,7 +98,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
-    private ConcurrentMap<String, AccumulatedMetricDatum> currentAccumulatedMetrics;
     private ConcurrentMap<String, AccumulatedMetricDatum> accumulatedMetrics;
 
     private Map<String, Producer<?>> publishProducers;
@@ -131,7 +130,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels) {
         this.config = config;
         this.logger = logger;
-        this.currentAccumulatedMetrics = new ConcurrentHashMap<>();
         this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
         this.inputTopics = inputTopics;
@@ -351,8 +349,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                 .register(collectorRegistry));
 
         userMetrics.get(metricName).labels(userMetricsLabels).set(value);
-        currentAccumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
-        currentAccumulatedMetrics.get(metricName).update(value);
+        accumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
+        accumulatedMetrics.get(metricName).update(value);
     }
 
     public MetricsData getAndResetMetrics() {
@@ -364,8 +362,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     public void resetMetrics() {
         userMetrics.values().forEach(gauge -> gauge.clear());
         this.accumulatedMetrics.clear();
-        this.accumulatedMetrics.putAll(currentAccumulatedMetrics);
-        this.currentAccumulatedMetrics.clear();
     }
 
     public MetricsData getMetrics() {
