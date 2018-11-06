@@ -170,6 +170,7 @@ public class ProcessRuntimeTest {
         config.setFunctionVersion("1.0");
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
+        config.setClusterName("standalone");
 
         return config;
     }
@@ -250,13 +251,13 @@ public class ProcessRuntimeTest {
         int portArg;
         int metricsPortArg;
         if (null != depsDir) {
-            assertEquals(args.size(), 35);
+            assertEquals(args.size(), 37);
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir.toString();
             classpath = classpath + ":" + depsDir + "/*";
             portArg = 24;
             metricsPortArg = 26;
         } else {
-            assertEquals(args.size(), 34);
+            assertEquals(args.size(), 36);
             extraDepsEnv = "";
             portArg = 23;
             metricsPortArg = 25;
@@ -278,7 +279,8 @@ public class ProcessRuntimeTest {
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
-                + " --secrets_provider_config '{\"Config\":\"Value\"}'";
+                + " --secrets_provider_config '{\"Config\":\"Value\"}'"
+                + " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -306,7 +308,7 @@ public class ProcessRuntimeTest {
         ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
         List<String> args = container.getProcessArgs();
 
-        int totalArgs = 32;
+        int totalArgs = 34;
         int portArg = 23;
         int metricsPortArg = 25;
         String pythonPath = "";
@@ -324,7 +326,8 @@ public class ProcessRuntimeTest {
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider secretsprovider.ClearTextSecretsProvider"
-                + " --secrets_provider_config '{\"Config\":\"Value\"}'";
+                + " --secrets_provider_config '{\"Config\":\"Value\"}'"
+                + " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

@@ -68,7 +68,8 @@ def base64ify(bytes_or_str):
         return output_bytes
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, expected_healthcheck_interval, user_code, pulsar_client, secrets_provider):
+  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples,
+               expected_healthcheck_interval, user_code, pulsar_client, secrets_provider, cluster_name):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     self.queue = queue.Queue(max_buffered_tuples)
@@ -92,7 +93,9 @@ class PythonInstance(object):
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
     self.expected_healthcheck_interval = expected_healthcheck_interval
     self.secrets_provider = secrets_provider
-    self.metrics_labels = [function_details.tenant, function_details.namespace, function_details.name, instance_id]
+    self.metrics_labels = [function_details.tenant, 
+                           "%s/%s" % (function_details.tenant, function_details.namespace),
+                           function_details.name, instance_id, cluster_name]
 
   def health_check(self):
     self.last_health_check_ts = time.time()
@@ -196,13 +199,13 @@ class PythonInstance(object):
         try:
           # get user function start time for statistic calculation
           start_time = time.time()
-          self.stats.last_invocation_time = start_time * 1000.0
+          Stats.stat_last_invocation.labels(*self.metrics_labels).set(start_time * 1000.0)
           if self.function_class is not None:
             output_object = self.function_class.process(input_object, self.contextimpl)
           else:
             output_object = self.function_purefunction.process(input_object)
           successfully_executed = True
-          Stats.stats_process_latency_ms.labels(*self.metrics_labels).observe((time.time() - start_time) * 1000.0)
+          Stats.stat_process_latency_ms.labels(*self.metrics_labels).observe((time.time() - start_time) * 1000.0)
           Stats.stat_total_processed.labels(*self.metrics_labels).inc()
         except Exception as e:
           Log.exception("Exception while executing user method")
@@ -263,6 +266,8 @@ class PythonInstance(object):
         max_pending_messages=100000)
 
   def message_listener(self, serde, consumer, message):
+    # increment number of received records from source
+    Stats.stat_total_received.labels(*self.metrics_labels).inc()
     item = InternalMessage(message, consumer.topic(), serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
@@ -287,8 +292,8 @@ class PythonInstance(object):
     self.add_system_metrics("__total_system_exceptions__", Stats.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
     self.add_system_metrics("__total_user_exceptions__", Stats.stat_total_user_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
     self.add_system_metrics("__avg_latency_ms__",
-                            0.0 if Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get() <= 0.0
-                            else Stats.stats_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get(),
+                            0.0 if Stats.stat_process_latency_ms.labels(*self.metrics_labels)._count.get() <= 0.0
+                            else Stats.stat_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stat_process_latency_ms.labels(*self.metrics_labels)._count.get(),
                             metrics)
     return metrics
 
@@ -315,9 +320,9 @@ class PythonInstance(object):
       to_add.exceptionString = ex
       to_add.msSinceEpoch = tm
     status.averageLatency = 0.0 \
-      if Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get() <= 0.0 \
-      else Stats.stats_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get()
-    status.lastInvocationTime = long(self.stats.last_invocation_time)
+      if Stats.stat_process_latency_ms.labels(*self.metrics_labels)._count.get() <= 0.0 \
+      else Stats.stat_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stat_process_latency_ms.labels(*self.metrics_labels)._count.get()
+    status.lastInvocationTime = long(Stats.stat_last_invocation.labels(*self.metrics_labels)._value.get())
     return status
 
   def join(self):

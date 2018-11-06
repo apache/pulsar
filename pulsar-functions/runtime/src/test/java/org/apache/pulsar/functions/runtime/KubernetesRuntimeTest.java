@@ -185,6 +185,7 @@ public class KubernetesRuntimeTest {
         config.setFunctionVersion("1.0");
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
+        config.setClusterName("standalone");
 
         return config;
     }
@@ -222,13 +223,13 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 35;
+            totalArgs = 37;
             portArg = 24;
             metricsPortArg = 26;
         } else {
             extraDepsEnv = "";
             portArg = 23;
-            totalArgs = 34;
+            totalArgs = 36;
             metricsPortArg = 25;
         }
 
@@ -251,7 +252,8 @@ public class KubernetesRuntimeTest {
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval -1"
                 + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
-                + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
+                + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'"
+                + " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -285,13 +287,13 @@ public class KubernetesRuntimeTest {
         int configArg;
         int metricsPortArg;
         if (null == extraDepsDir) {
-            totalArgs = 38;
+            totalArgs = 40;
             portArg = 29;
             configArg = 9;
             pythonPath = "";
             metricsPortArg = 31;
         } else {
-            totalArgs = 39;
+            totalArgs = 41;
             portArg = 30;
             configArg = 10;
             metricsPortArg = 32;
@@ -316,7 +318,8 @@ public class KubernetesRuntimeTest {
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --expected_healthcheck_interval -1"
                 + " --secrets_provider secretsprovider.ClearTextSecretsProvider"
-                + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
+                + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'"
+                + " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

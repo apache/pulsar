@@ -82,6 +82,7 @@ def main():
   parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
   parser.add_argument('--dependency_repository', required=False, help='For packaged python like wheel files, which repository to pull the dependencies from')
   parser.add_argument('--extra_dependency_repository', required=False, help='For packaged python like wheel files, any extra repository to pull the dependencies from')
+  parser.add_argument('--cluster_name', required=True, help='The name of the cluster this instance is running on')
 
   args = parser.parse_args()
   function_details = Function_pb2.FunctionDetails()
@@ -169,7 +170,7 @@ def main():
                                               str(args.function_version), function_details,
                                               int(args.max_buffered_tuples),
                                               int(args.expected_healthcheck_interval),
-                                              str(args.py), pulsar_client, secrets_provider)
+                                              str(args.py), pulsar_client, secrets_provider, args.cluster_name)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 

@@ -51,6 +51,10 @@ class AccumulatedMetricDatum(object):
       self.min = value
 
 class ContextImpl(pulsar.Context):
+
+  # add label to indicate user metric
+  user_metrics_label_names = Stats.metrics_label_names + ["user_metric"]
+
   def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider, metrics_labels):
     self.instance_config = instance_config
     self.log = logger
@@ -70,7 +74,9 @@ class ContextImpl(pulsar.Context):
     self.secrets_map = json.loads(instance_config.function_details.secretsMap) \
       if instance_config.function_details.secretsMap \
       else {}
-    self.metrics_labels = metrics_labels
+
+    # add label to user metrics: user_metric=true
+    self.user_metrics_labels = metrics_labels + ['true']
     self.user_metrics = dict()
 
   # Called on a per message basis to set the context for the current message
@@ -124,8 +130,8 @@ class ContextImpl(pulsar.Context):
     if metric_name not in self.user_metrics:
       self.user_metrics[metric_name] = Gauge("pulsar_function_user_metric_%s" % metric_name,
                                              'Pulsar Function user metric %s.' % metric_name,
-                                             Stats.metrics_label_names)
-    self.user_metrics[metric_name].labels(*self.metrics_labels).set(metric_value)
+                                             ContextImpl.user_metrics_label_names)
+    self.user_metrics[metric_name].labels(*self.user_metrics_labels).set(metric_value)
     if not metric_name in self.accumulated_metrics:
       self.accumulated_metrics[metric_name] = AccumulatedMetricDatum()
     self.accumulated_metrics[metric_name].update(metric_value)
@@ -174,7 +180,7 @@ class ContextImpl(pulsar.Context):
   def reset_metrics(self):
     # TODO: Make it thread safe
     for gauge in self.user_metrics.values():
-      gauge.labels(*self.metrics_labels).set(0.0)
+      gauge.labels(*self.user_metrics_labels).set(0.0)
     self.accumulated_metrics.clear()
 
   def get_metrics(self):
