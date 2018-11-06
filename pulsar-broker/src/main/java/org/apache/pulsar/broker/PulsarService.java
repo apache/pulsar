@@ -172,7 +172,7 @@ public class PulsarService implements AutoCloseable {
         Init, Started, Closed
     }
 
-    private State state;
+    private volatile State state;
 
     private final ReentrantLock mutex = new ReentrantLock();
     private final Condition isClosedCondition = mutex.newCondition();
@@ -457,6 +457,9 @@ public class PulsarService implements AutoCloseable {
 
             this.metricsGenerator = new MetricsGenerator(this);
 
+            // By starting the Load manager service, the broker will also become visible
+            // to the rest of the broker by creating the registration z-node. This needs
+            // to be done only when the broker is fully operative.
             this.startLoadManagementService();
 
             state = State.Started;
