@@ -691,10 +691,10 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Temporary stops function instance. (If worker restarts then it reassigns and starts functiona again")
     class StopFunction extends FunctionCommand {
-        
+
         @Parameter(names = "--instance-id", description = "The function instanceId (stop all instances if instance-id is not provided")
         protected String instanceId;
-        
+
         @Override
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
@@ -764,55 +764,18 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = { "-k", "--key" }, description = "key")
         private String key = null;
 
-        // TODO: this url should be fetched along with bookkeeper location from pulsar admin
-        @Parameter(names = { "-u", "--storage-service-url" }, description = "The URL for the storage service used by the function")
-        private String stateStorageServiceUrl = null;
-
         @Parameter(names = { "-w", "--watch" }, description = "Watch for changes in the value associated with a key for a Pulsar Function")
         private boolean watch = false;
 
         @Override
         void runCmd() throws Exception {
-            checkNotNull(stateStorageServiceUrl, "The state storage service URL is missing");
-
-            String tableNs = String.format(
-                "%s_%s",
-                tenant,
-                namespace).replace('-', '_');
-
-            String tableName = getFunctionName();
-
-            try (StorageClient client = StorageClientBuilder.newBuilder()
-                 .withSettings(StorageClientSettings.newBuilder()
-                     .serviceUri(stateStorageServiceUrl)
-                     .clientName("functions-admin")
-                     .build())
-                 .withNamespace(tableNs)
-                 .build()) {
-                try (Table<ByteBuf, ByteBuf> table = result(client.openTable(tableName))) {
-                    long lastVersion = -1L;
-                    do {
-                        try (KeyValue<ByteBuf, ByteBuf> kv = result(table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))))) {
-                            if (null == kv) {
-                                System.out.println("key '" + key + "' doesn't exist.");
-                            } else {
-                                if (kv.version() > lastVersion) {
-                                    if (kv.isNumber()) {
-                                        System.out.println("value = " + kv.numberValue());
-                                    } else {
-                                        System.out.println("value = " + new String(ByteBufUtil.getBytes(kv.value()), UTF_8));
-                                    }
-                                    lastVersion = kv.version();
-                                }
-                            }
-                        }
-                        if (watch) {
-                            Thread.sleep(1000);
-                        }
-                    } while (watch);
+            do {
+                String valueAndVersion = admin.functions().getFunctionState(tenant, namespace, functionName, key);
+                System.out.println(valueAndVersion);
+                if (watch) {
+                    Thread.sleep(1000);
                 }
-            }
-
+            } while (watch);
         }
     }
 
