@@ -20,6 +20,8 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.google.protobuf.util.JsonFormat;
+import io.kubernetes.client.apis.AppsV1Api;
+import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1PodSpec;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -27,7 +29,6 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
-import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.testng.annotations.AfterMethod;
@@ -41,7 +42,6 @@ import java.util.Map;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.expectThrows;
 
 /**
  * Unit test of {@link ThreadRuntime}.
@@ -68,10 +68,14 @@ public class KubernetesRuntimeTest {
 
         @Override
         public String getSecretsProviderClassName(FunctionDetails functionDetails) {
-            if (functionDetails.getRuntime() == FunctionDetails.Runtime.JAVA) {
-                return ClearTextSecretsProvider.class.getName();
+            if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
+                if (functionDetails.getRuntime() == FunctionDetails.Runtime.JAVA) {
+                    return ClearTextSecretsProvider.class.getName();
+                } else {
+                    return "secretsprovider.ClearTextSecretsProvider";
+                }
             } else {
-                return "secretsprovider.ClearTextSecretsProvider";
+                return null;
             }
         }
 
@@ -98,7 +102,7 @@ public class KubernetesRuntimeTest {
         }
 
         @Override
-        public void validateSecretMap(Map<String, Object> secretMap) {
+        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, FunctionDetails functionDetails) {
 
         }
     }
@@ -155,7 +159,7 @@ public class KubernetesRuntimeTest {
         return factory;
     }
 
-    FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime) {
+    FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime, boolean addSecrets) {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         functionDetailsBuilder.setRuntime(runtime);
         functionDetailsBuilder.setTenant(TEST_TENANT);
@@ -174,13 +178,16 @@ public class KubernetesRuntimeTest {
                 .putAllInputSpecs(topicsToSchema)
                 .setClassName("org.pulsar.pulsar.TestSource")
                 .setTypeClassName(String.class.getName()));
+        if (addSecrets) {
+            functionDetailsBuilder.setSecretsMap("SomeMap");
+        }
         return functionDetailsBuilder.build();
     }
 
-    InstanceConfig createJavaInstanceConfig(FunctionDetails.Runtime runtime) {
+    InstanceConfig createJavaInstanceConfig(FunctionDetails.Runtime runtime, boolean addSecrets) {
         InstanceConfig config = new InstanceConfig();
 
-        config.setFunctionDetails(createFunctionDetails(runtime));
+        config.setFunctionDetails(createFunctionDetails(runtime, addSecrets));
         config.setFunctionId(java.util.UUID.randomUUID().toString());
         config.setFunctionVersion("1.0");
         config.setInstanceId(0);
@@ -192,26 +199,35 @@ public class KubernetesRuntimeTest {
 
     @Test
     public void testJavaConstructor() throws Exception {
-        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
         factory = createKubernetesRuntimeFactory(null);
 
-        verifyJavaInstance(config, pulsarRootDir + "/instances/deps");
+        verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
+    }
+
+    @Test
+    public void testJavaConstructorWithSecrets() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
+
+        factory = createKubernetesRuntimeFactory(null);
+
+        verifyJavaInstance(config, pulsarRootDir + "/instances/deps", true);
     }
 
     @Test
     public void testJavaConstructorWithDeps() throws Exception {
-        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
         String extraDepsDir = "/path/to/deps/dir";
 
         factory = createKubernetesRuntimeFactory(extraDepsDir);
 
-        verifyJavaInstance(config, extraDepsDir);
+        verifyJavaInstance(config, extraDepsDir, false);
     }
 
 
-    private void verifyJavaInstance(InstanceConfig config, String depsDir) throws Exception {
+    private void verifyJavaInstance(InstanceConfig config, String depsDir, boolean secretsAttached) throws Exception {
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
 
@@ -223,14 +239,17 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 37;
+            totalArgs = 33;
             portArg = 24;
             metricsPortArg = 26;
         } else {
             extraDepsEnv = "";
             portArg = 23;
-            totalArgs = 36;
             metricsPortArg = 25;
+            totalArgs = 32;
+        }
+        if (secretsAttached) {
+            totalArgs += 4;
         }
 
         assertEquals(args.size(), totalArgs,
@@ -250,34 +269,37 @@ public class KubernetesRuntimeTest {
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
-                + " --expected_healthcheck_interval -1"
-                + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
-                + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'"
-                + " --cluster_name standalone";
+                + " --expected_healthcheck_interval -1";
+        if (secretsAttached) {
+            expectedArgs += " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
+                    + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
+        }
+        expectedArgs += " --cluster_name standalone";
+
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
     @Test
     public void testPythonConstructor() throws Exception {
-        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON, false);
 
         factory = createKubernetesRuntimeFactory(null);
 
-        verifyPythonInstance(config, pulsarRootDir + "/instances/deps");
+        verifyPythonInstance(config, pulsarRootDir + "/instances/deps", false);
     }
 
     @Test
     public void testPythonConstructorWithDeps() throws Exception {
-        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON, false);
 
         String extraDepsDir = "/path/to/deps/dir";
 
         factory = createKubernetesRuntimeFactory(extraDepsDir);
 
-        verifyPythonInstance(config, extraDepsDir);
+        verifyPythonInstance(config, extraDepsDir, false);
     }
 
-    private void verifyPythonInstance(InstanceConfig config, String extraDepsDir) throws Exception {
+    private void verifyPythonInstance(InstanceConfig config, String extraDepsDir, boolean secretsAttached) throws Exception {
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
 
@@ -287,17 +309,20 @@ public class KubernetesRuntimeTest {
         int configArg;
         int metricsPortArg;
         if (null == extraDepsDir) {
-            totalArgs = 40;
+            totalArgs = 36;
             portArg = 29;
             configArg = 9;
             pythonPath = "";
             metricsPortArg = 31;
         } else {
-            totalArgs = 41;
+            totalArgs = 37;
             portArg = 30;
             configArg = 10;
             metricsPortArg = 32;
             pythonPath = "PYTHONPATH=${PYTHONPATH}:" + extraDepsDir + " ";
+        }
+        if (secretsAttached) {
+            totalArgs += 4;
         }
 
         assertEquals(args.size(), totalArgs,
@@ -316,10 +341,12 @@ public class KubernetesRuntimeTest {
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
-                + " --expected_healthcheck_interval -1"
-                + " --secrets_provider secretsprovider.ClearTextSecretsProvider"
-                + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'"
-                + " --cluster_name standalone";
+                + " --expected_healthcheck_interval -1";
+        if (secretsAttached) {
+            expectedArgs += " --secrets_provider secretsprovider.ClearTextSecretsProvider"
+                    + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
+        }
+        expectedArgs += " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
