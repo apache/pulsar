@@ -355,8 +355,6 @@ public class PulsarService implements AutoCloseable {
             // Start load management service (even if load balancing is disabled)
             this.loadManager.set(LoadManager.create(this));
 
-            this.startLoadManagementService();
-
             // needs load management service
             this.startNamespaceService();
 
@@ -369,6 +367,13 @@ public class PulsarService implements AutoCloseable {
             attributeMap.put(WebService.ATTRIBUTE_PULSAR_NAME, this);
             Map<String, Object> vipAttributeMap = Maps.newHashMap();
             vipAttributeMap.put(VipStatus.ATTRIBUTE_STATUS_FILE_PATH, this.config.getStatusFilePath());
+            vipAttributeMap.put(VipStatus.ATTRIBUTE_IS_READY_PROBE, new Supplier<Boolean>() {
+                @Override
+                public Boolean get() {
+                    // Ensure the VIP status is only visible when the broker is fully initialized
+                    return state == State.Started;
+                }
+            });
             this.webService.addRestResources("/", VipStatus.class.getPackage().getName(), false, vipAttributeMap);
             this.webService.addRestResources("/", "org.apache.pulsar.broker.web", false, attributeMap);
             this.webService.addRestResources("/admin", "org.apache.pulsar.broker.admin.v1", true, attributeMap);
@@ -446,11 +451,13 @@ public class PulsarService implements AutoCloseable {
 
             leaderElectionService.start();
 
+            schemaRegistryService = SchemaRegistryService.create(this);
+
             webService.start();
 
             this.metricsGenerator = new MetricsGenerator(this);
 
-            schemaRegistryService = SchemaRegistryService.create(this);
+            this.startLoadManagementService();
 
             state = State.Started;
 
@@ -810,12 +817,12 @@ public class PulsarService implements AutoCloseable {
                         .authentication( //
                                 conf.getBrokerClientAuthenticationPlugin(), //
                                 conf.getBrokerClientAuthenticationParameters());
-                
+
                 if (conf.isBrokerClientTlsEnabled()) {
                     builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
                     builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
                 }
-                
+
                 this.adminClient = builder.build();
                 LOG.info("Admin api url: " + adminApiUrl);
             } catch (Exception e) {
