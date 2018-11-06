@@ -47,6 +47,7 @@ import org.apache.pulsar.functions.utils.*;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
 
+import static org.apache.pulsar.common.functions.Utils.inferMissingArguments;
 import static org.apache.pulsar.functions.utils.Utils.*;
 
 @Slf4j
@@ -94,6 +95,7 @@ public class LocalRunner {
         int parallelism;
         if (!StringUtils.isEmpty(functionConfigString)) {
             FunctionConfig functionConfig = new Gson().fromJson(functionConfigString, FunctionConfig.class);
+            FunctionConfigUtils.inferMissingArguments(functionConfig);
             ClassLoader classLoader = null;
             parallelism = functionConfig.getParallelism();
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
@@ -113,6 +115,7 @@ public class LocalRunner {
             functionDetails = FunctionConfigUtils.convert(functionConfig, classLoader);
         } else if (!StringUtils.isEmpty(sourceConfigString)) {
             SourceConfig sourceConfig = new Gson().fromJson(sourceConfigString, SourceConfig.class);
+            inferMissingArguments(sourceConfig);
             String builtInSource = isBuiltInSource(sourceConfig.getArchive());
             if (builtInSource != null) {
                 sourceConfig.setArchive(builtInSource);
@@ -132,6 +135,7 @@ public class LocalRunner {
             functionDetails = SourceConfigUtils.convert(sourceConfig, classLoader);
         } else {
             SinkConfig sinkConfig = new Gson().fromJson(sinkConfigString, SinkConfig.class);
+            inferMissingArguments(sinkConfig);
             String builtInSink = isBuiltInSource(sinkConfig.getArchive());
             if (builtInSink != null) {
                 sinkConfig.setArchive(builtInSink);
