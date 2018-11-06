@@ -179,6 +179,9 @@ class RuntimeUtils {
             args.add("--secrets_provider_config");
             args.add("'" + secretsProviderConfig + "'");
         }
+
+        args.add("--cluster_name");
+        args.add(instanceConfig.getClusterName());
         return args;
     }
 }

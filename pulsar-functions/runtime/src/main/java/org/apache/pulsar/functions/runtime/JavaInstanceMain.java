@@ -125,6 +125,9 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--secrets_provider_config", description = "The config that needs to be passed to secrets provider", required = false)
     protected String secretsProviderConfig;
 
+    @Parameter(names = "--cluster_name", description = "The name of the cluster this instance is running on", required = true)
+    protected String clusterName;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -141,6 +144,7 @@ public class JavaInstanceMain implements AutoCloseable {
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
+        instanceConfig.setClusterName(clusterName);
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);

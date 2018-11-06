@@ -24,8 +24,10 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -116,7 +118,14 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     Map<String, Gauge> userMetrics = new HashMap<>();
     private final CollectorRegistry collectorRegistry;
-    private final String[] metricsLabels;
+    private final String[] userMetricsLabels;
+
+    private final static String[] userMetricsLabelNames;
+    static {
+        // add label to indicate user metric
+        userMetricsLabelNames = Arrays.copyOf(FunctionStats.metricsLabelNames, FunctionStats.metricsLabelNames.length + 1);
+        userMetricsLabelNames[FunctionStats.metricsLabelNames.length] = "user_metric";
+    }
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels) {
@@ -148,7 +157,10 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
 
         this.collectorRegistry = collectorRegistry;
-        this.metricsLabels = metricsLabels;
+
+        // add label to user metrics: user_metric=true
+        this.userMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 1);
+        this.userMetricsLabels[metricsLabels.length] = "true";
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -335,10 +347,10 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                 s -> Gauge.build()
                 .name("pulsar_function_user_metric_" + metricName)
                         .help("Pulsar Function user metric " + metricName + ".")
-                .labelNames(FunctionStats.metricsLabelNames)
+                .labelNames(userMetricsLabelNames)
                 .register(collectorRegistry));
 
-        userMetrics.get(metricName).labels(metricsLabels).set(value);
+        userMetrics.get(metricName).labels(userMetricsLabels).set(value);
         currentAccumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
         currentAccumulatedMetrics.get(metricName).update(value);
     }
