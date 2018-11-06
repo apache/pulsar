@@ -25,14 +25,11 @@ import logging
 import logging.config
 import logging.handlers
 import os
-import errno
-from logging.handlers import RotatingFileHandler
 import pulsar
 
 # Create the logger
 # pylint: disable=invalid-name
-logging.basicConfig()
-Log = logging.getLogger()
+Log = None
 
 # time formatter - date - time - UTC offset
 # e.g. "08/16/1988 21:30:00 +1030"
@@ -54,43 +51,6 @@ class LogTopicHandler(logging.Handler):
     msg = self.format(record)
     self.producer.send_async(str(msg).encode('utf-8'), None)
 
-def mkdir_p(path):
-  try:
-    os.makedirs(path, exist_ok=True)  # Python>3.2
-  except TypeError:
-    try:
-      os.makedirs(path)
-    except OSError as exc: # Python >2.5
-      if exc.errno == errno.EEXIST and os.path.isdir(path):
-        pass
-      else: raise
-
-# logging handler that is RotatingFileHandler but creates path to log file for you
-# if it doesn't exist
-class CreatePathRotatingFileHandler(logging.handlers.RotatingFileHandler):
-  def __init__(self, filename, mode='a', maxBytes=10 * 1024 * 1024, backupCount=5, encoding=None, delay=0):
-    mkdir_p(os.path.dirname(filename))
-    logging.handlers.RotatingFileHandler.__init__(self, filename, mode=mode, maxBytes=maxBytes, backupCount=backupCount, encoding=encoding, delay=delay)
-
-def configure(level=logging.INFO):
-  """ Configure logger which dumps log on terminal
-
-  :param level: logging level: info, warning, verbose...
-  :type level: logging level
-  :type logfile: string
-  :return: None
-  :rtype: None
-  """
-
-  # Remove all the existing StreamHandlers to avoid duplicate
-  for handler in Log.handlers:
-    if isinstance(handler, logging.StreamHandler):
-      Log.handlers.remove(handler)
-
-  Log.setLevel(level)
-  stream_handler = logging.StreamHandler()
-  add_handler(stream_handler)
-
 def remove_all_handlers():
   retval = None
   for handler in Log.handlers:
@@ -107,20 +67,7 @@ def add_handler(stream_handler):
 def init_logger(level, logfile, logging_config_file):
   global Log
   # get log file location for function instance
-  os.environ['LOG_FILE'] = logfile;
+  os.environ['LOG_FILE'] = logfile
   logging.config.fileConfig(logging_config_file)
   Log = logging.getLogger()
-  Log = logging.LoggerAdapter(Log, {'level': level})
-
-def set_logging_level(cl_args):
-  """simply set verbose level based on command-line args
-
-  :param cl_args: CLI arguments
-  :type cl_args: dict
-  :return: None
-  :rtype: None
-  """
-  if 'verbose' in cl_args and cl_args['verbose']:
-    configure(logging.DEBUG)
-  else:
-    configure(logging.INFO)
+  Log.setLevel(level)
