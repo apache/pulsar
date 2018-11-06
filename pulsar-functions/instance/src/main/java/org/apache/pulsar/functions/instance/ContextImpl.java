@@ -18,31 +18,12 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import lombok.Getter;
 import lombok.Setter;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -61,9 +42,24 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
+
+import static com.google.common.base.Preconditions.checkState;
+
 /**
  * This class implements the Context interface exposed to the user.
  */
+
 class ContextImpl implements Context, SinkContext, SourceContext {
     private InstanceConfig config;
     private Logger logger;
@@ -115,15 +111,15 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
-    Map<String, Gauge> userMetrics = new HashMap<>();
-    private final CollectorRegistry collectorRegistry;
-    private final String[] userMetricsLabels;
+    Map<String, String[]> userMetricsLabels = new HashMap<>();
+    private final String[] metricsLabels;
+    private final Gauge userMetricsGauge;
 
     private final static String[] userMetricsLabelNames;
     static {
         // add label to indicate user metric
         userMetricsLabelNames = Arrays.copyOf(FunctionStats.metricsLabelNames, FunctionStats.metricsLabelNames.length + 1);
-        userMetricsLabelNames[FunctionStats.metricsLabelNames.length] = "user_metric";
+        userMetricsLabelNames[FunctionStats.metricsLabelNames.length] = "metric";
     }
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
@@ -154,11 +150,12 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             secretsMap = new HashMap<>();
         }
 
-        this.collectorRegistry = collectorRegistry;
-
-        // add label to user metrics: user_metric=true
-        this.userMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 1);
-        this.userMetricsLabels[metricsLabels.length] = "true";
+        this.metricsLabels = metricsLabels;
+        this.userMetricsGauge = Gauge.build()
+                .name("pulsar_function_user_metric")
+                .help("Pulsar Function user defined metric.")
+                .labelNames(userMetricsLabelNames)
+                .register(collectorRegistry);
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -341,14 +338,14 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public void recordMetric(String metricName, double value) {
-        userMetrics.computeIfAbsent(metricName,
-                s -> Gauge.build()
-                .name("pulsar_function_user_metric_" + metricName)
-                        .help("Pulsar Function user metric " + metricName + ".")
-                .labelNames(userMetricsLabelNames)
-                .register(collectorRegistry));
+        userMetricsLabels.computeIfAbsent(metricName,
+                s -> {
+                    String[] userMetricLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 1);
+                    userMetricLabels[userMetricLabels.length - 1] = metricName;
+                    return userMetricLabels;
+                });
 
-        userMetrics.get(metricName).labels(userMetricsLabels).set(value);
+        userMetricsGauge.labels(userMetricsLabels.get(metricName)).set(value);
         accumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
         accumulatedMetrics.get(metricName).update(value);
     }
@@ -360,7 +357,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     public void resetMetrics() {
-        userMetrics.values().forEach(gauge -> gauge.clear());
+        userMetricsGauge.clear();
         this.accumulatedMetrics.clear();
     }
 

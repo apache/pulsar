@@ -53,7 +53,7 @@ class AccumulatedMetricDatum(object):
 class ContextImpl(pulsar.Context):
 
   # add label to indicate user metric
-  user_metrics_label_names = Stats.metrics_label_names + ["user_metric"]
+  user_metrics_label_names = Stats.metrics_label_names + ["metric"]
 
   def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider, metrics_labels):
     self.instance_config = instance_config
@@ -75,9 +75,11 @@ class ContextImpl(pulsar.Context):
       if instance_config.function_details.secretsMap \
       else {}
 
-    # add label to user metrics: user_metric=true
-    self.user_metrics_labels = metrics_labels + ['true']
-    self.user_metrics = dict()
+    self.metrics_labels = metrics_labels
+    self.user_metrics_labels = dict()
+    self.user_metrics_gauge = Gauge("pulsar_function_user_metric",
+                                    'Pulsar Function user defined metric',
+                                    ContextImpl.user_metrics_label_names)
 
   # Called on a per message basis to set the context for the current message
   def set_current_message_context(self, msgid, topic):
@@ -127,11 +129,10 @@ class ContextImpl(pulsar.Context):
     return self.secrets_provider.provide_secret(secret_key, self.secrets_map[secret_key])
 
   def record_metric(self, metric_name, metric_value):
-    if metric_name not in self.user_metrics:
-      self.user_metrics[metric_name] = Gauge("pulsar_function_user_metric_%s" % metric_name,
-                                             'Pulsar Function user metric %s.' % metric_name,
-                                             ContextImpl.user_metrics_label_names)
-    self.user_metrics[metric_name].labels(*self.user_metrics_labels).set(metric_value)
+    if metric_name not in self.user_metrics_labels:
+      self.user_metrics_labels[metric_name] = self.metrics_labels + [metric_name]
+    self.user_metrics_gauge.labels(*self.user_metrics_labels[metric_name]).set(metric_value)
+
     if not metric_name in self.accumulated_metrics:
       self.accumulated_metrics[metric_name] = AccumulatedMetricDatum()
     self.accumulated_metrics[metric_name].update(metric_value)

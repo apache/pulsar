@@ -479,7 +479,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.statProcessLatency.labels(metricsLabels).get().count == 0.0
                         ? 0 : stats.statProcessLatency.labels(metricsLabels).get().sum / stats.statProcessLatency
                         .labels(metricsLabels).get().count);
-        functionStatusBuilder.setLastInvocationTime((long) stats.statlastInvocation.get());
+        functionStatusBuilder.setLastInvocationTime((long) stats.statlastInvocation.labels(metricsLabels).get());
         return functionStatusBuilder;
     }
 
