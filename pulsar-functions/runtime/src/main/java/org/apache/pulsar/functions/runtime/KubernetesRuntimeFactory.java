@@ -20,8 +20,6 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.ApiClient;
 import io.kubernetes.client.Configuration;
 import io.kubernetes.client.apis.AppsV1Api;
@@ -40,7 +38,6 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -204,12 +201,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         KubernetesRuntime.doChecks(functionDetails);
-        if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, Object>>() {
-            }.getType();
-            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
-            secretsProviderConfigurator.validateSecretMap(secretsMap);
-        }
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, kubernetesInfo.getJobNamespace(), functionDetails);
     }
 
     @VisibleForTesting

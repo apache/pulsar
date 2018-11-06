@@ -169,11 +169,13 @@ class RuntimeUtils {
         args.add("--expected_healthcheck_interval");
         args.add(String.valueOf(expectedHealthCheckInterval));
 
-        args.add("--secrets_provider");
-        args.add(secretsProviderClassName);
-        if (!StringUtils.isEmpty(secretsProviderConfig)) {
-            args.add("--secrets_provider_config");
-            args.add("'" + secretsProviderConfig + "'");
+        if (!StringUtils.isEmpty(secretsProviderClassName)) {
+            args.add("--secrets_provider");
+            args.add(secretsProviderClassName);
+            if (!StringUtils.isEmpty(secretsProviderConfig)) {
+                args.add("--secrets_provider_config");
+                args.add("'" + secretsProviderConfig + "'");
+            }
         }
         return args;
     }
