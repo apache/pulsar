@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
+import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
@@ -113,7 +114,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     Map<String, String[]> userMetricsLabels = new HashMap<>();
     private final String[] metricsLabels;
-    private final Gauge userMetricsGauge;
+    private final Summary userMetricsSummary;
 
     private final static String[] userMetricsLabelNames;
     static {
@@ -151,10 +152,14 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
 
         this.metricsLabels = metricsLabels;
-        this.userMetricsGauge = Gauge.build()
+        this.userMetricsSummary = Summary.build()
                 .name("pulsar_function_user_metric")
                 .help("Pulsar Function user defined metric.")
                 .labelNames(userMetricsLabelNames)
+                .quantile(0.5, 0.01)
+                .quantile(0.9, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(0.999, 0.01)
                 .register(collectorRegistry);
     }
 
@@ -345,7 +350,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                     return userMetricLabels;
                 });
 
-        userMetricsGauge.labels(userMetricsLabels.get(metricName)).set(value);
+        userMetricsSummary.labels(userMetricsLabels.get(metricName)).observe(value);
         accumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
         accumulatedMetrics.get(metricName).update(value);
     }
@@ -357,7 +362,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     public void resetMetrics() {
-        userMetricsGauge.clear();
+        userMetricsSummary.clear();
         this.accumulatedMetrics.clear();
     }
 
