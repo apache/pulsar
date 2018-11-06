@@ -105,4 +105,11 @@ public interface Brokers {
      * @return internal configuration data.
      */
     InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException;
+
+    /**
+     * Run a healthcheck on the broker.
+     *
+     * @throws an exception if the healthcheck fails.
+     */
+    void healthcheck() throws PulsarAdminException;
 }

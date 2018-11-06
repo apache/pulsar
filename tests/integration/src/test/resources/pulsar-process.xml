@@ -26,6 +26,7 @@
             <class name="org.apache.pulsar.tests.integration.compaction.TestCompaction" />
             <class name="org.apache.pulsar.tests.integration.functions.PulsarFunctionsProcessTest" />
             <class name="org.apache.pulsar.tests.integration.presto.TestBasicPresto" />
+            <class name="org.apache.pulsar.tests.integration.cli.HealthcheckTest" />
         </classes>
     </test>
 </suite>
