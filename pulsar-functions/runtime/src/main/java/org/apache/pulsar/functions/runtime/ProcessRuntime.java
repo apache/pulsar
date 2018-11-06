@@ -162,7 +162,7 @@ class ProcessRuntime implements Runtime {
             timer.shutdown();
         }
         if (process != null) {
-            process.destroy();
+            process.destroyForcibly();
         }
         if (channel != null) {
             channel.shutdown();
