@@ -77,9 +77,9 @@ class ContextImpl(pulsar.Context):
 
     self.metrics_labels = metrics_labels
     self.user_metrics_labels = dict()
-    self.user_metrics_gauge = Summary("pulsar_function_user_metric",
+    self.user_metrics_summary = Summary("pulsar_function_user_metric",
                                     'Pulsar Function user defined metric',
-                                    ContextImpl.user_metrics_label_names)
+                                        ContextImpl.user_metrics_label_names)
 
   # Called on a per message basis to set the context for the current message
   def set_current_message_context(self, msgid, topic):
@@ -131,7 +131,7 @@ class ContextImpl(pulsar.Context):
   def record_metric(self, metric_name, metric_value):
     if metric_name not in self.user_metrics_labels:
       self.user_metrics_labels[metric_name] = self.metrics_labels + [metric_name]
-    self.user_metrics_gauge.labels(*self.user_metrics_labels[metric_name]).observe(metric_value)
+    self.user_metrics_summary.labels(*self.user_metrics_labels[metric_name]).observe(metric_value)
     if not metric_name in self.accumulated_metrics:
       self.accumulated_metrics[metric_name] = AccumulatedMetricDatum()
     self.accumulated_metrics[metric_name].update(metric_value)
@@ -180,8 +180,8 @@ class ContextImpl(pulsar.Context):
   def reset_metrics(self):
     # TODO: Make it thread safe
     for labels in self.user_metrics_labels.values():
-      self.user_metrics_gauge.labels(*labels)._sum.set(0.0)
-      self.user_metrics_gauge.labels(*labels)._count.set(0.0)
+      self.user_metrics_summary.labels(*labels)._sum.set(0.0)
+      self.user_metrics_summary.labels(*labels)._count.set(0.0)
     self.accumulated_metrics.clear()
 
   def get_metrics(self):

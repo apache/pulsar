@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.instance;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;

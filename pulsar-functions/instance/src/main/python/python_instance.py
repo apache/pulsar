@@ -95,7 +95,8 @@ class PythonInstance(object):
     self.secrets_provider = secrets_provider
     self.metrics_labels = [function_details.tenant,
                            "%s/%s" % (function_details.tenant, function_details.namespace),
-                           function_details.name, instance_id, cluster_name]
+                           "%s/%s/%s" % (function_details.tenant, function_details.namespace, function_details.name),
+                           instance_id, cluster_name]
 
   def health_check(self):
     self.last_health_check_ts = time.time()

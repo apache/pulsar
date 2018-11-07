@@ -140,7 +140,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 instanceConfig.getFunctionDetails().getTenant(),
                 String.format("%s/%s", instanceConfig.getFunctionDetails().getTenant(),
                         instanceConfig.getFunctionDetails().getNamespace()),
-                instanceConfig.getFunctionDetails().getName(),
+                String.format("%s/%s/%s", instanceConfig.getFunctionDetails().getTenant(),
+                        instanceConfig.getFunctionDetails().getNamespace(),
+                        instanceConfig.getFunctionDetails().getName()),
                 String.valueOf(instanceConfig.getInstanceId()),
                 instanceConfig.getClusterName()
         };

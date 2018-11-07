@@ -36,7 +36,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 @Setter
 public class FunctionStats {
 
-    static final String[] metricsLabelNames = {"tenant", "namespace", "name", "instance_id", "cluster"};
+    static final String[] metricsLabelNames = {"tenant", "namespace", "function", "instance_id", "cluster"};
 
     /** Declare metric names **/
     static final String PULSAR_FUNCTION_PROCESSED_TOTAL = "pulsar_function_processed_total";

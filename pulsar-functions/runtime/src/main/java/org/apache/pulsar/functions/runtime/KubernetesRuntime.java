@@ -520,9 +520,10 @@ class KubernetesRuntime implements Runtime {
 
     private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
         final Map<String, String> labels = new HashMap<>();
-        labels.put("app", createJobName(functionDetails));
-        labels.put("namespace", functionDetails.getNamespace());
+        labels.put("namespace", String.format("%s/%s",functionDetails.getTenant(), functionDetails.getNamespace()));
         labels.put("tenant", functionDetails.getTenant());
+        labels.put("function", String.format("%s/%s/%s", functionDetails.getTenant(),
+                functionDetails.getNamespace(), functionDetails.getName()));
         if (customLabels != null && !customLabels.isEmpty()) {
             labels.putAll(customLabels);
         }

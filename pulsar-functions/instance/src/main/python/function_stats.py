@@ -24,7 +24,7 @@ from prometheus_client import Counter, Summary, Gauge
 
 # We keep track of the following metrics
 class Stats(object):
-  metrics_label_names = ['tenant', 'namespace', 'name', 'instance_id', 'cluster']
+  metrics_label_names = ['tenant', 'namespace', 'function', 'instance_id', 'cluster']
 
   TOTAL_PROCESSED = 'pulsar_function_processed_total'
   TOTAL_SUCCESSFULLY_PROCESSED = 'pulsar_function_processed_successfully_total'
