@@ -148,11 +148,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * Flush all the pending acks and send them to the broker
      */
     public void flush() {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Flushing pending acks to broker: last-cumulative-ack: {} -- individual-acks: {}", consumer,
-                    lastCumulativeAck, pendingIndividualAcks);
-        }
-
         ClientCnx cnx = consumer.getClientCnx();
 
         if (cnx == null) {
@@ -162,10 +157,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             return;
         }
 
+        boolean shouldFlush = false;
         if (cumulativeAckFulshRequired) {
             ByteBuf cmd = Commands.newAck(consumer.consumerId, lastCumulativeAck.ledgerId, lastCumulativeAck.entryId,
                     AckType.Cumulative, null, Collections.emptyMap());
             cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+            shouldFlush=true;
             cumulativeAckFulshRequired = false;
         }
 
@@ -185,6 +182,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
                 cnx.ctx().write(Commands.newMultiMessageAck(consumer.consumerId, entriesToAck),
                         cnx.ctx().voidPromise());
+                shouldFlush = true;
             } else {
                 // When talking to older brokers, send the acknowledgments individually
                 while (true) {
@@ -195,11 +193,18 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
                     cnx.ctx().write(Commands.newAck(consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(),
                             AckType.Individual, null, Collections.emptyMap()), cnx.ctx().voidPromise());
+                    shouldFlush = true;
                 }
             }
         }
 
-        cnx.ctx().flush();
+        if (shouldFlush) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Flushing pending acks to broker: last-cumulative-ack: {} -- individual-acks: {}",
+                        consumer, lastCumulativeAck, pendingIndividualAcks);
+            }
+            cnx.ctx().flush();
+        }
     }
 
     @Override
