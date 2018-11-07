@@ -272,7 +272,8 @@ class PythonInstance(object):
       consumer.acknowledge(orig_message)
 
   def process_result(self, output, msg):
-    if output is not None:
+    if output is not None and self.instance_config.function_details.sink.topic != None and \
+            len(self.instance_config.function_details.sink.topic) > 0:
       if self.output_serde is None:
         self.setup_output_serde()
       if self.producer is None:

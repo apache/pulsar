@@ -101,4 +101,15 @@ public class BrokersImpl extends BaseResource implements Brokers {
         }
     }
 
+    @Override
+    public void healthcheck() throws PulsarAdminException {
+        try {
+            String result = request(adminBrokers.path("/health")).get(String.class);
+            if (!result.trim().toLowerCase().equals("ok")) {
+                throw new PulsarAdminException("Healthcheck returned unexpected result: " + result);
+            }
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
 }

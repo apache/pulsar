@@ -270,7 +270,9 @@ public class FunctionConfigUtils {
             userConfig = new HashMap<>();
         }
         if (userConfig.containsKey(WindowConfig.WINDOW_CONFIG_KEY)) {
-            WindowConfig windowConfig = (WindowConfig) userConfig.get(WindowConfig.WINDOW_CONFIG_KEY);
+            WindowConfig windowConfig = new Gson().fromJson(
+                    (new Gson().toJson(userConfig.get(WindowConfig.WINDOW_CONFIG_KEY))),
+                    WindowConfig.class);
             userConfig.remove(WindowConfig.WINDOW_CONFIG_KEY);
             functionConfig.setClassName(windowConfig.getActualWindowFunctionClassName());
             functionConfig.setWindowConfig(windowConfig);
