@@ -29,6 +29,8 @@ import sys
 import signal
 import time
 import zipfile
+import json
+import inspect
 
 import pulsar
 
@@ -72,10 +74,11 @@ def main():
   parser.add_argument('--logging_file', required=True, help='Log file name')
   parser.add_argument('--logging_config_file', required=True, help='Config file for logging')
   parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
+  parser.add_argument('--secrets_provider', required=False, help='The classname of the secrets provider')
+  parser.add_argument('--secrets_provider_config', required=False, help='The config that needs to be passed to secrets provider')
   parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
   parser.add_argument('--dependency_repository', required=False, help='For packaged python like wheel files, which repository to pull the dependencies from')
   parser.add_argument('--extra_dependency_repository', required=False, help='For packaged python like wheel files, any extra repository to pull the dependencies from')
-
 
   args = parser.parse_args()
   function_details = Function_pb2.FunctionDetails()
@@ -94,11 +97,33 @@ def main():
       if args.extra_dependency_repository:
         cmd = cmd + " --extra-index-url %s" % str(args.extra_dependency_repository)
       cmd = cmd + " %s" % str(args.py)
-      os.system(cmd)
+      retval = os.system(cmd)
+      if retval != 0:
+        print("Could not install user depedencies")
+        sys.exit(1)
     else:
       zpfile = zipfile.ZipFile(str(args.py), 'r')
       zpfile.extractall(os.path.dirname(str(args.py)))
     sys.path.insert(0, os.path.dirname(str(args.py)))
+  elif os.path.splitext(str(args.py))[1] == '.zip':
+    # Assumig zip file with format func.zip
+    # extract to folder function
+    # internal dir format
+    # "func/src"
+    # "func/requirements.txt"
+    # "func/deps"
+    # run pip install to target folder  deps folder
+    zpfile = zipfile.ZipFile(str(args.py), 'r')
+    zpfile.extractall(os.path.dirname(str(args.py)))
+    basename = os.path.splitext(str(args.py))[0]
+    requirements_txt_file = os.path.join(os.path.dirname(str(args.py)), basename, "requirements.txt")
+    deps_file = os.path.join(os.path.dirname(str(args.py)), basename, "deps")
+    cmd = "pip install -t %s -r %s --no-index --find-links %s" % (os.path.dirname(str(args.py)), requirements_txt_file, deps_file)
+    retval = os.system(cmd)
+    if retval != 0:
+      print("Could not install user depedencies specified by the zip file")
+      sys.exit(1)
+    sys.path.insert(0, os.path.join(os.path.dirname(str(args.py)), basename, "src"))
 
   log_file = os.path.join(args.logging_directory,
                           util.getFullyQualifiedFunctionName(function_details.tenant, function_details.namespace, function_details.name),
@@ -120,11 +145,28 @@ def main():
   if args.tls_trust_cert_path:
      tls_trust_cert_path =  args.tls_trust_cert_path
   pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication, 30, 1, 1, 50000, None, use_tls, tls_trust_cert_path, tls_allow_insecure_connection)
+
+  secrets_provider = None
+  if args.secrets_provider is not None:
+    secrets_provider = util.import_class(os.path.dirname(inspect.getfile(inspect.currentframe())), str(args.secrets_provider))
+  else:
+    secrets_provider = util.import_class(os.path.dirname(inspect.getfile(inspect.currentframe())), "secretsprovider.ClearTextSecretsProvider")
+  secrets_provider = secrets_provider()
+  secrets_provider_config = None
+  if args.secrets_provider_config is not None:
+    args.secrets_provider_config = str(args.secrets_provider_config)
+    if args.secrets_provider_config[0] == '\'':
+      args.secrets_provider_config = args.secrets_provider_config[1:]
+    if args.secrets_provider_config[-1] == '\'':
+      args.secrets_provider_config = args.secrets_provider_config[:-1]
+    secrets_provider_config = json.loads(str(args.secrets_provider_config))
+  secrets_provider.init(secrets_provider_config)
+
   pyinstance = python_instance.PythonInstance(str(args.instance_id), str(args.function_id),
                                               str(args.function_version), function_details,
                                               int(args.max_buffered_tuples),
                                               int(args.expected_healthcheck_interval),
-                                              str(args.py), pulsar_client)
+                                              str(args.py), pulsar_client, secrets_provider)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 

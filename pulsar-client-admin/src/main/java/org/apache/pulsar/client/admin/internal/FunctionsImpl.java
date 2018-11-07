@@ -49,7 +49,7 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.worker.WorkerInfo;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;

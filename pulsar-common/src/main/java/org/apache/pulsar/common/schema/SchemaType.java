@@ -96,5 +96,10 @@ public enum SchemaType {
     /**
      * Auto Publish Type.
      */
-    AUTO_PUBLISH
+    AUTO_PUBLISH,
+
+    /**
+     * A Schema that contains Key Schema and Value Schema.
+     */
+    KEY_VALUE
 }

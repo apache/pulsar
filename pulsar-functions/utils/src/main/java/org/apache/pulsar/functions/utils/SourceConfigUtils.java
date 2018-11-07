@@ -38,6 +38,8 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
@@ -51,10 +53,10 @@ public class SourceConfigUtils {
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
-        boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(Utils.BUILTIN);
+        boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         if (!isBuiltin) {
-            if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(Utils.FILE)) {
+            if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
                 if (org.apache.commons.lang3.StringUtils.isBlank(sourceConfig.getClassName())) {
                     throw new IllegalArgumentException("Class-name must be present for archive with file-url");
                 }
@@ -96,6 +98,10 @@ public class SourceConfigUtils {
 
         if (sourceConfig.getConfigs() != null) {
             sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
+        }
+
+        if (sourceConfig.getSecrets() != null && !sourceConfig.getSecrets().isEmpty()) {
+            functionDetailsBuilder.setSecretsMap(new Gson().toJson(sourceConfig.getSecrets()));
         }
 
         if (typeArg != null) {
@@ -156,6 +162,11 @@ public class SourceConfigUtils {
             Type type = new TypeToken<Map<String, String>>() {}.getType();
             sourceConfig.setConfigs(new Gson().fromJson(sourceSpec.getConfigs(), type));
         }
+        if (!isEmpty(functionDetails.getSecretsMap())) {
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+            sourceConfig.setSecrets(secretsMap);
+        }
         Function.SinkSpec sinkSpec = functionDetails.getSink();
         sourceConfig.setTopicName(sinkSpec.getTopic());
         if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
@@ -199,9 +210,7 @@ public class SourceConfigUtils {
 
         NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
         if (classLoader == null) {
-            // This happens at the cli for builtin. There is no need to check this since
-            // the actual check will be done at serverside
-            return null;
+            throw new IllegalArgumentException("Source Package is not provided");
         }
 
         String sourceClassName;
@@ -226,4 +235,5 @@ public class SourceConfigUtils {
         }
         return classLoader;
     }
+
 }

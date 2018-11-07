@@ -33,3 +33,10 @@ COPY ssl/ca.cert.pem ssl/broker.key-pk8.pem ssl/broker.cert.pem \
 COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
      scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh scripts/run-presto-worker.sh \
      /pulsar/bin/
+
+# copy python test examples
+
+RUN mkdir -p /pulsar/instances/deps
+
+COPY python-examples/exclamation_lib.py /pulsar/instances/deps/
+COPY python-examples/exclamation_with_extra_deps.py /pulsar/examples/python-examples/

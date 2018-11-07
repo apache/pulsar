@@ -46,6 +46,12 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-secrets</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
     </dependency>
@@ -69,33 +75,5 @@
     </dependency>
 
   </dependencies>
-
-  <build>
-    <plugins>
-      <!-- this task is used for copy all python files together to provide a instance directory
-           for running python instance -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <configuration>
-              <tasks>
-                <echo>building python instance</echo>
-                <mkdir dir="${basedir}/target/python-instance"/>
-                <copydir src="${basedir}/../instance/src/main/python" dest="${basedir}/target/python-instance"/>
-                <mkdir dir="${basedir}/target/python-instance/pulsar"/>
-                <copydir src="${basedir}/../../pulsar-client-cpp/python/pulsar" dest="${basedir}/target/python-instance/pulsar"/>
-              </tasks>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
 
 </project>

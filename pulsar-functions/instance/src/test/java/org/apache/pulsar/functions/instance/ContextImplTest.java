@@ -38,6 +38,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -73,7 +74,8 @@ public class ContextImplTest {
             config,
             logger,
             client,
-            new ArrayList<>()
+            new ArrayList<>(),
+            new EnvironmentBasedSecretsProvider()
         );
     }
 

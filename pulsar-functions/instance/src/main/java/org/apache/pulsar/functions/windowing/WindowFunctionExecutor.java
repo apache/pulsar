@@ -55,9 +55,6 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
     private TimestampExtractor<I> timestampExtractor;
     protected transient WaterMarkEventGenerator<I> waterMarkEventGenerator;
 
-    protected static final long DEFAULT_MAX_LAG_MS = 0; // no lag
-    protected static final long DEFAULT_WATERMARK_EVENT_INTERVAL_MS = 1000; // 1s
-
     protected java.util.function.Function<Collection<I>, O> windowFunction;
 
     public void initialize(Context context) {
@@ -97,8 +94,6 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
                 (new Gson().toJson(context.getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY).get())),
                 WindowConfig.class);
 
-
-        WindowUtils.inferDefaultConfigs(windowConfig);
         return windowConfig;
     }
 

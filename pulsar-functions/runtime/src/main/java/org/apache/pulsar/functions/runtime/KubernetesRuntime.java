@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.runtime;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.gson.Gson;
 import com.google.protobuf.Empty;
 import com.google.protobuf.util.JsonFormat;
 import com.squareup.okhttp.Response;
@@ -30,7 +31,30 @@ import io.grpc.ManagedChannelBuilder;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.models.*;
+import io.kubernetes.client.models.V1Container;
+import io.kubernetes.client.models.V1ContainerPort;
+import io.kubernetes.client.models.V1DeleteOptions;
+import io.kubernetes.client.models.V1EnvVar;
+import io.kubernetes.client.models.V1EnvVarSource;
+import io.kubernetes.client.models.V1LabelSelector;
+import io.kubernetes.client.models.V1ObjectFieldSelector;
+import io.kubernetes.client.models.V1ObjectMeta;
+import io.kubernetes.client.models.V1PodSpec;
+import io.kubernetes.client.models.V1PodTemplateSpec;
+import io.kubernetes.client.models.V1ResourceRequirements;
+import io.kubernetes.client.models.V1Service;
+import io.kubernetes.client.models.V1ServicePort;
+import io.kubernetes.client.models.V1ServiceSpec;
+import io.kubernetes.client.models.V1StatefulSet;
+import io.kubernetes.client.models.V1StatefulSetSpec;
+import io.kubernetes.client.models.V1Toleration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -40,8 +64,8 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 
-import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -66,10 +90,11 @@ class KubernetesRuntime implements Runtime {
     private static final Integer GRPC_PORT = 9093;
     private static final Integer PROMETHEUS_PORT = 9094;
     private static final Double prometheusMetricsServerCpu = 0.1;
-    private static final Long prometheusMetricsServerRam = 250000000l;
+    private static final Long prometheusMetricsServerRam = 125000000l;
     public static final Pattern VALID_POD_NAME_REGEX =
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                     Pattern.CASE_INSENSITIVE);
+    private static final String PULSARFUNCTIONS_CONTAINER_NAME = "pulsarfunction";
 
     private final AppsV1Api appsClient;
     private final CoreV1Api coreClient;
@@ -97,6 +122,7 @@ class KubernetesRuntime implements Runtime {
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
     private final String pulsarAdminUrl;
+    private final SecretsProviderConfigurator secretsProviderConfigurator;
     private boolean running;
 
 
@@ -111,6 +137,7 @@ class KubernetesRuntime implements Runtime {
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
                       String instanceFile,
+                      String extraDependenciesDir,
                       String prometheusMetricsServerJarFile,
                       String logDirectory,
                       String userCodePkgUrl,
@@ -119,6 +146,7 @@ class KubernetesRuntime implements Runtime {
                       String pulsarAdminUrl,
                       String stateStorageServiceUrl,
                       AuthenticationConfig authConfig,
+                      SecretsProviderConfigurator secretsProviderConfigurator,
                       Integer expectedMetricsInterval) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
@@ -130,7 +158,13 @@ class KubernetesRuntime implements Runtime {
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
+        this.secretsProviderConfigurator = secretsProviderConfigurator;
         String logConfigFile = null;
+        String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
+        String secretsProviderConfig = null;
+        if (secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()) != null) {
+            secretsProviderConfig = new Gson().toJson(secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
+        }
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 logConfigFile = "kubernetes_instance_log4j2.yml";
@@ -139,9 +173,24 @@ class KubernetesRuntime implements Runtime {
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
         }
-        this.processArgs = RuntimeUtils.composeArgs(instanceConfig, instanceFile, logDirectory, this.originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
-                authConfig, "$" + ENV_SHARD_ID, GRPC_PORT, -1l, logConfigFile,
-                installUserCodeDependencies, pythonDependencyRepository, pythonExtraDependencyRepository);
+        this.processArgs = RuntimeUtils.composeArgs(
+            instanceConfig,
+            instanceFile,
+            extraDependenciesDir,
+            logDirectory,
+            this.originalCodeFileName,
+            pulsarServiceUrl,
+            stateStorageServiceUrl,
+            authConfig,
+            "$" + ENV_SHARD_ID,
+            GRPC_PORT,
+            -1l,
+            logConfigFile,
+            secretsProviderClassName,
+            secretsProviderConfig,
+            installUserCodeDependencies,
+            pythonDependencyRepository,
+            pythonExtraDependencyRepository);
         this.prometheusMetricsServerArgs = composePrometheusMetricsServerArgs(prometheusMetricsServerJarFile, expectedMetricsInterval);
         running = false;
         doChecks(instanceConfig.getFunctionDetails());
@@ -156,6 +205,10 @@ class KubernetesRuntime implements Runtime {
         try {
             submitStatefulSet();
         } catch (Exception e) {
+            log.error("Could not submit statefulset for {}/{}/{}, deleting service as well",
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName(), e);
             deleteService();
         }
         running = true;
@@ -425,7 +478,6 @@ class KubernetesRuntime implements Runtime {
         return String.format("%s=${POD_NAME##*-} && echo shardId=${%s}", ENV_SHARD_ID, ENV_SHARD_ID);
     }
 
-
     private V1StatefulSet createStatefulSet() {
         final String jobName = createJobName(instanceConfig.getFunctionDetails());
 
@@ -503,6 +555,9 @@ class KubernetesRuntime implements Runtime {
         containers.add(getPrometheusContainer());
         podSpec.containers(containers);
 
+        // Configure secrets
+        secretsProviderConfigurator.configureKubernetesRuntimeSecretsProvider(podSpec, PULSARFUNCTIONS_CONTAINER_NAME, instanceConfig.getFunctionDetails());
+
         return podSpec;
     }
 
@@ -522,7 +577,7 @@ class KubernetesRuntime implements Runtime {
     }
 
     private V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
-        final V1Container container = new V1Container().name("pulsarfunction");
+        final V1Container container = new V1Container().name(PULSARFUNCTIONS_CONTAINER_NAME);
 
         // set up the container images
         container.setImage(pulsarDockerImageName);
@@ -536,8 +591,7 @@ class KubernetesRuntime implements Runtime {
                 .valueFrom(new V1EnvVarSource()
                         .fieldRef(new V1ObjectFieldSelector()
                                 .fieldPath("metadata.name")));
-        container.setEnv(Arrays.asList(envVarPodName));
-
+        container.addEnvItem(envVarPodName);
 
         // set container resources
         final V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();

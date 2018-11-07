@@ -34,6 +34,7 @@ import threading
 from functools import partial
 from collections import namedtuple
 from threading import Timer
+from prometheus_client import Counter, Summary
 import traceback
 import sys
 import re
@@ -69,70 +70,53 @@ def base64ify(bytes_or_str):
 
 # We keep track of the following metrics
 class Stats(object):
-  def __init__(self):
-    self.reset()
+  metrics_label_names = ['tenant', 'namespace', 'name', 'instance_id']
 
-  def reset(self):
-    self.nprocessed = 0
-    self.nsuccessfullyprocessed = 0
-    self.nuserexceptions = 0
-    self.latestuserexceptions = []
-    self.nsystemexceptions = 0
-    self.latestsystemexceptions = []
-    self.ndeserialization_exceptions = {}
-    self.nserialization_exceptions = 0
-    self.latency = 0
-    self.lastinvocationtime = 0
+  TOTAL_PROCESSED = '__function_total_processed__'
+  TOTAL_SUCCESSFULLY_PROCESSED = '__function_total_successfully_processed__'
+  TOTAL_SYSTEM_EXCEPTIONS = '__function_total_system_exceptions__'
+  TOTAL_USER_EXCEPTIONS = '__function_total_user_exceptions__'
+  PROCESS_LATENCY_MS = '__function_process_latency_ms__'
 
-  def increment_deser_errors(self, topic):
-    if topic not in self.ndeserialization_exceptions:
-      self.ndeserialization_exceptions[topic] = 0
-    self.ndeserialization_exceptions[topic] += 1
+  # Declare Prometheus
+  stat_total_processed = Counter(TOTAL_PROCESSED, 'Total number of messages processed.', metrics_label_names)
+  stat_total_processed_successfully = Counter(TOTAL_SUCCESSFULLY_PROCESSED,
+                                              'Total number of messages processed successfully.', metrics_label_names)
+  stat_total_sys_exceptions = Counter(TOTAL_SYSTEM_EXCEPTIONS, 'Total number of system exceptions.',
+                                      metrics_label_names)
+  stat_total_user_exceptions = Counter(TOTAL_USER_EXCEPTIONS, 'Total number of user exceptions.',
+                                       metrics_label_names)
 
-  def increment_successfully_processed(self, latency):
-    self.nsuccessfullyprocessed += 1
-    self.latency += latency
+  stats_process_latency_ms = Summary(PROCESS_LATENCY_MS, 'Process latency in milliseconds.', metrics_label_names)
 
-  def increment_processed(self, processed_at):
-    self.nprocessed += 1
-    self.lastinvocationtime = processed_at
+  latest_user_exception = []
+  latest_sys_exception = []
 
-  def record_user_exception(self, ex):
-    self.latestuserexceptions.append((traceback.format_exc(), int(time.time() * 1000)))
-    if len(self.latestuserexceptions) > 10:
-      self.latestuserexceptions.pop(0)
-    self.nuserexceptions = self.nuserexceptions + 1
+  last_invocation_time = 0.0
 
-  def record_system_exception(self, ex):
-    self.latestsystemexceptions.append((traceback.format_exc(), int(time.time() * 1000)))
-    if len(self.latestsystemexceptions) > 10:
-      self.latestsystemexceptions.pop(0)
-    self.nsystemexceptions = self.nsystemexceptions + 1
+  def add_user_exception(self):
+    self.latest_sys_exception.append((traceback.format_exc(), int(time.time() * 1000)))
+    if len(self.latest_sys_exception) > 10:
+      self.latest_sys_exception.pop(0)
 
-  def compute_latency(self):
-    if self.nsuccessfullyprocessed <= 0:
-      return 0
-    else:
-      return self.latency / self.nsuccessfullyprocessed
+  def add_sys_exception(self):
+    self.latest_sys_exception.append((traceback.format_exc(), int(time.time() * 1000)))
+    if len(self.latest_sys_exception) > 10:
+      self.latest_sys_exception.pop(0)
 
-  def update(self, object):
-    self.nprocessed = object.nprocessed
-    self.nsuccessfullyprocessed = object.nsuccessfullyprocessed
-    self.nuserexceptions = object.nuserexceptions
-    self.nsystemexceptions = object.nsystemexceptions
-    self.nserialization_exceptions = object.nserialization_exceptions
-    self.latency = object.latency
-    self.lastinvocationtime = object.lastinvocationtime
-    self.latestuserexceptions = []
-    self.latestsystemexceptions = []
-    self.ndeserialization_exceptions.clear()
-    self.latestuserexceptions.append(object.latestuserexceptions)
-    self.latestsystemexceptions.append(object.latestsystemexceptions)
-    self.ndeserialization_exceptions.update(object.ndeserialization_exceptions)
-    
+  def reset(self, metrics_labels):
+    self.latest_user_exception = []
+    self.latest_sys_exception = []
+    self.stat_total_processed.labels(*metrics_labels)._value.set(0.0)
+    self.stat_total_processed_successfully.labels(*metrics_labels)._value.set(0.0)
+    self.stat_total_user_exceptions.labels(*metrics_labels)._value.set(0.0)
+    self.stat_total_sys_exceptions.labels(*metrics_labels)._value.set(0.0)
+    self.stats_process_latency_ms.labels(*metrics_labels)._sum.set(0)
+    self.stats_process_latency_ms.labels(*metrics_labels)._count.set(0);
+    self.last_invocation_time = 0.0
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, expected_healthcheck_interval, user_code, pulsar_client):
+  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, expected_healthcheck_interval, user_code, pulsar_client, secrets_provider):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     self.queue = queue.Queue(max_buffered_tuples)
@@ -146,17 +130,17 @@ class PythonInstance(object):
     self.function_class = None
     self.function_purefunction = None
     self.producer = None
-    self.exeuction_thread = None
+    self.execution_thread = None
     self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATMOST_ONCE')
     self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATLEAST_ONCE')
     self.auto_ack = self.instance_config.function_details.autoAck
     self.contextimpl = None
-    self.total_stats = Stats()
-    self.current_stats = Stats()
     self.stats = Stats()
     self.last_health_check_ts = time.time()
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
     self.expected_healthcheck_interval = expected_healthcheck_interval
+    self.secrets_provider = secrets_provider
+    self.metrics_labels = [function_details.tenant, function_details.namespace, function_details.name, instance_id]
 
   def health_check(self):
     self.last_health_check_ts = time.time()
@@ -187,7 +171,7 @@ class PythonInstance(object):
       else:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
       self.input_serdes[topic] = serde_kclass()
-      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
@@ -201,7 +185,7 @@ class PythonInstance(object):
       else:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
       self.input_serdes[topic] = serde_kclass()
-      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       if consumer_conf.isRegexPattern:
         self.consumers[topic] = self.pulsar_client.subscribe(
           re.compile(str(topic)), subscription_name,
@@ -226,10 +210,10 @@ class PythonInstance(object):
     except:
       self.function_purefunction = function_kclass
 
-    self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers)
+    self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers, self.secrets_provider)
     # Now launch a thread that does execution
-    self.exeuction_thread = threading.Thread(target=self.actual_execution)
-    self.exeuction_thread.start()
+    self.execution_thread = threading.Thread(target=self.actual_execution)
+    self.execution_thread.start()
 
     # start proccess spawner health check timer
     self.last_health_check_ts = time.time()
@@ -237,74 +221,70 @@ class PythonInstance(object):
       Timer(self.expected_healthcheck_interval, self.process_spawner_health_check_timer).start()
 
   def actual_execution(self):
-    Log.info("Started Thread for executing the function")
+    Log.debug("Started Thread for executing the function")
+
     while True:
-      msg = self.queue.get(True)
-      if isinstance(msg, InternalQuitMessage):
-        break
-      user_exception = False
-      system_exception = False
-      Log.debug("Got a message from topic %s" % msg.topic)
-      input_object = None
       try:
+        msg = self.queue.get(True)
+        if isinstance(msg, InternalQuitMessage):
+          break
+        Log.debug("Got a message from topic %s" % msg.topic)
+        # deserialize message
         input_object = msg.serde.deserialize(msg.message.data())
-      except:
-        self.current_stats.increment_deser_errors(msg.topic)
-        self.total_stats.increment_deser_errors(msg.topic)
-        continue
-      self.contextimpl.set_current_message_context(msg.message.message_id(), msg.topic)
-      output_object = None
-      self.saved_log_handler = None
-      if self.log_topic_handler is not None:
-        self.saved_log_handler = log.remove_all_handlers()
-        log.add_handler(self.log_topic_handler)
-      start_time = time.time()
-      self.current_stats.increment_processed(int(start_time) * 1000)
-      self.total_stats.increment_processed(int(start_time) * 1000)
-      successfully_executed = False
-      try:
-        if self.function_class is not None:
-          output_object = self.function_class.process(input_object, self.contextimpl)
-        else:
-          output_object = self.function_purefunction.process(input_object)
-        successfully_executed = True
+        # set current message in context
+        self.contextimpl.set_current_message_context(msg.message.message_id(), msg.topic)
+        output_object = None
+        self.saved_log_handler = None
+        if self.log_topic_handler is not None:
+          self.saved_log_handler = log.remove_all_handlers()
+          log.add_handler(self.log_topic_handler)
+        successfully_executed = False
+        try:
+          # get user function start time for statistic calculation
+          start_time = time.time()
+          self.stats.last_invocation_time = start_time * 1000.0
+          if self.function_class is not None:
+            output_object = self.function_class.process(input_object, self.contextimpl)
+          else:
+            output_object = self.function_purefunction.process(input_object)
+          successfully_executed = True
+          Stats.stats_process_latency_ms.labels(*self.metrics_labels).observe((time.time() - start_time) * 1000.0)
+          Stats.stat_total_processed.labels(*self.metrics_labels).inc()
+        except Exception as e:
+          Log.exception("Exception while executing user method")
+          Stats.stat_total_user_exceptions.labels(*self.metrics_labels).inc()
+          self.stats.add_user_exception()
+
+        if self.log_topic_handler is not None:
+          log.remove_all_handlers()
+          log.add_handler(self.saved_log_handler)
+        if successfully_executed:
+          self.process_result(output_object, msg)
+          Stats.stat_total_processed_successfully.labels(*self.metrics_labels).inc()
+
       except Exception as e:
-        Log.exception("Exception while executing user method")
-        self.total_stats.record_user_exception(e)
-        self.current_stats.record_user_exception(e)
-      end_time = time.time()
-      latency = (end_time - start_time) * 1000
-      self.total_stats.increment_successfully_processed(latency)
-      self.current_stats.increment_successfully_processed(latency)
-      if self.log_topic_handler is not None:
-        log.remove_all_handlers()
-        log.add_handler(self.saved_log_handler)
-      if successfully_executed:
-        self.process_result(output_object, msg)
+        Log.error("Uncaught exception in Python instance: %s" % e);
+        Stats.stat_total_sys_exceptions.labels(*self.metrics_labels).inc()
+        self.stats.add_sys_exception()
 
   def done_producing(self, consumer, orig_message, result, sent_message):
     if result == pulsar.Result.Ok and self.auto_ack and self.atleast_once:
       consumer.acknowledge(orig_message)
 
   def process_result(self, output, msg):
-    if output is not None:
-      output_bytes = None
+    if output is not None and self.instance_config.function_details.sink.topic != None and \
+            len(self.instance_config.function_details.sink.topic) > 0:
       if self.output_serde is None:
         self.setup_output_serde()
       if self.producer is None:
         self.setup_producer()
-      try:
-        output_bytes = self.output_serde.serialize(output)
-      except:
-        self.current_stats.nserialization_exceptions += 1
-        self.total_stats.nserialization_exceptions += 1
+
+      # serialize function output
+      output_bytes = self.output_serde.serialize(output)
+
       if output_bytes is not None:
         props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
-        try:
-          self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message), properties=props)
-        except Exception as e:
-          self.current_stats.record_system_exception(e)
-          self.total_stats.record_system_exception(e)
+        self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message), properties=props)
     elif self.auto_ack and self.atleast_once:
       msg.consumer.acknowledge(msg.message)
 
@@ -321,7 +301,7 @@ class PythonInstance(object):
   def setup_producer(self):
     if self.instance_config.function_details.sink.topic != None and \
             len(self.instance_config.function_details.sink.topic) > 0:
-      Log.info("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
+      Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
@@ -342,24 +322,22 @@ class PythonInstance(object):
     return metrics
 
   def reset_metrics(self):
-    self.stats.update(self.current_stats)
-    self.current_stats.reset()
+    self.stats.reset(self.metrics_labels)
     self.contextimpl.reset_metrics()
 
   def get_metrics(self):
     # First get any user metrics
     metrics = self.contextimpl.get_metrics()
     # Now add system metrics as well
-    self.add_system_metrics("__total_processed__", self.stats.nprocessed, metrics)
-    self.add_system_metrics("__total_successfully_processed__", self.stats.nsuccessfullyprocessed, metrics)
-    self.add_system_metrics("__total_system_exceptions__", self.stats.nsystemexceptions, metrics)
-    self.add_system_metrics("__total_user_exceptions__", self.stats.nuserexceptions, metrics)
-    for (topic, metric) in self.stats.ndeserialization_exceptions.items():
-      self.add_system_metrics("__total_deserialization_exceptions__" + topic, metric, metrics)
-    self.add_system_metrics("__total_serialization_exceptions__", self.stats.nserialization_exceptions, metrics)
-    self.add_system_metrics("__avg_latency_ms__", self.stats.compute_latency(), metrics)
+    self.add_system_metrics("__total_processed__", Stats.stat_total_processed.labels(*self.metrics_labels)._value.get(), metrics)
+    self.add_system_metrics("__total_successfully_processed__", Stats.stat_total_processed_successfully.labels(*self.metrics_labels)._value.get(), metrics)
+    self.add_system_metrics("__total_system_exceptions__", Stats.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
+    self.add_system_metrics("__total_user_exceptions__", Stats.stat_total_user_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
+    self.add_system_metrics("__avg_latency_ms__",
+                            0.0 if Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get() <= 0.0
+                            else Stats.stats_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get(),
+                            metrics)
     return metrics
-
 
   def add_system_metrics(self, metric_name, value, metrics):
     metrics.metrics[metric_name].count = value
@@ -370,27 +348,25 @@ class PythonInstance(object):
   def get_function_status(self):
     status = InstanceCommunication_pb2.FunctionStatus()
     status.running = True
-    status.numProcessed = self.total_stats.nprocessed
-    status.numSuccessfullyProcessed = self.total_stats.nsuccessfullyprocessed
-    status.numUserExceptions = self.total_stats.nuserexceptions
+    status.numProcessed = long(Stats.stat_total_processed.labels(*self.metrics_labels)._value.get())
+    status.numSuccessfullyProcessed = long(Stats.stat_total_processed_successfully.labels(*self.metrics_labels)._value.get())
+    status.numUserExceptions = long(Stats.stat_total_user_exceptions.labels(*self.metrics_labels)._value.get())
     status.instanceId = self.instance_config.instance_id
-    for ex, tm in self.total_stats.latestuserexceptions:
+    for ex, tm in self.stats.latest_user_exception:
       to_add = status.latestUserExceptions.add()
       to_add.exceptionString = ex
       to_add.msSinceEpoch = tm
-    status.numSystemExceptions = self.total_stats.nsystemexceptions
-    for ex, tm in self.total_stats.latestsystemexceptions:
+    status.numSystemExceptions = long(Stats.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.get())
+    for ex, tm in self.stats.latest_sys_exception:
       to_add = status.latestSystemExceptions.add()
       to_add.exceptionString = ex
       to_add.msSinceEpoch = tm
-    for (topic, metric) in self.total_stats.ndeserialization_exceptions.items():
-      status.deserializationExceptions[topic] = metric
-    status.serializationExceptions = self.total_stats.nserialization_exceptions
-    status.averageLatency = self.total_stats.compute_latency()
-    status.lastInvocationTime = self.total_stats.lastinvocationtime
-    status.metrics.CopyFrom(self.get_metrics())
+    status.averageLatency = 0.0 \
+      if Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get() <= 0.0 \
+      else Stats.stats_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get()
+    status.lastInvocationTime = long(self.stats.last_invocation_time)
     return status
 
   def join(self):
     self.queue.put(InternalQuitMessage(True), True)
-    self.exeuction_thread.join()
+    self.execution_thread.join()

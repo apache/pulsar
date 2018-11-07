@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import com.google.protobuf.util.JsonFormat;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.utils.Utils;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -30,7 +30,7 @@ import com.google.gson.JsonParser;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.worker.WorkerInfo;
+import org.apache.pulsar.common.functions.WorkerInfo;
 
 import java.util.Collection;
 import java.util.List;
@@ -65,7 +65,7 @@ public class CmdFunctionWorker extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(admin.worker().getFunctionsStats());
+            String json = JsonFormat.printer().print(admin.worker().getFunctionsStats());
             GsonBuilder gsonBuilder = new GsonBuilder();
             if (indent) {
                 gsonBuilder.setPrettyPrinting();

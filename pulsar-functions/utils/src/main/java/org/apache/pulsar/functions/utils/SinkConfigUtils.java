@@ -42,6 +42,8 @@ import java.util.*;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 
@@ -54,10 +56,10 @@ public class SinkConfigUtils {
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
-        boolean isBuiltin = sinkConfig.getArchive().startsWith(Utils.BUILTIN);
+        boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         if (!isBuiltin) {
-            if (sinkConfig.getArchive().startsWith(Utils.FILE)) {
+            if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
                 if (isBlank(sinkConfig.getClassName())) {
                     throw new IllegalArgumentException("Class-name must be present for archive with file-url");
                 }
@@ -165,6 +167,9 @@ public class SinkConfigUtils {
         if (sinkConfig.getConfigs() != null) {
             sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
         }
+        if (sinkConfig.getSecrets() != null && !sinkConfig.getSecrets().isEmpty()) {
+            functionDetailsBuilder.setSecretsMap(new Gson().toJson(sinkConfig.getSecrets()));
+        }
         if (typeArg != null) {
             sinkSpecBuilder.setTypeClassName(typeArg);
         }
@@ -228,6 +233,11 @@ public class SinkConfigUtils {
             Type type = new TypeToken<Map<String, String>>() {}.getType();
             sinkConfig.setConfigs(new Gson().fromJson(functionDetails.getSink().getConfigs(), type));
         }
+        if (!isEmpty(functionDetails.getSecretsMap())) {
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
+            sinkConfig.setSecrets(secretsMap);
+        }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
             resources.setCpu(functionDetails.getResources().getCpu());
@@ -276,9 +286,7 @@ public class SinkConfigUtils {
 
         NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
         if (classLoader == null) {
-            // This happens at the cli for builtin. There is no need to check this since
-            // the actual check will be done at serverside
-            return null;
+            throw new IllegalArgumentException("Sink Package is not provided");
         }
 
         String sinkClassName;

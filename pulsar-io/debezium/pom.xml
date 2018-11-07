@@ -41,13 +41,13 @@
     <dependency>
       <groupId>io.debezium</groupId>
       <artifactId>debezium-core</artifactId>
-      <version>${debezium-core.version}</version>
+      <version>${debezium.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
-      <version>${project.version}</version>
+      <groupId>io.debezium</groupId>
+      <artifactId>debezium-connector-mysql</artifactId>
+      <version>${debezium.version}</version>
     </dependency>
 
     <dependency>

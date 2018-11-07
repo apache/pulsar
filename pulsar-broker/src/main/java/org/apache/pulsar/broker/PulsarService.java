@@ -93,6 +93,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
@@ -309,6 +310,15 @@ public class PulsarService implements AutoCloseable {
      */
     public ServiceConfiguration getConfiguration() {
         return this.config;
+    }
+
+    /**
+     * Get the current function worker service configuration.
+     *
+     * @return the current function worker service configuration.
+     */
+    public Optional<WorkerConfig> getWorkerConfig() {
+        return functionWorkerService.map(service -> service.getWorkerConfig());
     }
 
     /**
@@ -990,7 +1000,8 @@ public class PulsarService implements AutoCloseable {
             InternalConfigurationData internalConf = new InternalConfigurationData(
                     this.getConfiguration().getZookeeperServers(),
                     this.getConfiguration().getConfigurationStoreServers(),
-                    new ClientConfiguration().getZkLedgersRootPath());
+                    new ClientConfiguration().getZkLedgersRootPath(),
+                    this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
 
             URI dlogURI;
             try {

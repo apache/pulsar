@@ -448,6 +448,14 @@ public class PulsarCluster {
         return brokerContainers.values();
     }
 
+    public Collection<BKContainer> getBookies() {
+        return bookieContainers.values();
+    }
+
+    public ZKContainer getZooKeeper() {
+        return zkContainer;
+    }
+
     public ContainerExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
         return runCommandOnAnyBrokerWithScript(ADMIN_SCRIPT, commands);
     }
@@ -470,6 +478,22 @@ public class PulsarCluster {
 
     public void startAllBrokers() {
         brokerContainers.values().forEach(BrokerContainer::start);
+    }
+
+    public void stopAllBookies() {
+        bookieContainers.values().forEach(BKContainer::stop);
+    }
+
+    public void startAllBookies() {
+        bookieContainers.values().forEach(BKContainer::start);
+    }
+
+    public void stopZooKeeper() {
+        zkContainer.stop();
+    }
+
+    public void startZooKeeper() {
+        zkContainer.start();
     }
 
     public ContainerExecResult createNamespace(String nsName) throws Exception {

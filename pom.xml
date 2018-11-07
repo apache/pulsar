@@ -152,9 +152,11 @@ flexible messaging model and an intuitive client API.</description>
     <aspectj.version>1.9.1</aspectj.version>
     <rocksdb.version>5.13.3</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
+    <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
     <bouncycastle.version>1.55</bouncycastle.version>
-    <jackson.version>2.8.4</jackson.version>
+    <jackson.version>2.9.7</jackson.version>
+    <swagger.version>1.5.21</swagger.version>
     <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.3.7</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
@@ -178,7 +180,7 @@ flexible messaging model and an intuitive client API.</description>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
-    <debezium-core.version>0.8.2</debezium-core.version>
+    <debezium.version>0.8.2</debezium.version>
 
     <!-- test dependencies -->
     <arquillian-cube.version>1.15.1</arquillian-cube.version>
@@ -624,13 +626,13 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>io.swagger</groupId>
         <artifactId>swagger-core</artifactId>
-        <version>1.5.20</version>
+        <version>${swagger.version}</version>
       </dependency>
 
       <dependency>
         <groupId>io.swagger</groupId>
         <artifactId>swagger-annotations</artifactId>
-        <version>1.5.20</version>
+        <version>${swagger.version}</version>
       </dependency>
 
       <dependency>
@@ -812,6 +814,12 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>bookkeeper-server</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      
+      <dependency>
+        <groupId>commons-collections</groupId>
+        <artifactId>commons-collections</artifactId>
+        <version>${commons.collections.version}</version>
       </dependency>
 
       <dependency>
