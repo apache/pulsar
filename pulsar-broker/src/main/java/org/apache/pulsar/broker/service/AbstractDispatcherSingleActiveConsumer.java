@@ -22,13 +22,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
@@ -85,9 +84,29 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
     protected boolean pickAndScheduleActiveConsumer() {
         checkArgument(!consumers.isEmpty());
 
-        consumers.sort((c1, c2) -> c1.consumerName().compareTo(c2.consumerName()));
+        AtomicBoolean hasPriorityConsumer = new AtomicBoolean(false);
+        consumers.sort((c1, c2) -> {
+            int priority = c1.getPriorityLevel() - c2.getPriorityLevel();
+            if (priority != 0) {
+                hasPriorityConsumer.set(true);
+                return priority;
+            }
+            return c1.consumerName().compareTo(c2.consumerName());
+        });
 
-        int index = partitionIndex % consumers.size();
+        int consumersSize = consumers.size();
+        // find number of consumers which are having the highest priorities. so partitioned-topic assignment happens
+        // evenly across highest priority consumers
+        if (hasPriorityConsumer.get()) {
+            int highestPriorityLevel = consumers.get(0).getPriorityLevel();
+            for (int i = 0; i < consumers.size(); i++) {
+                if (highestPriorityLevel != consumers.get(i).getPriorityLevel()) {
+                    consumersSize = i;
+                    break;
+                }
+            }
+        }
+        int index = partitionIndex % consumersSize;
         Consumer prevConsumer = ACTIVE_CONSUMER_UPDATER.getAndSet(this, consumers.get(index));
 
         Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);

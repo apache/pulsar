@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
@@ -63,6 +64,8 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageCrypto;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -2841,5 +2844,96 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertFalse(latch.await(1, TimeUnit.SECONDS));
         assertEquals(latch.getCount(), 1);
         consumer.close();
+    }
+
+    /**
+     * This test verifies that broker activates fail-over consumer by considering priority-level as well.
+     * 
+     * <pre>
+     * 1. Start two failover consumer with same priority level, broker selects consumer based on name-sorting (consumer1).
+     * 2. Switch non-active consumer to active (consumer2): by giving it higher priority
+     * Partitioned-topic with 9 partitions:
+     * 1. C1 (priority=1)
+     * 2. C2,C3,C4 (priority=0)
+     * So, broker should evenly distribute C2,C3,C4 active consumers among 9 partitions. 
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFailOverConsumerPriority() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topicName = "persistent://my-property/my-ns/priority-topic";
+        final String subscriptionName = "my-sub";
+        final int noOfPartitions = 9;
+
+        // create partitioned topic
+        admin.topics().createPartitionedTopic(topicName, noOfPartitions);
+
+        // Only subscribe consumer
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .consumerName("aaa").subscriptionType(SubscriptionType.Failover)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).priorityLevel(1).subscribe();
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).consumerName("bbb1").subscriptionType(SubscriptionType.Failover)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).priorityLevel(1);
+
+        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+
+        AtomicInteger consumer1Count = new AtomicInteger(0);
+        admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
+            String activeConsumerName = stats.subscriptions.entrySet().iterator().next().getValue().activeConsumerName;
+            if (activeConsumerName.equals("aaa")) {
+                consumer1Count.incrementAndGet();
+            }
+        });
+
+        // validate even distribution among two consumers
+        assertNotEquals(consumer1Count, noOfPartitions);
+
+        consumer2.close();
+        consumer2 = consumerBuilder.priorityLevel(0).subscribe();
+        Consumer<byte[]> consumer3 = consumerBuilder.consumerName("bbb2").priorityLevel(0).subscribe();
+        Consumer<byte[]> consumer4 = consumerBuilder.consumerName("bbb3").priorityLevel(0).subscribe();
+        Consumer<byte[]> consumer5 = consumerBuilder.consumerName("bbb4").priorityLevel(1).subscribe();
+
+        Integer evenDistributionCount = noOfPartitions / 3;
+        retryStrategically((test) -> {
+            try {
+                Map<String, Integer> subsCount = Maps.newHashMap();
+                admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
+                    String activeConsumerName = stats.subscriptions.entrySet().iterator().next()
+                            .getValue().activeConsumerName;
+                    subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
+                });
+                return subsCount.size() == 3 && subsCount.get("bbb1") == evenDistributionCount
+                        && subsCount.get("bbb2") == evenDistributionCount
+                        && subsCount.get("bbb3") == evenDistributionCount;
+
+            } catch (PulsarAdminException e) {
+                // Ok
+            }
+            return false;
+        }, 5, 100);
+
+        Map<String, Integer> subsCount = Maps.newHashMap();
+        admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {
+            String activeConsumerName = stats.subscriptions.entrySet().iterator().next().getValue().activeConsumerName;
+            subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
+        });
+        assertEquals(subsCount.size(), 3);
+        assertEquals(subsCount.get("bbb1"), evenDistributionCount);
+        assertEquals(subsCount.get("bbb2"), evenDistributionCount);
+        assertEquals(subsCount.get("bbb3"), evenDistributionCount);
+
+        consumer1.close();
+        consumer2.close();
+        consumer3.close();
+        consumer4.close();
+        consumer5.close();
+        log.info("-- Exiting {} test --", methodName);
+
     }
 }
