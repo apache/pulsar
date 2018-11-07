@@ -99,7 +99,7 @@ class RuntimeUtils {
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 args.add("PYTHONPATH=${PYTHONPATH}:" + extraDependenciesDir);
             }
-            args.add("python3");
+            args.add("python");
             args.add(instanceFile);
             args.add("--py");
             args.add(originalCodeFileName);
