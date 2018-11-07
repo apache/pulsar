@@ -20,14 +20,15 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.google.protobuf.util.JsonFormat;
+import java.util.LinkedList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
-
-import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -38,8 +39,11 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 @Slf4j
 class RuntimeUtils {
 
+    private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
+
     public static List<String> composeArgs(InstanceConfig instanceConfig,
                                            String instanceFile,
+                                           String extraDependenciesDir, /* extra dependencies for running instances */
                                            String logDirectory,
                                            String originalCodeFileName,
                                            String pulsarServiceUrl,
@@ -49,6 +53,8 @@ class RuntimeUtils {
                                            Integer grpcPort,
                                            Long expectedHealthCheckInterval,
                                            String logConfigFile,
+                                           String secretsProviderClassName,
+                                           String secretsProviderConfig,
                                            Boolean installUserCodeDepdendencies,
                                            String pythonDependencyRepository,
                                            String pythonExtraDependencyRepository) throws Exception {
@@ -56,11 +62,19 @@ class RuntimeUtils {
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
             args.add("-cp");
-            args.add(instanceFile);
+
+            String classpath = instanceFile;
+            if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+                classpath = classpath + ":" + extraDependenciesDir + "/*";
+            }
+            args.add(classpath);
 
             // Keep the same env property pointing to the Java instance file so that it can be picked up
             // by the child process and manually added to classpath
             args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
+            if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+                args.add(String.format("-D%s=%s", FUNCTIONS_EXTRA_DEPS_PROPERTY, extraDependenciesDir));
+            }
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + String.format(
                     "%s/%s",
@@ -80,6 +94,10 @@ class RuntimeUtils {
             args.add("--jar");
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
+            // add `extraDependenciesDir` to python package searching path
+            if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+                args.add("PYTHONPATH=${PYTHONPATH}:" + extraDependenciesDir);
+            }
             args.add("python");
             args.add(instanceFile);
             args.add("--py");
@@ -150,6 +168,15 @@ class RuntimeUtils {
         }
         args.add("--expected_healthcheck_interval");
         args.add(String.valueOf(expectedHealthCheckInterval));
+
+        if (!StringUtils.isEmpty(secretsProviderClassName)) {
+            args.add("--secrets_provider");
+            args.add(secretsProviderClassName);
+            if (!StringUtils.isEmpty(secretsProviderConfig)) {
+                args.add("--secrets_provider_config");
+                args.add("'" + secretsProviderConfig + "'");
+            }
+        }
         return args;
     }
 }

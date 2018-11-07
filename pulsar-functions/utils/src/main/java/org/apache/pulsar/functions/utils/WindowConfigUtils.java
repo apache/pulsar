@@ -22,6 +22,10 @@ package org.apache.pulsar.functions.utils;
 import org.apache.pulsar.common.functions.WindowConfig;
 
 public class WindowConfigUtils {
+
+    public static final long DEFAULT_MAX_LAG_MS = 0; // no lag
+    public static final long DEFAULT_WATERMARK_EVENT_INTERVAL_MS = 1000; // 1s
+
     public static void validate(WindowConfig windowConfig) {
         if (windowConfig.getWindowLengthDurationMs() == null && windowConfig.getWindowLengthCount() == null) {
             throw new IllegalArgumentException("Window length is not specified");
@@ -72,6 +76,25 @@ public class WindowConfigUtils {
                     throw new IllegalArgumentException(
                             "Watermark interval must be positive [" + windowConfig.getWatermarkEmitIntervalMs() + "]");
                 }
+            }
+        }
+    }
+
+    public static void inferMissingArguments(WindowConfig windowConfig) {
+        if (windowConfig.getWindowLengthDurationMs() != null && windowConfig.getSlidingIntervalDurationMs() == null) {
+            windowConfig.setSlidingIntervalDurationMs(windowConfig.getWindowLengthDurationMs());
+        }
+
+        if (windowConfig.getWindowLengthCount() != null && windowConfig.getSlidingIntervalCount() == null) {
+            windowConfig.setSlidingIntervalCount(windowConfig.getWindowLengthCount());
+        }
+
+        if (windowConfig.getTimestampExtractorClassName() != null) {
+            if (windowConfig.getMaxLagMs() == null) {
+                windowConfig.setMaxLagMs(DEFAULT_MAX_LAG_MS);
+            }
+            if (windowConfig.getWatermarkEmitIntervalMs() == null) {
+                windowConfig.setWatermarkEmitIntervalMs(DEFAULT_WATERMARK_EVENT_INTERVAL_MS);
             }
         }
     }

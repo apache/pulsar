@@ -46,8 +46,7 @@ public class ConnectorUtils {
     /**
      * Extract the Pulsar IO Source class from a connector archive.
      */
-    public static String getIOSourceClass(ClassLoader classLoader) throws IOException {
-        NarClassLoader ncl = (NarClassLoader) classLoader;
+    public static String getIOSourceClass(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
 
         ConnectorDefinition conf = ObjectMapperFactory.getThreadLocalYaml().readValue(configStr,

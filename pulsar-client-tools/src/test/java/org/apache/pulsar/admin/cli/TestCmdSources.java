@@ -70,10 +70,8 @@ public class TestCmdSources {
     private static final FunctionConfig.ProcessingGuarantees PROCESSING_GUARANTEES
             = FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
     private static final Integer PARALLELISM = 1;
-    private static final String JAR_FILE_NAME = "pulsar-io-twitter.nar";
-    private static final String WRONG_JAR_FILE_NAME = "pulsar-io-cassandra.nar";
+    private static final String JAR_FILE_NAME = "dummy.nar";
     private String JAR_FILE_PATH;
-    private String WRONG_JAR_PATH;
     private static final Double CPU = 100.0;
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
@@ -101,9 +99,8 @@ public class TestCmdSources {
         deleteSource = spy(CmdSources.getDeleteSource());
 
         mockStatic(CmdFunctions.class);
-        PowerMockito.doNothing().when(CmdFunctions.class, "startLocalRun", Mockito.any(), Mockito.anyInt(), Mockito.anyInt(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        PowerMockito.doNothing().when(localSourceRunner).runCmd();
         JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME).getFile();
-        WRONG_JAR_PATH = Thread.currentThread().getContextClassLoader().getResource(WRONG_JAR_FILE_NAME).getFile();
         Thread.currentThread().setContextClassLoader(Utils.loadJar(new File(JAR_FILE_PATH)));
     }
 
@@ -131,84 +128,6 @@ public class TestCmdSources {
                 NAMESPACE,
                 NAME,
                 TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test
-    public void testMissingTenant() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setTenant(PUBLIC_TENANT);
-        testCmdSourceCliMissingArgs(
-                null,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test
-    public void testMissingNamespace() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setNamespace(DEFAULT_NAMESPACE);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                null,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source name cannot be null")
-    public void testMissingName() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setName(null);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                null,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Topic name cannot be null")
-    public void testMissingTopicName() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setTopicName(null);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                null,
-                SERDE_CLASS_NAME,
-                PROCESSING_GUARANTEES,
                 PARALLELISM,
                 JAR_FILE_PATH,
                 CPU,
@@ -278,44 +197,6 @@ public class TestCmdSources {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
-    public void testNegativeParallelism() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setParallelism(-1);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                -1,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
-    public void testZeroParallelism() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setParallelism(0);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                0,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
     @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specfied")
     public void testMissingArchive() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
@@ -347,25 +228,6 @@ public class TestCmdSources {
                 TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
                 PARALLELISM,
                 fakeJar,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Failed to extract source class from archive")
-    public void testInvalidJarWithNoSource() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setArchive(WRONG_JAR_PATH);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                WRONG_JAR_PATH,
                 CPU,
                 RAM,
                 DISK,
@@ -474,46 +336,6 @@ public class TestCmdSources {
     }
 
     @Test
-    public void testCmdSourceConfigFileMissingTenant() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setTenant(null);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setTenant(PUBLIC_TENANT);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test
-    public void testCmdSourceConfigFileMissingNamespace() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setNamespace(null);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setNamespace(DEFAULT_NAMESPACE);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source name cannot be null")
-    public void testCmdSourceConfigFileMissingName() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setName(null);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setName(null);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Topic name cannot be null")
-    public void testCmdSourceConfigFileMissingTopicName() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setTopicName(null);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setTopicName(null);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test
     public void testCmdSourceConfigFileMissingSerdeClassname() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setSerdeClassName(null);
@@ -530,26 +352,6 @@ public class TestCmdSources {
 
         SourceConfig expectedSourceConfig = getSourceConfig();
         expectedSourceConfig.setConfigs(null);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
-    public void testCmdSourceConfigFileZeroParallelism() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setParallelism(0);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setParallelism(0);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source parallelism should positive number")
-    public void testCmdSourceConfigFileNegativeParallelism() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setParallelism(-1);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setParallelism(-1);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
@@ -590,16 +392,6 @@ public class TestCmdSources {
 
         SourceConfig expectedSourceConfig = getSourceConfig();
         expectedSourceConfig.setArchive("/tmp/foo.jar");
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Failed to extract source class from archive")
-    public void testCmdSourceConfigFileInvalidJarNoSource() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setArchive(WRONG_JAR_PATH);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setArchive(WRONG_JAR_PATH);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 

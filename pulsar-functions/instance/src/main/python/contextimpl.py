@@ -48,12 +48,13 @@ class AccumulatedMetricDatum(object):
       self.min = value
 
 class ContextImpl(pulsar.Context):
-  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers):
+  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider):
     self.instance_config = instance_config
     self.log = logger
     self.pulsar_client = pulsar_client
     self.user_code_dir = os.path.dirname(user_code)
     self.consumers = consumers
+    self.secrets_provider = secrets_provider
     self.current_accumulated_metrics = {}
     self.accumulated_metrics = {}
     self.publish_producers = {}
@@ -64,6 +65,9 @@ class ContextImpl(pulsar.Context):
     self.user_config = json.loads(instance_config.function_details.userConfig) \
       if instance_config.function_details.userConfig \
       else []
+    self.secrets_map = json.loads(instance_config.function_details.secretsMap) \
+      if instance_config.function_details.secretsMap \
+      else {}
 
   # Called on a per message basis to set the context for the current message
   def set_current_message_context(self, msgid, topic):
@@ -106,6 +110,11 @@ class ContextImpl(pulsar.Context):
   
   def get_user_config_map(self):
     return self.user_config
+
+  def get_secret(self, secret_key):
+    if not secret_key in self.secrets_map:
+      return None
+    return self.secrets_provider.provide_secret(secret_key, self.secrets_map[secret_key])
 
   def record_metric(self, metric_name, metric_value):
     if not metric_name in self.current_accumulated_metrics:

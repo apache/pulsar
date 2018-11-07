@@ -58,9 +58,7 @@ public class FunctionsStatsGenerator {
                     Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
                     if (functionRuntime != null) {
                         try {
-                            InstanceCommunication.MetricsData metrics = workerService.getWorkerConfig()
-                                    .getMetricsSamplingPeriodSec() > 0 ? functionRuntime.getMetrics().get()
-                                            : functionRuntime.getAndResetMetrics().get();
+                            InstanceCommunication.MetricsData metrics = functionRuntime.getMetrics().get();
                             for (Map.Entry<String, InstanceCommunication.MetricsData.DataDigest> metricsEntry
                                     : metrics.getMetricsMap().entrySet()) {
                                 String metricName = metricsEntry.getKey();
@@ -75,13 +73,13 @@ public class FunctionsStatsGenerator {
                                 int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
                                 String qualifiedNamespace = String.format("%s/%s", tenant, namespace);
 
-                                metric(out, cluster, qualifiedNamespace, name, String.format("pulsar_function%scount", metricName),
+                                metric(out, cluster, qualifiedNamespace, name, String.format("%scount", metricName),
                                         instanceId, dataDigest.getCount());
-                                metric(out, cluster, qualifiedNamespace, name, String.format("pulsar_function%smax", metricName),
+                                metric(out, cluster, qualifiedNamespace, name, String.format("%smax", metricName),
                                         instanceId, dataDigest.getMax());
-                                metric(out, cluster, qualifiedNamespace,name, String.format("pulsar_function%smin", metricName),
+                                metric(out, cluster, qualifiedNamespace,name, String.format("%smin", metricName),
                                         instanceId, dataDigest.getMin());
-                                metric(out, cluster, qualifiedNamespace, name, String.format("pulsar_function%ssum", metricName),
+                                metric(out, cluster, qualifiedNamespace, name, String.format("%ssum", metricName),
                                         instanceId, dataDigest.getSum());
 
                             }

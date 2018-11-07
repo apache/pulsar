@@ -28,6 +28,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
@@ -51,7 +52,8 @@ class ThreadRuntime implements Runtime {
                   ThreadGroup threadGroup,
                   String jarFile,
                   PulsarClient pulsarClient,
-                  String stateStorageServiceUrl) {
+                  String stateStorageServiceUrl,
+                  SecretsProvider secretsProvider) {
         this.instanceConfig = instanceConfig;
         if (instanceConfig.getFunctionDetails().getRuntime() != Function.FunctionDetails.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
@@ -61,7 +63,8 @@ class ThreadRuntime implements Runtime {
             fnCache,
             jarFile,
             pulsarClient,
-            stateStorageServiceUrl);
+            stateStorageServiceUrl,
+            secretsProvider);
         this.threadGroup = threadGroup;
     }
 

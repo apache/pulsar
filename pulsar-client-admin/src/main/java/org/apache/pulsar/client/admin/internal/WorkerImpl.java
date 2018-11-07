@@ -38,7 +38,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.worker.WorkerInfo;
+import org.apache.pulsar.common.functions.WorkerInfo;
 
 @Slf4j
 public class WorkerImpl extends BaseResource implements Worker {

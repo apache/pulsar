@@ -38,7 +38,7 @@ import java.util.*;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.functions.utils.Utils.BUILTIN;
+import static org.apache.pulsar.common.functions.Utils.BUILTIN;
 import static org.apache.pulsar.functions.utils.Utils.loadJar;
 
 public class FunctionConfigUtils {
@@ -270,7 +270,9 @@ public class FunctionConfigUtils {
             userConfig = new HashMap<>();
         }
         if (userConfig.containsKey(WindowConfig.WINDOW_CONFIG_KEY)) {
-            WindowConfig windowConfig = (WindowConfig) userConfig.get(WindowConfig.WINDOW_CONFIG_KEY);
+            WindowConfig windowConfig = new Gson().fromJson(
+                    (new Gson().toJson(userConfig.get(WindowConfig.WINDOW_CONFIG_KEY))),
+                    WindowConfig.class);
             userConfig.remove(WindowConfig.WINDOW_CONFIG_KEY);
             functionConfig.setClassName(windowConfig.getActualWindowFunctionClassName());
             functionConfig.setWindowConfig(windowConfig);
@@ -293,6 +295,34 @@ public class FunctionConfigUtils {
         }
 
         return functionConfig;
+    }
+
+    public static void inferMissingArguments(FunctionConfig functionConfig) {
+        if (StringUtils.isEmpty(functionConfig.getName())) {
+            org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+        }
+        if (StringUtils.isEmpty(functionConfig.getTenant())) {
+            org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
+        }
+        if (StringUtils.isEmpty(functionConfig.getNamespace())) {
+            org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
+        }
+
+        if (functionConfig.getParallelism() == 0) {
+            functionConfig.setParallelism(1);
+        }
+
+        if (functionConfig.getJar() != null) {
+            functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        } else if (functionConfig.getPy() != null) {
+            functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+        }
+
+        WindowConfig windowConfig = functionConfig.getWindowConfig();
+        if (windowConfig != null) {
+            WindowConfigUtils.inferMissingArguments(windowConfig);
+            functionConfig.setAutoAck(false);
+        }
     }
 
     private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
@@ -457,13 +487,13 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("Dead Letter Topic specified, however max retries is set to infinity");
         }
 
-        if (!isEmpty(functionConfig.getJar()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
+        if (!isEmpty(functionConfig.getJar()) && !org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
                 && functionConfig.getJar().startsWith(BUILTIN)) {
             if (!new File(functionConfig.getJar()).exists()) {
                 throw new IllegalArgumentException("The supplied jar file does not exist");
             }
         }
-        if (!isEmpty(functionConfig.getPy()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getPy())
+        if (!isEmpty(functionConfig.getPy()) && !org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionConfig.getPy())
                 && functionConfig.getPy().startsWith(BUILTIN)) {
             if (!new File(functionConfig.getPy()).exists()) {
                 throw new IllegalArgumentException("The supplied python file does not exist");

@@ -34,6 +34,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.admin.StorageAdminClient;
+import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -44,7 +47,6 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.stats.JvmMetrics;
 
 /**
  * A service component contains everything to run a worker except rest server.
@@ -59,7 +61,10 @@ public class WorkerService {
     private FunctionRuntimeManager functionRuntimeManager;
     private FunctionMetaDataManager functionMetaDataManager;
     private ClusterServiceCoordinator clusterServiceCoordinator;
+    // dlog namespace for storing function jars in bookkeeper
     private Namespace dlogNamespace;
+    // storage client for accessing state storage for functions
+    private StorageAdminClient stateStoreAdminClient;
     private MembershipManager membershipManager;
     private SchedulerManager schedulerManager;
     private boolean isInitialized = false;
@@ -115,6 +120,16 @@ public class WorkerService {
             log.error("Failed to initialize dlog namespace {} for storing function packages",
                     dlogUri, e);
             throw new RuntimeException(e);
+        }
+
+        // create the state storage client for accessing function state
+        if (workerConfig.getStateStorageServiceUrl() != null) {
+            StorageClientSettings clientSettings = StorageClientSettings.newBuilder()
+                .serviceUri(workerConfig.getStateStorageServiceUrl())
+                .build();
+            this.stateStoreAdminClient = StorageClientBuilder.newBuilder()
+                .withSettings(clientSettings)
+                .buildAdmin();
         }
 
         // initialize the function metadata manager
@@ -184,12 +199,6 @@ public class WorkerService {
 
             this.connectorsManager = new ConnectorsManager(workerConfig);
 
-            int metricsSamplingPeriodSec = this.workerConfig.getMetricsSamplingPeriodSec();
-            if (metricsSamplingPeriodSec > 0) {
-                this.statsUpdater.scheduleAtFixedRate(() -> this.functionRuntimeManager.updateRates(),
-                        metricsSamplingPeriodSec, metricsSamplingPeriodSec, TimeUnit.SECONDS);
-            }
-
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
             throw new RuntimeException(t);
@@ -241,6 +250,14 @@ public class WorkerService {
         
         if (null != this.functionAdmin) {
             this.functionAdmin.close();
+        }
+
+        if (null != this.stateStoreAdminClient) {
+            this.stateStoreAdminClient.close();
+        }
+
+        if (null != this.dlogNamespace) {
+            this.dlogNamespace.close();
         }
         
         if(this.executor != null) {
