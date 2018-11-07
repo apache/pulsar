@@ -97,7 +97,7 @@ telnet localhost 6650
 2. Check pulsar function cluster
 
 ```bash
-curl -s http://localhost:8080/admin/v2/functions/cluster
+curl -s http://localhost:8080/admin/v2/worker/cluster
 ```
 
 Example output:
