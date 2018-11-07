@@ -41,12 +41,14 @@ fi
 
 # exclude tests jar
 RELEASE_JAR=`ls $PULSAR_HOME/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+echo "release jar: ${RELEASE_JAR}"
 if [ $? == 0 ]; then
     PULSAR_JAR=$RELEASE_JAR
 fi
 
 # exclude tests jar
 BUILT_JAR=`ls $PULSAR_HOME/pulsar-io/docs/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+echo "built jar : ${BUILT_JAR}"
 if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then
     echo "\nCouldn't find pulsar jar.";
     echo "Make sure you've run 'mvn package'\n";
@@ -99,6 +101,8 @@ fi
 if [ -z "$PULSAR_LOG_CONF" ]; then
     PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
 fi
+
+echo "pulsar jar: ${PULSAR_JAR}"
 
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
