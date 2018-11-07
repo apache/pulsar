@@ -21,6 +21,8 @@ package org.apache.pulsar.storm;
 import static java.lang.String.format;
 
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -42,9 +44,6 @@ import org.apache.storm.utils.TupleUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
-
 @SuppressWarnings("deprecation")
 public class PulsarBolt extends BaseRichBolt implements IMetric {
     /**
@@ -60,7 +59,7 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
     private final ClientConfigurationData clientConf;
     private final ProducerConfigurationData producerConf;
     private final PulsarBoltConfiguration pulsarBoltConf;
-    private final ConcurrentMap<String, Object> metricsMap = Maps.newConcurrentMap();
+    private final ConcurrentMap<String, Object> metricsMap = new ConcurrentHashMap<>();
 
     private SharedPulsarClient sharedPulsarClient;
     private String componentId;
@@ -73,9 +72,9 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
     public PulsarBolt(PulsarBoltConfiguration pulsarBoltConf, ClientBuilder clientBuilder) {
         this.clientConf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData().clone();
         this.producerConf = new ProducerConfigurationData();
-        Preconditions.checkNotNull(pulsarBoltConf.getServiceUrl());
-        Preconditions.checkNotNull(pulsarBoltConf.getTopic());
-        Preconditions.checkNotNull(pulsarBoltConf.getTupleToMessageMapper());
+        Objects.requireNonNull(pulsarBoltConf.getServiceUrl());
+        Objects.requireNonNull(pulsarBoltConf.getTopic());
+        Objects.requireNonNull(pulsarBoltConf.getTupleToMessageMapper());
 
         this.clientConf.setServiceUrl(pulsarBoltConf.getServiceUrl());
         this.producerConf.setTopicName(pulsarBoltConf.getTopic());
@@ -98,9 +97,9 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
             ProducerConfiguration producerConf) {
         this.clientConf = clientConf.getConfigurationData().clone();
         this.producerConf = producerConf.getProducerConfigurationData().clone();
-        Preconditions.checkNotNull(pulsarBoltConf.getServiceUrl());
-        Preconditions.checkNotNull(pulsarBoltConf.getTopic());
-        Preconditions.checkNotNull(pulsarBoltConf.getTupleToMessageMapper());
+        Objects.requireNonNull(pulsarBoltConf.getServiceUrl());
+        Objects.requireNonNull(pulsarBoltConf.getTopic());
+        Objects.requireNonNull(pulsarBoltConf.getTupleToMessageMapper());
         this.clientConf.setServiceUrl(pulsarBoltConf.getServiceUrl());
         this.producerConf.setTopicName(pulsarBoltConf.getTopic());
         this.pulsarBoltConf = pulsarBoltConf;
