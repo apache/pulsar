@@ -140,7 +140,7 @@ public class FunctionApiV2ResourceTest {
         this.mockedPulsarAdmin = mock(PulsarAdmin.class);
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
-        namespaceList.add(namespace);
+        namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
@@ -203,7 +203,7 @@ public class FunctionApiV2ResourceTest {
             className,
             parallelism,
                 null,
-                "Namespace does not exist");
+                "Namespace is not provided");
     }
 
     @Test
@@ -1243,7 +1243,7 @@ public class FunctionApiV2ResourceTest {
         String actualTenant = "DIFFERENT_TENANT";
         String actualNamespace = "DIFFERENT_NAMESPACE";
         String actualName = "DIFFERENT_NAME";
-        this.namespaceList.add(actualNamespace);
+        this.namespaceList.add(actualTenant + "/" + actualNamespace);
 
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         String filePackageUrl = "file://" + fileLocation;
