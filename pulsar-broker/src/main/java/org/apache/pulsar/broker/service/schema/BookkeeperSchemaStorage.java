@@ -41,8 +41,6 @@ import java.util.concurrent.ConcurrentMap;
 
 import javax.validation.constraints.NotNull;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -59,9 +57,12 @@ import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class BookkeeperSchemaStorage implements SchemaStorage {
+    private static final Logger log = LoggerFactory.getLogger(BookkeeperSchemaStorage.class);
+
     private static final String SchemaPath = "/schemas";
     private static final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
     private static final byte[] LedgerPassword = "".getBytes();
