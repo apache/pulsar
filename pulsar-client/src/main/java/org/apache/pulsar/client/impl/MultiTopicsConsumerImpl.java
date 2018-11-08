@@ -853,5 +853,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return consumers.values().stream().collect(Collectors.toList());
     }
 
+    @Override
+    public void pause() {
+        for (Map.Entry<String, ConsumerImpl<T>> e : consumers.entrySet()) e.getValue().pause();
+    }
+
+    @Override
+    public void resume() {
+        for (Map.Entry<String, ConsumerImpl<T>> e : consumers.entrySet()) e.getValue().resume();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MultiTopicsConsumerImpl.class);
 }

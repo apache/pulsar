@@ -294,4 +294,14 @@ public interface Consumer<T> extends Closeable {
      * @return consumer name.
      */
     String getConsumerName();
+
+    /**
+     * Stop requesting new messages from the broker until {@link #resume()} is called.
+     */
+    void pause();
+
+    /**
+     * Resume requesting messages from the broker.
+     */
+    void resume();
 }
