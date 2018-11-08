@@ -172,6 +172,7 @@ public class ProcessRuntimeTest {
         config.setFunctionVersion("1.0");
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
+        config.setClusterName("standalone");
 
         return config;
     }
@@ -250,15 +251,18 @@ public class ProcessRuntimeTest {
         String classpath = javaInstanceJarFile;
         String extraDepsEnv;
         int portArg;
+        int metricsPortArg;
         if (null != depsDir) {
-            assertEquals(args.size(), 33);
+            assertEquals(args.size(), 37);
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir.toString();
             classpath = classpath + ":" + depsDir + "/*";
             portArg = 24;
+            metricsPortArg = 26;
         } else {
-            assertEquals(args.size(), 32);
+            assertEquals(args.size(), 36);
             extraDepsEnv = "";
             portArg = 23;
+            metricsPortArg = 25;
         }
 
         String expectedArgs = "java -cp " + classpath
@@ -273,11 +277,12 @@ public class ProcessRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(portArg)
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
-                + " --secrets_provider_config '{\"Config\":\"Value\"}'";
+                + " --secrets_provider_config '{\"Config\":\"Value\"}'"
+                + " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -305,8 +310,9 @@ public class ProcessRuntimeTest {
         ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
         List<String> args = container.getProcessArgs();
 
-        int totalArgs = 30;
+        int totalArgs = 34;
         int portArg = 23;
+        int metricsPortArg = 25;
         String pythonPath = "";
         int configArg = 9;
 
@@ -319,10 +325,11 @@ public class ProcessRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(portArg)
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider secretsprovider.ClearTextSecretsProvider"
-                + " --secrets_provider_config '{\"Config\":\"Value\"}'";
+                + " --secrets_provider_config '{\"Config\":\"Value\"}'"
+                + " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

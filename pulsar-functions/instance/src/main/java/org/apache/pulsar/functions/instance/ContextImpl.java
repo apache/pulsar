@@ -18,25 +18,12 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
-import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
-
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -55,9 +42,24 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
+
+import static com.google.common.base.Preconditions.checkState;
+
 /**
  * This class implements the Context interface exposed to the user.
  */
+
 class ContextImpl implements Context, SinkContext, SourceContext {
     private InstanceConfig config;
     private Logger logger;
@@ -92,7 +94,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
-    private ConcurrentMap<String, AccumulatedMetricDatum> currentAccumulatedMetrics;
     private ConcurrentMap<String, AccumulatedMetricDatum> accumulatedMetrics;
 
     private Map<String, Producer<?>> publishProducers;
@@ -110,11 +111,21 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
+    Map<String, String[]> userMetricsLabels = new HashMap<>();
+    private final String[] metricsLabels;
+    private final Summary userMetricsSummary;
+
+    private final static String[] userMetricsLabelNames;
+    static {
+        // add label to indicate user metric
+        userMetricsLabelNames = Arrays.copyOf(FunctionStats.metricsLabelNames, FunctionStats.metricsLabelNames.length + 1);
+        userMetricsLabelNames[FunctionStats.metricsLabelNames.length] = "metric";
+    }
+
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
-                       SecretsProvider secretsProvider) {
+                       SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels) {
         this.config = config;
         this.logger = logger;
-        this.currentAccumulatedMetrics = new ConcurrentHashMap<>();
         this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
         this.inputTopics = inputTopics;
@@ -138,6 +149,17 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         } else {
             secretsMap = new HashMap<>();
         }
+
+        this.metricsLabels = metricsLabels;
+        this.userMetricsSummary = Summary.build()
+                .name("pulsar_function_user_metric")
+                .help("Pulsar Function user defined metric.")
+                .labelNames(userMetricsLabelNames)
+                .quantile(0.5, 0.01)
+                .quantile(0.9, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(0.999, 0.01)
+                .register(collectorRegistry);
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -320,8 +342,16 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public void recordMetric(String metricName, double value) {
-        currentAccumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
-        currentAccumulatedMetrics.get(metricName).update(value);
+        userMetricsLabels.computeIfAbsent(metricName,
+                s -> {
+                    String[] userMetricLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 1);
+                    userMetricLabels[userMetricLabels.length - 1] = metricName;
+                    return userMetricLabels;
+                });
+
+        userMetricsSummary.labels(userMetricsLabels.get(metricName)).observe(value);
+        accumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
+        accumulatedMetrics.get(metricName).update(value);
     }
 
     public MetricsData getAndResetMetrics() {
@@ -331,9 +361,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     public void resetMetrics() {
+        userMetricsSummary.clear();
         this.accumulatedMetrics.clear();
-        this.accumulatedMetrics.putAll(currentAccumulatedMetrics);
-        this.currentAccumulatedMetrics.clear();
     }
 
     public MetricsData getMetrics() {
