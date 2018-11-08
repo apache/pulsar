@@ -67,8 +67,7 @@ public class FileSourceConfigTests {
         config.validate();
     }
     
-    @Test(expectedExceptions = com.fasterxml.jackson.databind.exc.InvalidFormatException.class,
-            expectedExceptionsMessageRegExp = "Can not deserialize value of type java.lang.Boolean from String .*")
+    @Test(expectedExceptions = com.fasterxml.jackson.databind.exc.InvalidFormatException.class)
     public final void InvalidBooleanPropertyTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("inputDirectory", "/");
