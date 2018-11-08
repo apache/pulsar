@@ -144,6 +144,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         .thenApply(entry -> new StoredSchema(entry.getSchemaData().toByteArray(),
                                 new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
             }).handleAsync((res, ex) -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Get operation completed. res={} -- ex={}", schemaId, res, ex);
+                }
+
                 // Cleanup the pending ops from the map
                 readSchemaOperations.remove(schemaId, future);
                 if (ex != null) {
@@ -173,6 +177,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NotNull
     private CompletableFuture<StoredSchema> getSchema(String schemaId, long version) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Get schema - version: {}", schemaId, version);
+        }
+
         return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Get schema - version: {} - locator: {}", schemaId, version, locator);
@@ -244,6 +252,11 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 if (storedHash.length > 0 && Arrays.equals(storedHash, hash)) {
                     return completedFuture(locator.getInfo().getVersion());
                 }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] findSchemaEntryByHash - hash={}", schemaId, hash);
+                }
+
                 return findSchemaEntryByHash(locator.getIndexList(), hash).thenCompose(version -> {
                     if (isNull(version)) {
                         return addNewSchemaEntryToStore(locator.getIndexList(), data).thenCompose(
@@ -283,8 +296,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     private CompletableFuture<Long> createNewSchema(String schemaId, byte[] data, byte[] hash) {
         SchemaStorageFormat.IndexEntry emptyIndex = SchemaStorageFormat.IndexEntry.newBuilder()
-                        .setVersion(-1L)
-                        .setHash(ByteString.EMPTY)
+                        .setVersion(0)
+                        .setHash(copyFrom(hash))
                         .setPosition(SchemaStorageFormat.PositionInfo.newBuilder()
                                 .setEntryId(-1L)
                                 .setLedgerId(-1L)
@@ -403,8 +416,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             }
         }
 
-        return readSchemaEntry(index.get(0).getPosition())
-            .thenCompose(entry -> findSchemaEntryByHash(entry.getIndexList(), hash));
+        if (index.get(0).getPosition().getLedgerId() == -1) {
+            return completedFuture(null);
+        } else {
+            return readSchemaEntry(index.get(0).getPosition())
+                    .thenCompose(entry -> findSchemaEntryByHash(entry.getIndexList(), hash));
+        }
 
     }
 
