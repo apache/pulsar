@@ -6826,28 +6826,28 @@
           "type" : "number",
           "format" : "double"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
         },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
@@ -7823,11 +7823,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
