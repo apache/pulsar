@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.schema;
 
+import java.util.List;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -43,6 +45,22 @@ public class SchemaTestUtils {
     @EqualsAndHashCode
     public static class Bar {
         private boolean field1;
+    }
+
+    @Data
+    @ToString
+    @EqualsAndHashCode
+    public static class NestedBar {
+        private boolean field1;
+        private Bar nested;
+    }
+
+    @Data
+    @ToString
+    @EqualsAndHashCode
+    public static class NestedBarList {
+        private boolean field1;
+        private List<Bar> list;
     }
 
     @Data

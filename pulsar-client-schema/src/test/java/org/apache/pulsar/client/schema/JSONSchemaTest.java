@@ -18,12 +18,17 @@
  */
 package org.apache.pulsar.client.schema;
 
+import java.util.Collections;
+import java.util.List;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.schema.SchemaTestUtils.DerivedFoo;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
+import org.apache.pulsar.client.schema.SchemaTestUtils.NestedBar;
+import org.apache.pulsar.client.schema.SchemaTestUtils.NestedBarList;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -82,6 +87,32 @@ public class JSONSchemaTest {
 
         Assert.assertEquals(object1, foo1);
         Assert.assertEquals(object2, foo2);
+    }
+
+    @Test
+    public void testNestedClasses() {
+        JSONSchema<NestedBar> jsonSchema = JSONSchema.of(NestedBar.class, null);
+        JSONSchema<NestedBarList> listJsonSchema = JSONSchema.of(NestedBarList.class, null);
+
+        Bar bar = new Bar();
+        bar.setField1(true);
+
+        NestedBar nested = new NestedBar();
+        nested.setField1(true);
+        nested.setNested(bar);
+
+        byte[] bytes = jsonSchema.encode(nested);
+        Assert.assertTrue(bytes.length > 0);
+        Assert.assertEquals(jsonSchema.decode(bytes), nested);
+
+        List<Bar> list = Collections.singletonList(bar);
+        NestedBarList nestedList = new NestedBarList();
+        nestedList.setField1(true);
+        nestedList.setList(list);
+
+        bytes = listJsonSchema.encode(nestedList);
+        Assert.assertTrue(bytes.length > 0);
+        Assert.assertEquals(listJsonSchema.decode(bytes), nestedList);
     }
 
     @Test
