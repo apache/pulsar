@@ -127,7 +127,7 @@
 <span class="hljs-quote">&gt; 
 &gt; 你并不需要显式的创建topic。 如果客户端尝试从一个还不存在的topic写或者接受消息，pulsar将会按在[topic名称](#topics)提供的[namespace](#namespaces)下自动创建topic。</span>
 
-<span class="hljs-section">## Namespaces</span>
+<span class="hljs-section">## 命名空间</span>
 
 命名空间是租户内部逻辑上的命名术语。 一个租户可以通过[<span class="hljs-string">admin API</span>](<span class="hljs-link">/docs/zh-CN/next/admin-api-namespaces#create</span>)创建多个命名空间。 例如，一个对接多个应用的租户，可以为每个应用创建不同的namespace。 Namespace使得程序可以以层级的方式创建和管理topic Topic<span class="hljs-code">`my-tenant/app1`</span> ，它的namespace是<span class="hljs-code">`app1`</span>这个应用，对应的租户是 <span class="hljs-code">`my-tenant`</span>。 你可以在namespace下创建任意数量的[<span class="hljs-string">topic</span>](<span class="hljs-link">#topics</span>)。
 
