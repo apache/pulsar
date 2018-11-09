@@ -186,7 +186,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Max concurrent non-persistent message can be processed per connection
     private int maxConcurrentNonPersistentMessagePerConnection = 1000;
     // Number of worker threads to serve non-persistent topic
-    private int numWorkerThreadsForNonPersistentTopic = 8;
+    private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();;
 
     // Enable broker to load persistent topics
     private boolean enablePersistentTopics = true;
