@@ -855,7 +855,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void pause() {
-        for (Map.Entry<String, ConsumerImpl<T>> e : consumers.entrySet()) e.getValue().pause();
+        consumers.forEach((name, consumer) -> consumer.pause());
     }
 
     @Override
