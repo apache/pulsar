@@ -43,6 +43,7 @@ public class SourceConfigUtilsTest {
         sourceConfig.setArchive("builtin://jdbc");
         sourceConfig.setTopicName("test-output");
         sourceConfig.setSerdeClassName("test-serde");
+        sourceConfig.setParallelism(1);
         sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sourceConfig.setConfigs(new HashMap<>());
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, null);
