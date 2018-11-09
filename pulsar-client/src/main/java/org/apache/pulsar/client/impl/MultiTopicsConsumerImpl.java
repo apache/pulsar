@@ -860,7 +860,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void resume() {
-        for (Map.Entry<String, ConsumerImpl<T>> e : consumers.entrySet()) e.getValue().resume();
+        consumers.forEach((name, consumer) -> consumer.resume());
     }
 
     private static final Logger log = LoggerFactory.getLogger(MultiTopicsConsumerImpl.class);
