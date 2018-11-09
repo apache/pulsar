@@ -38,13 +38,13 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerAck;
@@ -92,13 +92,13 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         this.numMsgsAcked = new LongAdder();
 
         try {
+            // checkAuth() and getConsumerConfiguration() should be called after assigning a value to this.subscription
+            this.subscription = extractSubscription(request);
             builder = (ConsumerBuilderImpl<byte[]>) getConsumerConfiguration(service.getPulsarClient());
             this.maxPendingMessages = (builder.getConf().getReceiverQueueSize() == 0) ? 1
                     : builder.getConf().getReceiverQueueSize();
             this.subscriptionType = builder.getConf().getSubscriptionType();
 
-            // checkAuth() should be called after assigning a value to this.subscription
-            this.subscription = extractSubscription(request);
             if (!checkAuth(response)) {
                 return;
             }
@@ -191,7 +191,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             int pending = pendingMessages.incrementAndGet();
             if (pending < maxPendingMessages) {
                 // Start next read in a separate thread to avoid recursion
-                service.getExecutor().execute(() -> receiveMessage());
+                service.getExecutor().execute(this::receiveMessage);
             }
         }).exceptionally(exception -> {
             if (exception.getCause() instanceof AlreadyClosedException) {
@@ -311,6 +311,19 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
         if (queryParams.containsKey("priorityLevel")) {
             builder.priorityLevel(Integer.parseInt(queryParams.get("priorityLevel")));
+        }
+
+        if (queryParams.containsKey("maxRedeliverCount") || queryParams.containsKey("deadLetterTopic")) {
+            DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder();
+            if (queryParams.containsKey("maxRedeliverCount")) {
+                dlpBuilder.maxRedeliverCount(Integer.parseInt(queryParams.get("maxRedeliverCount")))
+                        .deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription));
+            }
+
+            if (queryParams.containsKey("deadLetterTopic")) {
+                dlpBuilder.deadLetterTopic(queryParams.get("deadLetterTopic"));
+            }
+            builder.deadLetterPolicy(dlpBuilder.build());
         }
 
         return builder;
