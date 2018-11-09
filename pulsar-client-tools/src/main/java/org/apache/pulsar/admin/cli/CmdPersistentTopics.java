@@ -69,6 +69,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("stats-internal", new GetInternalStats());
         jcommander.addCommand("info-internal", new GetInternalInfo());
         jcommander.addCommand("partitioned-stats", new GetPartitionedStats());
+        jcommander.addCommand("partitioned-stats-internal", new GetPartitionedStatsInternal());
         jcommander.addCommand("skip", new Skip());
         jcommander.addCommand("skip-all", new SkipAll());
         jcommander.addCommand("expire-messages", new ExpireMessages());
@@ -361,6 +362,19 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the stats-internal for the partitioned topic and its connected producers and consumers. \n"
+            + "\t       All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
+    private class GetPartitionedStatsInternal extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String persistentTopic = validatePersistentTopic(params);
+            print(persistentTopics.getPartitionedInternalStats(persistentTopic));
+        }
+    }
+    
     @Parameters(commandDescription = "Skip all the messages for the subscription")
     private class SkipAll extends CliCommand {
         @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
