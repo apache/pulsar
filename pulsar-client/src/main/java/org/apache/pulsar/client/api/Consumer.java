@@ -296,7 +296,8 @@ public interface Consumer<T> extends Closeable {
     String getConsumerName();
 
     /**
-     * Stop requesting new messages from the broker until {@link #resume()} is called.
+     * Stop requesting new messages from the broker until {@link #resume()} is called. Note that this might cause
+     * {@link #receive()} to block until {@link #resume()} is called and new messages are pushed by the broker.
      */
     void pause();
 
