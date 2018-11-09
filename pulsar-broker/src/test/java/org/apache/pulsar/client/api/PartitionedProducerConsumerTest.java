@@ -22,6 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -575,6 +578,26 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
                 return null;
             });
         }
+    }
+
+    @Test
+    public void testGetPartitionsForTopic() throws Exception {
+        int numPartitions = 4;
+        String topic = "persistent://my-property/my-ns/my-partitionedtopic1-" + System.currentTimeMillis();
+
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        List<String> expectedPartitions = new ArrayList<>();
+        for (int i =0; i < numPartitions; i++) {
+            expectedPartitions.add(topic + "-partition-" + i);
+        }
+
+        assertEquals(pulsarClient.getPartitionsForTopic(topic).join(), expectedPartitions);
+
+        String nonPartitionedTopic = "persistent://my-property/my-ns/my-non-partitionedtopic1";
+
+        assertEquals(pulsarClient.getPartitionsForTopic(nonPartitionedTopic).join(),
+                Collections.singletonList(nonPartitionedTopic));
     }
 
 }
