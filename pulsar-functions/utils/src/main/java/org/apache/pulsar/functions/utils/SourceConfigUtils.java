@@ -77,7 +77,11 @@ public class SourceConfigUtils {
             functionDetailsBuilder.setName(sourceConfig.getName());
         }
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-        functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
+        if (sourceConfig.getParallelism() != null) {
+            functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
+        } else {
+            functionDetailsBuilder.setParallelism(1);
+        }
         functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
         functionDetailsBuilder.setAutoAck(true);
         if (sourceConfig.getProcessingGuarantees() != null) {
@@ -201,7 +205,7 @@ public class SourceConfigUtils {
         if (!TopicName.isValid(sourceConfig.getTopicName())) {
             throw new IllegalArgumentException("Topic name is invalid");
         }
-        if (sourceConfig.getParallelism() <= 0) {
+        if (sourceConfig.getParallelism() != null && sourceConfig.getParallelism() <= 0) {
             throw new IllegalArgumentException("Source parallelism should positive number");
         }
         if (sourceConfig.getResources() != null) {
