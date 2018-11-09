@@ -33,72 +33,72 @@ public class HdfsStringSinkTests extends AbstractHdfsSinkTest<String, String> {
     }
     
     @Test(enabled = false)
-	public final void write5000Test() throws Exception {
-		map.put("filenamePrefix", "write5000Test");
-		map.put("fileExtension", ".txt");
-		map.put("separator", '\n');
-		sink.open(map, mockSinkContext);
-		send(5000);
-		sink.close();
-		verify(mockRecord, times(5000)).ack();
-	}
-	
+    public final void write5000Test() throws Exception {
+        map.put("filenamePrefix", "write5000Test");
+        map.put("fileExtension", ".txt");
+        map.put("separator", '\n');
+        sink.open(map, mockSinkContext);
+        send(5000);
+        sink.close();
+        verify(mockRecord, times(5000)).ack();
+    }
+
     @Test(enabled = false)
-	public final void fiveByTwoThousandTest() throws Exception {
-		map.put("filenamePrefix", "fiveByTwoThousandTest");
-		map.put("fileExtension", ".txt");
-		map.put("separator", '\n');
-		sink.open(map, mockSinkContext);
-		
-		for (int idx = 1; idx < 6; idx++) {
-			send(2000);
-		}
-		sink.close();
-		verify(mockRecord, times(2000 * 5)).ack();
-	}
-	
+    public final void fiveByTwoThousandTest() throws Exception {
+        map.put("filenamePrefix", "fiveByTwoThousandTest");
+        map.put("fileExtension", ".txt");
+        map.put("separator", '\n');
+        sink.open(map, mockSinkContext);
+        
+        for (int idx = 1; idx < 6; idx++) {
+        	send(2000);
+        }
+        sink.close();
+        verify(mockRecord, times(2000 * 5)).ack();
+    }
+
     @Test(enabled = false)
-	public final void tenSecondTest() throws Exception {
-		map.put("filenamePrefix", "tenSecondTest");
-		map.put("fileExtension", ".txt");
-		map.put("separator", '\n');
-		sink.open(map, mockSinkContext);
-		runFor(10);	
-		sink.close();
-	}
-	
+    public final void tenSecondTest() throws Exception {
+        map.put("filenamePrefix", "tenSecondTest");
+        map.put("fileExtension", ".txt");
+        map.put("separator", '\n');
+        sink.open(map, mockSinkContext);
+        runFor(10);	
+        sink.close();
+    }
+
     @Test(enabled = false)
-	public final void maxPendingRecordsTest() throws Exception {
-		map.put("filenamePrefix", "maxPendingRecordsTest");
-		map.put("fileExtension", ".txt");
-		map.put("separator", '\n');
-		map.put("maxPendingRecords", 500);
-		sink.open(map, mockSinkContext);
-		runFor(10);	
-		sink.close();
-	}
-	
+    public final void maxPendingRecordsTest() throws Exception {
+        map.put("filenamePrefix", "maxPendingRecordsTest");
+        map.put("fileExtension", ".txt");
+        map.put("separator", '\n');
+        map.put("maxPendingRecords", 500);
+        sink.open(map, mockSinkContext);
+        runFor(10);	
+        sink.close();
+    }
+
     @Test(enabled = false)
-	public final void bzip2CompressionTest() throws Exception {
-		map.put("filenamePrefix", "bzip2CompressionTest");
-		map.put("compression", "BZIP2");
-		map.remove("fileExtension");
-		map.put("separator", '\n');
-		sink.open(map, mockSinkContext);
-		send(5000);
-		sink.close();
-		verify(mockRecord, times(5000)).ack();
-	}
-	
+    public final void bzip2CompressionTest() throws Exception {
+        map.put("filenamePrefix", "bzip2CompressionTest");
+        map.put("compression", "BZIP2");
+        map.remove("fileExtension");
+        map.put("separator", '\n');
+        sink.open(map, mockSinkContext);
+        send(5000);
+        sink.close();
+        verify(mockRecord, times(5000)).ack();
+    }
+
     @Test(enabled = false)
-	public final void deflateCompressionTest() throws Exception {
-		map.put("filenamePrefix", "deflateCompressionTest");
-		map.put("compression", "DEFLATE");
-		map.put("fileExtension", ".deflate");
-		map.put("separator", '\n');
-		sink.open(map, mockSinkContext);
-		send(50000);
-		sink.close();
-		verify(mockRecord, times(50000)).ack();
-	}
+    public final void deflateCompressionTest() throws Exception {
+        map.put("filenamePrefix", "deflateCompressionTest");
+        map.put("compression", "DEFLATE");
+        map.put("fileExtension", ".deflate");
+        map.put("separator", '\n');
+        sink.open(map, mockSinkContext);
+        send(50000);
+        sink.close();
+        verify(mockRecord, times(50000)).ack();
+    }
 }
