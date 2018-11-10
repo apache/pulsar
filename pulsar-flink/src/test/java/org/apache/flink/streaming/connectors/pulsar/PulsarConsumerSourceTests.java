@@ -507,12 +507,10 @@ public class PulsarConsumerSourceTests {
 
         @Override
         public void pause() {
-
         }
 
         @Override
         public void resume() {
-
         }
     }
 
