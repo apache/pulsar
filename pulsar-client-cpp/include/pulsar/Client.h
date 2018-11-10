@@ -34,7 +34,7 @@ namespace pulsar {
 typedef boost::function<void(Result, Producer)> CreateProducerCallback;
 typedef boost::function<void(Result, Consumer)> SubscribeCallback;
 typedef boost::function<void(Result, Reader)> ReaderCallback;
-typedef boost::function<void(Result, std::vector<std::string>)> GetPartitionsCallback;
+typedef boost::function<void(Result, const std::vector<std::string>&)> GetPartitionsCallback;
 typedef boost::function<void(Result)> CloseCallback;
 
 class ClientImpl;
