@@ -1957,3 +1957,33 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
 
     client.shutdown();
 }
+
+TEST(BasicEndToEndTest, testGetTopicPartitions) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns/testGetPartitions";
+
+    // call admin api to make it partitioned
+    std::string url =
+            adminUrl + "admin/persistent/prop/unit/ns/testGetPartitions/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    std::vector<std::string> partitionsList;
+    Result result = client.getPartitionsForTopic(topicName, partitionsList);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(partitionsList.size(), 3);
+    ASSERT_EQ(partitionsList[0], topicName + "-partition-0");
+    ASSERT_EQ(partitionsList[1], topicName + "-partition-1");
+    ASSERT_EQ(partitionsList[2], topicName + "-partition-2");
+
+    std::vector<std::string> partitionsList2;
+    result = client.getPartitionsForTopic("persistent://prop/unit/ns/testGetPartitions-non-partitioned",
+                                                 partitionsList);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(partitionsList2.size(), 1);
+    ASSERT_EQ(partitionsList2[0], "persistent://prop/unit/ns/testGetPartitions-non-partitioned");
+
+    client.shutdown();
+}
