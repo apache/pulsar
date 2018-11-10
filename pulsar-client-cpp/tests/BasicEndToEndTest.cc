@@ -1963,8 +1963,7 @@ TEST(BasicEndToEndTest, testGetTopicPartitions) {
     std::string topicName = "persistent://prop/unit/ns/testGetPartitions";
 
     // call admin api to make it partitioned
-    std::string url =
-            adminUrl + "admin/persistent/prop/unit/ns/testGetPartitions/partitions";
+    std::string url = adminUrl + "admin/persistent/prop/unit/ns/testGetPartitions/partitions";
     int res = makePutRequest(url, "3");
 
     LOG_INFO("res = " << res);
@@ -1980,7 +1979,7 @@ TEST(BasicEndToEndTest, testGetTopicPartitions) {
 
     std::vector<std::string> partitionsList2;
     result = client.getPartitionsForTopic("persistent://prop/unit/ns/testGetPartitions-non-partitioned",
-                                                 partitionsList);
+                                          partitionsList);
     ASSERT_EQ(ResultOk, result);
     ASSERT_EQ(partitionsList2.size(), 1);
     ASSERT_EQ(partitionsList2[0], "persistent://prop/unit/ns/testGetPartitions-non-partitioned");

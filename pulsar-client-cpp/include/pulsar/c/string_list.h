@@ -32,7 +32,7 @@ void pulsar_string_list_free(pulsar_string_list_t *list);
 
 int pulsar_string_list_size(pulsar_string_list_t *list);
 
-void pulsar_string_list_append(pulsar_string_list_t* list, const char *item);
+void pulsar_string_list_append(pulsar_string_list_t *list, const char *item);
 
 const char *pulsar_string_list_get(pulsar_string_list_t *map, int index);
 

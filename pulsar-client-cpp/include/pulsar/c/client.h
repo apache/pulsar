@@ -48,7 +48,8 @@ typedef void (*pulsar_create_producer_callback)(pulsar_result result, pulsar_pro
 
 typedef void (*pulsar_subscribe_callback)(pulsar_result result, pulsar_consumer_t *consumer, void *ctx);
 typedef void (*pulsar_reader_callback)(pulsar_result result, pulsar_reader_t *reader, void *ctx);
-typedef void (*pulsar_get_partitions_callback)(pulsar_result result, pulsar_string_list_t* partitions, void *ctx);
+typedef void (*pulsar_get_partitions_callback)(pulsar_result result, pulsar_string_list_t *partitions,
+                                               void *ctx);
 
 typedef void (*pulsar_close_callback)(pulsar_result result, void *ctx);
 
@@ -138,10 +139,10 @@ void pulsar_client_create_reader_async(pulsar_client_t *client, const char *topi
                                        void *ctx);
 
 pulsar_result pulsar_client_get_topic_partitions(pulsar_client_t *client, const char *topic,
-                                                pulsar_string_list_t** partitions );
+                                                 pulsar_string_list_t **partitions);
 
 void pulsar_client_get_topic_partitions_async(pulsar_client_t *client, const char *topic,
-                                                 pulsar_get_partitions_callback callback, void* ctx);
+                                              pulsar_get_partitions_callback callback, void *ctx);
 
 pulsar_result pulsar_client_close(pulsar_client_t *client);
 

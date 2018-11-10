@@ -104,7 +104,7 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
                                     ReaderConfiguration conf, ReaderCallback callback);
 
     void handleGetPartitions(const Result result, const LookupDataResultPtr partitionMetadata,
-                                    TopicNamePtr topicName, GetPartitionsCallback callback);
+                             TopicNamePtr topicName, GetPartitionsCallback callback);
 
     void handleProducerCreated(Result result, ProducerImplBaseWeakPtr producerWeakPtr,
                                CreateProducerCallback callback, ProducerImplBasePtr producer);

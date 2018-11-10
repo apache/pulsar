@@ -450,8 +450,8 @@ void ClientImpl::getPartitionsForTopicAsync(const std::string& topic, GetPartiti
             return;
         }
     }
-    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(boost::bind(
-            &ClientImpl::handleGetPartitions, shared_from_this(), _1, _2, topicName, callback));
+    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
+        boost::bind(&ClientImpl::handleGetPartitions, shared_from_this(), _1, _2, topicName, callback));
 }
 
 void ClientImpl::closeAsync(CloseCallback callback) {

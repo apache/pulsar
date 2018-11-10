@@ -27,9 +27,7 @@ void pulsar_string_list_free(pulsar_string_list_t *list) { delete list; }
 
 int pulsar_string_list_size(pulsar_string_list_t *list) { return list->list.size(); }
 
-void pulsar_string_list_append(pulsar_string_list_t *list, const char *item) {
-    list->list.push_back(item);
-}
+void pulsar_string_list_append(pulsar_string_list_t *list, const char *item) { list->list.push_back(item); }
 
 const char *pulsar_string_list_get(pulsar_string_list_t *list, int index) {
     return list->list[index].c_str();
