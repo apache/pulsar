@@ -308,7 +308,7 @@ public class PulsarWorkerAssignmentTest {
         // validate updated function prop = auto-ack=false and instnaceid
         for (int i = 0; i < (totalFunctions - totalDeletedFunction); i++) {
             String functionName = baseFunctionName + i;
-            assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).isAutoAck());
+            assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getAutoAck());
         }
     }
 

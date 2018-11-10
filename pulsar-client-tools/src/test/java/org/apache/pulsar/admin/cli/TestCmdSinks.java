@@ -258,7 +258,7 @@ public class TestCmdSinks {
     @Test
     public void testMissingParallelism() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setParallelism(1);
+        sinkConfig.setParallelism(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
