@@ -1,0 +1,9 @@
+configs:
+        zkServers: "127.0.0.1:2181"
+        batchSize: "5120"
+        destination: "example"
+        username: ""
+        password: ""
+        cluster: false
+        singleHostname: "127.0.0.1"
+        singlePort: "11111"
