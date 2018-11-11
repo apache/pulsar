@@ -130,7 +130,7 @@ admin.persistentTopics().revokePermissions(topic, role);
 <h3><a class="anchor" aria-hidden="true" id="删除主题"></a><a href="#删除主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除主题</h3>
 <p>删除主题。如果主题上连接有活跃的订阅或者生产者，则无法删除。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-4"></a><a href="#pulsar-admin-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>Topic can be deleted using <a href="../../reference/CliTools#delete"><code>delete</code></a> command.</p>
+<p>可以使用<a href="../../reference/CliTools#delete"><code>delete</code></a>命令删除主题。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent delete \</span>
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -144,7 +144,7 @@ admin.persistentTopics().delete(topic);
 <h3><a class="anchor" aria-hidden="true" id="unload-topic"></a><a href="#unload-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Unload topic</h3>
 <p>It unloads a topic.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-5"></a><a href="#pulsar-admin-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>Topic can be unloaded using <a href="../../reference/CliTools#unload"><code>unload</code></a> command.</p>
+<p>可以使用<a href="../../reference/CliTools#unload"><code>unload</code></a>命令卸载主题。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent unload \</span>
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -163,7 +163,7 @@ admin.persistentTopics().unload(topic);
 <li><p><strong>msgRateOut</strong>: The sum of all local and replication consumers' dispatch rates in messages per second</p></li>
 <li><p><strong>msgThroughputOut</strong>: Same as above, but in bytes per second instead of messages per second</p></li>
 <li><p><strong>averageMsgSize</strong>: The average size in bytes of messages published within the last interval</p></li>
-<li><p><strong>storageSize</strong>: The sum of the ledgers' storage size for this topic. See</p></li>
+<li><p><strong>storageSize</strong>: 此主题在ledger中总的的存储大小。</p></li>
 <li><p><strong>publishers</strong>: The list of all local publishers into the topic. There can be zero or thousands</p></li>
 <li><p><strong>averageMsgSize</strong>: Average message size in bytes from this publisher within the last interval</p></li>
 <li><p><strong>producerId</strong>: Internal identifier for this producer on this topic</p></li>
@@ -172,14 +172,14 @@ admin.persistentTopics().unload(topic);
 <li><p><strong>connectedSince</strong>: Timestamp this producer was created or last reconnected</p></li>
 <li><p><strong>subscriptions</strong>: The list of all local subscriptions to the topic</p></li>
 <li><p><strong>my-subscription</strong>: The name of this subscription (client defined)</p></li>
-<li><p><strong>msgBacklog</strong>: The count of messages in backlog for this subscription</p></li>
+<li><p><strong>msgBacklog</strong>: 本订阅的消息数量</p></li>
 <li><p><strong>type</strong>: This subscription type</p></li>
-<li><p><strong>msgRateExpired</strong>: The rate at which messages were discarded instead of dispatched from this subscription due to TTL</p></li>
+<li><p><strong>msgRateExpired</strong>: 由于TTL，此订阅下没有被发送而是被丢弃的比例。</p></li>
 <li><p><strong>consumers</strong>: The list of connected consumers for this subscription</p></li>
 <li><p><strong>consumerName</strong>: Internal identifier for this consumer, generated by the client library</p></li>
 <li><p><strong>availablePermits</strong>: The number of messages this consumer has space for in the client library's listen queue. A value of 0 means the client library's queue is full and receive() isn't being called. A nonzero value means this consumer is ready to be dispatched messages.</p></li>
 <li><p><strong>replication</strong>: This section gives the stats for cross-colo replication of this topic</p></li>
-<li><p><strong>replicationBacklog</strong>: The outbound replication backlog in messages</p></li>
+<li><p><strong>replicationBacklog</strong>: 对外复制的消息backlog</p></li>
 <li><p><strong>connected</strong>: Whether the outbound replicator is connected</p></li>
 <li><p><strong>replicationDelayInSeconds</strong>: How long the oldest message has been waiting to be sent through the connection, if connected is true</p></li>
 <li><p><strong>inboundConnection</strong>: The IP and port of the broker in the remote cluster's publisher connection to this broker</p></li>
