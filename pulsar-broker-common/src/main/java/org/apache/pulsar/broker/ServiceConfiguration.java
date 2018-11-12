@@ -157,6 +157,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // than this percentage limit and subscription will not receive any new messages until that subscription acks back
     // limit/2 messages
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
+    // Subscribe too much for a consumer and load data from bookie to cause the high network bandwidth usage.
+    // https://github.com/apache/pulsar/issues/2876
+    // Default broker do not limit subscribe times for a consumer. Using a value of 0 is disabling subscribe
+    // limit. Using a value of > 0 can enable the subscribe limit mechanism to avoid the consumer with potentially dangerous
+    @FieldContext(dynamic = true)
+    private int subscribeThrottlingRatePerConsumer = 0;
+    // Rate period for {subscribeThrottlingRatePerConsumer}. Default is 30s.
+    @FieldContext(minValue = 1, dynamic = true)
+    private int subscribeRatePeriodPerConsumerInSecond = 30;
     // Default number of message dispatching throttling-limit for every topic. Using a value of 0, is disabling default
     // message dispatch-throttling
     @FieldContext(dynamic = true)
@@ -1795,5 +1804,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setBacklogQuotaDefaultRetentionPolicy(BacklogQuota.RetentionPolicy backlogQuotaDefaultRetentionPolicy) {
         this.backlogQuotaDefaultRetentionPolicy = backlogQuotaDefaultRetentionPolicy;
+    }
+
+    public int getSubscribeThrottlingRatePerConsumer() {
+        return subscribeThrottlingRatePerConsumer;
+    }
+
+    public void setSubscribeThrottlingRatePerConsumer(int subscribeThrottlingRatePerConsumer) {
+        this.subscribeThrottlingRatePerConsumer = subscribeThrottlingRatePerConsumer;
+    }
+
+    public int getSubscribeRatePeriodPerConsumerInSecond() {
+        return subscribeRatePeriodPerConsumerInSecond;
+    }
+
+    public void setSubscribeRatePeriodPerConsumerInSecond(int subscribeRatePeriodPerConsumerInSecond) {
+        this.subscribeRatePeriodPerConsumerInSecond = subscribeRatePeriodPerConsumerInSecond;
     }
 }

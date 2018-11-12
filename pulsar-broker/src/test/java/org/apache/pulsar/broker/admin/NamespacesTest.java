@@ -28,6 +28,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -56,7 +57,9 @@ import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -66,6 +69,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -75,6 +79,8 @@ import org.apache.zookeeper.ZooDefs;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -1153,6 +1159,41 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @Test
+    public void testSubscribeRate() throws Exception {
+        final String namespace = this.testTenant + "/subscribe-rate";
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
+        SubscribeRate subscribeRate = new SubscribeRate(1, 5);
+        admin.namespaces().setSubscribeRate(namespace, subscribeRate);
+        assertEquals(subscribeRate, admin.namespaces().getSubscribeRate(namespace));
+        String topicName = "persistent://" + namespace + "/" + "subscribe-rate-limit-test";
+        Consumer consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("subscribe-rate")
+                .subscribe();
+        assertTrue(consumer.isConnected());
+
+        // Subscribe Rate Limiter is enabled, will limited by broker
+        pulsarClient.updateServiceUrl(lookupUrl.toString());
+        Thread.sleep(1000L);
+        assertFalse(consumer.isConnected());
+
+        // Out of limit period
+        Thread.sleep(6000L);
+        pulsarClient.updateServiceUrl(lookupUrl.toString());
+        assertTrue(consumer.isConnected());
+
+        // Disable Subscribe Rate Limiter
+        subscribeRate = new SubscribeRate(0, 10);
+        admin.namespaces().setSubscribeRate(namespace, subscribeRate);
+        pulsarClient.updateServiceUrl(lookupUrl.toString());
+        Thread.sleep(1000L);
+        assertTrue(consumer.isConnected());
+
+        admin.topics().delete(topicName, true);
+    }
+
     private void mockWebUrl(URL localWebServiceUrl, NamespaceName namespace) throws Exception {
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc)
                 .getWebServiceUrl(Mockito.argThat(new Matcher<NamespaceBundle>() {
@@ -1192,4 +1233,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             }
         }));
     }
+
+    private static final Logger log = LoggerFactory.getLogger(NamespacesTest.class);
 }
