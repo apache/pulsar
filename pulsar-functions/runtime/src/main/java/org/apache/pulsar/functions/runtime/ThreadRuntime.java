@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime;
 
 import java.util.concurrent.CompletableFuture;
 
+import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -53,18 +54,28 @@ class ThreadRuntime implements Runtime {
                   String jarFile,
                   PulsarClient pulsarClient,
                   String stateStorageServiceUrl,
-                  SecretsProvider secretsProvider) {
+                  SecretsProvider secretsProvider,
+                  CollectorRegistry collectorRegistry) {
         this.instanceConfig = instanceConfig;
         if (instanceConfig.getFunctionDetails().getRuntime() != Function.FunctionDetails.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
         }
+
+        // if collector registry is not set, create one for this thread.
+        // since each thread / instance will needs its own collector registry for metrics collection
+        CollectorRegistry instanceCollectorRegistry = collectorRegistry;
+        if (instanceCollectorRegistry == null) {
+            instanceCollectorRegistry = new CollectorRegistry();
+        }
+
         this.javaInstanceRunnable = new JavaInstanceRunnable(
             instanceConfig,
             fnCache,
             jarFile,
             pulsarClient,
             stateStorageServiceUrl,
-            secretsProvider);
+            secretsProvider,
+            instanceCollectorRegistry);
         this.threadGroup = threadGroup;
     }
 

@@ -61,7 +61,7 @@ public class SinkConfig {
     // secrets provider. The type of an value here can be found by the
     // SecretProviderConfigurator.getSecretObjectType() method.
     private Map<String, Object> secrets;
-    private int parallelism = 1;
+    private Integer parallelism;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private boolean retainOrdering;
     private Resources resources;

@@ -42,6 +42,7 @@ public class SinkConfigUtilsTest {
         sinkConfig.setTenant("test-tenant");
         sinkConfig.setNamespace("test-namespace");
         sinkConfig.setName("test-source");
+        sinkConfig.setParallelism(1);
         sinkConfig.setArchive("builtin://jdbc");
         sinkConfig.setSourceSubscriptionName("test-subscription");
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();

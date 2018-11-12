@@ -144,6 +144,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private Producer<T> deadLetterProducer;
 
+    protected volatile boolean paused;
+
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -1073,13 +1075,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
         int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
 
-        while (available >= receiverQueueRefillThreshold) {
+        while (available >= receiverQueueRefillThreshold && !paused) {
             if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
                 sendFlowPermitsToBroker(currentCnx, available);
                 break;
             } else {
                 available = AVAILABLE_PERMITS_UPDATER.get(this);
             }
+        }
+    }
+
+    @Override
+    public void pause() {
+        paused = true;
+    }
+
+    @Override
+    public void resume() {
+        if (paused) {
+            paused = false;
+            increaseAvailablePermits(cnx(), 0);
         }
     }
 

@@ -73,6 +73,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -510,6 +511,40 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
         return future;
     }
 
+    @Override
+    public PartitionedTopicInternalStats getPartitionedInternalStats(String topic)
+            throws PulsarAdminException {
+        try {
+            return getPartitionedInternalStatsAsync(topic).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+
+    @Override
+    public CompletableFuture<PartitionedTopicInternalStats> getPartitionedInternalStatsAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "partitioned-internalStats");
+        final CompletableFuture<PartitionedTopicInternalStats> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<PartitionedTopicInternalStats>() {
+
+                    @Override
+                    public void completed(PartitionedTopicInternalStats response) {
+                        future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+    
     @Override
     public void deleteSubscription(String topic, String subName) throws PulsarAdminException {
         try {
