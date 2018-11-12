@@ -73,13 +73,13 @@ public class FunctionsStatsGenerator {
                                 int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
                                 String qualifiedNamespace = String.format("%s/%s", tenant, namespace);
 
-                                metric(out, cluster, qualifiedNamespace, name, String.format("%scount", metricName),
+                                metric(out, cluster, qualifiedNamespace, name, String.format("%s_count", metricName),
                                         instanceId, dataDigest.getCount());
-                                metric(out, cluster, qualifiedNamespace, name, String.format("%smax", metricName),
+                                metric(out, cluster, qualifiedNamespace, name, String.format("%s_max", metricName),
                                         instanceId, dataDigest.getMax());
-                                metric(out, cluster, qualifiedNamespace,name, String.format("%smin", metricName),
+                                metric(out, cluster, qualifiedNamespace,name, String.format("%s_min", metricName),
                                         instanceId, dataDigest.getMin());
-                                metric(out, cluster, qualifiedNamespace, name, String.format("%ssum", metricName),
+                                metric(out, cluster, qualifiedNamespace, name, String.format("%s_sum", metricName),
                                         instanceId, dataDigest.getSum());
 
                             }

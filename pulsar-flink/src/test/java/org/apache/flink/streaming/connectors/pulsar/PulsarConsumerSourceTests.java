@@ -504,6 +504,14 @@ public class PulsarConsumerSourceTests {
         public String getConsumerName() {
             return "test-consumer-0";
         }
+
+        @Override
+        public void pause() {
+        }
+
+        @Override
+        public void resume() {
+        }
     }
 
     private static List<Message> createMessages(int startIndex, int numMessages) {

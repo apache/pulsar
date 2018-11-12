@@ -28,6 +28,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -214,6 +216,58 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
                     "Message my-message-" + (index - 1) + " should come before my-message-" + index);
         }
         Assert.assertTrue(messageSet.add(message), "Received duplicate message " + message);
+    }
+
+    @Test(timeOut = 100000)
+    public void testPauseAndResume() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int numPartitions = 2;
+        String topicName = TopicName
+                .get("persistent://my-property/my-ns/my-partitionedtopic-pr-" + System.currentTimeMillis()).toString();
+
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        int receiverQueueSize = 20; // number of permits broker has per partition when consumer initially subscribes
+        int numMessages = receiverQueueSize * numPartitions;
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(numMessages));
+        AtomicInteger received = new AtomicInteger();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().receiverQueueSize(receiverQueueSize)
+                .topic(topicName)
+                .subscriptionName("my-partitioned-subscriber").messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    c1.acknowledgeAsync(msg);
+                    received.incrementAndGet();
+                    latch.get().countDown();
+                }).subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+
+        consumer.pause();
+
+        for (int i = 0; i < numMessages * 2; i++) producer.send(("my-message-" + i).getBytes());
+
+        log.info("Waiting for message listener to ack " + numMessages + " messages");
+        assertEquals(latch.get().await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+
+        log.info("Giving message listener an opportunity to receive messages while paused");
+        Thread.sleep(2000);     // hopefully this is long enough
+        assertEquals(received.intValue(), numMessages, "Consumer received messages while paused");
+
+        latch.set(new CountDownLatch(numMessages));
+
+        consumer.resume();
+
+        log.info("Waiting for message listener to ack all messages");
+        assertEquals(latch.get().await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+
+        consumer.close();
+        producer.close();
+        log.info("-- Exiting {} test --", methodName);
     }
 
     @Test(timeOut = 30000)

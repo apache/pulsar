@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import io.prometheus.client.CollectorRegistry;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -75,7 +76,7 @@ public class ContextImplTest {
             logger,
             client,
             new ArrayList<>(),
-            new EnvironmentBasedSecretsProvider()
+            new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0]
         );
     }
 

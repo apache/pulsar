@@ -26,7 +26,6 @@ import logging.config
 import logging.handlers
 import os
 import errno
-from logging.handlers import RotatingFileHandler
 import pulsar
 
 # Create the logger
@@ -72,25 +71,6 @@ class CreatePathRotatingFileHandler(logging.handlers.RotatingFileHandler):
     mkdir_p(os.path.dirname(filename))
     logging.handlers.RotatingFileHandler.__init__(self, filename, mode=mode, maxBytes=maxBytes, backupCount=backupCount, encoding=encoding, delay=delay)
 
-def configure(level=logging.INFO):
-  """ Configure logger which dumps log on terminal
-
-  :param level: logging level: info, warning, verbose...
-  :type level: logging level
-  :type logfile: string
-  :return: None
-  :rtype: None
-  """
-
-  # Remove all the existing StreamHandlers to avoid duplicate
-  for handler in Log.handlers:
-    if isinstance(handler, logging.StreamHandler):
-      Log.handlers.remove(handler)
-
-  Log.setLevel(level)
-  stream_handler = logging.StreamHandler()
-  add_handler(stream_handler)
-
 def remove_all_handlers():
   retval = None
   for handler in Log.handlers:
@@ -110,17 +90,5 @@ def init_logger(level, logfile, logging_config_file):
   os.environ['LOG_FILE'] = logfile;
   logging.config.fileConfig(logging_config_file)
   Log = logging.getLogger()
-  Log = logging.LoggerAdapter(Log, {'level': level})
+  Log.setLevel(level)
 
-def set_logging_level(cl_args):
-  """simply set verbose level based on command-line args
-
-  :param cl_args: CLI arguments
-  :type cl_args: dict
-  :return: None
-  :rtype: None
-  """
-  if 'verbose' in cl_args and cl_args['verbose']:
-    configure(logging.DEBUG)
-  else:
-    configure(logging.INFO)

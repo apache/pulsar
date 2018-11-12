@@ -77,7 +77,7 @@ public class FunctionConfig {
     private String outputSerdeClassName;
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
-    private boolean retainOrdering;
+    private Boolean retainOrdering;
     private Map<String, Object> userConfig;
     // This is a map of secretName(aka how the secret is going to be
     // accessed in the function via context) to an object that
@@ -86,11 +86,11 @@ public class FunctionConfig {
     // SecretProviderConfigurator.getSecretObjectType() method.
     private Map<String, Object> secrets;
     private Runtime runtime;
-    private boolean autoAck;
-    private int maxMessageRetries = -1;
+    private Boolean autoAck;
+    private Integer maxMessageRetries;
     private String deadLetterTopic;
     private String subName;
-    private int parallelism = 1;
+    private Integer parallelism;
     private Resources resources;
     private String fqfn;
     private WindowConfig windowConfig;

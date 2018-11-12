@@ -102,7 +102,7 @@ public class FunctionConfigUtils {
         }
 
         // Set subscription type based on ordering and EFFECTIVELY_ONCE semantics
-        Function.SubscriptionType subType = (functionConfig.isRetainOrdering()
+        Function.SubscriptionType subType = ((functionConfig.getRetainOrdering() != null && functionConfig.getRetainOrdering())
                 || FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE.equals(functionConfig.getProcessingGuarantees()))
                 ? Function.SubscriptionType.FAILOVER
                 : Function.SubscriptionType.SHARED;
@@ -157,7 +157,7 @@ public class FunctionConfigUtils {
                     Utils.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
         }
 
-        if (functionConfig.getMaxMessageRetries() >= 0) {
+        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             Function.RetryDetails.Builder retryBuilder = Function.RetryDetails.newBuilder();
             retryBuilder.setMaxMessageRetries(functionConfig.getMaxMessageRetries());
             if (isNotEmpty(functionConfig.getDeadLetterTopic())) {
@@ -192,8 +192,16 @@ public class FunctionConfigUtils {
             functionDetailsBuilder.setSecretsMap(new Gson().toJson(functionConfig.getSecrets()));
         }
 
-        functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
-        functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
+        if (functionConfig.getAutoAck() != null) {
+            functionDetailsBuilder.setAutoAck(functionConfig.getAutoAck());
+        } else {
+            functionDetailsBuilder.setAutoAck(true);
+        }
+        if (functionConfig.getParallelism() != null) {
+            functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
+        } else {
+            functionDetailsBuilder.setParallelism(1);
+        }
         if (functionConfig.getResources() != null) {
             Function.Resources.Builder bldr = Function.Resources.newBuilder();
             if (functionConfig.getResources().getCpu() != null) {
@@ -308,7 +316,7 @@ public class FunctionConfigUtils {
             org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
         }
 
-        if (functionConfig.getParallelism() == 0) {
+        if (functionConfig.getParallelism() == null) {
             functionConfig.setParallelism(1);
         }
 
@@ -393,7 +401,7 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("There is currently no support windowing in python");
         }
 
-        if (functionConfig.getMaxMessageRetries() >= 0) {
+        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             throw new IllegalArgumentException("Message retries not yet supported in python");
         }
     }
@@ -448,7 +456,7 @@ public class FunctionConfigUtils {
             }
         }
 
-        if (functionConfig.getParallelism() <= 0) {
+        if (functionConfig.getParallelism() != null && functionConfig.getParallelism() <= 0) {
             throw new IllegalArgumentException("Function parallelism should positive number");
         }
         // Ensure that topics aren't being used as both input and output
@@ -458,7 +466,7 @@ public class FunctionConfigUtils {
         if (windowConfig != null) {
             // set auto ack to false since windowing framework is responsible
             // for acking and not the function framework
-            if (functionConfig.isAutoAck() == true) {
+            if (functionConfig.getAutoAck() != null && functionConfig.getAutoAck()) {
                 throw new IllegalArgumentException("Cannot enable auto ack when using windowing functionality");
             }
             WindowConfigUtils.validate(windowConfig);
@@ -479,11 +487,11 @@ public class FunctionConfigUtils {
                     + FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE.name());
         }
 
-        if (functionConfig.getMaxMessageRetries() >= 0
+        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0
                 && functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
             throw new IllegalArgumentException("MaxMessageRetries and Effectively once don't gel well");
         }
-        if (functionConfig.getMaxMessageRetries() < 0 && !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getDeadLetterTopic())) {
+        if ((functionConfig.getMaxMessageRetries() == null || functionConfig.getMaxMessageRetries() < 0) && !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getDeadLetterTopic())) {
             throw new IllegalArgumentException("Dead Letter Topic specified, however max retries is set to infinity");
         }
 
