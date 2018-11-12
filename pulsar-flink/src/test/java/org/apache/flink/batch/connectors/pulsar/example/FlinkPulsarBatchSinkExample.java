@@ -25,9 +25,11 @@ public class FlinkPulsarBatchSinkExample {
         // set up the execution environment
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+        // create PulsarOutputFormat instance
         final OutputFormat pulsarOutputFormat =
                 new PulsarOutputFormat(SERVICE_URL, TOPIC_NAME, wordWithCount -> wordWithCount.toString().getBytes());
 
+        // create DataSet
         DataSet<String> textDS = env.fromElements(EINSTEIN_QUOTE);
 
         textDS.flatMap(new FlatMapFunction<String, WordWithCount>() {
@@ -39,6 +41,7 @@ public class FlinkPulsarBatchSinkExample {
                 }
             }
         })
+        // filter words which length is bigger than 4
         .filter(wordWithCount -> wordWithCount.word.length() > 4)
         .groupBy(new KeySelector<WordWithCount, String>() {
             @Override
@@ -52,8 +55,10 @@ public class FlinkPulsarBatchSinkExample {
                 return  new WordWithCount(wordWithCount1.word, wordWithCount1.count + wordWithCount2.count);
             }
         })
+        // write batch data to Pulsar
         .output(pulsarOutputFormat);
 
+        // execute program
         env.execute("Flink - Pulsar Batch WordCount");
 
     }
