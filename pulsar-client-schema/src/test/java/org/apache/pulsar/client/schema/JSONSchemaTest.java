@@ -45,7 +45,6 @@ public class JSONSchemaTest {
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(jsonSchema.getSchemaInfo().getSchema());
-        log.info("schemaJson: {}", schemaJson);
         Assert.assertEquals(schemaJson, SCHEMA_JSON);
         Schema schema = parser.parse(schemaJson);
 
@@ -112,6 +111,7 @@ public class JSONSchemaTest {
 
         bytes = listJsonSchema.encode(nestedList);
         Assert.assertTrue(bytes.length > 0);
+
         Assert.assertEquals(listJsonSchema.decode(bytes), nestedList);
     }
 
@@ -154,7 +154,6 @@ public class JSONSchemaTest {
         // schema for derived class
         JSONSchema<DerivedFoo> derivedJsonSchema = JSONSchema.of(DerivedFoo.class);
         Assert.assertEquals(derivedJsonSchema.decode(derivedJsonSchema.encode(derivedFoo)), derivedFoo);
-        log.info("derivedJsonSchema.encode(derivedDerivedFoo)): {}", derivedJsonSchema.decode(derivedJsonSchema.encode(derivedDerivedFoo)));
         Assert.assertEquals(derivedJsonSchema.decode(derivedJsonSchema.encode(derivedDerivedFoo)), derivedFoo);
 
         //schema for derived derived class
