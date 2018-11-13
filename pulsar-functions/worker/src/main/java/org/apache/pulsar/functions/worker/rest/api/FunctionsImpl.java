@@ -360,11 +360,13 @@ public class FunctionsImpl {
                     .entity(new ErrorData(String.format("%s %s doesn't exist", componentType, componentName))).build();
         }
 
-        String mergedComponentConfig;
+        String mergedComponentConfigJson;
+        String existingComponentConfigJson;
 
         FunctionMetaData existingComponent = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
         if (componentType.equals(FUNCTION)) {
             FunctionConfig existingFunctionConfig = FunctionConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
+            existingComponentConfigJson = new Gson().toJson(existingFunctionConfig);
             FunctionConfig functionConfig = new Gson().fromJson(componentConfigJson, FunctionConfig.class);
             // The rest end points take precendence over whatever is there in functionconfig
             functionConfig.setTenant(tenant);
@@ -372,13 +374,14 @@ public class FunctionsImpl {
             functionConfig.setName(componentName);
             try {
                 FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(existingFunctionConfig, functionConfig);
-                mergedComponentConfig = new Gson().toJson(mergedConfig);
+                mergedComponentConfigJson = new Gson().toJson(mergedConfig);
             } catch (Exception e) {
                 return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                         .entity(new ErrorData(e.getMessage())).build();
             }
         } else if (componentType.equals(SOURCE)) {
             SourceConfig existingSourceConfig = SourceConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
+            existingComponentConfigJson = new Gson().toJson(existingSourceConfig);
             SourceConfig sourceConfig = new Gson().fromJson(componentConfigJson, SourceConfig.class);
             // The rest end points take precendence over whatever is there in functionconfig
             sourceConfig.setTenant(tenant);
@@ -386,13 +389,14 @@ public class FunctionsImpl {
             sourceConfig.setName(componentName);
             try {
                 SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(existingSourceConfig, sourceConfig);
-                mergedComponentConfig = new Gson().toJson(mergedConfig);
+                mergedComponentConfigJson = new Gson().toJson(mergedConfig);
             } catch (Exception e) {
                 return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                         .entity(new ErrorData(e.getMessage())).build();
             }
         } else {
             SinkConfig existingSinkConfig = SinkConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
+            existingComponentConfigJson = new Gson().toJson(existingSinkConfig);
             SinkConfig sinkConfig = new Gson().fromJson(componentConfigJson, SinkConfig.class);
             // The rest end points take precendence over whatever is there in functionconfig
             sinkConfig.setTenant(tenant);
@@ -400,11 +404,17 @@ public class FunctionsImpl {
             sinkConfig.setName(componentName);
             try {
                 SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(existingSinkConfig, sinkConfig);
-                mergedComponentConfig = new Gson().toJson(mergedConfig);
+                mergedComponentConfigJson = new Gson().toJson(mergedConfig);
             } catch (Exception e) {
                 return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                         .entity(new ErrorData(e.getMessage())).build();
             }
+        }
+
+        if (existingComponentConfigJson.equals(mergedComponentConfigJson)) {
+            log.error("{}/{}/{} Update contains no changes", tenant, namespace, componentName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Update contains no change")).build();
         }
 
         FunctionDetails functionDetails;
@@ -418,12 +428,12 @@ public class FunctionsImpl {
         try {
             if (isNotBlank(functionPkgUrl)) {
                 functionDetails = validateUpdateRequestParamsWithPkgUrl(tenant, namespace, componentName, functionPkgUrl,
-                        functionDetailsJson, mergedComponentConfig, componentType);
+                        functionDetailsJson, mergedComponentConfigJson, componentType);
             } else if (uploadedInputStream != null) {
                 functionDetails = validateUpdateRequestParams(tenant, namespace, componentName, uploadedInputStreamAsFile,
-                        fileDetail, functionDetailsJson, mergedComponentConfig, componentType);
+                        fileDetail, functionDetailsJson, mergedComponentConfigJson, componentType);
             } else {
-                functionDetails = validateUpdateRequestParamsWithExistingMetadata(tenant, namespace, componentName, existingComponent.getPackageLocation(), mergedComponentConfig, componentType);
+                functionDetails = validateUpdateRequestParamsWithExistingMetadata(tenant, namespace, componentName, existingComponent.getPackageLocation(), mergedComponentConfigJson, componentType);
             }
         } catch (Exception e) {
             log.error("Invalid update {} request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
