@@ -185,8 +185,13 @@ public class SubscribeRateLimiter {
         }
         // return policy-subscribe rate only if it's enabled in policies
         return policies.map(p -> {
-            SubscribeRate subscribeRate = p.clusterSubscribeRate.get(cluster);
-            return isSubscribeRateEnabled(subscribeRate) ? subscribeRate : null;
+            if (p.clusterSubscribeRate != null) {
+                SubscribeRate subscribeRate = p.clusterSubscribeRate.get(cluster);
+                return isSubscribeRateEnabled(subscribeRate) ? subscribeRate : null;
+            } else {
+                return null;
+            }
+
         }).orElse(null);
     }
 
