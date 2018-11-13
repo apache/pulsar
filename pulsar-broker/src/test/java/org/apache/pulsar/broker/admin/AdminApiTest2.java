@@ -835,7 +835,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         String namespaceRegex = "other/use/other.*";
         String cluster = "use";
         String brokerName = pulsar.getAdvertisedAddress();
-        String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort();
+        String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort().get();
         NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
         nsPolicyData1.namespaces = new ArrayList<String>();
         nsPolicyData1.namespaces.add(namespaceRegex);

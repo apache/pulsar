@@ -49,7 +49,7 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
     public void run() {
         if (service.getConfiguration() != null) {
             LOG.info("messaging service shutdown hook started, lookup port="
-                    + service.getConfiguration().getWebServicePort() + ", broker url=" + service.getBrokerServiceUrl());
+                    + service.getConfiguration().getWebServicePort().get() + ", broker url=" + service.getBrokerServiceUrl());
         }
 
         ExecutorService executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("shutdown-thread"));

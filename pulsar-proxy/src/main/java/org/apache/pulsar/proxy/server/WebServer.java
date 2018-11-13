@@ -82,7 +82,6 @@ public class WebServer {
         this.webServiceExecutor = new ExecutorThreadPool();
         this.webServiceExecutor.setName("pulsar-external-web");
         this.server = new Server(webServiceExecutor);
-        this.externalServicePort = config.getWebServicePort();
         this.authenticationService = authenticationService;
         this.config = config;
 
@@ -91,11 +90,13 @@ public class WebServer {
         HttpConfiguration http_config = new HttpConfiguration();
         http_config.setOutputBufferSize(config.getHttpOutputBufferSize());
 
-        ServerConnector connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
-        connector.setPort(externalServicePort);
-        connectors.add(connector);
-
-        if (config.isTlsEnabledInProxy()) {
+        if (config.getWebServicePort().isPresent()) {
+            this.externalServicePort = config.getWebServicePort().get();
+            ServerConnector connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
+            connector.setPort(externalServicePort);
+            connectors.add(connector);
+        }
+        if (config.getWebServicePortTls().isPresent()) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         config.isTlsAllowInsecureConnection(),
@@ -104,7 +105,7 @@ public class WebServer {
                         config.getTlsKeyFilePath(),
                         config.isTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-                tlsConnector.setPort(config.getWebServicePortTls());
+                tlsConnector.setPort(config.getWebServicePortTls().get());
                 connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {
                 throw new RuntimeException(e);

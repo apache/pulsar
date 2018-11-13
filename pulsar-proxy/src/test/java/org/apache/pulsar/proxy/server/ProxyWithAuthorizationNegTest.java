@@ -78,7 +78,6 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
-        conf.setTlsEnabled(true);
         conf.setTlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_BROKER_KEY_FILE_PATH);
@@ -110,7 +109,6 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         proxyConfig.setServicePortTls(PortManager.nextFreePort());
         proxyConfig.setWebServicePort(PortManager.nextFreePort());
         proxyConfig.setWebServicePortTls(PortManager.nextFreePort());
-        proxyConfig.setTlsEnabledInProxy(true);
         proxyConfig.setTlsEnabledWithBroker(true);
 
         // enable tls and auth&auth at proxy
@@ -158,7 +156,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         createAdminClient();
-        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls();
+        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
         // create a client which connects to proxy over tls and pass authData
         PulsarClient proxyClient = createPulsarClient(proxyServiceUrl);
 
