@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -57,10 +55,6 @@ import net.jodah.typetools.TypeResolver;
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class Utils {
-
-    public static String HTTP = "http";
-    public static String FILE = "file";
-    public static String BUILTIN = "builtin";
 
     public static String printJson(MessageOrBuilder msg) throws IOException {
         return JsonFormat.printer().print(msg);
@@ -217,15 +211,6 @@ public class Utils {
         return typeArg;
     }
 
-    public static boolean fileExists(String file) {
-        return new File(file).exists();
-    }
-
-    public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
-        return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(Utils.HTTP)
-                || functionPkgUrl.startsWith(Utils.FILE));
-    }
-
     /**
      * Load a jar
      * @param jar file of jar
@@ -248,7 +233,7 @@ public class Utils {
     }
 
     public static File extractFileFromPkg(String destPkgUrl) throws IOException, URISyntaxException {
-        if (destPkgUrl.startsWith(FILE)) {
+        if (destPkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
             URL url = new URL(destPkgUrl);
             File file = new File(url.toURI());
             if (!file.exists()) {
@@ -309,7 +294,7 @@ public class Utils {
             }
         }
         if (!StringUtils.isEmpty(pkgUrl)) {
-            if (pkgUrl.startsWith(FILE)) {
+            if (pkgUrl.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
                 try {
                     URL url = new URL(pkgUrl);
                     File file = new File(url.toURI());

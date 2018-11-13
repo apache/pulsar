@@ -36,6 +36,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 
+import io.prometheus.client.CollectorRegistry;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -43,6 +44,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function.Assignment;
@@ -54,6 +56,10 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.runtime.Runtime;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.utils.Reflections;
 
 /**
  * This class managers all aspects of functions assignments and running of function assignments for this worker
@@ -104,6 +110,14 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.workerService = workerService;
         this.functionAdmin = workerService.getFunctionAdmin();
 
+        SecretsProviderConfigurator secretsProviderConfigurator;
+        if (!StringUtils.isEmpty(workerConfig.getSecretsProviderConfiguratorClassName())) {
+            secretsProviderConfigurator = (SecretsProviderConfigurator) Reflections.createInstance(workerConfig.getSecretsProviderConfiguratorClassName(), ClassLoader.getSystemClassLoader());
+        } else {
+            secretsProviderConfigurator = new DefaultSecretsProviderConfigurator();
+        }
+        secretsProviderConfigurator.init(workerConfig.getSecretsProviderConfiguratorConfig());
+
         AuthenticationConfig authConfig = AuthenticationConfig.builder()
                 .clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
                 .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters())
@@ -116,7 +130,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getThreadContainerFactory().getThreadGroupName(),
                     workerConfig.getPulsarServiceUrl(),
                     workerConfig.getStateStorageServiceUrl(),
-                    authConfig);
+                    authConfig,
+                    new ClearTextSecretsProvider(),
+                     null);
         } else if (workerConfig.getProcessContainerFactory() != null) {
             this.runtimeFactory = new ProcessRuntimeFactory(
                     workerConfig.getPulsarServiceUrl(),
@@ -124,7 +140,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     authConfig,
                     workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
                     workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
-                    workerConfig.getProcessContainerFactory().getLogDirectory());
+                    workerConfig.getProcessContainerFactory().getLogDirectory(),
+                    workerConfig.getProcessContainerFactory().getExtraFunctionDependenciesDir(),
+                    secretsProviderConfigurator);
         } else if (workerConfig.getKubernetesContainerFactory() != null){
             this.runtimeFactory = new KubernetesRuntimeFactory(
                     workerConfig.getKubernetesContainerFactory().getK8Uri(),
@@ -135,6 +153,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getKubernetesContainerFactory().getInstallUserCodeDependencies(),
                     workerConfig.getKubernetesContainerFactory().getPythonDependencyRepository(),
                     workerConfig.getKubernetesContainerFactory().getPythonExtraDependencyRepository(),
+                    workerConfig.getKubernetesContainerFactory().getExtraFunctionDependenciesDir(),
                     workerConfig.getKubernetesContainerFactory().getCustomLabels(),
                     StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarServiceUrl()) ? workerConfig.getPulsarServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarServiceUrl(),
                     StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl()) ? workerConfig.getPulsarWebServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl(),
@@ -142,7 +161,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     authConfig,
                     workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval() == null ? -1 : workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval(),
                     workerConfig.getKubernetesContainerFactory().getChangeConfigMap(),
-                    workerConfig.getKubernetesContainerFactory().getChangeConfigMapNamespace());
+                    workerConfig.getKubernetesContainerFactory().getChangeConfigMapNamespace(),
+                    secretsProviderConfigurator);
         } else {
             throw new RuntimeException("Either Thread, Process or Kubernetes Container Factory need to be set");
         }
@@ -697,26 +717,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     public Map<String, FunctionRuntimeInfo> getFunctionRuntimeInfos() {
         return this.functionRuntimeInfoMap;
     }
-    
-    public void updateRates() {
-        if (runtimeFactory.externallyManaged()) {
-            // We don't do metrics management for externally managed functions
-            return;
-        }
-        for (Entry<String, FunctionRuntimeInfo> entry : this.functionRuntimeInfoMap.entrySet()) {
-            RuntimeSpawner functionRuntimeSpawner = entry.getValue().getRuntimeSpawner();
-            if (functionRuntimeSpawner != null) {
-                Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
-                if (functionRuntime != null) {
-                    try {
-                        functionRuntime.resetMetrics().get();
-                    } catch (Exception e) {
-                        log.error("Failed to update stats for {}-{}", entry.getKey(), e.getMessage());
-                    }
-                }
-            }
-        }
-    }
+
     /**
      * Private methods for internal use.  Should not be used outside of this class
      */

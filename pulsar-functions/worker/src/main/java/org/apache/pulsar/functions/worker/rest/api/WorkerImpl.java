@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -167,9 +168,7 @@ public class WorkerImpl {
                 Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
                 if (functionRuntime != null) {
                     try {
-                        InstanceCommunication.MetricsData metricsData = workerService.getWorkerConfig()
-                                .getMetricsSamplingPeriodSec() > 0 ? functionRuntime.getMetrics().get()
-                                : functionRuntime.getAndResetMetrics().get();
+                        InstanceCommunication.MetricsData metricsData = functionRuntime.getMetrics().get();
 
                         String tenant = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
                                 .getFunctionDetails().getTenant();

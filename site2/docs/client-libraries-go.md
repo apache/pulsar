@@ -150,6 +150,7 @@ Here's a more involved example usage of a producer:
 import (
     "context"
     "fmt"
+    "log"
 
     "github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
@@ -235,7 +236,7 @@ if err != nil {
 
 defer consumer.Close()
 
-for cm := range channel {
+for cm := range msgChannel {
     msg := cm.Message
 
     fmt.Printf("Message ID: %s", msg.ID())

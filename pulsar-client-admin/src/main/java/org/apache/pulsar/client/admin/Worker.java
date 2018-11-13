@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
-import org.apache.pulsar.functions.worker.WorkerInfo;
+import org.apache.pulsar.common.functions.WorkerInfo;
 
 /**
  * Admin interface for worker stats management.

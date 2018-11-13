@@ -56,7 +56,7 @@ public class JavaInstanceRunnableTest {
     private JavaInstanceRunnable createRunnable(boolean addCustom, String outputSerde) throws Exception {
         InstanceConfig config = createInstanceConfig(addCustom, outputSerde);
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                config, null, null, null, null);
+                config, null, null, null, null, null, null);
         return javaInstanceRunnable;
     }
 

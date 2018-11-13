@@ -77,7 +77,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String clientAuthenticationParameters;
     // Frequency how often worker performs compaction on function-topics
     private long topicCompactionFrequencySec = 30 * 60; // 30 minutes
-    private int metricsSamplingPeriodSec = 60;
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
@@ -103,7 +102,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     
     private Properties properties = new Properties();
 
-
     @Data
     @Setter
     @Getter
@@ -123,6 +121,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private String javaInstanceJarLocation;
         private String pythonInstanceLocation;
         private String logDirectory;
+        // the directory for dropping extra function dependencies
+        private String extraFunctionDependenciesDir;
     }
     private ProcessContainerFactory processContainerFactory;
 
@@ -142,6 +142,9 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private Boolean installUserCodeDependencies;
         private String pythonDependencyRepository;
         private String pythonExtraDependencyRepository;
+        // the directory for dropping extra function dependencies.
+        // If it is not absolute path, it is relative to `pulsarRootDir`
+        private String extraFunctionDependenciesDir;
         private Map<String, String> customLabels;
         private Integer expectedMetricsCollectionInterval = 30;
         // Kubernetes Runtime will periodically checkback on
@@ -151,6 +154,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private String changeConfigMapNamespace;
     }
     private KubernetesContainerFactory kubernetesContainerFactory;
+
+    // The classname of the secrets provider configurator.
+    private String secretsProviderConfiguratorClassName;
+    // Any config the secret provider configurator might need. This is passed on
+    // to the init method of the secretproviderconfigurator
+    private Map<String, String> secretsProviderConfiguratorConfig;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

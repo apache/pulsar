@@ -43,15 +43,13 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
-import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.DataDigest;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -265,7 +263,7 @@ public class PulsarFunctionE2ETest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 "my.*", sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
@@ -326,7 +324,7 @@ public class PulsarFunctionE2ETest {
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 "my.*", sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
@@ -359,7 +357,6 @@ public class PulsarFunctionE2ETest {
         }, 5, 200);
 
         FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
-        functionRuntimeManager.updateRates();
         FunctionStatusList functionStats = functionRuntimeManager.getAllFunctionStatus(tenant, namespacePortion,
                 functionName, null);
 
@@ -394,7 +391,7 @@ public class PulsarFunctionE2ETest {
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 "my.*", sinkTopic, subscriptionName);
         try {
@@ -422,7 +419,7 @@ public class PulsarFunctionE2ETest {
         // create source topic
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-examples.jar").getFile();
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopicName, sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);

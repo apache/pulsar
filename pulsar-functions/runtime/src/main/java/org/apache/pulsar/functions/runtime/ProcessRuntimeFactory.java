@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
@@ -37,9 +38,11 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     private final String pulsarServiceUrl;
     private final String stateStorageServiceUrl;
     private AuthenticationConfig authConfig;
+    private SecretsProviderConfigurator secretsProviderConfigurator;
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
     private String logDirectory;
+    private String extraDependenciesDir;
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
@@ -47,12 +50,16 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  AuthenticationConfig authConfig,
                                  String javaInstanceJarFile,
                                  String pythonInstanceFile,
-                                 String logDirectory) {
+                                 String logDirectory,
+                                 String extraDependenciesDir,
+                                 SecretsProviderConfigurator secretsProviderConfigurator) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
+        this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
+        this.extraDependenciesDir = extraDependenciesDir;
         this.logDirectory = logDirectory;
 
         // if things are not specified, try to figure out by env properties
@@ -88,6 +95,19 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             }
         }
         this.logDirectory = this.logDirectory + "/functions";
+
+        if (this.extraDependenciesDir == null) {
+            String envProcessContainerExtraDependenciesDir =
+                System.getProperty("pulsar.functions.extra.dependencies.dir");
+            if (null != envProcessContainerExtraDependenciesDir) {
+                log.info("Extra dependencies location is not defined using"
+                    + " the location defined in system environment : {}", envProcessContainerExtraDependenciesDir);
+                this.extraDependenciesDir = envProcessContainerExtraDependenciesDir;
+            } else {
+                log.info("No extra dependencies location is defined in either"
+                    + " function worker config or system environment");
+            }
+        }
     }
 
     @Override
@@ -108,11 +128,13 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         return new ProcessRuntime(
             instanceConfig,
             instanceFile,
+            extraDependenciesDir,
             logDirectory,
             codeFile,
             pulsarServiceUrl,
             stateStorageServiceUrl,
             authConfig,
+            secretsProviderConfigurator,
             expectedHealthCheckInterval);
     }
 

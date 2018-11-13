@@ -26,13 +26,16 @@ import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1ConfigMap;
 import io.kubernetes.client.util.Config;
+import java.nio.file.Paths;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 
 import java.lang.reflect.Field;
 import java.util.Map;
@@ -59,6 +62,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         private String pulsarServiceUrl;
         private String pythonDependencyRepository;
         private String pythonExtraDependencyRepository;
+        private String extraDependenciesDir;
         private String changeConfigMap;
         private String changeConfigMapNamespace;
     }
@@ -71,7 +75,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final AuthenticationConfig authConfig;
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
+    private final String extraDependenciesDir;
     private final String prometheusMetricsServerJarFile;
+    private final SecretsProviderConfigurator secretsProviderConfigurator;
     private final String logDirectory = "logs/functions";
     private Timer changeConfigMapTimer;
     private AppsV1Api appsClient;
@@ -86,6 +92,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     Boolean installUserCodeDependencies,
                                     String pythonDependencyRepository,
                                     String pythonExtraDependencyRepository,
+                                    String extraDependenciesDir,
                                     Map<String, String> customLabels,
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
@@ -93,7 +100,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     AuthenticationConfig authConfig,
                                     Integer expectedMetricsCollectionInterval,
                                     String changeConfigMap,
-                                    String changeConfigMapNamespace) {
+                                    String changeConfigMapNamespace,
+                                    SecretsProviderConfigurator secretsProviderConfigurator) {
         this.kubernetesInfo = new KubernetesInfo();
         this.kubernetesInfo.setK8Uri(k8Uri);
         if (!isEmpty(jobNamespace)) {
@@ -111,6 +119,17 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.kubernetesInfo.setPulsarRootDir("/pulsar");
         }
+        if (StringUtils.isNotEmpty(extraDependenciesDir)) {
+            if (Paths.get(extraDependenciesDir).isAbsolute()) {
+                this.extraDependenciesDir = extraDependenciesDir;
+            } else {
+                this.extraDependenciesDir = this.kubernetesInfo.getPulsarRootDir()
+                    + "/" + extraDependenciesDir;
+            }
+        } else {
+            this.extraDependenciesDir = this.kubernetesInfo.getPulsarRootDir() + "/instances/deps";
+        }
+        this.kubernetesInfo.setExtraDependenciesDir(extraDependenciesDir);
         this.kubernetesInfo.setPythonDependencyRepository(pythonDependencyRepository);
         this.kubernetesInfo.setPythonExtraDependencyRepository(pythonExtraDependencyRepository);
         this.kubernetesInfo.setPulsarServiceUrl(pulsarServiceUri);
@@ -126,6 +145,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.pythonInstanceFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/python-instance/python_instance_main.py";
         this.prometheusMetricsServerJarFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/PrometheusMetricsServer.jar";
         this.expectedMetricsCollectionInterval = expectedMetricsCollectionInterval == null ? -1 : expectedMetricsCollectionInterval;
+        this.secretsProviderConfigurator = secretsProviderConfigurator;
     }
 
     @Override
@@ -161,6 +181,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.kubernetesInfo.getPulsarRootDir(),
             instanceConfig,
             instanceFile,
+            extraDependenciesDir,
             prometheusMetricsServerJarFile,
             logDirectory,
             codePkgUrl,
@@ -169,7 +190,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.kubernetesInfo.getPulsarAdminUrl(),
             stateStorageServiceUri,
             authConfig,
-                expectedMetricsCollectionInterval);
+            secretsProviderConfigurator,
+            expectedMetricsCollectionInterval);
     }
 
     @Override
@@ -179,6 +201,12 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         KubernetesRuntime.doChecks(functionDetails);
+        try {
+            setupClient();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, kubernetesInfo.getJobNamespace(), functionDetails);
     }
 
     @VisibleForTesting

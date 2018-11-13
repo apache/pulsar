@@ -275,6 +275,13 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-api-examples</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -329,6 +336,26 @@
               <goal>compile</goal>
               <goal>test-compile</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>compile</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <tasks>
+                <echo>copy test examples package</echo>
+                <mkdir dir="${basedir}/src/test/resources"/>
+                <copy file="${basedir}/../pulsar-functions/java-examples/target/pulsar-functions-api-examples.jar" tofile="${basedir}/src/test/resources/pulsar-functions-api-examples.jar"/>
+                </tasks>
+            </configuration>
           </execution>
         </executions>
       </plugin>
