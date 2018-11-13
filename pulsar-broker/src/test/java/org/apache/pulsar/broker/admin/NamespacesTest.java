@@ -1161,12 +1161,16 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSubscribeRate() throws Exception {
-        final String namespace = this.testTenant + "/subscribe-rate";
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
         SubscribeRate subscribeRate = new SubscribeRate(1, 5);
+        String namespace = "my-tenants/my-namespace";
+        admin.tenants().createTenant("my-tenants", new TenantInfo(Sets.newHashSet(), Sets.newHashSet(testLocalCluster)));
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
         admin.namespaces().setSubscribeRate(namespace, subscribeRate);
         assertEquals(subscribeRate, admin.namespaces().getSubscribeRate(namespace));
-        String topicName = "persistent://" + namespace + "/" + "subscribe-rate-limit-test";
+        String topicName = "persistent://" + namespace + "/" + "subscribe-rate";
+
+        admin.topics().createPartitionedTopic(topicName, 2);
+        pulsar.getConfiguration().setAuthorizationEnabled(false);
         Consumer consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -1190,8 +1194,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.updateServiceUrl(lookupUrl.toString());
         Thread.sleep(1000L);
         assertTrue(consumer.isConnected());
-
-        admin.topics().delete(topicName, true);
+        pulsar.getConfiguration().setAuthorizationEnabled(true);
+        admin.topics().deletePartitionedTopic(topicName, true);
+        admin.namespaces().deleteNamespace(namespace);
+        admin.tenants().deleteTenant("my-tenants");
     }
 
     private void mockWebUrl(URL localWebServiceUrl, NamespaceName namespace) throws Exception {
