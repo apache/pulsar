@@ -211,7 +211,9 @@ public class SubscribeRateLimiter {
             }
         });
         this.subscribeRateLimiter.clear();
-        this.resetTask.cancel(false);
+        if (this.resetTask != null) {
+            this.resetTask.cancel(false);
+        }
     }
 
     private ScheduledFuture<?> createTask() {
