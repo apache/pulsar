@@ -411,7 +411,7 @@ public class FunctionsImpl {
             }
         }
 
-        if (existingComponentConfigJson.equals(mergedComponentConfigJson)) {
+        if (existingComponentConfigJson.equals(mergedComponentConfigJson) && isBlank(functionPkgUrl) && uploadedInputStream == null) {
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, componentName);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData("Update contains no change")).build();
