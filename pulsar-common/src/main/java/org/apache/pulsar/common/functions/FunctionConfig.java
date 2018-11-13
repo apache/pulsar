@@ -33,6 +33,7 @@ import lombok.*;
 @ToString
 @Builder(toBuilder=true)
 @NoArgsConstructor
+@AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class FunctionConfig {
 

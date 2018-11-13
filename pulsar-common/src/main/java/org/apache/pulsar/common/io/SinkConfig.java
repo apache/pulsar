@@ -34,6 +34,7 @@ import org.apache.pulsar.common.functions.Resources;
 @ToString
 @Builder(toBuilder=true)
 @NoArgsConstructor
+@AllArgsConstructor
 public class SinkConfig {
 
     private String tenant;

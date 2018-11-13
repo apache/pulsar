@@ -26,8 +26,6 @@ import lombok.experimental.Accessors;
 @Getter
 @Accessors(chain = true)
 @ToString
-@Builder(toBuilder=true)
-@NoArgsConstructor
 public class WindowConfig {
 
     public static final String WINDOW_CONFIG_KEY = "__WINDOWCONFIGS__";

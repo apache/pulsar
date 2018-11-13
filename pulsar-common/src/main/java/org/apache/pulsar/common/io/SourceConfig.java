@@ -31,6 +31,7 @@ import java.util.Map;
 @ToString
 @Builder(toBuilder=true)
 @NoArgsConstructor
+@AllArgsConstructor
 public class SourceConfig {
     private String tenant;
     private String namespace;
