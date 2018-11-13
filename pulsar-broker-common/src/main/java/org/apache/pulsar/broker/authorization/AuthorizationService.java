@@ -95,6 +95,41 @@ public class AuthorizationService {
     }
 
     /**
+     * Grant permission to roles that can access subscription-admin api
+     * 
+     * @param namespace
+     * @param subscriptionName
+     * @param roles
+     * @param authDataJson
+     *            additional authdata in json for targeted authorization provider
+     * @return
+     */
+    public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            Set<String> roles, String authDataJson) {
+
+        if (provider != null) {
+            return provider.grantSubscriptionPermissionAsync(namespace, subscriptionName, roles, authDataJson);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+
+    /**
+     * Revoke subscription admin-api access for a role
+     * 
+     * @param namespace
+     * @param subscriptionName
+     * @param role
+     * @return
+     */
+    public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            String role, String authDataJson) {
+        if (provider != null) {
+            return provider.revokeSubscriptionPermissionAsync(namespace, subscriptionName, role, authDataJson);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+    
+    /**
      * Grant authorization-action permission on a topic to the given client
      *
      * @param topicname
@@ -153,6 +188,27 @@ public class AuthorizationService {
         }
         if (provider != null) {
             return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+
+    /**
+     * Check if the specified roles is authorized to access admin-api for a given subscription
+     * 
+     * @param topicName
+     * @param role
+     * @param authenticationData
+     * @param subscription
+     * @return
+     */
+    public CompletableFuture<Boolean> isSubscriberAuthorized(TopicName topicName, String role,
+            AuthenticationDataSource authenticationData, String subscription) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+        if (provider != null) {
+            return provider.getAuthorizedRolesOnSubscription(topicName, authenticationData, subscription)
+                    .thenApply(roles -> roles != null && roles.contains(role));
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }

@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -43,6 +44,8 @@ import org.apache.zookeeper.ZooKeeper.States;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Sets;
 
 /**
  * Default authorization provider that stores authorization policies under local-zookeeper.
@@ -142,6 +145,25 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return permissionFuture;
     }
 
+    public CompletableFuture<Set<String>> getAuthorizedRolesOnSubscription(TopicName topicName,
+            AuthenticationDataSource authenticationData, String subscription) {
+        CompletableFuture<Set<String>> rolesFuture = new CompletableFuture<>();
+        try {
+            configCache.policiesCache().getAsync(POLICY_ROOT + topicName.getNamespace()).thenAccept(policies -> {
+                Set<String> roles = policies.get().auth_policies.subscription_auth_roles.get(subscription);
+                rolesFuture.complete(roles != null ? roles : Collections.emptySet());
+            }).exceptionally(ex -> {
+                log.warn("Failed to fetch policies for topic", topicName, ex.getMessage());
+                rolesFuture.completeExceptionally(ex);
+                return null;
+            });
+        } catch (Exception e) {
+            log.warn("Failed to fetch policies for topic", topicName, e.getMessage());
+            rolesFuture.completeExceptionally(e);
+        }
+        return rolesFuture;
+    }
+
     /**
      * Check whether the specified role can perform a lookup for the specified topic.
      *
@@ -236,6 +258,70 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             log.error("[{}] Failed to get permissions for namespace {}", role, namespaceName, e);
             result.completeExceptionally(
                     new IllegalStateException("Failed to get permissions for namespace " + namespaceName));
+        }
+
+        return result;
+    }
+
+    @Override
+    public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            Set<String> roles, String authDataJson) {
+        return updateSubscriptionPermissionAsync(namespace, subscriptionName, roles, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            String role, String authDataJson) {
+        return updateSubscriptionPermissionAsync(namespace, subscriptionName, Collections.singleton(role), true);
+    }
+    
+    private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
+            boolean remove) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+
+        try {
+            validatePoliciesReadOnlyAccess();
+        } catch (Exception e) {
+            result.completeExceptionally(e);
+        }
+
+        ZooKeeper globalZk = configCache.getZooKeeper();
+        final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespace.toString());
+
+        try {
+            Stat nodeStat = new Stat();
+            byte[] content = globalZk.getData(policiesPath, null, nodeStat);
+            Policies policies = getThreadLocal().readValue(content, Policies.class);
+            if (remove) {
+                if (policies.auth_policies.subscription_auth_roles.get(subscriptionName) != null) {
+                    policies.auth_policies.subscription_auth_roles.get(subscriptionName).removeAll(roles);
+                }else {
+                    log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace, subscriptionName, roles);
+                    result.completeExceptionally(new IllegalArgumentException("couldn't find subscription"));
+                    return result;
+                }
+            } else {
+                policies.auth_policies.subscription_auth_roles.put(subscriptionName, roles);
+            }
+
+            // Write back the new policies into zookeeper
+            globalZk.setData(policiesPath, getThreadLocal().writeValueAsBytes(policies), nodeStat.getVersion());
+
+            configCache.policiesCache().invalidate(policiesPath);
+
+            log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName, roles);
+            result.complete(null);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", subscriptionName, namespace);
+            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespace));
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to set permissions for {} on namespace {}: concurrent modification", subscriptionName, roles, namespace);
+            result.completeExceptionally(new IllegalStateException(
+                    "Concurrent modification on zk path: " + policiesPath + ", " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace, e);
+            result.completeExceptionally(
+                    new IllegalStateException("Failed to get permissions for namespace " + namespace));
         }
 
         return result;

@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.admin.cli.utils.IOUtils;
@@ -196,6 +197,42 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Grant permissions to access subscription admin-api")
+    private class GrantSubscriptionPermissions extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--subscription", description = "Subscription name for which permission will be granted to roles", required = true)
+        private String subscription;
+
+        @Parameter(names = "--roles", description = "Client roles to which grant permissions (comma separated roles)", required = true, splitter = CommaParameterSplitter.class)
+        private List<String> roles;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().grantPermissionOnSubscription(namespace, subscription, Sets.newHashSet(roles));
+        }
+    }
+
+    @Parameters(commandDescription = "Revoke permissions on a namespace")
+    private class RevokeSubscriptionPermissions extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--subscription", description = "Subscription name for which permission will be granted to roles", required = true)
+        private String subscription;
+        
+        @Parameter(names = "--role", description = "Client role to which revoke permissions", required = true)
+        private String role;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().revokePermissionOnSubscription(namespace, subscription, role);
+        }
+    }
+    
     @Parameters(commandDescription = "Get the permissions on a namespace")
     private class Permissions extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -942,7 +979,10 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("permissions", new Permissions());
         jcommander.addCommand("grant-permission", new GrantPermissions());
         jcommander.addCommand("revoke-permission", new RevokePermissions());
-
+        
+        jcommander.addCommand("grant-subscription-permission", new GrantSubscriptionPermissions());
+        jcommander.addCommand("revoke-subscription-permission", new RevokeSubscriptionPermissions());
+        
         jcommander.addCommand("set-clusters", new SetReplicationClusters());
         jcommander.addCommand("get-clusters", new GetReplicationClusters());
 

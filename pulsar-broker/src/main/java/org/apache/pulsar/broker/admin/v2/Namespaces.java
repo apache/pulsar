@@ -171,6 +171,20 @@ public class Namespaces extends NamespacesBase {
         internalGrantPermissionOnNamespace(role, actions);
     }
 
+    @POST
+    @Path("/{property}/{namespace}/permissions/subscription/{subscription}")
+    @ApiOperation(hidden = true, value = "Grant a new permission to roles for a subscription.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 501, message = "Authorization is not enabled") })
+    public void grantPermissionOnSubscription(@PathParam("property") String property,
+            @PathParam("namespace") String namespace, @PathParam("subscription") String subscription,
+            Set<String> roles) {
+        validateNamespaceName(property, namespace);
+        internalGrantPermissionOnSubscription(subscription, roles);
+    }
+    
     @DELETE
     @Path("/{tenant}/{namespace}/permissions/{role}")
     @ApiOperation(value = "Revoke all permissions to a role on a namespace.")
@@ -182,6 +196,18 @@ public class Namespaces extends NamespacesBase {
         internalRevokePermissionsOnNamespace(role);
     }
 
+    @DELETE
+    @Path("/{property}/{namespace}/permissions/{subscription}/{role}")
+    @ApiOperation(hidden = true, value = "Revoke subscription admin-api access permission for a role.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void revokePermissionOnSubscription(@PathParam("property") String property,
+            @PathParam("namespace") String namespace, @PathParam("subscription") String subscription,
+            @PathParam("role") String role) {
+        validateNamespaceName(property, namespace);
+        internalRevokePermissionsOnSubscription(subscription, role);
+    }
+    
     @GET
     @Path("/{tenant}/{namespace}/replication")
     @ApiOperation(value = "Get the replication clusters for a namespace.", response = String.class, responseContainer = "List")

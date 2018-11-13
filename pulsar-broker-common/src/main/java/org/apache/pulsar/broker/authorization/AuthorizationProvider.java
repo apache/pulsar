@@ -72,6 +72,18 @@ public interface AuthorizationProvider extends Closeable {
             AuthenticationDataSource authenticationData, String subscription);
 
     /**
+     * Returns authorized roles that can access admin-api for given subscription
+     * 
+     * @param topicName
+     *            the fully qualified topic name associated with the topic.
+     * @param subscription
+     *            the subscription name defined by the client
+     * @return
+     */
+    CompletableFuture<Set<String>> getAuthorizedRolesOnSubscription(TopicName topicName,
+            AuthenticationDataSource authenticationData, String subscription);
+
+    /**
      * Check whether the specified role can perform a lookup for the specified topic.
      *
      * For that the caller needs to have producer or consumer permission.
@@ -101,6 +113,29 @@ public interface AuthorizationProvider extends Closeable {
     CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
             String authDataJson);
 
+    /**
+     * Grant permission to roles that can access subscription-admin api
+     * 
+     * @param namespace
+     * @param subscriptionName
+     * @param roles
+     * @param authDataJson
+     *            additional authdata in json format
+     * @return
+     */
+    CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
+            String authDataJson);
+    
+    /**
+     * Revoke subscription admin-api access for a role
+     * @param namespace
+     * @param subscriptionName
+     * @param role
+     * @return
+     */
+    CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            String role, String authDataJson);
+    
     /**
      * Grant authorization-action permission on a topic to the given client
      *

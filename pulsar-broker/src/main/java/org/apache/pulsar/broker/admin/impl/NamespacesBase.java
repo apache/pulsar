@@ -329,6 +329,38 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+
+    protected void internalGrantPermissionOnSubscription(String subscription, Set<String> roles) {
+        /** controlled by system-admin(super-user) to prevent metadata footprint size */
+        validateSuperUserAccess();
+
+        try {
+            AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
+            if (null != authService) {
+                authService.grantSubscriptionPermissionAsync(namespaceName, subscription, roles,
+                        null/* additional auth-data json */).get();
+            } else {
+                throw new RestException(Status.NOT_IMPLEMENTED, "Authorization is not enabled");
+            }
+        } catch (InterruptedException e) {
+            log.error("[{}] Failed to get permissions for namespace {}", clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalArgumentException) {
+                log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
+                        namespaceName);
+                throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+            } else if (e.getCause() instanceof IllegalStateException) {
+                log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification", clientAppId(),
+                        namespaceName);
+                throw new RestException(Status.CONFLICT, "Concurrent modification");
+            } else {
+                log.error("[{}] Failed to get permissions for namespace {}", clientAppId(), namespaceName, e);
+                throw new RestException(e);
+            }
+        }
+    }
+
     protected void internalRevokePermissionsOnNamespace(String role) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
@@ -359,6 +391,19 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalRevokePermissionsOnSubscription(String subscriptionName, String role) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
+        if (null != authService) {
+            authService.revokeSubscriptionPermissionAsync(namespaceName, subscriptionName, role,
+                    null/* additional auth-data json */);
+        } else {
+            throw new RestException(Status.NOT_IMPLEMENTED, "Authorization is not enabled");
+        }
+    }
+    
     protected Set<String> internalGetNamespaceReplicationClusters() {
         if (!namespaceName.isGlobal()) {
             throw new RestException(Status.PRECONDITION_FAILED,
