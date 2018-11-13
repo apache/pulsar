@@ -2609,16 +2609,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public void deactivateCursor(ManagedCursor cursor) {
-        if (activeCursors.get(cursor.getName()) != null) {
-            activeCursors.removeCursor(cursor.getName());
-            if (activeCursors.isEmpty()) {
-                // cleanup cache if there is no active subscription
-                entryCache.clear();
-            } else {
-                // if removed subscription was the slowest subscription : update cursor and let it clear cache: till
-                // new slowest-cursor's read-position
-                discardEntriesFromCache((ManagedCursorImpl) activeCursors.getSlowestReader(),
-                        getPreviousPosition((PositionImpl) activeCursors.getSlowestReader().getReadPosition()));
+        synchronized (activeCursors) {
+            if (activeCursors.get(cursor.getName()) != null) {
+                activeCursors.removeCursor(cursor.getName());
+                if (activeCursors.isEmpty()) {
+                    // cleanup cache if there is no active subscription
+                    entryCache.clear();
+                } else {
+                    // if removed subscription was the slowest subscription : update cursor and let it clear cache:
+                    // till new slowest-cursor's read-position
+                    discardEntriesFromCache((ManagedCursorImpl) activeCursors.getSlowestReader(),
+                            getPreviousPosition((PositionImpl) activeCursors.getSlowestReader().getReadPosition()));
+                }
             }
         }
     }
