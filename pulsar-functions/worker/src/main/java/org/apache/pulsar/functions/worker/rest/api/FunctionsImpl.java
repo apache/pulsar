@@ -327,6 +327,19 @@ public class FunctionsImpl {
             return getUnavailableResponse();
         }
 
+        if (tenant == null) {
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Tenant is not provided")).build();
+        }
+        if (namespace == null) {
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Namespace is not provided")).build();
+        }
+        if (componentName == null) {
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(componentType + " Name is not provided")).build();
+        }
+
         try {
             if (!isAuthorizedRole(tenant, clientRole)) {
                 log.error("{}/{}/{} Client [{}] is not admin and authorized to update {}", tenant, namespace,
@@ -347,23 +360,73 @@ public class FunctionsImpl {
                     .entity(new ErrorData(String.format("%s %s doesn't exist", componentType, componentName))).build();
         }
 
+        String mergedComponentConfig;
+
+        FunctionMetaData existingComponent = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        if (componentType.equals(FUNCTION)) {
+            FunctionConfig existingFunctionConfig = FunctionConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
+            FunctionConfig functionConfig = new Gson().fromJson(componentConfigJson, FunctionConfig.class);
+            // The rest end points take precendence over whatever is there in functionconfig
+            functionConfig.setTenant(tenant);
+            functionConfig.setNamespace(namespace);
+            functionConfig.setName(componentName);
+            try {
+                FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(existingFunctionConfig, functionConfig);
+                mergedComponentConfig = new Gson().toJson(mergedConfig);
+            } catch (Exception e) {
+                return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData(e.getMessage())).build();
+            }
+        } else if (componentType.equals(SOURCE)) {
+            SourceConfig existingSourceConfig = SourceConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
+            SourceConfig sourceConfig = new Gson().fromJson(componentConfigJson, SourceConfig.class);
+            // The rest end points take precendence over whatever is there in functionconfig
+            sourceConfig.setTenant(tenant);
+            sourceConfig.setNamespace(namespace);
+            sourceConfig.setName(componentName);
+            try {
+                SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(existingSourceConfig, sourceConfig);
+                mergedComponentConfig = new Gson().toJson(mergedConfig);
+            } catch (Exception e) {
+                return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData(e.getMessage())).build();
+            }
+        } else {
+            SinkConfig existingSinkConfig = SinkConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
+            SinkConfig sinkConfig = new Gson().fromJson(componentConfigJson, SinkConfig.class);
+            // The rest end points take precendence over whatever is there in functionconfig
+            sinkConfig.setTenant(tenant);
+            sinkConfig.setNamespace(namespace);
+            sinkConfig.setName(componentName);
+            try {
+                SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(existingSinkConfig, sinkConfig);
+                mergedComponentConfig = new Gson().toJson(mergedConfig);
+            } catch (Exception e) {
+                return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData(e.getMessage())).build();
+            }
+        }
+
         FunctionDetails functionDetails;
-        boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         File uploadedInputStreamAsFile = null;
         if (uploadedInputStream != null) {
             uploadedInputStreamAsFile = dumpToTmpFile(uploadedInputStream);
         }
+        File existingPackageAsFile = null;
+
         // validate parameters
         try {
-            if (isPkgUrlProvided) {
+            if (isNotBlank(functionPkgUrl)) {
                 functionDetails = validateUpdateRequestParamsWithPkgUrl(tenant, namespace, componentName, functionPkgUrl,
-                        functionDetailsJson, componentConfigJson, componentType);
-            } else {
+                        functionDetailsJson, mergedComponentConfig, componentType);
+            } else if (uploadedInputStream != null) {
                 functionDetails = validateUpdateRequestParams(tenant, namespace, componentName, uploadedInputStreamAsFile,
-                        fileDetail, functionDetailsJson, componentConfigJson, componentType);
+                        fileDetail, functionDetailsJson, mergedComponentConfig, componentType);
+            } else {
+                functionDetails = validateUpdateRequestParamsWithExistingMetadata(tenant, namespace, componentName, existingComponent.getPackageLocation(), mergedComponentConfig, componentType);
             }
         } catch (Exception e) {
-            log.error("Invalid register {} request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
+            log.error("Invalid update {} request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
             return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
         }
@@ -381,12 +444,16 @@ public class FunctionsImpl {
                 .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
-        try {
-            packageLocationMetaDataBuilder = getFunctionPackageLocation(functionDetails, componentType,
-                    functionPkgUrl, fileDetail, uploadedInputStreamAsFile);
-        } catch (Exception e) {
-            return Response.serverError().type(MediaType.APPLICATION_JSON).entity(new ErrorData(e.getMessage()))
-                    .build();
+        if (isNotBlank(functionPkgUrl) || uploadedInputStreamAsFile != null) {
+            try {
+                packageLocationMetaDataBuilder = getFunctionPackageLocation(functionDetails, componentType,
+                        functionPkgUrl, fileDetail, uploadedInputStreamAsFile);
+            } catch (Exception e) {
+                return Response.serverError().type(MediaType.APPLICATION_JSON).entity(new ErrorData(e.getMessage()))
+                        .build();
+            }
+        } else {
+            packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder().mergeFrom(existingComponent.getPackageLocation());
         }
 
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
@@ -1062,6 +1129,16 @@ public class FunctionsImpl {
         }
 
         return functionDetails;
+    }
+
+    private FunctionDetails validateUpdateRequestParamsWithExistingMetadata(String tenant, String namespace, String componentName,
+                                                            PackageLocationMetaData packageLocationMetaData,
+                                                            String componentConfigJson, String componentType) throws Exception {
+        File tmpFile = File.createTempFile("functions", null);
+        tmpFile.deleteOnExit();
+        Utils.downloadFromBookkeeper(worker().getDlogNamespace(), tmpFile, packageLocationMetaData.getPackagePath());
+        return validateUpdateRequestParams(tenant, namespace, componentName,
+                null, componentConfigJson, componentType, null, tmpFile);
     }
 
     private static File dumpToTmpFile(InputStream uploadedInputStream) {

@@ -115,8 +115,14 @@ public final class Utils {
     }
 
     public static void downloadFromBookkeeper(Namespace namespace,
-                                                 OutputStream outputStream,
-                                                 String packagePath) throws IOException {
+                                              File outputFile,
+                                              String packagePath) throws IOException {
+        downloadFromBookkeeper(namespace, new FileOutputStream(outputFile), packagePath);
+    }
+
+    public static void downloadFromBookkeeper(Namespace namespace,
+                                              OutputStream outputStream,
+                                              String packagePath) throws IOException {
         DistributedLogManager dlm = namespace.openLog(packagePath);
         try (InputStream in = new DLInputStream(dlm)) {
             int read = 0;

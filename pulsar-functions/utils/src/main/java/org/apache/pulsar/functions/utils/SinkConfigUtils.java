@@ -42,8 +42,6 @@ import java.util.*;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 
@@ -144,13 +142,17 @@ public class SinkConfigUtils {
             sourceSpecBuilder.setSubscriptionName(sinkConfig.getSourceSubscriptionName());
         }
 
-        Function.SubscriptionType subType = (sinkConfig.isRetainOrdering()
+        Function.SubscriptionType subType = ((sinkConfig.getRetainOrdering() != null && sinkConfig.getRetainOrdering())
                 || FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE.equals(sinkConfig.getProcessingGuarantees()))
                 ? Function.SubscriptionType.FAILOVER
                 : Function.SubscriptionType.SHARED;
         sourceSpecBuilder.setSubscriptionType(subType);
 
-        functionDetailsBuilder.setAutoAck(sinkConfig.isAutoAck());
+        if (sinkConfig.getAutoAck() != null) {
+            functionDetailsBuilder.setAutoAck(sinkConfig.getAutoAck());
+        } else {
+            functionDetailsBuilder.setAutoAck(true);
+        }
         if (sinkConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(sinkConfig.getTimeoutMs());
         }
@@ -350,5 +352,92 @@ public class SinkConfigUtils {
             retval.addAll(sinkConfig.getInputSpecs().keySet());
         }
         return retval;
+    }
+
+    public static SinkConfig validateUpdate(SinkConfig existingConfig, SinkConfig newConfig) {
+        SinkConfig mergedConfig = existingConfig.toBuilder().build();
+        if (!existingConfig.getTenant().equals(newConfig.getTenant())) {
+            throw new IllegalArgumentException("Tenants differ");
+        }
+        if (!existingConfig.getNamespace().equals(newConfig.getNamespace())) {
+            throw new IllegalArgumentException("Namespaces differ");
+        }
+        if (!existingConfig.getName().equals(newConfig.getName())) {
+            throw new IllegalArgumentException("Function Names differ");
+        }
+        if (!StringUtils.isEmpty(newConfig.getClassName())) {
+            mergedConfig.setClassName(newConfig.getClassName());
+        }
+        if (newConfig.getSourceSubscriptionName() != null && !newConfig.getSourceSubscriptionName().equals(existingConfig.getSourceSubscriptionName())) {
+            throw new IllegalArgumentException("Subscription Name cannot be altered");
+        }
+        if (newConfig.getInputs() != null) {
+            newConfig.getInputs().forEach((topicName -> {
+                newConfig.getInputSpecs().put(topicName,
+                        ConsumerConfig.builder().isRegexPattern(false).build());
+            }));
+        }
+        if (newConfig.getTopicsPattern() != null && !newConfig.getTopicsPattern().isEmpty()) {
+            newConfig.getInputSpecs().put(newConfig.getTopicsPattern(),
+                    ConsumerConfig.builder()
+                            .isRegexPattern(true)
+                            .build());
+        }
+        if (newConfig.getTopicToSerdeClassName() != null) {
+            newConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
+                newConfig.getInputSpecs().put(topicName,
+                        ConsumerConfig.builder()
+                                .serdeClassName(serdeClassName)
+                                .isRegexPattern(false)
+                                .build());
+            });
+        }
+        if (newConfig.getTopicToSchemaType() != null) {
+            newConfig.getTopicToSchemaType().forEach((topicName, schemaClassname) -> {
+                newConfig.getInputSpecs().put(topicName,
+                        ConsumerConfig.builder()
+                                .schemaType(schemaClassname)
+                                .isRegexPattern(false)
+                                .build());
+            });
+        }
+        if (!newConfig.getInputSpecs().isEmpty()) {
+            newConfig.getInputSpecs().forEach((topicName, consumerConfig) -> {
+                if (!existingConfig.getInputSpecs().containsKey(topicName)) {
+                    throw new IllegalArgumentException("Input Topics cannot be altered");
+                }
+                if (consumerConfig.equals(existingConfig.getInputSpecs().get(topicName))) {
+                    throw new IllegalArgumentException("Input Specs mismatch");
+                }
+            });
+        }
+        if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
+            throw new IllegalArgumentException("Processing Guarantess cannot be alterted");
+        }
+        if (newConfig.getConfigs() != null) {
+            mergedConfig.setConfigs(newConfig.getConfigs());
+        }
+        if (newConfig.getSecrets() != null) {
+            mergedConfig.setSecrets(newConfig.getSecrets());
+        }
+        if (newConfig.getParallelism() != null) {
+            mergedConfig.setParallelism(newConfig.getParallelism());
+        }
+        if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
+            throw new IllegalArgumentException("Retain Orderning cannot be altered");
+        }
+        if (newConfig.getAutoAck() != null && !newConfig.getAutoAck().equals(existingConfig.getAutoAck())) {
+            throw new IllegalArgumentException("AutoAck cannot be altered");
+        }
+        if (newConfig.getResources() != null) {
+            mergedConfig.setResources(ResourceConfigUtils.merge(existingConfig.getResources(), newConfig.getResources()));
+        }
+        if (newConfig.getTimeoutMs() != null) {
+            mergedConfig.setTimeoutMs(newConfig.getTimeoutMs());
+        }
+        if (!StringUtils.isEmpty(newConfig.getArchive())) {
+            mergedConfig.setArchive(newConfig.getArchive());
+        }
+        return mergedConfig;
     }
 }

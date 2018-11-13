@@ -18,11 +18,7 @@
  */
 package org.apache.pulsar.common.io;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 
@@ -33,6 +29,8 @@ import java.util.Map;
 @Data
 @EqualsAndHashCode
 @ToString
+@Builder(toBuilder=true)
+@NoArgsConstructor
 public class SourceConfig {
     private String tenant;
     private String namespace;

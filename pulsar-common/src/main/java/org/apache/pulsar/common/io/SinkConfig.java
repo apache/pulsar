@@ -22,11 +22,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.TreeMap;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -36,6 +32,8 @@ import org.apache.pulsar.common.functions.Resources;
 @Data
 @EqualsAndHashCode
 @ToString
+@Builder(toBuilder=true)
+@NoArgsConstructor
 public class SinkConfig {
 
     private String tenant;
@@ -63,9 +61,9 @@ public class SinkConfig {
     private Map<String, Object> secrets;
     private Integer parallelism;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    private boolean retainOrdering;
+    private Boolean retainOrdering;
     private Resources resources;
-    private boolean autoAck;
+    private Boolean autoAck;
     private Long timeoutMs;
 
     private String archive;
