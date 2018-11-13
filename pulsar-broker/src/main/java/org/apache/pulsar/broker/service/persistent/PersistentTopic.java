@@ -1223,6 +1223,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             topicStatsStream.endObject();
 
             nsStats.msgReplBacklog += rStat.replicationBacklog;
+            // replication delay for a namespace is the max repl-delay among all the topics under this namespace
+            if (rStat.replicationDelayInSeconds > nsStats.msgReplDelayInSeconds) {
+                nsStats.msgReplDelayInSeconds = rStat.replicationDelayInSeconds;
+            }
 
             if (replStats.isMetricsEnabled()) {
                 String namespaceClusterKey = replStats.getKeyName(namespace, cluster);
