@@ -254,7 +254,7 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getClassName())) {
             mergedConfig.setClassName(newConfig.getClassName());
         }
-        if (!StringUtils.isEmpty(newConfig.getTopicName())) {
+        if (!StringUtils.isEmpty(newConfig.getTopicName()) && !newConfig.getTopicName().equals(existingConfig.getTopicName())) {
             throw new IllegalArgumentException("Destination topics differ");
         }
         if (!StringUtils.isEmpty(newConfig.getSerdeClassName())) {
