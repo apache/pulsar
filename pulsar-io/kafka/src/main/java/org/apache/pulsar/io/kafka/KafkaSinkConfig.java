@@ -58,12 +58,12 @@ public class KafkaSinkConfig implements Serializable {
         defaultValue = "16384",
         help =
             "The batch size that Kafka producer will attempt to batch records together before sending them to brokers.")
-    private long batchSize = 16384;
+    private long batchSize = 16384L;
     @FieldDoc(
         defaultValue = "16384",
         help =
             "The maximum size of a Kafka request in bytes.")
-    private long maxRequestSize = 1048576;
+    private long maxRequestSize = 1048576L;
     @FieldDoc(
         required = true,
         defaultValue = "",

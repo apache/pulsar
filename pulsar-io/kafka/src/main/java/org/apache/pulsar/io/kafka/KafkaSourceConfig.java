@@ -57,18 +57,18 @@ public class KafkaSourceConfig implements Serializable {
         defaultValue = "1",
         help =
             "The minimum amount of data the server should return for a fetch request.")
-    private long fetchMinBytes = 1;
+    private long fetchMinBytes = 1L;
     @FieldDoc(
         defaultValue = "5000",
         help =
             "The frequency in milliseconds that the consumer offsets are auto-committed to Kafka "
           + "if autoCommitEnabled is set to true.")
-    private long autoCommitIntervalMs = 5000;
+    private long autoCommitIntervalMs = 5000L;
     @FieldDoc(
         defaultValue = "30000",
         help =
             "The timeout used to detect failures when using Kafka's group management facilities.")
-    private long sessionTimeoutMs = 30000;
+    private long sessionTimeoutMs = 30000L;
     @FieldDoc(
         defaultValue = "true",
         help =
