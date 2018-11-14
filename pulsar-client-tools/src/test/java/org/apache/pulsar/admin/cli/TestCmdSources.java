@@ -371,7 +371,7 @@ public class TestCmdSources {
         testSourceConfig.setResources(null);
 
         SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setResources(new Resources());
+        expectedSourceConfig.setResources(null);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
