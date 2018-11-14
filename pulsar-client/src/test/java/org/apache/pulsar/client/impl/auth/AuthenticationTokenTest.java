@@ -44,7 +44,7 @@ public class AuthenticationTokenTest {
         assertNull(authData.getTlsPrivateKey());
 
         assertTrue(authData.hasDataForHttp());
-        assertEquals(authData.getHttpHeaders(), Collections.singletonMap("X-Pulsar-Auth", "token-xyz").entrySet());
+        assertEquals(authData.getHttpHeaders(), Collections.singletonMap("Authorization", "Bearer token-xyz").entrySet());
 
         authToken.close();
     }

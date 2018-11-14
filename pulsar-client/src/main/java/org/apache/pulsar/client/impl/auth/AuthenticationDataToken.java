@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 public class AuthenticationDataToken implements AuthenticationDataProvider {
-    public final static String HTTP_HEADER_NAME = "X-Pulsar-Auth";
+    public final static String HTTP_HEADER_NAME = "Authorization";
 
     private final Supplier<String> tokenSupplier;
 
@@ -42,7 +42,7 @@ public class AuthenticationDataToken implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return Collections.singletonMap(HTTP_HEADER_NAME, getToken()).entrySet();
+        return Collections.singletonMap(HTTP_HEADER_NAME, "Bearer " + getToken()).entrySet();
     }
 
     @Override

@@ -43,7 +43,8 @@ import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 @Slf4j
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
-    public final static String HTTP_HEADER_NAME = "X-Pulsar-Auth";
+    public final static String HTTP_HEADER_NAME = "Authorization";
+    final static String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
 
     // When simmetric key is configured
     final static String CONF_TOKEN_SECRET_KEY = "tokenSecretKey";
@@ -80,8 +81,17 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             // Authenticate Pulsar binary connection
             token = authData.getCommandData();
         } else if (authData.hasDataFromHttp()) {
-            // Authentication HTTP request
-            token = authData.getHttpHeader(HTTP_HEADER_NAME);
+            // Authentication HTTP request. The format here should be compliant to RFC-6750
+            // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg:
+            //
+            // Authorization: Bearer xxxxxxxxxxxxx
+            String httpHeaderValue = authData.getHttpHeader(HTTP_HEADER_NAME);
+            if (!httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
+                throw new AuthenticationException("Invalid HTTP Authorization header");
+            }
+
+            // Remove prefix
+            token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
         } else {
             throw new AuthenticationException("No token credentials passed");
         }

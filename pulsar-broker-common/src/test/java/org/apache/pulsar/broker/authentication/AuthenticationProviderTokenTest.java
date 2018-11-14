@@ -145,8 +145,8 @@ public class AuthenticationProviderTokenTest {
 
             @Override
             public String getHttpHeader(String name) {
-                if (name.equals("X-Pulsar-Auth")) {
-                    return token;
+                if (name.equals("Authorization")) {
+                    return "Bearer " + token;
                 } else {
                     throw new IllegalArgumentException("Wrong HTTP header");
                 }
