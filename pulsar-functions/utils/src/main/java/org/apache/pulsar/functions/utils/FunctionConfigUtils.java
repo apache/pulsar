@@ -249,7 +249,9 @@ public class FunctionConfigUtils {
             functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         }
         functionConfig.setAutoAck(functionDetails.getAutoAck());
-        functionConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
+        if (functionDetails.getSource().getTimeoutMs() != 0) {
+            functionConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
+        }
         if (!isEmpty(functionDetails.getSink().getTopic())) {
             functionConfig.setOutput(functionDetails.getSink().getTopic());
         }

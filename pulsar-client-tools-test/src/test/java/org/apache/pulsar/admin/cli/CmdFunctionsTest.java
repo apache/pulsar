@@ -205,7 +205,7 @@ public class CmdFunctionsTest {
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
-        assertEquals(false, creater.isAutoAck());
+        assertEquals(new Boolean(false), creater.getAutoAck());
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 

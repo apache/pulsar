@@ -285,14 +285,14 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages", hidden = true)
         protected Boolean DEPRECATED_autoAck = null;
         @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
-        protected boolean autoAck = true;
+        protected Boolean autoAck;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
         protected Long DEPRECATED_timeoutMs;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
         @Parameter(names = "--max-message-retries", description = "How many times should we try to process a message before giving up")
-        protected Integer maxMessageRetries = -1;
+        protected Integer maxMessageRetries;
         @Parameter(names = "--dead-letter-topic", description = "The topic where all messages which could not be processed successfully are sent")
         protected String deadLetterTopic;
         protected FunctionConfig functionConfig;
@@ -401,21 +401,29 @@ public class CmdFunctions extends CmdBase {
             }
 
             Resources resources = functionConfig.getResources();
-            if (resources == null) {
-                resources = new Resources();
-            }
             if (cpu != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setCpu(cpu);
             }
 
             if (ram != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setRam(ram);
             }
 
             if (disk != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setDisk(disk);
             }
-            functionConfig.setResources(resources);
+            if (resources != null) {
+                functionConfig.setResources(resources);
+            }
 
             if (timeoutMs != null) {
                 functionConfig.setTimeoutMs(timeoutMs);
@@ -450,7 +458,9 @@ public class CmdFunctions extends CmdBase {
 
             functionConfig.setWindowConfig(windowConfig);
 
-            functionConfig.setAutoAck(autoAck);
+            if (autoAck != null) {
+                functionConfig.setAutoAck(autoAck);
+            }
 
             if (null != maxMessageRetries) {
                 functionConfig.setMaxMessageRetries(maxMessageRetries);
@@ -691,6 +701,23 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Update a Pulsar Function that's been deployed to a Pulsar cluster")
     class UpdateFunction extends FunctionDetailsCommand {
+
+        protected void validateFunctionConfigs(FunctionConfig functionConfig) {
+            if (StringUtils.isEmpty(functionConfig.getClassName())) {
+                if (StringUtils.isEmpty(functionConfig.getName())) {
+                    throw new IllegalArgumentException("Function Name not provided");
+                }
+            } else if (StringUtils.isEmpty(functionConfig.getName())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getTenant())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getNamespace())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
+            }
+        }
+
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {

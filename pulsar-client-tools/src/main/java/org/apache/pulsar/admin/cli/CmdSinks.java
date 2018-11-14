@@ -210,6 +210,10 @@ public class CmdSinks extends CmdBase {
             }
             print("Updated successfully");
         }
+
+        protected void validateSinkConfigs(SinkConfig sinkConfig) {
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+        }
     }
 
     abstract class SinkDetailsCommand extends BaseCommand {
@@ -280,7 +284,7 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--sink-config", description = "User defined configs key/values")
         protected String sinkConfigString;
         @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
-        protected boolean autoAck = true;
+        protected Boolean autoAck;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
 
@@ -371,27 +375,37 @@ public class CmdSinks extends CmdBase {
             }
 
             Resources resources = sinkConfig.getResources();
-            if (resources == null) {
-                resources = new Resources();
-            }
             if (cpu != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setCpu(cpu);
             }
 
             if (ram != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setRam(ram);
             }
 
             if (disk != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setDisk(disk);
             }
-            sinkConfig.setResources(resources);
+            if (resources != null) {
+                sinkConfig.setResources(resources);
+            }
 
             if (null != sinkConfigString) {
                 sinkConfig.setConfigs(parseConfigs(sinkConfigString));
             }
 
-            sinkConfig.setAutoAck(autoAck);
+            if (autoAck != null) {
+                sinkConfig.setAutoAck(autoAck);
+            }
             if (timeoutMs != null) {
                 sinkConfig.setTimeoutMs(timeoutMs);
             }
