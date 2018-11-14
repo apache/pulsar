@@ -16,29 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.utils.auth.tokens;
+package org.apache.pulsar.common.util;
 
-import static org.junit.Assert.fail;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 import java.util.concurrent.TimeUnit;
 
 import org.testng.annotations.Test;
 
-public class TokenCliUtilsTest {
+public class RelativeTimeUtilTest {
     @Test
     public void testParseRelativeTime() {
-        assertEquals(TokensCliUtils.parseRelativeTimeInMillis("3s"), TimeUnit.SECONDS.toMillis(3));
-        assertEquals(TokensCliUtils.parseRelativeTimeInMillis("5m"), TimeUnit.MINUTES.toMillis(5));
-        assertEquals(TokensCliUtils.parseRelativeTimeInMillis("7h"), TimeUnit.HOURS.toMillis(7));
-        assertEquals(TokensCliUtils.parseRelativeTimeInMillis("9d"), TimeUnit.DAYS.toMillis(9));
-        assertEquals(TokensCliUtils.parseRelativeTimeInMillis("11y"), 365 * TimeUnit.DAYS.toMillis(11));
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("3s"), 3);
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("5m"), TimeUnit.MINUTES.toSeconds(5));
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("7h"), TimeUnit.HOURS.toSeconds(7));
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("9d"), TimeUnit.DAYS.toSeconds(9));
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("11y"), 365 * TimeUnit.DAYS.toSeconds(11));
 
         // Negative interval
-        assertEquals(TokensCliUtils.parseRelativeTimeInMillis("-5m"), -TimeUnit.MINUTES.toMillis(5));
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("-5m"), -TimeUnit.MINUTES.toSeconds(5));
 
         try {
-            TokensCliUtils.parseRelativeTimeInMillis("");
+            RelativeTimeUtil.parseRelativeTimeInSeconds("");
             fail("should have failed");
         } catch (IllegalArgumentException e) {
             // expected
@@ -46,7 +46,7 @@ public class TokenCliUtilsTest {
 
         try {
             // No time unit specified
-            TokensCliUtils.parseRelativeTimeInMillis("1234");
+            RelativeTimeUtil.parseRelativeTimeInSeconds("1234");
             fail("should have failed");
         } catch (IllegalArgumentException e) {
             // expected
@@ -54,7 +54,7 @@ public class TokenCliUtilsTest {
 
         try {
             // Invalid time unit specified
-            TokensCliUtils.parseRelativeTimeInMillis("1234x");
+            RelativeTimeUtil.parseRelativeTimeInSeconds("1234x");
             fail("should have failed");
         } catch (IllegalArgumentException e) {
             // expected

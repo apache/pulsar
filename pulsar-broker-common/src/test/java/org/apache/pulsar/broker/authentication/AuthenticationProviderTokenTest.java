@@ -23,12 +23,16 @@ import static org.testng.Assert.fail;
 
 import com.google.common.base.Charsets;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 
 import java.io.File;
 import java.io.IOException;
 import java.security.KeyPair;
+import java.security.PrivateKey;
 import java.sql.Date;
 import java.util.Optional;
 import java.util.Properties;
@@ -59,9 +63,44 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test
+    public void testSerializeSecretKey() throws Exception {
+        String secretKeyStr = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        String token = Jwts.builder()
+                .setSubject("my-test-subject")
+                .signWith(AuthTokenUtils.decodeSecretKey(secretKeyStr))
+                .compact();
+
+        @SuppressWarnings("unchecked")
+        Jwt<?, Claims> jwt = Jwts.parser()
+                .setSigningKey(AuthTokenUtils.decodeSecretKey(secretKeyStr))
+                .parse(token);
+
+        System.out.println("Subject: " + jwt.getBody().getSubject());
+    }
+
+    @Test
+    public void testSerializeKeyPair() throws Exception {
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+
+        String privateKey = AuthTokenUtils.encodeKey(keyPair.getPrivate());
+        String publicKey = AuthTokenUtils.encodeKey(keyPair.getPublic());
+
+        String token = AuthTokenUtils.createToken(AuthTokenUtils.decodePrivateKey(privateKey), "my-test-subject",
+                Optional.empty());
+
+        @SuppressWarnings("unchecked")
+        Jwt<?, Claims> jwt = Jwts.parser()
+                .setSigningKey(AuthTokenUtils.decodePublicKey(publicKey))
+                .parse(token);
+
+        System.out.println("Subject: " + jwt.getBody().getSubject());
+    }
+
+    @Test
     public void testAuthSecretKey() throws Exception {
         String secretKeyStr = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-        SecretKey secretKey = AuthTokenUtils.deserializeSecretKey(secretKeyStr);
+        SecretKey secretKey = AuthTokenUtils.decodeSecretKey(secretKeyStr);
 
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
         assertEquals(provider.getAuthMethodName(), "token");
@@ -143,7 +182,7 @@ public class AuthenticationProviderTokenTest {
     @Test
     public void testAuthSecretKeyFromFile() throws Exception {
         String secretKeyStr = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-        SecretKey secretKey = AuthTokenUtils.deserializeSecretKey(secretKeyStr);
+        SecretKey secretKey = AuthTokenUtils.decodeSecretKey(secretKeyStr);
 
         File secretKeyFile = File.createTempFile("pular-test-secret-key-", ".key");
         secretKeyFile.deleteOnExit();
@@ -187,14 +226,14 @@ public class AuthenticationProviderTokenTest {
 
         Properties properties = new Properties();
         // Use public key for validation
-        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, publicKeyStr);
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY, publicKeyStr);
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
         provider.initialize(conf);
 
         // Use private key to generate token
-        SecretKey privateKey = AuthTokenUtils.deserializeSecretKey(privateKeyStr);
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(privateKeyStr);
         String token = AuthTokenUtils.createToken(privateKey, "my-test-subject", Optional.empty());
 
         // Pulsar protocol auth

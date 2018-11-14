@@ -25,7 +25,13 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
 
+import java.io.IOException;
 import java.security.Key;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Date;
 import java.util.Optional;
 
@@ -41,18 +47,38 @@ public class AuthTokenUtils {
         return Encoders.BASE64.encode(key.getEncoded());
     }
 
-    public static SecretKey deserializeSecretKey(String secretKey) {
+    public static SecretKey decodeSecretKey(String secretKey) {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
+    }
+
+    public static PrivateKey decodePrivateKey(String key) throws IOException {
+        try {
+            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(Decoders.BASE64.decode(key));
+            KeyFactory kf = KeyFactory.getInstance("RSA");
+            return kf.generatePrivate(spec);
+        } catch (Exception e) {
+            throw new IOException("Failed to decode private key", e);
+        }
+    }
+
+    public static PublicKey decodePublicKey(String key) throws IOException {
+        try {
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(Decoders.BASE64.decode(key));
+            KeyFactory kf = KeyFactory.getInstance("RSA");
+            return kf.generatePublic(spec);
+        } catch (Exception e) {
+            throw new IOException("Failed to decode public key", e);
+        }
     }
 
     public static String encodeKey(Key key) {
         return Encoders.BASE64.encode(key.getEncoded());
     }
 
-    public static String createToken(Key secretKey, String subject, Optional<Date> expiryTime) {
+    public static String createToken(Key signingKey, String subject, Optional<Date> expiryTime) {
         JwtBuilder builder = Jwts.builder()
                 .setSubject(subject)
-                .signWith(secretKey);
+                .signWith(signingKey);
 
         if (expiryTime.isPresent()) {
             builder.setExpiration(expiryTime.get());

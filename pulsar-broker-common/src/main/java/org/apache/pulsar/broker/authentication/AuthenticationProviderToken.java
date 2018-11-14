@@ -31,8 +31,8 @@ import io.jsonwebtoken.Jwts;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.Key;
 
-import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 
 import lombok.extern.slf4j.Slf4j;
@@ -45,11 +45,17 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     public final static String HTTP_HEADER_NAME = "X-Pulsar-Auth";
 
+    // When simmetric key is configured
     final static String CONF_TOKEN_SECRET_KEY = "tokenSecretKey";
     final static String CONF_TOKEN_SECRET_KEY_FROM_ENV = "tokenSecretKeyFromEnv";
     final static String CONF_TOKEN_SECRET_KEY_FROM_FILE = "tokenSecretKeyFromFile";
 
-    private SecretKey secretKey;
+    // When public/private key pair is configured
+    final static String CONF_TOKEN_PUBLIC_KEY = "tokenPublicKey";
+    final static String CONF_TOKEN_PUBLIC_KEY_FROM_ENV = "tokenPublicKeyFromEnv";
+    final static String CONF_TOKEN_PUBLIC_KEY_FROM_FILE = "tokenPublicKeyFromFile";
+
+    private Key validationKey;
 
     @Override
     public void close() throws IOException {
@@ -58,7 +64,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        this.secretKey = AuthTokenUtils.deserializeSecretKey(getSecretKey(config));
+        this.validationKey = getValidationKey(config);
     }
 
     @Override
@@ -84,7 +90,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         try {
             @SuppressWarnings("unchecked")
             Jwt<?, Claims> jwt = Jwts.parser()
-                    .setSigningKey(secretKey)
+                    .setSigningKey(validationKey)
                     .parse(token);
 
             return jwt.getBody().getSubject();
@@ -93,22 +99,53 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
     }
 
-    private static String getSecretKey(ServiceConfiguration conf) throws IOException {
+    /**
+     * Try to get the validation key for tokens from several possible config options.
+     */
+    private static Key getValidationKey(ServiceConfiguration conf) throws IOException {
+
+        // First check for secret key confs
         if (conf.getProperty(CONF_TOKEN_SECRET_KEY) != null) {
             // Secret key was specified directly in confg file
             Object secretKey = conf.getProperty(CONF_TOKEN_SECRET_KEY);
             checkNotNull(secretKey);
             checkArgument(secretKey instanceof String);
-            return (String) secretKey;
+            log.info("Reading secret key from config file");
+            return AuthTokenUtils.decodeSecretKey((String) secretKey);
+
         } else if (conf.getProperty(CONF_TOKEN_SECRET_KEY_FROM_ENV) != null) {
             // Secret key was specified in ENV variable
             String variableName = (String) conf.getProperty(CONF_TOKEN_SECRET_KEY_FROM_ENV);
             log.info("Reading secret key from env variable '{}'", variableName);
-            return System.getenv(variableName);
+            return AuthTokenUtils.decodeSecretKey(System.getenv(variableName));
+
         } else if (conf.getProperty(CONF_TOKEN_SECRET_KEY_FROM_FILE) != null) {
             String filePath = (String) conf.getProperty(CONF_TOKEN_SECRET_KEY_FROM_FILE);
             log.info("Reading secret key from file '{}'", filePath);
-            return new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8);
+            return AuthTokenUtils
+                    .decodeSecretKey(new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8));
+
+            // Then check for public key conf
+        } else if (conf.getProperty(CONF_TOKEN_PUBLIC_KEY) != null) {
+            // Public key was specified directly in confg file
+            Object publicKey = conf.getProperty(CONF_TOKEN_PUBLIC_KEY);
+            checkNotNull(publicKey);
+            checkArgument(publicKey instanceof String);
+            log.info("Reading public key from config file");
+            return AuthTokenUtils.decodePublicKey((String) publicKey);
+
+        } else if (conf.getProperty(CONF_TOKEN_PUBLIC_KEY_FROM_ENV) != null) {
+            // Public key was specified in ENV variable
+            String variableName = (String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY_FROM_ENV);
+            log.info("Reading public key from env variable '{}'", variableName);
+            return AuthTokenUtils.decodePublicKey(System.getenv(variableName));
+
+        } else if (conf.getProperty(CONF_TOKEN_PUBLIC_KEY_FROM_FILE) != null) {
+            String filePath = (String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY_FROM_FILE);
+            log.info("Reading public key from file '{}'", filePath);
+            return AuthTokenUtils
+                    .decodePublicKey(new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8));
+
         } else {
             throw new IOException("No secret key was provided for token authentication");
         }

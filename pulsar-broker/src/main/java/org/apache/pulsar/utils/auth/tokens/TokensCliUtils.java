@@ -31,6 +31,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.Key;
 import java.security.KeyPair;
 import java.util.Date;
 import java.util.Optional;
@@ -41,6 +42,7 @@ import javax.crypto.SecretKey;
 import lombok.Cleanup;
 
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 public class TokensCliUtils {
 
@@ -49,33 +51,27 @@ public class TokensCliUtils {
         private boolean help = false;
     }
 
-    @Parameters(commandDescription = "Create a new secret key or pair of keys")
+    @Parameters(commandDescription = "Create a new secret key")
     public static class CommandCreateSecretKey {
         @Parameter(names = { "-a",
-                "--signature-algorithm" }, description = "The signature algorithm for the new secret key. "
-                        + "Default is 'HS256' for secret key and 'RS256' for key pairs")
-        SignatureAlgorithm algorithm;
-
-        @Parameter(names = { "-p",
-                "--key-pair" }, description = "Generate a pair of keys (public and private) instead of a single secret key")
-        private boolean keyPair = false;
+                "--signature-algorithm" }, description = "The signature algorithm for the new secret key.")
+        SignatureAlgorithm algorithm = SignatureAlgorithm.HS256;
 
         public void run() {
-            if (algorithm == null) {
-                if (keyPair) {
-                    algorithm = SignatureAlgorithm.RS256;
-                } else {
-                    algorithm = SignatureAlgorithm.HS256;
-                }
-            }
+            System.out.println("secret-key " + AuthTokenUtils.createSecretKey(algorithm));
+        }
+    }
 
-            if (keyPair == false) {
-                System.out.println("secret-key " + AuthTokenUtils.createSecretKey(algorithm));
-            } else {
-                KeyPair pair = Keys.keyPairFor(algorithm);
-                System.out.println("public-key " + AuthTokenUtils.encodeKey(pair.getPublic()));
-                System.out.println("private-key " + AuthTokenUtils.encodeKey(pair.getPrivate()));
-            }
+    @Parameters(commandDescription = "Create a new or pair of keys public/private")
+    public static class CommandCreateKeyPair {
+        @Parameter(names = { "-a",
+                "--signature-algorithm" }, description = "The signature algorithm for the new key pair.")
+        SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
+
+        public void run() {
+            KeyPair pair = Keys.keyPairFor(algorithm);
+            System.out.println("public-key " + AuthTokenUtils.encodeKey(pair.getPublic()));
+            System.out.println("private-key " + AuthTokenUtils.encodeKey(pair.getPrivate()));
         }
     }
 
@@ -94,36 +90,51 @@ public class TokensCliUtils {
                 "--stdin" }, description = "Read secret key from standard input")
         private Boolean stdin = false;
 
+        @Parameter(names = { "-pk" }, description = "Indicate the key is ")
+        private Boolean isPrivateKey = false;
+
         @Parameter(names = { "-f",
-                "--secret-key-file" }, description = "Read secret key from a file")
+                "--key-file" }, description = "Read secret key from a file")
         private String secretKeyFile;
 
+        @Parameter(names = { "--private-key-file" }, description = "Read private key from a file")
+        private String privateKeyFile;
+
         public void run() throws Exception {
-            String secretKey;
+
+            String encodedKey;
+
             if (stdin) {
                 @Cleanup
                 BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
-                secretKey = r.readLine();
+                encodedKey = r.readLine();
             } else if (secretKeyFile != null) {
-                secretKey = new String(Files.readAllBytes(Paths.get(secretKeyFile)), Charsets.UTF_8);
-            } else if (System.getenv("SECRET_KEY") != null) {
-                secretKey = System.getenv("SECRET_KEY");
+                encodedKey = new String(Files.readAllBytes(Paths.get(secretKeyFile)), Charsets.UTF_8);
+            } else if (System.getenv("SIGNING_KEY") != null) {
+                encodedKey = System.getenv("SIGNING_KEY");
             } else {
                 System.err.println(
-                        "Secret key needs to be either passed through `--stdin`, `--secret-key-file` or by `SECRET_KEY` environment variable");
+                        "Secret key needs to be either passed through `--stdin`, `--key-file` or by `SIGNING_KEY` environment variable");
                 System.exit(1);
                 return;
             }
 
-            SecretKey key = AuthTokenUtils.deserializeSecretKey(secretKey);
+            Key signingKey;
+
+            if (isPrivateKey) {
+                signingKey = AuthTokenUtils.decodePrivateKey(encodedKey);
+            } else {
+                signingKey = AuthTokenUtils.decodeSecretKey(encodedKey);
+            }
 
             Optional<Date> optExpiryTime = Optional.empty();
             if (expiryTime != null) {
-                long relativeTimeMillis = parseRelativeTimeInMillis(expiryTime);
+                long relativeTimeMillis = TimeUnit.SECONDS
+                        .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(expiryTime));
                 optExpiryTime = Optional.of(new Date(System.currentTimeMillis() + relativeTimeMillis));
             }
 
-            String token = AuthTokenUtils.createToken(key, subject, optExpiryTime);
+            String token = AuthTokenUtils.createToken(signingKey, subject, optExpiryTime);
             System.out.println(token);
         }
     }
@@ -168,42 +179,15 @@ public class TokensCliUtils {
         }
     }
 
-    public static long parseRelativeTimeInMillis(String relativeTime) {
-        if (relativeTime.isEmpty()) {
-            throw new IllegalArgumentException("exipiry time cannot be empty");
-        }
-
-        char lastChar = relativeTime.charAt(relativeTime.length() - 1);
-
-        if (!Character.isAlphabetic(lastChar)) {
-            throw new IllegalArgumentException("Relative time should contain time unit. eg: 3h or 5d");
-        }
-
-        long duration = Long.parseLong(relativeTime.substring(0, relativeTime.length() - 1));
-
-        switch (lastChar) {
-        case 's':
-            return TimeUnit.SECONDS.toMillis(duration);
-        case 'm':
-            return TimeUnit.MINUTES.toMillis(duration);
-        case 'h':
-            return TimeUnit.HOURS.toMillis(duration);
-        case 'd':
-            return TimeUnit.DAYS.toMillis(duration);
-        // No unit for months
-        case 'y':
-            return 365 * TimeUnit.DAYS.toMillis(duration);
-        default:
-            throw new IllegalArgumentException("Invalid time unit '" + lastChar + "'");
-        }
-    }
-
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander(arguments);
 
         CommandCreateSecretKey commandCreateSecretKey = new CommandCreateSecretKey();
         jcommander.addCommand("create-secret-key", commandCreateSecretKey);
+
+        CommandCreateKeyPair commandCreateKeyPair = new CommandCreateKeyPair();
+        jcommander.addCommand("create-key-pair", commandCreateKeyPair);
 
         CommandCreateToken commandCreateToken = new CommandCreateToken();
         jcommander.addCommand("create", commandCreateToken);
