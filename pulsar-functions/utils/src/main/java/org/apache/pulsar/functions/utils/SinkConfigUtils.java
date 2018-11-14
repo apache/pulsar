@@ -363,7 +363,7 @@ public class SinkConfigUtils {
             throw new IllegalArgumentException("Namespaces differ");
         }
         if (!existingConfig.getName().equals(newConfig.getName())) {
-            throw new IllegalArgumentException("Function Names differ");
+            throw new IllegalArgumentException("Sink Names differ");
         }
         if (!StringUtils.isEmpty(newConfig.getClassName())) {
             mergedConfig.setClassName(newConfig.getClassName());
