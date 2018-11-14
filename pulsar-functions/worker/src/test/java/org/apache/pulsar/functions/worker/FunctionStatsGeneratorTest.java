@@ -87,12 +87,8 @@ public class FunctionStatsGeneratorTest {
         CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture = new CompletableFuture<>();
         InstanceCommunication.MetricsData metricsData = InstanceCommunication.MetricsData.newBuilder()
                 .putMetrics(
-                        "pulsar_function_processed_total",
-                        InstanceCommunication.MetricsData.DataDigest.newBuilder()
-                                .setCount(100.0).setMax(200.0).setSum(300.0).setMin(0.0).build())
-                .putMetrics("pulsar_function_process_latency_ms",
-                        InstanceCommunication.MetricsData.DataDigest.newBuilder()
-                                .setCount(10.0).setMax(20.0).setSum(30.0).setMin(0.0).build())
+                        "pulsar_function_processed_total", 100.0)
+                .putMetrics("pulsar_function_process_latency_ms", 10.0)
                 .build();
 
         metricsDataCompletableFuture.complete(metricsData);
