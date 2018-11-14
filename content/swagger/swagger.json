@@ -6813,23 +6813,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "overLoaded" : {
+          "type" : "boolean"
         },
         "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -6840,10 +6827,23 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
-        "overLoaded" : {
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "underLoaded" : {
           "type" : "boolean"
         },
         "loadReportType" : {
@@ -7823,11 +7823,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
