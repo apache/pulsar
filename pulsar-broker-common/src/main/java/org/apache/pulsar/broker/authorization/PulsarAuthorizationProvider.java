@@ -112,6 +112,16 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
                     }
                 } else {
+                    // check if role is authorize to access subscription. (skip validatation if authorization list is empty)     
+                    Set<String> roles = policies.get().auth_policies.subscription_auth_roles.get(subscription);
+                    if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
+                        log.warn("[{}] is not authorized to subscribe on {}-{}", role, topicName, subscription);
+                        PulsarServerException ex = new PulsarServerException(
+                                String.format("%s is not authorized to access subscription %s on topic", role,
+                                        subscription, topicName));
+                        permissionFuture.completeExceptionally(ex);
+                        return;
+                    }
                     if (isNotBlank(subscription) && !isSuperUser(role)) {
                         switch (policies.get().subscription_auth_mode) {
                         case Prefix:
