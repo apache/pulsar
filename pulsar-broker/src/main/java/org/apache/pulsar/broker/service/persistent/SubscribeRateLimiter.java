@@ -81,7 +81,7 @@ public class SubscribeRateLimiter {
      *
      * @return
      */
-    public boolean tryAcquire(ConsumerIdentify consumerIdentify) {
+    public synchronized boolean tryAcquire(ConsumerIdentify consumerIdentify) {
         addSubscribeLimiterIfAbsent(consumerIdentify);
         return subscribeRateLimiter.get(consumerIdentify) == null || subscribeRateLimiter.get(consumerIdentify).tryAcquire();
     }
@@ -156,7 +156,7 @@ public class SubscribeRateLimiter {
                 subscribeRate = newSubscribeRate;
             }
             this.subscribeRate = subscribeRate;
-            this.resetTask.cancel(false);
+            stopResetTask();
             for (ConsumerIdentify consumerIdentify : this.subscribeRateLimiter.keySet()) {
                 updateSubscribeRate(consumerIdentify, subscribeRate);
             }
@@ -209,6 +209,24 @@ public class SubscribeRateLimiter {
     }
 
     public void close() {
+        closeAndClearRateLimiters();
+        stopResetTask();
+    }
+
+    private ScheduledFuture<?> createTask() {
+        return executorService.scheduleAtFixedRate(this::closeAndClearRateLimiters,
+                this.subscribeRate.ratePeriodInSecond,
+                this.subscribeRate.ratePeriodInSecond,
+                TimeUnit.SECONDS);
+    }
+
+    private void stopResetTask() {
+        if (this.resetTask != null) {
+            this.resetTask.cancel(false);
+        }
+    }
+
+    private synchronized void closeAndClearRateLimiters() {
         // close rate-limiter
         this.subscribeRateLimiter.values().forEach(rateLimiter -> {
             if (rateLimiter != null) {
@@ -216,24 +234,10 @@ public class SubscribeRateLimiter {
             }
         });
         this.subscribeRateLimiter.clear();
-        if (this.resetTask != null) {
-            this.resetTask.cancel(false);
-        }
-    }
-
-    private ScheduledFuture<?> createTask() {
-        return executorService.scheduleAtFixedRate(this::reset,
-                this.subscribeRate.ratePeriodInSecond,
-                this.subscribeRate.ratePeriodInSecond,
-                TimeUnit.SECONDS);
     }
 
     public SubscribeRate getSubscribeRate() {
         return subscribeRate;
-    }
-
-    private void reset() {
-        this.subscribeRateLimiter.clear();
     }
 
     public static class ConsumerIdentify {
