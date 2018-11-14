@@ -86,7 +86,9 @@ class ProducerImpl : public HandlerBase,
 
     virtual void shutdown();
 
-    bool isClosed();
+    virtual bool isClosed();
+
+    virtual void triggerFlush();
 
    protected:
     ProducerStatsBasePtr producerStatsBasePtr_;

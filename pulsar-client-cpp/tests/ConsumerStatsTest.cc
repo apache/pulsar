@@ -266,6 +266,7 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     int numOfMessages = 7 * 5;  // 5 message per partition
     Promise<Result, Producer> producerPromise;
     ProducerConfiguration config;
+    config.setBatchingEnabled(false);
     config.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
     client.createProducerAsync(topicName, config, WaitForCallbackValue<Producer>(producerPromise));
     Future<Result, Producer> producerFuture = producerPromise.getFuture();
