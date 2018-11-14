@@ -113,14 +113,14 @@ public class FunctionConfigUtilsTest {
         FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Tenant Names differ")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Tenants differ")
     public void testMergeDifferentTenant() {
         FunctionConfig functionConfig = createFunctionConfig();
         FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("tenant", "Different");
         FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Namespace Names differ")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Namespaces differ")
     public void testMergeDifferentNamespace() {
         FunctionConfig functionConfig = createFunctionConfig();
         FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("namespace", "Different");
