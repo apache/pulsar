@@ -1080,6 +1080,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     Promise<Result, Producer> producerPromise2;
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
+    conf.setBatchingEnabled(false);
     client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise2));
     producerFuture = producerPromise2.getFuture();
     result = producerFuture.get(producer2);
@@ -1267,6 +1268,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
     {
         ProducerConfiguration prodConf;
         prodConf.setCryptoKeyReader(keyReader);
+        prodConf.setBatchingEnabled(false);
         prodConf.addEncryptionKey("client-non-existing-rsa.pem");
 
         Promise<Result, Producer> producerPromise;
@@ -1282,6 +1284,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
     {
         ProducerConfiguration prodConf;
         prodConf.setCryptoKeyReader(keyReader);
+        prodConf.setBatchingEnabled(false);
         prodConf.addEncryptionKey("client-rsa.pem");
 
         Promise<Result, Producer> producerPromise;
