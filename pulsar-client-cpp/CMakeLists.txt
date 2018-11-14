@@ -44,7 +44,7 @@ endif(NOT CXX_STANDARD)
 
 if (NOT C_STANDARD)
     set(C_STANDARD "-std=c11")
-endif(NOT CXX_STANDARD)
+endif(NOT C_STANDARD)
 
 set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
 

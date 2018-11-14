@@ -2190,4 +2190,3 @@ TEST(BasicEndToEndTest, testGetTopicPartitions) {
 
     client.shutdown();
 }
-
