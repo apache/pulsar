@@ -32,6 +32,6 @@ public enum PulsarProduceMode {
      * The producer will ensure that all the events are persisted in pulsar.
      * There could be duplicate events written though.
      */
-    AT_LEAST_ONE,
+    AT_LEAST_ONCE,
 
 }
