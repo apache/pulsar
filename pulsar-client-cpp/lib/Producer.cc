@@ -24,6 +24,7 @@
 #include "ProducerImpl.h"
 
 namespace pulsar {
+DECLARE_LOG_OBJECT()
 
 static const std::string EMPTY_STRING;
 
@@ -36,6 +37,10 @@ const std::string& Producer::getTopic() const { return impl_ != NULL ? impl_->ge
 Result Producer::send(const Message& msg) {
     Promise<Result, Message> promise;
     sendAsync(msg, WaitForCallbackValue<Message>(promise));
+
+    if (!promise.isComplete()) {
+        impl_->triggerFlush();
+    }
 
     Message m;
     Result result = promise.getFuture().get(m);
