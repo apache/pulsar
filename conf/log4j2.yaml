@@ -68,10 +68,6 @@ Configuration:
           modulate: true
         SizeBasedTriggeringPolicy:
           size: 1 GB
-        # Trigger every day at midnight that also scan
-        # roll-over strategy that deletes older file
-        CronTriggeringPolicy:
-          schedule: "0 0 0 * * ?"
       # Delete file older than 30days
       DefaultRolloverStrategy:
           Delete:

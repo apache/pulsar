@@ -181,7 +181,7 @@ public class TestCmdSources {
     @Test
     public void testMissingParallelism() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setParallelism(1);
+        sourceConfig.setParallelism(null);
         testCmdSourceCliMissingArgs(
                 TENANT,
                 NAMESPACE,

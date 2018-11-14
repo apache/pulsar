@@ -29,8 +29,17 @@ import com.google.protobuf.util.JsonFormat;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.prometheus.client.Collector;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.HTTPServer;
+import io.prometheus.client.hotspot.BufferPoolsExports;
+import io.prometheus.client.hotspot.ClassLoadingExports;
 import io.prometheus.client.hotspot.DefaultExports;
+import io.prometheus.client.hotspot.GarbageCollectorExports;
+import io.prometheus.client.hotspot.MemoryPoolsExports;
+import io.prometheus.client.hotspot.StandardExports;
+import io.prometheus.client.hotspot.ThreadExports;
+import io.prometheus.client.hotspot.VersionInfoExports;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -43,12 +52,14 @@ import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.Reflections;
 
 import java.lang.reflect.Type;
+import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * A function container implemented using java thread.
@@ -99,6 +110,9 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--port", description = "Port to listen on\n", required = true)
     protected int port;
 
+    @Parameter(names = "--metrics_port", description = "Port metrics will be exposed on\n", required = true)
+    protected int metrics_port;
+
     @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
     protected int maxBufferedTuples;
 
@@ -111,11 +125,15 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--secrets_provider_config", description = "The config that needs to be passed to secrets provider", required = false)
     protected String secretsProviderConfig;
 
+    @Parameter(names = "--cluster_name", description = "The name of the cluster this instance is running on", required = true)
+    protected String clusterName;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
     private Long lastHealthCheckTs = null;
     private ScheduledExecutorService timer;
+    private HTTPServer metricsServer;
 
     public JavaInstanceMain() { }
 
@@ -126,6 +144,7 @@ public class JavaInstanceMain implements AutoCloseable {
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
+        instanceConfig.setClusterName(clusterName);
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
@@ -162,6 +181,9 @@ public class JavaInstanceMain implements AutoCloseable {
         }
         secretsProvider.init(secretsProviderConfigMap);
 
+        // Collector Registry for prometheus metrics
+        CollectorRegistry collectorRegistry = new CollectorRegistry();
+
         containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageServiceUrl,
                 AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthenticationPlugin)
@@ -169,7 +191,7 @@ public class JavaInstanceMain implements AutoCloseable {
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                secretsProvider);
+                secretsProvider, collectorRegistry);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
@@ -195,11 +217,12 @@ public class JavaInstanceMain implements AutoCloseable {
             }
         });
 
-        // registering jvm metrics to prometheus
-        DefaultExports.initialize();
-
         log.info("Starting runtimeSpawner");
         runtimeSpawner.start();
+
+        // starting metrics server
+        log.info("Starting metrics server on port {}", metrics_port);
+        metricsServer = new HTTPServer(new InetSocketAddress(metrics_port), collectorRegistry, true);
 
         if (expectedHealthCheckInterval > 0) {
             timer = Executors.newSingleThreadScheduledExecutor();
@@ -252,6 +275,9 @@ public class JavaInstanceMain implements AutoCloseable {
             }
             if (containerFactory != null) {
                 containerFactory.close();
+            }
+            if (metricsServer != null) {
+                metricsServer.stop();
             }
         } catch (Exception ex) {
             System.err.println(ex);

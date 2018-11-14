@@ -57,7 +57,8 @@ class RuntimeUtils {
                                            String secretsProviderConfig,
                                            Boolean installUserCodeDepdendencies,
                                            String pythonDependencyRepository,
-                                           String pythonExtraDependencyRepository) throws Exception {
+                                           String pythonExtraDependencyRepository,
+                                           int metricsPort) throws Exception {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
@@ -160,6 +161,9 @@ class RuntimeUtils {
         args.add("--port");
         args.add(String.valueOf(grpcPort));
 
+        args.add("--metrics_port");
+        args.add(String.valueOf(metricsPort));
+
         // state storage configs
         if (null != stateStorageServiceUrl
                 && instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
@@ -177,6 +181,9 @@ class RuntimeUtils {
                 args.add("'" + secretsProviderConfig + "'");
             }
         }
+
+        args.add("--cluster_name");
+        args.add(instanceConfig.getClusterName());
         return args;
     }
 }

@@ -42,6 +42,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setTenant("test-tenant");
         functionConfig.setNamespace("test-namespace");
         functionConfig.setName("test-function");
+        functionConfig.setParallelism(1);
         functionConfig.setClassName(IdentityFunction.class.getName());
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
@@ -68,6 +69,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setTenant("test-tenant");
         functionConfig.setNamespace("test-namespace");
         functionConfig.setName("test-function");
+        functionConfig.setParallelism(1);
         functionConfig.setClassName(IdentityFunction.class.getName());
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
