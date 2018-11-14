@@ -623,7 +623,7 @@ public class FunctionConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getOutput()) && !newConfig.getOutput().equals(existingConfig.getOutput())) {
             throw new IllegalArgumentException("Output topics differ");
         }
-        if (!StringUtils.isEmpty(newConfig.getOutputSchemaType()) && !newConfig.getOutputSchemaType().equals(existingConfig.getOutputSerdeClassName())) {
+        if (!StringUtils.isEmpty(newConfig.getOutputSchemaType()) && !newConfig.getOutputSchemaType().equals(existingConfig.getOutputSchemaType())) {
             throw new IllegalArgumentException("Output Serde mismatch");
         }
         if (!StringUtils.isEmpty(newConfig.getOutputSchemaType()) && !newConfig.getOutputSchemaType().equals(existingConfig.getOutputSchemaType())) {
@@ -653,10 +653,10 @@ public class FunctionConfigUtils {
         if (newConfig.getMaxMessageRetries() != null) {
             mergedConfig.setMaxMessageRetries(newConfig.getMaxMessageRetries());
         }
-        if (newConfig.getDeadLetterTopic() != null) {
+        if (!StringUtils.isEmpty(newConfig.getDeadLetterTopic())) {
             mergedConfig.setDeadLetterTopic(newConfig.getDeadLetterTopic());
         }
-        if (newConfig.getSubName() != null && !newConfig.getSubName().equals(existingConfig.getSubName())) {
+        if (!StringUtils.isEmpty(newConfig.getSubName()) && !newConfig.getSubName().equals(existingConfig.getSubName())) {
             throw new IllegalArgumentException("Subscription Name cannot be altered");
         }
         if (newConfig.getParallelism() != null) {

@@ -368,7 +368,7 @@ public class SinkConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getClassName())) {
             mergedConfig.setClassName(newConfig.getClassName());
         }
-        if (newConfig.getSourceSubscriptionName() != null && !newConfig.getSourceSubscriptionName().equals(existingConfig.getSourceSubscriptionName())) {
+        if (!StringUtils.isEmpty(newConfig.getSourceSubscriptionName()) && !newConfig.getSourceSubscriptionName().equals(existingConfig.getSourceSubscriptionName())) {
             throw new IllegalArgumentException("Subscription Name cannot be altered");
         }
         if (newConfig.getInputs() != null) {

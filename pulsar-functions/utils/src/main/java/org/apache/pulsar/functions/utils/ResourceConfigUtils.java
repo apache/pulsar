@@ -35,7 +35,12 @@ public class ResourceConfigUtils {
     }
 
     public static Resources merge(Resources existingResources, Resources newResources) {
-        Resources mergedResources = existingResources.toBuilder().build();
+        Resources mergedResources;
+        if (existingResources != null) {
+            mergedResources = existingResources.toBuilder().build();
+        } else {
+            mergedResources = new Resources();
+        }
         if (newResources.getCpu() != null) {
             mergedResources.setCpu(newResources.getCpu());
         }if (newResources.getRam() != null) {
