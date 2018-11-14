@@ -1224,8 +1224,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
             nsStats.msgReplBacklog += rStat.replicationBacklog;
             // replication delay for a namespace is the max repl-delay among all the topics under this namespace
-            if (rStat.replicationDelayInSeconds > nsStats.msgReplDelayInSeconds) {
-                nsStats.msgReplDelayInSeconds = rStat.replicationDelayInSeconds;
+            if (rStat.replicationDelayInSeconds > nsStats.maxMsgReplDelayInSeconds) {
+                nsStats.maxMsgReplDelayInSeconds = rStat.replicationDelayInSeconds;
             }
 
             if (replStats.isMetricsEnabled()) {
