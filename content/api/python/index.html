@@ -1010,6 +1010,7 @@ table {
     <li class="mono"><a href="#pulsar.Client.close">close</a></li>
     <li class="mono"><a href="#pulsar.Client.create_producer">create_producer</a></li>
     <li class="mono"><a href="#pulsar.Client.create_reader">create_reader</a></li>
+    <li class="mono"><a href="#pulsar.Client.get_topic_partitions">get_topic_partitions</a></li>
     <li class="mono"><a href="#pulsar.Client.subscribe">subscribe</a></li>
   </ul>
 
@@ -1768,6 +1769,21 @@ class Client:
         c._client = self
         self._consumers.append(c)
         return c
+
+    def get_topic_partitions(self, topic):
+        """
+        Get the list of partitions for a given topic.
+
+        If the topic is partitioned, this will return a list of partition names. If the topic is not
+        partitioned, the returned list will contain the topic name itself.
+
+        This can be used to discover the partitions and create Reader, Consumer or Producer
+        instances directly on a particular partition.
+        :param topic: the topic name to lookup
+        :return: a list of partition name
+        """
+        _check_type(str, topic, 'topic')
+        return self._client.get_topic_partitions(topic)
 
     def close(self):
         """
@@ -2762,6 +2778,21 @@ producers and consumers.</p></div>
         self._consumers.append(c)
         return c
 
+    def get_topic_partitions(self, topic):
+        """
+        Get the list of partitions for a given topic.
+
+        If the topic is partitioned, this will return a list of partition names. If the topic is not
+        partitioned, the returned list will contain the topic name itself.
+
+        This can be used to discover the partitions and create Reader, Consumer or Producer
+        instances directly on a particular partition.
+        :param topic: the topic name to lookup
+        :return: a list of partition name
+        """
+        _check_type(str, topic, 'topic')
+        return self._client.get_topic_partitions(topic)
+
     def close(self):
         """
         Close the client and all the associated producers and consumers
@@ -3195,6 +3226,43 @@ producers and consumers.</p></div>
     c._client = self
     self._consumers.append(c)
     return c
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Client.get_topic_partitions">
+    <p>def <span class="ident">get_topic_partitions</span>(</p><p>self, topic)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Get the list of partitions for a given topic.</p>
+<p>If the topic is partitioned, this will return a list of partition names. If the topic is not
+partitioned, the returned list will contain the topic name itself.</p>
+<p>This can be used to discover the partitions and create Reader, Consumer or Producer
+instances directly on a particular partition.
+:param topic: the topic name to lookup
+:return: a list of partition name</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client.get_topic_partitions', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Client.get_topic_partitions" class="source">
+    <pre><code>def get_topic_partitions(self, topic):
+    """
+    Get the list of partitions for a given topic.
+    If the topic is partitioned, this will return a list of partition names. If the topic is not
+    partitioned, the returned list will contain the topic name itself.
+    This can be used to discover the partitions and create Reader, Consumer or Producer
+    instances directly on a particular partition.
+    :param topic: the topic name to lookup
+    :return: a list of partition name
+    """
+    _check_type(str, topic, 'topic')
+    return self._client.get_topic_partitions(topic)
 </code></pre>
   </div>
 </div>

@@ -152,6 +152,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>subscribeWithRegexAsy
 <tr class="memitem:ab837056e2ea59c8c55d83d6451ee7b08"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ab837056e2ea59c8c55d83d6451ee7b08"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>createReaderAsync</b> (const std::string &amp;topic, const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;startMessageId, const <a class="el" href="classpulsar_1_1_reader_configuration.html">ReaderConfiguration</a> &amp;conf, ReaderCallback callback)</td></tr>
 <tr class="separator:ab837056e2ea59c8c55d83d6451ee7b08"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a208629aff52395ad0072622ae82f5657"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client.html#a208629aff52395ad0072622ae82f5657">getPartitionsForTopic</a> (const std::string &amp;topic, std::vector&lt; std::string &gt; &amp;partitions)</td></tr>
+<tr class="separator:a208629aff52395ad0072622ae82f5657"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2c3746c12dd5a531efcf2e8af96a3337"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client.html#a2c3746c12dd5a531efcf2e8af96a3337">getPartitionsForTopicAsync</a> (const std::string &amp;topic, GetPartitionsCallback callback)</td></tr>
+<tr class="separator:a2c3746c12dd5a531efcf2e8af96a3337"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac3f0a65b099f88781548d4fad41685ac"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client.html#ac3f0a65b099f88781548d4fad41685ac">close</a> ()</td></tr>
 <tr class="separator:ac3f0a65b099f88781548d4fad41685ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad2701d78fca53d5261616ca53381241d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ad2701d78fca53d5261616ca53381241d"></a>
@@ -382,6 +386,79 @@ ResultError if there was an error </dd></dl>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>The<div class="fragment"><div class="line">Reader </div></div><!-- fragment --> object </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a208629aff52395ad0072622ae82f5657"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> pulsar::Client::getPartitionsForTopic </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>topic</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::vector&lt; std::string &gt; &amp;&#160;</td>
+          <td class="paramname"><em>partitions</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get the list of partitions for a given topic.</p>
+<p>If the topic is partitioned, this will return a list of partition names. If the topic is not partitioned, the returned list will contain the topic name itself.</p>
+<p>This can be used to discover the partitions and create <a class="el" href="classpulsar_1_1_reader.html">Reader</a>, <a class="el" href="classpulsar_1_1_consumer.html">Consumer</a> or <a class="el" href="classpulsar_1_1_producer.html">Producer</a> instances directly on a particular partition.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">topic</td><td>the topic name </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section since"><dt>Since</dt><dd>2.3.0 </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a2c3746c12dd5a531efcf2e8af96a3337"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::Client::getPartitionsForTopicAsync </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>topic</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">GetPartitionsCallback&#160;</td>
+          <td class="paramname"><em>callback</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get the list of partitions for a given topic in asynchronous mode.</p>
+<p>If the topic is partitioned, this will return a list of partition names. If the topic is not partitioned, the returned list will contain the topic name itself.</p>
+<p>This can be used to discover the partitions and create <a class="el" href="classpulsar_1_1_reader.html">Reader</a>, <a class="el" href="classpulsar_1_1_consumer.html">Consumer</a> or <a class="el" href="classpulsar_1_1_producer.html">Producer</a> instances directly on a particular partition.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">topic</td><td>the topic name </td></tr>
+    <tr><td class="paramname">callback</td><td>the callback that will be invoked when the list of partitions is available </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section since"><dt>Since</dt><dd>2.3.0 </dd></dl>
 
 </div>
 </div>
