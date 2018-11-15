@@ -228,7 +228,9 @@ public class SinkConfigUtils {
             sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         }
         sinkConfig.setAutoAck(functionDetails.getAutoAck());
-        sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
+        if (functionDetails.getSource().getTimeoutMs() != 0) {
+            sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
+        }
         if (!isEmpty(functionDetails.getSink().getClassName())) {
             sinkConfig.setClassName(functionDetails.getSink().getClassName());
         }
