@@ -760,6 +760,23 @@ class PulsarTest(TestCase):
         s = MessageId.latest.serialize()
         self.assertEqual(MessageId.deserialize(s), MessageId.latest)
 
+    def test_get_topics_partitions(self):
+        client = Client(self.serviceUrl)
+        topic_partitioned = 'persistent://public/default/test_get_topics_partitions'
+        topic_non_partitioned = 'persistent://public/default/test_get_topics_partitions'
+
+        url1 = self.adminUrl + '/admin/v2/persistent/public/default/test_get_topics_partitions/partitions'
+        doHttpPut(url1, '3')
+
+        self.assertEqual(client.get_topic_partitions(topic_partitioned),
+                         ['persistent://public/default/test_get_topics_partitions-partition-0',
+                          'persistent://public/default/test_get_topics_partitions-partition-1',
+                          'persistent://public/default/test_get_topics_partitions-partition-2'])
+
+        self.assertEqual(client.get_topic_partitions(topic_non_partitioned),
+                         [topic_non_partitioned])
+        client.close()
+
     def _check_value_error(self, fun):
         try:
             fun()

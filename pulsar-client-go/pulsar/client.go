@@ -96,6 +96,16 @@ type Client interface {
 	// This method will block until the reader is created successfully.
 	CreateReader(ReaderOptions) (Reader, error)
 
+	// Fetch the list of partitions for a given topic
+	//
+	// If the topic is partitioned, this will return a list of partition names.
+	// If the topic is not partitioned, the returned list will contain the topic
+	// name itself.
+	//
+	// This can be used to discover the partitions and create {@link Reader},
+	// {@link Consumer} or {@link Producer} instances directly on a particular partition.
+	TopicPartitions(topic string) ([]string, error)
+
 	// Close the Client and free associated resources
 	Close() error
 }
