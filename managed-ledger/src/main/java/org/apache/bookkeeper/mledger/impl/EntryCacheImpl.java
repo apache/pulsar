@@ -231,7 +231,7 @@ public class EntryCacheImpl implements EntryCache {
     }
     
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
+    private void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
             final ReadEntriesCallback callback, Object ctx) {
         final long ledgerId = lh.getId();
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
