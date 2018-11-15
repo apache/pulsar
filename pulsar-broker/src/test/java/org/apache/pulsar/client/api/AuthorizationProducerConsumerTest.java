@@ -200,9 +200,19 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, 10);
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
+        // grant namespace-level authorization to the subscriptionRole
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
 
+        // subscriptionRole has namespace-level authorization
+        sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
+        
+        // grant subscription access to specific different role and only that role can access the subscription
+        String otherPrincipal = "Principal-1-to-access-sub";
+        superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
+                Collections.singleton(otherPrincipal));
+        
+        // now, subscriptionRole doesn't have subscription level access so, it will fail to access subscription
         try {
             sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
             fail("should have fail with authorization exception");
@@ -210,8 +220,9 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
             // Ok
         }
 
+        // now, grant subscription-access to subscriptionRole as well
         superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
-                Collections.singleton(subscriptionRole));
+                Sets.newHashSet(otherPrincipal, subscriptionRole));
 
         sub1Admin.topics().skipAllMessages(topicName, subscriptionName);
         sub1Admin.topics().skipMessages(topicName, subscriptionName, 1);
@@ -429,12 +440,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         public CompletableFuture<Void> grantPermissionAsync(TopicName topicname, Set<AuthAction> actions, String role,
                 String authenticationData) {
             return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public CompletableFuture<Set<String>> getAuthorizedRolesOnSubscription(TopicName topicName,
-                AuthenticationDataSource authenticationData, String subscription) {
-            return CompletableFuture.completedFuture(Collections.emptySet());
         }
 
         @Override

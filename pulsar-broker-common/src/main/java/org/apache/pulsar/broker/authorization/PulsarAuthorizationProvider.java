@@ -119,7 +119,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         PulsarServerException ex = new PulsarServerException(
                                 String.format("%s is not authorized to access subscription %s on topic", role,
                                         subscription, topicName));
-                        permissionFuture.completeExceptionally(ex);
+                        permissionFuture.complete(false);
                         return;
                     }
                     if (isNotBlank(subscription) && !isSuperUser(role)) {
@@ -153,25 +153,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             permissionFuture.completeExceptionally(e);
         }
         return permissionFuture;
-    }
-
-    public CompletableFuture<Set<String>> getAuthorizedRolesOnSubscription(TopicName topicName,
-            AuthenticationDataSource authenticationData, String subscription) {
-        CompletableFuture<Set<String>> rolesFuture = new CompletableFuture<>();
-        try {
-            configCache.policiesCache().getAsync(POLICY_ROOT + topicName.getNamespace()).thenAccept(policies -> {
-                Set<String> roles = policies.get().auth_policies.subscription_auth_roles.get(subscription);
-                rolesFuture.complete(roles != null ? roles : Collections.emptySet());
-            }).exceptionally(ex -> {
-                log.warn("Failed to fetch policies for topic", topicName, ex.getMessage());
-                rolesFuture.completeExceptionally(ex);
-                return null;
-            });
-        } catch (Exception e) {
-            log.warn("Failed to fetch policies for topic", topicName, e.getMessage());
-            rolesFuture.completeExceptionally(e);
-        }
-        return rolesFuture;
     }
 
     /**

@@ -72,18 +72,6 @@ public interface AuthorizationProvider extends Closeable {
             AuthenticationDataSource authenticationData, String subscription);
 
     /**
-     * Returns authorized roles that can access admin-api for given subscription
-     * 
-     * @param topicName
-     *            the fully qualified topic name associated with the topic.
-     * @param subscription
-     *            the subscription name defined by the client
-     * @return
-     */
-    CompletableFuture<Set<String>> getAuthorizedRolesOnSubscription(TopicName topicName,
-            AuthenticationDataSource authenticationData, String subscription);
-
-    /**
      * Check whether the specified role can perform a lookup for the specified topic.
      *
      * For that the caller needs to have producer or consumer permission.

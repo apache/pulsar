@@ -192,27 +192,6 @@ public class AuthorizationService {
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
 
-    /**
-     * Check if the specified roles is authorized to access admin-api for a given subscription
-     * 
-     * @param topicName
-     * @param role
-     * @param authenticationData
-     * @param subscription
-     * @return
-     */
-    public CompletableFuture<Boolean> isSubscriberAuthorized(TopicName topicName, String role,
-            AuthenticationDataSource authenticationData, String subscription) {
-        if (!this.conf.isAuthorizationEnabled()) {
-            return CompletableFuture.completedFuture(true);
-        }
-        if (provider != null) {
-            return provider.getAuthorizedRolesOnSubscription(topicName, authenticationData, subscription)
-                    .thenApply(roles -> roles != null && roles.contains(role));
-        }
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
-    }
-
     public boolean canProduce(TopicName topicName, String role, AuthenticationDataSource authenticationData)
             throws Exception {
         try {

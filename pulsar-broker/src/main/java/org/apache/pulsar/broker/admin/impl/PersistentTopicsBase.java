@@ -110,7 +110,6 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 /**
  */
@@ -250,9 +249,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void validateAdminAccessForSubscriber(String subscriptionName) {
         try {
-            if (!pulsar().getBrokerService().getAuthorizationService()
-                    .isSubscriberAuthorized(topicName, clientAppId(), clientAuthData(), subscriptionName)
-                    .get(cacheTimeOutInSec, TimeUnit.SECONDS)) {
+            if (!pulsar().getBrokerService().getAuthorizationService().canConsume(topicName, clientAppId(),
+                    clientAuthData(), subscriptionName)) {
                 log.warn("[{}} Subscriber {} is not authorized to access api", topicName, clientAppId());
                 throw new RestException(Status.UNAUTHORIZED,
                         String.format("Subscriber %s is not authorized to access this operation", clientAppId()));
