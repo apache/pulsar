@@ -1,8 +1,11 @@
 package org.apache.pulsar.io.canal;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
 import com.alibaba.otter.canal.protocol.Message;
+import com.alibaba.otter.canal.protocol.FlatMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
@@ -13,11 +16,12 @@ import org.slf4j.MDC;
 import org.springframework.util.Assert;
 
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
-public class CanalSource extends PushSource<Message> {
+public class CanalSource extends PushSource<byte[]> {
 
     protected final static Logger logger = LoggerFactory.getLogger(CanalSource.class);
 
@@ -94,7 +98,8 @@ public class CanalSource extends PushSource<Message> {
                 connector.subscribe();
                 while (running) {
                     Message message = connector.getWithoutAck(canalSourceConfig.getBatchSize());
-                    // logger.info("message {}", message.toString());
+                    List<FlatMessage> flatMessages = FlatMessage.messageConverter(message);
+                     logger.info("message {}", message.toString());
                     long batchId = message.getId();
                     int size = message.getEntries().size();
                     if (batchId == -1 || size == 0) {
@@ -103,7 +108,12 @@ public class CanalSource extends PushSource<Message> {
                         } catch (InterruptedException e) {
                         }
                     } else {
-                        consume(new CanalRecord(message));
+                        if (flatMessages != null) {
+                            for (FlatMessage flatMessage : flatMessages) {
+                                String m = JSON.toJSONString(flatMessage, SerializerFeature.WriteMapNullValue);
+                                consume(new CanalRecord(m.getBytes(), batchId));
+                            }
+                        }
                     }
 
                     connector.ack(batchId);
@@ -118,22 +128,23 @@ public class CanalSource extends PushSource<Message> {
     }
 
 
-    static private class CanalRecord implements Record<Message> {
+    static private class CanalRecord implements Record<byte[]> {
 
-        private final Message record;
+        private final byte[] record;
+        private final Long id;
 
-
-        public CanalRecord(Message message) {
+        public CanalRecord(byte[] message, Long id) {
             this.record = message;
+            this.id = id;
         }
 
         @Override
         public Optional<String>  getKey() {
-            return Optional.of(Long.toString(record.getId()));
+            return  Optional.of(Long.toString(id));
         }
 
         @Override
-        public Message getValue() {
+        public byte[] getValue() {
             return record;
         }
     }
