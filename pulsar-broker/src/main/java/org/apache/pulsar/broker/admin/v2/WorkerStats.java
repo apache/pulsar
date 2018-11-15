@@ -54,7 +54,7 @@ public class WorkerStats extends AdminResource implements Supplier<WorkerService
     @ApiOperation(value = "Gets the metrics for Monitoring", notes = "Request should be executed by Monitoring agent on each worker to fetch the worker-metrics", response = org.apache.pulsar.common.stats.Metrics.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 401, message = "Don't have admin permission") })
     public Collection<org.apache.pulsar.common.stats.Metrics> getMetrics() throws Exception {
-        return worker.getWorkerMetrcis(clientAppId());
+        return worker.getWorkerMetrics(clientAppId());
     }
 
     @GET
