@@ -89,12 +89,12 @@ encircles
 world
 ```
 
-## Example
+## Complete Example
 
 You can find a complete example [here](https://github.com/apache/incubator-pulsar/tree/master/pulsar-flink/src/test/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchSinkExample.java).
 In this example, Flink DataSet is processed as word-count and being written to Pulsar.
 
-## Sample Output
+## Complete Example Output
 Please find sample output for above linked application as follows:
 ```
 WordWithCount { word = important, count = 1 }

@@ -56,6 +56,8 @@ public class PulsarOutputFormat<T> extends RichOutputFormat<T> {
         this.serviceUrl = serviceUrl;
         this.topicName = topicName;
         this.serializationSchema = serializationSchema;
+
+        LOG.info("PulsarOutputFormat is being started to write batches to Pulsar topic {}", this.topicName);
     }
 
     @Override
@@ -66,8 +68,6 @@ public class PulsarOutputFormat<T> extends RichOutputFormat<T> {
     @Override
     public void open(int taskNumber, int numTasks) throws IOException {
         this.producer = getProducerInstance();
-
-        LOG.info("Starting PulsarOutputFormat to write batches to Pulsar topic {}", this.topicName);
 
         this.failureCallback = cause -> {
             LOG.error("Error while sending record to Pulsar : " + cause.getMessage(), cause);
