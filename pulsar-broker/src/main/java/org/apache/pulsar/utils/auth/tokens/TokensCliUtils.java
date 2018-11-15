@@ -93,10 +93,7 @@ public class TokensCliUtils {
 
         @Parameter(names = { "-f",
                 "--key-file" }, description = "Read secret key from a file")
-        private String secretKeyFile;
-
-        @Parameter(names = { "--private-key-file" }, description = "Read private key from a file")
-        private String privateKeyFile;
+        private String keyFile;
 
         public void run() throws Exception {
 
@@ -106,8 +103,8 @@ public class TokensCliUtils {
                 @Cleanup
                 BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
                 encodedKey = r.readLine();
-            } else if (secretKeyFile != null) {
-                encodedKey = new String(Files.readAllBytes(Paths.get(secretKeyFile)), Charsets.UTF_8);
+            } else if (keyFile != null) {
+                encodedKey = new String(Files.readAllBytes(Paths.get(keyFile)), Charsets.UTF_8);
             } else if (System.getenv("SIGNING_KEY") != null) {
                 encodedKey = System.getenv("SIGNING_KEY");
             } else {

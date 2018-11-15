@@ -19,7 +19,12 @@
 
 package org.apache.pulsar.client.impl.auth;
 
+import com.google.common.base.Charsets;
+
 import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -67,10 +72,25 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         // the prefix
         if (encodedAuthParamString.startsWith("token:")) {
             this.tokenSupplier = () -> encodedAuthParamString.substring("token:".length());
+        } else if (encodedAuthParamString.startsWith("data:")) {
+            this.tokenSupplier = () -> encodedAuthParamString.substring("data:".length());
+        } else if (encodedAuthParamString.startsWith("file:")) {
+            // Read token from a file
+            URI filePath = URI.create(encodedAuthParamString);
+            this.tokenSupplier = () -> {
+                try {
+                    return new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8);
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to read token from file", e);
+                }
+            };
+        } else if (encodedAuthParamString.startsWith("env:")) {
+            // Read token from environment variable
+            String envVarName = encodedAuthParamString.substring("env:".length());
+            this.tokenSupplier = () -> System.getenv(envVarName);
         } else {
             this.tokenSupplier = () -> encodedAuthParamString;
         }
-
     }
 
     @Override

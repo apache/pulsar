@@ -191,7 +191,39 @@ public class AuthenticationProviderTokenTest {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
 
         Properties properties = new Properties();
-        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY_FROM_FILE, secretKeyFile.toString());
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "file://" + secretKeyFile.toString());
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String token = AuthTokenUtils.createToken(secretKey, "my-test-subject", Optional.empty());
+
+        // Pulsar protocol auth
+        String subject = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        });
+        assertEquals(subject, "my-test-subject");
+        provider.close();
+    }
+
+    @Test
+    public void testAuthSecretKeyFromData() throws Exception {
+        String secretKeyStr = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+        SecretKey secretKey = AuthTokenUtils.decodeSecretKey(secretKeyStr);
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "data:" + secretKeyStr);
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);

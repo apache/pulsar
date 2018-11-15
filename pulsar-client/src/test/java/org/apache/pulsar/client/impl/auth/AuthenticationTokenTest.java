@@ -23,8 +23,12 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
+import com.google.common.base.Charsets;
+
+import java.io.File;
 import java.util.Collections;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.testng.annotations.Test;
 
@@ -44,7 +48,8 @@ public class AuthenticationTokenTest {
         assertNull(authData.getTlsPrivateKey());
 
         assertTrue(authData.hasDataForHttp());
-        assertEquals(authData.getHttpHeaders(), Collections.singletonMap("Authorization", "Bearer token-xyz").entrySet());
+        assertEquals(authData.getHttpHeaders(),
+                Collections.singletonMap("Authorization", "Bearer token-xyz").entrySet());
 
         authToken.close();
     }
@@ -58,6 +63,42 @@ public class AuthenticationTokenTest {
         AuthenticationDataProvider authData = authToken.getAuthData();
         assertTrue(authData.hasDataFromCommand());
         assertEquals(authData.getCommandData(), "my-test-token-string");
+        authToken.close();
+    }
+
+    @Test
+    public void testAuthTokenConfigData() throws Exception {
+        AuthenticationToken authToken = new AuthenticationToken();
+        authToken.configure("data:my-test-token-string");
+        assertEquals(authToken.getAuthMethodName(), "token");
+
+        AuthenticationDataProvider authData = authToken.getAuthData();
+        assertTrue(authData.hasDataFromCommand());
+        assertEquals(authData.getCommandData(), "my-test-token-string");
+        authToken.close();
+    }
+
+    @Test
+    public void testAuthTokenConfigFromFile() throws Exception {
+        File tokenFile = File.createTempFile("pular-test-token", ".key");
+        tokenFile.deleteOnExit();
+        FileUtils.write(tokenFile, "my-test-token-string", Charsets.UTF_8);
+
+        AuthenticationToken authToken = new AuthenticationToken();
+        authToken.configure("file://" + tokenFile);
+        assertEquals(authToken.getAuthMethodName(), "token");
+
+        AuthenticationDataProvider authData = authToken.getAuthData();
+        assertTrue(authData.hasDataFromCommand());
+        assertEquals(authData.getCommandData(), "my-test-token-string");
+
+        // Ensure if the file content changes, the token will get refreshed as well
+        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+
+        AuthenticationDataProvider authData2 = authToken.getAuthData();
+        assertTrue(authData2.hasDataFromCommand());
+        assertEquals(authData2.getCommandData(), "other-token");
+
         authToken.close();
     }
 
