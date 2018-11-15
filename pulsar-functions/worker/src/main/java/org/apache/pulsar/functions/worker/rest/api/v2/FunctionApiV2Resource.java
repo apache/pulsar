@@ -140,7 +140,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     @GET
     @ApiOperation(
             value = "Displays the stats of a Pulsar Function instance",
-            response = FunctionStats.FunctionInstanceStats.class
+            response = FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),

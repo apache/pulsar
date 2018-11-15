@@ -462,7 +462,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * @param instanceId the function instance id
      * @return jsonObject containing stats for instance
      */
-    public FunctionStats.FunctionInstanceStats getFunctionInstanceStats(String tenant, String namespace,
+    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionInstanceStats(String tenant, String namespace,
                                                                         String functionName, int instanceId, URI uri) {
         Assignment assignment;
         if (runtimeFactory.externallyManaged()) {
@@ -472,7 +472,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
 
         if (assignment == null) {
-            return new FunctionStats.FunctionInstanceStats();
+            return new FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData();
         }
 
         final String assignedWorkerId = assignment.getWorkerId();
@@ -484,9 +484,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
             RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
             if (runtimeSpawner != null) {
-                return Utils.getFunctionInstanceStats(Utils.getFullyQualifiedInstanceId(assignment.getInstance()), functionRuntimeInfo);
+                return Utils.getFunctionInstanceStats(Utils.getFullyQualifiedInstanceId(assignment.getInstance()), functionRuntimeInfo).getMetrics();
             }
-            return new FunctionStats.FunctionInstanceStats();
+            return new FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData();
         } else {
             // query other worker
 
@@ -498,7 +498,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 }
             }
             if (workerInfo == null) {
-                return new FunctionStats.FunctionInstanceStats();
+                return new FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData();
             }
 
             if (uri == null) {
@@ -533,9 +533,12 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 int parallelism = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getParallelism();
                 for (int i = 0; i < parallelism; ++i) {
 
-                    FunctionStats.FunctionInstanceStats functionInstanceStats = getFunctionInstanceStats(tenant, namespace,
+                    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData = getFunctionInstanceStats(tenant, namespace,
                             functionName, i, null);
 
+                    FunctionStats.FunctionInstanceStats functionInstanceStats = new FunctionStats.FunctionInstanceStats();
+                    functionInstanceStats.setInstanceId(i);
+                    functionInstanceStats.setMetrics(functionInstanceStatsData);
                     functionStats.addInstance(functionInstanceStats);
                 }
             } else {
@@ -563,17 +566,21 @@ public class FunctionRuntimeManager implements AutoCloseable{
             for (Assignment assignment : assignments) {
                 boolean isOwner = this.workerConfig.getWorkerId().equals(assignment.getWorkerId());
 
-                FunctionStats.FunctionInstanceStats functionInstanceStats;
+                FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData;
                 if (isOwner) {
-                    functionInstanceStats = getFunctionInstanceStats(tenant, namespace, functionName,
+                    functionInstanceStatsData = getFunctionInstanceStats(tenant, namespace, functionName,
                             assignment.getInstance().getInstanceId(), null);
                 } else {
-                    functionInstanceStats = this.functionAdmin.functions().getFunctionStats(
+                    functionInstanceStatsData = this.functionAdmin.functions().getFunctionStats(
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
                             assignment.getInstance().getInstanceId());
                 }
+
+                FunctionStats.FunctionInstanceStats functionInstanceStats = new FunctionStats.FunctionInstanceStats();
+                functionInstanceStats.setInstanceId(assignment.getInstance().getInstanceId());
+                functionInstanceStats.setMetrics(functionInstanceStatsData);
                 functionStats.addInstance(functionInstanceStats);
             }
         }

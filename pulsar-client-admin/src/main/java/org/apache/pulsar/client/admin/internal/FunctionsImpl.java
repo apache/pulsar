@@ -125,14 +125,14 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public FunctionStats.FunctionInstanceStats getFunctionStats(String tenant, String namespace, String function, int id) throws PulsarAdminException {
+    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionStats(String tenant, String namespace, String function, int id) throws PulsarAdminException {
         try {
             Response response = request(
                     functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("stats")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            return response.readEntity(FunctionStats.FunctionInstanceStats.class);
+            return response.readEntity(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

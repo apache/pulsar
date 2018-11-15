@@ -804,9 +804,9 @@ public class FunctionsImpl {
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
-        FunctionStats.FunctionInstanceStats functionInstanceStats;
+        FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData;
         try {
-            functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant, namespace, componentName,
+            functionInstanceStatsData = functionRuntimeManager.getFunctionInstanceStats(tenant, namespace, componentName,
                     Integer.parseInt(instanceId), uri);
         } catch (WebApplicationException we) {
             throw we;
@@ -815,7 +815,7 @@ public class FunctionsImpl {
             return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new ErrorData(e.getMessage())).build();
         }
 
-        return Response.status(Status.OK).entity(gson.toJson(functionInstanceStats)).build();
+        return Response.status(Status.OK).entity(gson.toJson(functionInstanceStatsData)).build();
     }
 
     public Response listFunctions(final String tenant, final String namespace, String componentType) {

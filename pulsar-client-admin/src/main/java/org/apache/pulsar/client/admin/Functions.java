@@ -213,7 +213,7 @@ public interface Functions {
      * @return
      * @throws PulsarAdminException
      */
-    FunctionStats.FunctionInstanceStats getFunctionStats(String tenant, String namespace, String function, int id)
+    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionStats(String tenant, String namespace, String function, int id)
             throws PulsarAdminException;
 
     /**
