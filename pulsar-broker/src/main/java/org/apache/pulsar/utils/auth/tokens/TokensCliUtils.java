@@ -88,7 +88,7 @@ public class TokensCliUtils {
                 "--stdin" }, description = "Read secret key from standard input")
         private Boolean stdin = false;
 
-        @Parameter(names = { "-pk" }, description = "Indicate the key is ")
+        @Parameter(names = { "-pk" }, description = "Indicate the signing key is a private key (rather than a symmetric secret key)")
         private Boolean isPrivateKey = false;
 
         @Parameter(names = { "-f",
