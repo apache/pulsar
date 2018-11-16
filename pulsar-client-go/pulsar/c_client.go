@@ -25,10 +25,10 @@ package pulsar
 */
 import "C"
 import (
-	"runtime"
-	"unsafe"
 	"log"
+	"runtime"
 	"strings"
+	"unsafe"
 )
 
 //export pulsarClientLoggerProxy
@@ -144,7 +144,7 @@ func authenticationFinalizer(authentication *authentication) {
 }
 
 type client struct {
-	ptr *C.pulsar_client_t
+	ptr  *C.pulsar_client_t
 	auth *authentication
 }
 
@@ -216,8 +216,62 @@ func (client *client) CreateReader(options ReaderOptions) (Reader, error) {
 	return res.Reader, res.error
 }
 
+//export pulsarGetTopicPartitionsCallbackProxy
+func pulsarGetTopicPartitionsCallbackProxy(res C.pulsar_result, cPartitions *C.pulsar_string_list_t, ctx unsafe.Pointer) {
+	callback := restorePointer(ctx).(func([]string, error))
+
+	if res != C.pulsar_result_Ok {
+		callback(nil, newError(res, "Failed to get partitions for topic"))
+	} else {
+		numPartitions := int(C.pulsar_string_list_size(cPartitions))
+		partitions := make([]string, numPartitions)
+		for i := 0; i < numPartitions; i++ {
+			partitions[i] = C.GoString(C.pulsar_string_list_get(cPartitions, C.int(i)))
+		}
+
+		C.pulsar_string_list_free(cPartitions)
+
+		callback(partitions, nil)
+	}
+}
+
 func (client *client) CreateReaderAsync(options ReaderOptions, callback func(Reader, error)) {
 	createReaderAsync(client, options, callback)
+}
+
+func (client *client) TopicPartitions(topic string) ([]string, error) {
+	c := make(chan struct {
+		partitions []string
+		err        error
+	})
+
+	topicPartitionsAsync(client, topic, func(partitions []string, err error) {
+		c <- struct {
+			partitions []string
+			err        error
+		}{partitions, err}
+		close(c)
+	})
+
+	res := <-c
+	return res.partitions, res.err
+}
+
+type getPartitionsCallback struct {
+	partitions []string
+	channel    chan ReaderMessage
+}
+
+func topicPartitionsAsync(client *client, topic string, callback func([]string, error)) {
+	if topic == "" {
+		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required"))
+		return
+	}
+
+	cTopic := C.CString(topic)
+	defer C.free(unsafe.Pointer(cTopic))
+
+	C._pulsar_client_get_topic_partitions(client.ptr, cTopic, savePointer(callback))
 }
 
 func (client *client) Close() error {

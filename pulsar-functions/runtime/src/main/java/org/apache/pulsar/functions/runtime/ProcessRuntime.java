@@ -36,6 +36,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.utils.Utils;
 
 import java.io.InputStream;
 import java.util.List;
@@ -117,7 +118,8 @@ class ProcessRuntime implements Runtime {
             secretsProviderConfig,
             false,
             null,
-            null);
+            null,
+                Utils.findAvailablePort());
     }
 
     /**
