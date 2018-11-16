@@ -23,8 +23,6 @@ import java.util.Optional;
 @Slf4j
 public class CanalSource extends PushSource<byte[]> {
 
-    protected final static Logger logger = LoggerFactory.getLogger(CanalSource.class);
-
     protected Thread thread = null;
 
     protected volatile boolean running = false;
@@ -37,7 +35,7 @@ public class CanalSource extends PushSource<byte[]> {
 
         @Override
         public void uncaughtException(Thread t, Throwable e) {
-            logger.error("parse events has an error", e);
+            log.error("parse events has an error", e);
         }
     };
 
@@ -52,12 +50,12 @@ public class CanalSource extends PushSource<byte[]> {
                     new InetSocketAddress(canalSourceConfig.getSingleHostname(), canalSourceConfig.getSinglePort()),
                     canalSourceConfig.getDestination(), canalSourceConfig.getUsername(), canalSourceConfig.getPassword());
         }
+        log.info("start canal connect");
         this.start();
 
     }
 
     protected void start() {
-        logger.info("start consumer");
         Assert.notNull(connector, "connector is null");
         thread = new Thread(new Runnable() {
 
@@ -74,6 +72,7 @@ public class CanalSource extends PushSource<byte[]> {
 
     @Override
     public void close() throws InterruptedException {
+        log.info("close canal source");
         if (!running) {
             return;
         }
@@ -94,12 +93,13 @@ public class CanalSource extends PushSource<byte[]> {
             try {
                 MDC.put("destination", canalSourceConfig.getDestination());
                 connector.connect();
-                logger.info("process");
+                log.info("start canal process");
                 connector.subscribe();
                 while (running) {
                     Message message = connector.getWithoutAck(canalSourceConfig.getBatchSize());
+                    // delete the setRaw in new version of canal-client
+                    message.setRaw(false);
                     List<FlatMessage> flatMessages = FlatMessage.messageConverter(message);
-                     logger.info("message {}", message.toString());
                     long batchId = message.getId();
                     int size = message.getEntries().size();
                     if (batchId == -1 || size == 0) {
@@ -119,7 +119,7 @@ public class CanalSource extends PushSource<byte[]> {
                     connector.ack(batchId);
                 }
             } catch (Exception e) {
-                logger.error("process error!", e);
+                log.error("process error!", e);
             } finally {
                 connector.disconnect();
                 MDC.remove("destination");
