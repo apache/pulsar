@@ -189,6 +189,12 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @Override
+    public ClientBuilder connectionTimeout(int duration, TimeUnit unit) {
+        conf.setConnectionTimeoutMs((int)unit.toMillis(duration));
+        return this;
+    }
+
     public ClientConfigurationData getClientConfigurationData() {
         return conf;
     }

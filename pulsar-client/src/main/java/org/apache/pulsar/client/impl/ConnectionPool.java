@@ -82,7 +82,7 @@ public class ConnectionPool implements Closeable {
         bootstrap.group(eventLoopGroup);
         bootstrap.channel(EventLoopUtil.getClientSocketChannelClass(eventLoopGroup));
 
-        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000);
+        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, conf.getConnectionTimeoutMs());
         bootstrap.option(ChannelOption.TCP_NODELAY, conf.isUseTcpNoDelay());
         bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
