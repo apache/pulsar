@@ -87,6 +87,14 @@ public class TestBasicPresto extends PulsarTestSuite {
             producer.send(stock);
         }
 
+        ContainerExecResult result = execQuery("show schemas in pulsar;");
+        assertThat(result.getExitCode()).isEqualTo(0);
+        assertThat(result.getStdout()).contains("public/default");
+
+        result = execQuery("show tables in pulsar.\"public/default\";");
+        assertThat(result.getExitCode()).isEqualTo(0);
+        assertThat(result.getStdout()).contains("stocks");
+
         ContainerExecResult containerExecResult = execQuery("select * from pulsar.\"public/default\".stocks order by entryid;");
         assertThat(containerExecResult.getExitCode()).isEqualTo(0);
         log.info("select sql query output \n{}", containerExecResult.getStdout());

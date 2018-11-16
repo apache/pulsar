@@ -43,7 +43,7 @@ For more info, see [Topics](concepts-messaging.md#topics).
 
 ## Start publishing and consuming messages
 
-Pulsar currently offers client libraries for [Java](client-libraries-java.md), [Python](client-libraries-python.md),
+Pulsar currently offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) 
 and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can
 use one of these root URLs for interacting with your cluster:
 

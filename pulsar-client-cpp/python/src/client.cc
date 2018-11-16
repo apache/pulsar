@@ -90,6 +90,24 @@ Reader Client_createReader(Client& client, const std::string& topic,
     return reader;
 }
 
+boost::python::list Client_getTopicPartitions(Client& client, const std::string& topic) {
+    std::vector<std::string> partitions;
+    Result res;
+
+    Py_BEGIN_ALLOW_THREADS
+    res = client.getPartitionsForTopic(topic, partitions);
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
+
+    boost::python::list pyList;
+    for (int i = 0; i < partitions.size(); i++) {
+        pyList.append(boost::python::object(partitions[i]));
+    }
+
+    return pyList;
+}
+
 void Client_close(Client& client) {
     Result res;
 
@@ -109,6 +127,7 @@ void export_client() {
             .def("subscribe_topics", &Client_subscribe_topics)
             .def("subscribe_pattern", &Client_subscribe_pattern)
             .def("create_reader", &Client_createReader)
+            .def("get_topic_partitions", &Client_getTopicPartitions)
             .def("close", &Client_close)
             .def("shutdown", &Client::shutdown)
             ;
