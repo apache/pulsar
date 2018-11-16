@@ -8,7 +8,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-CN/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/concepts-messaging">English</a></li><li><a href="/docs/ja/next/concepts-messaging">日本語</a></li><li><a href="/docs/fr/next/concepts-messaging">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/concepts-messaging">English</a></li><li><a href="/docs/ja/next/concepts-messaging">日本語</a></li><li><a href="/docs/fr/next/concepts-messaging">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -20,7 +20,7 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><i></i></div><h2><i>›</i><span>Concepts and Architecture</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"></div></section></div><script>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><i></i></div><h2><i>›</i><span>概念和架构</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"></div></section></div><script>
             document.addEventListener('DOMContentLoaded', function() {
               createToggler('#navToggler', '#docsNav', 'docsSliderActive');
               createToggler('#tocToggler', 'body', 'tocActive');
@@ -74,7 +74,7 @@
 <p>Producer可以以同步（sync）或者异步（async）的方式发布消息到broker。</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Mode</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">Mode</th><th style="text-align:left">说明：</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left">同步发送</td><td style="text-align:left">发送消息后，producer等待broker的确认。如果没有收到确认，producer会认为发送失败。</td></tr>
@@ -95,7 +95,7 @@
 <p>消息可以通过同步或者异步的方式从<a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>接收。</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Mode</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">Mode</th><th style="text-align:left">说明：</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left">同步接收</td><td style="text-align:left">同步接收将会阻塞，直到消息可用。</td></tr>
@@ -116,7 +116,7 @@
 </blockquote>
 <p>{persistent|non-persistent}://tenant/namespace/topic</p>
 <pre><code class="hljs">
-| Topic名称组成                       | Description                                                                                                                                                                                                                                                                                                           |
+| Topic名称组成                       | 说明：                                                                                                                                                                                                                                                                                                                   |
 |:------------------------------- |:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | <span class="hljs-code">`persistent`</span> / <span class="hljs-code">`non-persistent`</span> | 定义了topic类型。 Pulsar支持两种不同topic：[<span class="hljs-string">持久</span>](<span class="hljs-link">/docs/zh-CN/next/concepts-architecture-overview#persistent-storage</span>)和 [<span class="hljs-string">非持久</span>](<span class="hljs-link">#non-persistent-topics</span>)（默认是持久类型，如果你没有指明类型，topic将会是持久类型）。 持久topic的所有消息都会[<span class="hljs-string"></span>](<span class="hljs-link">/docs/zh-CN/next/concepts-architecture-overview#persistent-storage</span>)持久化<span class="xml"><span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span></span>到硬盘上（这意味着多块硬盘，除非是单机模式的broker），反之，[<span class="hljs-string">非持久</span>](<span class="hljs-link">#non-persistent-topics</span>)topic的数据不会存储到硬盘上。 |
 | <span class="hljs-code">`tenant`</span>                        | 实例中topic的租户。tenant是Pulsar多租户的基本要素，可以被跨集群的传播。                                                                                                                                                                                                                                                                          |
@@ -221,7 +221,7 @@ Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, "sub
 <p>下面是三种默认可用的路由模式：</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Mode</th><th style="text-align:left">Description</th><th style="text-align:left">顺序保证</th></tr>
+<tr><th style="text-align:left">Mode</th><th style="text-align:left">说明：</th><th style="text-align:left">顺序保证</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left">Key hash</td><td style="text-align:left">如果message指定了key，producer将会把key hash，然后把他分配给指定分区</td><td style="text-align:left">同一个key下有序</td></tr>

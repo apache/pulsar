@@ -8,7 +8,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-CN/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/reference-cli-tools">English</a></li><li><a href="/docs/ja/next/reference-cli-tools">日本語</a></li><li><a href="/docs/fr/next/reference-cli-tools">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><link rel="stylesheet" href="/css/main.css"/></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="/zh-CN/admin-rest-api" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/reference-cli-tools">English</a></li><li><a href="/docs/ja/next/reference-cli-tools">日本語</a></li><li><a href="/docs/fr/next/reference-cli-tools">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -20,7 +20,7 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><i></i></div><h2><i>›</i><span>Reference</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"></div></section></div><script>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><i></i></div><h2><i>›</i><span>参考</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"></div></section></div><script>
             document.addEventListener('DOMContentLoaded', function() {
               createToggler('#navToggler', '#docsNav', 'docsSliderActive');
               createToggler('#tocToggler', 'body', 'tocActive');
@@ -81,7 +81,7 @@ $ pulsar command
 <p>The table below lists the environment variables that you can use to configure the <code>pulsar</code> tool.</p>
 <table>
 <thead>
-<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+<tr><th>Variable</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PULSAR_LOG_CONF</code></td><td>Log4j configuration file</td><td><code>conf/log4j2.yaml</code></td></tr>
@@ -106,7 +106,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Option</th><th>Description</th><th>Default</th></tr>
+<tr><th>Option</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-readOnly</code></td><td>Force start a read-only bookie server</td><td>false</td></tr>
@@ -126,7 +126,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Option</th><th>Description</th><th>Default</th></tr>
+<tr><th>Option</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-bc</code> , <code>--bookie-conf</code></td><td>Configuration file for BookKeeper</td><td></td></tr>
@@ -145,7 +145,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-t</code> , <code>--topic</code></td><td>The Pulsar topic that you would like to compact</td><td></td></tr>
@@ -178,7 +178,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-ub</code> , <code>--broker-service-url</code></td><td>The broker service URL for the new cluster</td><td></td></tr>
@@ -198,7 +198,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--configuration-store</code></td><td>Configuration store connection string</td><td></td></tr>
@@ -218,7 +218,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-a</code> , <code>--advertised-address</code></td><td>The standalone broker advertised address</td><td></td></tr>
@@ -258,7 +258,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration file for ZooKeeper</td><td></td></tr>
@@ -273,7 +273,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--auth-params</code></td><td>Authentication parameters, for example key1:val1,key2:val2</td><td></td></tr>
@@ -289,7 +289,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-f</code>, <code>--files</code></td><td>Comma-separated file paths to send; either -m or -f must be specified</td><td>[]</td></tr>
@@ -306,7 +306,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--hex</code></td><td>Display binary messages in hexadecimal format.</td><td>false</td></tr>
@@ -336,7 +336,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>-force</td><td>Stop the service forcefully if not stopped by normal shutdown.</td><td>false</td></tr>
@@ -351,7 +351,7 @@ $ pulsar command
 <p>Environment variables The table below lists the environment variables that you can use to configure the pulsar-perf tool.</p>
 <table>
 <thead>
-<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+<tr><th>Variable</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>PULSAR_LOG_CONF</code></td><td>Log4j configuration file</td><td>conf/log4j2.yaml</td></tr>
@@ -368,7 +368,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--auth_params</code></td><td>Authentication parameters in the form of key1:val1,key2:val2</td><td></td></tr>
@@ -397,7 +397,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--auth_params</code></td><td>Authentication parameters in the form of key1:val1,key2:val2</td><td></td></tr>
@@ -426,7 +426,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--connect-string</code></td><td>A connection string for one or more ZooKeeper servers</td><td></td></tr>
@@ -445,7 +445,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--client-port</code></td><td>The port that the clients are listening on</td><td>0</td></tr>
@@ -462,7 +462,7 @@ $ pulsar command
 <p>Environment variables The table below lists the environment variables that you can use to configure the bookkeeper tool.</p>
 <table>
 <thead>
-<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+<tr><th>Variable</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>BOOKIE_LOG_CONF</td><td>Log4j configuration file</td><td>conf/log4j2.yaml</td></tr>
@@ -482,7 +482,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the auto-recovery daemon</td><td></td></tr>
@@ -496,7 +496,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the auto-recovery daemon</td><td></td></tr>
@@ -517,7 +517,7 @@ $ pulsar command
 <p>Options</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>Flag</th><th>说明：</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the auto-recovery daemon</td><td></td></tr>
