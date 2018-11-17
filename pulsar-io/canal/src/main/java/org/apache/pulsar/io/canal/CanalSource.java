@@ -75,7 +75,7 @@ public class CanalSource extends PushSource<byte[]> {
             log.info("Start canal connect in standalone mode, canal server info {}:{}",
                     canalSourceConfig.getSingleHostname(), canalSourceConfig.getSinglePort());
         }
-        log.info("");
+        log.info("canal source destination {}", canalSourceConfig.getDestination());
         this.start();
 
     }
