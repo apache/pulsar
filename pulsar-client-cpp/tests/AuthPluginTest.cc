@@ -36,8 +36,10 @@ static const std::string serviceUrlTls = "pulsar+ssl://localhost:6651";
 static const std::string serviceUrlHttps = "https://localhost:8443";
 
 static const std::string caPath = "../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem";
-static const std::string clientPublicKeyPath = "../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem";
-static const std::string clientPrivateKeyPath = "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
+static const std::string clientPublicKeyPath =
+    "../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem";
+static const std::string clientPrivateKeyPath =
+    "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
 
 static void sendCallBackTls(Result r, const Message& msg) {
     ASSERT_EQ(r, ResultOk);
@@ -203,7 +205,8 @@ TEST(AuthPluginTest, testAthenz) {
         "tenantDomain": "pulsar.test.tenant",
         "tenantService": "service",
         "providerDomain": "pulsar.test.provider",
-        "privateKey": "file:)" + clientPrivateKeyPath + R"(",
+        "privateKey": "file:)" +
+                         clientPrivateKeyPath + R"(",
         "ztsUrl": "http://localhost:9999"
     })";
 
@@ -242,8 +245,8 @@ TEST(AuthPluginTest, testDisable) {
 
 TEST(AuthPluginTest, testAuthFactoryTls) {
     pulsar::AuthenticationDataPtr data;
-    AuthenticationPtr auth =
-        pulsar::AuthFactory::create("tls", "tlsCertFile:" + clientPublicKeyPath + ",tlsKeyFile:" + clientPrivateKeyPath);
+    AuthenticationPtr auth = pulsar::AuthFactory::create(
+        "tls", "tlsCertFile:" + clientPublicKeyPath + ",tlsKeyFile:" + clientPrivateKeyPath);
     ASSERT_EQ(auth->getAuthMethodName(), "tls");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
     ASSERT_EQ(data->hasDataForTls(), true);
@@ -272,7 +275,8 @@ TEST(AuthPluginTest, testAuthFactoryAthenz) {
         "tenantDomain": "pulsar.test2.tenant",
         "tenantService": "service",
         "providerDomain": "pulsar.test.provider",
-        "privateKey": "file:)" + clientPrivateKeyPath +  R"(",
+        "privateKey": "file:)" +
+                         clientPrivateKeyPath + R"(",
         "ztsUrl": "http://localhost:9998"
     })";
     LOG_INFO("PARAMS: " << params);

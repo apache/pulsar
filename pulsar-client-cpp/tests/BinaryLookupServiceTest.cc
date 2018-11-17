@@ -50,8 +50,7 @@ TEST(BinaryLookupServiceTest, basicLookup) {
     ASSERT_TRUE(lookupData != NULL);
     ASSERT_EQ(0, lookupData->getPartitions());
 
-    Future<Result, LookupDataResultPtr> future =
-        lookupService.lookupAsync("topic");
+    Future<Result, LookupDataResultPtr> future = lookupService.lookupAsync("topic");
     result = future.get(lookupData);
 
     ASSERT_EQ(ResultOk, result);

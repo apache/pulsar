@@ -470,7 +470,8 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer) {
     std::string topicName = "testPartitionedProducerConsumer";
 
     // call admin api to make it partitioned
-    std::string url = adminUrl + "admin/v2/persistent/public/default/testPartitionedProducerConsumer/partitions";
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/testPartitionedProducerConsumer/partitions";
     int res = makePutRequest(url, "3");
 
     LOG_INFO("res = " << res);
@@ -510,7 +511,8 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumerSubscriptionName) {
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/v2/persistent/public/default/testPartitionedProducerConsumerSubscriptionName/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default/testPartitionedProducerConsumerSubscriptionName/partitions";
     int res = makePutRequest(url, "3");
 
     LOG_INFO("res = " << res);
@@ -705,12 +707,12 @@ TEST(BasicEndToEndTest, testConsumerClose) {
 
 TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
     Client client(lookupUrl);
-    std::string topicName =
-        "partition-testDuplicateConsumerCreationOnPartitionedTopic";
+    std::string topicName = "partition-testDuplicateConsumerCreationOnPartitionedTopic";
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/v2/persistent/public/default/testDuplicateConsumerCreationOnPartitionedTopic/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default/testDuplicateConsumerCreationOnPartitionedTopic/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -822,7 +824,8 @@ TEST(BasicEndToEndTest, testMessageListener) {
     Client client(lookupUrl);
     std::string topicName = "partition-testMessageListener";
     // call admin api to make it partitioned
-    std::string url = adminUrl + "admin/v2/persistent/public/default/partition-testMessageListener/partitions";
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/partition-testMessageListener/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -865,8 +868,7 @@ TEST(BasicEndToEndTest, testMessageListenerPause) {
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl +
-        "admin/v2/persistent/public/default/partition-testMessageListener-pauses/partitions";
+        adminUrl + "admin/v2/persistent/public/default/partition-testMessageListener-pauses/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -1572,9 +1574,11 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
     std::string url1 =
         adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumerDifferentNamespace1/partitions";
     std::string url2 =
-        adminUrl + "admin/v2/persistent/public/default-2/testMultiTopicsConsumerDifferentNamespace2/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default-2/testMultiTopicsConsumerDifferentNamespace2/partitions";
     std::string url3 =
-        adminUrl + "admin/v2/persistent/public/default-3/testMultiTopicsConsumerDifferentNamespace3/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default-3/testMultiTopicsConsumerDifferentNamespace3/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -2034,8 +2038,8 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
     int i = 1;
     while (consumer.receive(receivedMsg, 1000) == ResultOk) {
         std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
-        LOG_INFO("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
-                                                       << receivedMsg.getMessageId() << "]");
+        LOG_INFO("Received Message with [ content - "
+                 << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
         ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));

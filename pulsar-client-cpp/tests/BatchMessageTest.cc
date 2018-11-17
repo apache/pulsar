@@ -859,8 +859,7 @@ TEST(BatchMessageTest, testPartitionedTopics) {
                             boost::lexical_cast<std::string>(epochTime);
 
     // call admin api to make it partitioned
-    std::string url = adminUrl +
-                      "admin/v2/persistent/public/default/test-partitioned-batch-messages-" +
+    std::string url = adminUrl + "admin/v2/persistent/public/default/test-partitioned-batch-messages-" +
                       boost::lexical_cast<std::string>(epochTime) + "/partitions";
     int res = makePutRequest(url, "7");
 

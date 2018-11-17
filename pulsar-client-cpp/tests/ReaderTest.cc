@@ -366,8 +366,7 @@ TEST(ReaderTest, testReaderReachEndOfTopic) {
 TEST(ReaderTest, testReaderReachEndOfTopicMessageWithoutBatches) {
     Client client(serviceUrl);
 
-    std::string topicName =
-        "persistent://public/default/testReaderReachEndOfTopicMessageWithBatches";
+    std::string topicName = "persistent://public/default/testReaderReachEndOfTopicMessageWithBatches";
 
     // 1. create producer
     Producer producer;

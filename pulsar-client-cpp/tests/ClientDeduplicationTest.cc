@@ -33,8 +33,8 @@ static std::string adminUrl = "http://localhost:8080/";
 TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     Client client(serviceUrl);
 
-    std::string topicName = "testProducerSequenceAfterReconnect-" +
-                            boost::lexical_cast<std::string>(time(NULL));
+    std::string topicName =
+        "testProducerSequenceAfterReconnect-" + boost::lexical_cast<std::string>(time(NULL));
 
     // call admin api to create namespace and enable deduplication
 
@@ -81,8 +81,7 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
 TEST(ClientDeduplicationTest, testProducerDeduplication) {
     Client client(serviceUrl);
 
-    std::string topicName = "testProducerDeduplication-" +
-                            boost::lexical_cast<std::string>(time(NULL));
+    std::string topicName = "testProducerDeduplication-" + boost::lexical_cast<std::string>(time(NULL));
 
     std::string url = adminUrl + "admin/v2/namespaces/public/default/deduplication";
     int res = makePostRequest(url, "true");
