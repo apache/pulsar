@@ -181,6 +181,7 @@ public class CanalSource extends PushSource<byte[]> {
 
         @Override
         public void ack() {
+            log.info("CanalRecord ack id is {}", this.id);
             connector.ack(this.id);
         }
 
