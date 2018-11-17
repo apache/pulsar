@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -41,6 +42,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
 import static org.apache.pulsar.functions.utils.Utils.loadJar;
 
+@Slf4j
 public class FunctionConfigUtils {
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {
@@ -300,6 +302,7 @@ public class FunctionConfigUtils {
             resources.setCpu(functionDetails.getResources().getCpu());
             resources.setRam(functionDetails.getResources().getRam());
             resources.setDisk(functionDetails.getResources().getDisk());
+            functionConfig.setResources(resources);
         }
 
         return functionConfig;
