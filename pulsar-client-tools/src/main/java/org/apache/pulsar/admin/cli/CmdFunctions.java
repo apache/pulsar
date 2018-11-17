@@ -722,6 +722,7 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Update a Pulsar Function that's been deployed to a Pulsar cluster")
     class UpdateFunction extends FunctionDetailsCommand {
 
+        @Override
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
             if (StringUtils.isEmpty(functionConfig.getClassName())) {
                 if (StringUtils.isEmpty(functionConfig.getName())) {

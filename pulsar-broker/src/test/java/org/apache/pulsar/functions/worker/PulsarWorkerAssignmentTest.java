@@ -263,7 +263,7 @@ public class PulsarWorkerAssignmentTest {
             functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
             functionConfig.setParallelism(parallelism);
-            // set-auto-ack prop =false
+            // Now set the log topic
             functionConfig.setLogTopic(logTopic);
             admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
