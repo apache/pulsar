@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.io.canal;
 
 import com.alibaba.fastjson.JSON;
@@ -10,16 +28,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.util.Assert;
 
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * A Simple class for mysql binlog sync to pulsar
+ */
 @Slf4j
 public class CanalSource extends PushSource<byte[]> {
 
@@ -31,7 +51,9 @@ public class CanalSource extends PushSource<byte[]> {
 
     private CanalSourceConfig canalSourceConfig;
 
-    protected Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
+    private static final String DESTINATION = "destination";
+
+    protected final Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
 
         @Override
         public void uncaughtException(Thread t, Throwable e) {
@@ -45,18 +67,21 @@ public class CanalSource extends PushSource<byte[]> {
         if (canalSourceConfig.getCluster()) {
             connector = CanalConnectors.newClusterConnector(canalSourceConfig.getZkServers(),
                     canalSourceConfig.getDestination(), canalSourceConfig.getUsername(), canalSourceConfig.getPassword());
+            log.info("Start canal connect in cluster mode, canal cluster info {}", canalSourceConfig.getZkServers());
         } else {
             connector = CanalConnectors.newSingleConnector(
                     new InetSocketAddress(canalSourceConfig.getSingleHostname(), canalSourceConfig.getSinglePort()),
                     canalSourceConfig.getDestination(), canalSourceConfig.getUsername(), canalSourceConfig.getPassword());
+            log.info("Start canal connect in standalone mode, canal server info {}:{}",
+                    canalSourceConfig.getSingleHostname(), canalSourceConfig.getSinglePort());
         }
-        log.info("start canal connect");
+        log.info("");
         this.start();
 
     }
 
     protected void start() {
-        Assert.notNull(connector, "connector is null");
+        Objects.requireNonNull(connector, "connector is null");
         thread = new Thread(new Runnable() {
 
             @Override
@@ -65,6 +90,7 @@ public class CanalSource extends PushSource<byte[]> {
             }
         });
 
+        thread.setName("canal source thread");
         thread.setUncaughtExceptionHandler(handler);
         running = true;
         thread.start();
@@ -85,13 +111,13 @@ public class CanalSource extends PushSource<byte[]> {
             connector.disconnect();
         }
 
-        MDC.remove("destination");
+        MDC.remove(DESTINATION);
     }
 
     protected void process() {
         while (running) {
             try {
-                MDC.put("destination", canalSourceConfig.getDestination());
+                MDC.put(DESTINATION, canalSourceConfig.getDestination());
                 connector.connect();
                 log.info("start canal process");
                 connector.subscribe();
@@ -122,7 +148,7 @@ public class CanalSource extends PushSource<byte[]> {
                 log.error("process error!", e);
             } finally {
                 connector.disconnect();
-                MDC.remove("destination");
+                MDC.remove(DESTINATION);
             }
         }
     }
@@ -147,6 +173,10 @@ public class CanalSource extends PushSource<byte[]> {
         public byte[] getValue() {
             return record;
         }
+
+        @Override
+        public Optional<Long> getRecordSequence() {return Optional.of(id);}
+
     }
 
 }
