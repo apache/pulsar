@@ -100,6 +100,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html#addCursorDetails-java.lang.String-long-long-">addCursorDetails(String, long, long)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.html#addInstance-org.apache.pulsar.common.policies.data.FunctionStats.FunctionInstanceStats-">addInstance(FunctionStats.FunctionInstanceStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html#addLedgerDetails-long-long-long-long-">addLedgerDetails(long, long, long, long)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html#allowTlsInsecureConnection-boolean-">allowTlsInsecureConnection(boolean)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin">PulsarAdminBuilder</a></dt>
@@ -161,6 +163,14 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#averageMsgSize">averageMsgSize</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
 <dd>
 <div class="block">Average size of published messages.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.html#avgProcessLatency">avgProcessLatency</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats</a></dt>
+<dd>
+<div class="block">Average process latency for function</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#avgProcessLatency">avgProcessLatency</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</a></dt>
+<dd>
+<div class="block">Average process latency for function for instance</div>
 </dd>
 </dl>
 <a name="I:B">
@@ -266,6 +276,8 @@
 </a>
 <h2 class="title">C</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.html#calculateOverall--">calculateOverall()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#clearNamespaceBacklog-java.lang.String-">clearNamespaceBacklog(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Clear backlog for all topics on a namespace</div>
@@ -699,11 +711,23 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/AutoFailoverPolicyType.html#fromString-java.lang.String-">fromString(String)</a></span> - Static method in enum org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/AutoFailoverPolicyType.html" title="enum in org.apache.pulsar.common.policies.data">AutoFailoverPolicyType</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.html#FunctionInstanceStats--">FunctionInstanceStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#FunctionInstanceStatsData--">FunctionInstanceStatsData()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Functions</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
 <dd>
 <div class="block">Admin interface for function management.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#functions--">functions()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">FunctionStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.html#FunctionStats--">FunctionStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">FunctionStats.FunctionInstanceStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
 <dd>&nbsp;</dd>
 </dl>
 <a name="I:G">
@@ -874,6 +898,14 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#getFunctionState-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">getFunctionState(String, String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
 <dd>
 <div class="block">Fetch the current state associated with a Pulsar Function.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#getFunctionStats-java.lang.String-java.lang.String-java.lang.String-int-">getFunctionStats(String, String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dd>
+<div class="block">Gets the current stats of a function instance.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#getFunctionStats-java.lang.String-java.lang.String-java.lang.String-">getFunctionStats(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dd>
+<div class="block">Gets the current stats of a function.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#getFunctionStatus-java.lang.String-java.lang.String-java.lang.String-">getFunctionStatus(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
 <dd>
@@ -1306,6 +1338,12 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#individuallyDeletedMessages">individuallyDeletedMessages</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.CursorStats</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.html#instanceId">instanceId</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats</a></dt>
+<dd>
+<div class="block">Instance Id of function instance</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.html#instances">instances</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html#is_active">is_active</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html" title="class in org.apache.pulsar.common.policies.data">NamespaceOwnershipStatus</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html#is_controlled">is_controlled</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html" title="class in org.apache.pulsar.common.policies.data">NamespaceOwnershipStatus</a></dt>
@@ -1354,6 +1392,14 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/LongRunningProcessStatus.html#lastError">lastError</a></span> - Variable in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/LongRunningProcessStatus.html" title="class in org.apache.pulsar.client.admin">LongRunningProcessStatus</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#lastInvocation">lastInvocation</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</a></dt>
+<dd>
+<div class="block">Timestamp of when the function was last invoked for instance</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.html#lastInvocation">lastInvocation</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats</a></dt>
+<dd>
+<div class="block">Timestamp of when the function was last invoked by any instance</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html#lastLedgerCreatedTimestamp">lastLedgerCreatedTimestamp</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html#lastLedgerCreationFailureTimestamp">lastLedgerCreationFailureTimestamp</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></dt>
@@ -1436,6 +1482,8 @@
 <dd>
 <div class="block">Metadata (key/value strings) associated with this publisher</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.html#metrics">metrics</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html#min_limit">min_limit</a></span> - Variable in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html" title="class in org.apache.pulsar.common.policies.impl">MinAvailablePolicy</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html" title="class in org.apache.pulsar.common.policies.impl"><span class="typeNameLink">MinAvailablePolicy</span></a> - Class in <a href="org/apache/pulsar/common/policies/impl/package-summary.html">org.apache.pulsar.common.policies.impl</a></dt>
@@ -1743,6 +1791,14 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html#primary">primary</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data">NamespaceIsolationData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#processedSuccessfullyTotal">processedSuccessfullyTotal</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</a></dt>
+<dd>
+<div class="block">Total number of records successfully processed by user function for instance</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.html#processedSuccessfullyTotal">processedSuccessfullyTotal</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats</a></dt>
+<dd>
+<div class="block">Overall total number of records successfully processed by user function</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PublisherStats.html#producerId">producerId</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a></dt>
 <dd>
 <div class="block">Id of this publisher</div>
@@ -1851,6 +1907,14 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ErrorData.html#reason">reason</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ErrorData.html" title="class in org.apache.pulsar.common.policies.data">ErrorData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#receivedTotal">receivedTotal</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</a></dt>
+<dd>
+<div class="block">Total number of records function received from source for instance</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.html#receivedTotal">receivedTotal</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats</a></dt>
+<dd>
+<div class="block">Overall total number of records function received from source</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#removeBacklogQuota-java.lang.String-">removeBacklogQuota(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Remove a backlog quota policy from a namespace.</div>
@@ -2276,6 +2340,14 @@
 <dd>
 <div class="block">Substract quota.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#systemExceptionsTotal">systemExceptionsTotal</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</a></dt>
+<dd>
+<div class="block">Total number of system exceptions thrown for instance</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.html#systemExceptionsTotal">systemExceptionsTotal</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats</a></dt>
+<dd>
+<div class="block">Overall total number of system exceptions thrown</div>
+</dd>
 </dl>
 <a name="I:T">
 <!--   -->
@@ -2493,6 +2565,18 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html#usage_threshold">usage_threshold</a></span> - Variable in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html" title="class in org.apache.pulsar.common.policies.impl">MinAvailablePolicy</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#userExceptionsTotal">userExceptionsTotal</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</a></dt>
+<dd>
+<div class="block">Total number of user exceptions thrown for instance</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.html#userExceptionsTotal">userExceptionsTotal</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats</a></dt>
+<dd>
+<div class="block">Overall total number of user exceptions thrown</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#userMetrics">userMetrics</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</a></dt>
+<dd>
+<div class="block">Map of user defined metrics</div>
+</dd>
 </dl>
 <a name="I:V">
 <!--   -->

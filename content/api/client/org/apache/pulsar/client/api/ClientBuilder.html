@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":38,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":38,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -172,11 +172,18 @@ extends Cloneable</pre>
 </tr>
 <tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#connectionTimeout-int-java.util.concurrent.TimeUnit-">connectionTimeout</a></span>(int&nbsp;duration,
+                 TimeUnit&nbsp;unit)</code>
+<div class="block">Set the duration of time to wait for a connection to a broker to be established.</div>
+</td>
+</tr>
+<tr id="i8" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#enableTcpNoDelay-boolean-">enableTcpNoDelay</a></span>(boolean&nbsp;enableTcpNoDelay)</code>
 <div class="block">Configure whether to use TCP no-delay flag on the connection, to disable Nagle algorithm.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#enableTls-boolean-">enableTls</a></span>(boolean&nbsp;enableTls)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
@@ -184,50 +191,50 @@ extends Cloneable</pre>
 </div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#enableTlsHostnameVerification-boolean-">enableTlsHostnameVerification</a></span>(boolean&nbsp;enableTlsHostnameVerification)</code>
 <div class="block">It allows to validate hostname verification when client connects to broker over tls.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#ioThreads-int-">ioThreads</a></span>(int&nbsp;numIoThreads)</code>
 <div class="block">Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i></div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#keepAliveInterval-int-java.util.concurrent.TimeUnit-">keepAliveInterval</a></span>(int&nbsp;keepAliveIntervalSeconds,
                  TimeUnit&nbsp;unit)</code>
 <div class="block">Set keep alive interval in seconds for each client-broker-connection.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#listenerThreads-int-">listenerThreads</a></span>(int&nbsp;numListenerThreads)</code>
 <div class="block">Set the number of threads to be used for message listeners <i>(default: 1 thread)</i></div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#loadConf-java.util.Map-">loadConf</a></span>(Map&lt;String,Object&gt;&nbsp;config)</code>
 <div class="block">Load the configuration from provided <tt>config</tt> map.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#maxConcurrentLookupRequests-int-">maxConcurrentLookupRequests</a></span>(int&nbsp;maxConcurrentLookupRequests)</code>
 <div class="block">Number of concurrent lookup-requests allowed to send on each broker-connection to prevent overload on broker.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#maxLookupRequests-int-">maxLookupRequests</a></span>(int&nbsp;maxLookupRequests)</code>
 <div class="block">Number of max lookup-requests allowed on each broker-connection to prevent overload on broker.</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#maxNumberOfRejectedRequestPerConnection-int-">maxNumberOfRejectedRequestPerConnection</a></span>(int&nbsp;maxNumberOfRejectedRequestPerConnection)</code>
 <div class="block">Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
@@ -235,26 +242,26 @@ extends Cloneable</pre>
  50)</i></div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#operationTimeout-int-java.util.concurrent.TimeUnit-">operationTimeout</a></span>(int&nbsp;operationTimeout,
                 TimeUnit&nbsp;unit)</code>
 <div class="block">Set the operation timeout <i>(default: 30 seconds)</i></div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#serviceUrl-java.lang.String-">serviceUrl</a></span>(String&nbsp;serviceUrl)</code>
 <div class="block">Configure the service URL for the Pulsar service.</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#serviceUrlProvider-org.apache.pulsar.client.api.ServiceUrlProvider-">serviceUrlProvider</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ServiceUrlProvider.html" title="interface in org.apache.pulsar.client.api">ServiceUrlProvider</a>&nbsp;serviceUrlProvider)</code>
 <div class="block">Configure the service URL provider for Pulsar service</div>
 </td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#statsInterval-long-java.util.concurrent.TimeUnit-">statsInterval</a></span>(long&nbsp;statsInterval,
              TimeUnit&nbsp;unit)</code>
@@ -262,7 +269,7 @@ extends Cloneable</pre>
  statsIntervalSeconds It should be set to at least 1 second</div>
 </td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i22" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html#tlsTrustCertsFilePath-java.lang.String-">tlsTrustCertsFilePath</a></span>(String&nbsp;tlsTrustCertsFilePath)</code>
 <div class="block">Set the path to the trusted TLS certificate file</div>
@@ -703,7 +710,7 @@ extends Cloneable</pre>
 <a name="keepAliveInterval-int-java.util.concurrent.TimeUnit-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>keepAliveInterval</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a>&nbsp;keepAliveInterval(int&nbsp;keepAliveIntervalSeconds,
@@ -713,6 +720,25 @@ extends Cloneable</pre>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>keepAliveIntervalSeconds</code> - </dd>
 <dd><code>unit</code> - time unit for <code>statsInterval</code></dd>
+</dl>
+</li>
+</ul>
+<a name="connectionTimeout-int-java.util.concurrent.TimeUnit-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>connectionTimeout</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a>&nbsp;connectionTimeout(int&nbsp;duration,
+                                TimeUnit&nbsp;unit)</pre>
+<div class="block">Set the duration of time to wait for a connection to a broker to be established. If the duration
+ passes without a response from the broker, the connection attempt is dropped.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>duration</code> - the duration to wait</dd>
+<dd><code>unit</code> - the time unit in which the duration is defined</dd>
+<dt><span class="simpleTagLabel">Since:</span></dt>
+<dd>2.3.0</dd>
 </dl>
 </li>
 </ul>
