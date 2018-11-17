@@ -35,7 +35,7 @@ echo "---- Testing Pulsar C++ client using image $IMAGE"
 
 docker pull $IMAGE
 
-DOCKER_CMD="docker run -i -v $PWD/.m2:/root/.m2 -v $ROOT_DIR:/pulsar $IMAGE"
+DOCKER_CMD="docker run -i -v $ROOT_DIR:/pulsar $IMAGE"
 
 # Start 2 Pulsar standalone instances (one with TLS and one without)
 # and execute the tests

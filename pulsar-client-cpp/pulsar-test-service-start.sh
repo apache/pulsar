@@ -20,15 +20,32 @@
 
 set -e
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
-cd $ROOT_DIR
+SRC_DIR=$(git rev-parse --show-toplevel)
+cd $SRC_DIR
+
+if [ -f /.dockerenv ]; then
+    # When running tests inside docker. Unpack the pulsar tgz
+    # because otherwise the classpath might not be correct
+    # in picking up the jars from local maven repo
+    export PULSAR_DIR=/tmp/pulsar-test-dist
+    rm -rf $PULSAR_DIR
+    mkdir $PULSAR_DIR
+    TGZ=$(ls -1 $SRC_DIR/distribution/server/target/apache-pulsar*bin.tar.gz | head -1)
+    tar xfz $TGZ -C $PULSAR_DIR --strip-components 1
+else
+    export PULSAR_DIR=$SRC_DIR
+fi
 
 DATA_DIR=/tmp/pulsar-test-data
 rm -rf $DATA_DIR
 mkdir -p $DATA_DIR
 
-export PULSAR_STANDALONE_CONF=$PWD/pulsar-client-cpp/test-conf/standalone-ssl.conf
-bin/pulsar-daemon start standalone \
+# Copy TLS test certificates
+mkdir -p $DATA_DIR/certs
+cp $SRC_DIR/pulsar-broker/src/test/resources/authentication/tls/*.pem $DATA_DIR/certs
+
+export PULSAR_STANDALONE_CONF=$SRC_DIR/pulsar-client-cpp/test-conf/standalone-ssl.conf
+$PULSAR_DIR/bin/pulsar-daemon start standalone \
         --no-functions-worker --no-stream-storage \
         --zookeeper-dir $DATA_DIR/zookeeper \
         --bookkeeper-dir $DATA_DIR/bookkeeper
@@ -38,10 +55,10 @@ until curl http://localhost:8080/metrics > /dev/null 2>&1 ; do sleep 1; done
 
 echo "-- Pulsar service is ready -- Configure permissions"
 
-export PULSAR_CLIENT_CONF=$PWD/pulsar-client-cpp/test-conf/client-ssl.conf
+export PULSAR_CLIENT_CONF=$SRC_DIR/pulsar-client-cpp/test-conf/client-ssl.conf
 
 # Create "standalone" cluster
-bin/pulsar-admin clusters create \
+$PULSAR_DIR/bin/pulsar-admin clusters create \
         standalone \
         --url http://localhost:8080/ \
         --url-secure https://localhost:8443/ \
@@ -49,24 +66,33 @@ bin/pulsar-admin clusters create \
         --broker-url-secure pulsar+ssl://localhost:6651/
 
 # Create "public" tenant
-bin/pulsar-admin tenants create public -r "anonymous" -c "standalone"
+$PULSAR_DIR/bin/pulsar-admin tenants create public -r "anonymous" -c "standalone"
 
 # Create "public/default" with no auth required
-bin/pulsar-admin namespaces create public/default --clusters standalone
-bin/pulsar-admin namespaces grant-permission public/default --actions produce,consume --role "anonymous"
+$PULSAR_DIR/bin/pulsar-admin namespaces create public/default \
+                        --clusters standalone
+$PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default \
+                        --actions produce,consume \
+                        --role "anonymous"
 
 # Create "public/default-2" with no auth required
-bin/pulsar-admin namespaces create public/default-2 --clusters standalone
-bin/pulsar-admin namespaces grant-permission public/default-2 --actions produce,consume --role "anonymous"
+$PULSAR_DIR/bin/pulsar-admin namespaces create public/default-2 \
+                        --clusters standalone
+$PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default-2 \
+                        --actions produce,consume \
+                        --role "anonymous"
 
 # Create "public/default-3" with no auth required
-bin/pulsar-admin namespaces create public/default-3 --clusters standalone
-bin/pulsar-admin namespaces grant-permission public/default-3 --actions produce,consume --role "anonymous"
+$PULSAR_DIR/bin/pulsar-admin namespaces create public/default-3 \
+                        --clusters standalone
+$PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default-3 \
+                        --actions produce,consume \
+                        --role "anonymous"
 
 # Create "private" tenant
-bin/pulsar-admin tenants create private -r "" -c "standalone"
+$PULSAR_DIR/bin/pulsar-admin tenants create private -r "" -c "standalone"
 
 # Create "private/auth" with required authentication
-bin/pulsar-admin namespaces create private/auth --clusters standalone
+$PULSAR_DIR/bin/pulsar-admin namespaces create private/auth --clusters standalone
 
 echo "-- Ready to start tests"
