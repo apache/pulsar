@@ -24,6 +24,8 @@ import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
 import com.alibaba.otter.canal.protocol.Message;
 import com.alibaba.otter.canal.protocol.FlatMessage;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
@@ -122,6 +124,7 @@ public class CanalSource extends PushSource<byte[]> {
                 log.info("start canal process");
                 connector.subscribe();
                 while (running) {
+                    CanalRecord canalRecord = new CanalRecord(connector);
                     Message message = connector.getWithoutAck(canalSourceConfig.getBatchSize());
                     // delete the setRaw in new version of canal-client
                     message.setRaw(false);
@@ -129,6 +132,7 @@ public class CanalSource extends PushSource<byte[]> {
                     long batchId = message.getId();
                     int size = message.getEntries().size();
                     if (batchId == -1 || size == 0) {
+                        canalRecord.setId(batchId);
                         try {
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
@@ -137,12 +141,13 @@ public class CanalSource extends PushSource<byte[]> {
                         if (flatMessages != null) {
                             for (FlatMessage flatMessage : flatMessages) {
                                 String m = JSON.toJSONString(flatMessage, SerializerFeature.WriteMapNullValue);
-                                consume(new CanalRecord(m.getBytes(), batchId));
+                                canalRecord.setId(batchId);
+                                canalRecord.setRecord(m.getBytes());
                             }
                         }
                     }
 
-                    connector.ack(batchId);
+                    canalRecord.ack();
                 }
             } catch (Exception e) {
                 log.error("process error!", e);
@@ -153,15 +158,16 @@ public class CanalSource extends PushSource<byte[]> {
         }
     }
 
-
+    @Getter
+    @Setter
     static private class CanalRecord implements Record<byte[]> {
 
-        private final byte[] record;
-        private final Long id;
+        private byte[] record;
+        private Long id;
+        private CanalConnector connector;
 
-        public CanalRecord(byte[] message, Long id) {
-            this.record = message;
-            this.id = id;
+        public CanalRecord(CanalConnector connector) {
+            this.connector = connector;
         }
 
         @Override
@@ -176,6 +182,9 @@ public class CanalSource extends PushSource<byte[]> {
 
         @Override
         public Optional<Long> getRecordSequence() {return Optional.of(id);}
+
+        @Override
+        public void ack() {connector.ack(this.id);}
 
     }
 
