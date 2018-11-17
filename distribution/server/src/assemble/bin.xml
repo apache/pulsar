@@ -89,11 +89,6 @@
       <outputDirectory>instances</outputDirectory>
     </file>
     <file>
-      <source>${basedir}/../../pulsar-functions/metrics/target/PrometheusMetricsServer.jar</source>
-      <destName>PrometheusMetricsServer.jar</destName>
-      <outputDirectory>instances</outputDirectory>
-    </file>
-    <file>
       <source>${basedir}/../../pulsar-functions/java-examples/target/pulsar-functions-api-examples.jar</source>
       <destName>api-examples.jar</destName>
       <outputDirectory>examples</outputDirectory>
