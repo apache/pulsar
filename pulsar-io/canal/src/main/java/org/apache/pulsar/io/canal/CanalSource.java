@@ -31,7 +31,6 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.MDC;
-import org.springframework.util.Assert;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -59,7 +58,7 @@ public class CanalSource extends PushSource<byte[]> {
 
         @Override
         public void uncaughtException(Thread t, Throwable e) {
-            log.error("parse events has an error", e);
+            log.error("Thead {} parse events has an error", t.getName(), e);
         }
     };
 
