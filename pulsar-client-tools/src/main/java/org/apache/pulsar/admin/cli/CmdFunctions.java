@@ -76,6 +76,8 @@ public class CmdFunctions extends CmdBase {
     private final UpdateFunction updater;
     private final GetFunction getter;
     private final GetFunctionStatus functionStatus;
+    @Getter
+    private final GetFunctionStats functionStats;
     private final RestartFunction restart;
     private final StopFunction stop;
     private final ListFunctions lister;
@@ -648,6 +650,24 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the current stats of a Pulsar Function")
+    class GetFunctionStats extends FunctionCommand {
+
+        @Parameter(names = "--instance-id", description = "The function instanceId (Get-status of all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            if (isBlank(instanceId)) {
+                System.out.println(gson.toJson(admin.functions().getFunctionStats(tenant, namespace, functionName)));
+            } else {
+                System.out.println(gson.toJson(admin.functions().getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId))));
+            }
+        }
+    }
+
     @Parameters(commandDescription = "Restart function instance")
     class RestartFunction extends FunctionCommand {
 
@@ -905,6 +925,7 @@ public class CmdFunctions extends CmdBase {
         updater = new UpdateFunction();
         getter = new GetFunction();
         functionStatus = new GetFunctionStatus();
+        functionStats = new GetFunctionStats();
         lister = new ListFunctions();
         stateGetter = new StateGetter();
         triggerer = new TriggerFunction();
@@ -920,6 +941,7 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("restart", getRestarter());
         jcommander.addCommand("stop", getStopper());
         jcommander.addCommand("getstatus", getStatuser());
+        jcommander.addCommand("stats", getFunctionStats());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
         jcommander.addCommand("trigger", getTriggerer());

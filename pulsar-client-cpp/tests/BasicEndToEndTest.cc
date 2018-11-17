@@ -1080,6 +1080,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     Promise<Result, Producer> producerPromise2;
     ProducerConfiguration conf;
     conf.setCompressionType(CompressionLZ4);
+    conf.setBatchingEnabled(false);
     client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise2));
     producerFuture = producerPromise2.getFuture();
     result = producerFuture.get(producer2);
@@ -1267,6 +1268,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
     {
         ProducerConfiguration prodConf;
         prodConf.setCryptoKeyReader(keyReader);
+        prodConf.setBatchingEnabled(false);
         prodConf.addEncryptionKey("client-non-existing-rsa.pem");
 
         Promise<Result, Producer> producerPromise;
@@ -1282,6 +1284,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
     {
         ProducerConfiguration prodConf;
         prodConf.setCryptoKeyReader(keyReader);
+        prodConf.setBatchingEnabled(false);
         prodConf.addEncryptionKey("client-rsa.pem");
 
         Promise<Result, Producer> producerPromise;
@@ -1954,6 +1957,236 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     ASSERT_EQ(ResultTimeout, consumer.receive(m, 1000));
 
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
+
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://property/cluster/namespace/test-flush-batch-messages";
+    std::string subName = "subscription-name";
+    Producer producer;
+
+    int numOfMessages = 10;
+
+    ProducerConfiguration conf;
+
+    conf.setBatchingEnabled(true);
+    // set batch message number numOfMessages, and max delay 60s
+    conf.setBatchingMaxMessages(numOfMessages);
+    conf.setBatchingMaxPublishDelayMs(60000);
+
+    conf.setBlockIfQueueFull(true);
+    conf.setProperty("producer-name", "test-producer-name");
+    conf.setProperty("producer-id", "test-producer-id");
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    consumerConfig.setProperty("consumer-name", "test-consumer-name");
+    consumerConfig.setProperty("consumer-id", "test-consumer-id");
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, consumerConfig,
+                          WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    // Send Asynchronously of half the messages
+    std::string prefix = "msg-batch-async";
+    for (int i = 0; i < numOfMessages / 2; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO("sending first half messages in async, should timeout to receive");
+
+    // message not reached max batch number, should not receive any data.
+    Message receivedMsg;
+    ASSERT_EQ(ResultTimeout, consumer.receive(receivedMsg, 5000));
+
+    // Send Asynchronously of the other half the messages
+    for (int i = numOfMessages / 2; i < numOfMessages; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO("sending the other half messages in async, should able to receive");
+    // message not reached max batch number, should received the messages
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 5000));
+
+    // receive all the messages.
+    int i = 1;
+    while (consumer.receive(receivedMsg, 5000) == ResultOk) {
+        std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
+        LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
+                                                       << receivedMsg.getMessageId() << "]");
+        ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
+        ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
+        ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
+    }
+
+    // Send sync of half the messages, this will triggerFlush, and could get the messages.
+    prefix = "msg-batch-sync";
+    for (int i = 0; i < numOfMessages / 2; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.send(msg);
+        LOG_DEBUG("sync sending message " << messageContent);
+    }
+    // message not reached max batch number, should received the messages, and not timeout
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 5000));
+
+    producer.close();
+    client.shutdown();
+}
+
+// for partitioned reason, it may hard to verify message id.
+static void simpleCallback(Result code, const Message& msg) {
+    LOG_INFO("Received code: " << code << " -- Msg: " << msg);
+}
+
+TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns/partition-testSyncFlushBatchMessages";
+    // call admin api to make it partitioned
+    std::string url =
+        adminUrl + "admin/persistent/prop/unit/ns/partition-testSyncFlushBatchMessages/partitions";
+    int res = makePutRequest(url, "5");
+    int numberOfPartitions = 5;
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer;
+    int numOfMessages = 20;
+    ProducerConfiguration tempProducerConfiguration;
+    tempProducerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    ProducerConfiguration producerConfiguration = tempProducerConfiguration;
+    producerConfiguration.setBatchingEnabled(true);
+    // set batch message number numOfMessages, and max delay 60s
+    producerConfiguration.setBatchingMaxMessages(numOfMessages / numberOfPartitions);
+    producerConfiguration.setBatchingMaxPublishDelayMs(60000);
+
+    Result result = client.createProducer(topicName, producerConfiguration, producer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(producer.getTopic(), topicName);
+
+    // Topic is partitioned into 5 partitions so each partition will receive two messages
+    LOG_INFO("Creating Subscriber");
+    std::string consumerId = "CONSUMER";
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerExclusive);
+    consConfig.setReceiverQueueSize(2);
+    ASSERT_FALSE(consConfig.hasMessageListener());
+    Consumer consumer[numberOfPartitions];
+    Result subscribeResult;
+    for (int i = 0; i < numberOfPartitions; i++) {
+        std::stringstream partitionedTopicName;
+        partitionedTopicName << topicName << "-partition-" << i;
+
+        std::stringstream partitionedConsumerId;
+        partitionedConsumerId << consumerId << i;
+        subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
+                                           consConfig, consumer[i]);
+
+        ASSERT_EQ(ResultOk, subscribeResult);
+        ASSERT_EQ(consumer[i].getTopic(), partitionedTopicName.str());
+    }
+
+    // Send asynchronously of first part the messages
+    std::string prefix = "msg-batch-async";
+    for (int i = 0; i < numOfMessages / numberOfPartitions / 2; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.sendAsync(msg, simpleCallback);
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO("sending first part messages in async, should timeout to receive");
+
+    Message m;
+    ASSERT_EQ(ResultTimeout, consumer[0].receive(m, 5000));
+
+    for (int i = numOfMessages / numberOfPartitions / 2; i < numOfMessages; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.sendAsync(msg, simpleCallback);
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO("sending second part messages in async, should be able to receive");
+
+    for (int i = 0; i < numOfMessages / numberOfPartitions; i++) {
+        for (int partitionIndex = 0; partitionIndex < numberOfPartitions; partitionIndex++) {
+            ASSERT_EQ(ResultOk, consumer[partitionIndex].receive(m));
+            ASSERT_EQ(ResultOk, consumer[partitionIndex].acknowledge(m));
+        }
+    }
+
+    // Sync send of first part of the messages, this will triggerFlush, and could get the messages.
+    prefix = "msg-batch-sync";
+    for (int i = 0; i < numOfMessages / numberOfPartitions / 2; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.send(msg);
+        LOG_DEBUG("sync sending message " << messageContent);
+    }
+    LOG_INFO("sending first part messages in sync, should not timeout to receive");
+    ASSERT_EQ(ResultOk, consumer[0].receive(m, 5000));
+
+    producer.close();
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testGetTopicPartitions) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/testGetPartitions";
+
+    // call admin api to make it partitioned
+    std::string url = adminUrl + "admin/v2/persistent/public/default/testGetPartitions/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+    std::vector<std::string> partitionsList;
+    Result result = client.getPartitionsForTopic(topicName, partitionsList);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(3, partitionsList.size());
+    ASSERT_EQ(topicName + "-partition-0", partitionsList[0]);
+    ASSERT_EQ(topicName + "-partition-1", partitionsList[1]);
+    ASSERT_EQ(topicName + "-partition-2", partitionsList[2]);
+
+    std::vector<std::string> partitionsList2;
+    result = client.getPartitionsForTopic("persistent://public/default/testGetPartitions-non-partitioned",
+                                          partitionsList2);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(1, partitionsList2.size());
+    ASSERT_EQ(partitionsList2[0], "persistent://public/default/testGetPartitions-non-partitioned");
 
     client.shutdown();
 }

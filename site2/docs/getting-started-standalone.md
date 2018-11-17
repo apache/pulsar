@@ -161,7 +161,7 @@ If the message has been successfully published to the topic, you should see a co
 
 ## Using Pulsar clients locally
 
-Pulsar currently offers client libraries for [Java](client-libraries-java.md), [Python](client-libraries-python.md), and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can use one of these root URLs for interacting with your cluster:
+Pulsar currently offers client libraries for [Java](client-libraries-java.md),  [Go](client-libraries-go.md), [Python](client-libraries-python.md) and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can use one of these root URLs for interacting with your cluster:
 
 * `http://localhost:8080`
 * `pulsar://localhost:6650`

@@ -234,4 +234,11 @@ Future<Result, ProducerImplBaseWeakPtr> PartitionedProducerImpl::getProducerCrea
 
 // override
 bool PartitionedProducerImpl::isClosed() { return state_ == Closed; }
+
+void PartitionedProducerImpl::triggerFlush() {
+    for (ProducerList::const_iterator prod = producers_.begin(); prod != producers_.end(); prod++) {
+        (*prod)->triggerFlush();
+    }
+}
+
 }  // namespace pulsar

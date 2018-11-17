@@ -64,6 +64,8 @@ const std::string generateRandomName() {
 }
 typedef boost::unique_lock<boost::mutex> Lock;
 
+typedef std::vector<std::string> StringList;
+
 static const std::string https("https");
 static const std::string pulsarSsl("pulsar+ssl");
 
@@ -411,6 +413,45 @@ void ClientImpl::handleNewConnection(Result result, const ClientConnectionWeakPt
     } else {
         promise.setFailed(ResultConnectError);
     }
+}
+
+void ClientImpl::handleGetPartitions(const Result result, const LookupDataResultPtr partitionMetadata,
+                                     TopicNamePtr topicName, GetPartitionsCallback callback) {
+    if (result != ResultOk) {
+        LOG_ERROR("Error getting topic partitions metadata: " << result);
+        callback(result, StringList());
+        return;
+    }
+
+    StringList partitions;
+
+    if (partitionMetadata->getPartitions() > 1) {
+        for (unsigned int i = 0; i < partitionMetadata->getPartitions(); i++) {
+            partitions.push_back(topicName->getTopicPartitionName(i));
+        }
+    } else {
+        partitions.push_back(topicName->toString());
+    }
+
+    callback(ResultOk, partitions);
+}
+
+void ClientImpl::getPartitionsForTopicAsync(const std::string& topic, GetPartitionsCallback callback) {
+    TopicNamePtr topicName;
+    {
+        Lock lock(mutex_);
+        if (state_ != Open) {
+            lock.unlock();
+            callback(ResultAlreadyClosed, StringList());
+            return;
+        } else if (!(topicName = TopicName::get(topic))) {
+            lock.unlock();
+            callback(ResultInvalidTopicName, StringList());
+            return;
+        }
+    }
+    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
+        boost::bind(&ClientImpl::handleGetPartitions, shared_from_this(), _1, _2, topicName, callback));
 }
 
 void ClientImpl::closeAsync(CloseCallback callback) {
