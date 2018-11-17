@@ -41,8 +41,8 @@ using namespace pulsar;
 
 static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
-static std::string lookupUrl = "pulsar://localhost:8885";
-static std::string adminUrl = "http://localhost:8765/";
+static std::string lookupUrl = "pulsar://localhost:6650";
+static std::string adminUrl = "http://localhost:8080/";
 
 // ecpoch time in seconds
 long epochTime = time(NULL);
@@ -87,7 +87,7 @@ TEST(BatchMessageTest, testProducerTimeout) {
     clientConf.setStatsIntervalInSeconds(1);
 
     Client client(lookupUrl, clientConf);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -172,7 +172,7 @@ TEST(BatchMessageTest, testBatchSizeInBytes) {
     globalTestBatchMessagesCounter = 0;
 
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -256,7 +256,7 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     clientConf.setStatsIntervalInSeconds(20);
 
     Client client(lookupUrl, clientConf);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -354,7 +354,7 @@ TEST(BatchMessageTest, testIndividualAck) {
     clientConfig.setStatsIntervalInSeconds(1);
 
     Client client(lookupUrl, clientConfig);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -509,7 +509,7 @@ TEST(BatchMessageTest, testCumulativeAck) {
     clientConfig.setStatsIntervalInSeconds(100);
 
     Client client(lookupUrl, clientConfig);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -635,7 +635,7 @@ TEST(BatchMessageTest, testMixedAck) {
     std::string testName = boost::lexical_cast<std::string>(epochTime) + "testMixedAck";
 
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -743,7 +743,7 @@ TEST(BatchMessageTest, testPermits) {
     std::string testName = boost::lexical_cast<std::string>(epochTime) + "testPermits";
 
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -855,12 +855,12 @@ TEST(BatchMessageTest, testPermits) {
 
 TEST(BatchMessageTest, testPartitionedTopics) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/test-partitioned-batch-messages-" +
+    std::string topicName = "persistent://public/default/test-partitioned-batch-messages-" +
                             boost::lexical_cast<std::string>(epochTime);
 
     // call admin api to make it partitioned
     std::string url = adminUrl +
-                      "admin/persistent/property/cluster/namespace/test-partitioned-batch-messages-" +
+                      "admin/v2/persistent/public/default/test-partitioned-batch-messages-" +
                       boost::lexical_cast<std::string>(epochTime) + "/partitions";
     int res = makePutRequest(url, "7");
 

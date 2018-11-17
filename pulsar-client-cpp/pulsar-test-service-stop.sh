@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,10 +18,9 @@
 # under the License.
 #
 
-# Pulsar Client configuration
-webServiceUrl=https://localhost:8443/
-brokerServiceUrl=pulsar+ssl://localhost:6651/
-tlsAllowInsecureConnection=false
-tlsTrustCertsFilePath=./pulsar-broker/src/test/resources/authentication/tls/cacert.pem
-authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
-authParams=tlsCertFile:./pulsar-broker/src/test/resources/authentication/tls/client-cert.pem,tlsKeyFile:./pulsar-broker/src/test/resources/authentication/tls/client-key.pem
+set -e
+
+ROOT_DIR=$(git rev-parse --show-toplevel)
+cd $ROOT_DIR
+
+bin/pulsar-daemon stop standalone

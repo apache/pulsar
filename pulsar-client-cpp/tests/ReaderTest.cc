@@ -28,12 +28,12 @@ DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
-static std::string serviceUrl = "pulsar://localhost:8885";
+static std::string serviceUrl = "pulsar://localhost:6650";
 
 TEST(ReaderTest, testSimpleReader) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://property/cluster/namespace/test-simple-reader";
+    std::string topicName = "persistent://public/default/test-simple-reader";
 
     ReaderConfiguration readerConf;
     Reader reader;
@@ -65,7 +65,7 @@ TEST(ReaderTest, testSimpleReader) {
 TEST(ReaderTest, testReaderAfterMessagesWerePublished) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://property/cluster/namespace/testReaderAfterMessagesWerePublished";
+    std::string topicName = "persistent://public/default/testReaderAfterMessagesWerePublished";
 
     Producer producer;
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
@@ -97,7 +97,7 @@ TEST(ReaderTest, testReaderAfterMessagesWerePublished) {
 TEST(ReaderTest, testMultipleReaders) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://property/cluster/namespace/testMultipleReaders";
+    std::string topicName = "persistent://public/default/testMultipleReaders";
 
     Producer producer;
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
@@ -142,7 +142,7 @@ TEST(ReaderTest, testMultipleReaders) {
 TEST(ReaderTest, testReaderOnLastMessage) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://property/cluster/namespace/testReaderOnLastMessage";
+    std::string topicName = "persistent://public/default/testReaderOnLastMessage";
 
     Producer producer;
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
@@ -180,7 +180,7 @@ TEST(ReaderTest, testReaderOnLastMessage) {
 TEST(ReaderTest, testReaderOnSpecificMessage) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://property/cluster/namespace/testReaderOnSpecificMessage";
+    std::string topicName = "persistent://public/default/testReaderOnSpecificMessage";
 
     Producer producer;
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
@@ -231,7 +231,7 @@ TEST(ReaderTest, testReaderOnSpecificMessage) {
 TEST(ReaderTest, testReaderOnSpecificMessageWithBatches) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://property/cluster/namespace/testReaderOnSpecificMessageWithBatches";
+    std::string topicName = "persistent://public/default/testReaderOnSpecificMessageWithBatches";
 
     Producer producer;
     // Enable batching
@@ -291,7 +291,7 @@ TEST(ReaderTest, testReaderOnSpecificMessageWithBatches) {
 TEST(ReaderTest, testReaderReachEndOfTopic) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://property/cluster/namespace/testReaderReachEndOfTopic";
+    std::string topicName = "persistent://public/default/testReaderReachEndOfTopic";
 
     // 1. create producer
     Producer producer;
@@ -367,7 +367,7 @@ TEST(ReaderTest, testReaderReachEndOfTopicMessageWithoutBatches) {
     Client client(serviceUrl);
 
     std::string topicName =
-        "persistent://property/cluster/namespace/testReaderReachEndOfTopicMessageWithBatches";
+        "persistent://public/default/testReaderReachEndOfTopicMessageWithBatches";
 
     // 1. create producer
     Producer producer;
