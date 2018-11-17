@@ -49,7 +49,7 @@ message FunctionStatus {
     // expressed in ms since epoch
     int64 lastInvocationTime = 13;
     string instanceId = 14;
-    MetricsData metrics = 15 [deprecated=true];
+//    MetricsData metrics = 15 [deprecated=true];
     // owner of function-instance
     string workerId = 16;
 }
@@ -60,13 +60,37 @@ message FunctionStatusList {
 }
 
 message MetricsData {
-    message DataDigest {
-        double count = 1;
-        double sum = 2;
-        double max = 3;
-        double min = 4;
-    }
-    map<string, DataDigest> metrics = 1;
+//    message DataDigest {
+//        double count = 1;
+//        double sum = 2;
+//        double max = 3;
+//        double min = 4;
+//    }
+//    map<string, DataDigest> metrics = 1 [deprecated=true];
+
+    // Total number of records function received from source
+    int64 receivedTotal = 2;
+
+    // Total number of records processed
+    int64 processedTotal = 3;
+
+    // Total number of records successfully processed by user function
+    int64 processedSuccessfullyTotal = 4;
+
+    // Total number of system exceptions thrown
+    int64 systemExceptionsTotal = 5;
+
+    // Total number of user exceptions thrown
+    int64 userExceptionsTotal = 6;
+
+    // Average process latency for function
+    double avgProcessLatency = 7;
+
+    // Timestamp of when the function was last invoked
+    int64 lastInvocation = 8;
+
+    // User defined metrics
+    map<string, double> userMetrics = 9;
 }
 
 message HealthCheckResult {

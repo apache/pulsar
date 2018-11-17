@@ -34,18 +34,21 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 @Slf4j
 @Getter
 @Setter
-public class FunctionStats {
+public class FunctionStatsManager {
 
     static final String[] metricsLabelNames = {"tenant", "namespace", "function", "instance_id", "cluster"};
 
+    public static final String PULSAR_FUNCTION_METRICS_PREFIX = "pulsar_function_";
+    public final static String USER_METRIC_PREFIX = "user_metric_";
+
     /** Declare metric names **/
-    static final String PULSAR_FUNCTION_PROCESSED_TOTAL = "pulsar_function_processed_total";
-    static final String PULSAR_FUNCTION_PROCESSED_SUCCESSFULLY_TOTAL = "pulsar_function_processed_successfully_total";
-    static final String PULSAR_FUNCTION_SYSTEM_EXCEPTIONS_TOTAL = "pulsar_function_system_exceptions_total";
-    static final String PULSAR_FUNCTION_USER_EXCEPTIONS_TOTAL = "pulsar_function_user_exceptions_total";
-    static final String PULSAR_FUNCTION_PROCESS_LATENCY_MS = "pulsar_function_process_latency_ms";
-    static final String PULSAR_FUNCTION_LAST_INVOCATION = "pulsar_function_last_invocation";
-    static final String PULSAR_FUNCTION_RECEIVED_TOTAL = "pulsar_function_received_total";
+    public static final String PROCESSED_TOTAL = "processed_total";
+    public static final String PROCESSED_SUCCESSFULLY_TOTAL = "processed_successfully_total";
+    public static final String SYSTEM_EXCEPTIONS_TOTAL = "system_exceptions_total";
+    public static final String USER_EXCEPTIONS_TOTAL = "user_exceptions_total";
+    public static final String PROCESS_LATENCY_MS = "process_latency_ms";
+    public static final String LAST_INVOCATION = "last_invocation";
+    public static final String RECEIVED_TOTAL = "received_total";
 
     /** Declare Prometheus stats **/
 
@@ -70,37 +73,37 @@ public class FunctionStats {
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions = EvictingQueue.create(10);
 
-    public FunctionStats(CollectorRegistry collectorRegistry) {
+    public FunctionStatsManager(CollectorRegistry collectorRegistry) {
         // Declare function local collector registry so that it will not clash with other function instances'
         // metrics collection especially in threaded mode
         functionCollectorRegistry = new CollectorRegistry();
 
         statTotalProcessed = Counter.build()
-                .name(PULSAR_FUNCTION_PROCESSED_TOTAL)
+                .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESSED_TOTAL)
                 .help("Total number of messages processed.")
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);
 
         statTotalProcessedSuccessfully = Counter.build()
-                .name(PULSAR_FUNCTION_PROCESSED_SUCCESSFULLY_TOTAL)
+                .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESSED_SUCCESSFULLY_TOTAL)
                 .help("Total number of messages processed successfully.")
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);
 
         statTotalSysExceptions = Counter.build()
-                .name(PULSAR_FUNCTION_SYSTEM_EXCEPTIONS_TOTAL)
+                .name(PULSAR_FUNCTION_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL)
                 .help("Total number of system exceptions.")
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);
 
         statTotalUserExceptions = Counter.build()
-                .name(PULSAR_FUNCTION_USER_EXCEPTIONS_TOTAL)
+                .name(PULSAR_FUNCTION_METRICS_PREFIX + USER_EXCEPTIONS_TOTAL)
                 .help("Total number of user exceptions.")
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);
 
         statProcessLatency = Summary.build()
-                .name(PULSAR_FUNCTION_PROCESS_LATENCY_MS)
+                .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESS_LATENCY_MS)
                 .help("Process latency in milliseconds.")
                 .quantile(0.5, 0.01)
                 .quantile(0.9, 0.01)
@@ -110,13 +113,13 @@ public class FunctionStats {
                 .register(collectorRegistry);
 
         statlastInvocation = Gauge.build()
-                .name(PULSAR_FUNCTION_LAST_INVOCATION)
+                .name(PULSAR_FUNCTION_METRICS_PREFIX + LAST_INVOCATION)
                 .help("The timestamp of the last invocation of the function")
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);
 
         statTotalRecordsRecieved = Counter.build()
-                .name(PULSAR_FUNCTION_RECEIVED_TOTAL)
+                .name(PULSAR_FUNCTION_METRICS_PREFIX + RECEIVED_TOTAL)
                 .help("Total number of messages received from source.")
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);

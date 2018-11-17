@@ -29,26 +29,9 @@ import json
 
 import pulsar
 import util
-import InstanceCommunication_pb2
 
 from prometheus_client import Summary
 from function_stats import Stats
-
-# For keeping track of accumulated metrics
-class AccumulatedMetricDatum(object):
-  def __init__(self):
-    self.count = 0.0
-    self.sum = 0.0
-    self.max = float('-inf')
-    self.min = float('inf')
-
-  def update(self, value):
-    self.count += 1
-    self.sum += value
-    if value > self.max:
-      self.max = value
-    if value < self.min:
-      self.min = value
 
 class ContextImpl(pulsar.Context):
 
@@ -62,7 +45,6 @@ class ContextImpl(pulsar.Context):
     self.user_code_dir = os.path.dirname(user_code)
     self.consumers = consumers
     self.secrets_provider = secrets_provider
-    self.accumulated_metrics = {}
     self.publish_producers = {}
     self.publish_serializers = {}
     self.current_message_id = None
@@ -132,9 +114,6 @@ class ContextImpl(pulsar.Context):
     if metric_name not in self.user_metrics_labels:
       self.user_metrics_labels[metric_name] = self.metrics_labels + [metric_name]
     self.user_metrics_summary.labels(*self.user_metrics_labels[metric_name]).observe(metric_value)
-    if not metric_name in self.accumulated_metrics:
-      self.accumulated_metrics[metric_name] = AccumulatedMetricDatum()
-    self.accumulated_metrics[metric_name].update(metric_value)
 
   def get_output_topic(self):
     return self.instance_config.function_details.output
@@ -182,13 +161,11 @@ class ContextImpl(pulsar.Context):
     for labels in self.user_metrics_labels.values():
       self.user_metrics_summary.labels(*labels)._sum.set(0.0)
       self.user_metrics_summary.labels(*labels)._count.set(0.0)
-    self.accumulated_metrics.clear()
 
   def get_metrics(self):
-    metrics = InstanceCommunication_pb2.MetricsData()
-    for metric_name, accumulated_metric in self.accumulated_metrics.items():
-      metrics.metrics[metric_name].count = accumulated_metric.count
-      metrics.metrics[metric_name].sum = accumulated_metric.sum
-      metrics.metrics[metric_name].max = accumulated_metric.max
-      metrics.metrics[metric_name].min = accumulated_metric.min
-    return metrics
+    metrics_map = {}
+    for metric_name, metric_labels in self.user_metrics_labels.items():
+      metrics_map["%s%s_sum" % (Stats.USER_METRIC_PREFIX, metric_name)] = self.user_metrics_summary.labels(*metric_labels)._sum.get()
+      metrics_map["%s%s_count" % (Stats.USER_METRIC_PREFIX, metric_name)] = self.user_metrics_summary.labels(*metric_labels)._count.get()
+
+    return metrics_map
