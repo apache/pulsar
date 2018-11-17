@@ -124,7 +124,6 @@ public class CanalSource extends PushSource<byte[]> {
                 log.info("start canal process");
                 connector.subscribe();
                 while (running) {
-                    CanalRecord canalRecord = new CanalRecord(connector);
                     Message message = connector.getWithoutAck(canalSourceConfig.getBatchSize());
                     // delete the setRaw in new version of canal-client
                     message.setRaw(false);
@@ -132,23 +131,19 @@ public class CanalSource extends PushSource<byte[]> {
                     long batchId = message.getId();
                     int size = message.getEntries().size();
                     if (batchId == -1 || size == 0) {
-                        canalRecord.setId(batchId);
                         try {
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
                         }
                     } else {
                         if (flatMessages != null) {
-                            for (FlatMessage flatMessage : flatMessages) {
-                                String m = JSON.toJSONString(flatMessage, SerializerFeature.WriteMapNullValue);
-                                canalRecord.setId(batchId);
-                                canalRecord.setRecord(m.getBytes());
-                                consume(canalRecord);
-                            }
+                            CanalRecord canalRecord = new CanalRecord(connector);
+                            String m = JSON.toJSONString(flatMessages, SerializerFeature.WriteMapNullValue);
+                            canalRecord.setId(batchId);
+                            canalRecord.setRecord(m.getBytes());
+                            consume(canalRecord);
                         }
                     }
-
-                    canalRecord.ack();
                 }
             } catch (Exception e) {
                 log.error("process error!", e);
@@ -185,7 +180,9 @@ public class CanalSource extends PushSource<byte[]> {
         public Optional<Long> getRecordSequence() {return Optional.of(id);}
 
         @Override
-        public void ack() {connector.ack(this.id);}
+        public void ack() {
+            connector.ack(this.id);
+        }
 
     }
 
