@@ -59,6 +59,9 @@ public class Utils {
         if (sourceConfig.getNamespace() == null) {
             sourceConfig.setNamespace(DEFAULT_NAMESPACE);
         }
+        if (sourceConfig.getParallelism() == null) {
+            sourceConfig.setParallelism(1);
+        }
     }
 
     public static void inferMissingArguments(SinkConfig sinkConfig) {
@@ -67,6 +70,9 @@ public class Utils {
         }
         if (sinkConfig.getNamespace() == null) {
             sinkConfig.setNamespace(DEFAULT_NAMESPACE);
+        }
+        if (sinkConfig.getParallelism() == null) {
+            sinkConfig.setParallelism(1);
         }
     }
 }
