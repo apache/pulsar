@@ -143,6 +143,7 @@ public class CanalSource extends PushSource<byte[]> {
                                 String m = JSON.toJSONString(flatMessage, SerializerFeature.WriteMapNullValue);
                                 canalRecord.setId(batchId);
                                 canalRecord.setRecord(m.getBytes());
+                                consume(canalRecord);
                             }
                         }
                     }
