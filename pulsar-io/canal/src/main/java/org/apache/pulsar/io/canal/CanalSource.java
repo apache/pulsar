@@ -58,7 +58,7 @@ public class CanalSource extends PushSource<byte[]> {
 
         @Override
         public void uncaughtException(Thread t, Throwable e) {
-            log.error("Thead {} parse events has an error", t.getName(), e);
+            log.error("[{}] parse events has an error", t.getName(), e);
         }
     };
 
