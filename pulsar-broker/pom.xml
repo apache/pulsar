@@ -174,6 +174,11 @@
       <groupId>com.fasterxml.jackson.jaxrs</groupId>
       <artifactId>jackson-jaxrs-json-provider</artifactId>
     </dependency>
+    
+    <dependency>
+      <groupId>org.glassfish.jersey.inject</groupId>
+      <artifactId>jersey-hk2</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>
@@ -282,6 +287,15 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>javax.xml.bind</groupId>
+      <artifactId>jaxb-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>javax.xml.bind</groupId>
+      <artifactId>activation</artifactId>
+    </dependency>
   </dependencies>
 
   <build>
