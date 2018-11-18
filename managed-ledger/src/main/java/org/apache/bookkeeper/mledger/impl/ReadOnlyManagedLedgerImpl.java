@@ -144,7 +144,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
     @Override
     void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
             this.getLedgerHandle(position.getLedgerId()).thenAccept((ledger) -> {
-                this.entryCache.asyncReadEntry(ledger, position, callback, ctx);
+                asyncReadEntry(ledger, position, callback, ctx);
             }).exceptionally((ex) -> {
                 log.error("[{}] Error opening ledger for reading at position {} - {}", new Object[]{this.name, position, ex.getMessage()});
                 callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
