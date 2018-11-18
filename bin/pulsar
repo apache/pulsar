@@ -182,7 +182,7 @@ add_maven_deps_to_classpath() {
 
 if [ -d "$PULSAR_HOME/lib" ]; then
 	PULSAR_CLASSPATH=$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*
-    ASPECTJ_AGENT_PATH=`ls -1 lib/org.aspectj-aspectjweaver-*.jar`
+    ASPECTJ_AGENT_PATH=`ls -1 $PULSAR_HOME/lib/org.aspectj-aspectjweaver-*.jar`
 else
     add_maven_deps_to_classpath
 
