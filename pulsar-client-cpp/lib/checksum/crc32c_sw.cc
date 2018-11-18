@@ -38,13 +38,13 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <boost/thread/once.hpp>
+#include <mutex>
 
 /* CRC-32C (iSCSI) polynomial in reversed bit order. */
 #define POLY 0x82f63b78
 
 /* Table for a quadword-at-a-time software crc. */
-boost::once_flag crc32c_once_sw = BOOST_ONCE_INIT;
+std::once_flag crc32c_once_sw;
 static uint32_t crc32c_table[8][256];
 
 /* Construct table for software CRC-32C calculation. */
@@ -79,7 +79,7 @@ uint32_t crc32c_sw(uint32_t crci, const void *buf, int len) {
     const char *next = (const char *)buf;
     uint64_t crc;
 
-    boost::call_once(&crc32c_init_sw, crc32c_once_sw);
+    std::call_once(crc32c_once_sw, &crc32c_init_sw);
     crc = crci ^ 0xffffffff;
     while (len && ((uintptr_t)next & 7) != 0) {
         crc = crc32c_table[0][(crc ^ *next++) & 0xff] ^ (crc >> 8);
