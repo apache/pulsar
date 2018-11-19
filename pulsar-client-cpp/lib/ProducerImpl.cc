@@ -285,6 +285,13 @@ void ProducerImpl::statsCallBackHandler(Result res, const Message& msg, SendCall
     }
 }
 
+void ProducerImpl::triggerFlush() {
+    if (batchMessageContainer) {
+        Lock lock(mutex_);
+        batchMessageContainer->sendMessage();
+    }
+}
+
 void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     producerStatsBasePtr_->messageSent(msg);
     SendCallback cb = boost::bind(&ProducerImpl::statsCallBackHandler, this, _1, _2, callback,

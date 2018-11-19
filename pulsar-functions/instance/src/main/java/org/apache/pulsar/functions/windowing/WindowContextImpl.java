@@ -21,6 +21,9 @@ package org.apache.pulsar.functions.windowing;
 import org.apache.pulsar.functions.api.Context;
 import org.slf4j.Logger;
 
+import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class WindowContextImpl implements WindowContext {
@@ -29,6 +32,16 @@ public class WindowContextImpl implements WindowContext {
 
     public WindowContextImpl(Context context) {
         this.context = context;
+    }
+
+    @Override
+    public String getTenant() {
+        return this.context.getTenant();
+    }
+
+    @Override
+    public String getNamespace() {
+        return this.context.getNamespace();
     }
 
     @Override
@@ -47,23 +60,28 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
+    public int getNumInstances() {
+        return this.context.getNumInstances();
+    }
+
+    @Override
     public String getFunctionVersion() {
         return this.getFunctionVersion();
     }
 
     @Override
-    public long getMemoryLimit() {
-        return this.getMemoryLimit();
+    public Collection<String> getInputTopics() {
+        return this.context.getInputTopics();
     }
 
     @Override
-    public long getTimeBudgetInMs() {
-        return this.getTimeBudgetInMs();
+    public String getOutputTopic() {
+        return this.context.getOutputTopic();
     }
 
     @Override
-    public long getRemainingTimeInMs() {
-        return this.getRemainingTimeInMs();
+    public String getOutputSchemaType() {
+        return this.context.getOutputSchemaType();
     }
 
     @Override
@@ -72,8 +90,38 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
+    public void incrCounter(String key, long amount) {
+        this.context.incrCounter(key, amount);
+    }
+
+    @Override
+    public long getCounter(String key) {
+        return this.context.getCounter(key);
+    }
+
+    @Override
+    public void putState(String key, ByteBuffer value) {
+        this.context.putState(key, value);
+    }
+
+    @Override
+    public ByteBuffer getState(String key) {
+        return this.context.getState(key);
+    }
+
+    @Override
+    public Map<String, Object> getUserConfigMap() {
+        return this.context.getUserConfigMap();
+    }
+
+    @Override
     public String getUserConfigValue(String key) {
         return this.getUserConfigValue(key);
+    }
+
+    @Override
+    public Object getUserConfigValueOrDefault(String key, Object defaultValue) {
+        return this.context.getUserConfigValueOrDefault(key, defaultValue);
     }
 
     @Override
@@ -82,7 +130,12 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
-    public CompletableFuture<Void> publish(String topicName, Object object, String serDeClassName) {
-        return this.context.publish(topicName, object, serDeClassName);
+    public <O> CompletableFuture<Void> publish(String topicName, O object) {
+        return this.context.publish(topicName, object);
+    }
+
+    @Override
+    public CompletableFuture<Void> publish(String topicName, Object object, String schemaOrSerdeClassName) {
+        return this.context.publish(topicName, object, schemaOrSerdeClassName);
     }
 }

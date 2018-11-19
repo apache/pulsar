@@ -27,14 +27,15 @@ import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.i
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.ea.agentloader.AgentLoader;
 import com.google.common.annotations.VisibleForTesting;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Optional;
+
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
@@ -46,7 +47,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.aspectj.weaver.loadtime.Agent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -276,9 +276,6 @@ public class PulsarBrokerStarter {
         Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
             log.error("Uncaught exception in thread {}: {}", thread.getName(), exception.getMessage(), exception);
         });
-
-        // load aspectj-weaver agent for instrumentation
-        AgentLoader.loadAgentClass(Agent.class.getName(), null);
 
         BrokerStarter starter = new BrokerStarter(args);
         Runtime.getRuntime().addShutdownHook(

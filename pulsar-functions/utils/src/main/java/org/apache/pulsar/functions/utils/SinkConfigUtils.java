@@ -80,7 +80,11 @@ public class SinkConfigUtils {
             functionDetailsBuilder.setName(sinkConfig.getName());
         }
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-        functionDetailsBuilder.setParallelism(sinkConfig.getParallelism());
+        if (sinkConfig.getParallelism() != null) {
+            functionDetailsBuilder.setParallelism(sinkConfig.getParallelism());
+        } else {
+            functionDetailsBuilder.setParallelism(1);
+        }
         functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
         if (sinkConfig.getProcessingGuarantees() != null) {
             functionDetailsBuilder.setProcessingGuarantees(
@@ -272,7 +276,7 @@ public class SinkConfigUtils {
             }
         }
 
-        if (sinkConfig.getParallelism() <= 0) {
+        if (sinkConfig.getParallelism() != null && sinkConfig.getParallelism() <= 0) {
             throw new IllegalArgumentException("Sink parallelism should positive number");
         }
 

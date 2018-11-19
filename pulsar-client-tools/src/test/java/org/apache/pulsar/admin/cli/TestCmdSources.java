@@ -178,25 +178,6 @@ public class TestCmdSources {
         );
     }
 
-    @Test
-    public void testMissingParallelism() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setParallelism(1);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                null,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
     @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specfied")
     public void testMissingArchive() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();

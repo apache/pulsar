@@ -69,6 +69,8 @@ class PartitionedProducerImpl : public ProducerImplBase,
 
     virtual Future<Result, ProducerImplBaseWeakPtr> getProducerCreatedFuture();
 
+    virtual void triggerFlush();
+
     void handleSinglePartitionProducerCreated(Result result, ProducerImplBaseWeakPtr producerBaseWeakPtr,
                                               const unsigned int partitionIndex);
 

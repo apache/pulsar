@@ -92,7 +92,18 @@ public class CmdBrokers extends CmdBase {
         }
 
     }
-    
+
+    @Parameters(commandDescription = "Run a health check against the broker")
+    private class HealthcheckCmd extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            admin.brokers().healthcheck();
+            System.out.println("ok");
+        }
+
+    }
+
     public CmdBrokers(PulsarAdmin admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
@@ -101,5 +112,6 @@ public class CmdBrokers extends CmdBase {
         jcommander.addCommand("list-dynamic-config", new GetUpdatableConfigCmd());
         jcommander.addCommand("get-all-dynamic-config", new GetAllConfigurationsCmd());
         jcommander.addCommand("get-internal-config", new GetInternalConfigurationCmd());
+        jcommander.addCommand("healthcheck", new HealthcheckCmd());
     }
 }

@@ -742,12 +742,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>com.ea.agentloader</groupId>
-        <artifactId>ea-agent-loader</artifactId>
-        <version>1.0.2</version>
-      </dependency>
-
-      <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk15on</artifactId>
         <version>${bouncycastle.version}</version>
@@ -1019,6 +1013,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
+            <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
             <exclude>**/ByteBufCodedInputStream.java</exclude>
             <exclude>**/ByteBufCodedOutputStream.java</exclude>
             <exclude>bin/proto/*</exclude>
@@ -1136,6 +1131,9 @@ flexible messaging model and an intuitive client API.</description>
             <!-- These files are BSD licensed files -->
             <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedInputStream.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedOutputStream.java</exclude>
+
+            <!-- Imported from Netty - Apache License v2 -->
+            <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
 
             <!-- This is generated during maven build -->
             <exclude>dependency-reduced-pom.xml</exclude>

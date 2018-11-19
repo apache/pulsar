@@ -35,6 +35,8 @@
     <module>docker-images</module>
     <module>integration</module>
     <module>pulsar-kafka-compat-client-test</module>
+    <module>pulsar-storm-test</module>
+    <module>pulsar-spark-test</module>
   </modules>
   <build>
     <plugins>

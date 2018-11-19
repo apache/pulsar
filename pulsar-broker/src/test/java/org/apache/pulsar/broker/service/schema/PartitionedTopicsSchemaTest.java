@@ -38,10 +38,8 @@ public class PartitionedTopicsSchemaTest extends BrokerBkEnsemblesTests {
 
     /**
      * Test that sequence id from a producer is correct when there are send errors
-     *
-     * the test is disabled {@link https://github.com/apache/pulsar/issues/2651}
      */
-    @Test(enabled = false)
+    @Test
     public void partitionedTopicWithSchema() throws Exception {
         admin.namespaces().createNamespace("prop/my-test", Collections.singleton("usc"));
 

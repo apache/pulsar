@@ -76,7 +76,6 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String extraDependenciesDir;
-    private final String prometheusMetricsServerJarFile;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private final String logDirectory = "logs/functions";
     private Timer changeConfigMapTimer;
@@ -143,7 +142,6 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.authConfig = authConfig;
         this.javaInstanceJarFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/java-instance.jar";
         this.pythonInstanceFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/python-instance/python_instance_main.py";
-        this.prometheusMetricsServerJarFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/PrometheusMetricsServer.jar";
         this.expectedMetricsCollectionInterval = expectedMetricsCollectionInterval == null ? -1 : expectedMetricsCollectionInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
     }
@@ -182,7 +180,6 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             instanceConfig,
             instanceFile,
             extraDependenciesDir,
-            prometheusMetricsServerJarFile,
             logDirectory,
             codePkgUrl,
             originalCodeFileName,
@@ -201,6 +198,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         KubernetesRuntime.doChecks(functionDetails);
+        try {
+            setupClient();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, kubernetesInfo.getJobNamespace(), functionDetails);
     }
 

@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import org.apache.pulsar.functions.instance.FunctionStatsManager;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -59,30 +58,30 @@ public class FunctionsStatsGenerator {
                     if (functionRuntime != null) {
                         try {
                             InstanceCommunication.MetricsData metrics = functionRuntime.getMetrics().get();
-                            for (Map.Entry<String, InstanceCommunication.MetricsData.DataDigest> metricsEntry
-                                    : metrics.getMetricsMap().entrySet()) {
-                                String metricName = metricsEntry.getKey();
-                                InstanceCommunication.MetricsData.DataDigest dataDigest = metricsEntry.getValue();
 
-                                String tenant = functionRuntimeInfo.getFunctionInstance()
-                                        .getFunctionMetaData().getFunctionDetails().getTenant();
-                                String namespace = functionRuntimeInfo.getFunctionInstance()
-                                        .getFunctionMetaData().getFunctionDetails().getNamespace();
-                                String name = functionRuntimeInfo.getFunctionInstance()
-                                        .getFunctionMetaData().getFunctionDetails().getName();
-                                int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
-                                String qualifiedNamespace = String.format("%s/%s", tenant, namespace);
+                            String tenant = functionRuntimeInfo.getFunctionInstance()
+                                    .getFunctionMetaData().getFunctionDetails().getTenant();
+                            String namespace = functionRuntimeInfo.getFunctionInstance()
+                                    .getFunctionMetaData().getFunctionDetails().getNamespace();
+                            String name = functionRuntimeInfo.getFunctionInstance()
+                                    .getFunctionMetaData().getFunctionDetails().getName();
+                            int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
+                            String qualifiedNamespace = String.format("%s/%s", tenant, namespace);
 
-                                metric(out, cluster, qualifiedNamespace, name, String.format("%scount", metricName),
-                                        instanceId, dataDigest.getCount());
-                                metric(out, cluster, qualifiedNamespace, name, String.format("%smax", metricName),
-                                        instanceId, dataDigest.getMax());
-                                metric(out, cluster, qualifiedNamespace,name, String.format("%smin", metricName),
-                                        instanceId, dataDigest.getMin());
-                                metric(out, cluster, qualifiedNamespace, name, String.format("%ssum", metricName),
-                                        instanceId, dataDigest.getSum());
+                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.PROCESS_LATENCY_MS, instanceId, metrics.getAvgProcessLatency());
+                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.LAST_INVOCATION, instanceId, metrics.getLastInvocation());
+                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.PROCESSED_SUCCESSFULLY_TOTAL, instanceId, metrics.getProcessedSuccessfullyTotal());
+                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.PROCESSED_TOTAL, instanceId, metrics.getProcessedTotal());
+                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.RECEIVED_TOTAL, instanceId, metrics.getReceivedTotal());
+                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.SYSTEM_EXCEPTIONS_TOTAL, instanceId, metrics.getSystemExceptionsTotal());
+                            metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + FunctionStatsManager.USER_EXCEPTIONS_TOTAL, instanceId, metrics.getUserExceptionsTotal());
 
+                            for (Map.Entry<String, Double> userMetricsMapEntry : metrics.getUserMetricsMap().entrySet()) {
+                                String userMetricName = userMetricsMapEntry.getKey();
+                                Double val = userMetricsMapEntry.getValue();
+                                metric(out, cluster, qualifiedNamespace, name, FunctionStatsManager.PULSAR_FUNCTION_METRICS_PREFIX + userMetricName, instanceId, val);
                             }
+
                         } catch (InterruptedException | ExecutionException e) {
                             log.warn("Failed to collect metrics for function instance {}",
                                     fullyQualifiedInstanceName, e);

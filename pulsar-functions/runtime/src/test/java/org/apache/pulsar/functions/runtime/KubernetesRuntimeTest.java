@@ -192,6 +192,7 @@ public class KubernetesRuntimeTest {
         config.setFunctionVersion("1.0");
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
+        config.setClusterName("standalone");
 
         return config;
     }
@@ -233,16 +234,19 @@ public class KubernetesRuntimeTest {
         String classpath = javaInstanceJarFile;
         String extraDepsEnv;
         int portArg;
+        int metricsPortArg;
         int totalArgs;
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 29;
+            totalArgs = 33;
             portArg = 24;
+            metricsPortArg = 26;
         } else {
             extraDepsEnv = "";
             portArg = 23;
-            totalArgs = 28;
+            metricsPortArg = 25;
+            totalArgs = 32;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -263,13 +267,15 @@ public class KubernetesRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(portArg)
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval -1";
         if (secretsAttached) {
             expectedArgs += " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
                     + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
         }
+        expectedArgs += " --cluster_name standalone";
+
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -301,15 +307,18 @@ public class KubernetesRuntimeTest {
         int portArg;
         String pythonPath;
         int configArg;
+        int metricsPortArg;
         if (null == extraDepsDir) {
-            totalArgs = 32;
+            totalArgs = 36;
             portArg = 29;
             configArg = 9;
             pythonPath = "";
+            metricsPortArg = 31;
         } else {
-            totalArgs = 33;
+            totalArgs = 37;
             portArg = 30;
             configArg = 10;
+            metricsPortArg = 32;
             pythonPath = "PYTHONPATH=${PYTHONPATH}:" + extraDepsDir + " ";
         }
         if (secretsAttached) {
@@ -331,12 +340,13 @@ public class KubernetesRuntimeTest {
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(portArg)
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
                 + " --expected_healthcheck_interval -1";
         if (secretsAttached) {
             expectedArgs += " --secrets_provider secretsprovider.ClearTextSecretsProvider"
                     + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
         }
+        expectedArgs += " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

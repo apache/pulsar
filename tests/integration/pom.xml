@@ -181,7 +181,7 @@
               <properties>
                 <property>
                   <name>listener</name>
-                  <value>org.apache.pulsar.tests.PulsarTestListener</value>
+                  <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
                 </property>
               </properties>
               <argLine>-Xmx2G -XX:MaxDirectMemorySize=8G

@@ -20,10 +20,10 @@
 #include <pulsar/c/message_id.h>
 #include "c_structs.h"
 
-#include <boost/thread/once.hpp>
+#include <mutex>
 #include <sstream>
 
-boost::once_flag initialized = BOOST_ONCE_INIT;
+std::once_flag initialized;
 
 static pulsar_message_id_t earliest;
 static pulsar_message_id_t latest;
@@ -34,12 +34,12 @@ static void initialize() {
 }
 
 const pulsar_message_id_t *pulsar_message_id_earliest() {
-    boost::call_once(&initialize, initialized);
+    std::call_once(initialized, &initialize);
     return &earliest;
 }
 
 const pulsar_message_id_t *pulsar_message_id_latest() {
-    boost::call_once(&initialize, initialized);
+    std::call_once(initialized, &initialize);
     return &latest;
 }
 

@@ -19,15 +19,14 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics;
-import org.apache.pulsar.functions.proto.InstanceCommunication.Metrics.InstanceMetrics;
-import org.apache.pulsar.functions.runtime.Runtime;
-import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.worker.*;
 
 import javax.ws.rs.WebApplicationException;
@@ -36,7 +35,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -45,6 +43,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class WorkerImpl {
 
     private final Supplier<WorkerService> workerServiceSupplier;
+
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     public WorkerImpl(Supplier<WorkerService> workerServiceSupplier) {
         this.workerServiceSupplier = workerServiceSupplier;
@@ -122,16 +122,16 @@ public class WorkerImpl {
         return clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
     }
 
-    public List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrcis(String clientRole) throws IOException {
+    public List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrics(String clientRole) throws IOException {
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
             log.error("Client [{}] is not admin and authorized to get function-stats", clientRole);
             throw new WebApplicationException(Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(clientRole + " is not authorize to get metrics")).build());
         }
-        return getWorkerMetrcis();
+        return getWorkerMetrics();
     }
 
-    private List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrcis() {
+    private List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrics() {
         if (!isWorkerServiceAvailable()) {
             throw new WebApplicationException(
                     Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
@@ -149,6 +149,13 @@ public class WorkerImpl {
         return getFunctionsMetrics();
     }
 
+    @Data
+    public static class WorkerFunctionInstanceStats {
+        /** fully qualified function instance name **/
+        public String name;
+        public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData metrics;
+    }
+
     private Response getFunctionsMetrics() throws IOException {
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -158,41 +165,22 @@ public class WorkerImpl {
         Map<String, FunctionRuntimeInfo> functionRuntimes = workerService.getFunctionRuntimeManager()
                 .getFunctionRuntimeInfos();
 
-        Metrics.Builder metricsBuilder = Metrics.newBuilder();
+        JsonArray metricsMapList = new JsonArray();
+
         for (Map.Entry<String, FunctionRuntimeInfo> entry : functionRuntimes.entrySet()) {
             String fullyQualifiedInstanceName = entry.getKey();
             FunctionRuntimeInfo functionRuntimeInfo = entry.getValue();
-            RuntimeSpawner functionRuntimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
 
-            if (functionRuntimeSpawner != null) {
-                Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
-                if (functionRuntime != null) {
-                    try {
-                        InstanceCommunication.MetricsData metricsData = functionRuntime.getMetrics().get();
+            FunctionStats.FunctionInstanceStats functionInstanceStats = Utils.getFunctionInstanceStats(fullyQualifiedInstanceName, functionRuntimeInfo);
 
-                        String tenant = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                                .getFunctionDetails().getTenant();
-                        String namespace = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                                .getFunctionDetails().getNamespace();
-                        String name = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                                .getFunctionDetails().getName();
-                        int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
-                        String qualifiedFunctionName = String.format("%s/%s/%s", tenant, namespace, name);
+            WorkerFunctionInstanceStats workerFunctionInstanceStats = new WorkerFunctionInstanceStats();
+            workerFunctionInstanceStats.setName(fullyQualifiedInstanceName);
+            workerFunctionInstanceStats.setMetrics(functionInstanceStats.getMetrics());
 
-                        InstanceMetrics.Builder instanceBuilder = InstanceMetrics.newBuilder();
-                        instanceBuilder.setName(qualifiedFunctionName);
-                        instanceBuilder.setInstanceId(instanceId);
-                        if (metricsData != null) {
-                            instanceBuilder.setMetricsData(metricsData);
-                        }
-                        metricsBuilder.addMetrics(instanceBuilder.build());
-                    } catch (InterruptedException | ExecutionException e) {
-                        log.warn("Failed to collect metrics for function instance {}", fullyQualifiedInstanceName, e);
-                    }
-                }
-            }
+            metricsMapList.add(gson.toJsonTree(workerFunctionInstanceStats));
         }
-        String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(metricsBuilder);
+        String jsonResponse = gson.toJson(metricsMapList);
+
         return Response.status(Status.OK).entity(jsonResponse).build();
     }
 }

@@ -49,6 +49,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
@@ -235,6 +236,52 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("Waiting for message listener to ack all messages");
         assertEquals(latch.await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
         consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 100000)
+    public void testPauseAndResume() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int receiverQueueSize = 20;     // number of permits broker has when consumer initially subscribes
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(receiverQueueSize));
+        AtomicInteger received = new AtomicInteger();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().receiverQueueSize(receiverQueueSize)
+                .topic("persistent://my-property/my-ns/my-topic-pr")
+                .subscriptionName("my-subscriber-name").messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    c1.acknowledgeAsync(msg);
+                    received.incrementAndGet();
+                    latch.get().countDown();
+                }).subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/my-topic-pr").create();
+
+        consumer.pause();
+
+        for (int i = 0; i < receiverQueueSize * 2; i++) producer.send(("my-message-" + i).getBytes());
+
+        log.info("Waiting for message listener to ack " + receiverQueueSize + " messages");
+        assertEquals(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+
+        log.info("Giving message listener an opportunity to receive messages while paused");
+        Thread.sleep(2000);     // hopefully this is long enough
+        assertEquals(received.intValue(), receiverQueueSize, "Consumer received messages while paused");
+
+        latch.set(new CountDownLatch(receiverQueueSize));
+
+        consumer.resume();
+
+        log.info("Waiting for message listener to ack all messages");
+        assertEquals(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+
+        consumer.close();
+        producer.close();
         log.info("-- Exiting {} test --", methodName);
     }
 

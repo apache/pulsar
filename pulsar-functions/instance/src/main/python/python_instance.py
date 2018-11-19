@@ -31,20 +31,19 @@ try:
 except:
   import queue
 import threading
-from functools import partial
-from collections import namedtuple
-from threading import Timer
-from prometheus_client import Counter, Summary
-import traceback
 import sys
 import re
-
 import pulsar
 import contextimpl
 import Function_pb2
 import log
 import util
 import InstanceCommunication_pb2
+
+from functools import partial
+from collections import namedtuple
+from threading import Timer
+from function_stats import Stats
 
 Log = log.Log
 # Equivalent of the InstanceConfig in Java
@@ -68,55 +67,9 @@ def base64ify(bytes_or_str):
     else:
         return output_bytes
 
-# We keep track of the following metrics
-class Stats(object):
-  metrics_label_names = ['tenant', 'namespace', 'name', 'instance_id']
-
-  TOTAL_PROCESSED = '__function_total_processed__'
-  TOTAL_SUCCESSFULLY_PROCESSED = '__function_total_successfully_processed__'
-  TOTAL_SYSTEM_EXCEPTIONS = '__function_total_system_exceptions__'
-  TOTAL_USER_EXCEPTIONS = '__function_total_user_exceptions__'
-  PROCESS_LATENCY_MS = '__function_process_latency_ms__'
-
-  # Declare Prometheus
-  stat_total_processed = Counter(TOTAL_PROCESSED, 'Total number of messages processed.', metrics_label_names)
-  stat_total_processed_successfully = Counter(TOTAL_SUCCESSFULLY_PROCESSED,
-                                              'Total number of messages processed successfully.', metrics_label_names)
-  stat_total_sys_exceptions = Counter(TOTAL_SYSTEM_EXCEPTIONS, 'Total number of system exceptions.',
-                                      metrics_label_names)
-  stat_total_user_exceptions = Counter(TOTAL_USER_EXCEPTIONS, 'Total number of user exceptions.',
-                                       metrics_label_names)
-
-  stats_process_latency_ms = Summary(PROCESS_LATENCY_MS, 'Process latency in milliseconds.', metrics_label_names)
-
-  latest_user_exception = []
-  latest_sys_exception = []
-
-  last_invocation_time = 0.0
-
-  def add_user_exception(self):
-    self.latest_sys_exception.append((traceback.format_exc(), int(time.time() * 1000)))
-    if len(self.latest_sys_exception) > 10:
-      self.latest_sys_exception.pop(0)
-
-  def add_sys_exception(self):
-    self.latest_sys_exception.append((traceback.format_exc(), int(time.time() * 1000)))
-    if len(self.latest_sys_exception) > 10:
-      self.latest_sys_exception.pop(0)
-
-  def reset(self, metrics_labels):
-    self.latest_user_exception = []
-    self.latest_sys_exception = []
-    self.stat_total_processed.labels(*metrics_labels)._value.set(0.0)
-    self.stat_total_processed_successfully.labels(*metrics_labels)._value.set(0.0)
-    self.stat_total_user_exceptions.labels(*metrics_labels)._value.set(0.0)
-    self.stat_total_sys_exceptions.labels(*metrics_labels)._value.set(0.0)
-    self.stats_process_latency_ms.labels(*metrics_labels)._sum.set(0)
-    self.stats_process_latency_ms.labels(*metrics_labels)._count.set(0);
-    self.last_invocation_time = 0.0
-
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, expected_healthcheck_interval, user_code, pulsar_client, secrets_provider):
+  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples,
+               expected_healthcheck_interval, user_code, pulsar_client, secrets_provider, cluster_name):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     self.queue = queue.Queue(max_buffered_tuples)
@@ -140,7 +93,10 @@ class PythonInstance(object):
     self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
     self.expected_healthcheck_interval = expected_healthcheck_interval
     self.secrets_provider = secrets_provider
-    self.metrics_labels = [function_details.tenant, function_details.namespace, function_details.name, instance_id]
+    self.metrics_labels = [function_details.tenant,
+                           "%s/%s" % (function_details.tenant, function_details.namespace),
+                           "%s/%s/%s" % (function_details.tenant, function_details.namespace, function_details.name),
+                           instance_id, cluster_name]
 
   def health_check(self):
     self.last_health_check_ts = time.time()
@@ -210,7 +166,9 @@ class PythonInstance(object):
     except:
       self.function_purefunction = function_kclass
 
-    self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers, self.secrets_provider)
+    self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client,
+                                               self.user_code, self.consumers,
+                                               self.secrets_provider, self.metrics_labels)
     # Now launch a thread that does execution
     self.execution_thread = threading.Thread(target=self.actual_execution)
     self.execution_thread.start()
@@ -242,13 +200,13 @@ class PythonInstance(object):
         try:
           # get user function start time for statistic calculation
           start_time = time.time()
-          self.stats.last_invocation_time = start_time * 1000.0
+          Stats.stat_last_invocation.labels(*self.metrics_labels).set(start_time * 1000.0)
           if self.function_class is not None:
             output_object = self.function_class.process(input_object, self.contextimpl)
           else:
             output_object = self.function_purefunction.process(input_object)
           successfully_executed = True
-          Stats.stats_process_latency_ms.labels(*self.metrics_labels).observe((time.time() - start_time) * 1000.0)
+          Stats.stat_process_latency_ms.labels(*self.metrics_labels).observe((time.time() - start_time) * 1000.0)
           Stats.stat_total_processed.labels(*self.metrics_labels).inc()
         except Exception as e:
           Log.exception("Exception while executing user method")
@@ -272,7 +230,8 @@ class PythonInstance(object):
       consumer.acknowledge(orig_message)
 
   def process_result(self, output, msg):
-    if output is not None:
+    if output is not None and self.instance_config.function_details.sink.topic != None and \
+            len(self.instance_config.function_details.sink.topic) > 0:
       if self.output_serde is None:
         self.setup_output_serde()
       if self.producer is None:
@@ -309,6 +268,8 @@ class PythonInstance(object):
         max_pending_messages=100000)
 
   def message_listener(self, serde, consumer, message):
+    # increment number of received records from source
+    Stats.stat_total_received.labels(*self.metrics_labels).inc()
     item = InternalMessage(message, consumer.topic(), serde, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
@@ -325,18 +286,34 @@ class PythonInstance(object):
     self.contextimpl.reset_metrics()
 
   def get_metrics(self):
-    # First get any user metrics
-    metrics = self.contextimpl.get_metrics()
-    # Now add system metrics as well
-    self.add_system_metrics("__total_processed__", Stats.stat_total_processed.labels(*self.metrics_labels)._value.get(), metrics)
-    self.add_system_metrics("__total_successfully_processed__", Stats.stat_total_processed_successfully.labels(*self.metrics_labels)._value.get(), metrics)
-    self.add_system_metrics("__total_system_exceptions__", Stats.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
-    self.add_system_metrics("__total_user_exceptions__", Stats.stat_total_user_exceptions.labels(*self.metrics_labels)._value.get(), metrics)
-    self.add_system_metrics("__avg_latency_ms__",
-                            0.0 if Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get() <= 0.0
-                            else Stats.stats_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get(),
-                            metrics)
-    return metrics
+
+    total_received =  Stats.stat_total_received.labels(*self.metrics_labels)._value.get()
+    total_processed = Stats.stat_total_processed.labels(*self.metrics_labels)._value.get()
+    total_processed_successfully = Stats.stat_total_processed_successfully.labels(*self.metrics_labels)._value.get()
+    total_user_exceptions = Stats.stat_total_user_exceptions.labels(*self.metrics_labels)._value.get()
+    total_sys_exceptions = Stats.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.get()
+    process_latency_ms_count = Stats.stat_process_latency_ms.labels(*self.metrics_labels)._count.get()
+    process_latency_ms_sum = Stats.stat_process_latency_ms.labels(*self.metrics_labels)._sum.get()
+    last_invocation = Stats.stat_last_invocation.labels(*self.metrics_labels)._value.get()
+
+    metrics_data = InstanceCommunication_pb2.MetricsData()
+
+    metrics_data.receivedTotal = int(total_received) if sys.version_info.major >= 3 else long(total_received)
+    metrics_data.processedTotal = int(total_processed) if sys.version_info.major >= 3 else long(total_processed)
+    metrics_data.processedSuccessfullyTotal = int(total_processed_successfully) if sys.version_info.major >= 3 else long(total_processed_successfully)
+    metrics_data.systemExceptionsTotal = int(total_sys_exceptions) if sys.version_info.major >= 3 else long(total_sys_exceptions)
+    metrics_data.userExceptionsTotal = int(total_user_exceptions) if sys.version_info.major >= 3 else long(total_user_exceptions)
+    metrics_data.avgProcessLatency = 0.0 \
+      if process_latency_ms_count <= 0.0 \
+      else process_latency_ms_sum / process_latency_ms_count
+    metrics_data.lastInvocation = int(last_invocation) if sys.version_info.major >= 3 else long(last_invocation)
+
+    # get any user metrics
+    user_metrics = self.contextimpl.get_metrics()
+    for metric_name, value in user_metrics.items():
+      metrics_data.userMetrics[metric_name] = value
+
+    return metrics_data
 
   def add_system_metrics(self, metric_name, value, metrics):
     metrics.metrics[metric_name].count = value
@@ -347,23 +324,32 @@ class PythonInstance(object):
   def get_function_status(self):
     status = InstanceCommunication_pb2.FunctionStatus()
     status.running = True
-    status.numProcessed = long(Stats.stat_total_processed.labels(*self.metrics_labels)._value.get())
-    status.numSuccessfullyProcessed = long(Stats.stat_total_processed_successfully.labels(*self.metrics_labels)._value.get())
-    status.numUserExceptions = long(Stats.stat_total_user_exceptions.labels(*self.metrics_labels)._value.get())
+
+    total_processed = Stats.stat_total_processed.labels(*self.metrics_labels)._value.get()
+    total_processed_successfully = Stats.stat_total_processed_successfully.labels(*self.metrics_labels)._value.get()
+    total_user_exceptions = Stats.stat_total_user_exceptions.labels(*self.metrics_labels)._value.get()
+    total_sys_exceptions = Stats.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.get()
+    process_latency_ms_count = Stats.stat_process_latency_ms.labels(*self.metrics_labels)._count.get()
+    process_latency_ms_sum = Stats.stat_process_latency_ms.labels(*self.metrics_labels)._sum.get()
+    last_invocation = Stats.stat_last_invocation.labels(*self.metrics_labels)._value.get()
+
+    status.numProcessed = int(total_processed) if sys.version_info.major >= 3 else long(total_processed)
+    status.numSuccessfullyProcessed = int(total_processed_successfully) if sys.version_info.major >= 3 else long(total_processed_successfully)
+    status.numUserExceptions = int(total_user_exceptions) if sys.version_info.major >= 3 else long(total_user_exceptions)
     status.instanceId = self.instance_config.instance_id
     for ex, tm in self.stats.latest_user_exception:
       to_add = status.latestUserExceptions.add()
       to_add.exceptionString = ex
       to_add.msSinceEpoch = tm
-    status.numSystemExceptions = long(Stats.stat_total_sys_exceptions.labels(*self.metrics_labels)._value.get())
+    status.numSystemExceptions = int(total_sys_exceptions) if sys.version_info.major >= 3 else long(total_sys_exceptions)
     for ex, tm in self.stats.latest_sys_exception:
       to_add = status.latestSystemExceptions.add()
       to_add.exceptionString = ex
       to_add.msSinceEpoch = tm
     status.averageLatency = 0.0 \
-      if Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get() <= 0.0 \
-      else Stats.stats_process_latency_ms.labels(*self.metrics_labels)._sum.get() / Stats.stats_process_latency_ms.labels(*self.metrics_labels)._count.get()
-    status.lastInvocationTime = long(self.stats.last_invocation_time)
+      if process_latency_ms_count <= 0.0 \
+      else process_latency_ms_sum / process_latency_ms_count
+    status.lastInvocationTime = int(last_invocation) if sys.version_info.major >= 3 else long(last_invocation)
     return status
 
   def join(self):

@@ -26,6 +26,7 @@ import static org.apache.pulsar.functions.utils.Reflections.createInstance;
 
 import com.google.gson.Gson;
 
+import com.google.gson.GsonBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -84,6 +85,7 @@ import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -151,6 +153,46 @@ public class FunctionsImpl {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
+        }
+
+        if (tenant == null) {
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Tenant is not provided")).build();
+        }
+        if (namespace == null) {
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Namespace is not provided")).build();
+        }
+        if (componentName == null) {
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(componentType + " Name is not provided")).build();
+        }
+
+        try {
+            TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
+            String qualifedNamespace = tenant + "/" + namespace;
+            if (!worker().getBrokerAdmin().namespaces().getNamespaces(tenant).contains(qualifedNamespace)) {
+                log.error("{}/{}/{} Namespace {} does not exist", tenant, namespace,
+                        componentName, namespace);
+                return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                        .entity(new ErrorData("Namespace does not exist")).build();
+            }
+        } catch (PulsarAdminException.NotAuthorizedException e) {
+            log.error("{}/{}/{} Client [{}] is not admin and authorized to operate {} on tenant", tenant, namespace,
+                    componentName, clientRole, componentType);
+            return Response.status(Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("client is not authorize to perform operation")).build();
+
+        } catch (PulsarAdminException.NotFoundException e) {
+            log.error("{}/{}/{} Tenant {} does not exist", tenant, namespace,
+                    componentName, tenant);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Tenant does not exist")).build();
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Issues getting tenant data", tenant, namespace,
+                    componentName, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
         }
 
         try {
@@ -481,57 +523,6 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(retval).build();
     }
 
-    public Response getFunctionInstanceStatus(final String tenant, final String namespace, final String componentName,
-            final String componentType, final String instanceId, URI uri) throws IOException {
-
-        if (!isWorkerServiceAvailable()) {
-            return getUnavailableResponse();
-        }
-
-        // validate parameters
-        try {
-            validateGetFunctionInstanceRequestParams(tenant, namespace, componentName, componentType, instanceId);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid get {} Status request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
-            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(e.getMessage())).build();
-        }
-
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} in get {} Status does not exist @ /{}/{}/{}", componentType, componentType, tenant, namespace, componentName);
-            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("%s %s doesn't exist", componentType, componentName))).build();
-        }
-        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
-        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
-            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
-            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format(componentType + " %s doesn't exist", componentName))).build();
-        }
-        int instanceIdInt = Integer.parseInt(instanceId);
-        if (instanceIdInt < 0 || instanceIdInt >= functionMetaData.getFunctionDetails().getParallelism()) {
-            log.error("instanceId in get {} Status out of bounds @ /{}/{}/{}", componentType, tenant, namespace, componentName);
-            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Invalid InstanceId"))).build();
-        }
-
-        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
-        FunctionStatus functionStatus = null;
-        try {
-            functionStatus = functionRuntimeManager.getFunctionInstanceStatus(tenant, namespace, componentName,
-                    Integer.parseInt(instanceId), uri);
-        } catch (WebApplicationException we) {
-            throw we;
-        } catch (Exception e) {
-            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, componentName, e);
-            return Response.status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), e.getMessage()).build();
-        }
-
-        String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatus);
-        return Response.status(Status.OK).entity(jsonResponse).build();
-    }
-
     public Response stopFunctionInstance(final String tenant, final String namespace, final String componentName,
             final String componentType, final String instanceId, URI uri) {
         return stopFunctionInstance(tenant, namespace, componentName, componentType, instanceId, false, uri);
@@ -635,6 +626,57 @@ public class FunctionsImpl {
         }
     }
 
+    public Response getFunctionInstanceStatus(final String tenant, final String namespace, final String componentName,
+                                              final String componentType, final String instanceId, URI uri) throws IOException {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionInstanceRequestParams(tenant, namespace, componentName, componentType, instanceId);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid get {} Status request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.error("{} in get {} Status does not exist @ /{}/{}/{}", componentType, componentType, tenant, namespace, componentName);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("%s %s doesn't exist", componentType, componentName))).build();
+        }
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format(componentType + " %s doesn't exist", componentName))).build();
+        }
+        int instanceIdInt = Integer.parseInt(instanceId);
+        if (instanceIdInt < 0 || instanceIdInt >= functionMetaData.getFunctionDetails().getParallelism()) {
+            log.error("instanceId in get {} Status out of bounds @ /{}/{}/{}", componentType, tenant, namespace, componentName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Invalid InstanceId"))).build();
+        }
+
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
+        FunctionStatus functionStatus = null;
+        try {
+            functionStatus = functionRuntimeManager.getFunctionInstanceStatus(tenant, namespace, componentName,
+                    Integer.parseInt(instanceId), uri);
+        } catch (WebApplicationException we) {
+            throw we;
+        } catch (Exception e) {
+            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, componentName, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new ErrorData(e.getMessage())).build();
+        }
+
+        String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatus);
+        return Response.status(Status.OK).entity(jsonResponse).build();
+    }
+
     public Response getFunctionStatus(final String tenant, final String namespace, final String componentName,
                                       final String componentType, URI uri)
             throws IOException {
@@ -673,16 +715,107 @@ public class FunctionsImpl {
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {
-            log.error("Got Exception Getting Status", e);
-            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
-            functionStatusBuilder.setRunning(false);
-            String functionDetailsJson = org.apache.pulsar.functions.utils.Utils
-                    .printJson(functionStatusBuilder.build());
-            return Response.status(Status.OK).entity(functionDetailsJson).build();
+            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, componentName, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new ErrorData(e.getMessage())).build();
         }
 
         String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusList);
         return Response.status(Status.OK).entity(jsonResponse).build();
+    }
+
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+    public Response getFunctionStats(final String tenant, final String namespace, final String componentName,
+                                     final String componentType, URI uri) throws IOException {
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid get {} Status request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.error("{} in get {} Status does not exist @ /{}/{}/{}", componentType, componentType, tenant, namespace, componentName);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("%s %s doesn't exist", componentType, componentName))).build();
+        }
+
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format(componentType + " %s doesn't exist", componentName))).build();
+        }
+
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
+        FunctionStats functionStats;
+        try {
+            functionStats = functionRuntimeManager.getFunctionStats(tenant, namespace, componentName, uri);
+        } catch (WebApplicationException we) {
+            throw we;
+        } catch (Exception e) {
+            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, componentName, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new ErrorData(e.getMessage())).build();
+        }
+
+        return Response.status(Status.OK).entity(gson.toJson(functionStats)).build();
+
+    }
+
+    public Response getFunctionsInstanceStats(final String tenant, final String namespace, final String componentName,
+                                      final String componentType, String instanceId, URI uri) {
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionInstanceRequestParams(tenant, namespace, componentName, componentType, instanceId);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid get {} Stats request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.error("{} in get {} Stats does not exist @ /{}/{}/{}", componentType, componentType, tenant, namespace, componentName);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("%s %s doesn't exist", componentType, componentName))).build();
+        }
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
+            return Response.status(Status.NOT_FOUND).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format(componentType + " %s doesn't exist", componentName))).build();
+        }
+        int instanceIdInt = Integer.parseInt(instanceId);
+        if (instanceIdInt < 0 || instanceIdInt >= functionMetaData.getFunctionDetails().getParallelism()) {
+            log.error("instanceId in get {} Stats out of bounds @ /{}/{}/{}", componentType, tenant, namespace, componentName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Invalid InstanceId"))).build();
+        }
+
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
+        FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData;
+        try {
+            functionInstanceStatsData = functionRuntimeManager.getFunctionInstanceStats(tenant, namespace, componentName,
+                    Integer.parseInt(instanceId), uri);
+        } catch (WebApplicationException we) {
+            throw we;
+        } catch (Exception e) {
+            log.error("{}/{}/{} Got Exception Getting Stats", tenant, namespace, componentName, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new ErrorData(e.getMessage())).build();
+        }
+
+        return Response.status(Status.OK).entity(gson.toJson(functionInstanceStatsData)).build();
     }
 
     public Response listFunctions(final String tenant, final String namespace, String componentType) {
