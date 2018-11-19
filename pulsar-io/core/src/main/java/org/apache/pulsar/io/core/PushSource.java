@@ -29,7 +29,7 @@ import org.apache.pulsar.functions.api.Record;
  * and publish to a Pulsar topic. The reason its called Push is
  * because PushSources get passed a consumer that they
  * invoke whenever they have data to be published to Pulsar.
- * The lifcycle of a PushSource is to open it passing any config needed
+ * The lifecycle of a PushSource is to open it passing any config needed
  * by it to initialize(like open network connection, authenticate, etc).
  * A consumer  is then to it which is invoked by the source whenever
  * there is data to be published. Once all data has been read, one can use close

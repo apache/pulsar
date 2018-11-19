@@ -363,7 +363,7 @@ TEST(ReaderTest, testReaderReachEndOfTopic) {
     client.close();
 }
 
-TEST(ReaderTest, testReaderReachEndOfTopicMessageWithBatches) {
+TEST(ReaderTest, testReaderReachEndOfTopicMessageWithoutBatches) {
     Client client(serviceUrl);
 
     std::string topicName =
@@ -371,7 +371,9 @@ TEST(ReaderTest, testReaderReachEndOfTopicMessageWithBatches) {
 
     // 1. create producer
     Producer producer;
-    ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
+    ProducerConfiguration producerConf;
+    producerConf.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConf, producer));
 
     // 2. create reader, and expect hasMessageAvailable return false since no message produced.
     ReaderConfiguration readerConf;

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
@@ -348,6 +349,22 @@ public interface PulsarClient extends Closeable {
      *             in case the serviceUrl is not valid
      */
     void updateServiceUrl(String serviceUrl) throws PulsarClientException;
+
+    /**
+     * Get the list of partitions for a given topic.
+     *
+     * If the topic is partitioned, this will return a list of partition names. If the topic is not partitioned, the
+     * returned list will contain the topic name itself.
+     *
+     * This can be used to discover the partitions and create {@link Reader}, {@link Consumer} or {@link Producer}
+     * instances directly on a particular partition.
+     *
+     * @param topic
+     *            the topic name
+     * @return a future that will yield a list of the topic partitions
+     * @since 2.3.0
+     */
+    CompletableFuture<List<String>> getPartitionsForTopic(String topic);
 
     /**
      * Close the PulsarClient and release all the resources.

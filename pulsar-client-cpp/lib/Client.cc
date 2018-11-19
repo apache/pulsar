@@ -152,6 +152,18 @@ void Client::createReaderAsync(const std::string& topic, const MessageId& startM
     impl_->createReaderAsync(topic, startMessageId, conf, callback);
 }
 
+Result Client::getPartitionsForTopic(const std::string& topic, std::vector<std::string>& partitions) {
+    Promise<Result, std::vector<std::string> > promise;
+    getPartitionsForTopicAsync(topic, WaitForCallbackValue<std::vector<std::string> >(promise));
+    Future<Result, std::vector<std::string> > future = promise.getFuture();
+
+    return future.get(partitions);
+}
+
+void Client::getPartitionsForTopicAsync(const std::string& topic, GetPartitionsCallback callback) {
+    impl_->getPartitionsForTopicAsync(topic, callback);
+}
+
 Result Client::close() {
     Promise<bool, Result> promise;
     closeAsync(WaitForCallback(promise));

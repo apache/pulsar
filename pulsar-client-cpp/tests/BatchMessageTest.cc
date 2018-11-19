@@ -139,7 +139,10 @@ TEST(BatchMessageTest, testProducerTimeout) {
         /* Start the timer */
         start = time(NULL);
         LOG_DEBUG("start = " << start);
-        producer.send(msg);
+        Promise<Result, Message> promise;
+        producer.sendAsync(msg, WaitForCallbackValue<Message>(promise));
+        Message m;
+        promise.getFuture().get(m);
         /* End the timer */
         end = time(NULL);
         LOG_DEBUG("end = " << end);

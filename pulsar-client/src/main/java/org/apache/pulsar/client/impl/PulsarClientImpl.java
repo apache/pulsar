@@ -30,6 +30,8 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Optional;
@@ -803,6 +805,22 @@ public class PulsarClientImpl implements PulsarClient {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(e.getMessage()));
         }
         return metadataFuture;
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getPartitionsForTopic(String topic) {
+        return getPartitionedTopicMetadata(topic).thenApply(metadata -> {
+            if (metadata.partitions > 1) {
+                TopicName topicName = TopicName.get(topic);
+                List<String> partitions = new ArrayList<>(metadata.partitions);
+                for (int i = 0; i < metadata.partitions; i++) {
+                    partitions.add(topicName.getPartition(i).toString());
+                }
+                return partitions;
+            } else {
+                return Collections.singletonList(topic);
+            }
+        });
     }
 
     private static EventLoopGroup getEventLoopGroup(ClientConfigurationData conf) {
