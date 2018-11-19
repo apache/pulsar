@@ -497,7 +497,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
 
         if (cnx.getRemoteAddress() != null && cnx.getRemoteAddress().toString().contains(":")) {
-            SubscribeRateLimiter.ConsumerIdentify consumer = new SubscribeRateLimiter.ConsumerIdentify(
+            SubscribeRateLimiter.ConsumerIdentifier consumer = new SubscribeRateLimiter.ConsumerIdentifier(
                     cnx.getRemoteAddress().toString().split(":")[0], consumerName, consumerId);
             if (!subscribeRateLimiter.subscribeAvailable(consumer) || !subscribeRateLimiter.tryAcquire(consumer)) {
                 log.warn("[{}] Failed to create subscription for {} {} limited by {}, available {}",

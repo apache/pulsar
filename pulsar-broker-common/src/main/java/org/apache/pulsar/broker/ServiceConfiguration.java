@@ -157,10 +157,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // than this percentage limit and subscription will not receive any new messages until that subscription acks back
     // limit/2 messages
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
-    // Subscribe too much for a consumer and load data from bookie to cause the high network bandwidth usage.
-    // https://github.com/apache/pulsar/issues/2876
-    // Default broker do not limit subscribe times for a consumer. Using a value of 0 is disabling subscribe
-    // limit. Using a value of > 0 can enable the subscribe limit mechanism to avoid the consumer with potentially dangerous
+    // Too many subscribe requests from a consumer can cause broker rewinding consumer cursors and loading data from bookies,
+    // hence causing high network bandwidth usage
+    // When the positive value is set, broker will throttle the subscribe requests for one consumer.
+    // Otherwise, the throttling will be disabled. The default value of this setting is 0 - throttling is disabled.
     @FieldContext(dynamic = true)
     private int subscribeThrottlingRatePerConsumer = 0;
     // Rate period for {subscribeThrottlingRatePerConsumer}. Default is 30s.

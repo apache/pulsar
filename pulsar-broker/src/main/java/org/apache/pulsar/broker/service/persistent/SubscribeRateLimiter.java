@@ -45,7 +45,7 @@ public class SubscribeRateLimiter {
 
     private final String topicName;
     private final BrokerService brokerService;
-    private ConcurrentHashMap<ConsumerIdentify, RateLimiter> subscribeRateLimiter;
+    private ConcurrentHashMap<ConsumerIdentifier, RateLimiter> subscribeRateLimiter;
     private final ScheduledExecutorService executorService;
     private ScheduledFuture<?> resetTask;
     private SubscribeRate subscribeRate;
@@ -72,8 +72,8 @@ public class SubscribeRateLimiter {
      *
      * @return
      */
-    public long getAvailableSubscribeRateLimit(ConsumerIdentify consumerIdentify) {
-        return subscribeRateLimiter.get(consumerIdentify) == null ? -1 : subscribeRateLimiter.get(consumerIdentify).getAvailablePermits();
+    public long getAvailableSubscribeRateLimit(ConsumerIdentifier consumerIdentifier) {
+        return subscribeRateLimiter.get(consumerIdentifier) == null ? -1 : subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits();
     }
 
     /**
@@ -81,9 +81,9 @@ public class SubscribeRateLimiter {
      *
      * @return
      */
-    public synchronized boolean tryAcquire(ConsumerIdentify consumerIdentify) {
-        addSubscribeLimiterIfAbsent(consumerIdentify);
-        return subscribeRateLimiter.get(consumerIdentify) == null || subscribeRateLimiter.get(consumerIdentify).tryAcquire();
+    public synchronized boolean tryAcquire(ConsumerIdentifier consumerIdentifier) {
+        addSubscribeLimiterIfAbsent(consumerIdentifier);
+        return subscribeRateLimiter.get(consumerIdentifier) == null || subscribeRateLimiter.get(consumerIdentifier).tryAcquire();
     }
 
     /**
@@ -91,25 +91,25 @@ public class SubscribeRateLimiter {
      *
      * @return
      */
-    public boolean subscribeAvailable(ConsumerIdentify consumerIdentify) {
-        return (subscribeRateLimiter.get(consumerIdentify) == null|| subscribeRateLimiter.get(consumerIdentify).getAvailablePermits() > 0);
+    public boolean subscribeAvailable(ConsumerIdentifier consumerIdentifier) {
+        return (subscribeRateLimiter.get(consumerIdentifier) == null|| subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits() > 0);
     }
 
     /**
      * Update subscribe-throttling-rate. gives first priority to namespace-policy configured subscribe rate else applies
      * default broker subscribe-throttling-rate
      */
-    private synchronized void addSubscribeLimiterIfAbsent(ConsumerIdentify consumerIdentify) {
-        if (subscribeRateLimiter.get(consumerIdentify) != null) {
+    private synchronized void addSubscribeLimiterIfAbsent(ConsumerIdentifier consumerIdentifier) {
+        if (subscribeRateLimiter.get(consumerIdentifier) != null) {
             return;
         }
-        updateSubscribeRate(consumerIdentify, this.subscribeRate);
+        updateSubscribeRate(consumerIdentifier, this.subscribeRate);
     }
 
-    private synchronized void removeSubscribeLimiter(ConsumerIdentify consumerIdentify) {
-        if (this.subscribeRateLimiter.get(consumerIdentify) != null) {
-            this.subscribeRateLimiter.get(consumerIdentify).close();
-            this.subscribeRateLimiter.remove(consumerIdentify);
+    private synchronized void removeSubscribeLimiter(ConsumerIdentifier consumerIdentifier) {
+        if (this.subscribeRateLimiter.get(consumerIdentifier) != null) {
+            this.subscribeRateLimiter.get(consumerIdentifier).close();
+            this.subscribeRateLimiter.remove(consumerIdentifier);
         }
     }
 
@@ -119,22 +119,22 @@ public class SubscribeRateLimiter {
      *
      * @param subscribeRate
      */
-    private synchronized void updateSubscribeRate(ConsumerIdentify consumerIdentify, SubscribeRate subscribeRate) {
+    private synchronized void updateSubscribeRate(ConsumerIdentifier consumerIdentifier, SubscribeRate subscribeRate) {
 
         long ratePerConsumer = subscribeRate.subscribeThrottlingRatePerConsumer;
         long ratePeriod = subscribeRate.ratePeriodInSecond;
 
         // update subscribe-rateLimiter
         if (ratePerConsumer > 0) {
-            if (this.subscribeRateLimiter.get(consumerIdentify) == null) {
-                this.subscribeRateLimiter.put(consumerIdentify, new RateLimiter(brokerService.pulsar().getExecutor(), ratePerConsumer,
+            if (this.subscribeRateLimiter.get(consumerIdentifier) == null) {
+                this.subscribeRateLimiter.put(consumerIdentifier, new RateLimiter(brokerService.pulsar().getExecutor(), ratePerConsumer,
                         ratePeriod, TimeUnit.SECONDS));
             } else {
-                this.subscribeRateLimiter.get(consumerIdentify).setRate(ratePerConsumer, ratePeriod, TimeUnit.SECONDS);
+                this.subscribeRateLimiter.get(consumerIdentifier).setRate(ratePerConsumer, ratePeriod, TimeUnit.SECONDS);
             }
         } else {
             // subscribe-rate should be disable and close
-            removeSubscribeLimiter(consumerIdentify);
+            removeSubscribeLimiter(consumerIdentifier);
         }
     }
 
@@ -157,8 +157,8 @@ public class SubscribeRateLimiter {
             }
             this.subscribeRate = subscribeRate;
             stopResetTask();
-            for (ConsumerIdentify consumerIdentify : this.subscribeRateLimiter.keySet()) {
-                updateSubscribeRate(consumerIdentify, subscribeRate);
+            for (ConsumerIdentifier consumerIdentifier : this.subscribeRateLimiter.keySet()) {
+                updateSubscribeRate(consumerIdentifier, subscribeRate);
             }
             if (isSubscribeRateEnabled(this.subscribeRate)) {
                 this.resetTask = createTask();
@@ -200,8 +200,8 @@ public class SubscribeRateLimiter {
      *
      * @return
      */
-    public long getSubscribeRatePerConsumer(ConsumerIdentify consumerIdentify) {
-        return subscribeRateLimiter.get(consumerIdentify) != null ? subscribeRateLimiter.get(consumerIdentify).getRate() : -1;
+    public long getSubscribeRatePerConsumer(ConsumerIdentifier consumerIdentifier) {
+        return subscribeRateLimiter.get(consumerIdentifier) != null ? subscribeRateLimiter.get(consumerIdentifier).getRate() : -1;
     }
 
     private boolean isSubscribeRateEnabled(SubscribeRate subscribeRate) {
@@ -240,7 +240,7 @@ public class SubscribeRateLimiter {
         return subscribeRate;
     }
 
-    public static class ConsumerIdentify {
+    public static class ConsumerIdentifier {
 
         private String host;
 
@@ -248,7 +248,7 @@ public class SubscribeRateLimiter {
 
         private long consumerId;
 
-        public ConsumerIdentify(String host, String consumerName, long consumerId) {
+        public ConsumerIdentifier(String host, String consumerName, long consumerId) {
             this.host = host;
             this.consumerName = consumerName;
             this.consumerId = consumerId;
@@ -261,8 +261,8 @@ public class SubscribeRateLimiter {
 
         @Override
         public boolean equals(Object obj) {
-            if (obj instanceof ConsumerIdentify) {
-                ConsumerIdentify consumer = (ConsumerIdentify) obj;
+            if (obj instanceof ConsumerIdentifier) {
+                ConsumerIdentifier consumer = (ConsumerIdentifier) obj;
                 return Objects.equals(host, consumer.host)
                         && Objects.equals(consumerName, consumer.consumerName)
                         && Objects.equals(consumerId, consumer.consumerId);
