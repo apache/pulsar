@@ -42,6 +42,9 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     int res = makePostRequest(url, "true");
     ASSERT_TRUE(res == 204 || res == 409);
 
+    // Ensure dedup status was refreshed
+    sleep(1);
+
     ReaderConfiguration readerConf;
     Reader reader;
     ASSERT_EQ(client.createReader(topicName, MessageId::earliest(), readerConf, reader), ResultOk);
@@ -86,6 +89,9 @@ TEST(ClientDeduplicationTest, testProducerDeduplication) {
     std::string url = adminUrl + "admin/v2/namespaces/public/default/deduplication";
     int res = makePostRequest(url, "true");
     ASSERT_TRUE(res == 204 || res == 409);
+
+    // Ensure dedup status was refreshed
+    sleep(1);
 
     ReaderConfiguration readerConf;
     Reader reader;
