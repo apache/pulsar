@@ -60,6 +60,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private List<ConsumerInterceptor<T>> interceptorList;
 
     private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
+    private static long DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER = 30000L;
+
 
     public ConsumerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ConsumerConfigurationData<T>(), schema);
@@ -266,7 +268,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy) {
-        conf.setDeadLetterPolicy(deadLetterPolicy);
+        if (deadLetterPolicy != null && conf.getAckTimeoutMillis() == 0) {
+            conf.setAckTimeoutMillis(DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER);
+            conf.setDeadLetterPolicy(deadLetterPolicy);
+        }
         return this;
     }
 
