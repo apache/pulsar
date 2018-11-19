@@ -75,11 +75,6 @@
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlet</artifactId>
     </dependency>
-
-    <dependency>
-      <groupId>com.ea.agentloader</groupId>
-      <artifactId>ea-agent-loader</artifactId>
-    </dependency>
   </dependencies>
 
   <build>
