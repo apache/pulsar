@@ -268,8 +268,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy) {
-        if (deadLetterPolicy != null && conf.getAckTimeoutMillis() == 0) {
-            conf.setAckTimeoutMillis(DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER);
+        if (deadLetterPolicy != null) {
+            if (conf.getAckTimeoutMillis() == 0) {
+                conf.setAckTimeoutMillis(DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER);
+            }
             conf.setDeadLetterPolicy(deadLetterPolicy);
         }
         return this;
