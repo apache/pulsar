@@ -28,9 +28,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -41,7 +39,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Matchers.any;
@@ -58,29 +55,6 @@ import static org.mockito.Mockito.when;
 
 @Slf4j
 public class FunctionRuntimeManagerTest {
-
-    public static class TestSink implements MetricsSink {
-
-        @Override
-        public void init(Map<String, String> conf) {
-
-        }
-
-        @Override
-        public void processRecord(InstanceCommunication.MetricsData record, Function.FunctionDetails functionDetails) {
-
-        }
-
-        @Override
-        public void flush() {
-
-        }
-
-        @Override
-        public void close() {
-
-        }
-    }
 
     @Test
     public void testProcessAssignmentUpdateAddFunctions() throws Exception {

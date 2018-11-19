@@ -16,7 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Spanwer for spawning processes, threads, docker containers to execute functions.
- */
-package org.apache.pulsar.functions.metrics;
+
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#pragma GCC visibility push(default)
+
+typedef struct _pulsar_string_list pulsar_string_list_t;
+
+pulsar_string_list_t *pulsar_string_list_create();
+void pulsar_string_list_free(pulsar_string_list_t *list);
+
+int pulsar_string_list_size(pulsar_string_list_t *list);
+
+void pulsar_string_list_append(pulsar_string_list_t *list, const char *item);
+
+const char *pulsar_string_list_get(pulsar_string_list_t *map, int index);
+
+#pragma GCC visibility pop
+
+#ifdef __cplusplus
+}
+#endif

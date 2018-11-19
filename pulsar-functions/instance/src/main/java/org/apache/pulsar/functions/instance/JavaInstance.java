@@ -26,6 +26,8 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
+import java.util.Map;
+
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
  * program if invoking via a process based invocation or using JavaInstance using a thread
@@ -74,7 +76,7 @@ public class JavaInstance implements AutoCloseable {
     public void close() {
     }
 
-    public InstanceCommunication.MetricsData getAndResetMetrics() {
+    public Map<String, Double> getAndResetMetrics() {
         return context.getAndResetMetrics();
     }
 
@@ -82,7 +84,7 @@ public class JavaInstance implements AutoCloseable {
         context.resetMetrics();
     }
 
-    public InstanceCommunication.MetricsData getMetrics() {
+    public Map<String, Double> getMetrics() {
         return context.getMetrics();
     }
 }

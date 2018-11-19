@@ -2162,3 +2162,31 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
     producer.close();
     client.shutdown();
 }
+
+TEST(BasicEndToEndTest, testGetTopicPartitions) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://public/default/testGetPartitions";
+
+    // call admin api to make it partitioned
+    std::string url = adminUrl + "admin/v2/persistent/public/default/testGetPartitions/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+    std::vector<std::string> partitionsList;
+    Result result = client.getPartitionsForTopic(topicName, partitionsList);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(3, partitionsList.size());
+    ASSERT_EQ(topicName + "-partition-0", partitionsList[0]);
+    ASSERT_EQ(topicName + "-partition-1", partitionsList[1]);
+    ASSERT_EQ(topicName + "-partition-2", partitionsList[2]);
+
+    std::vector<std::string> partitionsList2;
+    result = client.getPartitionsForTopic("persistent://public/default/testGetPartitions-non-partitioned",
+                                          partitionsList2);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(1, partitionsList2.size());
+    ASSERT_EQ(partitionsList2[0], "persistent://public/default/testGetPartitions-non-partitioned");
+
+    client.shutdown();
+}
