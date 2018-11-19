@@ -282,7 +282,7 @@ If you want to enable [Pulsar Functions](functions-overview.md), you can follow 
 2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provided when [initializing the cluster's metadata](#initializing-cluster-metadata). 
 
     ```conf
-    pulsarFunctionsCluster=pulsar-cluster-1
+    pulsarFunctionsCluster: pulsar-cluster-1
     ```
 
 ### Starting Brokers
