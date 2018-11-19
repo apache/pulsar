@@ -162,6 +162,20 @@ public class EntryCacheImpl implements EntryCache {
     @Override
     public void asyncReadEntry(ReadHandle lh, PositionImpl position, final ReadEntryCallback callback,
             final Object ctx) {
+        try {
+            asyncReadEntry0(lh, position, callback, ctx);
+        } catch (Throwable t) {
+            log.warn("failed to read entries for {}-{}", lh.getId(), position, t);
+            // invalidate all entries related to ledger from the cache (it might happen if entry gets corrupt
+            // (entry.data is already deallocate due to any race-condition) so, invalidate cache and next time read from
+            // the bookie)
+            invalidateAllEntries(lh.getId());
+            callback.readEntryFailed(createManagedLedgerException(t), ctx);
+        }
+    }
+    
+    private void asyncReadEntry0(ReadHandle lh, PositionImpl position, final ReadEntryCallback callback,
+            final Object ctx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Reading entry ledger {}: {}", ml.getName(), lh.getId(), position.getEntryId());
         }
@@ -202,8 +216,22 @@ public class EntryCacheImpl implements EntryCache {
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
+            final ReadEntriesCallback callback, Object ctx) {
+        try {
+            asyncReadEntry0(lh, firstEntry, lastEntry, isSlowestReader, callback, ctx);
+        } catch (Throwable t) {
+            log.warn("failed to read entries for {}--{}-{}", lh.getId(), firstEntry, lastEntry, t);
+            // invalidate all entries related to ledger from the cache (it might happen if entry gets corrupt
+            // (entry.data is already deallocate due to any race-condition) so, invalidate cache and next time read from
+            // the bookie)
+            invalidateAllEntries(lh.getId());
+            callback.readEntriesFailed(createManagedLedgerException(t), ctx);
+        }
+    }
+    
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
             final ReadEntriesCallback callback, Object ctx) {
         final long ledgerId = lh.getId();
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
