@@ -300,6 +300,7 @@ public class FunctionConfigUtils {
             resources.setCpu(functionDetails.getResources().getCpu());
             resources.setRam(functionDetails.getResources().getRam());
             resources.setDisk(functionDetails.getResources().getDisk());
+            functionConfig.setResources(resources);
         }
 
         return functionConfig;

@@ -18,12 +18,17 @@
  */
 package org.apache.pulsar;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 import com.beust.jcommander.Parameter;
-import com.ea.agentloader.AgentLoader;
 import com.google.common.collect.Sets;
 
+import java.io.File;
+import java.net.URL;
+import java.nio.file.Paths;
+import java.util.Optional;
+
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -35,16 +40,8 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.aspectj.weaver.loadtime.Agent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.net.URL;
-import java.nio.file.Paths;
-import java.util.Optional;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class PulsarStandalone implements AutoCloseable {
 
@@ -250,9 +247,6 @@ public class PulsarStandalone implements AutoCloseable {
         }
 
         log.debug("--- setup PulsarStandaloneStarter ---");
-
-        // load aspectj-weaver agent for instrumentation
-        AgentLoader.loadAgentClass(Agent.class.getName(), null);
 
         if (!this.isOnlyBroker()) {
             ServerConfiguration bkServerConf = new ServerConfiguration();
