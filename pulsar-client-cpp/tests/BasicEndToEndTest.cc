@@ -2200,7 +2200,7 @@ TEST(BasicEndToEndTest, testGetTopicPartitions) {
 TEST(BasicEndToEndTest, testFlushInProducer) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/test-flush-in-producer";
+    std::string topicName = "test-flush-in-producer";
     std::string subName = "subscription-name";
     Producer producer;
     int numOfMessages = 10;
@@ -2287,10 +2287,10 @@ TEST(BasicEndToEndTest, testFlushInProducer) {
 
 TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/partition-testFlushInPartitionedProducer";
+    std::string topicName = "partition-testFlushInPartitionedProducer";
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/partition-testFlushInPartitionedProducer/partitions";
+        adminUrl + "admin/v2/persistent/public/default/partition-testFlushInPartitionedProducer/partitions";
     int res = makePutRequest(url, "5");
     int numberOfPartitions = 5;
 
