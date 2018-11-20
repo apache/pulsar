@@ -64,12 +64,12 @@ RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.11.tar.gz && \
     make && make install && \
     rm -rf /zlib-1.2.11.tar.gz /zlib-1.2.11
 
-RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0h.tar.gz && \
-    tar xvfz OpenSSL_1_1_0h.tar.gz && \
-    cd openssl-OpenSSL_1_1_0h/ && \
+RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
+    tar xvfz OpenSSL_1_1_0j.tar.gz && \
+    cd openssl-OpenSSL_1_1_0j/ && \
     ./Configure -fPIC --prefix=/usr/local/ssl/ no-shared linux-x86_64 && \
     make && make install && \
-    rm -rf /OpenSSL_1_1_0h.tar.gz /openssl-OpenSSL_1_1_0h
+    rm -rf /OpenSSL_1_1_0j.tar.gz /openssl-OpenSSL_1_1_0j
 
 # LibCurl
 RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_58_0/curl-7.58.0.tar.gz && \

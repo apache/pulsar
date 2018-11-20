@@ -46,12 +46,12 @@ RUN curl -O -L https://zlib.net/zlib-1.2.11.tar.gz && \
     rm -rf /zlib-1.2.11.tar.gz /zlib-1.2.11
 
 # Compile OpenSSL
-RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_0_2l.tar.gz && \
-    tar xvfz OpenSSL_1_0_2l.tar.gz && \
-    cd openssl-OpenSSL_1_0_2l/ && \
+RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_0_2q.tar.gz && \
+    tar xvfz OpenSSL_1_0_2q.tar.gz && \
+    cd openssl-OpenSSL_1_0_2q/ && \
     ./Configure -fPIC --prefix=/usr/local/ssl/ no-shared linux-x86_64 && \
     make && make install && \
-    rm -rf /OpenSSL_1_0_2l.tar.gz /openssl-OpenSSL_1_0_2l
+    rm -rf /OpenSSL_1_0_2q.tar.gz /openssl-OpenSSL_1_0_2q
 
 # Download and compile boost
 RUN curl -O -L https://dl.bintray.com/boostorg/release/1.68.0/source/boost_1_68_0.tar.gz && \
