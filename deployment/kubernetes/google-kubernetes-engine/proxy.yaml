@@ -81,4 +81,4 @@ spec:
       protocol: TCP
   selector:
     app: pulsar
-    component: broker
+    component: proxy
