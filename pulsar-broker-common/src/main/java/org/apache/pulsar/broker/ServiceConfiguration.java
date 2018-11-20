@@ -55,6 +55,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int webServicePort = 8080;
     // Port to use to server HTTPS request
     private int webServicePortTls = 8443;
+    // Port to use to server gRPC request
+    private int grpcServicePort = 50051;
 
     // Hostname or IP address the service binds on.
     private String bindAddress = "0.0.0.0";
@@ -67,6 +69,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     // Enable the WebSocket API service
     private boolean webSocketServiceEnabled = false;
+
+    // Enable the gRPC service
+    private boolean grpcServiceEnabled = false;
 
     // Flag to control features that are meant to be used when running in standalone mode
     private boolean isRunningStandalone = false;
@@ -490,6 +495,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Time in milliseconds that idle WebSocket session times out
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
+    /**** --- Grpc --- ****/
+    // Number of IO threads in Pulsar Client used in gRPC proxy
+    private int grpcNumIoThreads = Runtime.getRuntime().availableProcessors();
+    // Number of connections per Broker in Pulsar Client used in gRPC proxy
+    private int grpcConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+    // Time in milliseconds that idle gRPC session times out
+    private int grpcSessionIdleTimeoutMillis = 300000;
+
     /**** --- Metrics --- ****/
     // If true, export topic level metrics otherwise namespace level
     private boolean exposeTopicLevelMetricsInPrometheus = true;
@@ -589,6 +602,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.webServicePortTls = webServicePortTls;
     }
 
+    public int getGrpcServicePort() {
+        return grpcServicePort;
+    }
+
+    public void setGrpcServicePort(int grpcServicePort) {
+        this.grpcServicePort = grpcServicePort;
+    }
+
     public String getBindAddress() {
         return this.bindAddress;
     }
@@ -619,6 +640,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setWebSocketServiceEnabled(boolean webSocketServiceEnabled) {
         this.webSocketServiceEnabled = webSocketServiceEnabled;
+    }
+
+    public boolean isGrpcServiceEnabled() {
+        return grpcServiceEnabled;
+    }
+
+    public void setGrpcServiceEnabled(boolean grpcServiceEnabled) {
+        this.grpcServiceEnabled = grpcServiceEnabled;
     }
 
     public String getClusterName() {
@@ -1654,6 +1683,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setWebSocketSessionIdleTimeoutMillis(int webSocketSessionIdleTimeoutMillis) {
         this.webSocketSessionIdleTimeoutMillis = webSocketSessionIdleTimeoutMillis;
+    }
+
+    public int getGrpcNumIoThreads() { return grpcNumIoThreads; }
+
+    public void setGrpcNumIoThreads(int GrpcNumIoThreads) { this.grpcNumIoThreads = grpcNumIoThreads; }
+
+    public int getGrpcConnectionsPerBroker() { return grpcConnectionsPerBroker; }
+
+    public void setGrpcConnectionsPerBroker(int grpcConnectionsPerBroker) { this.grpcConnectionsPerBroker = grpcConnectionsPerBroker; }
+
+    public int getGrpcSessionIdleTimeoutMillis() {
+        return grpcSessionIdleTimeoutMillis;
+    }
+
+    public void setGrpcSessionIdleTimeoutMillis(int grpcSessionIdleTimeoutMillis) {
+        this.grpcSessionIdleTimeoutMillis = grpcSessionIdleTimeoutMillis;
     }
 
     public boolean exposeTopicLevelMetricsInPrometheus() {
