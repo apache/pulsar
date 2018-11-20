@@ -27,7 +27,7 @@ metadata:
 provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-ssd
-  zones: us-central1-a
+  zones: us-east1-b
 ---
 # HDDs for bookie ledger storage
 apiVersion: storage.k8s.io/v1
@@ -37,7 +37,7 @@ metadata:
 provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-standard
-  zones: us-central1-a
+  zones: us-east1-b
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -67,7 +67,7 @@ spec:
       labels:
         app: pulsar
         component: bookkeeper
-        cluster: pulsar-gke
+        cluster: us-east
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"
@@ -159,9 +159,9 @@ spec:
 
 ---
 ##
-## Define the Bookie headless service
-## In practice, in this case, it is only useful to have a view of
-## all the bookie pods that are present
+## Bookie headless service.
+## This is required for resolving intra-cluser hostnames (via k8s DNS)
+## from the brokers.
 ##
 apiVersion: v1
 kind: Service
