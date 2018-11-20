@@ -42,14 +42,14 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.api.Request;
-import org.eclipse.jetty.proxy.AsyncProxyServlet;
+import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.util.HttpCookieStore;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class AdminProxyHandler extends AsyncProxyServlet {
+class AdminProxyHandler extends ProxyServlet {
     private static final Logger LOG = LoggerFactory.getLogger(AdminProxyHandler.class);
 
     private final ProxyConfiguration config;
