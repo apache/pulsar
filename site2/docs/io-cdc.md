@@ -6,9 +6,9 @@ sidebar_label: CDC Source Connector
 
 ## Source
 
-The CDC Source connector is used for turns your existing databases, which include MySQL, MongoDB, PostgreSQL, into Pulsar topics.
+The CDC Source connector is used to capture change log of existing databases like MySQL, MongoDB, PostgreSQL into Pulsar.
 
-The CDC Source connector is built on top of [Debezium](https://debezium.io/). Instead of Storing data into Kafka, this connector stores all data into Pulsar Cluster in a persistent, replicated and partitioned way.
+The CDC Source connector is built on top of [Debezium](https://debezium.io/). This connector stores all data into Pulsar Cluster in a persistent, replicated and partitioned way.
 This CDC Source are tested by using MySQL, and you could get more information regarding how it works at [this link](https://debezium.io/docs/connectors/mysql/).
 Regarding how Debezium works, please reference to [Debezium tutorial](https://debezium.io/docs/tutorial/). It is recommended that you go through this tutorial first.
 
@@ -18,7 +18,7 @@ The Configuration is mostly related to Debezium task config, besides this we sho
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| `task.class` | `true` | `null` | A Kafka Connect source task class that implemented in Debezium. |
+| `task.class` | `true` | `null` | A source task class that implemented in Debezium. |
 | `database.hostname` | `true` | `null` | The address of the Database server. |
 | `database.port` | `true` | `null` | The port number of the Database server.. |
 | `database.user` | `true` | `null` | The name of the Database user that has the required privileges. |
