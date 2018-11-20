@@ -2190,3 +2190,192 @@ TEST(BasicEndToEndTest, testGetTopicPartitions) {
 
     client.shutdown();
 }
+
+TEST(BasicEndToEndTest, testFlushInProducer) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://property/cluster/namespace/test-flush-in-producer";
+    std::string subName = "subscription-name";
+    Producer producer;
+    int numOfMessages = 10;
+
+    ProducerConfiguration conf;
+    conf.setBatchingEnabled(true);
+    // set batch message number numOfMessages, and max delay 60s
+    conf.setBatchingMaxMessages(numOfMessages);
+    conf.setBatchingMaxPublishDelayMs(60000);
+
+    conf.setBlockIfQueueFull(true);
+    conf.setProperty("producer-name", "test-producer-name");
+    conf.setProperty("producer-id", "test-producer-id");
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    consumerConfig.setProperty("consumer-name", "test-consumer-name");
+    consumerConfig.setProperty("consumer-id", "test-consumer-id");
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, consumerConfig,
+                          WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    // Send Asynchronously of half the messages
+    std::string prefix = "msg-batch-async";
+    for (int i = 0; i < numOfMessages / 2; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO("sending half of messages in async, should timeout to receive");
+
+    // message not reached max batch number, should not receive any data.
+    Message receivedMsg;
+    ASSERT_EQ(ResultTimeout, consumer.receive(receivedMsg, 2000));
+
+    // After flush, it should get the message
+    producer.flush();
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 2000));
+
+    // receive all the messages.
+    while (consumer.receive(receivedMsg, 2000) == ResultOk) {
+        ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
+    }
+
+    // Send Asynchronously of another round of the messages
+    for (int i = numOfMessages / 2; i < numOfMessages; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix));
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+    LOG_INFO(
+        "sending the other half messages in async, should still timeout, since first half already flushed");
+    ASSERT_EQ(ResultTimeout, consumer.receive(receivedMsg, 2000));
+
+    // After flush async, it should get the message
+    Promise<bool, Result> promise;
+    producer.flushAsync(WaitForCallback(promise));
+    Promise<bool, Result> promise1;
+    producer.flushAsync(WaitForCallback(promise1));
+    promise.getFuture().get(result);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 2000));
+
+    producer.close();
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns/partition-testFlushInPartitionedProducer";
+    // call admin api to make it partitioned
+    std::string url =
+        adminUrl + "admin/persistent/prop/unit/ns/partition-testFlushInPartitionedProducer/partitions";
+    int res = makePutRequest(url, "5");
+    int numberOfPartitions = 5;
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    Producer producer;
+    int numOfMessages = 10;
+    ProducerConfiguration tempProducerConfiguration;
+    tempProducerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    ProducerConfiguration producerConfiguration = tempProducerConfiguration;
+    producerConfiguration.setBatchingEnabled(true);
+    // set batch message number numOfMessages, and max delay 60s
+    producerConfiguration.setBatchingMaxMessages(numOfMessages / numberOfPartitions);
+    producerConfiguration.setBatchingMaxPublishDelayMs(60000);
+
+    Result result = client.createProducer(topicName, producerConfiguration, producer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(producer.getTopic(), topicName);
+
+    LOG_INFO("Creating Subscriber");
+    std::string consumerId = "CONSUMER";
+    ConsumerConfiguration consConfig;
+    consConfig.setConsumerType(ConsumerExclusive);
+    consConfig.setReceiverQueueSize(2);
+    ASSERT_FALSE(consConfig.hasMessageListener());
+    Consumer consumer[numberOfPartitions];
+    Result subscribeResult;
+    for (int i = 0; i < numberOfPartitions; i++) {
+        std::stringstream partitionedTopicName;
+        partitionedTopicName << topicName << "-partition-" << i;
+
+        std::stringstream partitionedConsumerId;
+        partitionedConsumerId << consumerId << i;
+        subscribeResult = client.subscribe(partitionedTopicName.str(), partitionedConsumerId.str(),
+                                           consConfig, consumer[i]);
+
+        ASSERT_EQ(ResultOk, subscribeResult);
+        ASSERT_EQ(consumer[i].getTopic(), partitionedTopicName.str());
+    }
+
+    // Send asynchronously of first part the messages
+    std::string prefix = "msg-batch-async";
+    for (int i = 0; i < numOfMessages / 2; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.sendAsync(msg, simpleCallback);
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+
+    LOG_INFO("sending first part messages in async, should timeout to receive");
+    Message m;
+    ASSERT_EQ(ResultTimeout, consumer[0].receive(m, 2000));
+
+    // After flush, should be able to consume.
+    producer.flush();
+    LOG_INFO("After flush, should be able to receive");
+    ASSERT_EQ(ResultOk, consumer[0].receive(m, 2000));
+
+    LOG_INFO("Receive all messages.");
+    // receive all the messages.
+    for (int partitionIndex = 0; partitionIndex < numberOfPartitions; partitionIndex++) {
+        while (consumer[partitionIndex].receive(m, 2000) == ResultOk) {
+            // ASSERT_EQ(ResultOk, consumer[partitionIndex].acknowledge(m));
+            ASSERT_EQ(ResultOk, consumer[partitionIndex].acknowledge(m));
+        }
+    }
+
+    // send message again.
+    for (int i = numOfMessages / 2; i < numOfMessages; i++) {
+        std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
+        producer.sendAsync(msg, simpleCallback);
+        LOG_DEBUG("async sending message " << messageContent);
+    }
+
+    // After flush async, it should get the message
+    Promise<bool, Result> promise;
+    producer.flushAsync(WaitForCallback(promise));
+    Promise<bool, Result> promise1;
+    producer.flushAsync(WaitForCallback(promise1));
+    promise.getFuture().get(result);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(ResultOk, consumer[0].receive(m, 2000));
+
+    producer.close();
+    client.shutdown();
+}
