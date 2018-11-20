@@ -2287,7 +2287,7 @@ TEST(BasicEndToEndTest, testFlushInProducer) {
 
 TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
     Client client(lookupUrl);
-    std::string topicName = "partition-testFlushInPartitionedProducer";
+    std::string topicName = "persistent://public/default/partition-testFlushInPartitionedProducer";
     // call admin api to make it partitioned
     std::string url =
         adminUrl + "admin/v2/persistent/public/default/partition-testFlushInPartitionedProducer/partitions";
