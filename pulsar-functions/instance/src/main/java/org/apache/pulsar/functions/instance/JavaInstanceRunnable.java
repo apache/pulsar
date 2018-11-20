@@ -60,9 +60,11 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.StateUtils;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -149,7 +151,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         this.instanceCache = InstanceCache.getInstanceCache();
 
-        this.stats = new FunctionStatsManager(collectorRegistry, this.metricsLabels, this.instanceCache.executor);
+        // Declare function local collector registry so that it will not clash with other function instances'
+        // metrics collection especially in threaded mode
+        // In process mode the JavaInstanceMain will declare a CollectorRegistry and pass it down
+        this.collectorRegistry = collectorRegistry;
+        if (this.collectorRegistry == null) {
+            this.collectorRegistry = new CollectorRegistry();
+        }
+
+        this.stats = new FunctionStatsManager(this.collectorRegistry, this.metricsLabels, this.instanceCache.executor);
     }
 
     /**
@@ -202,10 +212,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
      */
     @Override
     public void run() {
-        String functionName = null;
         try {
             ContextImpl contextImpl = setupContext();
-            functionName = String.format("%s-%s", contextImpl.getTenant(), contextImpl.getFunctionName());
             javaInstance = setupJavaInstance(contextImpl);
             if (null != stateTable) {
                 StateContextImpl stateContext = new StateContextImpl(stateTable);
@@ -255,7 +263,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
             }
         } catch (Throwable t) {
-            log.error("[{}] Uncaught exception in Java Instance", functionName, t);
+            log.error("[{}] Uncaught exception in Java Instance", Utils.getFullyQualifiedInstanceId(
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName(),
+                    instanceConfig.getInstanceId()), t);
             deathException = t;
             stats.incrSysExceptions(t);
             return;
@@ -405,8 +417,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     public void close() {
 
-        // Shutdown instance cache
-        InstanceCache.shutdown();
+        if (stats != null) {
+            stats.close();
+        }
 
         if (source != null) {
             try {

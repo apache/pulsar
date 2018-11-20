@@ -94,7 +94,7 @@ public class RuntimeSpawner implements AutoCloseable {
                             runtime.start();
                         } catch (Exception e) {
                             log.error("{}/{}/{}-{} Function Restart failed", details.getTenant(),
-                                    details.getNamespace(), details.getName(), e);
+                                    details.getNamespace(), details.getName(), e, e);
                         }
                         numRestarts++;
                     }

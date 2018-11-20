@@ -193,19 +193,6 @@ public final class Utils {
         }
     }
 
-    public static String getFullyQualifiedInstanceId(Function.Instance instance) {
-        return getFullyQualifiedInstanceId(
-                instance.getFunctionMetaData().getFunctionDetails().getTenant(),
-                instance.getFunctionMetaData().getFunctionDetails().getNamespace(),
-                instance.getFunctionMetaData().getFunctionDetails().getName(),
-                instance.getInstanceId());
-    }
-
-    public static String getFullyQualifiedInstanceId(String tenant, String namespace,
-                                                     String functionName, int instanceId) {
-        return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
-    }
-
     public static FunctionStats.FunctionInstanceStats getFunctionInstanceStats(String fullyQualifiedInstanceName, FunctionRuntimeInfo functionRuntimeInfo) {
         RuntimeSpawner functionRuntimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
 

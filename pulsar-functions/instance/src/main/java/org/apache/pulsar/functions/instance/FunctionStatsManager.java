@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -37,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Getter
 @Setter
-public class FunctionStatsManager {
+public class FunctionStatsManager implements AutoCloseable {
 
     static final String[] metricsLabelNames = {"tenant", "namespace", "function", "instance_id", "cluster"};
 
@@ -75,9 +76,7 @@ public class FunctionStatsManager {
     final Gauge statlastInvocation;
 
     final Counter statTotalRecordsRecieved;
-
-    CollectorRegistry functionCollectorRegistry;
-
+    
     // windowed metrics
 
     final Counter statTotalProcessed1min;
@@ -94,6 +93,8 @@ public class FunctionStatsManager {
 
     private String[] metricsLabels;
 
+    private ScheduledFuture<?> scheduledFuture;
+
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions = EvictingQueue.create(10);
     @Getter
@@ -102,9 +103,6 @@ public class FunctionStatsManager {
     public FunctionStatsManager(CollectorRegistry collectorRegistry, String[] metricsLabels, ScheduledExecutorService scheduledExecutorService) {
 
         this.metricsLabels = metricsLabels;
-        // Declare function local collector registry so that it will not clash with other function instances'
-        // metrics collection especially in threaded mode
-        functionCollectorRegistry = new CollectorRegistry();
 
         statTotalProcessed = Counter.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESSED_TOTAL)
@@ -192,10 +190,14 @@ public class FunctionStatsManager {
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);
 
-        scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
+        scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
-                reset();
+                try {
+                    reset();
+                } catch (Exception e) {
+                    log.error("Failed to reset metrics for 1min window", e);
+                }
             }
         }, 1, 1, TimeUnit.MINUTES);
     }
@@ -354,5 +356,10 @@ public class FunctionStatsManager {
         statTotalRecordsRecieved1min.clear();
         latestUserExceptions.clear();
         latestSystemExceptions.clear();
+    }
+
+    @Override
+    public void close() {
+        scheduledFuture.cancel(false);
     }
 }
