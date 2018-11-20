@@ -25,8 +25,8 @@
 using namespace pulsar;
 
 TEST(ConsumerConfigurationTest, testReadCompactPersistentExclusive) {
-    std::string lookupUrl = "pulsar://localhost:8885";
-    std::string topicName = "persistent://prop/unit/ns1/persist-topic";
+    std::string lookupUrl = "pulsar://localhost:6650";
+    std::string topicName = "persist-topic";
     std::string subName = "test-persist-exclusive";
 
     Result result;
@@ -45,8 +45,8 @@ TEST(ConsumerConfigurationTest, testReadCompactPersistentExclusive) {
 }
 
 TEST(ConsumerConfigurationTest, testReadCompactPersistentFailover) {
-    std::string lookupUrl = "pulsar://localhost:8885";
-    std::string topicName = "persistent://prop/unit/ns1/persist-topic";
+    std::string lookupUrl = "pulsar://localhost:6650";
+    std::string topicName = "persist-topic";
     std::string subName = "test-persist-fail-over";
 
     Result result;
@@ -65,8 +65,8 @@ TEST(ConsumerConfigurationTest, testReadCompactPersistentFailover) {
 }
 
 TEST(ConsumerConfigurationTest, testReadCompactPersistentShared) {
-    std::string lookupUrl = "pulsar://localhost:8885";
-    std::string topicName = "persistent://prop/unit/ns1/persist-topic";
+    std::string lookupUrl = "pulsar://localhost:6650";
+    std::string topicName = "persist-topic";
     std::string subName = "test-persist-shared";
 
     Result result;
@@ -85,8 +85,8 @@ TEST(ConsumerConfigurationTest, testReadCompactPersistentShared) {
 }
 
 TEST(ConsumerConfigurationTest, testReadCompactNonPersistentExclusive) {
-    std::string lookupUrl = "pulsar://localhost:8885";
-    std::string topicName = "non-persistent://prop/unit/ns1/testNonPersistentTopic";
+    std::string lookupUrl = "pulsar://localhost:6650";
+    std::string topicName = "non-persistent://public/default/testNonPersistentTopic";
     std::string subName = "test-non-persist-exclusive";
 
     Result result;
