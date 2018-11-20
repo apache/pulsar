@@ -259,11 +259,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.ea.agentloader</groupId>
-      <artifactId>ea-agent-loader</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.carrotsearch</groupId>
       <artifactId>hppc</artifactId>
     </dependency>
