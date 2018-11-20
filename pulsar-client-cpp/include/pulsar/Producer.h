@@ -29,6 +29,9 @@ namespace pulsar {
 class ProducerImplBase;
 class PulsarWrapper;
 class PulsarFriend;
+
+typedef boost::function<void(Result)> FlushCallback;
+
 class Producer {
    public:
     /**
@@ -79,6 +82,18 @@ class Producer {
      * @param callback the callback to get notification of the completion
      */
     void sendAsync(const Message& msg, SendCallback callback);
+
+    /**
+     * Flush all the messages buffered in the client and wait until all messages have been successfully
+     * persisted.
+     */
+    Result flush();
+
+    /**
+     * Flush all the messages buffered in the client and wait until all messages have been successfully
+     * persisted.
+     */
+    void flushAsync(FlushCallback callback);
 
     /**
      * Get the last sequence id that was published by this producer.
