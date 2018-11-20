@@ -18,21 +18,26 @@
  */
 package org.apache.flink.batch.connectors.pulsar;
 
-import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.batch.connectors.pulsar.serialization.CsvSerializationSchema;
 import org.apache.flink.util.Preconditions;
 
+import java.util.List;
+
 /**
- * Flink Batch Sink to write DataSets into a Pulsar topic.
+ * Flink Batch Sink to write DataSets into a Pulsar topic as Csv.
  */
-public class PulsarOutputFormat<T> extends BasePulsarOutputFormat<T> {
+public class PulsarCsvOutputFormat<T> extends BasePulsarOutputFormat<T> {
 
-    private static final long serialVersionUID = 2997027580167793000L;
+    private static final long serialVersionUID = -4461671510903404196L;
 
-    public PulsarOutputFormat(String serviceUrl, String topicName, SerializationSchema<T> serializationSchema) {
+    public PulsarCsvOutputFormat(String serviceUrl, String topicName, List<String> fieldNames) {
         super(serviceUrl, topicName);
-        Preconditions.checkNotNull(serializationSchema,  "serializationSchema cannot be null.");
+        Preconditions.checkNotNull(fieldNames,  "fieldNames cannot be null.");
+        Preconditions.checkArgument(!fieldNames.isEmpty(),  "fieldNames cannot be empty.");
+        Preconditions.checkArgument(fieldNames.stream().allMatch(fieldName -> StringUtils.isNotBlank(fieldName)),  "fieldNames cannot be null/blank.");
 
-        this.serializationSchema = serializationSchema;
+        this.serializationSchema = new CsvSerializationSchema(fieldNames);
     }
 
 }
