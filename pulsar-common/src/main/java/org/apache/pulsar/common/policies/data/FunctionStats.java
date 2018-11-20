@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.google.gson.annotations.SerializedName;
 import lombok.Data;
 
 import java.util.HashMap;
@@ -27,6 +30,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 @Data
+@JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal", "userExceptionsTotal", "avgProcessLatency", "1min", "lastInvocation", "instances" })
 public class FunctionStats {
 
     /**
@@ -54,20 +58,24 @@ public class FunctionStats {
      **/
     public double avgProcessLatency;
 
+    @JsonProperty("1min")
+    public FunctionInstanceStats.FunctionInstanceStatsDataBase oneMin = new FunctionInstanceStats.FunctionInstanceStatsDataBase();
+
     /**
      * Timestamp of when the function was last invoked by any instance
      **/
     public long lastInvocation;
 
     @Data
+    @JsonPropertyOrder({ "instanceId", "metrics" })
     public static class FunctionInstanceStats {
 
         /** Instance Id of function instance **/
         public int instanceId;
 
         @Data
-        public static class FunctionInstanceStatsData {
-
+        @JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal", "userExceptionsTotal", "avgProcessLatency" })
+        public static class FunctionInstanceStatsDataBase {
             /**
              * Total number of records function received from source for instance
              **/
@@ -92,6 +100,14 @@ public class FunctionStats {
              * Average process latency for function for instance
              **/
             public double avgProcessLatency;
+        }
+
+        @Data
+        @JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal", "userExceptionsTotal", "avgProcessLatency", "1min", "lastInvocation", "userMetrics" })
+        public static class FunctionInstanceStatsData extends FunctionInstanceStatsDataBase {
+
+            @JsonProperty("1min")
+            public FunctionInstanceStatsDataBase oneMin = new FunctionInstanceStatsDataBase();
 
             /**
              * Timestamp of when the function was last invoked for instance
@@ -125,6 +141,13 @@ public class FunctionStats {
                 systemExceptionsTotal += functionInstanceStatsData.systemExceptionsTotal;
                 userExceptionsTotal += functionInstanceStatsData.userExceptionsTotal;
                 avgProcessLatency += functionInstanceStatsData.avgProcessLatency;
+
+                oneMin.receivedTotal += functionInstanceStatsData.oneMin.receivedTotal;
+                oneMin.processedSuccessfullyTotal += functionInstanceStatsData.oneMin.processedSuccessfullyTotal;
+                oneMin.systemExceptionsTotal += functionInstanceStatsData.oneMin.systemExceptionsTotal;
+                oneMin.userExceptionsTotal += functionInstanceStatsData.oneMin.userExceptionsTotal;
+                oneMin.avgProcessLatency += functionInstanceStatsData.oneMin.avgProcessLatency;
+
                 if (functionInstanceStatsData.lastInvocation > lastInvocation) {
                     lastInvocation = functionInstanceStatsData.lastInvocation;
                 }
@@ -133,6 +156,10 @@ public class FunctionStats {
         });
         // calculate average from sum
         avgProcessLatency = avgProcessLatency / instances.size();
+
+        // calculate 1min average from sum
+        oneMin.avgProcessLatency = oneMin.avgProcessLatency / instances.size();
+
         return this;
     }
 }
