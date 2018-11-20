@@ -33,8 +33,8 @@ static std::string adminUrl = "http://localhost:8080/";
 TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     Client client(serviceUrl);
 
-    std::string topicName =
-        "persistent://public/dedup-1/testProducerSequenceAfterReconnect-" + boost::lexical_cast<std::string>(time(NULL));
+    std::string topicName = "persistent://public/dedup-1/testProducerSequenceAfterReconnect-" +
+                            boost::lexical_cast<std::string>(time(NULL));
 
     // call admin api to create namespace and enable deduplication
     std::string url = adminUrl + "admin/v2/namespaces/public/dedup-1";
@@ -88,7 +88,8 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
 TEST(ClientDeduplicationTest, testProducerDeduplication) {
     Client client(adminUrl);
 
-    std::string topicName = "persistent://public/dedup-2/testProducerDeduplication-" + boost::lexical_cast<std::string>(time(NULL));
+    std::string topicName = "persistent://public/dedup-2/testProducerDeduplication-" +
+                            boost::lexical_cast<std::string>(time(NULL));
 
     std::string url = adminUrl + "admin/v2/namespaces/public/dedup-2";
     int res = makePutRequest(url, R"({"replication_clusters": ["standalone"]})");
