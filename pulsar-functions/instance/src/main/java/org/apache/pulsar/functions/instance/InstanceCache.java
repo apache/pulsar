@@ -45,7 +45,7 @@ public class InstanceCache {
             if (instance != null) {
                 instance.executor.shutdown();
             }
+            instance = null;
         }
-
     }
 }
