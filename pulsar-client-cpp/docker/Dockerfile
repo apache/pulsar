@@ -49,7 +49,7 @@ RUN curl -O -L https://zlib.net/zlib-1.2.11.tar.gz && \
 RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_0_2l.tar.gz && \
     tar xvfz OpenSSL_1_0_2l.tar.gz && \
     cd openssl-OpenSSL_1_0_2l/ && \
-    ./Configure -fPIC no-shared linux-x86_64 && \
+    ./Configure -fPIC --prefix=/usr/local/ssl/ no-shared linux-x86_64 && \
     make && make install && \
     rm -rf /OpenSSL_1_0_2l.tar.gz /openssl-OpenSSL_1_0_2l
 
@@ -126,12 +126,12 @@ RUN curl -O -L  https://github.com/open-source-parsers/jsoncpp/archive/1.8.0.tar
     rm -rf /1.8.0.tar.gz /jsoncpp-1.8.0
 
 # LibCurl
-RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_54_0/curl-7.54.0.tar.gz && \
-    tar xvfz curl-7.54.0.tar.gz && \
-    cd curl-7.54.0 && \
-    CFLAGS=-fPIC ./configure && \
+RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_58_0/curl-7.58.0.tar.gz && \
+    tar xvfz curl-7.58.0.tar.gz && \
+    cd curl-7.58.0 && \
+    CFLAGS=-fPIC ./configure --with-ssl=/usr/local/ssl/ && \
     make && make install && \
-    rm -rf /curl-7.54.0.tar.gz /curl-7.54.0
+    rm -rf /curl-7.58.0.tar.gz /curl-7.58.0
 
 RUN pip install twine
 
