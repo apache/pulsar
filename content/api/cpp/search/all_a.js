@@ -1,7 +1,8 @@
 var searchData=
 [
-  ['producer',['Producer',['../classpulsar_1_1_producer.html',1,'pulsar']]],
-  ['producer',['Producer',['../classpulsar_1_1_producer.html#a013069fbb382f7f3c7dd58522765698b',1,'pulsar::Producer']]],
-  ['producerconfiguration',['ProducerConfiguration',['../classpulsar_1_1_producer_configuration.html',1,'pulsar']]],
-  ['pulsar',['pulsar',['../namespacepulsar.html',1,'']]]
+  ['message',['Message',['../classpulsar_1_1_message.html',1,'pulsar']]],
+  ['messagebuilder',['MessageBuilder',['../classpulsar_1_1_message_builder.html',1,'pulsar']]],
+  ['messageid',['MessageId',['../classpulsar_1_1_message_id.html',1,'pulsar']]],
+  ['messagelistener',['MessageListener',['../namespacepulsar.html#a64293027dc2f4e9f82b76148328fa191',1,'pulsar']]],
+  ['messageroutingpolicy',['MessageRoutingPolicy',['../classpulsar_1_1_message_routing_policy.html',1,'pulsar']]]
 ];

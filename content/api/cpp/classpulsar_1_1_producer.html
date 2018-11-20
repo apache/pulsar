@@ -109,6 +109,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ad4737186cf798acfb24a167796259443"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b31f92eb0362bdff32316fc9ab70fd7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#a7b31f92eb0362bdff32316fc9ab70fd7">sendAsync</a> (const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg, SendCallback callback)</td></tr>
 <tr class="separator:a7b31f92eb0362bdff32316fc9ab70fd7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1cd59ffc4a23162eca39183ba4278146"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#a1cd59ffc4a23162eca39183ba4278146">flush</a> ()</td></tr>
+<tr class="separator:a1cd59ffc4a23162eca39183ba4278146"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3173d56da00ea2225f03e152c8c3df22"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#a3173d56da00ea2225f03e152c8c3df22">flushAsync</a> (FlushCallback callback)</td></tr>
+<tr class="separator:a3173d56da00ea2225f03e152c8c3df22"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad5f958205d95c8a556bfbc1dc7b7596c"><td class="memItemLeft" align="right" valign="top">int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#ad5f958205d95c8a556bfbc1dc7b7596c">getLastSequenceId</a> () const </td></tr>
 <tr class="separator:ad5f958205d95c8a556bfbc1dc7b7596c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0b4a93617a0c0f8d172633a7bf8ba06b"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html#a0b4a93617a0c0f8d172633a7bf8ba06b">close</a> ()</td></tr>
@@ -179,6 +183,39 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 </div><div class="memdoc">
 <p>Close the producer and release resources allocated.</p>
 <p>No more writes will be accepted from this producer. The provided callback will be triggered when all pending write requests are persisted. In case of errors, pending writes will not be retried. </p>
+
+</div>
+</div>
+<a class="anchor" id="a1cd59ffc4a23162eca39183ba4278146"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> pulsar::Producer::flush </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Flush all the messages buffered in the client and wait until all messages have been successfully persisted. </p>
+
+</div>
+</div>
+<a class="anchor" id="a3173d56da00ea2225f03e152c8c3df22"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::Producer::flushAsync </td>
+          <td>(</td>
+          <td class="paramtype">FlushCallback&#160;</td>
+          <td class="paramname"><em>callback</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Flush all the messages buffered in the client and wait until all messages have been successfully persisted. </p>
 
 </div>
 </div>

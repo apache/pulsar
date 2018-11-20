@@ -69,7 +69,7 @@
 <p>Create a directory for your CA, and place <a href="https://github.com/apache/incubator-pulsar/tree/master/site2/website/static/examples/openssl.cnf">this openssl configuration file</a> in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories needed for the CA.</p>
 <pre><code class="hljs css language-bash">$ mkdir my-ca
 $ <span class="hljs-built_in">cd</span> my-ca
-$ wget https://github.com/apache/incubator-pulsar/tree/master/site2/website/static/examples/openssl.cnf
+$ wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/static/examples/openssl.cnf
 $ <span class="hljs-built_in">export</span> CA_HOME=$(<span class="hljs-built_in">pwd</span>)
 </code></pre>
 <p>Create the necessary directories, keys and certs.</p>
