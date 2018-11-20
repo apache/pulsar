@@ -43,7 +43,6 @@ class Stats(object):
   TOTAL_SYSTEM_EXCEPTIONS_1min = 'system_exceptions_total_1min'
   TOTAL_USER_EXCEPTIONS_1min = 'user_exceptions_total_1min'
   PROCESS_LATENCY_MS_1min = 'process_latency_ms_1min'
-  LAST_INVOCATION_1min = 'last_invocation_1min'
   TOTAL_RECEIVED_1min = 'received_total_1min'
 
   # Declare Prometheus
@@ -64,24 +63,21 @@ class Stats(object):
 
   # 1min windowed metrics
   stat_total_processed_1min = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_PROCESSED_1min,
-                                 'Total number of messages processed.', metrics_label_names)
+                                 'Total number of messages processed in the last 1 minute.', metrics_label_names)
   stat_total_processed_successfully_1min = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SUCCESSFULLY_PROCESSED_1min,
-                                              'Total number of messages processed successfully.', metrics_label_names)
+                                              'Total number of messages processed successfully in the last 1 minute.', metrics_label_names)
   stat_total_sys_exceptions_1min = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SYSTEM_EXCEPTIONS_1min,
-                                      'Total number of system exceptions.',
+                                      'Total number of system exceptions in the last 1 minute.',
                                       metrics_label_names)
   stat_total_user_exceptions_1min = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_USER_EXCEPTIONS_1min,
-                                       'Total number of user exceptions.',
+                                       'Total number of user exceptions in the last 1 minute.',
                                        metrics_label_names)
 
   stat_process_latency_ms_1min = Summary(PULSAR_FUNCTION_METRICS_PREFIX + PROCESS_LATENCY_MS_1min,
-                                    'Process latency in milliseconds.', metrics_label_names)
-
-  stat_last_invocation_1min = Gauge(PULSAR_FUNCTION_METRICS_PREFIX + LAST_INVOCATION_1min,
-                               'The timestamp of the last invocation of the function.', metrics_label_names)
+                                    'Process latency in milliseconds in the last 1 minute.', metrics_label_names)
 
   stat_total_received_1min = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_RECEIVED_1min,
-                                'Total number of messages received from source.', metrics_label_names)
+                                'Total number of messages received from source in the last 1 minute.', metrics_label_names)
 
   latest_user_exception = []
   latest_sys_exception = []
