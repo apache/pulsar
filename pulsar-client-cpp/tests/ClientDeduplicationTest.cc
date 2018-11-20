@@ -34,12 +34,19 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     Client client(serviceUrl);
 
     std::string topicName =
-        "testProducerSequenceAfterReconnect-" + boost::lexical_cast<std::string>(time(NULL));
+        "persistent://public/dedup-1/testProducerSequenceAfterReconnect-" + boost::lexical_cast<std::string>(time(NULL));
 
     // call admin api to create namespace and enable deduplication
+    std::string url = adminUrl + "admin/v2/namespaces/public/dedup-1";
+    int res = makePutRequest(url, R"({"replication_clusters": ["standalone"]})");
+    ASSERT_TRUE(res == 204 || res == 409);
 
-    std::string url = adminUrl + "admin/v2/namespaces/public/default/deduplication";
-    int res = makePostRequest(url, "true");
+    url = adminUrl + "admin/v2/namespaces/public/dedup-1/permissions/anonymous";
+    res = makePostRequest(url, R"(["produce","consume"])");
+    ASSERT_TRUE(res == 204 || res == 409);
+
+    url = adminUrl + "admin/v2/namespaces/public/dedup-1/deduplication";
+    res = makePostRequest(url, "true");
     ASSERT_TRUE(res == 204 || res == 409);
 
     // Ensure dedup status was refreshed
@@ -76,22 +83,24 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     }
 
     client.close();
-
-    res = makePostRequest(url, "false");
-    ASSERT_TRUE(res == 204 || res == 409);
 }
 
 TEST(ClientDeduplicationTest, testProducerDeduplication) {
-    Client client(serviceUrl);
+    Client client(adminUrl);
 
-    std::string topicName = "testProducerDeduplication-" + boost::lexical_cast<std::string>(time(NULL));
+    std::string topicName = "persistent://public/dedup-2/testProducerDeduplication-" + boost::lexical_cast<std::string>(time(NULL));
 
-    std::string url = adminUrl + "admin/v2/namespaces/public/default/deduplication";
-    int res = makePostRequest(url, "true");
+    std::string url = adminUrl + "admin/v2/namespaces/public/dedup-2";
+    int res = makePutRequest(url, R"({"replication_clusters": ["standalone"]})");
     ASSERT_TRUE(res == 204 || res == 409);
 
-    // Ensure dedup status was refreshed
-    sleep(1);
+    url = adminUrl + "admin/v2/namespaces/public/dedup-2/permissions/anonymous";
+    res = makePostRequest(url, R"(["produce","consume"])");
+    ASSERT_TRUE(res == 204 || res == 409);
+
+    url = adminUrl + "admin/v2/namespaces/public/dedup-2/deduplication";
+    res = makePostRequest(url, "true");
+    ASSERT_TRUE(res == 204 || res == 409);
 
     ReaderConfiguration readerConf;
     Reader reader;
@@ -139,7 +148,4 @@ TEST(ClientDeduplicationTest, testProducerDeduplication) {
     ASSERT_EQ(consumer.receive(msg, 1000), ResultTimeout);
 
     client.close();
-
-    res = makePostRequest(url, "false");
-    ASSERT_TRUE(res == 204 || res == 409);
 }
