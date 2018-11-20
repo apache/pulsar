@@ -20,7 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.google.gson.annotations.SerializedName;
 import lombok.Data;
 
 import java.util.HashMap;
