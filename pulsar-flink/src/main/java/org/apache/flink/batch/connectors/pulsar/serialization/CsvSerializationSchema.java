@@ -18,51 +18,37 @@
  */
 package org.apache.flink.batch.connectors.pulsar.serialization;
 
-import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
-public class CsvSerializationSchema<T> implements SerializationSchema<T> {
+public class CsvSerializationSchema<T extends Tuple> implements SerializationSchema<T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(CsvSerializationSchema.class);
     private static final long serialVersionUID = -3379119592495232636L;
 
     private static final int STRING_WRITER_INITIAL_BUFFER_SIZE = 256;
-    private List<String> fieldNames;
-    private PropertyUtils propertyUtils;
 
-    public CsvSerializationSchema(List<String> fieldNames) {
-        this.fieldNames = fieldNames;
-        propertyUtils = new PropertyUtils();
+    public CsvSerializationSchema() {
     }
 
     @Override
     public byte[] serialize(T t) {
         StringWriter stringWriter = null;
         try {
-            Map map = propertyUtils.describe(t);
-            if(fieldNames.size() > map.size()) {
-                throw new RuntimeException("fieldNames size can not be bigger than model property size");
-            }
-
-            List<String> fieldsValues = new ArrayList<>(fieldNames.size());
-            for (String fieldName : fieldNames) {
-                Object obj = map.getOrDefault(fieldName.toLowerCase(), "");
-                fieldsValues.add(obj.toString());
+            Object[] fieldsValues = new Object[t.getArity()];
+            for(int index = 0; index < t.getArity();  index++) {
+                fieldsValues[index] = (t.getField(index));
             }
 
             stringWriter = new StringWriter(STRING_WRITER_INITIAL_BUFFER_SIZE);
-            CSVFormat.DEFAULT.printRecord(stringWriter, fieldsValues);
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | IOException e) {
+            CSVFormat.DEFAULT.withRecordSeparator("").printRecord(stringWriter, fieldsValues);
+        } catch (IOException e) {
             LOG.error("Error while serializing the record to Csv : ", e);
         }
 

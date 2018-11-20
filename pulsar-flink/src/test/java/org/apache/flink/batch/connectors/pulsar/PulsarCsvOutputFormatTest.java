@@ -20,9 +20,6 @@ package org.apache.flink.batch.connectors.pulsar;
 
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.List;
-
 import static org.junit.Assert.assertNotNull;
 
 /**
@@ -30,42 +27,25 @@ import static org.junit.Assert.assertNotNull;
  */
 public class PulsarCsvOutputFormatTest {
 
-    private List<String> fieldNames = Arrays.asList("test-field");
-
     @Test(expected = NullPointerException.class)
     public void testPulsarCsvOutputFormatConstructorWhenServiceUrlIsNull() {
-        new PulsarCsvOutputFormat(null, "testTopic", fieldNames);
+        new PulsarCsvOutputFormat(null, "testTopic");
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenTopicNameIsNull() {
-        new PulsarCsvOutputFormat("testServiceUrl", null, fieldNames);
+        new PulsarCsvOutputFormat("testServiceUrl", null);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenTopicNameIsBlank() {
-        new PulsarCsvOutputFormat("testServiceUrl", " ", fieldNames);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testPulsarCsvOutputFormatConstructorWhenFieldNamesPropertyIsNull() {
-        new PulsarCsvOutputFormat("testServiceUrl", "testTopic", null);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testPulsarCsvOutputFormatConstructorWhenFieldNamesPropertyIsEmpty() {
-        new PulsarCsvOutputFormat("testServiceUrl", "testTopic", Arrays.asList());
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testPulsarCsvOutputFormatConstructorWhenFieldNamesPropertyHasBlankFieldName() {
-        new PulsarCsvOutputFormat("testServiceUrl", "testTopic", Arrays.asList("test-field", " "));
+        new PulsarCsvOutputFormat("testServiceUrl", " ");
     }
 
     @Test
     public void testPulsarCsvOutputFormatConstructor() {
         PulsarCsvOutputFormat pulsarCsvOutputFormat =
-                new PulsarCsvOutputFormat("testServiceUrl", "testTopic", fieldNames);
+                new PulsarCsvOutputFormat("testServiceUrl", "testTopic");
         assertNotNull(pulsarCsvOutputFormat);
     }
 }

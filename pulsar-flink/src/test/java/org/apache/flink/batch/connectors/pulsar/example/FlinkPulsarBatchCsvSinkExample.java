@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.batch.connectors.pulsar.PulsarCsvOutputFormat;
 
 import java.util.Arrays;
@@ -32,13 +33,11 @@ import java.util.List;
  */
 public class FlinkPulsarBatchCsvSinkExample {
 
-    private static final List<Employee> employees = Arrays.asList(
-            new Employee(1, "John", "Tyson", "Engineering", "Test"),
-            new Employee(2, "Pamela", "Tyson", "HR", "Test"),
-            new Employee(3, "Jim", "Sun", "Finance", "Test"),
-            new Employee(4, "Michael", "Star", "Engineering", "Test"));
-
-    private static final List<String> fieldNames = Arrays.asList("id", "name", "surname", "department");
+    private static final List<Tuple5<Integer, String, String, String, String>> employees = Arrays.asList(
+            new Tuple5(1, "John", "Tyson", "Engineering", "Test"),
+            new Tuple5(2, "Pamela", "Tyson", "HR", "Test"),
+            new Tuple5(3, "Jim", "Sun", "Finance", "Test"),
+            new Tuple5(4, "Michael", "Star", "Engineering", "Test"));
 
     private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
     private static final String TOPIC_NAME = "my-flink-topic";
@@ -49,24 +48,25 @@ public class FlinkPulsarBatchCsvSinkExample {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         // create PulsarOutputFormat instance
-        final OutputFormat<Employee> pulsarCsvOutputFormat =
-                new PulsarCsvOutputFormat<>(SERVICE_URL, TOPIC_NAME, fieldNames);
+        final OutputFormat<Tuple5<Integer, String, String, String, String>> pulsarCsvOutputFormat =
+                new PulsarCsvOutputFormat<>(SERVICE_URL, TOPIC_NAME);
 
         // create DataSet
-        DataSet<Employee> textDS = env.fromCollection(employees);
+        DataSet<Tuple5<Integer, String, String, String, String>> textDS = env.fromCollection(employees);
 
-        textDS.map(new MapFunction<Employee, Employee>() {
+        textDS.map(new MapFunction<Tuple5<Integer, String, String, String, String>, Tuple5<Integer, String, String, String, String>>() {
             @Override
-            public Employee map(Employee employee) throws Exception {
-                return new Employee(employee.id,
-                        employee.name.toUpperCase(),
-                        employee.surname.toUpperCase(),
-                        employee.department.toUpperCase(),
-                        employee.company.toUpperCase());
+            public Tuple5<Integer, String, String, String, String> map(
+                    Tuple5<Integer, String, String, String, String> tuple5) throws Exception {
+                return new Tuple5(tuple5.f0,
+                        tuple5.f1.toUpperCase(),
+                        tuple5.f2.toUpperCase(),
+                        tuple5.f3.toUpperCase(),
+                        tuple5.f4.toUpperCase());
             }
         })
         // filter employees which is member of Engineering
-        .filter(wordWithCount -> wordWithCount.department.equals("Engineering"))
+        .filter(tuple5 -> tuple5.f3.equals("Engineering"))
         // write batch data to Pulsar
         .output(pulsarCsvOutputFormat);
 

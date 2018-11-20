@@ -19,12 +19,11 @@
 package org.apache.flink.batch.connectors.pulsar.serialization;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -35,43 +34,20 @@ public class CsvSerializationSchemaTest {
 
     @Test
     public void testPulsarCsvOutputFormatWithSuccessfulCase() throws IOException {
-        List<String> fieldNames = Arrays.asList("id", "name");
-        Employee employee = new Employee(1, "Mike");
-        CsvSerializationSchema<Employee> schema = new CsvSerializationSchema<>(fieldNames);
-        byte[] employeeBytes = schema.serialize(employee);
-        String str = IOUtils.toString(employeeBytes, StandardCharsets.UTF_8.toString());
-        assertEquals(str, "1,Mike");
+        Tuple3<Integer, String, String> employee = new Tuple3(1, "Wolfgang Amadeus", "Mozart");
+        CsvSerializationSchema schema = new CsvSerializationSchema();
+        byte[] rowBytes = schema.serialize(employee);
+        String csvContent = IOUtils.toString(rowBytes, StandardCharsets.UTF_8.toString());
+        assertEquals(csvContent, "1,Wolfgang Amadeus,Mozart");
     }
 
     @Test
-    public void testPulsarCsvOutputFormatWithFieldNamesPropertyHasInvalidProperty() throws IOException {
-        List<String> fieldNames = Arrays.asList("id", "invalidPropertyName2");
-        Employee employee = new Employee(1, "Mike");
-        CsvSerializationSchema<Employee> schema = new CsvSerializationSchema<>(fieldNames);
+    public void testPulsarCsvOutputFormatWithEmptyDataset() throws IOException {
+        Tuple3<Integer, String, String> employee = new Tuple3();
+        CsvSerializationSchema schema = new CsvSerializationSchema();
         byte[] employeeBytes = schema.serialize(employee);
         String str = IOUtils.toString(employeeBytes, StandardCharsets.UTF_8.toString());
-        assertEquals(str, "1,");
+        assertEquals(str, ",,");
     }
 
-    @Test(expected = RuntimeException.class)
-    public void testPulsarCsvOutputFormatWhenFieldNamesPropertySizeIsBiggerThanPropertySize() throws IOException {
-        List<String> fieldNames = Arrays.asList("test-field1", "test-field2", "test-field3");
-        CsvSerializationSchema<Employee> schema = new CsvSerializationSchema<>(fieldNames);
-        schema.serialize(new Employee(1, "Mike"));
-    }
-
-    /**
-     * Data type for Employee Model.
-     */
-    private class Employee {
-
-        public long id;
-        public String name;
-
-        public Employee(long id, String name) {
-            this.id = id;
-            this.name = name;
-        }
-
-    }
 }
