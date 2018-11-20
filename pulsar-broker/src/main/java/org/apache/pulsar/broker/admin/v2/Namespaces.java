@@ -45,6 +45,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.slf4j.Logger;
@@ -343,6 +344,27 @@ public class Namespaces extends NamespacesBase {
                                                     @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetSubscriptionDispatchRate();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/subscribeRate")
+    @ApiOperation(value = "Set subscribe-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void setSubscribeRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                SubscribeRate subscribeRate) {
+        validateNamespaceName(tenant, namespace);
+        internalSetSubscribeRate(subscribeRate);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/subscribeRate")
+    @ApiOperation(value = "Get subscribe-rate configured for the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public SubscribeRate getSubscribeRate(@PathParam("tenant") String tenant,
+                                        @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetSubscribeRate();
     }
 
     @GET
