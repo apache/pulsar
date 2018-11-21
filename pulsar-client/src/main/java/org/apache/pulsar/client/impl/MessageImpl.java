@@ -81,7 +81,16 @@ public class MessageImpl<T> implements Message<T> {
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
+        this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0);
+    }
+
+    MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
+                Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
+        this.msgMetadataBuilder.addProperties(
+                KeyValue.newBuilder()
+                        .setKey(MessageSystemProperties.REDELIVERY_COUNT)
+                        .setValue(String.valueOf(redeliveryCount)).build());
         this.messageId = messageId;
         this.topic = topic;
         this.cnx = cnx;
@@ -96,7 +105,10 @@ public class MessageImpl<T> implements Message<T> {
             this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
                     .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
         } else {
-            properties = Collections.emptyMap();
+            properties = Collections.unmodifiableMap(
+                    Collections.singletonMap(
+                            MessageSystemProperties.REDELIVERY_COUNT,
+                            String.valueOf(redeliveryCount)));
         }
         this.schema = schema;
     }
@@ -104,7 +116,17 @@ public class MessageImpl<T> implements Message<T> {
     MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata msgMetadata,
                 PulsarApi.SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
+        this(topic, batchMessageIdImpl, msgMetadata, singleMessageMetadata, payload, encryptionCtx, cnx, schema, 0);
+    }
+
+    MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata msgMetadata,
+                PulsarApi.SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
+                Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
+        this.msgMetadataBuilder.addProperties(
+                KeyValue.newBuilder()
+                        .setKey(MessageSystemProperties.REDELIVERY_COUNT)
+                        .setValue(String.valueOf(redeliveryCount)).build());
         this.messageId = batchMessageIdImpl;
         this.topic = topic;
         this.cnx = cnx;
@@ -119,7 +141,10 @@ public class MessageImpl<T> implements Message<T> {
             }
             this.properties = Collections.unmodifiableMap(properties);
         } else {
-            properties = Collections.emptyMap();
+            properties = Collections.unmodifiableMap(
+                    Collections.singletonMap(
+                            MessageSystemProperties.REDELIVERY_COUNT,
+                            String.valueOf(redeliveryCount)));
         }
 
         if (singleMessageMetadata.hasPartitionKey()) {
