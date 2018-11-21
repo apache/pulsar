@@ -27,15 +27,15 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.StringWriter;
 
+/**
+ * Csv Serialization Schema to serialize Tuples to Csv.
+ */
 public class CsvSerializationSchema<T extends Tuple> implements SerializationSchema<T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(CsvSerializationSchema.class);
     private static final long serialVersionUID = -3379119592495232636L;
 
     private static final int STRING_WRITER_INITIAL_BUFFER_SIZE = 256;
-
-    public CsvSerializationSchema() {
-    }
 
     @Override
     public byte[] serialize(T t) {

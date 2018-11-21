@@ -28,12 +28,12 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for CsvSerializationSchema
+ * Tests for Csv Serialization Schema
  */
 public class CsvSerializationSchemaTest {
 
     @Test
-    public void testPulsarCsvOutputFormatWithSuccessfulCase() throws IOException {
+    public void testCsvSerializationSchemaWithSuccessfulCase() throws IOException {
         Tuple3<Integer, String, String> employee = new Tuple3(1, "Wolfgang Amadeus", "Mozart");
         CsvSerializationSchema schema = new CsvSerializationSchema();
         byte[] rowBytes = schema.serialize(employee);
@@ -42,7 +42,7 @@ public class CsvSerializationSchemaTest {
     }
 
     @Test
-    public void testPulsarCsvOutputFormatWithEmptyDataset() throws IOException {
+    public void testCsvSerializationSchemaWithEmptyRecord() throws IOException {
         Tuple3<Integer, String, String> employee = new Tuple3();
         CsvSerializationSchema schema = new CsvSerializationSchema();
         byte[] employeeBytes = schema.serialize(employee);

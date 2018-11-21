@@ -22,7 +22,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Flink Batch Sink to write DataSets into a Pulsar topic.
+ * Pulsar Output Format to write Flink DataSets into a Pulsar topic in user-defined format.
  */
 public class PulsarOutputFormat<T> extends BasePulsarOutputFormat<T> {
 

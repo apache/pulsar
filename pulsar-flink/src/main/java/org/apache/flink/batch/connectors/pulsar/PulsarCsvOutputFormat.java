@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.batch.connectors.pulsar.serialization.CsvSerializationSchema;
 
 /**
- * Flink Batch Sink to write DataSets into a Pulsar topic as Csv.
+ * Pulsar Csv Output Format to write Flink DataSets into a Pulsar topic in Csv format.
  */
 public class PulsarCsvOutputFormat<T extends Tuple> extends BasePulsarOutputFormat<T> {
 

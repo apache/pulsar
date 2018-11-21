@@ -29,11 +29,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
- * Tests for PulsarOutputFormat
+ * Tests for Pulsar Output Format
  */
 public class PulsarOutputFormatTest {
 
-    @Test(expected = NullPointerException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testPulsarOutputFormatConstructorWhenServiceUrlIsNull() {
         new PulsarOutputFormat(null, "testTopic", text -> text.toString().getBytes());
     }
@@ -46,6 +46,11 @@ public class PulsarOutputFormatTest {
     @Test(expected = IllegalArgumentException.class)
     public void testPulsarOutputFormatConstructorWhenTopicNameIsBlank() {
         new PulsarOutputFormat("testServiceUrl", " ", text -> text.toString().getBytes());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testPulsarOutputFormatConstructorWhenServiceUrlIsBlank() {
+        new PulsarOutputFormat(" ", "testTopic", text -> text.toString().getBytes());
     }
 
     @Test(expected = NullPointerException.class)

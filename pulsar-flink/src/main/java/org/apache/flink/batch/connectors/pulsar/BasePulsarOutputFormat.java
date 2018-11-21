@@ -33,22 +33,23 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.function.Function;
 
+/**
+ * Base Pulsar Output Format to write Flink DataSets into a Pulsar topic.
+ */
 public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     private static final Logger LOG = LoggerFactory.getLogger(BasePulsarOutputFormat.class);
     private static final long serialVersionUID = 2304601727522060427L;
 
+    private transient Function<Throwable, MessageId> failureCallback;
+    private static volatile Producer<byte[]> producer;
+
     protected static String serviceUrl;
     protected static String topicName;
-
-    protected transient Function<Throwable, MessageId> failureCallback;
-
-    protected static volatile Producer<byte[]> producer;
-
     protected SerializationSchema<T> serializationSchema;
 
     protected BasePulsarOutputFormat(String serviceUrl, String topicName) {
-        Preconditions.checkNotNull(serviceUrl, "serviceUrl cannot be null.");
+        Preconditions.checkArgument(StringUtils.isNotBlank(serviceUrl), "serviceUrl cannot be blank.");
         Preconditions.checkArgument(StringUtils.isNotBlank(topicName),  "topicName cannot be blank.");
 
         this.serviceUrl = serviceUrl;
@@ -84,7 +85,7 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     }
 
-    protected static Producer<byte[]> getProducerInstance() throws PulsarClientException {
+    private static Producer<byte[]> getProducerInstance() throws PulsarClientException {
         if(producer == null){
             synchronized (PulsarOutputFormat.class) {
                 if(producer == null){

@@ -23,11 +23,11 @@ import org.junit.Test;
 import static org.junit.Assert.assertNotNull;
 
 /**
- * Tests for PulsarCsvOutputFormat
+ * Tests for Pulsar Csv Output Format
  */
 public class PulsarCsvOutputFormatTest {
 
-    @Test(expected = NullPointerException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenServiceUrlIsNull() {
         new PulsarCsvOutputFormat(null, "testTopic");
     }
@@ -40,6 +40,11 @@ public class PulsarCsvOutputFormatTest {
     @Test(expected = IllegalArgumentException.class)
     public void testPulsarCsvOutputFormatConstructorWhenTopicNameIsBlank() {
         new PulsarCsvOutputFormat("testServiceUrl", " ");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testPulsarCsvOutputFormatConstructorWhenServiceUrlIsBlank() {
+        new PulsarCsvOutputFormat(" ", "testTopic");
     }
 
     @Test
