@@ -214,6 +214,10 @@ public class CmdSources extends CmdBase {
             }
             print("Updated successfully");
         }
+
+        protected void validateSourceConfigs(SourceConfig sourceConfig) {
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
+        }
     }
 
     abstract class SourceDetailsCommand extends BaseCommand {
@@ -337,21 +341,29 @@ public class CmdSources extends CmdBase {
             }
 
             Resources resources = sourceConfig.getResources();
-            if (resources == null) {
-                resources = new Resources();
-            }
             if (cpu != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setCpu(cpu);
             }
 
             if (ram != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setRam(ram);
             }
 
             if (disk != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setDisk(disk);
             }
-            sourceConfig.setResources(resources);
+            if (resources != null) {
+                sourceConfig.setResources(resources);
+            }
 
             if (null != sourceConfigString) {
                 sourceConfig.setConfigs(parseConfigs(sourceConfigString));
