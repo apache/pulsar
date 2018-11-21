@@ -60,7 +60,7 @@
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-csv</artifactId>
-      <version>1.5</version>
+      <version>1.6</version>
       <scope>compile</scope>
     </dependency>
 
