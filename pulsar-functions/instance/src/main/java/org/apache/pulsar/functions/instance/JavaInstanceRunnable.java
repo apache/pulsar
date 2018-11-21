@@ -110,7 +110,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Throwable deathException;
 
     // function stats
-    private final FunctionStatsManager stats;
+    private FunctionStatsManager stats;
 
     private Record<?> currentRecord;
 
@@ -122,7 +122,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private CollectorRegistry collectorRegistry;
     private final String[] metricsLabels;
 
-    private final InstanceCache instanceCache;
+    private InstanceCache instanceCache;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
@@ -149,17 +149,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 instanceConfig.getClusterName()
         };
 
-        this.instanceCache = InstanceCache.getInstanceCache();
-
         // Declare function local collector registry so that it will not clash with other function instances'
         // metrics collection especially in threaded mode
         // In process mode the JavaInstanceMain will declare a CollectorRegistry and pass it down
         this.collectorRegistry = collectorRegistry;
-        if (this.collectorRegistry == null) {
-            this.collectorRegistry = new CollectorRegistry();
-        }
-
-        this.stats = new FunctionStatsManager(this.collectorRegistry, this.metricsLabels, this.instanceCache.executor);
     }
 
     /**
@@ -213,6 +206,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     public void run() {
         try {
+            this.instanceCache = InstanceCache.getInstanceCache();
+
+            if (this.collectorRegistry == null) {
+                this.collectorRegistry = new CollectorRegistry();
+            }
+            this.stats = new FunctionStatsManager(this.collectorRegistry, this.metricsLabels, this.instanceCache.executor);
+
             ContextImpl contextImpl = setupContext();
             javaInstance = setupJavaInstance(contextImpl);
             if (null != stateTable) {
