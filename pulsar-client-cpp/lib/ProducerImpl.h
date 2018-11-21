@@ -34,6 +34,7 @@
 using namespace pulsar;
 
 namespace pulsar {
+typedef bool bool_type;
 
 class BatchMessageContainer;
 
@@ -89,6 +90,8 @@ class ProducerImpl : public HandlerBase,
     virtual bool isClosed();
 
     virtual void triggerFlush();
+
+    virtual void flushAsync(FlushCallback callback);
 
    protected:
     ProducerStatsBasePtr producerStatsBasePtr_;
@@ -156,6 +159,7 @@ class ProducerImpl : public HandlerBase,
     MessageCryptoPtr msgCrypto_;
     DeadlineTimerPtr dataKeyGenTImer_;
     uint32_t dataKeyGenIntervalSec_;
+    boost::shared_ptr<Promise<Result, bool_type>> flushPromise_;
 };
 
 struct ProducerImplCmp {

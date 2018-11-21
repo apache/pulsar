@@ -1410,6 +1410,10 @@ public class ServerCnx extends PulsarHandler {
         return state;
     }
 
+    public SocketAddress getRemoteAddress() {
+        return remoteAddress;
+    }
+
     public BrokerService getBrokerService() {
         return service;
     }
