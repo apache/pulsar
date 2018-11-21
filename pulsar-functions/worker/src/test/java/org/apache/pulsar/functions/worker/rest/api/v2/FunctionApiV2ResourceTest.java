@@ -126,6 +126,7 @@ public class FunctionApiV2ResourceTest {
     private FunctionsImpl resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
+    private FunctionMetaData mockedFunctionMetadata;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -140,6 +141,7 @@ public class FunctionApiV2ResourceTest {
         this.mockedPulsarAdmin = mock(PulsarAdmin.class);
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
+        this.mockedFunctionMetadata = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(WorkerService.class);
@@ -153,6 +155,7 @@ public class FunctionApiV2ResourceTest {
         when(mockedPulsarAdmin.namespaces()).thenReturn(mockedNamespaces);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetadata);
 
         // worker config
         WorkerConfig workerConfig = new WorkerConfig()
@@ -434,16 +437,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     private Response registerDefaultFunction() {
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        FunctionConfig functionConfig = createDefaultFunctionConfig();
         return resource.registerFunction(
             tenant,
             namespace,
@@ -617,6 +611,9 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testUpdateFunctionMissingPackage() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -628,55 +625,104 @@ public class FunctionApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                "Update contains no change");
     }
 
     @Test
     public void testUpdateFunctionMissingInputTopic() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
         testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
                 function,
-                mockedInputStream,
+                null,
                 null,
                 mockedFormData,
                 outputTopic,
                 outputSerdeClassName,
                 className,
                 parallelism,
-                "No input topic(s) specified for the function");
-    }
-
-    @Test
-    public void testUpdateFunctionMissingPackageDetails() throws IOException {
-        testUpdateFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            topicsToSerDeClassName,
-            null,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                "Function Package is not provided");
+                "Update contains no change");
     }
 
     @Test
     public void testUpdateFunctionMissingClassName() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
             function,
-            mockedInputStream,
+            null,
             topicsToSerDeClassName,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             null,
             parallelism,
-                "Function classname cannot be null");
+                "Update contains no change");
+    }
+
+    @Test
+    public void testUpdateFunctionChangedParallelism() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        testUpdateFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                null,
+                topicsToSerDeClassName,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                null,
+                parallelism + 1,
+                null);
+    }
+
+    @Test
+    public void testUpdateFunctionChangedInputs() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        testUpdateFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                null,
+                topicsToSerDeClassName,
+                mockedFormData,
+                "DifferentOutput",
+                outputSerdeClassName,
+                null,
+                parallelism,
+                "Output topics differ");
+    }
+
+    @Test
+    public void testUpdateFunctionChangedOutput() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+        Map<String, String> someOtherInput = new HashMap<>();
+        someOtherInput.put("DifferentTopic", TopicSchema.DEFAULT_SERDE);
+        testUpdateFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                null,
+                someOtherInput,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                null,
+                parallelism,
+                "Input Topics cannot be altered");
     }
 
     private void testUpdateFunctionMissingArguments(
@@ -720,6 +766,14 @@ public class FunctionApiV2ResourceTest {
         }
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
+        if (expectedError == null) {
+            RequestResult rr = new RequestResult()
+                    .setSuccess(true)
+                    .setMessage("function registered");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+        }
+
         Response response = resource.updateFunction(
             tenant,
             namespace,
@@ -732,8 +786,12 @@ public class FunctionApiV2ResourceTest {
             FunctionsImpl.FUNCTION,
                 null);
 
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(expectedError).reason);
+        if (expectedError == null) {
+            assertEquals(Status.OK.getStatusCode(), response.getStatus());
+        } else {
+            assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+            Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(expectedError).reason);
+        }
     }
 
     private Response updateDefaultFunction() throws IOException {
@@ -1268,5 +1326,24 @@ public class FunctionApiV2ResourceTest {
                 null, new Gson().toJson(functionConfig), FunctionsImpl.FUNCTION, null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
+    }
+
+    public static FunctionConfig createDefaultFunctionConfig() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(function);
+        functionConfig.setClassName(className);
+        functionConfig.setParallelism(parallelism);
+        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        functionConfig.setOutput(outputTopic);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        return functionConfig;
+    }
+
+    public static FunctionDetails createDefaultFunctionDetails() {
+        FunctionConfig functionConfig = createDefaultFunctionConfig();
+        return FunctionConfigUtils.convert(functionConfig, null);
     }
 }

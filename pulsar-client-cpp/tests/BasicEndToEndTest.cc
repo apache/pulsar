@@ -45,8 +45,8 @@ boost::mutex mutex_;
 static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
 static long globalResendMessageCount = 0;
-static std::string lookupUrl = "pulsar://localhost:8885";
-static std::string adminUrl = "http://localhost:8765/";
+static std::string lookupUrl = "pulsar://localhost:6650";
+static std::string adminUrl = "http://localhost:8080/";
 static void messageListenerFunction(Consumer consumer, const Message& msg) {
     globalCount++;
     consumer.acknowledge(msg);
@@ -113,7 +113,7 @@ class EncKeyReader : public CryptoKeyReader {
 TEST(BasicEndToEndTest, testBatchMessages) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/test-batch-messages";
+    std::string topicName = "persistent://public/default/test-batch-messages";
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -200,7 +200,7 @@ void resendMessage(Result r, const Message msg, Producer producer) {
 TEST(BasicEndToEndTest, testProduceConsume) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/my-topic";
+    std::string topicName = "persistent://public/default/test-produce-consume";
     std::string subName = "my-sub-name";
     Producer producer;
 
@@ -238,7 +238,7 @@ TEST(BasicEndToEndTest, testProduceConsume) {
 }
 
 TEST(BasicEndToEndTest, testLookupThrottling) {
-    std::string topicName = "persistent://prop/unit/ns1/testLookupThrottling";
+    std::string topicName = "testLookupThrottling";
     ClientConfiguration config;
     config.setConcurrentLookupRequest(0);
     Client client(lookupUrl, config);
@@ -264,7 +264,7 @@ TEST(BasicEndToEndTest, testNonExistingTopic) {
 }
 
 TEST(BasicEndToEndTest, testNonPersistentTopic) {
-    std::string topicName = "non-persistent://prop/unit/ns1/testNonPersistentTopic";
+    std::string topicName = "non-persistent://public/default/testNonPersistentTopic";
     Client client(lookupUrl);
     Producer producer;
     Result result = client.createProducer(topicName, producer);
@@ -306,7 +306,7 @@ TEST(BasicEndToEndTest, testV2TopicHttp) {
 }
 
 TEST(BasicEndToEndTest, testSingleClientMultipleSubscriptions) {
-    std::string topicName = "persistent://prop/unit/ns1/testSingleClientMultipleSubscriptions";
+    std::string topicName = "testSingleClientMultipleSubscriptions";
 
     Client client(lookupUrl);
 
@@ -325,7 +325,7 @@ TEST(BasicEndToEndTest, testSingleClientMultipleSubscriptions) {
 }
 
 TEST(BasicEndToEndTest, testMultipleClientsMultipleSubscriptions) {
-    std::string topicName = "persistent://prop/unit/ns1/testMultipleClientsMultipleSubscriptions";
+    std::string topicName = "testMultipleClientsMultipleSubscriptions";
     Client client1(lookupUrl);
     Client client2(lookupUrl);
 
@@ -354,7 +354,7 @@ TEST(BasicEndToEndTest, testMultipleClientsMultipleSubscriptions) {
 }
 
 TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
-    std::string topicName = "persistent://prop/unit/ns1/testProduceAndConsumeAfterClientClose";
+    std::string topicName = "testProduceAndConsumeAfterClientClose";
     Client client(lookupUrl);
 
     Producer producer;
@@ -410,18 +410,18 @@ TEST(BasicEndToEndTest, testProduceAndConsumeAfterClientClose) {
 TEST(BasicEndToEndTest, testIamSoFancyCharactersInTopicName) {
     Client client(lookupUrl);
     Producer producer;
-    Result result = client.createProducer("persistent://prop/unit/ns1/topic@%*)(&!%$#@#$><?", producer);
+    Result result = client.createProducer("persistent://public/default/topic@%*)(&!%$#@#$><?", producer);
     ASSERT_EQ(ResultOk, result);
 
     Consumer consumer;
-    result = client.subscribe("persistent://prop/unit/ns1/topic@%*)(&!%$#@#$><?", "my-sub-name", consumer);
+    result = client.subscribe("persistent://public/default/topic@%*)(&!%$#@#$><?", "my-sub-name", consumer);
     ASSERT_EQ(ResultOk, result);
 }
 
 TEST(BasicEndToEndTest, testSubscribeCloseUnsubscribeSherpaScenario) {
     ClientConfiguration config;
     Client client(lookupUrl, config);
-    std::string topicName = "persistent://prop/unit/ns1/::,::bf11";
+    std::string topicName = "persistent://public/default/::,::bf11";
     std::string subName = "weird-ass-characters-@%*)(&!%$#@#$><?)";
     Producer producer;
     Result result = client.createProducer(topicName, producer);
@@ -442,7 +442,7 @@ TEST(BasicEndToEndTest, testSubscribeCloseUnsubscribeSherpaScenario) {
 
 TEST(BasicEndToEndTest, testInvalidUrlPassed) {
     Client client("localhost:4080");
-    std::string topicName = "persistent://prop/unit/ns1/testInvalidUrlPassed";
+    std::string topicName = "testInvalidUrlPassed";
     std::string subName = "test-sub";
     Producer producer;
     Result result = client.createProducer(topicName, producer);
@@ -467,10 +467,11 @@ TEST(BasicEndToEndTest, testInvalidUrlPassed) {
 
 TEST(BasicEndToEndTest, testPartitionedProducerConsumer) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/testPartitionedProducerConsumer";
+    std::string topicName = "testPartitionedProducerConsumer";
 
     // call admin api to make it partitioned
-    std::string url = adminUrl + "admin/persistent/prop/unit/ns/testPartitionedProducerConsumer/partitions";
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/testPartitionedProducerConsumer/partitions";
     int res = makePutRequest(url, "3");
 
     LOG_INFO("res = " << res);
@@ -506,11 +507,12 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer) {
 
 TEST(BasicEndToEndTest, testPartitionedProducerConsumerSubscriptionName) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/testPartitionedProducerConsumerSubscriptionName";
+    std::string topicName = "testPartitionedProducerConsumerSubscriptionName";
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/testPartitionedProducerConsumerSubscriptionName/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default/testPartitionedProducerConsumerSubscriptionName/partitions";
     int res = makePutRequest(url, "3");
 
     LOG_INFO("res = " << res);
@@ -531,7 +533,7 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumerSubscriptionName) {
 TEST(BasicEndToEndTest, testMessageTooBig) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testMessageTooBig";
+    std::string topicName = "testMessageTooBig";
     Producer producer;
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
@@ -554,7 +556,7 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
 TEST(BasicEndToEndTest, testCompressionLZ4) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/namespace1/testCompressionLZ4";
+    std::string topicName = "testCompressionLZ4";
     std::string subName = "my-sub-name";
     Producer producer;
     ProducerConfiguration conf;
@@ -592,7 +594,7 @@ TEST(BasicEndToEndTest, testCompressionLZ4) {
 TEST(BasicEndToEndTest, testCompressionZLib) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testCompressionZLib";
+    std::string topicName = "testCompressionZLib";
     std::string subName = "my-sub-name";
     Producer producer;
     ProducerConfiguration conf;
@@ -645,11 +647,11 @@ TEST(BasicEndToEndTest, testConfigurationFile) {
 
 TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/partition-testSinglePartitionRoutingPolicy";
+    std::string topicName = "partition-testSinglePartitionRoutingPolicy";
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/partition-testSinglePartitionRoutingPolicy/partitions";
+        adminUrl + "admin/v2/persistent/public/default/partition-testSinglePartitionRoutingPolicy/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -695,7 +697,7 @@ TEST(BasicEndToEndTest, testNamespaceName) {
 TEST(BasicEndToEndTest, testConsumerClose) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testConsumerClose";
+    std::string topicName = "testConsumerClose";
     std::string subName = "my-sub-name";
     Consumer consumer;
     ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
@@ -705,12 +707,12 @@ TEST(BasicEndToEndTest, testConsumerClose) {
 
 TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
     Client client(lookupUrl);
-    std::string topicName =
-        "persistent://prop/unit/ns/partition-testDuplicateConsumerCreationOnPartitionedTopic";
+    std::string topicName = "partition-testDuplicateConsumerCreationOnPartitionedTopic";
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/testDuplicateConsumerCreationOnPartitionedTopic/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default/testDuplicateConsumerCreationOnPartitionedTopic/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -755,10 +757,10 @@ TEST(BasicEndToEndTest, testDuplicateConsumerCreationOnPartitionedTopic) {
 
 TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/partition-testRoundRobinRoutingPolicy";
+    std::string topicName = "persistent://public/default/partition-testRoundRobinRoutingPolicy";
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/partition-testRoundRobinRoutingPolicy/partitions";
+        adminUrl + "admin/v2/persistent/public/default/partition-testRoundRobinRoutingPolicy/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -820,9 +822,10 @@ TEST(BasicEndToEndTest, testRoundRobinRoutingPolicy) {
 
 TEST(BasicEndToEndTest, testMessageListener) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/partition-testMessageListener";
+    std::string topicName = "partition-testMessageListener";
     // call admin api to make it partitioned
-    std::string url = adminUrl + "admin/persistent/prop/unit/ns/partition-testMessageListener/partitions";
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/partition-testMessageListener/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -861,12 +864,11 @@ TEST(BasicEndToEndTest, testMessageListener) {
 
 TEST(BasicEndToEndTest, testMessageListenerPause) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/partition-testMessageListenerPause";
+    std::string topicName = "partition-testMessageListenerPause";
 
     // call admin api to make it partitioned
     std::string url =
-        adminUrl +
-        "admin/persistent/property/cluster/namespace/partition-testMessageListener-pauses/partitions";
+        adminUrl + "admin/v2/persistent/public/default/partition-testMessageListener-pauses/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -919,7 +921,7 @@ TEST(BasicEndToEndTest, testResendViaSendCallback) {
     ClientConfiguration clientConfiguration;
     clientConfiguration.setIOThreads(1);
     Client client(lookupUrl, clientConfiguration);
-    std::string topicName = "persistent://my-property/my-cluster/my-namespace/testResendViaListener";
+    std::string topicName = "testResendViaListener";
 
     Producer producer;
 
@@ -953,7 +955,7 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
     config.setMessageListenerThreads(1);
     config.setStatsIntervalInSeconds(5);
     Client client(lookupUrl, config);
-    std::string topicName = "persistent://property/cluster/namespace/testStatsLatencies";
+    std::string topicName = "persistent://public/default/testStatsLatencies";
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -1066,7 +1068,7 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
 TEST(BasicEndToEndTest, testProduceMessageSize) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testProduceMessageSize";
+    std::string topicName = "testProduceMessageSize";
     std::string subName = "my-sub-name";
     Producer producer1;
     Producer producer2;
@@ -1117,7 +1119,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
 
 TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
     Client client(adminUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testHandlerReconnectionLogic";
+    std::string topicName = "testHandlerReconnectionLogic";
 
     Producer producer;
     Consumer consumer;
@@ -1183,7 +1185,7 @@ TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
 TEST(BasicEndToEndTest, testRSAEncryption) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/my-rsaenctopic";
+    std::string topicName = "my-rsaenctopic";
     std::string subName = "my-sub-name";
     Producer producer;
 
@@ -1241,7 +1243,7 @@ TEST(BasicEndToEndTest, testRSAEncryption) {
 TEST(BasicEndToEndTest, testEncryptionFailure) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/my-rsaencfailtopic";
+    std::string topicName = "my-rsaencfailtopic";
     std::string subName = "my-sub-name";
     Producer producer;
 
@@ -1355,7 +1357,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
 TEST(BasicEndToEndTest, testEventTime) {
     ClientConfiguration config;
     Client client(lookupUrl, config);
-    std::string topicName = "persistent://prop/unit/ns1/topic";
+    std::string topicName = "test-event-time";
     Producer producer;
     ProducerConfiguration producerConf;
     producerConf.setBatchingEnabled(true);
@@ -1381,7 +1383,7 @@ TEST(BasicEndToEndTest, testEventTime) {
 TEST(BasicEndToEndTest, testSeek) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testSeek";
+    std::string topicName = "persistent://public/default/testSeek";
     std::string subName = "sub-testSeek";
     Producer producer;
 
@@ -1448,7 +1450,7 @@ TEST(BasicEndToEndTest, testSeek) {
 
 TEST(BasicEndToEndTest, testUnAckedMessageTimeout) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testUnAckedMessageTimeout";
+    std::string topicName = "testUnAckedMessageTimeout";
     std::string subName = "my-sub-name";
     std::string content = "msg-content";
 
@@ -1488,7 +1490,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeout) {
 
 TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns1/testUnAckedMessageTimeoutListener";
+    std::string topicName = "testUnAckedMessageTimeoutListener";
     std::string subName = "my-sub-name";
     std::string content = "msg-content";
 
@@ -1525,7 +1527,7 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerTopicNameInvalid) {
     topicNames.reserve(3);
     std::string subName = "testMultiTopicsTopicNameInvalid";
     // cluster empty
-    std::string topicName1 = "persistent://prop/testMultiTopicsTopicNameInvalid";
+    std::string topicName1 = "persistent://tenant/testMultiTopicsTopicNameInvalid";
 
     // empty topics
     ASSERT_EQ(0, topicNames.size());
@@ -1560,9 +1562,9 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
     std::vector<std::string> topicNames;
     topicNames.reserve(3);
     std::string subName = "testMultiTopicsDifferentNamespace";
-    std::string topicName1 = "persistent://prop/unit/ns1/testMultiTopicsConsumerDifferentNamespace1";
-    std::string topicName2 = "persistent://prop/unit/ns2/testMultiTopicsConsumerDifferentNamespace2";
-    std::string topicName3 = "persistent://prop/unit/ns3/testMultiTopicsConsumerDifferentNamespace3";
+    std::string topicName1 = "persistent://public/default/testMultiTopicsConsumerDifferentNamespace1";
+    std::string topicName2 = "persistent://public/default-2/testMultiTopicsConsumerDifferentNamespace2";
+    std::string topicName3 = "persistent://public/default-3/testMultiTopicsConsumerDifferentNamespace3";
 
     topicNames.push_back(topicName1);
     topicNames.push_back(topicName2);
@@ -1570,11 +1572,13 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
 
     // call admin api to make topics partitioned
     std::string url1 =
-        adminUrl + "admin/persistent/prop/unit/ns1/testMultiTopicsConsumerDifferentNamespace1/partitions";
+        adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumerDifferentNamespace1/partitions";
     std::string url2 =
-        adminUrl + "admin/persistent/prop/unit/ns2/testMultiTopicsConsumerDifferentNamespace2/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default-2/testMultiTopicsConsumerDifferentNamespace2/partitions";
     std::string url3 =
-        adminUrl + "admin/persistent/prop/unit/ns3/testMultiTopicsConsumerDifferentNamespace3/partitions";
+        adminUrl +
+        "admin/v2/persistent/public/default-3/testMultiTopicsConsumerDifferentNamespace3/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -1604,10 +1608,10 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
     std::vector<std::string> topicNames;
     topicNames.reserve(3);
     std::string subName = "testMultiTopicsConsumer";
-    std::string topicName1 = "persistent://prop/unit/ns/testMultiTopicsConsumer1";
-    std::string topicName2 = "persistent://prop/unit/ns/testMultiTopicsConsumer2";
-    std::string topicName3 = "persistent://prop/unit/ns/testMultiTopicsConsumer3";
-    std::string topicName4 = "persistent://prop/unit/ns/testMultiTopicsConsumer4";
+    std::string topicName1 = "testMultiTopicsConsumer1";
+    std::string topicName2 = "testMultiTopicsConsumer2";
+    std::string topicName3 = "testMultiTopicsConsumer3";
+    std::string topicName4 = "testMultiTopicsConsumer4";
 
     topicNames.push_back(topicName1);
     topicNames.push_back(topicName2);
@@ -1615,9 +1619,9 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
     topicNames.push_back(topicName4);
 
     // call admin api to make topics partitioned
-    std::string url1 = adminUrl + "admin/persistent/prop/unit/ns/testMultiTopicsConsumer1/partitions";
-    std::string url2 = adminUrl + "admin/persistent/prop/unit/ns/testMultiTopicsConsumer2/partitions";
-    std::string url3 = adminUrl + "admin/persistent/prop/unit/ns/testMultiTopicsConsumer3/partitions";
+    std::string url1 = adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumer1/partitions";
+    std::string url2 = adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumer2/partitions";
+    std::string url3 = adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumer3/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -1727,24 +1731,24 @@ TEST(BasicEndToEndTest, testPatternTopicsConsumerInvalid) {
 // and only receive messages from matched topics.
 TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerPubSub) {
     Client client(lookupUrl);
-    std::string pattern = "persistent://prop/unit/ns1/patternMultiTopicsConsumer.*";
+    std::string pattern = "persistent://public/default/patternMultiTopicsConsumer.*";
 
     std::string subName = "testPatternMultiTopicsConsumer";
-    std::string topicName1 = "persistent://prop/unit/ns1/patternMultiTopicsConsumerPubSub1";
-    std::string topicName2 = "persistent://prop/unit/ns1/patternMultiTopicsConsumerPubSub2";
-    std::string topicName3 = "persistent://prop/unit/ns1/patternMultiTopicsConsumerPubSub3";
+    std::string topicName1 = "persistent://public/default/patternMultiTopicsConsumerPubSub1";
+    std::string topicName2 = "persistent://public/default/patternMultiTopicsConsumerPubSub2";
+    std::string topicName3 = "persistent://public/default/patternMultiTopicsConsumerPubSub3";
     // This will not match pattern
-    std::string topicName4 = "persistent://prop/unit/ns1/patternMultiTopicsNotMatchPubSub4";
+    std::string topicName4 = "persistent://public/default/patternMultiTopicsNotMatchPubSub4";
 
     // call admin api to make topics partitioned
     std::string url1 =
-        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsConsumerPubSub1/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsConsumerPubSub1/partitions";
     std::string url2 =
-        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsConsumerPubSub2/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsConsumerPubSub2/partitions";
     std::string url3 =
-        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsConsumerPubSub3/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsConsumerPubSub3/partitions";
     std::string url4 =
-        adminUrl + "admin/persistent/prop/unit/ns1/patternMultiTopicsNotMatchPubSub4/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsNotMatchPubSub4/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -1843,7 +1847,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerPubSub) {
 // and only receive messages from matched topics.
 TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     Client client(lookupUrl);
-    std::string pattern = "persistent://prop/unit/ns2/patternTopicsAutoConsumer.*";
+    std::string pattern = "persistent://public/default/patternTopicsAutoConsumer.*";
     Result result;
     std::string subName = "testPatternTopicsAutoConsumer";
 
@@ -1863,21 +1867,21 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     LOG_INFO("created pattern consumer with not match topics at beginning");
 
     // 2. create 4 topics, in which 3 match the pattern.
-    std::string topicName1 = "persistent://prop/unit/ns2/patternTopicsAutoConsumerPubSub1";
-    std::string topicName2 = "persistent://prop/unit/ns2/patternTopicsAutoConsumerPubSub2";
-    std::string topicName3 = "persistent://prop/unit/ns2/patternTopicsAutoConsumerPubSub3";
+    std::string topicName1 = "persistent://public/default/patternTopicsAutoConsumerPubSub1";
+    std::string topicName2 = "persistent://public/default/patternTopicsAutoConsumerPubSub2";
+    std::string topicName3 = "persistent://public/default/patternTopicsAutoConsumerPubSub3";
     // This will not match pattern
-    std::string topicName4 = "persistent://prop/unit/ns2/patternMultiTopicsNotMatchPubSub4";
+    std::string topicName4 = "persistent://public/default/patternMultiTopicsNotMatchPubSub4";
 
     // call admin api to make topics partitioned
     std::string url1 =
-        adminUrl + "admin/persistent/prop/unit/ns2/patternTopicsAutoConsumerPubSub1/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternTopicsAutoConsumerPubSub1/partitions";
     std::string url2 =
-        adminUrl + "admin/persistent/prop/unit/ns2/patternTopicsAutoConsumerPubSub2/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternTopicsAutoConsumerPubSub2/partitions";
     std::string url3 =
-        adminUrl + "admin/persistent/prop/unit/ns2/patternTopicsAutoConsumerPubSub3/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternTopicsAutoConsumerPubSub3/partitions";
     std::string url4 =
-        adminUrl + "admin/persistent/prop/unit/ns2/patternMultiTopicsNotMatchPubSub4/partitions";
+        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsNotMatchPubSub4/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -1964,7 +1968,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
 TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/test-flush-batch-messages";
+    std::string topicName = "test-flush-batch-messages-" + boost::lexical_cast<std::string>(time(NULL));
     std::string subName = "subscription-name";
     Producer producer;
 
@@ -2013,7 +2017,7 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
 
     // message not reached max batch number, should not receive any data.
     Message receivedMsg;
-    ASSERT_EQ(ResultTimeout, consumer.receive(receivedMsg, 5000));
+    ASSERT_EQ(ResultTimeout, consumer.receive(receivedMsg, 1000));
 
     // Send Asynchronously of the other half the messages
     for (int i = numOfMessages / 2; i < numOfMessages; i++) {
@@ -2027,19 +2031,21 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
     }
     LOG_INFO("sending the other half messages in async, should able to receive");
     // message not reached max batch number, should received the messages
-    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 5000));
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 1000));
 
+    LOG_INFO("Receive all messages");
     // receive all the messages.
     int i = 1;
-    while (consumer.receive(receivedMsg, 5000) == ResultOk) {
+    while (consumer.receive(receivedMsg, 1000) == ResultOk) {
         std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
-        LOG_DEBUG("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = "
-                                                       << receivedMsg.getMessageId() << "]");
+        LOG_INFO("Received Message with [ content - "
+                 << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
         ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
     }
 
+    LOG_INFO("Last sync send round");
     // Send sync of half the messages, this will triggerFlush, and could get the messages.
     prefix = "msg-batch-sync";
     for (int i = 0; i < numOfMessages / 2; i++) {
@@ -2049,10 +2055,10 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
                           .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
                           .build();
         producer.send(msg);
-        LOG_DEBUG("sync sending message " << messageContent);
+        LOG_INFO("sync sending message " << messageContent);
     }
     // message not reached max batch number, should received the messages, and not timeout
-    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 5000));
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMsg, 1000));
 
     producer.close();
     client.shutdown();
@@ -2065,10 +2071,10 @@ static void simpleCallback(Result code, const Message& msg) {
 
 TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/partition-testSyncFlushBatchMessages";
+    std::string topicName = "persistent://public/default/partition-testSyncFlushBatchMessages";
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/partition-testSyncFlushBatchMessages/partitions";
+        adminUrl + "admin/v2/persistent/public/default/partition-testSyncFlushBatchMessages/partitions";
     int res = makePutRequest(url, "5");
     int numberOfPartitions = 5;
 
@@ -2194,7 +2200,7 @@ TEST(BasicEndToEndTest, testGetTopicPartitions) {
 TEST(BasicEndToEndTest, testFlushInProducer) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/test-flush-in-producer";
+    std::string topicName = "test-flush-in-producer";
     std::string subName = "subscription-name";
     Producer producer;
     int numOfMessages = 10;
@@ -2281,10 +2287,10 @@ TEST(BasicEndToEndTest, testFlushInProducer) {
 
 TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://prop/unit/ns/partition-testFlushInPartitionedProducer";
+    std::string topicName = "persistent://public/default/partition-testFlushInPartitionedProducer";
     // call admin api to make it partitioned
     std::string url =
-        adminUrl + "admin/persistent/prop/unit/ns/partition-testFlushInPartitionedProducer/partitions";
+        adminUrl + "admin/v2/persistent/public/default/partition-testFlushInPartitionedProducer/partitions";
     int res = makePutRequest(url, "5");
     int numberOfPartitions = 5;
 

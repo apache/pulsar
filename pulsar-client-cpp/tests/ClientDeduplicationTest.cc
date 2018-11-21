@@ -27,23 +27,30 @@
 
 using namespace pulsar;
 
-static std::string serviceUrl = "pulsar://localhost:8885";
-static std::string adminUrl = "http://localhost:8765/";
+static std::string serviceUrl = "pulsar://localhost:6650";
+static std::string adminUrl = "http://localhost:8080/";
 
 TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://sample/standalone/ns-dedup-1/testProducerSequenceAfterReconnect-" +
+    std::string topicName = "persistent://public/dedup-1/testProducerSequenceAfterReconnect-" +
                             boost::lexical_cast<std::string>(time(NULL));
 
     // call admin api to create namespace and enable deduplication
-    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-1";
-    int res = makePutRequest(url, "");
+    std::string url = adminUrl + "admin/v2/namespaces/public/dedup-1";
+    int res = makePutRequest(url, R"({"replication_clusters": ["standalone"]})");
     ASSERT_TRUE(res == 204 || res == 409);
 
-    url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-1/deduplication";
+    url = adminUrl + "admin/v2/namespaces/public/dedup-1/permissions/anonymous";
+    res = makePostRequest(url, R"(["produce","consume"])");
+    ASSERT_TRUE(res == 204 || res == 409);
+
+    url = adminUrl + "admin/v2/namespaces/public/dedup-1/deduplication";
     res = makePostRequest(url, "true");
     ASSERT_TRUE(res == 204 || res == 409);
+
+    // Ensure dedup status was refreshed
+    sleep(1);
 
     ReaderConfiguration readerConf;
     Reader reader;
@@ -79,17 +86,20 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
 }
 
 TEST(ClientDeduplicationTest, testProducerDeduplication) {
-    Client client(serviceUrl);
+    Client client(adminUrl);
 
-    std::string topicName = "persistent://sample/standalone/ns-dedup-2/testProducerDeduplication-" +
+    std::string topicName = "persistent://public/dedup-2/testProducerDeduplication-" +
                             boost::lexical_cast<std::string>(time(NULL));
 
-    // call admin api to create namespace and enable deduplication
-    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-2";
-    int res = makePutRequest(url, "");
+    std::string url = adminUrl + "admin/v2/namespaces/public/dedup-2";
+    int res = makePutRequest(url, R"({"replication_clusters": ["standalone"]})");
     ASSERT_TRUE(res == 204 || res == 409);
 
-    url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-2/deduplication";
+    url = adminUrl + "admin/v2/namespaces/public/dedup-2/permissions/anonymous";
+    res = makePostRequest(url, R"(["produce","consume"])");
+    ASSERT_TRUE(res == 204 || res == 409);
+
+    url = adminUrl + "admin/v2/namespaces/public/dedup-2/deduplication";
     res = makePostRequest(url, "true");
     ASSERT_TRUE(res == 204 || res == 409);
 

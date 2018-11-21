@@ -28,6 +28,7 @@ import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -37,6 +38,7 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
@@ -55,6 +57,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.io.*;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -72,7 +75,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link SourceApiV2Resource}.
  */
-@PrepareForTest({Utils.class})
+@PrepareForTest({Utils.class, ConnectorUtils.class, org.apache.pulsar.functions.utils.Utils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 @Slf4j
 public class SourceApiV2ResourceTest {
@@ -107,6 +110,7 @@ public class SourceApiV2ResourceTest {
     private FunctionsImpl resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
+    private FunctionMetaData mockedFunctionMetaData;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -342,14 +346,7 @@ public class SourceApiV2ResourceTest {
     }
 
     private Response registerDefaultSource() throws IOException {
-        SourceConfig sourceConfig = new SourceConfig();
-        sourceConfig.setTenant(tenant);
-        sourceConfig.setNamespace(namespace);
-        sourceConfig.setName(source);
-        sourceConfig.setClassName(className);
-        sourceConfig.setParallelism(parallelism);
-        sourceConfig.setTopicName(outputTopic);
-        sourceConfig.setSerdeClassName(outputSerdeClassName);
+        SourceConfig sourceConfig = createDefaultSourceConfig();
         return resource.registerFunction(
             tenant,
             namespace,
@@ -548,56 +545,53 @@ public class SourceApiV2ResourceTest {
 
     @Test
     public void testUpdateSourceMissingPackage() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
         testUpdateSourceMissingArguments(
             tenant,
             namespace,
                 source,
-            null,
+                null,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Source Package is not provided");
-    }
-
-    @Test
-    public void testUpdateSourceMissingPackageDetails() throws IOException {
-        testUpdateSourceMissingArguments(
-            tenant,
-            namespace,
-                source,
-            mockedInputStream,
-            null,
-            outputTopic,
-                outputSerdeClassName,
-            className,
-            parallelism,
-                "zip file is empty");
+                "Update contains no change");
     }
 
     @Test
     public void testUpdateSourceMissingTopicName() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
         testUpdateSourceMissingArguments(
                 tenant,
                 namespace,
                 source,
-                mockedInputStream,
+                null,
                 mockedFormData,
                 null,
                 outputSerdeClassName,
                 className,
                 parallelism,
-                "Topic name cannot be null");
+                "Update contains no change");
     }
 
     @Test
     public void testUpdateSourceNegativeParallelism() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
         testUpdateSourceMissingArguments(
                 tenant,
                 namespace,
                 source,
-                mockedInputStream,
+                null,
                 mockedFormData,
                 outputTopic,
                 outputSerdeClassName,
@@ -607,7 +601,49 @@ public class SourceApiV2ResourceTest {
     }
 
     @Test
+    public void testUpdateSourceChangedParallelism() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                null,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism + 1,
+                null);
+    }
+
+    @Test
+    public void testUpdateSourceChangedTopic() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                null,
+                mockedFormData,
+                "DifferentTopic",
+                outputSerdeClassName,
+                className,
+                parallelism,
+                "Destination topics differ");
+    }
+
+    @Test
     public void testUpdateSourceZeroParallelism() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
         testUpdateSourceMissingArguments(
                 tenant,
                 namespace,
@@ -632,6 +668,21 @@ public class SourceApiV2ResourceTest {
             String className,
             Integer parallelism,
             String expectedError) throws IOException {
+
+        mockStatic(ConnectorUtils.class);
+        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
+        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.getSourceType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         SourceConfig sourceConfig = new SourceConfig();
@@ -657,6 +708,14 @@ public class SourceApiV2ResourceTest {
             sourceConfig.setParallelism(parallelism);
         }
 
+        if (expectedError == null) {
+            RequestResult rr = new RequestResult()
+                    .setSuccess(true)
+                    .setMessage("source registered");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+        }
+
         Response response = resource.updateFunction(
             tenant,
             namespace,
@@ -669,8 +728,12 @@ public class SourceApiV2ResourceTest {
                 FunctionsImpl.SOURCE,
                 null);
 
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(expectedError).reason);
+        if (expectedError == null) {
+            assertEquals(Status.OK.getStatusCode(), response.getStatus());
+        } else {
+            assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+            Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(expectedError).reason);
+        }
     }
 
     private Response updateDefaultSource() throws IOException {
@@ -682,6 +745,21 @@ public class SourceApiV2ResourceTest {
         sourceConfig.setParallelism(parallelism);
         sourceConfig.setTopicName(outputTopic);
         sourceConfig.setSerdeClassName(outputSerdeClassName);
+
+        mockStatic(ConnectorUtils.class);
+        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
+        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.getSourceType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
 
         return resource.updateFunction(
             tenant,
@@ -756,6 +834,21 @@ public class SourceApiV2ResourceTest {
         sourceConfig.setName(source);
         sourceConfig.setClassName(className);
         sourceConfig.setParallelism(parallelism);
+
+        mockStatic(ConnectorUtils.class);
+        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
+        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.getSourceType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
         RequestResult rr = new RequestResult()
@@ -1122,5 +1215,21 @@ public class SourceApiV2ResourceTest {
         Response response = registerDefaultSource();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData("Tenant does not exist").reason, ((ErrorData) response.getEntity()).reason);
+    }
+
+    private SourceConfig createDefaultSourceConfig() {
+        SourceConfig sourceConfig = new SourceConfig();
+        sourceConfig.setTenant(tenant);
+        sourceConfig.setNamespace(namespace);
+        sourceConfig.setName(source);
+        sourceConfig.setClassName(className);
+        sourceConfig.setParallelism(parallelism);
+        sourceConfig.setTopicName(outputTopic);
+        sourceConfig.setSerdeClassName(outputSerdeClassName);
+        return sourceConfig;
+    }
+
+    private FunctionDetails createDefaultFunctionDetails() throws IOException {
+        return SourceConfigUtils.convert(createDefaultSourceConfig(), null);
     }
 }
