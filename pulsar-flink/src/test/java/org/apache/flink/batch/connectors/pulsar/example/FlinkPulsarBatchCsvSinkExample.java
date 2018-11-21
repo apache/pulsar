@@ -47,7 +47,7 @@ public class FlinkPulsarBatchCsvSinkExample {
         // set up the execution environment
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        // create PulsarOutputFormat instance
+        // create PulsarCsvOutputFormat instance
         final OutputFormat<Tuple4<Integer, String, String, String>> pulsarCsvOutputFormat =
                 new PulsarCsvOutputFormat<>(SERVICE_URL, TOPIC_NAME);
 
