@@ -20,6 +20,7 @@ package org.apache.pulsar.tests;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
 
 import org.testng.IAnnotationTransformer;
 import org.testng.annotations.ITestAnnotation;
@@ -27,7 +28,7 @@ import org.testng.annotations.ITestAnnotation;
 @SuppressWarnings("rawtypes")
 public class AnnotationListener implements IAnnotationTransformer {
 
-    private static final int DEFAULT_TEST_TIMEOUT_MILLIS = 120000;
+    private static final long DEFAULT_TEST_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
     public AnnotationListener() {
         System.out.println("Created annotation listener");
