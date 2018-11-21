@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.batch.connectors.pulsar.PulsarCsvOutputFormat;
 
 import java.util.Arrays;
@@ -33,11 +33,11 @@ import java.util.List;
  */
 public class FlinkPulsarBatchCsvSinkExample {
 
-    private static final List<Tuple5<Integer, String, String, String, String>> employees = Arrays.asList(
-            new Tuple5(1, "John", "Tyson", "Engineering", "Test"),
-            new Tuple5(2, "Pamela", "Tyson", "HR", "Test"),
-            new Tuple5(3, "Jim", "Sun", "Finance", "Test"),
-            new Tuple5(4, "Michael", "Star", "Engineering", "Test"));
+    private static final List<Tuple4<Integer, String, String, String>> employeeTuples = Arrays.asList(
+            new Tuple4(1, "John", "Tyson", "Engineering"),
+            new Tuple4(2, "Pamela", "Moon", "HR"),
+            new Tuple4(3, "Jim", "Sun", "Finance"),
+            new Tuple4(4, "Michael", "Star", "Engineering"));
 
     private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
     private static final String TOPIC_NAME = "my-flink-topic";
@@ -48,25 +48,25 @@ public class FlinkPulsarBatchCsvSinkExample {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         // create PulsarOutputFormat instance
-        final OutputFormat<Tuple5<Integer, String, String, String, String>> pulsarCsvOutputFormat =
+        final OutputFormat<Tuple4<Integer, String, String, String>> pulsarCsvOutputFormat =
                 new PulsarCsvOutputFormat<>(SERVICE_URL, TOPIC_NAME);
 
         // create DataSet
-        DataSet<Tuple5<Integer, String, String, String, String>> textDS = env.fromCollection(employees);
-
-        textDS.map(new MapFunction<Tuple5<Integer, String, String, String, String>, Tuple5<Integer, String, String, String, String>>() {
+        DataSet<Tuple4<Integer, String, String, String>> employeeDS = env.fromCollection(employeeTuples);
+        // map employees' name, surname and department as upper-case
+        employeeDS.map(
+                new MapFunction<Tuple4<Integer, String, String, String>, Tuple4<Integer, String, String, String>>() {
             @Override
-            public Tuple5<Integer, String, String, String, String> map(
-                    Tuple5<Integer, String, String, String, String> tuple5) throws Exception {
-                return new Tuple5(tuple5.f0,
-                        tuple5.f1.toUpperCase(),
-                        tuple5.f2.toUpperCase(),
-                        tuple5.f3.toUpperCase(),
-                        tuple5.f4.toUpperCase());
+            public Tuple4<Integer, String, String, String> map(
+                    Tuple4<Integer, String, String, String> employeeTuple) throws Exception {
+                return new Tuple4(employeeTuple.f0,
+                        employeeTuple.f1.toUpperCase(),
+                        employeeTuple.f2.toUpperCase(),
+                        employeeTuple.f3.toUpperCase());
             }
         })
         // filter employees which is member of Engineering
-        .filter(tuple5 -> tuple5.f3.equals("Engineering"))
+        .filter(tuple -> tuple.f3.equals("ENGINEERING"))
         // write batch data to Pulsar
         .output(pulsarCsvOutputFormat);
 
@@ -75,24 +75,4 @@ public class FlinkPulsarBatchCsvSinkExample {
 
     }
 
-    /**
-     * Data type for Employee Model.
-     */
-    private static class Employee {
-
-        public long id;
-        public String name;
-        public String surname;
-        public String department;
-        public String company;
-
-        public Employee(long id, String name, String surname, String department, String company) {
-            this.id = id;
-            this.name = name;
-            this.surname = surname;
-            this.department = department;
-            this.company = company;
-        }
-
-    }
 }
