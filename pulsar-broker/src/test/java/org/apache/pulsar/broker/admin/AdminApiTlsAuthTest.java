@@ -301,20 +301,20 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testNonProxyCannotSetOriginalPrincipal() throws Exception {
+    public void testProxyCannotSetOriginalPrincipalAsEmpty() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
                                          new TenantInfo(ImmutableSet.of("user1"),
                                                         ImmutableSet.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
-        WebTarget root = buildWebClient("admin");
+        WebTarget root = buildWebClient("proxy");
         try {
             root.path("/admin/v2/namespaces").path("tenant1")
                 .request(MediaType.APPLICATION_JSON)
-                .header("X-Original-Principal", "user1")
+                .header("X-Original-Principal", "")
                 .get(new GenericType<List<String>>() {});
-            Assert.fail("admin shouldn't be able to act as proxy even if it is superuser");
+            Assert.fail("Proxy shouldn't be able to set original principal.");
         } catch (NotAuthorizedException e) {
             // expected
         }

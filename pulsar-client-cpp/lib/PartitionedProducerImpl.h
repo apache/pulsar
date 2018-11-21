@@ -71,6 +71,8 @@ class PartitionedProducerImpl : public ProducerImplBase,
 
     virtual void triggerFlush();
 
+    virtual void flushAsync(FlushCallback callback);
+
     void handleSinglePartitionProducerCreated(Result result, ProducerImplBaseWeakPtr producerBaseWeakPtr,
                                               const unsigned int partitionIndex);
 
@@ -115,6 +117,9 @@ class PartitionedProducerImpl : public ProducerImplBase,
     Promise<Result, ProducerImplBaseWeakPtr> partitionedProducerCreatedPromise_;
 
     MessageRoutingPolicyPtr getMessageRouter();
+
+    std::atomic<int> flushedPartitions_;
+    boost::shared_ptr<Promise<Result, bool_type>> flushPromise_;
 };
 
 }  // namespace pulsar

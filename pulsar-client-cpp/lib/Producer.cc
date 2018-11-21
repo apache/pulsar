@@ -77,4 +77,22 @@ void Producer::closeAsync(CloseCallback callback) {
 
     impl_->closeAsync(callback);
 }
+
+Result Producer::flush() {
+    Promise<bool, Result> promise;
+    flushAsync(WaitForCallback(promise));
+
+    Result result;
+    promise.getFuture().get(result);
+    return result;
+}
+
+void Producer::flushAsync(FlushCallback callback) {
+    if (!impl_) {
+        callback(ResultProducerNotInitialized);
+        return;
+    }
+
+    impl_->flushAsync(callback);
+}
 }  // namespace pulsar

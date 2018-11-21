@@ -22,14 +22,18 @@ import com.google.gson.Gson;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
 import static org.testng.Assert.assertEquals;
 
 /**
@@ -90,6 +94,293 @@ public class FunctionConfigUtilsTest {
                 new Gson().toJson(functionConfig),
                 new Gson().toJson(convertedConfig)
         );
+    }
+
+    @Test
+    public void testMergeEqual() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createFunctionConfig();
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Function Names differ")
+    public void testMergeDifferentName() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("name", "Different");
+        FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Tenants differ")
+    public void testMergeDifferentTenant() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("tenant", "Different");
+        FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Namespaces differ")
+    public void testMergeDifferentNamespace() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("namespace", "Different");
+        FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test
+    public void testMergeDifferentClassName() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("className", "Different");
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getClassName(),
+                "Different"
+        );
+        mergedConfig.setClassName(functionConfig.getClassName());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
+    public void testMergeDifferentInputs() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("topicsPattern", "Different");
+        FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Output topics differ")
+    public void testMergeDifferentOutput() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("output", "Different");
+        FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test
+    public void testMergeDifferentLogTopic() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("logTopic", "Different");
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getLogTopic(),
+                "Different"
+        );
+        mergedConfig.setLogTopic(functionConfig.getLogTopic());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantess cannot be alterted")
+    public void testMergeDifferentProcessingGuarantees() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("processingGuarantees", EFFECTIVELY_ONCE);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Retain Orderning cannot be altered")
+    public void testMergeDifferentRetainOrdering() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("retainOrdering", true);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test
+    public void testMergeDifferentUserConfig() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        Map<String, String> myConfig = new HashMap<>();
+        myConfig.put("MyKey", "MyValue");
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("userConfig", myConfig);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getUserConfig(),
+                myConfig
+        );
+        mergedConfig.setUserConfig(functionConfig.getUserConfig());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testMergeDifferentSecrets() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        Map<String, String> mySecrets = new HashMap<>();
+        mySecrets.put("MyKey", "MyValue");
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("secrets", mySecrets);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getSecrets(),
+                mySecrets
+        );
+        mergedConfig.setSecrets(functionConfig.getSecrets());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Runtime cannot be altered")
+    public void testMergeDifferentRuntime() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("runtime", PYTHON);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "AutoAck cannot be altered")
+    public void testMergeDifferentAutoAck() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("autoAck", false);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test
+    public void testMergeDifferentMaxMessageRetries() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("maxMessageRetries", 10);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getMaxMessageRetries(),
+                new Integer(10)
+        );
+        mergedConfig.setMaxMessageRetries(functionConfig.getMaxMessageRetries());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testMergeDifferentDeadLetterTopic() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("deadLetterTopic", "Different");
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getDeadLetterTopic(),
+                "Different"
+        );
+        mergedConfig.setDeadLetterTopic(functionConfig.getDeadLetterTopic());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Subscription Name cannot be altered")
+    public void testMergeDifferentSubname() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("subName", "Different");
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test
+    public void testMergeDifferentParallelism() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("parallelism", 101);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getParallelism(),
+                new Integer(101)
+        );
+        mergedConfig.setParallelism(functionConfig.getParallelism());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testMergeDifferentResources() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        Resources resources = new Resources();
+        resources.setCpu(0.3);
+        resources.setRam(1232l);
+        resources.setDisk(123456l);
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("resources", resources);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getResources(),
+                resources
+        );
+        mergedConfig.setResources(functionConfig.getResources());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testMergeDifferentWindowConfig() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        WindowConfig windowConfig = new WindowConfig();
+        windowConfig.setSlidingIntervalCount(123);
+        windowConfig.setSlidingIntervalDurationMs(123l);
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("windowConfig", windowConfig);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getWindowConfig(),
+                windowConfig
+        );
+        mergedConfig.setWindowConfig(functionConfig.getWindowConfig());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testMergeDifferentTimeout() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("timeoutMs", 102l);
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getTimeoutMs(),
+                new Long(102l)
+        );
+        mergedConfig.setTimeoutMs(functionConfig.getTimeoutMs());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    private FunctionConfig createFunctionConfig() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant("test-tenant");
+        functionConfig.setNamespace("test-namespace");
+        functionConfig.setName("test-function");
+        functionConfig.setParallelism(1);
+        functionConfig.setClassName(IdentityFunction.class.getName());
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
+        functionConfig.setInputSpecs(inputSpecs);
+        functionConfig.setOutput("test-output");
+        functionConfig.setOutputSerdeClassName("test-serde");
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        functionConfig.setRetainOrdering(false);
+        functionConfig.setUserConfig(new HashMap<>());
+        functionConfig.setAutoAck(true);
+        functionConfig.setTimeoutMs(2000l);
+        functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
+        return functionConfig;
+    }
+
+    private FunctionConfig createUpdatedFunctionConfig(String fieldName, Object fieldValue) {
+        FunctionConfig functionConfig = createFunctionConfig();
+        Class<?> fClass = FunctionConfig.class;
+        try {
+            Field chap = fClass.getDeclaredField(fieldName);
+            chap.setAccessible(true);
+            chap.set(functionConfig, fieldValue);
+        } catch (Exception e) {
+            throw new RuntimeException("Something wrong with the test", e);
+        }
+        return functionConfig;
     }
 
     @Test

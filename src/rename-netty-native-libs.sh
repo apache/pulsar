@@ -48,6 +48,7 @@ for line in "${FILES_TO_RENAME[@]}"; do
 done
 
 # Overwrite the original ZIP archive
+rm $JAR_PATH
 zip -q -r $JAR_PATH .
 popd
 

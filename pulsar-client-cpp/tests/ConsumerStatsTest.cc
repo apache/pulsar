@@ -36,8 +36,8 @@ DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
 
-static std::string lookupUrl = "http://localhost:8765";
-static std::string adminUrl = "http://localhost:8765/";
+static std::string lookupUrl = "pulsar://localhost:6650";
+static std::string adminUrl = "http://localhost:8080/";
 
 void partitionedCallbackFunction(Result result, BrokerConsumerStats brokerConsumerStats, long expectedBacklog,
                                  Latch& latch, int index) {
@@ -60,7 +60,7 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
     long epochTime = time(NULL);
     std::string testName = "testBacklogInfo-" + boost::lexical_cast<std::string>(epochTime);
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     ConsumerConfiguration conf;
     conf.setBrokerConsumerStatsCacheTimeInMs(3 * 1000);
@@ -115,7 +115,7 @@ TEST(ConsumerStatsTest, testFailure) {
     long epochTime = time(NULL);
     std::string testName = "testFailure-" + boost::lexical_cast<std::string>(epochTime);
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     Consumer consumer;
     Promise<Result, Consumer> consumerPromise;
@@ -160,7 +160,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     long epochTime = time(NULL);
     std::string testName = "testCachingMechanism-" + boost::lexical_cast<std::string>(epochTime);
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
     ConsumerConfiguration conf;
     conf.setBrokerConsumerStatsCacheTimeInMs(3.5 * 1000);
@@ -235,11 +235,11 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     long epochTime = time(NULL);
     std::string testName = "testAsyncCallOnPartitionedTopic-" + boost::lexical_cast<std::string>(epochTime);
     Client client(lookupUrl);
-    std::string topicName = "persistent://property/cluster/namespace/" + testName;
+    std::string topicName = "persistent://public/default/" + testName;
     std::string subName = "subscription-name";
 
     // call admin api to create partitioned topics
-    std::string url = adminUrl + "admin/persistent/property/cluster/namespace/" + testName + "/partitions";
+    std::string url = adminUrl + "admin/v2/persistent/public/default/" + testName + "/partitions";
     int res = makePutRequest(url, "7");
 
     LOG_INFO("res = " << res);
