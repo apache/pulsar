@@ -1217,6 +1217,10 @@
         
         
         
+        <li><a href="/admin/v2/namespaces/:tenant/:namespace/subscribeRate"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>subscribeRate</code></a></li>
+        
+        
+        
         <li><a href="/admin/v2/namespaces/:tenant/:namespace/subscriptionAuthMode"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>subscriptionAuthMode</code></a></li>
         
         
@@ -6884,6 +6888,139 @@
               <tr>
                 <td>409</td>
                 <td>Concurrent modification</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/v2/namespaces/:tenant/:namespace/subscribeRate">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>v2<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>subscribeRate</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Get subscribe-rate configured for the namespace</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace does not exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Set subscribe-rate throttling for all topics of the namespace</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">tenant</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>

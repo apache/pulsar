@@ -2518,6 +2518,65 @@
         }
       }
     },
+    "/namespaces/{tenant}/{namespace}/subscribeRate" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Get subscribe-rate configured for the namespace",
+        "description" : "",
+        "operationId" : "getSubscribeRate",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/SubscribeRate"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set subscribe-rate throttling for all topics of the namespace",
+        "description" : "",
+        "operationId" : "setSubscribeRate",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}/{namespace}/subscriptionAuthMode" : {
       "post" : {
         "tags" : [ "namespaces" ],
@@ -6487,10 +6546,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -6813,41 +6872,41 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
           "type" : "boolean"
         },
         "loadReportType" : {
           "type" : "string"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         },
-        "bandwidthOut" : {
+        "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
-        "overLoaded" : {
-          "type" : "boolean"
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -7007,13 +7066,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "producerName" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -7450,6 +7509,12 @@
             "$ref" : "#/definitions/DispatchRate"
           }
         },
+        "clusterSubscribeRate" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/SubscribeRate"
+          }
+        },
         "persistence" : {
           "$ref" : "#/definitions/PersistencePolicies"
         },
@@ -7715,13 +7780,13 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "producerName" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -7859,6 +7924,19 @@
     },
     "SchemaVersion" : {
       "type" : "object"
+    },
+    "SubscribeRate" : {
+      "type" : "object",
+      "properties" : {
+        "subscribeThrottlingRatePerConsumer" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "ratePeriodInSecond" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      }
     },
     "SubscriptionStats" : {
       "type" : "object",

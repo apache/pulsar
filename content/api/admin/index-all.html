@@ -324,6 +324,8 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#clusters--">clusters()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#clusterSubscribeRate">clusterSubscribeRate</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#compaction_threshold">compaction_threshold</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#compactionStatus-java.lang.String-">compactionStatus(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
@@ -644,6 +646,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ResourceQuota.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ResourceQuota.html" title="class in org.apache.pulsar.common.policies.data">ResourceQuota</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscribeRate.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscribeRate.html" title="class in org.apache.pulsar.common.policies.data">SubscribeRate</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html" title="class in org.apache.pulsar.common.policies.impl">MinAvailablePolicy</a></dt>
 <dd>&nbsp;</dd>
@@ -1258,6 +1262,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminException.html#getStatusCode--">getStatusCode()</a></span> - Method in exception org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getSubscribeRate-java.lang.String-">getSubscribeRate(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Get namespace-subscribe-rate (topics under this namespace allow subscribe times per consumer in a period)</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getSubscriptionDispatchRate-java.lang.String-">getSubscriptionDispatchRate(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Get subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)</div>
@@ -1313,6 +1321,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#hashCode--">hashCode()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html#hashCode--">hashCode()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscribeRate.html#hashCode--">hashCode()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscribeRate.html" title="class in org.apache.pulsar.common.policies.data">SubscribeRate</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Brokers.html#healthcheck--">healthcheck()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Brokers.html" title="interface in org.apache.pulsar.client.admin">Brokers</a></dt>
 <dd>
@@ -1903,6 +1913,8 @@
 <dl>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#ratePeriodInSecond">ratePeriodInSecond</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscribeRate.html#ratePeriodInSecond">ratePeriodInSecond</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscribeRate.html" title="class in org.apache.pulsar.common.policies.data">SubscribeRate</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#readPosition">readPosition</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.CursorStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ErrorData.html#reason">reason</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ErrorData.html" title="class in org.apache.pulsar.common.policies.data">ErrorData</a></dt>
@@ -2202,6 +2214,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#setServiceUrlTls-java.lang.String-">setServiceUrlTls(String)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setSubscribeRate-java.lang.String-org.apache.pulsar.common.policies.data.SubscribeRate-">setSubscribeRate(String, SubscribeRate)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate)</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setSubscriptionAuthMode-java.lang.String-org.apache.pulsar.common.policies.data.SubscriptionAuthMode-">setSubscriptionAuthMode(String, SubscriptionAuthMode)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Set the given subscription auth mode on all topics on a namespace</div>
@@ -2316,6 +2332,14 @@
 <dd>
 <div class="block">Space used to store the messages for the topic.</div>
 </dd>
+<dt><a href="org/apache/pulsar/common/policies/data/SubscribeRate.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">SubscribeRate</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscribeRate.html#SubscribeRate--">SubscribeRate()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscribeRate.html" title="class in org.apache.pulsar.common.policies.data">SubscribeRate</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscribeRate.html#SubscribeRate-int-int-">SubscribeRate(int, int)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscribeRate.html" title="class in org.apache.pulsar.common.policies.data">SubscribeRate</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscribeRate.html#subscribeThrottlingRatePerConsumer">subscribeThrottlingRatePerConsumer</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscribeRate.html" title="class in org.apache.pulsar.common.policies.data">SubscribeRate</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#subscription_auth_mode">subscription_auth_mode</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/common/policies/data/SubscriptionAuthMode.html" title="enum in org.apache.pulsar.common.policies.data"><span class="typeNameLink">SubscriptionAuthMode</span></a> - Enum in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
@@ -2411,6 +2435,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscribeRate.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscribeRate.html" title="class in org.apache.pulsar.common.policies.data">SubscribeRate</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html" title="class in org.apache.pulsar.common.policies.impl">MinAvailablePolicy</a></dt>
 <dd>&nbsp;</dd>
