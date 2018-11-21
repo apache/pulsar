@@ -430,7 +430,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stateTable = null;
         }
         if (null != storageClient) {
-            storageClient.close();
+            storageClient.closeAsync()
+                .exceptionally(cause -> {
+                    log.warn("Failed to close state storage client", cause);
+                    return null;
+                });
         }
 
         // once the thread quits, clean up the instance
