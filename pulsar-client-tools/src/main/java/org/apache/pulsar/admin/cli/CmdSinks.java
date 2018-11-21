@@ -210,6 +210,10 @@ public class CmdSinks extends CmdBase {
             }
             print("Updated successfully");
         }
+
+        protected void validateSinkConfigs(SinkConfig sinkConfig) {
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+        }
     }
 
     abstract class SinkDetailsCommand extends BaseCommand {
@@ -253,7 +257,7 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--retainOrdering", description = "Sink consumes and sinks messages in order", hidden = true)
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Sink consumes and sinks messages in order")
-        protected boolean retainOrdering;
+        protected Boolean retainOrdering;
         @Parameter(names = "--parallelism", description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
         protected Integer parallelism;
         @Parameter(names = {"-a", "--archive"}, description = "Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
@@ -280,7 +284,7 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--sink-config", description = "User defined configs key/values")
         protected String sinkConfigString;
         @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
-        protected boolean autoAck = true;
+        protected Boolean autoAck;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
 
@@ -329,7 +333,9 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setProcessingGuarantees(processingGuarantees);
             }
 
-            sinkConfig.setRetainOrdering(retainOrdering);
+            if (retainOrdering != null) {
+                sinkConfig.setRetainOrdering(retainOrdering);
+            }
 
             if (null != inputs) {
                 sinkConfig.setInputs(Arrays.asList(inputs.split(",")));
@@ -371,27 +377,37 @@ public class CmdSinks extends CmdBase {
             }
 
             Resources resources = sinkConfig.getResources();
-            if (resources == null) {
-                resources = new Resources();
-            }
             if (cpu != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setCpu(cpu);
             }
 
             if (ram != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setRam(ram);
             }
 
             if (disk != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setDisk(disk);
             }
-            sinkConfig.setResources(resources);
+            if (resources != null) {
+                sinkConfig.setResources(resources);
+            }
 
             if (null != sinkConfigString) {
                 sinkConfig.setConfigs(parseConfigs(sinkConfigString));
             }
 
-            sinkConfig.setAutoAck(autoAck);
+            if (autoAck != null) {
+                sinkConfig.setAutoAck(autoAck);
+            }
             if (timeoutMs != null) {
                 sinkConfig.setTimeoutMs(timeoutMs);
             }
