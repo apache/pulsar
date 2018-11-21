@@ -361,7 +361,6 @@ The Apache Software License, Version 2.0
     - io.prometheus-simpleclient_jetty-0.5.0.jar
  * Bean Validation API -- javax.validation-validation-api-1.1.0.Final.jar
  * Log4J
-    - log4j-log4j-1.2.17.jar
     - org.apache.logging.log4j-log4j-api-2.10.0.jar
     - org.apache.logging.log4j-log4j-core-2.10.0.jar
     - org.apache.logging.log4j-log4j-slf4j-impl-2.10.0.jar
