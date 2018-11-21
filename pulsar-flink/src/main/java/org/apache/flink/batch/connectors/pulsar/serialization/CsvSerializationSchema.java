@@ -42,14 +42,14 @@ public class CsvSerializationSchema<T extends Tuple> implements SerializationSch
         StringWriter stringWriter = null;
         try {
             Object[] fieldsValues = new Object[t.getArity()];
-            for(int index = 0; index < t.getArity();  index++) {
+            for(int index = 0; index < t.getArity(); index++) {
                 fieldsValues[index] = (t.getField(index));
             }
 
             stringWriter = new StringWriter(STRING_WRITER_INITIAL_BUFFER_SIZE);
             CSVFormat.DEFAULT.withRecordSeparator("").printRecord(stringWriter, fieldsValues);
         } catch (IOException e) {
-            LOG.error("Error while serializing the record to Csv : ", e);
+            LOG.error("Error while serializing the record to Csv", e);
         }
 
         return stringWriter.toString().getBytes();

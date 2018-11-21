@@ -81,8 +81,6 @@ public class PulsarOutputFormatTest {
         byte[] bytes = pulsarOutputFormat.serializationSchema.serialize(employee);
         String resultString = IOUtils.toString(bytes, StandardCharsets.UTF_8.toString());
         assertEquals(employee.toString(), resultString);
-
-
     }
 
     /**

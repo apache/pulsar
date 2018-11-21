@@ -112,12 +112,21 @@ WordWithCount { word = world, count = 1 }
 Please find a sample usage as follows:
 
 ```java
+        private static final List<Tuple4<Integer, String, String, String>> employeeTuples = Arrays.asList(
+            new Tuple4(1, "John", "Tyson", "Engineering"),
+            new Tuple4(2, "Pamela", "Moon", "HR"),
+            new Tuple4(3, "Jim", "Sun", "Finance"),
+            new Tuple4(4, "Michael", "Star", "Engineering"));
+
+        private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
+        private static final String TOPIC_NAME = "my-flink-topic";
+
         public static void main(String[] args) throws Exception {
 
             // set up the execution environment
             final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-            // create PulsarOutputFormat instance
+            // create PulsarCsvOutputFormat instance
             final OutputFormat<Tuple4<Integer, String, String, String>> pulsarCsvOutputFormat =
                     new PulsarCsvOutputFormat<>(SERVICE_URL, TOPIC_NAME);
 
@@ -135,7 +144,7 @@ Please find a sample usage as follows:
                             employeeTuple.f3.toUpperCase());
                 }
             })
-            // filter employees which is member of Engineering
+            // filter employees who are member of Engineering
             .filter(tuple -> tuple.f3.equals("ENGINEERING"))
             // write batch data to Pulsar
             .output(pulsarCsvOutputFormat);
