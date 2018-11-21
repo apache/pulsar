@@ -241,4 +241,37 @@ void PartitionedProducerImpl::triggerFlush() {
     }
 }
 
+void PartitionedProducerImpl::flushAsync(FlushCallback callback) {
+    if (!flushPromise_ || flushPromise_->isComplete()) {
+        flushPromise_ = boost::make_shared<Promise<Result, bool_type>>();
+    } else {
+        // already in flushing, register a listener callback
+        boost::function<void(Result, bool)> listenerCallback = [this, callback](Result result, bool_type v) {
+            if (v) {
+                callback(ResultOk);
+            } else {
+                callback(ResultUnknownError);
+            }
+            return;
+        };
+
+        flushPromise_->getFuture().addListener(listenerCallback);
+        return;
+    }
+
+    FlushCallback subFlushCallback = [this, callback](Result result) {
+        int previous = flushedPartitions_.fetch_add(1);
+        if (previous == producers_.size() - 1) {
+            flushedPartitions_.store(0);
+            flushPromise_->setValue(true);
+            callback(result);
+        }
+        return;
+    };
+
+    for (ProducerList::const_iterator prod = producers_.begin(); prod != producers_.end(); prod++) {
+        (*prod)->flushAsync(subFlushCallback);
+    }
+}
+
 }  // namespace pulsar
