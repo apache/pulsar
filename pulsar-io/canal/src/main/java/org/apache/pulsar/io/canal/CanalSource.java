@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.io.canal;
 
 import com.alibaba.fastjson.JSON;
@@ -6,24 +24,25 @@ import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
 import com.alibaba.otter.canal.protocol.Message;
 import com.alibaba.otter.canal.protocol.FlatMessage;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.util.Assert;
 
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * A Simple class for mysql binlog sync to pulsar
+ */
 @Slf4j
 public class CanalSource extends PushSource<byte[]> {
-
-    protected final static Logger logger = LoggerFactory.getLogger(CanalSource.class);
 
     protected Thread thread = null;
 
@@ -33,11 +52,13 @@ public class CanalSource extends PushSource<byte[]> {
 
     private CanalSourceConfig canalSourceConfig;
 
-    protected Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
+    private static final String DESTINATION = "destination";
+
+    protected final Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
 
         @Override
         public void uncaughtException(Thread t, Throwable e) {
-            logger.error("parse events has an error", e);
+            log.error("[{}] parse events has an error", t.getName(), e);
         }
     };
 
@@ -47,18 +68,21 @@ public class CanalSource extends PushSource<byte[]> {
         if (canalSourceConfig.getCluster()) {
             connector = CanalConnectors.newClusterConnector(canalSourceConfig.getZkServers(),
                     canalSourceConfig.getDestination(), canalSourceConfig.getUsername(), canalSourceConfig.getPassword());
+            log.info("Start canal connect in cluster mode, canal cluster info {}", canalSourceConfig.getZkServers());
         } else {
             connector = CanalConnectors.newSingleConnector(
                     new InetSocketAddress(canalSourceConfig.getSingleHostname(), canalSourceConfig.getSinglePort()),
                     canalSourceConfig.getDestination(), canalSourceConfig.getUsername(), canalSourceConfig.getPassword());
+            log.info("Start canal connect in standalone mode, canal server info {}:{}",
+                    canalSourceConfig.getSingleHostname(), canalSourceConfig.getSinglePort());
         }
+        log.info("canal source destination {}", canalSourceConfig.getDestination());
         this.start();
 
     }
 
     protected void start() {
-        logger.info("start consumer");
-        Assert.notNull(connector, "connector is null");
+        Objects.requireNonNull(connector, "connector is null");
         thread = new Thread(new Runnable() {
 
             @Override
@@ -67,6 +91,7 @@ public class CanalSource extends PushSource<byte[]> {
             }
         });
 
+        thread.setName("canal source thread");
         thread.setUncaughtExceptionHandler(handler);
         running = true;
         thread.start();
@@ -74,6 +99,7 @@ public class CanalSource extends PushSource<byte[]> {
 
     @Override
     public void close() throws InterruptedException {
+        log.info("close canal source");
         if (!running) {
             return;
         }
@@ -86,20 +112,21 @@ public class CanalSource extends PushSource<byte[]> {
             connector.disconnect();
         }
 
-        MDC.remove("destination");
+        MDC.remove(DESTINATION);
     }
 
     protected void process() {
         while (running) {
             try {
-                MDC.put("destination", canalSourceConfig.getDestination());
+                MDC.put(DESTINATION, canalSourceConfig.getDestination());
                 connector.connect();
-                logger.info("process");
+                log.info("start canal process");
                 connector.subscribe();
                 while (running) {
                     Message message = connector.getWithoutAck(canalSourceConfig.getBatchSize());
+                    // delete the setRaw in new version of canal-client
+                    message.setRaw(false);
                     List<FlatMessage> flatMessages = FlatMessage.messageConverter(message);
-                     logger.info("message {}", message.toString());
                     long batchId = message.getId();
                     int size = message.getEntries().size();
                     if (batchId == -1 || size == 0) {
@@ -109,33 +136,33 @@ public class CanalSource extends PushSource<byte[]> {
                         }
                     } else {
                         if (flatMessages != null) {
-                            for (FlatMessage flatMessage : flatMessages) {
-                                String m = JSON.toJSONString(flatMessage, SerializerFeature.WriteMapNullValue);
-                                consume(new CanalRecord(m.getBytes(), batchId));
-                            }
+                            CanalRecord canalRecord = new CanalRecord(connector);
+                            String m = JSON.toJSONString(flatMessages, SerializerFeature.WriteMapNullValue);
+                            canalRecord.setId(batchId);
+                            canalRecord.setRecord(m.getBytes());
+                            consume(canalRecord);
                         }
                     }
-
-                    connector.ack(batchId);
                 }
             } catch (Exception e) {
-                logger.error("process error!", e);
+                log.error("process error!", e);
             } finally {
                 connector.disconnect();
-                MDC.remove("destination");
+                MDC.remove(DESTINATION);
             }
         }
     }
 
-
+    @Getter
+    @Setter
     static private class CanalRecord implements Record<byte[]> {
 
-        private final byte[] record;
-        private final Long id;
+        private byte[] record;
+        private Long id;
+        private CanalConnector connector;
 
-        public CanalRecord(byte[] message, Long id) {
-            this.record = message;
-            this.id = id;
+        public CanalRecord(CanalConnector connector) {
+            this.connector = connector;
         }
 
         @Override
@@ -147,6 +174,16 @@ public class CanalSource extends PushSource<byte[]> {
         public byte[] getValue() {
             return record;
         }
+
+        @Override
+        public Optional<Long> getRecordSequence() {return Optional.of(id);}
+
+        @Override
+        public void ack() {
+            log.info("CanalRecord ack id is {}", this.id);
+            connector.ack(this.id);
+        }
+
     }
 
 }
