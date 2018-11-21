@@ -128,7 +128,6 @@ public class TestCmdSinks {
         sinkConfig.setTenant(TENANT);
         sinkConfig.setNamespace(NAMESPACE);
         sinkConfig.setName(NAME);
-        sinkConfig.setAutoAck(true);
 
         sinkConfig.setInputs(INPUTS_LIST);
         sinkConfig.setTopicToSerdeClassName(CUSTOM_SERDE_INPUT_MAP);
@@ -450,7 +449,7 @@ public class TestCmdSinks {
         testSinkConfig.setResources(null);
 
         SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setResources(new Resources());
+        expectedSinkConfig.setResources(null);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 

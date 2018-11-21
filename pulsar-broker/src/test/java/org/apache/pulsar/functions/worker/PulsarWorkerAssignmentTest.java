@@ -223,6 +223,7 @@ public class PulsarWorkerAssignmentTest {
         final String namespacePortion = "assignment-test";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String logTopic = "persistent://" + replNamespace + "/log-topic";
         final String baseFunctionName = "assign-restart";
         final String subscriptionName = "test-sub";
         final int totalFunctions = 5;
@@ -240,8 +241,7 @@ public class PulsarWorkerAssignmentTest {
             functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
             functionConfig.setParallelism(parallelism);
-            // set-auto-ack prop =true
-            functionConfig.setAutoAck(true);
+            // don't set any log topic
             admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
         retryStrategically((test) -> {
@@ -263,8 +263,8 @@ public class PulsarWorkerAssignmentTest {
             functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                     "my.*", sinkTopic, subscriptionName);
             functionConfig.setParallelism(parallelism);
-            // set-auto-ack prop =false
-            functionConfig.setAutoAck(false);
+            // Now set the log topic
+            functionConfig.setLogTopic(logTopic);
             admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
 
@@ -308,7 +308,7 @@ public class PulsarWorkerAssignmentTest {
         // validate updated function prop = auto-ack=false and instnaceid
         for (int i = 0; i < (totalFunctions - totalDeletedFunction); i++) {
             String functionName = baseFunctionName + i;
-            assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getAutoAck());
+            assertEquals(admin.functions().getFunction(tenant, namespacePortion, functionName).getLogTopic(), logTopic);
         }
     }
 

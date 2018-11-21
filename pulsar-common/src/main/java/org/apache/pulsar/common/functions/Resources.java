@@ -27,6 +27,7 @@ import lombok.*;
 @ToString
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder(toBuilder=true)
 public class Resources {
     // Default cpu is 1 core
     private Double cpu = 1d;
