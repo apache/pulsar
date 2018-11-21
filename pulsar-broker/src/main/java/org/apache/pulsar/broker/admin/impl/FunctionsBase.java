@@ -190,7 +190,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
     })
     @Path("/{tenant}/{namespace}/{functionName}/stats")
-    public Response getFunctionStats(final @PathParam("tenant") String tenant,
+    public FunctionStats getFunctionStats(final @PathParam("tenant") String tenant,
                                      final @PathParam("namespace") String namespace,
                                      final @PathParam("functionName") String functionName) throws IOException {
         return functions.getFunctionStats(tenant, namespace, functionName, FunctionsImpl.FUNCTION, uri.getRequestUri());
@@ -206,7 +206,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
     })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stats")
-    public Response getFunctionInstanceStats(final @PathParam("tenant") String tenant,
+    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionInstanceStats(final @PathParam("tenant") String tenant,
                                              final @PathParam("namespace") String namespace,
                                              final @PathParam("functionName") String functionName,
                                              final @PathParam("instanceId") String instanceId) throws IOException {
