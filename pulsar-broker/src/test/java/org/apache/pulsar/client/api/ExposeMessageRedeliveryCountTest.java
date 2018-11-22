@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.impl.MessageSystemProperties;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
-public class MessageSystemPropertiesTest  extends ProducerConsumerBase {
+public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
 
     @BeforeMethod
     @Override
@@ -44,7 +44,7 @@ public class MessageSystemPropertiesTest  extends ProducerConsumerBase {
     @Test(timeOut = 30000)
     public void testRedeliveryCount() throws PulsarClientException {
 
-        final String topic = "persistent://my-property/my-ns/system.properties.redeliveryCount";
+        final String topic = "persistent://my-property/my-ns/redeliveryCount";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -64,7 +64,7 @@ public class MessageSystemPropertiesTest  extends ProducerConsumerBase {
         do {
             Message<byte[]> message = consumer.receive();
             message.getProperties();
-            int redeliveryCount = Integer.parseInt(message.getProperty(MessageSystemProperties.REDELIVERY_COUNT));
+            final int redeliveryCount = message.getRedeliveryCount();
             if (redeliveryCount > 2) {
                 consumer.acknowledge(message);
                 Assert.assertEquals(3, redeliveryCount);
@@ -74,5 +74,44 @@ public class MessageSystemPropertiesTest  extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testRedeliveryCountWithPartitionedTopic() throws PulsarClientException, PulsarAdminException {
+
+        final String topic = "persistent://my-property/my-ns/redeliveryCount.partitioned";
+
+        admin.topics().createPartitionedTopic(topic, 3);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(3, TimeUnit.SECONDS)
+                .receiverQueueSize(100)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+
+        producer.send("Hello Pulsar".getBytes());
+
+        do {
+            Message<byte[]> message = consumer.receive();
+            message.getProperties();
+            final int redeliveryCount = message.getRedeliveryCount();
+            if (redeliveryCount > 2) {
+                consumer.acknowledge(message);
+                Assert.assertEquals(3, redeliveryCount);
+                break;
+            }
+        } while (true);
+
+        producer.close();
+        consumer.close();
+
+        admin.topics().deletePartitionedTopic(topic);
     }
 }

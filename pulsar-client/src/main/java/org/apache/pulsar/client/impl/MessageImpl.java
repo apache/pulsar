@@ -58,6 +58,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private String topic; // only set for incoming messages
     transient private Map<String, String> properties;
+    private int redeliveryCount;
 
     // Constructor for out-going message
     static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
@@ -87,13 +88,10 @@ public class MessageImpl<T> implements Message<T> {
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
-        this.msgMetadataBuilder.addProperties(
-                KeyValue.newBuilder()
-                        .setKey(MessageSystemProperties.REDELIVERY_COUNT)
-                        .setValue(String.valueOf(redeliveryCount)).build());
         this.messageId = messageId;
         this.topic = topic;
         this.cnx = cnx;
+        this.redeliveryCount = redeliveryCount;
 
         // Need to make a copy since the passed payload is using a ref-count buffer that we don't know when could
         // release, since the Message is passed to the user. Also, the passed ByteBuf is coming from network and is
@@ -105,10 +103,7 @@ public class MessageImpl<T> implements Message<T> {
             this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
                     .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
         } else {
-            properties = Collections.unmodifiableMap(
-                    Collections.singletonMap(
-                            MessageSystemProperties.REDELIVERY_COUNT,
-                            String.valueOf(redeliveryCount)));
+            properties = Collections.emptyMap();
         }
         this.schema = schema;
     }
@@ -123,13 +118,10 @@ public class MessageImpl<T> implements Message<T> {
                 PulsarApi.SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
-        this.msgMetadataBuilder.addProperties(
-                KeyValue.newBuilder()
-                        .setKey(MessageSystemProperties.REDELIVERY_COUNT)
-                        .setValue(String.valueOf(redeliveryCount)).build());
         this.messageId = batchMessageIdImpl;
         this.topic = topic;
         this.cnx = cnx;
+        this.redeliveryCount = redeliveryCount;
 
         this.payload = Unpooled.copiedBuffer(payload);
         this.encryptionCtx = encryptionCtx;
@@ -141,10 +133,7 @@ public class MessageImpl<T> implements Message<T> {
             }
             this.properties = Collections.unmodifiableMap(properties);
         } else {
-            properties = Collections.unmodifiableMap(
-                    Collections.singletonMap(
-                            MessageSystemProperties.REDELIVERY_COUNT,
-                            String.valueOf(redeliveryCount)));
+            properties = Collections.emptyMap();
         }
 
         if (singleMessageMetadata.hasPartitionKey()) {
@@ -376,5 +365,10 @@ public class MessageImpl<T> implements Message<T> {
     @Override
     public Optional<EncryptionContext> getEncryptionCtx() {
         return encryptionCtx;
+    }
+
+    @Override
+    public int getRedeliveryCount() {
+        return redeliveryCount;
     }
 }
