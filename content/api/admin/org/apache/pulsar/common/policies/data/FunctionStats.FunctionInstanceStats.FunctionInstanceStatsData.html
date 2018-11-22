@@ -42,7 +42,7 @@
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../../org/apache/pulsar/common/policies/data/LocalPolicies.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../../index.html?org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" target="_top">Frames</a></li>
@@ -92,7 +92,12 @@
 <li>Object</li>
 <li>
 <ul class="inheritance">
+<li><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html" title="class in org.apache.pulsar.common.policies.data">org.apache.pulsar.common.policies.data.FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase</a></li>
+<li>
+<ul class="inheritance">
 <li>org.apache.pulsar.common.policies.data.FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -106,7 +111,7 @@
 <hr>
 <br>
 <pre>public static class <span class="typeNameLabel">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData</span>
-extends Object</pre>
+extends <a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase</a></pre>
 </li>
 </ul>
 </div>
@@ -126,40 +131,14 @@ extends Object</pre>
 <th class="colLast" scope="col">Field and Description</th>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><code>double</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#avgProcessLatency">avgProcessLatency</a></span></code>
-<div class="block">Average process latency for function for instance</div>
-</td>
-</tr>
-<tr class="rowColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#lastInvocation">lastInvocation</a></span></code>
 <div class="block">Timestamp of when the function was last invoked for instance</div>
 </td>
 </tr>
-<tr class="altColor">
-<td class="colFirst"><code>long</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#processedSuccessfullyTotal">processedSuccessfullyTotal</a></span></code>
-<div class="block">Total number of records successfully processed by user function for instance</div>
-</td>
-</tr>
 <tr class="rowColor">
-<td class="colFirst"><code>long</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#receivedTotal">receivedTotal</a></span></code>
-<div class="block">Total number of records function received from source for instance</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>long</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#systemExceptionsTotal">systemExceptionsTotal</a></span></code>
-<div class="block">Total number of system exceptions thrown for instance</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>long</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#userExceptionsTotal">userExceptionsTotal</a></span></code>
-<div class="block">Total number of user exceptions thrown for instance</div>
-</td>
+<td class="colFirst"><code><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html#oneMin">oneMin</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>Map&lt;String,Double&gt;</code></td>
@@ -168,6 +147,13 @@ extends Object</pre>
 </td>
 </tr>
 </table>
+<ul class="blockList">
+<li class="blockList"><a name="fields.inherited.from.class.org.apache.pulsar.common.policies.data.FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase">
+<!--   -->
+</a>
+<h3>Fields inherited from class&nbsp;org.apache.pulsar.common.policies.data.<a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase</a></h3>
+<code><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html#avgProcessLatency">avgProcessLatency</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html#processedSuccessfullyTotal">processedSuccessfullyTotal</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html#receivedTotal">receivedTotal</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html#systemExceptionsTotal">systemExceptionsTotal</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html#userExceptionsTotal">userExceptionsTotal</a></code></li>
+</ul>
 </li>
 </ul>
 <!-- ======== CONSTRUCTOR SUMMARY ======== -->
@@ -214,54 +200,13 @@ extends Object</pre>
 <!--   -->
 </a>
 <h3>Field Detail</h3>
-<a name="receivedTotal">
+<a name="oneMin">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>receivedTotal</h4>
-<pre>public&nbsp;long receivedTotal</pre>
-<div class="block">Total number of records function received from source for instance</div>
-</li>
-</ul>
-<a name="processedSuccessfullyTotal">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>processedSuccessfullyTotal</h4>
-<pre>public&nbsp;long processedSuccessfullyTotal</pre>
-<div class="block">Total number of records successfully processed by user function for instance</div>
-</li>
-</ul>
-<a name="systemExceptionsTotal">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>systemExceptionsTotal</h4>
-<pre>public&nbsp;long systemExceptionsTotal</pre>
-<div class="block">Total number of system exceptions thrown for instance</div>
-</li>
-</ul>
-<a name="userExceptionsTotal">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>userExceptionsTotal</h4>
-<pre>public&nbsp;long userExceptionsTotal</pre>
-<div class="block">Total number of user exceptions thrown for instance</div>
-</li>
-</ul>
-<a name="avgProcessLatency">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>avgProcessLatency</h4>
-<pre>public&nbsp;double avgProcessLatency</pre>
-<div class="block">Average process latency for function for instance</div>
+<h4>oneMin</h4>
+<pre>public&nbsp;<a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html" title="class in org.apache.pulsar.common.policies.data">FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase</a> oneMin</pre>
 </li>
 </ul>
 <a name="lastInvocation">
@@ -329,7 +274,7 @@ extends Object</pre>
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../../org/apache/pulsar/common/policies/data/LocalPolicies.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li><a href="../../../../../../org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsDataBase.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../../index.html?org/apache/pulsar/common/policies/data/FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.html" target="_top">Frames</a></li>
