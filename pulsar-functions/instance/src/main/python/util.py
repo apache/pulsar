@@ -26,6 +26,7 @@ import os
 import inspect
 import sys
 import importlib
+from threading import Timer
 
 import log
 
@@ -66,3 +67,21 @@ def import_class_from_path(from_path, full_class_name):
 
 def getFullyQualifiedFunctionName(tenant, namespace, name):
   return "%s/%s/%s" % (tenant, namespace, name)
+
+class FixedTimer():
+
+    def __init__(self, t, hFunction):
+        self.t = t
+        self.hFunction = hFunction
+        self.thread = Timer(self.t, self.handle_function)
+
+    def handle_function(self):
+        self.hFunction()
+        self.thread = Timer(self.t, self.handle_function)
+        self.thread.start()
+
+    def start(self):
+        self.thread.start()
+
+    def cancel(self):
+        self.thread.cancel()

@@ -71,20 +71,32 @@ message MetricsData {
     // Total number of records function received from source
     int64 receivedTotal = 2;
 
+    int64 receivedTotal_1min = 10;
+
     // Total number of records processed
     int64 processedTotal = 3;
+
+    int64 processedTotal_1min = 11;
 
     // Total number of records successfully processed by user function
     int64 processedSuccessfullyTotal = 4;
 
+    int64 processedSuccessfullyTotal_1min = 12;
+
     // Total number of system exceptions thrown
     int64 systemExceptionsTotal = 5;
+
+    int64 systemExceptionsTotal_1min = 13;
 
     // Total number of user exceptions thrown
     int64 userExceptionsTotal = 6;
 
+    int64 userExceptionsTotal_1min = 14;
+
     // Average process latency for function
     double avgProcessLatency = 7;
+
+    double avgProcessLatency_1min = 15;
 
     // Timestamp of when the function was last invoked
     int64 lastInvocation = 8;

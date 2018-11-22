@@ -47,7 +47,12 @@ class ThreadRuntime implements Runtime {
     private InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
     private ThreadGroup threadGroup;
-
+    private FunctionCacheManager fnCache;
+    private String jarFile;
+    private PulsarClient pulsarClient;
+    private String stateStorageServiceUrl;
+    private SecretsProvider secretsProvider;
+    private CollectorRegistry collectorRegistry;
     ThreadRuntime(InstanceConfig instanceConfig,
                   FunctionCacheManager fnCache,
                   ThreadGroup threadGroup,
@@ -61,22 +66,21 @@ class ThreadRuntime implements Runtime {
             throw new RuntimeException("Thread Container only supports Java Runtime");
         }
 
-        // if collector registry is not set, create one for this thread.
-        // since each thread / instance will needs its own collector registry for metrics collection
-        CollectorRegistry instanceCollectorRegistry = collectorRegistry;
-        if (instanceCollectorRegistry == null) {
-            instanceCollectorRegistry = new CollectorRegistry();
-        }
-
-        this.javaInstanceRunnable = new JavaInstanceRunnable(
-            instanceConfig,
-            fnCache,
-            jarFile,
-            pulsarClient,
-            stateStorageServiceUrl,
-            secretsProvider,
-            instanceCollectorRegistry);
         this.threadGroup = threadGroup;
+        this.fnCache = fnCache;
+        this.jarFile = jarFile;
+        this.pulsarClient = pulsarClient;
+        this.stateStorageServiceUrl = stateStorageServiceUrl;
+        this.secretsProvider = secretsProvider;
+        this.collectorRegistry = collectorRegistry;
+        this.javaInstanceRunnable = new JavaInstanceRunnable(
+                instanceConfig,
+                fnCache,
+                jarFile,
+                pulsarClient,
+                stateStorageServiceUrl,
+                secretsProvider,
+                collectorRegistry);
     }
 
     /**
@@ -84,6 +88,16 @@ class ThreadRuntime implements Runtime {
      */
     @Override
     public void start() {
+        // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
+        this.javaInstanceRunnable = new JavaInstanceRunnable(
+                instanceConfig,
+                fnCache,
+                jarFile,
+                pulsarClient,
+                stateStorageServiceUrl,
+                secretsProvider,
+                collectorRegistry);
+
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 String.format("%s-%s",

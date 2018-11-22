@@ -659,11 +659,10 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
 
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
             if (isBlank(instanceId)) {
-                System.out.println(gson.toJson(admin.functions().getFunctionStats(tenant, namespace, functionName)));
+                print(admin.functions().getFunctionStats(tenant, namespace, functionName));
             } else {
-                System.out.println(gson.toJson(admin.functions().getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId))));
+               print(admin.functions().getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId)));
             }
         }
     }
