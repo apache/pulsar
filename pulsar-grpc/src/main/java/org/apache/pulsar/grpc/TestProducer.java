@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.grpc;
 
 import com.google.protobuf.ByteString;
@@ -6,13 +24,16 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
-import org.apache.pulsar.grpc.proto.*;
+import org.apache.pulsar.grpc.proto.ClientParameters;
+import org.apache.pulsar.grpc.proto.ProducerAck;
+import org.apache.pulsar.grpc.proto.ProducerMessage;
+import org.apache.pulsar.grpc.proto.PulsarGrpc;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.grpc.Metadata.ASCII_STRING_MARSHALLER;
+import static org.apache.pulsar.grpc.Constant.CLIENT_PARAMS_METADATA_KEY;
 
 public class TestProducer {
 
@@ -22,8 +43,8 @@ public class TestProducer {
                 .build();
 
         Metadata headers = new Metadata();
-        headers.put(Metadata.Key.of("pulsar-topic", ASCII_STRING_MARSHALLER), "persistent://public/default/my-topic12");
-
+        byte[] params = ClientParameters.newBuilder().setTopic("topic").build().toByteArray();
+        headers.put(CLIENT_PARAMS_METADATA_KEY, params);
         PulsarGrpc.PulsarStub asyncStub = MetadataUtils.attachHeaders(PulsarGrpc.newStub(channel), headers);
 
         StreamObserver<ProducerMessage> producer = asyncStub.produce(new StreamObserver<ProducerAck>() {

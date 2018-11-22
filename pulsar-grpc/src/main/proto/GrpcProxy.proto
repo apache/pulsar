@@ -1,0 +1,116 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+syntax = "proto3";
+
+package pulsar.grpc.proto;
+
+option java_multiple_files = true;
+option java_package = "org.apache.pulsar.grpc.proto";
+option java_outer_classname = "GrpcProxy";
+
+import "google/protobuf/wrappers.proto";
+
+service Pulsar {
+    rpc Produce(stream ProducerMessage) returns (stream ProducerAck);
+    rpc Consume(stream ConsumerAck) returns (stream ConsumerMessage);
+}
+
+message ProducerMessage {
+    bytes payload = 1;
+    map<string, string> properties = 2;
+    string context = 3;
+    string key = 4;
+    repeated string replication_clusters = 5;
+}
+
+message ProducerAck {
+    uint32 status_code = 1;
+    string error_msg = 2;
+    bytes message_id = 3;
+    string context = 4;
+}
+
+message ConsumerMessage {
+    bytes message_id = 1;
+    bytes payload = 2;
+    map<string, string> properties = 3;
+    uint64 publish_time = 4;
+    uint64 event_time = 5;
+    string key = 6;
+}
+
+message ConsumerAck {
+    bytes messageId = 1;
+}
+
+message ProducerParameters {
+    enum MessageRoutingMode {
+        MESSAGE_ROUTING_MODE_DEFAULT = 0;
+        MESSAGE_ROUTING_MODE_SINGLE_PARTITION = 1;
+        MESSAGE_ROUTING_MODE_ROUND_ROBIN_PARTITION = 2;
+    }
+    enum CompressionType {
+        COMPRESSION_TYPE_DEFAULT = 0;
+        COMPRESSION_TYPE_NONE = 1;
+        COMPRESSION_TYPE_LZ4 = 2;
+        COMPRESSION_TYPE_ZLIB = 3;
+    }
+    enum HashingScheme {
+        HASHING_SCHEME_DEFAULT = 0;
+        HASHING_SCHEME_JAVA_STRING_HASH = 1;
+        HASHING_SCHEME_MURMUR3_32HASH = 2;
+    }
+    google.protobuf.UInt32Value send_timeout_millis = 1;
+    google.protobuf.BoolValue batching_enabled = 2;
+    google.protobuf.UInt32Value batching_max_messages = 3;
+    google.protobuf.UInt32Value max_pending_messages = 4;
+    google.protobuf.UInt64Value batching_max_publish_delay = 5;
+    MessageRoutingMode message_routing_mode = 6;
+    CompressionType compression_type = 7;
+    string producer_name = 8;
+    google.protobuf.UInt64Value initial_sequence_id = 9;
+    HashingScheme hashing_scheme = 10;
+}
+
+message DeadLetterPolicy {
+    google.protobuf.UInt32Value max_redeliver_count = 1;
+    string dead_letter_topic = 2;
+}
+
+message ConsumerParameters {
+    enum SubscriptionType {
+        SUBSCRIPTION_TYPE_DEFAULT = 0;
+        SUBSCRIPTION_TYPE_EXCLUSIVE = 1;
+        SUBSCRIPTION_TYPE_FAILOVER = 2;
+        SUBSCRIPTION_TYPE_SHARED = 3;
+    }
+    string subscription = 1;
+    google.protobuf.UInt64Value ack_timeout_millis = 2;
+    SubscriptionType subscription_type = 3;
+    google.protobuf.UInt32Value receiver_queue_size = 4;
+    string consumer_name = 5;
+    google.protobuf.UInt32Value priority_level = 6;
+    DeadLetterPolicy dead_letter_policy = 7;
+}
+
+message ClientParameters {
+    string topic = 1;
+    ProducerParameters producer_parameters = 2;
+    ConsumerParameters consumer_parameters = 3;
+}

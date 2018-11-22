@@ -1,27 +1,46 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.grpc;
 
-import com.google.common.base.Enums;
-import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.DeadLetterPolicy.DeadLetterPolicyBuilder;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.grpc.proto.ClientParameters;
 import org.apache.pulsar.grpc.proto.ConsumerAck;
 import org.apache.pulsar.grpc.proto.ConsumerMessage;
+import org.apache.pulsar.grpc.proto.ConsumerParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.grpc.Constant.GRPC_PROXY_CTX_KEY;
+import static org.apache.pulsar.grpc.Constant.CLIENT_PARAMS_CTX_KEY;
 
 public class ConsumerHandler implements Closeable {
 
@@ -43,27 +62,31 @@ public class ConsumerHandler implements Closeable {
     ConsumerHandler(GrpcService service, StreamObserver<ConsumerMessage> messageStreamObserver) {
         this.service = service;
         this.messageStreamObserver = messageStreamObserver;
-        Map<String, String> params = GRPC_PROXY_CTX_KEY.get();
+        ClientParameters streamMetadata = CLIENT_PARAMS_CTX_KEY.get();
 
         try {
-            this.topic = params.get("pulsar-topic");
-            checkArgument(!Strings.isNullOrEmpty(topic), "Empty topic name");
-            ConsumerBuilderImpl<byte[]> builder = (ConsumerBuilderImpl<byte[]>) getConsumerConfiguration(params, service.getPulsarClient());
+            this.topic = streamMetadata.getTopic();
+            ConsumerBuilderImpl<byte[]> builder = (ConsumerBuilderImpl<byte[]>) getConsumerConfiguration(
+                    streamMetadata.getConsumerParameters(),
+                    service.getPulsarClient()
+            );
             this.maxPendingMessages = (builder.getConf().getReceiverQueueSize() == 0) ? 1
                     : builder.getConf().getReceiverQueueSize();
 
             // checkAuth() should be called after assigning a value to this.subscription
-            this.subscription = params.get("pulsar-subscription");
-            checkArgument(!Strings.isNullOrEmpty(subscription), "Empty subscription name");
+            this.subscription = streamMetadata.getConsumerParameters().getSubscription();
+            checkArgument(!subscription.isEmpty(), "Empty subscription name");
 
             // TODO: authN/authZ
             /*if (!checkAuth(response)) {
                 return;
             }*/
 
-            builder.topic(params.get("pulsar-topic"))
-                    .subscriptionName(subscription);
-            consumer = builder.subscribe();
+            consumer = builder
+                    .topic(topic)
+                    .subscriptionName(subscription)
+                    .subscribe();
+
         } catch (Exception e) {
             throw getStatus(e).withDescription(getErrorMessage(e)).asRuntimeException();
         }
@@ -180,44 +203,54 @@ public class ConsumerHandler implements Closeable {
         });
     }
 
-    private ConsumerBuilder<byte[]> getConsumerConfiguration(Map<String, String> headerParams, PulsarClient client) {
+    private static SubscriptionType toSubscriptionType(ConsumerParameters.SubscriptionType type) {
+        switch(type) {
+            case SUBSCRIPTION_TYPE_EXCLUSIVE:
+                return SubscriptionType.Exclusive;
+            case SUBSCRIPTION_TYPE_FAILOVER:
+                return SubscriptionType.Failover;
+            case SUBSCRIPTION_TYPE_SHARED:
+                return SubscriptionType.Shared;
+            case SUBSCRIPTION_TYPE_DEFAULT:
+                return null;
+        }
+        throw new IllegalArgumentException("Invalid subscription type");
+    }
+
+    private ConsumerBuilder<byte[]> getConsumerConfiguration(ConsumerParameters params, PulsarClient client) {
         ConsumerBuilder<byte[]> builder = client.newConsumer();
 
-        if (headerParams.containsKey("pulsar-ack-timeout-millis")) {
-            builder.ackTimeout(Integer.parseInt(headerParams.get("pulsar-ack-timeout-millis")), TimeUnit.MILLISECONDS);
+        if (params.hasAckTimeoutMillis()) {
+            builder.ackTimeout(params.getAckTimeoutMillis().getValue(), TimeUnit.MILLISECONDS);
         }
 
-        if (headerParams.containsKey("pulsar-subscription-type")) {
-            checkArgument(Enums.getIfPresent(SubscriptionType.class, headerParams.get("pulsar-subscription-type")).isPresent(),
-                    "Invalid subscriptionType %s", headerParams.get("pulsar-subscription-type"));
-            builder.subscriptionType(SubscriptionType.valueOf(headerParams.get("pulsar-subscription-type")));
+        Optional.ofNullable(toSubscriptionType(params.getSubscriptionType())).ifPresent(builder::subscriptionType);
+
+        if (params.hasReceiverQueueSize()) {
+            builder.receiverQueueSize(params.getReceiverQueueSize().getValue());
         }
 
-        if (headerParams.containsKey("pulsar-receiver-queue-size")) {
-            builder.receiverQueueSize(Math.min(Integer.parseInt(headerParams.get("pulsar-receiver-queue-size")), 1000));
+        if (!params.getConsumerName().isEmpty()) {
+            builder.consumerName(params.getConsumerName());
         }
 
-        if (headerParams.containsKey("pulsar-consumer-name")) {
-            builder.consumerName(headerParams.get("pulsar-consumer-name"));
+        if (params.hasPriorityLevel()) {
+            builder.priorityLevel(params.getPriorityLevel().getValue());
         }
 
-        if (headerParams.containsKey("pulsar-priority-level")) {
-            builder.priorityLevel(Integer.parseInt(headerParams.get("pulsar-priority-level")));
-        }
-
-        if (headerParams.containsKey("pulsar-max-redeliver-count") || headerParams.containsKey("pulsar-dead-letter-topic")) {
-            DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder();
-            if (headerParams.containsKey("pulsar-max-redeliver-count")) {
-                dlpBuilder.maxRedeliverCount(Integer.parseInt(headerParams.get("pulsar-max-redeliver-count")))
+        if (params.hasDeadLetterPolicy()) {
+            org.apache.pulsar.grpc.proto.DeadLetterPolicy deadLetterPolicy = params.getDeadLetterPolicy();
+            DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder();
+            if (deadLetterPolicy.hasMaxRedeliverCount()) {
+                dlpBuilder.maxRedeliverCount(deadLetterPolicy.getMaxRedeliverCount().getValue())
                         .deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription));
             }
 
-            if (headerParams.containsKey("pulsar-dead-letter-topic")) {
-                dlpBuilder.deadLetterTopic(headerParams.get("pulsar-dead-letter-topic"));
+            if (!deadLetterPolicy.getDeadLetterTopic().isEmpty()) {
+                dlpBuilder.deadLetterTopic(deadLetterPolicy.getDeadLetterTopic());
             }
             builder.deadLetterPolicy(dlpBuilder.build());
         }
-
         return builder;
     }
 
