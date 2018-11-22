@@ -111,6 +111,7 @@ public class PulsarCluster {
             .withEnv("clusterName", clusterName)
             .withEnv("zkServers", ZKContainer.NAME)
             .withEnv("configurationStore", CSContainer.NAME + ":" + CS_PORT)
+            .withEnv("forceSync", "no")
             .withEnv("pulsarNode", "pulsar-broker-0");
 
         this.csContainer = new CSContainer(clusterName)
@@ -136,6 +137,9 @@ public class PulsarCluster {
                         .withNetworkAliases(name)
                         .withEnv("zkServers", ZKContainer.NAME)
                         .withEnv("useHostNameAsBookieID", "true")
+                        // Disable fsyncs for tests since they're slow within the containers
+                        .withEnv("journalSyncData", "false")
+                        .withEnv("journalMaxGroupWaitMSec", "0")
                         .withEnv("clusterName", clusterName)
                 )
         );
