@@ -336,4 +336,17 @@ public class Utils {
         }
         return null;
     }
+
+    public static String getFullyQualifiedInstanceId(org.apache.pulsar.functions.proto.Function.Instance instance) {
+        return getFullyQualifiedInstanceId(
+                instance.getFunctionMetaData().getFunctionDetails().getTenant(),
+                instance.getFunctionMetaData().getFunctionDetails().getNamespace(),
+                instance.getFunctionMetaData().getFunctionDetails().getName(),
+                instance.getInstanceId());
+    }
+
+    public static String getFullyQualifiedInstanceId(String tenant, String namespace,
+                                                     String functionName, int instanceId) {
+        return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
+    }
 }

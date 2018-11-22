@@ -194,7 +194,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
             Map.Entry<Function.Instance, Long> entry = it.next();
             String fullyQualifiedFunctionName = FunctionDetailsUtils.getFullyQualifiedName(
                     entry.getKey().getFunctionMetaData().getFunctionDetails());
-            String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(entry.getKey());
+            String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(entry.getKey());
             //remove functions that don't exist anymore
             if (!functionMetaDataMap.containsKey(fullyQualifiedFunctionName)) {
                 it.remove();
@@ -262,7 +262,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
             if (currentTimeMs - unassignedDurationMs > this.workerConfig.getRescheduleTimeoutMs()) {
                 needSchedule.add(instance);
                 // remove assignment from failed node
-                Function.Assignment assignment = assignmentMap.get(Utils.getFullyQualifiedInstanceId(instance));
+                Function.Assignment assignment = assignmentMap.get(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(instance));
                 if (assignment != null) {
                     needRemove.add(assignment);
                 }

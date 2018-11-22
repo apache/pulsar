@@ -365,6 +365,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *          .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).deadLetterTopic("your-topic-name").build())
      *          .subscribe();
      * </pre>
+     * When a dead letter policy is specified, and no ackTimeoutMillis is specified,
+     * then the ack timeout will be set to 30000 millisecond
      */
     ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 }
