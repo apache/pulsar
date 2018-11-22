@@ -68,12 +68,6 @@
     </dependency>
 
     <!-- functions related dependencies (begin) -->
-
-    <dependency>
-      <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>stream-storage-java-client</artifactId>
-    </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-utils</artifactId>
