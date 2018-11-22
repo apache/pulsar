@@ -362,6 +362,27 @@ public class ClientConfiguration implements Serializable {
         return this;
     }
 
+    /**
+     * Set the duration of time to wait for a connection to a broker to be established. If the duration
+     * passes without a response from the broker, the connection attempt is dropped.
+     *
+     * @param duration the duration to wait
+     * @param unit the time unit in which the duration is defined
+     */
+    public void setConnectionTimeout(int duration, TimeUnit unit) {
+        confData.setConnectionTimeoutMs((int)unit.toMillis(duration));
+    }
+
+    /**
+     * Get the duration of time for which the client will wait for a connection to a broker to be
+     * established before giving up.
+     *
+     * @return the duration, in milliseconds
+     */
+    public long getConnectionTimeoutMs() {
+        return confData.getConnectionTimeoutMs();
+    }
+
     public ClientConfigurationData getConfigurationData() {
         return confData;
     }

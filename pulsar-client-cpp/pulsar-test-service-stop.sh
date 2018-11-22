@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,13 +18,9 @@
 # under the License.
 #
 
-Configuration:
-  name: pulsar-functions-kubernetes-prometheus-metrics-server
-  monitorInterval: 30
-  Appenders:
-    # Console
-    Console:
-      name: Console
-      target: SYSTEM_OUT
-      PatternLayout:
-        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+set -e
+
+ROOT_DIR=$(git rev-parse --show-toplevel)
+cd $ROOT_DIR
+
+bin/pulsar-daemon stop standalone

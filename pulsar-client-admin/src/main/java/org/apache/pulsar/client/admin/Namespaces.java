@@ -35,6 +35,7 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
 /**
@@ -855,7 +856,7 @@ public interface Namespaces {
      * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second)
      *
      * @param namespace
-     * @param messageRate
+     * @param dispatchRate
      *            number of messages per second
      * @throws PulsarAdminException
      *             Unexpected error
@@ -871,6 +872,26 @@ public interface Namespaces {
     *             Unexpected error
     */
     DispatchRate getDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate)
+     *
+     * @param namespace
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscribeRate(String namespace, SubscribeRate subscribeRate) throws PulsarAdminException;
+
+    /** Get namespace-subscribe-rate (topics under this namespace allow subscribe times per consumer in a period)
+     *
+     * @param namespace
+     * @returns subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    SubscribeRate getSubscribeRate(String namespace) throws PulsarAdminException;
 
     /**
      * Set subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)

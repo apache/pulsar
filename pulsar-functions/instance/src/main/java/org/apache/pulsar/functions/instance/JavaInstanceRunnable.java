@@ -23,7 +23,6 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Summary;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -61,9 +60,11 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.StateUtils;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -109,7 +110,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Throwable deathException;
 
     // function stats
-    private final FunctionStats stats;
+    private FunctionStatsManager stats;
 
     private Record<?> currentRecord;
 
@@ -120,6 +121,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private CollectorRegistry collectorRegistry;
     private final String[] metricsLabels;
+
+    private InstanceCache instanceCache;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
@@ -133,7 +136,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
-        this.stats = new FunctionStats(collectorRegistry);
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
         this.metricsLabels = new String[]{
@@ -146,6 +148,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 String.valueOf(instanceConfig.getInstanceId()),
                 instanceConfig.getClusterName()
         };
+
+        // Declare function local collector registry so that it will not clash with other function instances'
+        // metrics collection especially in threaded mode
+        // In process mode the JavaInstanceMain will declare a CollectorRegistry and pass it down
+        this.collectorRegistry = collectorRegistry;
     }
 
     /**
@@ -198,10 +205,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
      */
     @Override
     public void run() {
-        String functionName = null;
         try {
+            this.instanceCache = InstanceCache.getInstanceCache();
+
+            if (this.collectorRegistry == null) {
+                this.collectorRegistry = new CollectorRegistry();
+            }
+            this.stats = new FunctionStatsManager(this.collectorRegistry, this.metricsLabels, this.instanceCache.executor);
+
             ContextImpl contextImpl = setupContext();
-            functionName = String.format("%s-%s", contextImpl.getTenant(), contextImpl.getFunctionName());
             javaInstance = setupJavaInstance(contextImpl);
             if (null != stateTable) {
                 StateContextImpl stateContext = new StateContextImpl(stateTable);
@@ -211,7 +223,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 currentRecord = readInput();
 
                 // increment number of records received from source
-                stats.statTotalRecordsRecieved.labels(metricsLabels).inc();
+                stats.incrTotalReceived();
 
                 if (instanceConfig.getFunctionDetails().getProcessingGuarantees() == org.apache.pulsar.functions
                         .proto.Function.ProcessingGuarantees.ATMOST_ONCE) {
@@ -224,18 +236,18 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 JavaExecutionResult result;
 
                 // set last invocation time
-                stats.statlastInvocation.labels(metricsLabels).set(System.currentTimeMillis());
+                stats.setLastInvocation(System.currentTimeMillis());
 
                 // start time for process latency stat
-                Summary.Timer requestTimer = stats.statProcessLatency.labels(metricsLabels).startTimer();
+                stats.processTimeStart();
 
                 // process the message
                 result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
 
                 // register end time
-                requestTimer.observeDuration();
+                stats.processTimeEnd();
                 // increment total processed
-                stats.statTotalProcessed.labels(metricsLabels).inc();
+                stats.incrTotalProcessed();
 
                 removeLogTopicHandler();
 
@@ -251,10 +263,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
             }
         } catch (Throwable t) {
-            log.error("[{}] Uncaught exception in Java Instance", functionName, t);
+            log.error("[{}] Uncaught exception in Java Instance", Utils.getFullyQualifiedInstanceId(
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName(),
+                    instanceConfig.getInstanceId()), t);
             deathException = t;
-            stats.statTotalSysExceptions.labels(metricsLabels).inc();
-            stats.addSystemException(t);
+            stats.incrSysExceptions(t);
             return;
         } finally {
             log.info("Closing instance");
@@ -290,6 +305,41 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Thread.currentThread().setContextClassLoader(fnClassLoader);
     }
 
+    private void createStateTable(String tableNs, String tableName, StorageClientSettings settings) throws Exception {
+        try (StorageAdminClient storageAdminClient = StorageClientBuilder.newBuilder()
+            .withSettings(settings)
+            .buildAdmin()) {
+            StreamConfiguration streamConf = StreamConfiguration.newBuilder(DEFAULT_STREAM_CONF)
+                .setInitialNumRanges(4)
+                .setMinNumRanges(4)
+                .setStorageType(StorageType.TABLE)
+                .build();
+            while (true) {
+                try {
+                    result(storageAdminClient.getStream(tableNs, tableName));
+                    return;
+                } catch (NamespaceNotFoundException nnfe) {
+                    try {
+                        result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
+                            .setDefaultStreamConf(streamConf)
+                            .build()));
+                        result(storageAdminClient.createStream(tableNs, tableName, streamConf));
+                    } catch (Exception e) {
+                        // there might be two clients conflicting at creating table, so let's retrieve the table again
+                        // to make sure the table is created.
+                    }
+                } catch (StreamNotFoundException snfe) {
+                    try {
+                        result(storageAdminClient.createStream(tableNs, tableName, streamConf));
+                    } catch (Exception e) {
+                        // there might be two client conflicting at creating table, so let's retrieve it to make
+                        // sure the table is created.
+                    }
+                }
+            }
+        }
+    }
+
     private void setupStateTable() throws Exception {
         if (null == stateStorageServiceUrl) {
             return;
@@ -307,25 +357,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 .build();
 
         // we defer creation of the state table until a java instance is running here.
-        try (StorageAdminClient storageAdminClient = StorageClientBuilder.newBuilder()
-                .withSettings(settings)
-                .buildAdmin()) {
-            StreamConfiguration streamConf = StreamConfiguration.newBuilder(DEFAULT_STREAM_CONF)
-                .setInitialNumRanges(4)
-                .setMinNumRanges(4)
-                .setStorageType(StorageType.TABLE)
-                .build();
-            try {
-                result(storageAdminClient.getStream(tableNs, tableName));
-            } catch (NamespaceNotFoundException nnfe) {
-                result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
-                        .setDefaultStreamConf(streamConf)
-                        .build()));
-                result(storageAdminClient.createStream(tableNs, tableName, streamConf));
-            } catch (StreamNotFoundException snfe) {
-                result(storageAdminClient.createStream(tableNs, tableName, streamConf));
-            }
-        }
+        createStateTable(tableNs, tableName, settings);
 
         log.info("Starting state table for function {}", instanceConfig.getFunctionDetails().getName());
         this.storageClient = StorageClientBuilder.newBuilder()
@@ -339,8 +371,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", srcRecord, result.getUserException());
-            stats.statTotalUserExceptions.labels(metricsLabels).inc();
-            stats.addUserException(result.getUserException() );
+            stats.incrUserExceptions(result.getUserException());
             srcRecord.fail();
         } else {
             if (result.getResult() != null) {
@@ -352,7 +383,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
             }
             // increment total successfully processed
-            stats.statTotalProcessedSuccessfully.labels(metricsLabels).inc();
+            stats.incrTotalProcessedSuccessfully();
         }
     }
 
@@ -385,6 +416,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     @Override
     public void close() {
+
+        if (stats != null) {
+            stats.close();
+        }
+
         if (source != null) {
             try {
                 source.close();
@@ -412,7 +448,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stateTable = null;
         }
         if (null != storageClient) {
-            storageClient.close();
+            storageClient.closeAsync()
+                .exceptionally(cause -> {
+                    log.warn("Failed to close state storage client", cause);
+                    return null;
+                });
         }
 
         // once the thread quits, clean up the instance
@@ -423,23 +463,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
-        InstanceCommunication.MetricsData.Builder bldr = createMetricsDataBuilder();
+        InstanceCommunication.MetricsData metricsData = getMetrics();
         stats.reset();
-        if (javaInstance != null) {
-            InstanceCommunication.MetricsData userMetrics =  javaInstance.getAndResetMetrics();
-            if (userMetrics != null) {
-                bldr.putAllMetrics(userMetrics.getMetricsMap());
-            }
-        }
-        return bldr.build();
+        return metricsData;
     }
 
     public InstanceCommunication.MetricsData getMetrics() {
         InstanceCommunication.MetricsData.Builder bldr = createMetricsDataBuilder();
         if (javaInstance != null) {
-            InstanceCommunication.MetricsData userMetrics =  javaInstance.getMetrics();
+            Map<String, Double> userMetrics =  javaInstance.getMetrics();
             if (userMetrics != null) {
-                bldr.putAllMetrics(userMetrics.getMetricsMap());
+                bldr.putAllUserMetrics(userMetrics);
             }
         }
         return bldr.build();
@@ -452,44 +486,40 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Builder createMetricsDataBuilder() {
         InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
-        addSystemMetrics(FunctionStats.PULSAR_FUNCTION_PROCESSED_TOTAL, stats.statTotalProcessed.labels(metricsLabels).get(), bldr);
-        addSystemMetrics(FunctionStats.PULSAR_FUNCTION_PROCESSED_SUCCESSFULLY_TOTAL, stats.statTotalProcessedSuccessfully.labels(metricsLabels).get(), bldr);
-        addSystemMetrics(FunctionStats.PULSAR_FUNCTION_SYSTEM_EXCEPTIONS_TOTAL,  stats.statTotalSysExceptions.labels(metricsLabels).get(), bldr);
-        addSystemMetrics(FunctionStats.PULSAR_FUNCTION_USER_EXCEPTIONS_TOTAL, stats.statTotalUserExceptions.labels(metricsLabels).get(), bldr);
-        addSystemMetrics(FunctionStats.PULSAR_FUNCTION_RECEIVED_TOTAL, stats.statTotalRecordsRecieved.labels(metricsLabels).get(), bldr);
-        addSystemMetrics(FunctionStats.PULSAR_FUNCTION_PROCESS_LATENCY_MS,
-                stats.statProcessLatency.labels(metricsLabels).get().count <= 0.0
-                        ? 0 : stats.statProcessLatency.labels(metricsLabels).get().sum / stats.statProcessLatency.labels(metricsLabels).get().count,
-                bldr);
-        addSystemMetrics(FunctionStats.PULSAR_FUNCTION_LAST_INVOCATION, stats.statlastInvocation.labels(metricsLabels).get(), bldr);
+
+        bldr.setProcessedTotal((long) stats.getTotalProcessed());
+        bldr.setProcessedSuccessfullyTotal((long) stats.getTotalProcessedSuccessfully());
+        bldr.setSystemExceptionsTotal((long) stats.getTotalSysExceptions());
+        bldr.setUserExceptionsTotal((long) stats.getTotalUserExceptions());
+        bldr.setReceivedTotal((long) stats.getTotalRecordsReceived());
+        bldr.setAvgProcessLatency(stats.getAvgProcessLatency());
+        bldr.setLastInvocation((long) stats.getLastInvocation());
+
+        bldr.setProcessedTotal1Min((long) stats.getTotalProcessed1min());
+        bldr.setProcessedSuccessfullyTotal1Min((long) stats.getTotalProcessedSuccessfully1min());
+        bldr.setSystemExceptionsTotal1Min((long) stats.getTotalSysExceptions1min());
+        bldr.setUserExceptionsTotal1Min((long) stats.getTotalUserExceptions1min());
+        bldr.setReceivedTotal1Min((long) stats.getTotalRecordsReceived1min());
+        bldr.setAvgProcessLatency1Min(stats.getAvgProcessLatency1min());
+
         return bldr;
     }
 
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
-        functionStatusBuilder.setNumProcessed((long) stats.statTotalProcessed.labels(metricsLabels).get());
-        functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.statTotalProcessedSuccessfully.labels(metricsLabels).get());
-        functionStatusBuilder.setNumUserExceptions((long) stats.statTotalUserExceptions.labels(metricsLabels).get());
+        functionStatusBuilder.setNumProcessed((long) stats.getTotalProcessed());
+        functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
+        functionStatusBuilder.setNumUserExceptions((long) stats.getTotalUserExceptions());
         stats.getLatestUserExceptions().forEach(ex -> {
             functionStatusBuilder.addLatestUserExceptions(ex);
         });
-        functionStatusBuilder.setNumSystemExceptions((long) stats.statTotalSysExceptions.labels(metricsLabels).get());
+        functionStatusBuilder.setNumSystemExceptions((long) stats.getTotalSysExceptions());
         stats.getLatestSystemExceptions().forEach(ex -> {
             functionStatusBuilder.addLatestSystemExceptions(ex);
         });
-        functionStatusBuilder.setAverageLatency(
-                stats.statProcessLatency.labels(metricsLabels).get().count == 0.0
-                        ? 0 : stats.statProcessLatency.labels(metricsLabels).get().sum / stats.statProcessLatency
-                        .labels(metricsLabels).get().count);
-        functionStatusBuilder.setLastInvocationTime((long) stats.statlastInvocation.labels(metricsLabels).get());
+        functionStatusBuilder.setAverageLatency(stats.getAvgProcessLatency());
+        functionStatusBuilder.setLastInvocationTime((long) stats.getLastInvocation());
         return functionStatusBuilder;
-    }
-
-    private static void addSystemMetrics(String metricName, double value, InstanceCommunication.MetricsData.Builder bldr) {
-        InstanceCommunication.MetricsData.DataDigest digest =
-                InstanceCommunication.MetricsData.DataDigest.newBuilder()
-                        .setCount(value).setSum(value).setMax(value).setMin(0).build();
-        bldr.putMetrics(metricName, digest);
     }
 
     private void setupLogHandler() {
