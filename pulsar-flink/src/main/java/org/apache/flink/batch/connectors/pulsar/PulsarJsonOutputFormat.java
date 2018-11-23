@@ -29,7 +29,6 @@ public class PulsarJsonOutputFormat<T> extends BasePulsarOutputFormat<T> {
 
     public PulsarJsonOutputFormat(String serviceUrl, String topicName) {
         super(serviceUrl, topicName);
-
         this.serializationSchema = new JsonSerializationSchema();
     }
 }

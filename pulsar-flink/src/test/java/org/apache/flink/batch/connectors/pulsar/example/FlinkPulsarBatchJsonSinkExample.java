@@ -31,11 +31,12 @@ import java.util.List;
  */
 public class FlinkPulsarBatchJsonSinkExample {
 
-    private static final List<Employee> employees = Arrays.asList(
-            new Employee(1, "John", "Tyson", "Engineering"),
-            new Employee(2, "Pamela", "Moon", "HR"),
-            new Employee(3, "Jim", "Sun", "Finance"),
-            new Employee(4, "Michael", "Star", "Engineering"));
+    private static final List<NasaMission> nasaMissions = Arrays.asList(
+            new NasaMission(1, "Mercury program", 1959, 1963),
+            new NasaMission(2, "Apollo program", 1961, 1972),
+            new NasaMission(3, "Gemini program", 1963, 1966),
+            new NasaMission(4, "Skylab", 1973, 1974),
+            new NasaMission(5, "Apollo–Soyuz Test Project", 1975, 1975));
 
     private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
     private static final String TOPIC_NAME = "my-flink-topic";
@@ -46,21 +47,22 @@ public class FlinkPulsarBatchJsonSinkExample {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         // create PulsarJsonOutputFormat instance
-        final OutputFormat<Employee> pulsarJsonOutputFormat = new PulsarJsonOutputFormat<>(SERVICE_URL, TOPIC_NAME);
+        final OutputFormat<NasaMission> pulsarJsonOutputFormat = new PulsarJsonOutputFormat<>(SERVICE_URL, TOPIC_NAME);
 
         // create DataSet
-        DataSet<Employee> employeeDS = env.fromCollection(employees);
-        // map employees' name, surname and department as upper-case
-        employeeDS.map(employee -> new Employee(
-                employee.id,
-                employee.name.toUpperCase(),
-                employee.surname.toUpperCase(),
-                employee.department.toUpperCase()))
-        // filter employees which is member of Engineering
-        .filter(employee -> employee.department.equals("ENGINEERING"))
+        DataSet<NasaMission> nasaMissionDS = env.fromCollection(nasaMissions);
+        // map nasa mission names to upper-case
+        nasaMissionDS.map(nasaMission -> new NasaMission(
+                nasaMission.id,
+                nasaMission.missionName.toUpperCase(),
+                nasaMission.startYear,
+                nasaMission.endYear))
+        // filter missions which started after 1970
+        .filter(nasaMission -> nasaMission.startYear > 1970)
         // write batch data to Pulsar
         .output(pulsarJsonOutputFormat);
 
+        // set parallelism to write Pulsar in parallel (optional)
         env.setParallelism(2);
 
         // execute program
@@ -68,38 +70,38 @@ public class FlinkPulsarBatchJsonSinkExample {
     }
 
     /**
-     * Employee data model
+     * NasaMission data model
      *
-     * Note: Properties should be public or have getter function to be visible
+     * Note: Properties should be public or have getter functions to be visible
      */
-    private static class Employee {
+    private static class NasaMission {
 
-        private long id;
-        private String name;
-        private String surname;
-        private String department;
+        private int id;
+        private String missionName;
+        private int startYear;
+        private int endYear;
 
-        public Employee(long id, String name, String surname, String department) {
+        public NasaMission(int id, String missionName, int startYear, int endYear) {
             this.id = id;
-            this.name = name;
-            this.surname = surname;
-            this.department = department;
+            this.missionName = missionName;
+            this.startYear = startYear;
+            this.endYear = endYear;
         }
 
-        public long getId() {
+        public int getId() {
             return id;
         }
 
-        public String getName() {
-            return name;
+        public String getMissionName() {
+            return missionName;
         }
 
-        public String getSurname() {
-            return surname;
+        public int getStartYear() {
+            return startYear;
         }
 
-        public String getDepartment() {
-            return department;
+        public int getEndYear() {
+            return endYear;
         }
     }
 
