@@ -510,6 +510,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- Broker Web Stats --- ****/
     // If true, export publisher stats when returning topics stats from the admin rest api
     private boolean exposePublisherStats = true;
+    private int statsUpdateFrequencyInSecs = 60;
+    private int statsUpdateInitailDelayInSecs = 60;
 
     /**** --- Ledger Offloading --- ****/
     /****
@@ -1759,6 +1761,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isRunningStandalone() {
         return isRunningStandalone;
+    }
+
+    public int getStatsUpdateFrequencyInSecs() {
+        return statsUpdateFrequencyInSecs;
+    }
+
+    public void setStatsUpdateFrequencyInSecs(int statsUpdateFrequencyInSecs) {
+        this.statsUpdateFrequencyInSecs = statsUpdateFrequencyInSecs;
+    }
+
+    public int getStatsUpdateInitialDelayInSecs() {
+        return statsUpdateInitailDelayInSecs;
+    }
+
+    public void setStatsUpdateInitailDelayInSecs(int statsUpdateInitailDelayInSecs) {
+        this.statsUpdateInitailDelayInSecs = statsUpdateInitailDelayInSecs;
     }
 
     public void setRunningStandalone(boolean isRunningStandalone) {
