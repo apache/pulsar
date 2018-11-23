@@ -84,6 +84,11 @@ public class AuthenticationService implements Closeable {
     public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
         // Try to validate with any configured provider
         AuthenticationDataSource authData = new AuthenticationDataHttps(request);
+        return authenticateWithAnyProvider(authData);
+    }
+
+    public String authenticateWithAnyProvider(AuthenticationDataSource authData) throws AuthenticationException {
+        // Try to validate with any configured provider
         for (AuthenticationProvider provider : providers.values()) {
             try {
                 return provider.authenticate(authData);

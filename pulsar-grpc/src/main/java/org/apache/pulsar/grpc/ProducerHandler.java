@@ -23,52 +23,46 @@ import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import io.grpc.stub.StreamObserver;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededError;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
-import org.apache.pulsar.grpc.proto.ClientParameters;
 import org.apache.pulsar.grpc.proto.ProducerAck;
 import org.apache.pulsar.grpc.proto.ProducerMessage;
 import org.apache.pulsar.grpc.proto.ProducerParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
+import javax.naming.AuthenticationException;
+import javax.naming.NoPermissionException;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
-import static org.apache.pulsar.grpc.Constant.CLIENT_PARAMS_CTX_KEY;
 
-
-public class ProducerHandler implements Closeable {
+public class ProducerHandler extends AbstractGrpcHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ProducerHandler.class);
 
-    private final GrpcService service;
     private final StreamObserver<ProducerAck> ackStreamObserver;
-    private String topic;
     private Producer<byte[]> producer;
     private volatile long msgPublishedCounter = 0;
     private static final AtomicLongFieldUpdater<ProducerHandler> MSG_PUBLISHED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ProducerHandler.class, "msgPublishedCounter");
 
-    public ProducerHandler(GrpcService service, StreamObserver<ProducerAck> ackStreamObserver) {
-        this.service = service;
+    public ProducerHandler(GrpcProxyService service, StreamObserver<ProducerAck> ackStreamObserver) {
+        super(service);
         this.ackStreamObserver = ackStreamObserver;
-        ClientParameters parameters = CLIENT_PARAMS_CTX_KEY.get();
-
-        // TODO: AuthN/AuthZ
-        /*if (!checkAuth(response)) {
-            return;
-        }*/
+        ProducerParameters parameters = clientParameters.getProducerParameters();
 
         try {
-            this.topic = parameters.getTopic();
-            this.producer = getProducerBuilder(parameters.getProducerParameters(), service.getPulsarClient()).topic(topic).create();
+            checkAuth();
+            this.producer = getProducerBuilder(parameters, service.getPulsarClient())
+                    .topic(topic.toString()).create();
 
         } catch (Exception e) {
+            log.warn("[{}] Failed in creating producer on topic {}: {}", remoteAddress, topic, e.getMessage());
             throw getStatus(e).withDescription(getErrorMessage(e)).asRuntimeException();
         }
     }
@@ -76,6 +70,10 @@ public class ProducerHandler implements Closeable {
     private static Status getStatus(Exception e) {
         if (e instanceof IllegalArgumentException) {
             return Status.INVALID_ARGUMENT;
+        } else if (e instanceof AuthenticationException) {
+            return Status.UNAUTHENTICATED;
+        } else if (e instanceof NoPermissionException) {
+            return Status.PERMISSION_DENIED;
         } else if (e instanceof ProducerBusyException) {
             return Status.ALREADY_EXISTS;
         } else if (e instanceof ProducerBlockedQuotaExceededError || e instanceof ProducerBlockedQuotaExceededException) {
@@ -113,7 +111,7 @@ public class ProducerHandler implements Closeable {
                 }
 
                 if (message.getPropertiesCount() != 0) {
-                    builder.properties(message.getProperties());
+                    builder.properties(message.getPropertiesMap());
                 }
                 if (!Strings.isNullOrEmpty(message.getKey())) {
                     builder.key(message.getKey());
@@ -131,8 +129,8 @@ public class ProducerHandler implements Closeable {
                             .setContext(requestContext)
                             .build());
                 }).exceptionally(exception -> {
-                    log.warn("[{}] Error occurred while producer handler was sending msg: {}", producer.getTopic(),
-                            /*getRemote().getInetSocketAddress().toString(),*/ exception.getMessage());
+                    log.warn("[{}] Error occurred while producer handler was sending msg from {}: {}", producer.getTopic(),
+                            remoteAddress, exception.getMessage());
                     //numMsgsFailed.increment();
                     ackStreamObserver.onNext(ProducerAck.newBuilder()
                             .setStatusCode(Code.INTERNAL.value())
@@ -257,6 +255,11 @@ public class ProducerHandler implements Closeable {
         Optional.ofNullable(toCompressionType(params.getCompressionType())).ifPresent(builder::compressionType);
 
         return builder;
+    }
+
+    @Override
+    protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        return service.getAuthorizationService().canProduce(topic, authRole, authenticationData);
     }
 
 }

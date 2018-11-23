@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.grpc;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.UInt32Value;
 import com.google.protobuf.UInt64Value;
 import io.grpc.ManagedChannel;
@@ -31,8 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static io.grpc.Metadata.ASCII_STRING_MARSHALLER;
-import static org.apache.pulsar.grpc.Constant.CLIENT_PARAMS_METADATA_KEY;
+import static org.apache.pulsar.grpc.Constants.CLIENT_PARAMS_METADATA_KEY;
 import static org.apache.pulsar.grpc.proto.ConsumerParameters.SubscriptionType.SUBSCRIPTION_TYPE_SHARED;
 
 public class TestClient {
@@ -43,27 +41,19 @@ public class TestClient {
                 .build();
 
         Metadata headers = new Metadata();
-        headers.put(Metadata.Key.of("pulsar-topic", ASCII_STRING_MARSHALLER), "my-topic12");
-        headers.put(Metadata.Key.of("pulsar-subscription", ASCII_STRING_MARSHALLER), "my-subscription");
-        headers.put(Metadata.Key.of("pulsar-subscription-type", ASCII_STRING_MARSHALLER), "Shared");
-        headers.put(Metadata.Key.of("pulsar-max-redeliver-count", ASCII_STRING_MARSHALLER), "3");
-        headers.put(Metadata.Key.of("pulsar-ack-timeout-millis", ASCII_STRING_MARSHALLER), "2000");
-        headers.put(Metadata.Key.of("pulsar-consumer-name", ASCII_STRING_MARSHALLER), "test");
-
-        byte[] params = ClientParameters.newBuilder()
+        ClientParameters params = ClientParameters.newBuilder()
                 .setTopic("topic")
                 .setConsumerParameters(
                         ConsumerParameters.newBuilder()
                                 .setSubscription("my-subscription")
-                                .setAckTimeoutMillis(UInt64Value.newBuilder().setValue(2000))
+                                .setAckTimeoutMillis(uint64Value(2000))
                                 .setSubscriptionType(SUBSCRIPTION_TYPE_SHARED)
                                 .setDeadLetterPolicy(DeadLetterPolicy.newBuilder()
-                                        .setMaxRedeliverCount(UInt32Value.newBuilder().setValue(3))
+                                        .setMaxRedeliverCount(uint32Value(3))
                                 )
                 )
-                .build()
-                .toByteArray();
-        headers.put(CLIENT_PARAMS_METADATA_KEY, params);
+                .build();
+        headers.put(CLIENT_PARAMS_METADATA_KEY, params.toByteArray());
         PulsarGrpc.PulsarStub asyncStub = MetadataUtils.attachHeaders(PulsarGrpc.newStub(channel), headers);
 
         LinkedBlockingQueue<byte[]> messagesToack = new LinkedBlockingQueue<>(1000);
@@ -95,12 +85,20 @@ public class TestClient {
 
         while(true) {
             byte[] msgId = messagesToack.poll();
-            if(msgId != null) {
+            if (msgId != null) {
                 /*ackStreamObserver.onNext(ConsumerAck.newBuilder()
                         .setMessageId(ByteString.copyFrom(msgId))
                         .build());*/
             }
             Thread.sleep(1);
         }
+    }
+
+    public static UInt64Value uint64Value(long value) {
+        return UInt64Value.newBuilder().setValue(value).build();
+    }
+
+    public static UInt32Value uint32Value(int value) {
+        return UInt32Value.newBuilder().setValue(value).build();
     }
 }

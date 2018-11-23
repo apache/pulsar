@@ -32,8 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 
-import static io.grpc.Metadata.ASCII_STRING_MARSHALLER;
-import static org.apache.pulsar.grpc.Constant.CLIENT_PARAMS_METADATA_KEY;
+import static org.apache.pulsar.grpc.Constants.CLIENT_PARAMS_METADATA_KEY;
 
 public class TestProducer {
 
@@ -72,7 +71,6 @@ public class TestProducer {
                     .setContext("" + i)
                     .build());
         }
-        //producer.onCompleted();
 
         while(true) {
             Thread.sleep(1);

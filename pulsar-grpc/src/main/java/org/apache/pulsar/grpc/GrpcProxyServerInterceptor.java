@@ -21,25 +21,31 @@ package org.apache.pulsar.grpc;
 import io.grpc.*;
 import org.apache.pulsar.grpc.proto.ClientParameters;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.grpc.Constant.CLIENT_PARAMS_CTX_KEY;
-import static org.apache.pulsar.grpc.Constant.CLIENT_PARAMS_METADATA_KEY;
+import static org.apache.pulsar.grpc.Constants.*;
 
 public class GrpcProxyServerInterceptor implements ServerInterceptor {
 
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> serverCall, Metadata metadata, ServerCallHandler<ReqT, RespT> serverCallHandler) {
         Context ctx = Context.current();
-        byte[] raw_params = metadata.get(CLIENT_PARAMS_METADATA_KEY);
-        if(raw_params != null) {
-            try {
-                ClientParameters params = ClientParameters.parseFrom(raw_params);
-                checkArgument(!params.getTopic().isEmpty(), "Empty topic name");
-                ctx = ctx.withValue(CLIENT_PARAMS_CTX_KEY, params);
-            } catch (Exception e) {
-                throw Status.INVALID_ARGUMENT.withDescription("Invalid stream metadata: " + e.getMessage()).asRuntimeException(metadata);
-            }
+
+        try {
+            ClientParameters params = ClientParameters.parseFrom(metadata.get(CLIENT_PARAMS_METADATA_KEY));
+            checkArgument(!params.getTopic().isEmpty(), "Empty topic name");
+            ctx = ctx.withValue(CLIENT_PARAMS_CTX_KEY, params);
+        } catch (Exception e) {
+            throw Status.INVALID_ARGUMENT.withDescription("Invalid stream metadata: " + e.getMessage()).asRuntimeException(metadata);
         }
+
+        SocketAddress socketAddress = serverCall.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
+        if(socketAddress instanceof InetSocketAddress) {
+            ctx = ctx.withValue(REMOTE_ADDRESS_CTX_KEY, (InetSocketAddress)socketAddress);
+        }
+
         return Contexts.interceptCall(ctx, serverCall, metadata, serverCallHandler);
     }
 

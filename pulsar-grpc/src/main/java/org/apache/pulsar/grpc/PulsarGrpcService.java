@@ -24,9 +24,9 @@ import org.apache.pulsar.grpc.proto.*;
 
 public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
 
-    private final GrpcService service;
+    private final GrpcProxyService service;
 
-    public PulsarGrpcService(GrpcService service) {
+    public PulsarGrpcService(GrpcProxyService service) {
         this.service = service;
     }
 

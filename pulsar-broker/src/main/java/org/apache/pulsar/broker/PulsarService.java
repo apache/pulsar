@@ -95,7 +95,7 @@ import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.grpc.GrpcService;
+import org.apache.pulsar.grpc.GrpcProxyService;
 import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -129,7 +129,7 @@ public class PulsarService implements AutoCloseable {
     private BrokerService brokerService = null;
     private WebService webService = null;
     private WebSocketService webSocketService = null;
-    private GrpcService grpcService = null;
+    private GrpcProxyService grpcProxyService = null;
     private ConfigurationCacheService configurationCacheService = null;
     private LocalZooKeeperCacheService localZkCacheService = null;
     private BookKeeperClientFactory bkClientFactory;
@@ -407,13 +407,6 @@ public class PulsarService implements AutoCloseable {
                         new ServletHolder(readerWebSocketServlet), true, attributeMap);
             }
 
-            if(config.isGrpcServiceEnabled()) {
-                this.grpcService = new GrpcService(
-                    new ClusterData(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls),
-                    config);
-                this.grpcService.start();
-            }
-
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Attempting to add static directory");
             }
@@ -456,6 +449,13 @@ public class PulsarService implements AutoCloseable {
             leaderElectionService.start();
 
             webService.start();
+
+            if(config.isGrpcServiceEnabled()) {
+                this.grpcProxyService = new GrpcProxyService(
+                        new ClusterData(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls),
+                        config);
+                this.grpcProxyService.start();
+            }
 
             this.metricsGenerator = new MetricsGenerator(this);
 

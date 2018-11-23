@@ -18,17 +18,12 @@
  */
 package org.apache.pulsar.grpc;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
+import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
+import io.grpc.netty.NettyServerBuilder;
+import io.netty.handler.ssl.SslContext;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -39,6 +34,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.grpc.service.GrpcProxyConfiguration;
 import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
@@ -48,13 +44,22 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.Closeable;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Socket proxy server which initializes other dependent services and starts server by opening web-socket end-point url.
  *
  */
-public class GrpcService implements Closeable {
+public class GrpcProxyService implements Closeable {
 
     public static final int MaxTextFrameSize = 1024 * 1024;
 
@@ -65,9 +70,9 @@ public class GrpcService implements Closeable {
 
     private final ScheduledExecutorService executor = Executors
             .newScheduledThreadPool(GrpcProxyConfiguration.GRPC_SERVICE_THREADS,
-                    new DefaultThreadFactory("pulsar-Grpc"));
+                    new DefaultThreadFactory("pulsar-grpc"));
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder()
-            .numThreads(GrpcProxyConfiguration.GLOBAL_ZK_THREADS).name("pulsar-Grpc-ordered").build();
+            .numThreads(GrpcProxyConfiguration.GLOBAL_ZK_THREADS).name("pulsar-grpc-ordered").build();
     private GlobalZooKeeperCache globalZkCache;
     private ZooKeeperClientFactory zkClientFactory;
     private ServiceConfiguration config;
@@ -75,11 +80,11 @@ public class GrpcService implements Closeable {
 
     private ClusterData localCluster;
 
-    public GrpcService(GrpcProxyConfiguration config) {
+    public GrpcProxyService(GrpcProxyConfiguration config) throws PulsarServerException {
         this(createClusterData(config), PulsarConfigurationLoader.convertFrom(config));
     }
 
-    public GrpcService(ClusterData localCluster, ServiceConfiguration config) {
+    public GrpcProxyService(ClusterData localCluster, ServiceConfiguration config) throws PulsarServerException {
         this.config = config;
         this.localCluster = localCluster;
     }
@@ -110,10 +115,32 @@ public class GrpcService implements Closeable {
         // start authentication service
         authenticationService = new AuthenticationService(this.config);
 
+        List<ServerInterceptor> interceptors = new ArrayList<>();
+        interceptors.add(new GrpcProxyServerInterceptor());
+
+        if(config.isAuthenticationEnabled()) {
+            interceptors.add(new AuthenticationServerInterceptor(authenticationService));
+        }
+
+        NettyServerBuilder serverBuilder = NettyServerBuilder.forPort(config.getGrpcServicePort())
+                .addService(ServerInterceptors.intercept(new PulsarGrpcService(this), interceptors));
+
+        if (config.isTlsEnabled()) {
+            try {
+                SslContext sslContext = SecurityUtility.createNettySslContextForServer(
+                        config.isTlsAllowInsecureConnection(), config.getTlsTrustCertsFilePath(),
+                        config.getTlsCertificateFilePath(), config.getTlsKeyFilePath(),
+                        config.getTlsCiphers(), config.getTlsProtocols(),
+                        config.getTlsRequireTrustedClientCertOnConnect());
+                serverBuilder.sslContext(sslContext);
+            } catch (GeneralSecurityException | IOException e) {
+                throw new PulsarServerException(e);
+            }
+        }
+
+        server = serverBuilder.build();
+
         // start grpc server
-        server = ServerBuilder.forPort(config.getGrpcServicePort())
-                .addService(ServerInterceptors.intercept(new PulsarGrpcService(this), new GrpcProxyServerInterceptor()))
-                .build();
         try {
             server.start();
         } catch (IOException e) {
@@ -258,5 +285,5 @@ public class GrpcService implements Closeable {
         return config;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(GrpcService.class);
+    private static final Logger log = LoggerFactory.getLogger(GrpcProxyService.class);
 }

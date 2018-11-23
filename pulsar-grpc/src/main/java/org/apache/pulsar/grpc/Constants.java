@@ -20,11 +20,22 @@ package org.apache.pulsar.grpc;
 
 import io.grpc.Context;
 import io.grpc.Metadata;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.grpc.proto.ClientParameters;
 
+import java.net.InetSocketAddress;
+
+import static io.grpc.Metadata.ASCII_STRING_MARSHALLER;
 import static io.grpc.Metadata.BINARY_BYTE_MARSHALLER;
 
-public class Constant {
+public class Constants {
+
     public static final Metadata.Key<byte[]> CLIENT_PARAMS_METADATA_KEY = Metadata.Key.of("pulsar-client-params-bin", BINARY_BYTE_MARSHALLER);
-    public static final Context.Key<ClientParameters> CLIENT_PARAMS_CTX_KEY = Context.key("StreamParams");
+    public static final Metadata.Key<String> AUTHORIZATION_METADATA_KEY = Metadata.Key.of("Authorization", ASCII_STRING_MARSHALLER);
+    public static final Metadata.Key<String> ATHENZ_METADATA_KEY = Metadata.Key.of("Athenz-Role-Auth", ASCII_STRING_MARSHALLER);
+
+    public static final Context.Key<ClientParameters> CLIENT_PARAMS_CTX_KEY = Context.key("ClientParams");
+    public static final Context.Key<String> AUTHENTICATION_ROLE_CTX_KEY = Context.key("Authentication-role");
+    public static final Context.Key<AuthenticationDataSource> AUTHENTICATION_DATA_CTX_KEY = Context.key("Authentication-data");
+    public static final Context.Key<InetSocketAddress> REMOTE_ADDRESS_CTX_KEY = Context.key("RemoteAddress");
 }

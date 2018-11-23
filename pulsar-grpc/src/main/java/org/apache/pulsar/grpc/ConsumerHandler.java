@@ -21,18 +21,19 @@ package org.apache.pulsar.grpc;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.DeadLetterPolicy.DeadLetterPolicyBuilder;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.grpc.proto.ClientParameters;
 import org.apache.pulsar.grpc.proto.ConsumerAck;
 import org.apache.pulsar.grpc.proto.ConsumerMessage;
 import org.apache.pulsar.grpc.proto.ConsumerParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
+import javax.naming.AuthenticationException;
+import javax.naming.NoPermissionException;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -40,15 +41,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.grpc.Constant.CLIENT_PARAMS_CTX_KEY;
 
-public class ConsumerHandler implements Closeable {
+public class ConsumerHandler extends AbstractGrpcHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
 
-    private final GrpcService service;
     private final StreamObserver<ConsumerMessage> messageStreamObserver;
-    private String topic;
     private String subscription;
     private Consumer<byte[]> consumer;
 
@@ -59,31 +57,27 @@ public class ConsumerHandler implements Closeable {
     private static final AtomicLongFieldUpdater<ConsumerHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ConsumerHandler.class, "msgDeliveredCounter");
 
-    ConsumerHandler(GrpcService service, StreamObserver<ConsumerMessage> messageStreamObserver) {
-        this.service = service;
+    ConsumerHandler(GrpcProxyService service, StreamObserver<ConsumerMessage> messageStreamObserver) {
+        super(service);
         this.messageStreamObserver = messageStreamObserver;
-        ClientParameters streamMetadata = CLIENT_PARAMS_CTX_KEY.get();
+        ConsumerParameters parameters = clientParameters.getConsumerParameters();
 
         try {
-            this.topic = streamMetadata.getTopic();
             ConsumerBuilderImpl<byte[]> builder = (ConsumerBuilderImpl<byte[]>) getConsumerConfiguration(
-                    streamMetadata.getConsumerParameters(),
+                    parameters,
                     service.getPulsarClient()
             );
             this.maxPendingMessages = (builder.getConf().getReceiverQueueSize() == 0) ? 1
                     : builder.getConf().getReceiverQueueSize();
 
             // checkAuth() should be called after assigning a value to this.subscription
-            this.subscription = streamMetadata.getConsumerParameters().getSubscription();
+            this.subscription = parameters.getSubscription();
             checkArgument(!subscription.isEmpty(), "Empty subscription name");
 
-            // TODO: authN/authZ
-            /*if (!checkAuth(response)) {
-                return;
-            }*/
+            checkAuth();
 
             consumer = builder
-                    .topic(topic)
+                    .topic(topic.toString())
                     .subscriptionName(subscription)
                     .subscribe();
 
@@ -135,7 +129,11 @@ public class ConsumerHandler implements Closeable {
 
     private static Status getStatus(Exception e) {
         if (e instanceof IllegalArgumentException) {
-            return  Status.INVALID_ARGUMENT;
+            return Status.INVALID_ARGUMENT;
+        } else if (e instanceof AuthenticationException) {
+            return Status.UNAUTHENTICATED;
+        } else if (e instanceof NoPermissionException) {
+            return Status.PERMISSION_DENIED;
         } else if (e instanceof PulsarClientException.ConsumerBusyException) {
             return  Status.ALREADY_EXISTS;
         } else {
@@ -153,19 +151,12 @@ public class ConsumerHandler implements Closeable {
 
     private void receiveMessage() {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] Receive next message",
-                    //request.getRemoteAddr(),
-                    //request.getRemotePort(),
-                    consumer.getTopic(),
-                    consumer.getSubscription());
+            log.debug("[{}] [{}] [{}] Receive next message", remoteAddress, topic, subscription);
         }
 
         consumer.receiveAsync().thenAccept(msg -> {
             if (log.isDebugEnabled()) {
-                // TODO: get remote address
-                log.debug("[{}] [{}] Got message {}"/*, getSession().getRemoteAddress()*/,
-                        consumer.getTopic(),
-                        consumer.getSubscription(),
+                log.debug("[{}] [{}] [{}] Got message {}", remoteAddress, topic, subscription,
                         msg.getMessageId());
             }
 
@@ -175,7 +166,7 @@ public class ConsumerHandler implements Closeable {
             dm.putAllProperties(msg.getProperties());
             dm.setPublishTime(msg.getPublishTime());
             dm.setEventTime(msg.getEventTime());
-            //TODO: needs proto hasKey or empty string is OK
+            //TODO: needs proto hasKey or empty string is OK ?
             if (msg.hasKey()) {
                 dm.setKey(msg.getKey());
             }
@@ -195,8 +186,8 @@ public class ConsumerHandler implements Closeable {
                 log.info("[{}/{}] Consumer was closed while receiving msg from broker", consumer.getTopic(),
                         subscription);
             } else {
-                log.warn("[{}/{}] Error occurred while consumer handler was delivering msg: {}",
-                        consumer.getTopic(), subscription,
+                log.warn("[{}/{}] Error occurred while consumer handler was delivering msg to {}: {}",
+                        consumer.getTopic(), subscription, remoteAddress,
                         exception.getMessage());
             }
             return null;
@@ -252,6 +243,12 @@ public class ConsumerHandler implements Closeable {
             builder.deadLetterPolicy(dlpBuilder.build());
         }
         return builder;
+    }
+
+    @Override
+    protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        return service.getAuthorizationService().canConsume(topic, authRole, authenticationData,
+                this.subscription);
     }
 
     @Override
