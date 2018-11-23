@@ -18,21 +18,20 @@
  */
 package org.apache.flink.batch.connectors.pulsar;
 
-import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.batch.connectors.pulsar.serialization.CsvSerializationSchema;
 
 /**
- * Pulsar Output Format to write Flink DataSets into a Pulsar topic in user-defined format.
+ * Pulsar Csv Output Format to write Flink DataSets into a Pulsar topic in Csv format.
  */
-public class PulsarOutputFormat<T> extends BasePulsarOutputFormat<T> {
+public class PulsarCsvOutputFormat<T extends Tuple> extends BasePulsarOutputFormat<T> {
 
-    private static final long serialVersionUID = 2997027580167793000L;
+    private static final long serialVersionUID = -4461671510903404196L;
 
-    public PulsarOutputFormat(String serviceUrl, String topicName, SerializationSchema<T> serializationSchema) {
+    public PulsarCsvOutputFormat(String serviceUrl, String topicName) {
         super(serviceUrl, topicName);
-        Preconditions.checkNotNull(serializationSchema,  "serializationSchema cannot be null.");
 
-        this.serializationSchema = serializationSchema;
+        this.serializationSchema = new CsvSerializationSchema<>();
     }
 
 }
