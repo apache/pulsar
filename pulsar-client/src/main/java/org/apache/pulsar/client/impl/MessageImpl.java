@@ -58,7 +58,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private String topic; // only set for incoming messages
     transient private Map<String, String> properties;
-    private int redeliveryCount;
+    private final int redeliveryCount;
 
     // Constructor for out-going message
     static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
@@ -163,6 +163,7 @@ public class MessageImpl<T> implements Message<T> {
         this.payload = payload;
         this.properties = Collections.unmodifiableMap(properties);
         this.schema = schema;
+        this.redeliveryCount = 0;
     }
 
     public static MessageImpl<byte[]> deserialize(ByteBuf headersAndPayload) throws IOException {
@@ -337,6 +338,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private MessageImpl(Handle<MessageImpl<?>> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
+        this.redeliveryCount = 0;
     }
 
     private Handle<MessageImpl<?>> recyclerHandle;
