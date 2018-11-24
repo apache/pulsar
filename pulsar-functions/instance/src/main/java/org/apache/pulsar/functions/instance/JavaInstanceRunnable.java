@@ -489,7 +489,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         bldr.setUserExceptionsTotal((long) stats.getTotalUserExceptions());
         bldr.setReceivedTotal((long) stats.getTotalRecordsReceived());
         bldr.setAvgProcessLatency(stats.getAvgProcessLatency());
-
         bldr.setLastInvocation((long) stats.getLastInvocation());
 
         bldr.setProcessedTotal1Min((long) stats.getTotalProcessed1min());
