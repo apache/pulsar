@@ -26,11 +26,19 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 
 /**
  * Kafka sink should treats incoming messages as pure bytes. So we don't
  * apply schema into it.
  */
+@Connector(
+    name = "kafka",
+    type = IOType.SINK,
+    help = "The KafkaBytesSink is used for moving messages from Pulsar to Kafka.",
+    configClass = KafkaSinkConfig.class
+)
 @Slf4j
 public class KafkaBytesSink extends KafkaAbstractSink<String, byte[]> {
 
