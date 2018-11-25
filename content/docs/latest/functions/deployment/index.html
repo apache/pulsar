@@ -1032,6 +1032,8 @@
 
 <p>If you’re running a non-<span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> cluster, you’ll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.</p>
 
+<p>If you’re going to deploy and trigger python user-defined functions, you should install <a href="http://pulsar.apache.org/docs/en/client-libraries-python/">the pulsar python client</a> first.</p>
+
 <h2 id="cli">Command-line interface</h2>
 
 <p>Pulsar Functions are deployed and managed using the <a href="../../reference/CliTools#pulsar-admin-functions"><code class="highlighter-rouge">pulsar-admin functions</code></a> interface, which contains commands such as <a href="../../reference/CliTools#pulsar-admin-functions-create"><code class="highlighter-rouge">create</code></a> for deploying functions in <a href="#cluster-mode">cluster mode</a>, <a href="../../reference/CliTools#pulsar-admin-functions-trigger"><code class="highlighter-rouge">trigger</code></a> for <a href="#triggering">triggering</a> functions, <a href="../../reference/CliTools#pulsar-admin-functions-list"><code class="highlighter-rouge">list</code></a> for listing deployed functions, and several others.</p>
