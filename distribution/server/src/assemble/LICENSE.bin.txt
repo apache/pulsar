@@ -417,7 +417,7 @@ The Apache Software License, Version 2.0
  * HttpClient
     - org.apache.httpcomponents-httpclient-4.5.5.jar
     - org.apache.httpcomponents-httpcore-4.4.9.jar
- * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.1.2.jar
+ * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.2.0.jar
  * OkHttp - com.squareup.okhttp-okhttp-2.5.0.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
  * Javassist -- org.javassist-javassist-3.21.0-GA.jar
@@ -432,6 +432,7 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-protobuf-lite-1.16.1.jar
     - io.grpc-grpc-protobuf-nano-1.16.1.jar
     - io.grpc-grpc-stub-1.16.1.jar
+    - io.grpc-grpc-testing-1.12.0.jar
   * OpenCensus
     - io.opencensus-opencensus-api-0.12.3.jar
     - io.opencensus-opencensus-contrib-grpc-metrics-0.12.3.jar
@@ -477,7 +478,7 @@ BSD 3-clause "New" or "Revised" License
     - com.google.auth-google-auth-library-credentials-0.9.0.jar -- licenses/LICENSE-google-auth-library.txt
  * JLine -- jline-jline-0.9.94.jar -- licenses/LICENSE.JLine.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- licenses/LICENSE-LevelDB.txt
- * JSR305 -- com.google.code.findbugs-jsr305-3.0.0.jar -- licenses/LICENSE-JSR305.txt
+ * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- licenses/LICENSE-JSR305.txt
 
 BSD 2-Clause License
  * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.1.9.jar -- licenses/LICENSE-HdrHistogram.txt
