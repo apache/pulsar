@@ -112,11 +112,12 @@ WordWithCount { word = world, count = 1 }
 Please find a sample usage as follows:
 
 ```java
-        private static final List<Tuple4<Integer, String, String, String>> employeeTuples = Arrays.asList(
-            new Tuple4(1, "John", "Tyson", "Engineering"),
-            new Tuple4(2, "Pamela", "Moon", "HR"),
-            new Tuple4(3, "Jim", "Sun", "Finance"),
-            new Tuple4(4, "Michael", "Star", "Engineering"));
+        private static final List<Tuple4<Integer, String, Integer, Integer>> nasaMissions = Arrays.asList(
+                new Tuple4(1, "Mercury program", 1959, 1963),
+                new Tuple4(2, "Apollo program", 1961, 1972),
+                new Tuple4(3, "Gemini program", 1963, 1966),
+                new Tuple4(4, "Skylab", 1973, 1974),
+                new Tuple4(5, "Apollo–Soyuz Test Project", 1975, 1975));
 
         private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
         private static final String TOPIC_NAME = "my-flink-topic";
@@ -127,27 +128,32 @@ Please find a sample usage as follows:
             final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
             // create PulsarCsvOutputFormat instance
-            final OutputFormat<Tuple4<Integer, String, String, String>> pulsarCsvOutputFormat =
+            final OutputFormat<Tuple4<Integer, String, Integer, Integer>> pulsarCsvOutputFormat =
                     new PulsarCsvOutputFormat<>(SERVICE_URL, TOPIC_NAME);
 
             // create DataSet
-            DataSet<Tuple4<Integer, String, String, String>> employeeDS = env.fromCollection(employeeTuples);
-            // map employees' name, surname and department as upper-case
-            employeeDS.map(
-                    new MapFunction<Tuple4<Integer, String, String, String>, Tuple4<Integer, String, String, String>>() {
-                @Override
-                public Tuple4<Integer, String, String, String> map(
-                        Tuple4<Integer, String, String, String> employeeTuple) throws Exception {
-                    return new Tuple4(employeeTuple.f0,
-                            employeeTuple.f1.toUpperCase(),
-                            employeeTuple.f2.toUpperCase(),
-                            employeeTuple.f3.toUpperCase());
-                }
-            })
-            // filter employees who are member of Engineering
-            .filter(tuple -> tuple.f3.equals("ENGINEERING"))
+            DataSet<Tuple4<Integer, String, Integer, Integer>> nasaMissionDS = env.fromCollection(nasaMissions);
+            // map nasa mission names to upper-case
+            nasaMissionDS.map(
+                new MapFunction<Tuple4<Integer, String, Integer, Integer>, Tuple4<Integer, String, Integer, Integer>>() {
+                               @Override
+                               public Tuple4<Integer, String, Integer, Integer> map(
+                                       Tuple4<Integer, String, Integer, Integer> nasaMission) throws Exception {
+                                   return new Tuple4(
+                                           nasaMission.f0,
+                                           nasaMission.f1.toUpperCase(),
+                                           nasaMission.f2,
+                                           nasaMission.f3);
+                               }
+                           }
+            )
+            // filter missions which started after 1970
+            .filter(nasaMission -> nasaMission.f2 > 1970)
             // write batch data to Pulsar
             .output(pulsarCsvOutputFormat);
+
+            // set parallelism to write Pulsar in parallel (optional)
+            env.setParallelism(2);
 
             // execute program
             env.execute("Flink - Pulsar Batch Csv");
@@ -159,11 +165,109 @@ Please find a sample usage as follows:
 
 Please find sample output for above application as follows:
 ```
-1,JOHN,TYSON,ENGINEERING
-4,MICHAEL,STAR,ENGINEERING
+4,SKYLAB,1973,1974
+5,APOLLO–SOYUZ TEST PROJECT,1975,1975
 ```
 
 ### Complete Example
 
 You can find a complete example [here](https://github.com/apache/incubator-pulsar/tree/master/pulsar-flink/src/test/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchCsvSinkExample.java).
-In this example, Flink DataSet is processed as word-count and being written to Pulsar.
+In this example, Flink DataSet is processed and written to Pulsar in Csv format.
+
+
+# PulsarJsonOutputFormat
+### Usage
+
+Please find a sample usage as follows:
+
+```java
+        private static final List<NasaMission> nasaMissions = Arrays.asList(
+                new NasaMission(1, "Mercury program", 1959, 1963),
+                new NasaMission(2, "Apollo program", 1961, 1972),
+                new NasaMission(3, "Gemini program", 1963, 1966),
+                new NasaMission(4, "Skylab", 1973, 1974),
+                new NasaMission(5, "Apollo–Soyuz Test Project", 1975, 1975));
+
+        private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
+        private static final String TOPIC_NAME = "my-flink-topic";
+
+        public static void main(String[] args) throws Exception {
+
+            // set up the execution environment
+            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+            // create PulsarJsonOutputFormat instance
+            final OutputFormat<NasaMission> pulsarJsonOutputFormat = new PulsarJsonOutputFormat<>(SERVICE_URL, TOPIC_NAME);
+
+            // create DataSet
+            DataSet<NasaMission> nasaMissionDS = env.fromCollection(nasaMissions);
+            // map nasa mission names to upper-case
+            nasaMissionDS.map(nasaMission -> new NasaMission(
+                    nasaMission.id,
+                    nasaMission.missionName.toUpperCase(),
+                    nasaMission.startYear,
+                    nasaMission.endYear))
+            // filter missions which started after 1970
+            .filter(nasaMission -> nasaMission.startYear > 1970)
+            // write batch data to Pulsar
+            .output(pulsarJsonOutputFormat);
+
+            // set parallelism to write Pulsar in parallel (optional)
+            env.setParallelism(2);
+
+            // execute program
+            env.execute("Flink - Pulsar Batch Json");
+        }
+
+        /**
+         * NasaMission data model
+         *
+         * Note: Property definitions of the model should be public or have getter functions to be visible
+         */
+        private static class NasaMission {
+
+            private int id;
+            private String missionName;
+            private int startYear;
+            private int endYear;
+
+            public NasaMission(int id, String missionName, int startYear, int endYear) {
+                this.id = id;
+                this.missionName = missionName;
+                this.startYear = startYear;
+                this.endYear = endYear;
+            }
+
+            public int getId() {
+                return id;
+            }
+
+            public String getMissionName() {
+                return missionName;
+            }
+
+            public int getStartYear() {
+                return startYear;
+            }
+
+            public int getEndYear() {
+                return endYear;
+            }
+        }
+
+```
+
+**Note:** Property definitions of the model should be public or have getter functions to be visible
+
+### Sample Output
+
+Please find sample output for above application as follows:
+```
+{"id":4,"missionName":"SKYLAB","startYear":1973,"endYear":1974}
+{"id":5,"missionName":"APOLLO–SOYUZ TEST PROJECT","startYear":1975,"endYear":1975}
+```
+
+### Complete Example
+
+You can find a complete example [here](https://github.com/apache/incubator-pulsar/tree/master/pulsar-flink/src/test/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchJsonSinkExample.java).
+In this example, Flink DataSet is processed and written to Pulsar in Json format.
