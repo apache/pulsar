@@ -94,6 +94,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-storm</module>
     <module>pulsar-flink</module>
     <module>pulsar-spark</module>
+    <module>pulsar-netty</module>
     <module>pulsar-zookeeper-utils</module>
     <module>pulsar-testclient</module>
     <module>pulsar-broker-auth-athenz</module>
