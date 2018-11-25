@@ -25,9 +25,11 @@ import com.google.common.base.Charsets;
 
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -36,6 +38,8 @@ import java.security.KeyPair;
 import java.util.Date;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
+import javax.crypto.SecretKey;
 
 import lombok.Cleanup;
 
@@ -55,8 +59,27 @@ public class TokensCliUtils {
                 "--signature-algorithm" }, description = "The signature algorithm for the new secret key.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.HS256;
 
-        public void run() {
-            System.out.println("secret-key " + AuthTokenUtils.createSecretKey(algorithm));
+        @Parameter(names = { "-o",
+                "--output" }, description = "Write the secret key to a file instead of stdout")
+        String outputFile;
+
+        @Parameter(names = {
+                "-b", "--base-64" }, description = "Encode the key in base64")
+        boolean base64 = false;
+
+        public void run() throws IOException {
+            SecretKey secretKey = AuthTokenUtils.createSecretKey(algorithm);
+            byte[] encoded = secretKey.getEncoded();
+
+            if (base64) {
+                encoded = Encoders.BASE64.encode(encoded).getBytes();
+            }
+
+            if (outputFile != null) {
+                Files.write(Paths.get(outputFile), encoded);
+            } else {
+                System.out.write(encoded);
+            }
         }
     }
 
@@ -66,10 +89,18 @@ public class TokensCliUtils {
                 "--signature-algorithm" }, description = "The signature algorithm for the new key pair.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
 
-        public void run() {
+        @Parameter(names = {
+                "--output-private-key" }, description = "File where to write the private key", required = true)
+        String privateKeyFile;
+        @Parameter(names = {
+                "--output-public-key" }, description = "File where to write the public key", required = true)
+        String publicKeyFile;
+
+        public void run() throws IOException {
             KeyPair pair = Keys.keyPairFor(algorithm);
-            System.out.println("public-key " + AuthTokenUtils.encodeKey(pair.getPublic()));
-            System.out.println("private-key " + AuthTokenUtils.encodeKey(pair.getPrivate()));
+
+            Files.write(Paths.get(publicKeyFile), pair.getPublic().getEncoded());
+            Files.write(Paths.get(privateKeyFile), pair.getPrivate().getEncoded());
         }
     }
 
@@ -84,35 +115,16 @@ public class TokensCliUtils {
                 "--expiry-time" }, description = "Relative expiry time for the token (eg: 1h, 3d, 10y). (m=minutes) Default: no expiration")
         private String expiryTime;
 
-        @Parameter(names = { "-i",
-                "--stdin" }, description = "Read secret key from standard input")
-        private Boolean stdin = false;
-
-        @Parameter(names = { "-pk" }, description = "Indicate the signing key is a private key (rather than a symmetric secret key)")
+        @Parameter(names = { "-pk",
+                "--is-private-key" }, description = "Indicate the signing key is a private key (rather than a symmetric secret key)")
         private Boolean isPrivateKey = false;
 
-        @Parameter(names = { "-f",
-                "--key-file" }, description = "Read secret key from a file")
-        private String keyFile;
+        @Parameter(names = { "-k",
+                "--signing-key" }, description = "Pass the signing key. This can either be: stdin, data:, file:, etc..", required = true)
+        private String key;
 
         public void run() throws Exception {
-
-            String encodedKey;
-
-            if (stdin) {
-                @Cleanup
-                BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
-                encodedKey = r.readLine();
-            } else if (keyFile != null) {
-                encodedKey = new String(Files.readAllBytes(Paths.get(keyFile)), Charsets.UTF_8);
-            } else if (System.getenv("SIGNING_KEY") != null) {
-                encodedKey = System.getenv("SIGNING_KEY");
-            } else {
-                System.err.println(
-                        "Secret key needs to be either passed through `--stdin`, `--key-file` or by `SIGNING_KEY` environment variable");
-                System.exit(1);
-                return;
-            }
+            byte[] encodedKey = AuthTokenUtils.readKeyFromUrl(key);
 
             Key signingKey;
 

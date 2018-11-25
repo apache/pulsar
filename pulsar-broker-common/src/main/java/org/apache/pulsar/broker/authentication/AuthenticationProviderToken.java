@@ -18,27 +18,19 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import com.google.common.base.Charsets;
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.Key;
 
 import javax.naming.AuthenticationException;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 
-@Slf4j
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
     public final static String HTTP_HEADER_NAME = "Authorization";
@@ -120,23 +112,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             throw new IOException("No secret key was provided for token authentication");
         }
 
-        final String validationKey;
-
-        if (validationKeyConfig.startsWith("data:")) {
-            log.info("Reading token validation key from config file");
-            validationKey = validationKeyConfig.substring("data:".length());
-        } else if (validationKeyConfig.startsWith("env:")) {
-            String envVarName = validationKeyConfig.substring("env:".length());
-            log.info("Reading token validation key from env variable '{}'", envVarName);
-            validationKey = System.getenv(envVarName);
-        } else if (validationKeyConfig.startsWith("file:")) {
-            URI filePath = URI.create(validationKeyConfig);
-            log.info("Reading secret key from file '{}'", filePath);
-            validationKey = new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8);
-        } else {
-            // Assume the key content was passed
-            validationKey = validationKeyConfig;
-        }
+        byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
 
         if (isPublicKey) {
             return AuthTokenUtils.decodePublicKey(validationKey);

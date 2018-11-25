@@ -72,8 +72,6 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         // the prefix
         if (encodedAuthParamString.startsWith("token:")) {
             this.tokenSupplier = () -> encodedAuthParamString.substring("token:".length());
-        } else if (encodedAuthParamString.startsWith("data:")) {
-            this.tokenSupplier = () -> encodedAuthParamString.substring("data:".length());
         } else if (encodedAuthParamString.startsWith("file:")) {
             // Read token from a file
             URI filePath = URI.create(encodedAuthParamString);

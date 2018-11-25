@@ -67,18 +67,6 @@ public class AuthenticationTokenTest {
     }
 
     @Test
-    public void testAuthTokenConfigData() throws Exception {
-        AuthenticationToken authToken = new AuthenticationToken();
-        authToken.configure("data:my-test-token-string");
-        assertEquals(authToken.getAuthMethodName(), "token");
-
-        AuthenticationDataProvider authData = authToken.getAuthData();
-        assertTrue(authData.hasDataFromCommand());
-        assertEquals(authData.getCommandData(), "my-test-token-string");
-        authToken.close();
-    }
-
-    @Test
     public void testAuthTokenConfigFromFile() throws Exception {
         File tokenFile = File.createTempFile("pular-test-token", ".key");
         tokenFile.deleteOnExit();

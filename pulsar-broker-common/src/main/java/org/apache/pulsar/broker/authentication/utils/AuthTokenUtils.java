@@ -26,6 +26,9 @@ import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
 
 import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -42,18 +45,17 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class AuthTokenUtils {
 
-    public static String createSecretKey(SignatureAlgorithm signatureAlgorithm) {
-        Key key = Keys.secretKeyFor(signatureAlgorithm);
-        return Encoders.BASE64.encode(key.getEncoded());
+    public static SecretKey createSecretKey(SignatureAlgorithm signatureAlgorithm) {
+        return Keys.secretKeyFor(signatureAlgorithm);
     }
 
-    public static SecretKey decodeSecretKey(String secretKey) {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
+    public static SecretKey decodeSecretKey(byte[] secretKey) {
+        return Keys.hmacShaKeyFor(secretKey);
     }
 
-    public static PrivateKey decodePrivateKey(String key) throws IOException {
+    public static PrivateKey decodePrivateKey(byte[] key) throws IOException {
         try {
-            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(Decoders.BASE64.decode(key));
+            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(key);
             KeyFactory kf = KeyFactory.getInstance("RSA");
             return kf.generatePrivate(spec);
         } catch (Exception e) {
@@ -61,9 +63,9 @@ public class AuthTokenUtils {
         }
     }
 
-    public static PublicKey decodePublicKey(String key) throws IOException {
+    public static PublicKey decodePublicKey(byte[] key) throws IOException {
         try {
-            X509EncodedKeySpec spec = new X509EncodedKeySpec(Decoders.BASE64.decode(key));
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(key);
             KeyFactory kf = KeyFactory.getInstance("RSA");
             return kf.generatePublic(spec);
         } catch (Exception e) {
@@ -71,7 +73,7 @@ public class AuthTokenUtils {
         }
     }
 
-    public static String encodeKey(Key key) {
+    public static String encodeKeyBase64(Key key) {
         return Encoders.BASE64.encode(key.getEncoded());
     }
 
@@ -85,5 +87,42 @@ public class AuthTokenUtils {
         }
 
         return builder.compact();
+    }
+
+    public static byte[] readKeyFromUrl(String keyConfUrl) throws IOException {
+        if (keyConfUrl.startsWith("data:")) {
+            return readDataUrl(keyConfUrl);
+        } else if (keyConfUrl.startsWith("env:")) {
+            String envVarName = keyConfUrl.substring("env:".length());
+            return Decoders.BASE64.decode(System.getenv(envVarName));
+        } else if (keyConfUrl.startsWith("file:")) {
+            URI filePath = URI.create(keyConfUrl);
+            return Files.readAllBytes(Paths.get(filePath));
+        } else {
+            // Assume the key content was passed in base64
+            return Decoders.BASE64.decode(keyConfUrl);
+        }
+    }
+
+    private static byte[] readDataUrl(String data) throws IOException {
+        // Expected format is:
+        // data:[<mediatype>][;base64],<data>
+
+        // Ignore mediatype and only support base64 encoding
+        String[] parts = data.split(",", 2);
+        String header = parts[0];
+        String encodedData = parts[1];
+
+        if (header.contains(";")) {
+            String encodingType = header.split(";")[1];
+            if (!"base64".equals(encodingType)) {
+                throw new IOException("Data url encoding not supported: " + encodingType);
+            }
+
+            return Decoders.BASE64.decode(encodedData);
+        } else {
+            // No encoding specified
+            return encodedData.getBytes();
+        }
     }
 }
