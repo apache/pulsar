@@ -819,8 +819,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         );
 
         log.info("FUNCTION STATS: {}", result.getStdout());
-        // need to use shaded version because pulsar-client is before pulsar-client-original in the classpath
-        FunctionStats functionStats = new org.apache.pulsar.shade.com.fasterxml.jackson.databind.ObjectMapper().readValue(result.getStdout(), FunctionStats.class);
+        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
 
         assertEquals(functionStats.getReceivedTotal(), 0);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), 0);
@@ -861,8 +860,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         log.info("FUNCTION STATS: {}", result.getStdout());
 
-        // need to use shaded version because pulsar-client is before pulsar-client-original in the classpath
-        FunctionStats functionStats = new org.apache.pulsar.shade.com.fasterxml.jackson.databind.ObjectMapper().readValue(result.getStdout(), FunctionStats.class);
+        FunctionStats functionStats = FunctionStats.decode(result.getStdout());
         assertEquals(functionStats.getReceivedTotal(), numMessages);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);

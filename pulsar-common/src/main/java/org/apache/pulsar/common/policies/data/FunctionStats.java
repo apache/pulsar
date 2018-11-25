@@ -21,8 +21,10 @@ package org.apache.pulsar.common.policies.data;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -184,5 +186,9 @@ public class FunctionStats {
         }
 
         return this;
+    }
+
+    public static FunctionStats decode (String json) throws IOException {
+        return new ObjectMapper().readValue(json, FunctionStats.class);
     }
 }
