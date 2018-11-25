@@ -820,7 +820,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId,
                                                              msgMetadata, uncompressedPayload,
-                                                             createEncryptionContext(msgMetadata), cnx, schema);
+                                                             createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
             uncompressedPayload.release();
             msgMetadata.recycle();
 
@@ -1000,7 +1000,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         messageId.getEntryId(), getPartitionIndex(), i, acker);
                 final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
                         msgMetadata, singleMessageMetadataBuilder.build(), singleMessagePayload,
-                        createEncryptionContext(msgMetadata), cnx, schema);
+                        createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
                 }
