@@ -201,7 +201,9 @@ func (c *consumer) Subscription() string {
 func (c *consumer) Unsubscribe() error {
 	channel := make(chan error)
 	c.UnsubscribeAsync(func(err error) {
-		channel <- err; close(channel) })
+		channel <- err
+		close(channel)
+	})
 	return <-channel
 }
 
@@ -257,10 +259,6 @@ func (c *consumer) Close() error {
 }
 
 func (c *consumer) CloseAsync(callback func(error)) {
-	if c.defaultChannel != nil {
-		close(c.defaultChannel)
-	}
-
 	C._pulsar_consumer_close_async(c.ptr, savePointer(callback))
 }
 
