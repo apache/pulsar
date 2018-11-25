@@ -45,6 +45,7 @@
     <module>elastic-search</module>
     <module>kafka-connect-adaptor</module>
     <module>debezium</module>
+    <module>canal</module>
   </modules>
 
 </project>
