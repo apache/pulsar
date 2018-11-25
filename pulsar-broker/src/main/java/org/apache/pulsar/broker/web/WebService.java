@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.web;
 
+import com.google.common.collect.Lists;
+
+import io.prometheus.client.jetty.JettyStatisticsCollector;
+
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -29,7 +33,6 @@ import javax.servlet.DispatcherType;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
@@ -53,11 +56,6 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
-import com.google.common.collect.Lists;
-
-import io.prometheus.client.jetty.JettyStatisticsCollector;
 
 /**
  * Web Service embedded into Pulsar
@@ -111,11 +109,9 @@ public class WebService implements AutoCloseable {
     }
 
     public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication, Map<String,Object> attributeMap) {
-        JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
-        provider.setMapper(ObjectMapperFactory.create());
         ResourceConfig config = new ResourceConfig();
         config.packages("jersey.config.server.provider.packages", javaPackages);
-        config.register(provider);
+        config.register(JsonMapperProvider.class);
         config.register(MultiPartFeature.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);

@@ -67,6 +67,21 @@
     </dependency>
 
     <dependency>
+      <groupId>org.glassfish.jersey.inject</groupId>
+      <artifactId>jersey-hk2</artifactId>
+    </dependency>
+
+   <dependency>
+     <groupId>javax.xml.bind</groupId>
+     <artifactId>jaxb-api</artifactId>
+   </dependency>
+
+   <dependency>
+     <groupId>javax.xml.bind</groupId>
+     <artifactId>activation</artifactId>
+   </dependency>
+
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jul-to-slf4j</artifactId>
     </dependency>

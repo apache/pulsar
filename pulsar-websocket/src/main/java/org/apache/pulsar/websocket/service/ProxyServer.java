@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.websocket.service;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.Lists;
 
 import java.net.MalformedURLException;
@@ -32,8 +31,8 @@ import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
@@ -105,11 +104,9 @@ public class ProxyServer {
     }
 
     public void addRestResources(String basePath, String javaPackages, String attribute, Object attributeValue) {
-        JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
-        provider.setMapper(ObjectMapperFactory.create());
         ResourceConfig config = new ResourceConfig();
         config.packages("jersey.config.server.provider.packages", javaPackages);
-        config.register(provider);
+        config.register(JsonMapperProvider.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
