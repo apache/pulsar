@@ -18,37 +18,24 @@
  */
 package org.apache.flink.batch.connectors.pulsar.serialization;
 
-import org.apache.commons.csv.CSVFormat;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.java.tuple.Tuple;
-
-import java.io.IOException;
-import java.io.StringWriter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Csv Serialization Schema to serialize Tuples to Csv.
+ * Json Serialization Schema to serialize Dataset records to Json.
  */
-public class CsvSerializationSchema<T extends Tuple> implements SerializationSchema<T> {
+public class JsonSerializationSchema<T> implements SerializationSchema<T> {
 
-    private static final long serialVersionUID = -3379119592495232636L;
-    private static final int STRING_WRITER_INITIAL_BUFFER_SIZE = 256;
+    private static final long serialVersionUID = -6938065355389311385L;
+    private ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public byte[] serialize(T t) {
-        StringWriter stringWriter;
         try {
-            Object[] fieldsValues = new Object[t.getArity()];
-            for(int index = 0; index < t.getArity(); index++) {
-                fieldsValues[index] = (t.getField(index));
-            }
-
-            stringWriter = new StringWriter(STRING_WRITER_INITIAL_BUFFER_SIZE);
-            CSVFormat.DEFAULT.withRecordSeparator("").printRecord(stringWriter, fieldsValues);
-        } catch (IOException e) {
-            throw new RuntimeException("Error while serializing the record to Csv", e);
+            return mapper.writeValueAsBytes(t);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Error while serializing the record to Json", e);
         }
-
-        return stringWriter.toString().getBytes();
     }
-
 }
