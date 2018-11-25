@@ -138,6 +138,11 @@ public class TopicMessageImpl<T> implements Message<T> {
         return msg.getEncryptionCtx();
     }
 
+    @Override
+    public int getRedeliveryCount() {
+        return msg.getRedeliveryCount();
+    }
+
     public Message<T> getMessage() {
         return msg;
     }
