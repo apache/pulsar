@@ -163,6 +163,10 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             String msg = format("Invalid Base64 message-payload error=%s", e.getMessage());
             sendAckResponse(new ProducerAck(PayloadEncodingError, msg, null, requestContext));
             return;
+        } catch (NullPointerException e) {
+            // Null payload
+            sendAckResponse(new ProducerAck(PayloadEncodingError, e.getMessage(), null, requestContext));
+            return;
         }
 
         final long msgSize = rawPayload.length;

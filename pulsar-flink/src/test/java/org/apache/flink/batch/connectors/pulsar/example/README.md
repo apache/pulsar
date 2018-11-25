@@ -1,10 +1,10 @@
 The Flink Batch Sink for Pulsar is a custom sink that enables Apache [Flink](https://flink.apache.org/) to write [DataSet](https://ci.apache.org/projects/flink/flink-docs-stable/dev/batch/index.html) to Pulsar.
 
-## Prerequisites
+# Prerequisites
 
 To use this sink, include a dependency for the `pulsar-flink` library in your Java configuration.
 
-### Maven
+# Maven
 
 If you're using Maven, add this to your `pom.xml`:
 
@@ -20,7 +20,7 @@ If you're using Maven, add this to your `pom.xml`:
 </dependency>
 ```
 
-### Gradle
+# Gradle
 
 If you're using Gradle, add this to your `build.gradle` file:
 
@@ -32,7 +32,8 @@ dependencies {
 }
 ```
 
-## Usage
+# PulsarOutputFormat
+### Usage
 
 Please find a sample usage as follows:
 
@@ -75,7 +76,7 @@ Please find a sample usage as follows:
         }
 ```
 
-## Sample Output
+### Sample Output
 
 Please find sample output for above application as follows:
 ```
@@ -89,12 +90,12 @@ encircles
 world
 ```
 
-## Complete Example
+### Complete Example
 
 You can find a complete example [here](https://github.com/apache/incubator-pulsar/tree/master/pulsar-flink/src/test/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchSinkExample.java).
 In this example, Flink DataSet is processed as word-count and being written to Pulsar.
 
-## Complete Example Output
+### Complete Example Output
 Please find sample output for above linked application as follows:
 ```
 WordWithCount { word = important, count = 1 }
@@ -104,3 +105,65 @@ WordWithCount { word = knowledge, count = 2 }
 WordWithCount { word = limited, count = 1 }
 WordWithCount { word = world, count = 1 }
 ```
+
+# PulsarCsvOutputFormat
+### Usage
+
+Please find a sample usage as follows:
+
+```java
+        private static final List<Tuple4<Integer, String, String, String>> employeeTuples = Arrays.asList(
+            new Tuple4(1, "John", "Tyson", "Engineering"),
+            new Tuple4(2, "Pamela", "Moon", "HR"),
+            new Tuple4(3, "Jim", "Sun", "Finance"),
+            new Tuple4(4, "Michael", "Star", "Engineering"));
+
+        private static final String SERVICE_URL = "pulsar://127.0.0.1:6650";
+        private static final String TOPIC_NAME = "my-flink-topic";
+
+        public static void main(String[] args) throws Exception {
+
+            // set up the execution environment
+            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+            // create PulsarCsvOutputFormat instance
+            final OutputFormat<Tuple4<Integer, String, String, String>> pulsarCsvOutputFormat =
+                    new PulsarCsvOutputFormat<>(SERVICE_URL, TOPIC_NAME);
+
+            // create DataSet
+            DataSet<Tuple4<Integer, String, String, String>> employeeDS = env.fromCollection(employeeTuples);
+            // map employees' name, surname and department as upper-case
+            employeeDS.map(
+                    new MapFunction<Tuple4<Integer, String, String, String>, Tuple4<Integer, String, String, String>>() {
+                @Override
+                public Tuple4<Integer, String, String, String> map(
+                        Tuple4<Integer, String, String, String> employeeTuple) throws Exception {
+                    return new Tuple4(employeeTuple.f0,
+                            employeeTuple.f1.toUpperCase(),
+                            employeeTuple.f2.toUpperCase(),
+                            employeeTuple.f3.toUpperCase());
+                }
+            })
+            // filter employees who are member of Engineering
+            .filter(tuple -> tuple.f3.equals("ENGINEERING"))
+            // write batch data to Pulsar
+            .output(pulsarCsvOutputFormat);
+
+            // execute program
+            env.execute("Flink - Pulsar Batch Csv");
+
+        }
+```
+
+### Sample Output
+
+Please find sample output for above application as follows:
+```
+1,JOHN,TYSON,ENGINEERING
+4,MICHAEL,STAR,ENGINEERING
+```
+
+### Complete Example
+
+You can find a complete example [here](https://github.com/apache/incubator-pulsar/tree/master/pulsar-flink/src/test/java/org/apache/flink/batch/connectors/pulsar/example/FlinkPulsarBatchCsvSinkExample.java).
+In this example, Flink DataSet is processed as word-count and being written to Pulsar.
