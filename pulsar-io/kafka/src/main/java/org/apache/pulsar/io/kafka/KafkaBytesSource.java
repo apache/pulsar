@@ -25,11 +25,19 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 
 /**
  * Simple Kafka Source that just transfers the value part of the kafka records
  * as Strings
  */
+@Connector(
+    name = "kafka",
+    type = IOType.SOURCE,
+    help = "The KafkaBytesSource is used for moving messages from Kafka to Pulsar.",
+    configClass = KafkaSourceConfig.class
+)
 @Slf4j
 public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
 
