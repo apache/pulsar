@@ -18,14 +18,18 @@
     under the License.
 
 -->
+<!DOCTYPE aspectj PUBLIC
+        "-//AspectJ//DTD//EN" "http://www.eclipse.org/aspectj/dtd/aspectj.dtd">
 <aspectj>
-
-  <aspects>
-    <aspect name="org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect" />
-  </aspects>
 
   <weaver options="-verbose -Xset:weaveJavaxPackages=true -Xset:weaveJavaPackages=true">
     <include within="org.apache.zookeeper.ClientCnxn" />
+    <include within="org.apache.zookeeper.server.util.SerializeUtils" />
   </weaver>
 
+  <aspects>
+    <aspect
+      name="org.apache.pulsar.zookeeper.SerializeUtilsAspect" />
+    <aspect name="org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect" />
+  </aspects>
 </aspectj>

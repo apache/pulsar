@@ -6,7 +6,7 @@ sidebar_label: Authentication using TLS
 
 ## TLS Authentication Overview
 
-TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md), but instead of only servers having keys and certs which the client uses the verify the server's identity, clients also have keys and certs which the server uses to verify the client's identity. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
+TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md), but instead of only servers having keys and certs which the client uses to verify the server's identity, clients also have keys and certs which the server uses to verify the client's identity. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
 
 ### Creating client certificates
 
