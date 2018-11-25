@@ -18,22 +18,6 @@
  */
 package org.apache.pulsar.common.stats;
 
-import java.lang.management.ManagementFactory;
-import java.lang.reflect.Field;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
-import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
-
-import org.apache.pulsar.common.stats.Metrics;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.collect.Lists;
 
 import io.netty.buffer.PoolArenaMetric;
@@ -41,7 +25,24 @@ import io.netty.buffer.PoolChunkListMetric;
 import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.internal.PlatformDependent;
+
+import java.lang.management.BufferPoolMXBean;
+import java.lang.management.ManagementFactory;
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JvmMetrics {
 
@@ -54,10 +55,10 @@ public class JvmMetrics {
     private volatile long currentOldGcCount = 0;
     private volatile long accumulatedOldGcTime = 0;
     private volatile long currentOldGcTime = 0;
-    
+
     private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
     private static Field directMemoryUsage = null;
-    
+
     private final String componentName;
     static {
         try {
@@ -87,7 +88,7 @@ public class JvmMetrics {
         m.put("jvm_total_memory", r.totalMemory());
 
         m.put("jvm_direct_memory_used", getJvmDirectMemoryUsed());
-        m.put("jvm_max_direct_memory", sun.misc.VM.maxDirectMemory());
+        m.put("jvm_max_direct_memory", PlatformDependent.maxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
         m.put("jvm_gc_young_pause", currentYoungGcTime);
@@ -127,7 +128,18 @@ public class JvmMetrics {
                 }
             }
         }
-        return sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool().getMemoryUsed();
+
+
+
+        List<BufferPoolMXBean> pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
+        for (BufferPoolMXBean pool : pools) {
+            if (pool.getName().equals("direct")) {
+                return pool.getMemoryUsed();
+            }
+        }
+
+        // Couldnt get direct memory usage
+        return -1;
     }
 
     private static ObjectName youngGenName = null;
@@ -178,7 +190,7 @@ public class JvmMetrics {
 
         return parentThreadGroup.activeCount();
     }
-    
+
     private Metrics createMetrics() {
         return createMetrics(Collections.singletonMap("metric", "jvm_metrics"));
     }

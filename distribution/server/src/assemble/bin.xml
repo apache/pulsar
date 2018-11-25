@@ -137,6 +137,8 @@
         <!-- Explicitely remove JUnit which is getting pulled in even
              though it's set to the scope 'test' -->
         <exclude>junit:junit</exclude>
+
+        <exclude>org.projectlombok:lombok</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

@@ -21,6 +21,9 @@ package org.apache.pulsar.io;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.URL;
@@ -52,10 +55,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-
-import com.google.common.collect.Sets;
-
-import jersey.repackaged.com.google.common.collect.Lists;
 
 /**
  * Test Pulsar sink on function

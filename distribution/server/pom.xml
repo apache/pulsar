@@ -56,6 +56,12 @@
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client-tools</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>grpc-testing</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
