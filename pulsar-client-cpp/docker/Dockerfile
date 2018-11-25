@@ -134,12 +134,12 @@ RUN curl -O -L  https://github.com/open-source-parsers/jsoncpp/archive/1.8.0.tar
     rm -rf /1.8.0.tar.gz /jsoncpp-1.8.0
 
 # LibCurl
-RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_58_0/curl-7.58.0.tar.gz && \
-    tar xvfz curl-7.58.0.tar.gz && \
-    cd curl-7.58.0 && \
+RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
+    tar xvfz curl-7.61.0.tar.gz && \
+    cd curl-7.61.0 && \
     CFLAGS=-fPIC ./configure --with-ssl=/usr/local/ssl/ && \
     make && make install && \
-    rm -rf /curl-7.58.0.tar.gz /curl-7.58.0
+    rm -rf /curl-7.61.0.tar.gz /curl-7.61.0
 
 RUN pip install twine
 
