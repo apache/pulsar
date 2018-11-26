@@ -30,7 +30,6 @@ class Stats(object):
   PULSAR_FUNCTION_METRICS_PREFIX = "pulsar_function_"
   USER_METRIC_PREFIX = "user_metric_";
 
-  TOTAL_PROCESSED = 'processed_total'
   TOTAL_SUCCESSFULLY_PROCESSED = 'processed_successfully_total'
   TOTAL_SYSTEM_EXCEPTIONS = 'system_exceptions_total'
   TOTAL_USER_EXCEPTIONS = 'user_exceptions_total'
@@ -38,7 +37,6 @@ class Stats(object):
   LAST_INVOCATION = 'last_invocation'
   TOTAL_RECEIVED = 'received_total'
 
-  TOTAL_PROCESSED_1min = 'processed_total_1min'
   TOTAL_SUCCESSFULLY_PROCESSED_1min = 'processed_successfully_total_1min'
   TOTAL_SYSTEM_EXCEPTIONS_1min = 'system_exceptions_total_1min'
   TOTAL_USER_EXCEPTIONS_1min = 'user_exceptions_total_1min'
@@ -46,7 +44,6 @@ class Stats(object):
   TOTAL_RECEIVED_1min = 'received_total_1min'
 
   # Declare Prometheus
-  stat_total_processed = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_PROCESSED, 'Total number of messages processed.', metrics_label_names)
   stat_total_processed_successfully = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SUCCESSFULLY_PROCESSED,
                                               'Total number of messages processed successfully.', metrics_label_names)
   stat_total_sys_exceptions = Counter(PULSAR_FUNCTION_METRICS_PREFIX+ TOTAL_SYSTEM_EXCEPTIONS, 'Total number of system exceptions.',
@@ -62,8 +59,6 @@ class Stats(object):
 
 
   # 1min windowed metrics
-  stat_total_processed_1min = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_PROCESSED_1min,
-                                 'Total number of messages processed in the last 1 minute.', metrics_label_names)
   stat_total_processed_successfully_1min = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SUCCESSFULLY_PROCESSED_1min,
                                               'Total number of messages processed successfully in the last 1 minute.', metrics_label_names)
   stat_total_sys_exceptions_1min = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SYSTEM_EXCEPTIONS_1min,
@@ -92,9 +87,6 @@ class Stats(object):
   def get_total_received(self):
     return self.stat_total_received.labels(*self.metrics_labels)._value.get();
 
-  def get_total_processed(self):
-    return self.stat_total_processed.labels(*self.metrics_labels)._value.get();
-
   def get_total_processed_successfully(self):
     return self.stat_total_processed_successfully.labels(*self.metrics_labels)._value.get();
 
@@ -110,12 +102,6 @@ class Stats(object):
     return 0.0 \
       if process_latency_ms_count <= 0.0 \
       else process_latency_ms_sum / process_latency_ms_count
-
-  def get_total_received_1min(self):
-    return self.stat_total_received_1min.labels(*self.metrics_labels)._value.get();
-
-  def get_total_processed_1min(self):
-    return self.stat_total_processed_1min.labels(*self.metrics_labels)._value.get();
 
   def get_total_processed_successfully_1min(self):
     return self.stat_total_processed_successfully_1min.labels(*self.metrics_labels)._value.get();
@@ -135,10 +121,6 @@ class Stats(object):
 
   def get_last_invocation(self):
     return self.stat_last_invocation.labels(*self.metrics_labels)._value.get()
-
-  def incr_total_processed(self):
-    self.stat_total_processed.labels(*self.metrics_labels).inc()
-    self.stat_total_processed_1min.labels(*self.metrics_labels).inc()
 
   def incr_total_processed_successfully(self):
     self.stat_total_processed_successfully.labels(*self.metrics_labels).inc()
@@ -183,7 +165,6 @@ class Stats(object):
   def reset(self):
     self.latest_user_exception = []
     self.latest_sys_exception = []
-    self.stat_total_processed_1min.labels(*self.metrics_labels)._value.set(0.0)
     self.stat_total_processed_successfully_1min.labels(*self.metrics_labels)._value.set(0.0)
     self.stat_total_user_exceptions_1min.labels(*self.metrics_labels)._value.set(0.0)
     self.stat_total_sys_exceptions_1min.labels(*self.metrics_labels)._value.set(0.0)

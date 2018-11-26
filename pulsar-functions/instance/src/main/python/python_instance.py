@@ -215,9 +215,6 @@ class PythonInstance(object):
           Log.exception("Exception while executing user method")
           self.stats.incr_total_user_exceptions()
 
-        # incr total processed stat
-        self.stats.incr_total_processed()
-
         if self.log_topic_handler is not None:
           log.remove_all_handlers()
           log.add_handler(self.saved_log_handler)
@@ -292,15 +289,12 @@ class PythonInstance(object):
   def get_metrics(self):
 
     total_received =  self.stats.get_total_received()
-    total_processed = self.stats.get_total_processed()
     total_processed_successfully = self.stats.get_total_processed_successfully()
     total_user_exceptions = self.stats.get_total_user_exceptions()
     total_sys_exceptions = self.stats.get_total_sys_exceptions()
     avg_process_latency_ms = self.stats.get_avg_process_latency()
     last_invocation = self.stats.get_last_invocation()
 
-    total_received_1min = self.stats.get_total_received_1min()
-    total_processed_1min = self.stats.get_total_processed_1min()
     total_processed_successfully_1min = self.stats.get_total_processed_successfully_1min()
     total_user_exceptions_1min = self.stats.get_total_user_exceptions_1min()
     total_sys_exceptions_1min = self.stats.get_total_sys_exceptions_1min()
@@ -309,15 +303,12 @@ class PythonInstance(object):
     metrics_data = InstanceCommunication_pb2.MetricsData()
     # total metrics
     metrics_data.receivedTotal = int(total_received) if sys.version_info.major >= 3 else long(total_received)
-    metrics_data.processedTotal = int(total_processed) if sys.version_info.major >= 3 else long(total_processed)
     metrics_data.processedSuccessfullyTotal = int(total_processed_successfully) if sys.version_info.major >= 3 else long(total_processed_successfully)
     metrics_data.systemExceptionsTotal = int(total_sys_exceptions) if sys.version_info.major >= 3 else long(total_sys_exceptions)
     metrics_data.userExceptionsTotal = int(total_user_exceptions) if sys.version_info.major >= 3 else long(total_user_exceptions)
     metrics_data.avgProcessLatency = avg_process_latency_ms
     metrics_data.lastInvocation = int(last_invocation) if sys.version_info.major >= 3 else long(last_invocation)
     # 1min metrics
-    metrics_data.receivedTotal_1min = int(total_received_1min) if sys.version_info.major >= 3 else long(total_received_1min)
-    metrics_data.processedTotal_1min = int(total_processed_1min) if sys.version_info.major >= 3 else long(total_processed_1min)
     metrics_data.processedSuccessfullyTotal_1min = int(
       total_processed_successfully_1min) if sys.version_info.major >= 3 else long(total_processed_successfully_1min)
     metrics_data.systemExceptionsTotal_1min = int(total_sys_exceptions_1min) if sys.version_info.major >= 3 else long(
@@ -343,14 +334,12 @@ class PythonInstance(object):
     status = InstanceCommunication_pb2.FunctionStatus()
     status.running = True
 
-    total_processed = self.stats.get_total_processed()
     total_processed_successfully = self.stats.get_total_processed_successfully()
     total_user_exceptions = self.stats.get_total_user_exceptions()
     total_sys_exceptions = self.stats.get_total_sys_exceptions()
     avg_process_latency_ms = self.stats.get_avg_process_latency()
     last_invocation = self.stats.get_last_invocation()
 
-    status.numProcessed = int(total_processed) if sys.version_info.major >= 3 else long(total_processed)
     status.numSuccessfullyProcessed = int(total_processed_successfully) if sys.version_info.major >= 3 else long(total_processed_successfully)
     status.numUserExceptions = int(total_user_exceptions) if sys.version_info.major >= 3 else long(total_user_exceptions)
     status.instanceId = self.instance_config.instance_id

@@ -46,7 +46,6 @@ public class FunctionStatsManager implements AutoCloseable {
     public final static String USER_METRIC_PREFIX = "user_metric_";
 
     /** Declare metric names **/
-    public static final String PROCESSED_TOTAL = "processed_total";
     public static final String PROCESSED_SUCCESSFULLY_TOTAL = "processed_successfully_total";
     public static final String SYSTEM_EXCEPTIONS_TOTAL = "system_exceptions_total";
     public static final String USER_EXCEPTIONS_TOTAL = "user_exceptions_total";
@@ -63,8 +62,6 @@ public class FunctionStatsManager implements AutoCloseable {
 
     /** Declare Prometheus stats **/
 
-    final Counter statTotalProcessed;
-
     final Counter statTotalProcessedSuccessfully;
 
     final Counter statTotalSysExceptions;
@@ -78,8 +75,6 @@ public class FunctionStatsManager implements AutoCloseable {
     final Counter statTotalRecordsRecieved;
     
     // windowed metrics
-
-    final Counter statTotalProcessed1min;
 
     final Counter statTotalProcessedSuccessfully1min;
 
@@ -103,12 +98,6 @@ public class FunctionStatsManager implements AutoCloseable {
     public FunctionStatsManager(CollectorRegistry collectorRegistry, String[] metricsLabels, ScheduledExecutorService scheduledExecutorService) {
 
         this.metricsLabels = metricsLabels;
-
-        statTotalProcessed = Counter.build()
-                .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESSED_TOTAL)
-                .help("Total number of messages processed.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
 
         statTotalProcessedSuccessfully = Counter.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESSED_SUCCESSFULLY_TOTAL)
@@ -147,12 +136,6 @@ public class FunctionStatsManager implements AutoCloseable {
         statTotalRecordsRecieved = Counter.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + RECEIVED_TOTAL)
                 .help("Total number of messages received from source.")
-                .labelNames(metricsLabelNames)
-                .register(collectorRegistry);
-
-        statTotalProcessed1min = Counter.build()
-                .name(PULSAR_FUNCTION_METRICS_PREFIX + PROCESSED_TOTAL_1min)
-                .help("Total number of messages processed in the last 1 minute.")
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);
 
@@ -222,11 +205,6 @@ public class FunctionStatsManager implements AutoCloseable {
         statTotalRecordsRecieved1min.labels(metricsLabels).inc();
     }
 
-    public void incrTotalProcessed() {
-        statTotalProcessed.labels(metricsLabels).inc();
-        statTotalProcessed1min.labels(metricsLabels).inc();
-    }
-
     public void incrTotalProcessedSuccessfully() {
         statTotalProcessedSuccessfully.labels(metricsLabels).inc();
         statTotalProcessedSuccessfully1min.labels(metricsLabels).inc();
@@ -259,10 +237,6 @@ public class FunctionStatsManager implements AutoCloseable {
             statProcessLatency.labels(metricsLabels).observe(endTimeMs);
             statProcessLatency1min.labels(metricsLabels).observe(endTimeMs);
         }
-    }
-
-    public double getTotalProcessed() {
-        return statTotalProcessed.labels(metricsLabels).get();
     }
 
     public double getTotalProcessedSuccessfully() {
@@ -306,10 +280,6 @@ public class FunctionStatsManager implements AutoCloseable {
         return statProcessLatency.labels(metricsLabels).get().quantiles.get(0.999);
     }
 
-    public double getTotalProcessed1min() {
-        return statTotalProcessed1min.labels(metricsLabels).get();
-    }
-
     public double getTotalProcessedSuccessfully1min() {
         return statTotalProcessedSuccessfully1min.labels(metricsLabels).get();
     }
@@ -348,7 +318,6 @@ public class FunctionStatsManager implements AutoCloseable {
     }
 
     public void reset() {
-        statTotalProcessed1min.clear();
         statTotalProcessedSuccessfully1min.clear();
         statTotalSysExceptions1min.clear();
         statTotalUserExceptions1min.clear();
