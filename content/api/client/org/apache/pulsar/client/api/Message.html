@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -181,34 +181,40 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i10" class="altColor">
+<td class="colFirst"><code>int</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#getRedeliveryCount--">getRedeliveryCount</a></span>()</code>
+<div class="block">Get message redelivery count, redelivery count maintain in pulsar broker.</div>
+</td>
+</tr>
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#getSequenceId--">getSequenceId</a></span>()</code>
 <div class="block">Get the sequence id associated with this message.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#getTopicName--">getTopicName</a></span>()</code>
 <div class="block">Get the topic the message was published to</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="type parameter in Message">T</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#getValue--">getValue</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#hasBase64EncodedKey--">hasBase64EncodedKey</a></span>()</code>
 <div class="block">Check whether the key has been base64 encoded.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#hasKey--">hasKey</a></span>()</code>
 <div class="block">Check whether the message has a key</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#hasProperty-java.lang.String-">hasProperty</a></span>(String&nbsp;name)</code>
 <div class="block">Check whether the message has a specific property attached.</div>
@@ -462,7 +468,7 @@ var activeTableTab = "activeTableTab";
 <a name="getEncryptionCtx--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getEncryptionCtx</h4>
 <pre>Optional&lt;EncryptionContext&gt;&nbsp;getEncryptionCtx()</pre>
@@ -470,6 +476,26 @@ var activeTableTab = "activeTableTab";
  decrypt consumed message with encrypted-payload.</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
+</dl>
+</li>
+</ul>
+<a name="getRedeliveryCount--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getRedeliveryCount</h4>
+<pre>int&nbsp;getRedeliveryCount()</pre>
+<div class="block">Get message redelivery count, redelivery count maintain in pulsar broker. When client acknowledge message
+ timeout, broker will dispatch message again with message redelivery count in CommandMessage defined.
+
+ Message redelivery increases monotonically in a broker, when topic switch ownership to a another broker
+ redelivery count will be recalculate.</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>message redelivery count</dd>
+<dt><span class="simpleTagLabel">Since:</span></dt>
+<dd>2.3.0</dd>
 </dl>
 </li>
 </ul>
