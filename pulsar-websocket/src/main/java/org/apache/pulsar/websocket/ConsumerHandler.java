@@ -47,7 +47,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.websocket.data.ConsumerAck;
+import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WriteCallback;
@@ -72,8 +72,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private SubscriptionType subscriptionType;
     private Consumer<byte[]> consumer;
 
-    private int maxPendingMessages;
+    private int maxPendingMessages = 0;
     private final AtomicInteger pendingMessages = new AtomicInteger();
+    private final boolean pullMode;
 
     private final LongAdder numMsgsDelivered;
     private final LongAdder numBytesDelivered;
@@ -90,13 +91,17 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         this.numMsgsDelivered = new LongAdder();
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
+        this.pullMode = Boolean.valueOf(queryParams.get("pullMode"));
 
         try {
             // checkAuth() and getConsumerConfiguration() should be called after assigning a value to this.subscription
             this.subscription = extractSubscription(request);
             builder = (ConsumerBuilderImpl<byte[]>) getConsumerConfiguration(service.getPulsarClient());
-            this.maxPendingMessages = (builder.getConf().getReceiverQueueSize() == 0) ? 1
-                    : builder.getConf().getReceiverQueueSize();
+
+            if (!this.pullMode) {
+                this.maxPendingMessages = (builder.getConf().getReceiverQueueSize() == 0) ? 1
+                        : builder.getConf().getReceiverQueueSize();
+            }
             this.subscriptionType = builder.getConf().getSubscriptionType();
 
             if (!checkAuth(response)) {
@@ -209,31 +214,43 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     @Override
     public void onWebSocketConnect(Session session) {
         super.onWebSocketConnect(session);
-        receiveMessage();
+        if (!pullMode) {
+            receiveMessage();
+        }
     }
 
     @Override
     public void onWebSocketText(String message) {
         super.onWebSocketText(message);
 
-        // We should have received an ack
-
-        MessageId msgId;
         try {
-            ConsumerAck ack = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerAck.class);
-            msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(ack.messageId), topic);
+            ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
+            if ("permit".equals(command.type)) {
+                if (command.permitMessages == null) {
+                    throw new IOException("Missing required permitMessages field for 'permit' command");
+                }
+                if (this.pullMode) {
+                    int pending = pendingMessages.addAndGet(-command.permitMessages);
+                    if (pending  < 0) {
+                        // Resume delivery
+                        receiveMessage();
+                    }
+                }
+            } else {
+                // We should have received an ack
+                MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId), topic);
+                consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+                if (!this.pullMode) {
+                    int pending = pendingMessages.getAndDecrement();
+                    if (pending >= maxPendingMessages) {
+                        // Resume delivery
+                        receiveMessage();
+                    }
+                }
+            }
         } catch (IOException e) {
             log.warn("Failed to deserialize message id: {}", message, e);
             close(WebSocketError.FailedToDeserializeFromJSON);
-            return;
-        }
-
-        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
-
-        int pending = pendingMessages.getAndDecrement();
-        if (pending >= maxPendingMessages) {
-            // Resume delivery
-            receiveMessage();
         }
     }
 
