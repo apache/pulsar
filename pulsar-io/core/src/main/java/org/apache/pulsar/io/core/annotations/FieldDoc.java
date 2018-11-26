@@ -16,21 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.flink.batch.connectors.pulsar;
+package org.apache.pulsar.io.core.annotations;
 
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.batch.connectors.pulsar.serialization.CsvSerializationSchema;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Pulsar Csv Output Format to write Flink DataSets into a Pulsar topic in Csv format.
+ * Annotation for documenting fields in a config.
  */
-public class PulsarCsvOutputFormat<T extends Tuple> extends BasePulsarOutputFormat<T> {
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.FIELD)
+public @interface FieldDoc {
 
-    private static final long serialVersionUID = -4461671510903404196L;
+    /**
+     * Return if the field is required or not.
+     *
+     * @return true if the field is required, otherwise false
+     */
+    boolean required() default false;
 
-    public PulsarCsvOutputFormat(String serviceUrl, String topicName) {
-        super(serviceUrl, topicName);
-        this.serializationSchema = new CsvSerializationSchema<>();
-    }
+    /**
+     * Return the value of this field.
+     *
+     * @return the default value of this field
+     */
+    String defaultValue();
+
+    /**
+     * Return the description of this field.
+     *
+     * @return the help message of this field
+     */
+    String help();
 
 }

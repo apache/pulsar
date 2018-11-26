@@ -16,21 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.flink.batch.connectors.pulsar;
-
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.batch.connectors.pulsar.serialization.CsvSerializationSchema;
+package org.apache.pulsar.io.core.annotations;
 
 /**
- * Pulsar Csv Output Format to write Flink DataSets into a Pulsar topic in Csv format.
+ * Type of the io connector.
  */
-public class PulsarCsvOutputFormat<T extends Tuple> extends BasePulsarOutputFormat<T> {
+public enum IOType {
 
-    private static final long serialVersionUID = -4461671510903404196L;
+    /**
+     * Sink connector.
+     */
+    SINK,
 
-    public PulsarCsvOutputFormat(String serviceUrl, String topicName) {
-        super(serviceUrl, topicName);
-        this.serializationSchema = new CsvSerializationSchema<>();
-    }
+    /**
+     * Source connector.
+     */
+    SOURCE
 
 }
