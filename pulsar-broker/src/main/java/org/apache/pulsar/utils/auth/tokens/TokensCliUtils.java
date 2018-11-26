@@ -120,7 +120,7 @@ public class TokensCliUtils {
         private Boolean isPrivateKey = false;
 
         @Parameter(names = { "-k",
-                "--signing-key" }, description = "Pass the signing key. This can either be: stdin, data:, file:, etc..", required = true)
+                "--signing-key" }, description = "Pass the signing key. This can either be: data:, file:, etc..", required = true)
         private String key;
 
         public void run() throws Exception {

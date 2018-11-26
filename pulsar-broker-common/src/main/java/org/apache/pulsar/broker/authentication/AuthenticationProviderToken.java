@@ -72,7 +72,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             //
             // Authorization: Bearer xxxxxxxxxxxxx
             String httpHeaderValue = authData.getHttpHeader(HTTP_HEADER_NAME);
-            if (!httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
+            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
                 throw new AuthenticationException("Invalid HTTP Authorization header");
             }
 
