@@ -37,7 +37,6 @@ import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
-import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreRepository;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 
 import org.jclouds.blobstore.BlobStore;
@@ -65,7 +64,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     private final OrderedScheduler scheduler;
     private final TieredStorageConfiguration config;
-    private final BlobStore writeBlobStore;
+    private final BlobStore blobStore;
     private final Location writeLocation;
 
     // metadata to be stored as part of the offloaded ledger metadata
@@ -99,7 +98,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 config.getProvider().getDriver(), config.getServiceEndpoint(),
                 config.getBucket(), config.getRegion());
 
-        this.writeBlobStore = BlobStoreRepository.getOrCreate(config);
+        this.blobStore = config.getBlobStore();
     }
 
     @Override
@@ -138,10 +137,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
             // init multi part upload for data block.
             try {
-                BlobBuilder blobBuilder = writeBlobStore.blobBuilder(dataBlockKey);
+                BlobBuilder blobBuilder = blobStore.blobBuilder(dataBlockKey);
                 DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
                 Blob blob = blobBuilder.build();
-                mpu = writeBlobStore.initiateMultipartUpload(config.getBucket(), blob.getMetadata(), new PutOptions());
+                mpu = blobStore.initiateMultipartUpload(config.getBucket(), blob.getMetadata(), new PutOptions());
             } catch (Throwable t) {
                 promise.completeExceptionally(t);
                 return;
@@ -163,7 +162,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         Payload partPayload = Payloads.newInputStreamPayload(blockStream);
                         partPayload.getContentMetadata().setContentLength((long) blockSize);
                         partPayload.getContentMetadata().setContentType("application/octet-stream");
-                        parts.add(writeBlobStore.uploadMultipartPart(mpu, partId, partPayload));
+                        parts.add(blobStore.uploadMultipartPart(mpu, partId, partPayload));
                         log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
                                 config.getBucket(), dataBlockKey, partId, mpu.id());
 
@@ -182,12 +181,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                     dataObjectLength += blockSize;
                 }
 
-                writeBlobStore.completeMultipartUpload(mpu, parts);
+                blobStore.completeMultipartUpload(mpu, parts);
                 mpu = null;
             } catch (Throwable t) {
                 try {
                     if (mpu != null) {
-                        writeBlobStore.abortMultipartUpload(mpu);
+                        blobStore.abortMultipartUpload(mpu);
                     }
                 } catch (Throwable throwable) {
                     log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
@@ -201,7 +200,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             try (OffloadIndexBlock index = indexBuilder.withDataObjectLength(dataObjectLength).build();
                  OffloadIndexBlock.IndexInputStream indexStream = index.toStream()) {
                 // write the index block
-                BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
+                BlobBuilder blobBuilder = blobStore.blobBuilder(indexBlockKey);
                 DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
                 Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
                 indexPayload.getContentMetadata().setContentLength((long) indexStream.getStreamSize());
@@ -212,11 +211,11 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                     .contentLength((long) indexStream.getStreamSize())
                     .build();
 
-                writeBlobStore.putBlob(config.getBucket(), blob);
+                blobStore.putBlob(config.getBucket(), blob);
                 promise.complete(null);
             } catch (Throwable t) {
                 try {
-                    writeBlobStore.removeBlob(config.getBucket(), dataBlockKey);
+                    blobStore.removeBlob(config.getBucket(), dataBlockKey);
                 } catch (Throwable throwable) {
                     log.error("Failed deleteObject in bucket - {} with key - {}.",
                             config.getBucket(), dataBlockKey, throwable);
@@ -247,7 +246,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
         BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
         String readBucket = bsKey.getBucket();
-        BlobStore readBlobstore = BlobStoreRepository.get(bsKey);
+        BlobStore readBlobstore = blobStore;
 
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         String key = DataBlockUtils.dataBlockOffloadKey(ledgerId, uid);
@@ -272,7 +271,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                    Map<String, String> offloadDriverMetadata) {
         BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
         String readBucket = bsKey.getBucket();
-        BlobStore readBlobstore = BlobStoreRepository.get(bsKey);
+        BlobStore readBlobstore = blobStore;
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(ledgerId).submit(() -> {
@@ -288,6 +287,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         });
 
         return promise;
+    }
+
+    public BlobStore getBlobStore() {
+        return blobStore;
     }
 
 }

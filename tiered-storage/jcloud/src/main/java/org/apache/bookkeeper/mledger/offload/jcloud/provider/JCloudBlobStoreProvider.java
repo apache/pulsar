@@ -125,31 +125,31 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
-//            if (!BlobStoreRepository.containsKey(config.getBlobStoreLocation())) {
-                BlobStore bs = null;
 
-                if (config.getProviderCredentials() != null) {
-                    bs = ContextBuilder.newBuilder("s3")
-                            .credentials(config.getProviderCredentials().identity,
-                                         config.getProviderCredentials().credential)
-                            .overrides(config.getOverrides())
-                            .endpoint(config.getServiceEndpoint())
-                            .buildView(BlobStoreContext.class)
-                            .getBlobStore();
-                } else {
-                    bs = ContextBuilder.newBuilder(config.getProviderMetadata())
-                            .overrides(config.getOverrides())
-                            .endpoint(config.getServiceEndpoint())
-                            .buildView(BlobStoreContext.class)
-                            .getBlobStore();
-                }
+            BlobStore bs = null;
 
-                if (bs != null) {
-                    if (!bs.containerExists(config.getBucket())) {
-                        bs.createContainerInLocation(null, config.getBucket());
-                    }
+            if (config.getProviderCredentials() != null) {
+                bs = ContextBuilder.newBuilder("s3")
+                        .credentials(config.getProviderCredentials().identity,
+                                config.getProviderCredentials().credential)
+                        .overrides(config.getOverrides())
+                        .endpoint(config.getServiceEndpoint())
+                        .buildView(BlobStoreContext.class)
+                        .getBlobStore();
+            } else {
+                bs = ContextBuilder.newBuilder(config.getProviderMetadata())
+                        .overrides(config.getOverrides())
+                        .endpoint(config.getServiceEndpoint())
+                        .buildView(BlobStoreContext.class)
+                        .getBlobStore();
+            }
+
+            if (bs != null) {
+                if (!bs.containerExists(config.getBucket())) {
+                    bs.createContainerInLocation(null, config.getBucket());
                 }
-//            }
+            }
+
             return bs;
         }
     },
@@ -165,23 +165,22 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
-            if (!BlobStoreRepository.containsKey(config.getBlobStoreLocation())) {
-                BlobStore bs = ContextBuilder.newBuilder(config.getDriver().toLowerCase())
-                        .buildView(BlobStoreContext.class)
-                        .getBlobStore();
 
-                if (!bs.containerExists(config.getBucket())) {
-                    Location loc = new LocationBuilder()
-                            .scope(LocationScope.HOST)
-                            .id(UUID.randomUUID() + "")
-                            .description("Transient " + config.getBucket())
-                            .build();
+            BlobStore bs = ContextBuilder.newBuilder(config.getDriver().toLowerCase())
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
 
-                    bs.createContainerInLocation(loc, config.getBucket());
-                }
-                BlobStoreRepository.put(config.getBlobStoreLocation(), bs);
+            if (!bs.containerExists(config.getBucket())) {
+                Location loc = new LocationBuilder()
+                        .scope(LocationScope.HOST)
+                        .id(UUID.randomUUID() + "")
+                        .description("Transient " + config.getBucket())
+                        .build();
+
+                bs.createContainerInLocation(loc, config.getBucket());
             }
-            return BlobStoreRepository.get(config.getBlobStoreLocation());
+
+            return bs;
         }
 
         @Override
@@ -235,28 +234,23 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     };
 
     static final BlobStoreBuilder BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
-        if (!BlobStoreRepository.containsKey(config.getBlobStoreLocation())) {
-            BlobStore bs = null;
 
-            if (config.getProviderCredentials() != null) {
-                bs = ContextBuilder.newBuilder(config.getProviderMetadata())
-                        .credentials(config.getProviderCredentials().identity,
-                                     config.getProviderCredentials().credential)
-                        .overrides(config.getOverrides())
-                        .buildView(BlobStoreContext.class)
-                        .getBlobStore();
-            } else {
-                bs = ContextBuilder.newBuilder(config.getProviderMetadata())
-                        .overrides(config.getOverrides())
-                        .buildView(BlobStoreContext.class)
-                        .getBlobStore();
-            }
+        BlobStore bs = null;
 
-            if (bs != null) {
-                BlobStoreRepository.put(config.getBlobStoreLocation(), bs);
-            }
+        if (config.getProviderCredentials() != null) {
+            bs = ContextBuilder.newBuilder(config.getProviderMetadata())
+                    .credentials(config.getProviderCredentials().identity,
+                            config.getProviderCredentials().credential)
+                    .overrides(config.getOverrides())
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
+        } else {
+            bs = ContextBuilder.newBuilder(config.getProviderMetadata())
+                    .overrides(config.getOverrides())
+                    .buildView(BlobStoreContext.class)
+                    .getBlobStore();
         }
-        return BlobStoreRepository.get(config.getBlobStoreLocation());
+        return bs;
     };
 
     static final CredentialBuilder AWS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
