@@ -28,25 +28,25 @@ import org.testng.annotations.Test;
 public class RelativeTimeUtilTest {
     @Test
     public void testParseRelativeTime() {
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("-1"), -1);
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("7"), 7);
         assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("3s"), 3);
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("3S"), 3);
         assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("5m"), TimeUnit.MINUTES.toSeconds(5));
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("5M"), TimeUnit.MINUTES.toSeconds(5));
         assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("7h"), TimeUnit.HOURS.toSeconds(7));
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("7H"), TimeUnit.HOURS.toSeconds(7));
         assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("9d"), TimeUnit.DAYS.toSeconds(9));
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("9D"), TimeUnit.DAYS.toSeconds(9));
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("3w"), 7 * TimeUnit.DAYS.toSeconds(3));
         assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("11y"), 365 * TimeUnit.DAYS.toSeconds(11));
+        assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("11Y"), 365 * TimeUnit.DAYS.toSeconds(11));
 
         // Negative interval
         assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("-5m"), -TimeUnit.MINUTES.toSeconds(5));
 
         try {
             RelativeTimeUtil.parseRelativeTimeInSeconds("");
-            fail("should have failed");
-        } catch (IllegalArgumentException e) {
-            // expected
-        }
-
-        try {
-            // No time unit specified
-            RelativeTimeUtil.parseRelativeTimeInSeconds("1234");
             fail("should have failed");
         } catch (IllegalArgumentException e) {
             // expected

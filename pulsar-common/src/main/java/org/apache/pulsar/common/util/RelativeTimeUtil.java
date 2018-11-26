@@ -29,15 +29,21 @@ public class RelativeTimeUtil {
             throw new IllegalArgumentException("exipiry time cannot be empty");
         }
 
-        char lastChar = relativeTime.charAt(relativeTime.length() - 1);
+        int lastIndex=  relativeTime.length() - 1;
+        char lastChar = relativeTime.charAt(lastIndex);
+        final char timeUnit;
 
         if (!Character.isAlphabetic(lastChar)) {
-            throw new IllegalArgumentException("Relative time should contain time unit. eg: 3h or 5d");
+            // No unit specified, assume seconds
+            timeUnit = 's';
+            lastIndex = relativeTime.length();
+        } else {
+            timeUnit = Character.toLowerCase(lastChar);
         }
 
-        long duration = Long.parseLong(relativeTime.substring(0, relativeTime.length() - 1));
+        long duration = Long.parseLong(relativeTime.substring(0, lastIndex));
 
-        switch (lastChar) {
+        switch (timeUnit) {
         case 's':
             return duration;
         case 'm':
