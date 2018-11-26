@@ -30,6 +30,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 import org.slf4j.MDC;
 
 import java.net.InetSocketAddress;
@@ -39,8 +41,13 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * A Simple class for mysql binlog sync to pulsar
+ * A Simple class for mysql binlog sync to pulsar.
  */
+@Connector(
+    name = "canal",
+    type = IOType.SOURCE,
+    help = "The CanalSource is used for syncing mysql binlog to Pulsar.",
+    configClass = CanalSourceConfig.class)
 @Slf4j
 public class CanalSource extends PushSource<byte[]> {
 
