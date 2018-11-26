@@ -88,7 +88,6 @@ public class FunctionStatsGeneratorTest {
         CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture = new CompletableFuture<>();
         InstanceCommunication.MetricsData metricsData = InstanceCommunication.MetricsData.newBuilder()
                 .setReceivedTotal(101)
-                .setProcessedTotal(100)
                 .setProcessedSuccessfullyTotal(99)
                 .setAvgProcessLatency(10.0)
                 .setUserExceptionsTotal(3)
