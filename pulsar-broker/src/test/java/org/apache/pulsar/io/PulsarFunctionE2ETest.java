@@ -26,10 +26,17 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.URL;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,8 +49,15 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
@@ -51,7 +65,6 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
-import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -62,10 +75,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
-
-import jersey.repackaged.com.google.common.collect.Lists;
 
 /**
  * Test Pulsar sink on function
@@ -344,6 +353,55 @@ public class PulsarFunctionE2ETest {
         // validate pulsar sink consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
+        // validate stats are empty
+        FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
+        FunctionStats functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
+                functionName, null);
+        FunctionStats functionStatsFromAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
+                functionName);
+
+        assertEquals(functionStats, functionStatsFromAdmin);
+
+        assertEquals(functionStats.getReceivedTotal(), 0);
+        assertEquals(functionStats.getProcessedSuccessfullyTotal(), 0);
+        assertEquals(functionStats.getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.getUserExceptionsTotal(), 0);
+        assertEquals(functionStats.avgProcessLatency, null);
+        assertEquals(functionStats.oneMin.getReceivedTotal(), 0);
+        assertEquals(functionStats.oneMin.getProcessedSuccessfullyTotal(), 0);
+        assertEquals(functionStats.oneMin.getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.oneMin.getUserExceptionsTotal(), 0);
+        assertEquals(functionStats.oneMin.getAvgProcessLatency(), null);
+        assertEquals(functionStats.getAvgProcessLatency(), functionStats.oneMin.getAvgProcessLatency());
+        assertEquals(functionStats.getLastInvocation(), null);
+
+        assertEquals(functionStats.instances.size(), 1);
+        assertEquals(functionStats.instances.get(0).getInstanceId(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getReceivedTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getProcessedSuccessfullyTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().avgProcessLatency, null);
+        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getReceivedTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getProcessedSuccessfullyTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getUserExceptionsTotal(), 0);
+        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency(), null);
+
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency());
+        assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.getAvgProcessLatency());
+
+        // validate function instance stats empty
+        FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion,
+                functionName, 0,  null);
+
+        FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
+                functionName, 0);
+
+        assertEquals(functionInstanceStats, functionInstanceStatsAdmin);
+        assertEquals(functionInstanceStats, functionStats.instances.get(0).getMetrics());
+
+
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
@@ -358,11 +416,12 @@ public class PulsarFunctionE2ETest {
             }
         }, 5, 200);
 
-        FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
-        FunctionStats functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
+
+        // get stats after producing
+        functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
                 functionName, null);
         
-        FunctionStats functionStatsFromAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
+        functionStatsFromAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
                 functionName);
 
         assertEquals(functionStats, functionStatsFromAdmin);
@@ -395,6 +454,16 @@ public class PulsarFunctionE2ETest {
 
         assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency());
         assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.getAvgProcessLatency());
+
+        // validate function instance stats
+        functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion,
+                functionName, 0,  null);
+
+        functionInstanceStatsAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
+                functionName, 0);
+
+        assertEquals(functionInstanceStats, functionInstanceStatsAdmin);
+        assertEquals(functionInstanceStats, functionStats.instances.get(0).getMetrics());
     }
 
     @Test(timeOut = 20000)

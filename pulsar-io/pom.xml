@@ -33,6 +33,7 @@
 
   <modules>
     <module>core</module>
+    <module>docs</module>
     <module>twitter</module>
     <module>cassandra</module>
     <module>aerospike</module>
@@ -45,6 +46,7 @@
     <module>elastic-search</module>
     <module>kafka-connect-adaptor</module>
     <module>debezium</module>
+    <module>canal</module>
   </modules>
 
 </project>

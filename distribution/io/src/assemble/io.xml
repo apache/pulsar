@@ -27,6 +27,12 @@
     <format>tar.gz</format>
   </formats>
   <includeBaseDirectory>true</includeBaseDirectory>
+  <fileSets>
+    <fileSet>
+      <directory>${basedir}/../../distribution/io/target/conf</directory>
+      <outputDirectory>conf</outputDirectory>
+    </fileSet>
+  </fileSets>
   <files>
     <file>
       <source>${basedir}/../../LICENSE</source>

@@ -30,7 +30,6 @@ public class PulsarCsvOutputFormat<T extends Tuple> extends BasePulsarOutputForm
 
     public PulsarCsvOutputFormat(String serviceUrl, String topicName) {
         super(serviceUrl, topicName);
-
         this.serializationSchema = new CsvSerializationSchema<>();
     }
 

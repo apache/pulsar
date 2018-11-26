@@ -17,21 +17,12 @@
 # under the License.
 #
 
-Configuration:
-  name: test
-
-  Appenders:
-
-    # Console
-    Console:
-      name: Console
-      target: SYSTEM_OUT
-      PatternLayout:
-        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
-
-  Loggers:
-
-    Root:
-      level: info
-      AppenderRef:
-        - ref: Console
+configs:
+        zkServers: "127.0.0.1:2181"
+        batchSize: "5120"
+        destination: "example"
+        username: ""
+        password: ""
+        cluster: false
+        singleHostname: "127.0.0.1"
+        singlePort: "11111"

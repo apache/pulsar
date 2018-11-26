@@ -122,8 +122,9 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
+        <groupId>com.github.m50d</groupId>
         <artifactId>aspectj-maven-plugin</artifactId>
+        <version>${aspectj-maven-plugin.version}</version>
         <configuration>
           <complianceLevel>1.8</complianceLevel>
           <source>1.8</source>

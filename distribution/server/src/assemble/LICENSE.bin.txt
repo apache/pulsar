@@ -417,25 +417,25 @@ The Apache Software License, Version 2.0
  * HttpClient
     - org.apache.httpcomponents-httpclient-4.5.5.jar
     - org.apache.httpcomponents-httpcore-4.4.9.jar
- * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.1.2.jar
+ * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.2.0.jar
  * OkHttp - com.squareup.okhttp-okhttp-2.5.0.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
  * Javassist -- org.javassist-javassist-3.21.0-GA.jar
   * gRPC
-    - io.grpc-grpc-all-1.12.0.jar
-    - io.grpc-grpc-auth-1.12.0.jar
-    - io.grpc-grpc-context-1.12.0.jar
-    - io.grpc-grpc-core-1.12.0.jar
-    - io.grpc-grpc-netty-1.12.0.jar
-    - io.grpc-grpc-okhttp-1.12.0.jar
-    - io.grpc-grpc-protobuf-1.12.0.jar
-    - io.grpc-grpc-protobuf-lite-1.12.0.jar
-    - io.grpc-grpc-protobuf-nano-1.12.0.jar
-    - io.grpc-grpc-stub-1.12.0.jar
+    - io.grpc-grpc-all-1.16.1.jar
+    - io.grpc-grpc-auth-1.16.1.jar
+    - io.grpc-grpc-context-1.16.1.jar
+    - io.grpc-grpc-core-1.16.1.jar
+    - io.grpc-grpc-netty-1.16.1.jar
+    - io.grpc-grpc-okhttp-1.16.1.jar
+    - io.grpc-grpc-protobuf-1.16.1.jar
+    - io.grpc-grpc-protobuf-lite-1.16.1.jar
+    - io.grpc-grpc-protobuf-nano-1.16.1.jar
+    - io.grpc-grpc-stub-1.16.1.jar
     - io.grpc-grpc-testing-1.12.0.jar
   * OpenCensus
-    - io.opencensus-opencensus-api-0.11.0.jar
-    - io.opencensus-opencensus-contrib-grpc-metrics-0.11.0.jar
+    - io.opencensus-opencensus-api-0.12.3.jar
+    - io.opencensus-opencensus-contrib-grpc-metrics-0.12.3.jar
   * Paranamer
     - com.thoughtworks.paranamer-paranamer-2.7.jar
   * Jodah
@@ -469,6 +469,8 @@ The Apache Software License, Version 2.0
     - io.dropwizard.metrics-metrics-jvm-3.1.0.jar
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.5.0.jar
+  * JavaX Injection
+    - javax.inject-javax.inject-1.jar
 
 
 BSD 3-clause "New" or "Revised" License
@@ -476,7 +478,7 @@ BSD 3-clause "New" or "Revised" License
     - com.google.auth-google-auth-library-credentials-0.9.0.jar -- licenses/LICENSE-google-auth-library.txt
  * JLine -- jline-jline-0.9.94.jar -- licenses/LICENSE.JLine.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- licenses/LICENSE-LevelDB.txt
- * JSR305 -- com.google.code.findbugs-jsr305-3.0.0.jar -- licenses/LICENSE-JSR305.txt
+ * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- licenses/LICENSE-JSR305.txt
 
 BSD 2-Clause License
  * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.1.9.jar -- licenses/LICENSE-HdrHistogram.txt
@@ -487,7 +489,8 @@ MIT License
     - org.slf4j-jul-to-slf4j-1.7.25.jar
     - org.slf4j-slf4j-api-1.7.25.jar
     - org.slf4j-jcl-over-slf4j-1.7.25.jar
- * Lombok -- org.projectlombok-lombok-1.18.0.jar  -- licenses/LICENSE-Lombok.txt
+ * Animal Sniffer Annotations
+    - org.codehaus.mojo-animal-sniffer-annotations-1.17.jar
 
 Protocol Buffers License
  * Protocol Buffers
@@ -498,33 +501,36 @@ Protocol Buffers License
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
     - javax.annotation-javax.annotation-api-1.2.jar
+    - javax.activation-javax.activation-api-1.2.0.jar
+    - javax.xml.bind-activation-1.0.2.jar
+    - javax.xml.bind-jaxb-api-2.3.1.jar
  * Java Servlet API -- javax.servlet-javax.servlet-api-3.1.0.jar
  * WebSocket Server API -- javax.websocket-javax.websocket-client-api-1.0.jar
  * Java Web Service REST API -- javax.ws.rs-javax.ws.rs-api-2.1.jar
  * HK2 - Dependency Injection Kernel
-    - org.glassfish.hk2-hk2-api-2.5.0-b30.jar
-    - org.glassfish.hk2-hk2-locator-2.5.0-b30.jar
-    - org.glassfish.hk2-hk2-utils-2.5.0-b30.jar
+    - org.glassfish.hk2-hk2-api-2.5.0-b42.jar
+    - org.glassfish.hk2-hk2-locator-2.5.0-b42.jar
+    - org.glassfish.hk2-hk2-utils-2.5.0-b42.jar
     - org.glassfish.hk2-osgi-resource-locator-1.0.1.jar
-    - org.glassfish.hk2.external-aopalliance-repackaged-2.5.0-b30.jar
-    - org.glassfish.hk2.external-javax.inject-2.5.0-b30.jar
+    - org.glassfish.hk2.external-aopalliance-repackaged-2.5.0-b42.jar
+    - org.glassfish.hk2.external-javax.inject-2.5.0-b42.jar
  * Jersey
-    - org.glassfish.jersey.bundles.repackaged-jersey-guava-2.25.jar
-    - org.glassfish.jersey.containers-jersey-container-servlet-2.25.jar
-    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.25.jar
-    - org.glassfish.jersey.core-jersey-client-2.25.jar
-    - org.glassfish.jersey.core-jersey-common-2.25.jar
-    - org.glassfish.jersey.core-jersey-server-2.25.jar
-    - org.glassfish.jersey.ext-jersey-entity-filtering-2.25.jar
-    - org.glassfish.jersey.media-jersey-media-jaxb-2.25.jar
-    - org.glassfish.jersey.media-jersey-media-json-jackson-2.25.jar
-    - org.glassfish.jersey.media-jersey-media-multipart-2.25.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-2.27.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.27.jar
+    - org.glassfish.jersey.core-jersey-client-2.27.jar
+    - org.glassfish.jersey.core-jersey-common-2.27.jar
+    - org.glassfish.jersey.core-jersey-server-2.27.jar
+    - org.glassfish.jersey.ext-jersey-entity-filtering-2.27.jar
+    - org.glassfish.jersey.media-jersey-media-jaxb-2.27.jar
+    - org.glassfish.jersey.media-jersey-media-json-jackson-2.27.jar
+    - org.glassfish.jersey.media-jersey-media-multipart-2.27.jar
+    - org.glassfish.jersey.inject-jersey-hk2-2.27.jar
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.6.jar
 
 Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
  * AspectJ
-    - org.aspectj-aspectjrt-1.9.1.jar
-    - org.aspectj-aspectjweaver-1.9.1.jar
+    - org.aspectj-aspectjrt-1.9.2.jar
+    - org.aspectj-aspectjweaver-1.9.2.jar
 
 Public Domain
  * XZ for Java -- licenses/LICENSE-xz.txt
