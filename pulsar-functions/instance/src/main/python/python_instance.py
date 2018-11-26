@@ -211,12 +211,12 @@ class PythonInstance(object):
 
           # stop timer for process time
           self.stats.process_time_end()
-
-          # incr total processed stat
-          self.stats.incr_total_processed()
         except Exception as e:
           Log.exception("Exception while executing user method")
-          self.stats.incr_total_user_exceptions();
+          self.stats.incr_total_user_exceptions()
+
+        # incr total processed stat
+        self.stats.incr_total_processed()
 
         if self.log_topic_handler is not None:
           log.remove_all_handlers()
