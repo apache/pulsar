@@ -536,6 +536,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
+        functionStatusBuilder.setNumReceived((long)stats.getTotalRecordsReceived());
         functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
         functionStatusBuilder.setNumUserExceptions((long) stats.getTotalUserExceptions());
         stats.getLatestUserExceptions().forEach(ex -> {

@@ -33,6 +33,7 @@ message FunctionStatus {
     string failureException = 2;
     int64 numRestarts = 3;
     // int64 numProcessed = 4;
+    int64 numReceived = 17;
     int64 numSuccessfullyProcessed = 5;
     int64 numUserExceptions = 6;
     repeated ExceptionInformation latestUserExceptions = 7;

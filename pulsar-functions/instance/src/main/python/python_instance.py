@@ -336,12 +336,14 @@ class PythonInstance(object):
     status = InstanceCommunication_pb2.FunctionStatus()
     status.running = True
 
+    total_received = self.stats.get_total_received()
     total_processed_successfully = self.stats.get_total_processed_successfully()
     total_user_exceptions = self.stats.get_total_user_exceptions()
     total_sys_exceptions = self.stats.get_total_sys_exceptions()
     avg_process_latency_ms = self.stats.get_avg_process_latency()
     last_invocation = self.stats.get_last_invocation()
 
+    status.numReceived = int(total_received) if sys.version_info.major >= 3 else long(total_received)
     status.numSuccessfullyProcessed = int(total_processed_successfully) if sys.version_info.major >= 3 else long(total_processed_successfully)
     status.numUserExceptions = int(total_user_exceptions) if sys.version_info.major >= 3 else long(total_user_exceptions)
     status.instanceId = self.instance_config.instance_id
