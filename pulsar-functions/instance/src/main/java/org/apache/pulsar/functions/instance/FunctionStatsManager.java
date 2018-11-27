@@ -23,11 +23,14 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
+import io.prometheus.client.exporter.common.TextFormat;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
+import java.io.IOException;
+import java.io.StringWriter;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -95,12 +98,16 @@ public class FunctionStatsManager implements AutoCloseable {
 
     private ScheduledFuture<?> scheduledFuture;
 
+    private final CollectorRegistry collectorRegistry;
+
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions = EvictingQueue.create(10);
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions = EvictingQueue.create(10);
 
     public FunctionStatsManager(CollectorRegistry collectorRegistry, String[] metricsLabels, ScheduledExecutorService scheduledExecutorService) {
+
+        this.collectorRegistry = collectorRegistry;
 
         this.metricsLabels = metricsLabels;
 
@@ -356,6 +363,14 @@ public class FunctionStatsManager implements AutoCloseable {
         statTotalRecordsRecieved1min.clear();
         latestUserExceptions.clear();
         latestSystemExceptions.clear();
+    }
+
+    public String getStatsAsString() throws IOException {
+        StringWriter outputWriter = new StringWriter();
+
+        TextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
+
+        return outputWriter.toString();
     }
 
     @Override
