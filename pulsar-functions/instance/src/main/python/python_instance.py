@@ -295,6 +295,7 @@ class PythonInstance(object):
     avg_process_latency_ms = self.stats.get_avg_process_latency()
     last_invocation = self.stats.get_last_invocation()
 
+    total_received_1min = self.stats.get_total_received_1min()
     total_processed_successfully_1min = self.stats.get_total_processed_successfully_1min()
     total_user_exceptions_1min = self.stats.get_total_user_exceptions_1min()
     total_sys_exceptions_1min = self.stats.get_total_sys_exceptions_1min()
@@ -309,6 +310,7 @@ class PythonInstance(object):
     metrics_data.avgProcessLatency = avg_process_latency_ms
     metrics_data.lastInvocation = int(last_invocation) if sys.version_info.major >= 3 else long(last_invocation)
     # 1min metrics
+    metrics_data.receivedTotal_1min = int(total_received_1min) if sys.version_info.major >= 3 else long(total_received_1min)
     metrics_data.processedSuccessfullyTotal_1min = int(
       total_processed_successfully_1min) if sys.version_info.major >= 3 else long(total_processed_successfully_1min)
     metrics_data.systemExceptionsTotal_1min = int(total_sys_exceptions_1min) if sys.version_info.major >= 3 else long(
