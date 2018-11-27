@@ -543,7 +543,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         SchemaInfo si = schema.getSchemaInfo();
-        if (SchemaType.BYTES == si.getType()) {
+        if (si != null && SchemaType.BYTES == si.getType()) {
             // don't set schema for Schema.BYTES
             si = null;
         }
