@@ -64,7 +64,7 @@ public class TokensCliUtils {
         String outputFile;
 
         @Parameter(names = {
-                "-b", "--base-64" }, description = "Encode the key in base64")
+                "-b", "--base64" }, description = "Encode the key in base64")
         boolean base64 = false;
 
         public void run() throws IOException {
@@ -115,22 +115,32 @@ public class TokensCliUtils {
                 "--expiry-time" }, description = "Relative expiry time for the token (eg: 1h, 3d, 10y). (m=minutes) Default: no expiration")
         private String expiryTime;
 
-        @Parameter(names = { "-pk",
-                "--is-private-key" }, description = "Indicate the signing key is a private key (rather than a symmetric secret key)")
-        private Boolean isPrivateKey = false;
+        @Parameter(names = { "-sk",
+                "--secret-key" }, description = "Pass the secret key for signing the token. This can either be: data:, file:, etc..")
+        private String secretKey;
 
-        @Parameter(names = { "-k",
-                "--signing-key" }, description = "Pass the signing key. This can either be: data:, file:, etc..", required = true)
-        private String key;
+        @Parameter(names = { "-pk",
+                "--private-key" }, description = "Pass the private key for signing the token. This can either be: data:, file:, etc..")
+        private String privateKey;
 
         public void run() throws Exception {
-            byte[] encodedKey = AuthTokenUtils.readKeyFromUrl(key);
+            if (secretKey == null && privateKey == null) {
+                System.err.println(
+                        "Either --secret-key or --private-key needs to be passed for signing a token");
+                System.exit(1);
+            } else if (secretKey != null && privateKey != null) {
+                System.err.println(
+                        "Only one between --secret-key and --private-key needs to be passed for signing a token");
+                System.exit(1);
+            }
 
             Key signingKey;
 
-            if (isPrivateKey) {
+            if (privateKey != null) {
+                byte[] encodedKey = AuthTokenUtils.readKeyFromUrl(privateKey);
                 signingKey = AuthTokenUtils.decodePrivateKey(encodedKey);
             } else {
+                byte[] encodedKey = AuthTokenUtils.readKeyFromUrl(secretKey);
                 signingKey = AuthTokenUtils.decodeSecretKey(encodedKey);
             }
 
@@ -157,7 +167,7 @@ public class TokensCliUtils {
         private Boolean stdin = false;
 
         @Parameter(names = { "-f",
-                "--token-file" }, description = "Read tokn from a file")
+                "--token-file" }, description = "Read token from a file")
         private String tokenFile;
 
         public void run() throws Exception {
@@ -174,7 +184,7 @@ public class TokensCliUtils {
                 token = System.getenv("TOKEN");
             } else {
                 System.err.println(
-                        "Token needs to be either passed through `--stdin`, `--token-file` or by `TOKEN` environment variable");
+                        "Token needs to be either passed as an argument or through `--stdin`, `--token-file` or by `TOKEN` environment variable");
                 System.exit(1);
                 return;
             }
