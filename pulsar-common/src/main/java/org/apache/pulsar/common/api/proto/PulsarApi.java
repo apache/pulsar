@@ -6842,6 +6842,10 @@ public final class PulsarApi {
     // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 13 [default = Latest];
     boolean hasInitialPosition();
     org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition();
+    
+    // optional uint64 receiver_delay = 14;
+    boolean hasReceiverDelay();
+    long getReceiverDelay();
   }
   public static final class CommandSubscribe extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -7170,6 +7174,16 @@ public final class PulsarApi {
       return initialPosition_;
     }
     
+    // optional uint64 receiver_delay = 14;
+    public static final int RECEIVER_DELAY_FIELD_NUMBER = 14;
+    private long receiverDelay_;
+    public boolean hasReceiverDelay() {
+      return ((bitField0_ & 0x00001000) == 0x00001000);
+    }
+    public long getReceiverDelay() {
+      return receiverDelay_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -7184,6 +7198,7 @@ public final class PulsarApi {
       readCompacted_ = false;
       schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
       initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+      receiverDelay_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -7279,6 +7294,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         output.writeEnum(13, initialPosition_.getNumber());
       }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        output.writeUInt64(14, receiverDelay_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -7338,6 +7356,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(13, initialPosition_.getNumber());
+      }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(14, receiverDelay_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -7478,6 +7500,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000800);
         initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
         bitField0_ = (bitField0_ & ~0x00001000);
+        receiverDelay_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00002000);
         return this;
       }
       
@@ -7564,6 +7588,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000800;
         }
         result.initialPosition_ = initialPosition_;
+        if (((from_bitField0_ & 0x00002000) == 0x00002000)) {
+          to_bitField0_ |= 0x00001000;
+        }
+        result.receiverDelay_ = receiverDelay_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -7615,6 +7643,9 @@ public final class PulsarApi {
         }
         if (other.hasInitialPosition()) {
           setInitialPosition(other.getInitialPosition());
+        }
+        if (other.hasReceiverDelay()) {
+          setReceiverDelay(other.getReceiverDelay());
         }
         return this;
       }
@@ -7765,6 +7796,11 @@ public final class PulsarApi {
                 bitField0_ |= 0x00001000;
                 initialPosition_ = value;
               }
+              break;
+            }
+            case 112: {
+              bitField0_ |= 0x00002000;
+              receiverDelay_ = input.readUInt64();
               break;
             }
           }
@@ -8205,6 +8241,27 @@ public final class PulsarApi {
       public Builder clearInitialPosition() {
         bitField0_ = (bitField0_ & ~0x00001000);
         initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+        
+        return this;
+      }
+      
+      // optional uint64 receiver_delay = 14;
+      private long receiverDelay_ ;
+      public boolean hasReceiverDelay() {
+        return ((bitField0_ & 0x00002000) == 0x00002000);
+      }
+      public long getReceiverDelay() {
+        return receiverDelay_;
+      }
+      public Builder setReceiverDelay(long value) {
+        bitField0_ |= 0x00002000;
+        receiverDelay_ = value;
+        
+        return this;
+      }
+      public Builder clearReceiverDelay() {
+        bitField0_ = (bitField0_ & ~0x00002000);
+        receiverDelay_ = 0L;
         
         return this;
       }

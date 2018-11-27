@@ -309,7 +309,7 @@ public class NonPersistentTopic implements Topic {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition, long receiverDelay) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
         
@@ -360,7 +360,7 @@ public class NonPersistentTopic implements Topic {
 
         try {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0, cnx,
-                                             cnx.getRole(), metadata, readCompacted, initialPosition);
+                                             cnx.getRole(), metadata, readCompacted, initialPosition, receiverDelay);
             subscription.addConsumer(consumer);
             if (!cnx.isActive()) {
                 consumer.close();

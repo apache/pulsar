@@ -322,12 +322,13 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest, null);
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest, null, 0);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
+                                       SchemaInfo schemaInfo, long receiverDelay) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -348,6 +349,10 @@ public class Commands {
         if (schemaInfo != null) {
             schema = getSchema(schemaInfo);
             subscribeBuilder.setSchema(schema);
+        }
+
+        if (receiverDelay > 0) {
+            subscribeBuilder.setReceiverDelay(receiverDelay);
         }
 
         CommandSubscribe subscribe = subscribeBuilder.build();

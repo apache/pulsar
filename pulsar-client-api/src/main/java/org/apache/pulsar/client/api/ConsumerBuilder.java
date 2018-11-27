@@ -377,4 +377,17 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            whether to auto update partition increasement
      */
     ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
+
+     /**
+     * Set given receiver delay for consumer
+     *
+     * By default messages are received by consumer as soon as they are published by producer.
+     * With this parameter enabled the consumer will only receive messages that are older than receiver delay from the
+     * moment they were published.
+     * Messages which are not older are scheduled for delivery at the moment of time of being older than receiver delay.
+     *
+     * @param receiverDelay amount of time for messages to be received.
+     * @param timeUnit unit of time in which receiver delay is configured.
+     */
+    ConsumerBuilder<T> receiverDelay(long receiverDelay, TimeUnit timeUnit);
 }

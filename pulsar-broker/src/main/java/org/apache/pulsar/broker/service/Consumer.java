@@ -29,18 +29,13 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
 
-import lombok.Data;
-
+import io.netty.util.concurrent.ScheduledFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -67,6 +62,8 @@ import org.slf4j.LoggerFactory;
  * A Consumer is a consumer currently connected and associated with a Subscription
  */
 public class Consumer {
+    private static final int MAX_REDELIVERY_AT_ONCE = 100;
+    private static final int SCHED_CHECK_DEFERRED_MS = 1000;
     private final Subscription subscription;
     private final SubType subType;
     private final ServerCnx cnx;
@@ -76,6 +73,7 @@ public class Consumer {
     private final int partitionIdx;
     private final InitialPosition subscriptionInitialPosition;
 
+    private final long receiverDelay;
     private final long consumerId;
     private final int priorityLevel;
     private final boolean readCompacted;
@@ -108,6 +106,9 @@ public class Consumer {
 
     private final Map<String, String> metadata;
 
+    private final DelayQueue<DelayPositionInfo> delayedPositions;
+    private volatile ScheduledFuture<?> schedProcessDelay;
+
     public interface SendListener {
         void sendComplete(ChannelFuture future, SendMessageInfo sendMessageInfo);
     }
@@ -115,7 +116,8 @@ public class Consumer {
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, ServerCnx cnx, String appId,
-                    Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition) throws BrokerServiceException {
+                    Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
+                    long receiverDelay) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -132,6 +134,7 @@ public class Consumer {
         this.msgRedeliver = new Rate();
         this.appId = appId;
         this.authenticationData = cnx.authenticationData;
+        this.receiverDelay = receiverDelay;
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
@@ -150,6 +153,66 @@ public class Consumer {
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
+        }
+
+        if (isReceiverDelayEnabled()) {
+            this.delayedPositions = new DelayQueue<>();
+            this.schedProcessDelay = ctx().channel().eventLoop().schedule(
+                    this::processDelayEntries, SCHED_CHECK_DEFERRED_MS, TimeUnit.MILLISECONDS);
+        } else {
+            this.delayedPositions = null;
+            this.schedProcessDelay = null;
+        }
+    }
+
+    private void processDelayEntries() {
+        if (delayedPositions.isEmpty()) {
+            log.debug("[{}-{}] no pending messages to deliver for deferred consumer", topicName, subscription);
+            this.schedProcessDelay = ctx().channel().eventLoop().schedule(
+                    this::processDelayEntries, SCHED_CHECK_DEFERRED_MS, TimeUnit.MILLISECONDS);
+            return;
+        }
+
+        List<PositionImpl> redeliverPositions = new ArrayList<>();
+        DelayPositionInfo entry;
+        int totalRedeliveryMessages = 0;
+        boolean hasBeenScheduled = false;
+        for (int i = 0; (entry = delayedPositions.peek()) != null && i <= MAX_REDELIVERY_AT_ONCE; i++) {
+            final long delay = entry.getDelay(TimeUnit.MILLISECONDS);
+
+            if (delay > 0) {
+                this.schedProcessDelay = ctx().channel().eventLoop().schedule(this::processDelayEntries,
+                        Math.min(delay, SCHED_CHECK_DEFERRED_MS), TimeUnit.MILLISECONDS);
+                hasBeenScheduled = true;
+                break;
+            }
+
+            totalRedeliveryMessages += entry.getBatchSize();
+            redeliverPositions.add(entry.getPosition());
+            delayedPositions.remove();
+        }
+
+        if (!redeliverPositions.isEmpty()) {
+            log.debug("[{}-{}] redelivering {} messages on delayed consumer and available permits are: {}",
+                topicName, subscription, totalRedeliveryMessages, getAvailablePermits());
+
+            addAndGetUnAckedMsgs(this, -totalRedeliveryMessages);
+            blockedConsumerOnUnackedMsgs = false;
+            subscription.redeliverUnacknowledgedMessages(this, redeliverPositions);
+            msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
+
+            PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndAdd(this, -totalRedeliveryMessages);
+            MESSAGE_PERMITS_UPDATER.getAndAdd(this, totalRedeliveryMessages);
+            subscription.consumerFlow(this, totalRedeliveryMessages);
+        }
+
+        if (!hasBeenScheduled) {
+            if (delayedPositions.isEmpty()) {
+                this.schedProcessDelay = ctx().channel().eventLoop().schedule(
+                        this::processDelayEntries, SCHED_CHECK_DEFERRED_MS, TimeUnit.MILLISECONDS);
+            } else {
+                ctx().channel().eventLoop().execute(this::processDelayEntries);
+            }
         }
     }
 
@@ -201,10 +264,11 @@ public class Consumer {
      *
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
-    public SendMessageInfo sendMessages(final List<Entry> entries, SendListener listener) {
+    public SendMessageInfo sendMessages(final List<Entry> e, SendListener listener) {
         final ChannelHandlerContext ctx = cnx.ctx();
         final SendMessageInfo sentMessages = new SendMessageInfo();
         final ChannelPromise writePromise = listener != null ? ctx.newPromise() : ctx.voidPromise();
+        final CopyOnWriteArrayList<Entry> entries = new CopyOnWriteArrayList<>(e);
 
         if (listener != null) {
             writePromise.addListener(future -> listener.sendComplete(writePromise, sentMessages));
@@ -303,6 +367,7 @@ public class Consumer {
     }
 
     void updatePermitsAndPendingAcks(final List<Entry> entries, SendMessageInfo sentMessages) throws PulsarServerException {
+        final List<Entry> entriesToDiscard = new ArrayList<>();
         int permitsToReduce = 0;
         Iterator<Entry> iter = entries.iterator();
         boolean unsupportedVersion = false;
@@ -314,12 +379,26 @@ public class Consumer {
             int batchSize = getBatchSizeforEntry(metadataAndPayload, subscription, consumerId);
             if (batchSize == -1) {
                 // this would suggest that the message might have been corrupted
-                iter.remove();
+                entriesToDiscard.add(entry);
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 entry.release();
                 subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual, Collections.emptyMap());
                 continue;
             }
+
+            if (isReceiverDelayEnabled()) {
+                final long timeToDeliver = readPublishFrom(metadataAndPayload) + receiverDelay;
+
+                if (isExpired(timeToDeliver)) {
+                    entriesToDiscard.add(entry);
+                    PositionImpl pos = (PositionImpl) entry.getPosition();
+                    permitsToReduce += batchSize;
+                    entry.release();
+                    delayedPositions.add(new DelayPositionInfo(pos, timeToDeliver, batchSize));
+                    continue;
+                }
+            }
+
             if (pendingAcks != null) {
                 pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
             }
@@ -343,9 +422,30 @@ public class Consumer {
             }
         }
 
+        if (!entriesToDiscard.isEmpty()) {
+            entries.removeAll(entriesToDiscard);
+        }
+
         msgOut.recordMultipleEvents(permitsToReduce, totalReadableBytes);
         sentMessages.totalSentMessages = permitsToReduce;
         sentMessages.totalSentMessageBytes = totalReadableBytes;
+    }
+
+    private static boolean isExpired(long timeToDeliver) {
+        return System.currentTimeMillis() < timeToDeliver;
+    }
+
+    private static long readPublishFrom(final ByteBuf metadataAndPayload) {
+        metadataAndPayload.markReaderIndex();
+        final PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+        metadataAndPayload.resetReaderIndex();
+        long publishTime = metadata.getPublishTime();
+        metadata.recycle();
+        return publishTime;
+    }
+
+    private boolean isReceiverDelayEnabled() {
+        return receiverDelay > 0;
     }
 
     public boolean isWritable() {
@@ -361,12 +461,23 @@ public class Consumer {
      * pending message acks
      */
     public void close() throws BrokerServiceException {
+        tearDownDeferredData();
         subscription.removeConsumer(this);
         cnx.removedConsumer(this);
     }
 
+    private void tearDownDeferredData() {
+        if (isReceiverDelayEnabled()) {
+            if (!schedProcessDelay.isDone()) {
+                schedProcessDelay.cancel(false);
+            }
+            delayedPositions.clear();
+        }
+    }
+
     public void disconnect() {
         log.info("Disconnecting consumer: {}", this);
+        tearDownDeferredData();
         cnx.closeConsumer(this);
         try {
             close();
@@ -377,6 +488,7 @@ public class Consumer {
 
     void doUnsubscribe(final long requestId) {
         final ChannelHandlerContext ctx = cnx.ctx();
+        tearDownDeferredData();
 
         subscription.doUnsubscribe(this).thenAccept(v -> {
             log.info("Unsubscribed successfully from {}", subscription);
@@ -695,6 +807,37 @@ public class Consumer {
 
         public void setTotalSentMessageBytes(long totalSentMessageBytes) {
             this.totalSentMessageBytes = totalSentMessageBytes;
+        }
+    }
+
+    private static final class DelayPositionInfo implements Delayed {
+
+        private final PositionImpl position;
+        private final long timeToDeliver;
+        private final int batchSize;
+
+        DelayPositionInfo(PositionImpl position, long timeToDeliver, int batchSize) {
+            this.position = position;
+            this.batchSize = batchSize;
+            this.timeToDeliver = timeToDeliver;
+        }
+
+        PositionImpl getPosition() {
+            return position;
+        }
+
+        int getBatchSize() {
+            return batchSize;
+        }
+
+        @Override
+        public long getDelay(TimeUnit unit) {
+            return unit.toMillis(timeToDeliver - System.currentTimeMillis());
+        }
+
+        @Override
+        public int compareTo(Delayed d) {
+            return Long.compare(timeToDeliver, ((DelayPositionInfo) d).timeToDeliver);
         }
     }
 

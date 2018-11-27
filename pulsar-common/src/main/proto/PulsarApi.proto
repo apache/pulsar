@@ -236,6 +236,8 @@ message CommandSubscribe {
 	// Signal wthether the subscription will initialize on latest
 	// or not -- earliest
 	optional InitialPosition initialPosition = 13 [default = Latest];
+
+	optional uint64 receiver_delay = 14;
 }
 
 message CommandPartitionedTopicMetadata {

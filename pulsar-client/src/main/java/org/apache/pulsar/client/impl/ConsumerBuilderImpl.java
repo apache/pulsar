@@ -295,6 +295,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
         conf.setAutoUpdatePartitions(autoUpdate);
+    }
+
+    @Override
+    public ConsumerBuilder<T> receiverDelay(long delay, TimeUnit unit) {
+        final long millis = unit.toMillis(delay);
+        checkArgument(millis > 0, "Receiver delay cannot be smaller than 1 millisecond.");
+        conf.setReceiverDelay(unit.toMillis(delay));
         return this;
     }
 
