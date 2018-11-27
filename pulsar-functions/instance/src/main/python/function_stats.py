@@ -104,13 +104,16 @@ class Stats(object):
       else process_latency_ms_sum / process_latency_ms_count
 
   def get_total_processed_successfully_1min(self):
-    return self.stat_total_processed_successfully_1min.labels(*self.metrics_labels)._value.get();
+    return self.stat_total_processed_successfully_1min.labels(*self.metrics_labels)._value.get()
 
   def get_total_sys_exceptions_1min(self):
-    return self.stat_total_sys_exceptions_1min.labels(*self.metrics_labels)._value.get();
+    return self.stat_total_sys_exceptions_1min.labels(*self.metrics_labels)._value.get()
 
   def get_total_user_exceptions_1min(self):
-    return self.stat_total_user_exceptions_1min.labels(*self.metrics_labels)._value.get();
+    return self.stat_total_user_exceptions_1min.labels(*self.metrics_labels)._value.get()
+
+  def get_total_received_1min(self):
+    return self.stat_total_received_1min.labels(*self.metrics_labels)._value.get()
 
   def get_avg_process_latency_1min(self):
     process_latency_ms_count = self.stat_process_latency_ms_1min.labels(*self.metrics_labels)._count.get()
