@@ -35,7 +35,8 @@ case class WordWithCount(word: String, count: Long) {
   */
 object FlinkPulsarBatchSinkScalaExample {
 
-  private val EINSTEIN_QUOTE = "Imagination is more important than knowledge. Knowledge is limited. Imagination encircles the world."
+  private val EINSTEIN_QUOTE = "Imagination is more important than knowledge. " +
+    "Knowledge is limited. Imagination encircles the world."
   private val SERVICE_URL = "pulsar://127.0.0.1:6650"
   private val TOPIC_NAME = "my-flink-topic"
 
