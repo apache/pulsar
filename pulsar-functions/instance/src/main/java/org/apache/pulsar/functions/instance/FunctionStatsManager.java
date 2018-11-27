@@ -53,7 +53,6 @@ public class FunctionStatsManager implements AutoCloseable {
     public static final String LAST_INVOCATION = "last_invocation";
     public static final String RECEIVED_TOTAL = "received_total";
 
-    public static final String PROCESSED_TOTAL_1min = "processed_total_1min";
     public static final String PROCESSED_SUCCESSFULLY_TOTAL_1min = "processed_successfully_total_1min";
     public static final String SYSTEM_EXCEPTIONS_TOTAL_1min = "system_exceptions_total_1min";
     public static final String USER_EXCEPTIONS_TOTAL_1min = "user_exceptions_total_1min";
