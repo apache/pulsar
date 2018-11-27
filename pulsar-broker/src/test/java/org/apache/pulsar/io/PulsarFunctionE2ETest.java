@@ -525,10 +525,10 @@ public class PulsarFunctionE2ETest {
 
         FunctionStatus stats = functionStatus.getFunctionStatusListList().get(0);
 
-        double count = stats.getNumProcessed();
+        double count = stats.getNumReceived();
         double success = stats.getNumSuccessfullyProcessed();
         String ownerWorkerId = stats.getWorkerId();
-        assertEquals((int) count, totalMsgs);
+        assertEquals((int)count, totalMsgs);
         assertEquals((int) success, totalMsgs);
         assertEquals(ownerWorkerId, workerId);
     }
