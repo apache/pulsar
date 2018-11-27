@@ -32,7 +32,8 @@ message FunctionStatus {
     bool running = 1;
     string failureException = 2;
     int64 numRestarts = 3;
-    int64 numProcessed = 4;
+    // int64 numProcessed = 4;
+    int64 numReceived = 17;
     int64 numSuccessfullyProcessed = 5;
     int64 numUserExceptions = 6;
     repeated ExceptionInformation latestUserExceptions = 7;
@@ -74,9 +75,10 @@ message MetricsData {
     int64 receivedTotal_1min = 10;
 
     // Total number of records processed
-    int64 processedTotal = 3;
+    // No longer used because processedSuccessfullyTotal and userExceptionsTotal add to it
+    // int64 processedTotal = 3;
 
-    int64 processedTotal_1min = 11;
+    // int64 processedTotal_1min = 11;
 
     // Total number of records successfully processed by user function
     int64 processedSuccessfullyTotal = 4;

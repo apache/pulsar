@@ -88,7 +88,6 @@ public class FunctionStatsGeneratorTest {
         CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture = new CompletableFuture<>();
         InstanceCommunication.MetricsData metricsData = InstanceCommunication.MetricsData.newBuilder()
                 .setReceivedTotal(101)
-                .setProcessedTotal(100)
                 .setProcessedSuccessfullyTotal(99)
                 .setAvgProcessLatency(10.0)
                 .setUserExceptionsTotal(3)
@@ -126,7 +125,7 @@ public class FunctionStatsGeneratorTest {
         buf.release();
         Map<String, Metric> metrics = parseMetrics(str);
 
-        Assert.assertEquals(metrics.size(), 7);
+        Assert.assertEquals(metrics.size(), 6);
 
         System.out.println("metrics: " + metrics);
         Metric m = metrics.get("pulsar_function_received_total");
@@ -135,13 +134,6 @@ public class FunctionStatsGeneratorTest {
         assertEquals(m.tags.get("name"), "func-1");
         assertEquals(m.tags.get("namespace"), "test-tenant/test-namespace");
         assertEquals(m.value, 101.0);
-
-        m = metrics.get("pulsar_function_processed_total");
-        assertEquals(m.tags.get("cluster"), "default");
-        assertEquals(m.tags.get("instanceId"), "0");
-        assertEquals(m.tags.get("name"), "func-1");
-        assertEquals(m.tags.get("namespace"), "test-tenant/test-namespace");
-        assertEquals(m.value, 100.0);
 
         m = metrics.get("pulsar_function_user_exceptions_total");
         assertEquals(m.tags.get("cluster"), "default");

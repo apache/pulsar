@@ -255,8 +255,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 // register end time
                 stats.processTimeEnd();
-                // increment total processed
-                stats.incrTotalProcessed();
 
                 removeLogTopicHandler();
 
@@ -520,7 +518,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Builder createMetricsDataBuilder() {
         InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
 
-        bldr.setProcessedTotal((long) stats.getTotalProcessed());
         bldr.setProcessedSuccessfullyTotal((long) stats.getTotalProcessedSuccessfully());
         bldr.setSystemExceptionsTotal((long) stats.getTotalSysExceptions());
         bldr.setUserExceptionsTotal((long) stats.getTotalUserExceptions());
@@ -528,7 +525,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         bldr.setAvgProcessLatency(stats.getAvgProcessLatency());
         bldr.setLastInvocation((long) stats.getLastInvocation());
 
-        bldr.setProcessedTotal1Min((long) stats.getTotalProcessed1min());
         bldr.setProcessedSuccessfullyTotal1Min((long) stats.getTotalProcessedSuccessfully1min());
         bldr.setSystemExceptionsTotal1Min((long) stats.getTotalSysExceptions1min());
         bldr.setUserExceptionsTotal1Min((long) stats.getTotalUserExceptions1min());
@@ -540,7 +536,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
-        functionStatusBuilder.setNumProcessed((long) stats.getTotalProcessed());
+        functionStatusBuilder.setNumReceived((long)stats.getTotalRecordsReceived());
         functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
         functionStatusBuilder.setNumUserExceptions((long) stats.getTotalUserExceptions());
         stats.getLatestUserExceptions().forEach(ex -> {
