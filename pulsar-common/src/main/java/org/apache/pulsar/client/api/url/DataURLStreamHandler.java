@@ -68,10 +68,6 @@ public class DataURLStreamHandler extends URLStreamHandler {
                     this.contentType = "application/data";
                 }
 
-                for (int i =0; i < matcher.groupCount(); i++) {
-                    System.out.println("Group: " + matcher.group(i));
-                }
-
                 if (matcher.group("base64") == null) {
                     // Support Urlencode but not decode here because already decoded by URI class.
                     this.data = matcher.group("data").getBytes();

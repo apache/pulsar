@@ -19,7 +19,7 @@
 package org.apache.pulsar.tests.integration.auth.token;
 
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,8 +31,8 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 @Slf4j
 public class TokenAuthWithPublicPrivateKeys extends PulsarTokenAuthenticationBaseSuite {
 
-    private static final String PRIVATE_KEY_PATH = "/tmp/private.key";
-    private static final String PUBLIC_KEY_PATH = "/tmp/public.key";
+    private static final String PRIVATE_KEY_PATH_INSIDE_CONTAINER = "/tmp/private.key";
+    private static final String PUBLIC_KEY_PATH_INSIDE_CONTAINER = "/tmp/public.key";
 
     private String publicKey;
     private String privateKey;
@@ -42,14 +42,16 @@ public class TokenAuthWithPublicPrivateKeys extends PulsarTokenAuthenticationBas
     protected void createKeysAndTokens(PulsarContainer container) throws Exception {
         container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create-key-pair",
-                        "--output-private-key", PRIVATE_KEY_PATH,
-                        "--output-public-key", PUBLIC_KEY_PATH);
+                        "--output-private-key", PRIVATE_KEY_PATH_INSIDE_CONTAINER,
+                        "--output-public-key", PUBLIC_KEY_PATH_INSIDE_CONTAINER);
 
-        container.copyFileFromContainer(PRIVATE_KEY_PATH, PRIVATE_KEY_PATH);
-        container.copyFileFromContainer(PUBLIC_KEY_PATH, PUBLIC_KEY_PATH);
+        Path privateKeyPath = Files.createTempFile("pulsar-private", "key");
+        Path publicKeyPath = Files.createTempFile("pulsar-public", "key");
+        container.copyFileFromContainer(PRIVATE_KEY_PATH_INSIDE_CONTAINER, privateKeyPath.toString());
+        container.copyFileFromContainer(PUBLIC_KEY_PATH_INSIDE_CONTAINER, publicKeyPath.toString());
 
-        privateKey = Base64.encodeAsString(Files.readAllBytes(Paths.get(PRIVATE_KEY_PATH)));
-        publicKey = Base64.encodeAsString(Files.readAllBytes(Paths.get(PUBLIC_KEY_PATH)));
+        privateKey = Base64.encodeAsString(Files.readAllBytes(privateKeyPath));
+        publicKey = Base64.encodeAsString(Files.readAllBytes(publicKeyPath));
 
         clientAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",

@@ -130,7 +130,7 @@ public class TokensCliUtils {
                 System.exit(1);
             } else if (secretKey != null && privateKey != null) {
                 System.err.println(
-                        "Only one between --secret-key and --private-key needs to be passed for signing a token");
+                        "Only one of --secret-key and --private-key needs to be passed for signing a token");
                 System.exit(1);
             }
 
@@ -184,7 +184,7 @@ public class TokensCliUtils {
                 token = System.getenv("TOKEN");
             } else {
                 System.err.println(
-                        "Token needs to be either passed as an argument or through `--stdin`, `--token-file` or by `TOKEN` environment variable");
+                        "Token needs to be either passed as an argument or through `--stdin`, `--token-file` or by the `TOKEN` environment variable");
                 System.exit(1);
                 return;
             }
