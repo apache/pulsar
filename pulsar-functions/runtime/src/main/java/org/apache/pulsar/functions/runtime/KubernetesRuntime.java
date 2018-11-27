@@ -47,6 +47,8 @@ import io.kubernetes.client.models.V1ServiceSpec;
 import io.kubernetes.client.models.V1StatefulSet;
 import io.kubernetes.client.models.V1StatefulSetSpec;
 import io.kubernetes.client.models.V1Toleration;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -297,6 +299,11 @@ class KubernetesRuntime implements Runtime {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
         retval.completeExceptionally(new RuntimeException("Kubernetes Runtime doesnt support getting metrics via rest"));
         return retval;
+    }
+
+    @Override
+    public String getPrometheusMetrics() throws IOException {
+        return RuntimeUtils.getPrometheusMetrics(METRICS_PORT);
     }
 
     @Override
