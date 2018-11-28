@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import javax.ws.rs.WebApplicationException;
@@ -121,6 +122,8 @@ public class FunctionsImpl {
     public static final String FUNCTION = "Function";
     public static final String SOURCE = "Source";
     public static final String SINK = "Sink";
+
+    private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
 
     private final Supplier<WorkerService> workerServiceSupplier;
 
@@ -1075,38 +1078,41 @@ public class FunctionsImpl {
 
         String stateStorageServiceUrl = worker().getWorkerConfig().getStateStorageServiceUrl();
 
-        try (StorageClient client = StorageClientBuilder.newBuilder()
-            .withSettings(StorageClientSettings.newBuilder()
-                .serviceUri(stateStorageServiceUrl)
-                .clientName("functions-admin")
-                .build())
-            .withNamespace(tableNs)
-            .build()) {
-            try (Table<ByteBuf, ByteBuf> table = result(client.openTable(tableName))) {
-                try (KeyValue<ByteBuf, ByteBuf> kv = result(table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))))) {
-                    if (null == kv) {
-                        return Response.status(Status.NOT_FOUND)
-                            .entity(new ErrorData("key '" + key + "' doesn't exist."))
-                            .build();
-                    } else {
-                        FunctionState value;
-                        if (kv.isNumber()) {
-                            value = new FunctionState(key, null, kv.numberValue(), kv.version());
-                        } else {
-                            value = new FunctionState(key, new String(ByteBufUtil.getBytes(kv.value()), UTF_8), null, kv.version());
-                        }
-                        return Response.status(Status.OK)
-                            .entity(new Gson().toJson(value))
-                            .build();
-                    }
-                }
-            } catch (Exception e) {
-                log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
-                    tenant, namespace, functionName, key, e);
-                return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(e.getMessage())).build();
-            }
+        if (storageClient.get() == null) {
+            storageClient.compareAndSet(null, StorageClientBuilder.newBuilder()
+                .withSettings(StorageClientSettings.newBuilder()
+                    .serviceUri(stateStorageServiceUrl)
+                    .clientName("functions-admin")
+                    .build())
+                .withNamespace(tableNs)
+                .build());
         }
+
+        try (Table<ByteBuf, ByteBuf> table = result(storageClient.get().openTable(tableName))) {
+            try (KeyValue<ByteBuf, ByteBuf> kv = result(table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))))) {
+                if (null == kv) {
+                    return Response.status(Status.NOT_FOUND)
+                        .entity(new String("key '" + key + "' doesn't exist."))
+                        .build();
+                } else {
+                    FunctionState value;
+                    if (kv.isNumber()) {
+                        value = new FunctionState(key, null, kv.numberValue(), kv.version());
+                    } else {
+                        value = new FunctionState(key, new String(ByteBufUtil.getBytes(kv.value()), UTF_8), null, kv.version());
+                    }
+                    return Response.status(Status.OK)
+                        .entity(new Gson().toJson(value))
+                        .build();
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
+                tenant, namespace, functionName, key, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
+                .entity(new ErrorData(e.getMessage())).build();
+        }
+
     }
 
     public Response uploadFunction(final InputStream uploadedInputStream, final String path) {
