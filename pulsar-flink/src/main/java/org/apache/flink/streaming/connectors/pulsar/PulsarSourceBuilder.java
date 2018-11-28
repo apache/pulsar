@@ -18,6 +18,7 @@
  */
 package org.apache.flink.streaming.connectors.pulsar;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -29,9 +30,9 @@ import org.apache.flink.util.Preconditions;
 @PublicEvolving
 public class PulsarSourceBuilder<T> {
 
-    static final String SERVICE_URL = "pulsar://localhost:6650";
-    static final long ACKNOWLEDGEMENT_BATCH_SIZE = 100;
-    static final long MAX_ACKNOWLEDGEMENT_BATCH_SIZE = 1000;
+    private static final String SERVICE_URL = "pulsar://localhost:6650";
+    private static final long ACKNOWLEDGEMENT_BATCH_SIZE = 100;
+    private static final long MAX_ACKNOWLEDGEMENT_BATCH_SIZE = 1000;
 
     final DeserializationSchema<T> deserializationSchema;
     String serviceUrl = SERVICE_URL;
@@ -50,7 +51,7 @@ public class PulsarSourceBuilder<T> {
      * @return this builder
      */
     public PulsarSourceBuilder<T> serviceUrl(String serviceUrl) {
-        Preconditions.checkNotNull(serviceUrl);
+        Preconditions.checkArgument(StringUtils.isNotBlank(serviceUrl), "serviceUrl cannot be blank");
         this.serviceUrl = serviceUrl;
         return this;
     }
@@ -66,7 +67,7 @@ public class PulsarSourceBuilder<T> {
      * @return this builder
      */
     public PulsarSourceBuilder<T> topic(String topic) {
-        Preconditions.checkNotNull(topic);
+        Preconditions.checkArgument(StringUtils.isNotBlank(topic), "topic cannot be blank");
         this.topic = topic;
         return this;
     }
@@ -78,7 +79,8 @@ public class PulsarSourceBuilder<T> {
      * @return this builder
      */
     public PulsarSourceBuilder<T> subscriptionName(String subscriptionName) {
-        Preconditions.checkNotNull(subscriptionName);
+        Preconditions.checkArgument(StringUtils.isNotBlank(subscriptionName),
+                "subscriptionName cannot be blank");
         this.subscriptionName = subscriptionName;
         return this;
     }
@@ -112,7 +114,7 @@ public class PulsarSourceBuilder<T> {
      * @return a builder
      */
     public static <T> PulsarSourceBuilder<T> builder(DeserializationSchema<T> deserializationSchema) {
-        Preconditions.checkNotNull(deserializationSchema);
+        Preconditions.checkNotNull(deserializationSchema, "deserializationSchema cannot be null");
         return new PulsarSourceBuilder<>(deserializationSchema);
     }
 }

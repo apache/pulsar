@@ -2153,6 +2153,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     })
                 .whenComplete((ignore, exception) -> {
                         if (exception != null) {
+                            log.info("[{}] Exception occurred during offload", name, exception);
+
                             PositionImpl newFirstUnoffloaded = PositionImpl.get(ledgerId, 0);
                             if (newFirstUnoffloaded.compareTo(firstUnoffloaded) > 0) {
                                 newFirstUnoffloaded = firstUnoffloaded;

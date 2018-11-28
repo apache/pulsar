@@ -66,7 +66,6 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
 
     private final long acknowledgementBatchSize;
     private long batchCount;
-    private long totalMessageCount;
 
     private transient volatile boolean isRunning;
 
@@ -147,14 +146,12 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
                 return;
             }
             context.collect(deserialize(message));
-            totalMessageCount++;
         }
     }
 
     private void emitAutoAcking(SourceContext<T> context, Message message) throws IOException {
         context.collect(deserialize(message));
         batchCount++;
-        totalMessageCount++;
         if (batchCount >= acknowledgementBatchSize) {
             LOG.info("processed {} messages acknowledging messageId {}", batchCount, message.getMessageId());
             consumer.acknowledgeCumulative(message.getMessageId());

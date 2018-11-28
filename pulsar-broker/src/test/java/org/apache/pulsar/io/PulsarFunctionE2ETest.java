@@ -18,28 +18,9 @@
  */
 package org.apache.pulsar.io;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
-import java.lang.reflect.Method;
-import java.net.InetAddress;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.ToString;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -65,6 +46,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -75,6 +57,33 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Test Pulsar sink on function
@@ -391,6 +400,79 @@ public class PulsarFunctionE2ETest {
         assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency());
         assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.getAvgProcessLatency());
 
+        // validate prometheus metrics empty
+        String prometheusMetrics = getPrometheusMetrics(brokerWebServicePort);
+        log.info("prometheus metrics: {}", prometheusMetrics);
+
+        Map<String, Metric> metrics = parseMetrics(prometheusMetrics);
+        Metric m = metrics.get("pulsar_function_received_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_received_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_user_exceptions_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_user_exceptions_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_process_latency_ms");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, Double.NaN);
+        m = metrics.get("pulsar_function_process_latency_ms_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, Double.NaN);
+        m = metrics.get("pulsar_function_system_exceptions_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_system_exceptions_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_last_invocation");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_processed_successfully_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_processed_successfully_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+
+
         // validate function instance stats empty
         FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStats = functionRuntimeManager.getFunctionInstanceStats(tenant, namespacePortion,
                 functionName, 0,  null);
@@ -464,6 +546,78 @@ public class PulsarFunctionE2ETest {
 
         assertEquals(functionInstanceStats, functionInstanceStatsAdmin);
         assertEquals(functionInstanceStats, functionStats.instances.get(0).getMetrics());
+
+        // validate prometheus metrics
+        prometheusMetrics = getPrometheusMetrics(brokerWebServicePort);
+        log.info("prometheus metrics: {}", prometheusMetrics);
+
+        metrics = parseMetrics(prometheusMetrics);
+        m = metrics.get("pulsar_function_received_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, (double) totalMsgs);
+        m = metrics.get("pulsar_function_received_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, (double) totalMsgs);
+        m = metrics.get("pulsar_function_user_exceptions_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_user_exceptions_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_process_latency_ms");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertTrue(m.value > 0.0);
+        m = metrics.get("pulsar_function_process_latency_ms_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertTrue(m.value > 0.0);
+        m = metrics.get("pulsar_function_system_exceptions_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_system_exceptions_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_function_last_invocation");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertTrue(m.value > 0.0);
+        m = metrics.get("pulsar_function_processed_successfully_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, (double) totalMsgs);
+        m = metrics.get("pulsar_function_processed_successfully_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("function"), FunctionDetailsUtils.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.value, (double) totalMsgs);
     }
 
     @Test(timeOut = 20000)
@@ -525,10 +679,10 @@ public class PulsarFunctionE2ETest {
 
         FunctionStatus stats = functionStatus.getFunctionStatusListList().get(0);
 
-        double count = stats.getNumProcessed();
+        double count = stats.getNumReceived();
         double success = stats.getNumSuccessfullyProcessed();
         String ownerWorkerId = stats.getWorkerId();
-        assertEquals((int) count, totalMsgs);
+        assertEquals((int)count, totalMsgs);
         assertEquals((int) success, totalMsgs);
         assertEquals(ownerWorkerId, workerId);
     }
@@ -628,4 +782,58 @@ public class PulsarFunctionE2ETest {
 
         producer.close();
     }
+
+    public static String getPrometheusMetrics(int metricsPort) throws IOException {
+        StringBuilder result = new StringBuilder();
+        URL url = new URL(String.format("http://%s:%s/metrics", InetAddress.getLocalHost().getHostAddress(), metricsPort));
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        String line;
+        while ((line = rd.readLine()) != null) {
+            result.append(line + System.lineSeparator());
+        }
+        rd.close();
+        return result.toString();
+    }
+
+    /**
+     * Hacky parsing of Prometheus text format. Sould be good enough for unit tests
+     */
+    private static Map<String, Metric> parseMetrics(String metrics) {
+        Map<String, Metric> parsed = new HashMap<>();
+        // Example of lines are
+        // jvm_threads_current{cluster="standalone",} 203.0
+        // or
+        // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
+        // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
+        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s(-?[\\d\\w\\.]+)(\\s(\\d+))?$");
+        Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
+        Arrays.asList(metrics.split("\n")).forEach(line -> {
+            if (line.isEmpty() || line.startsWith("#")) {
+                return;
+            }
+            Matcher matcher = pattern.matcher(line);
+            checkArgument(matcher.matches());
+            String name = matcher.group(1);
+            Metric m = new Metric();
+            m.value = Double.valueOf(matcher.group(3));
+            String tags = matcher.group(2);
+            Matcher tagsMatcher = tagsPattern.matcher(tags);
+            while (tagsMatcher.find()) {
+                String tag = tagsMatcher.group(1);
+                String value = tagsMatcher.group(2);
+                m.tags.put(tag, value);
+            }
+            parsed.put(name, m);
+        });
+        return parsed;
+    }
+
+    @ToString
+    static class Metric {
+        Map<String, String> tags = new TreeMap<>();
+        double value;
+    }
+
 }
