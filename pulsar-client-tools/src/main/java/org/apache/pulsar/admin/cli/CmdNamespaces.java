@@ -353,10 +353,16 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             long sizeLimit = validateSizeString(limitStr);
-            int retentionTimeInMin = (int) TimeUnit.SECONDS
-                    .toMinutes(RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr));
+            long retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
 
-            int retentionSizeInMB;
+            final int retentionTimeInMin;
+            if (retentionTimeInSec != -1) {
+                retentionTimeInMin = (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec);
+            } else {
+                retentionTimeInMin = -1;
+            }
+
+            final int retentionSizeInMB;
             if (sizeLimit != -1) {
                 retentionSizeInMB = (int) (sizeLimit / (1024 * 1024));
             } else {
