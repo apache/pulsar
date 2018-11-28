@@ -58,6 +58,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private String topic; // only set for incoming messages
     transient private Map<String, String> properties;
+    private final int redeliveryCount;
 
     // Constructor for out-going message
     static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
@@ -81,10 +82,16 @@ public class MessageImpl<T> implements Message<T> {
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
+        this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0);
+    }
+
+    MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
+                Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
         this.messageId = messageId;
         this.topic = topic;
         this.cnx = cnx;
+        this.redeliveryCount = redeliveryCount;
 
         // Need to make a copy since the passed payload is using a ref-count buffer that we don't know when could
         // release, since the Message is passed to the user. Also, the passed ByteBuf is coming from network and is
@@ -104,10 +111,17 @@ public class MessageImpl<T> implements Message<T> {
     MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata msgMetadata,
                 PulsarApi.SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
+        this(topic, batchMessageIdImpl, msgMetadata, singleMessageMetadata, payload, encryptionCtx, cnx, schema, 0);
+    }
+
+    MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata msgMetadata,
+                PulsarApi.SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
+                Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
         this.messageId = batchMessageIdImpl;
         this.topic = topic;
         this.cnx = cnx;
+        this.redeliveryCount = redeliveryCount;
 
         this.payload = Unpooled.copiedBuffer(payload);
         this.encryptionCtx = encryptionCtx;
@@ -149,6 +163,7 @@ public class MessageImpl<T> implements Message<T> {
         this.payload = payload;
         this.properties = Collections.unmodifiableMap(properties);
         this.schema = schema;
+        this.redeliveryCount = 0;
     }
 
     public static MessageImpl<byte[]> deserialize(ByteBuf headersAndPayload) throws IOException {
@@ -323,6 +338,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private MessageImpl(Handle<MessageImpl<?>> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
+        this.redeliveryCount = 0;
     }
 
     private Handle<MessageImpl<?>> recyclerHandle;
@@ -351,5 +367,10 @@ public class MessageImpl<T> implements Message<T> {
     @Override
     public Optional<EncryptionContext> getEncryptionCtx() {
         return encryptionCtx;
+    }
+
+    @Override
+    public int getRedeliveryCount() {
+        return redeliveryCount;
     }
 }

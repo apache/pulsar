@@ -32,7 +32,8 @@
       "io-quickstart",
       "io-managing",
       "io-connectors",
-      "io-develop"
+      "io-develop",
+      "io-cdc"
     ],
     "Pulsar SQL": [
       "sql-overview",

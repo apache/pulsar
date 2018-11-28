@@ -31,6 +31,7 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
  * Configuration class for the ElasticSearch Sink Connector.
@@ -45,16 +46,46 @@ public class ElasticSearchConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The url of elastic search cluster that the connector connects to"
+    )
     private String elasticSearchUrl;
 
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The index name that the connector writes messages to"
+    )
     private String indexName;
 
+    @FieldDoc(
+        required = false,
+        defaultValue = "1",
+        help = "The number of shards of the index"
+    )
     private int indexNumberOfShards = 1;
 
+    @FieldDoc(
+        required = false,
+        defaultValue = "1",
+        help = "The number of replicas of the index"
+    )
     private int indexNumberOfReplicas = 1;
 
+    @FieldDoc(
+        required = false,
+        defaultValue = "",
+        help = "The username used by the connector to connect to the elastic search cluster. If username is set, a password should also be provided."
+    )
     private String username;
 
+    @FieldDoc(
+        required = false,
+        defaultValue = "",
+        help = "The password used by the connector to connect to the elastic search cluster. If password is set, a username should also be provided"
+    )
     private String password;
 
     public static ElasticSearchConfig load(String yamlFile) throws IOException {

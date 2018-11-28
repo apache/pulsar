@@ -101,7 +101,6 @@
                   <include>org.hdrhistogram:*</include>
                   <include>com.github.zafarkhaja:java-semver</include>
                   <include>org.aspectj:*</include>
-                  <include>com.ea.agentloader:*</include>
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
                   <include>org.apache.httpcomponents:httpcore</include>

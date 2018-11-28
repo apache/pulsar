@@ -51,6 +51,8 @@ import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,6 +82,12 @@ import org.slf4j.LoggerFactory;
  *
  *
  */
+@Connector(
+    name = "kinesis",
+    type = IOType.SINK,
+    help = "A sink connector that copies messages from Pulsar to Kinesis",
+    configClass = KinesisSinkConfig.class
+)
 public class KinesisSink implements Sink<byte[]> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KinesisSink.class);

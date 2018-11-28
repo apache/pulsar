@@ -41,20 +41,32 @@ def doHttpPost(url, data):
     req.add_header('Content-Type', 'application/json')
     urlopen(req)
 
-import urllib2
+
 def doHttpPut(url, data):
-    opener = urllib2.build_opener(urllib2.HTTPHandler)
-    request = urllib2.Request(url, data=data.encode())
-    request.add_header('Content-Type', 'application/json')
-    request.get_method = lambda: 'PUT'
-    opener.open(request)
+    try:
+        req = Request(url, data.encode())
+        req.add_header('Content-Type', 'application/json')
+        req.get_method = lambda: 'PUT'
+        urlopen(req)
+    except Exception as ex:
+        # ignore conflicts exception to have test idempotency
+        if '409' in str(ex):
+            pass
+        else:
+            raise ex
+
+
+def doHttpGet(url):
+    req = Request(url)
+    req.add_header('Accept', 'application/json')
+    return urlopen(req).read()
 
 class PulsarTest(TestCase):
 
-    serviceUrl = 'pulsar://localhost:8885'
-    adminUrl = 'http://localhost:8765'
+    serviceUrl = 'pulsar://localhost:6650'
+    adminUrl = 'http://localhost:8080'
 
-    serviceUrlTls = 'pulsar+ssl://localhost:9886'
+    serviceUrlTls = 'pulsar+ssl://localhost:6651'
 
     def test_producer_config(self):
         conf = ProducerConfiguration()
@@ -80,23 +92,23 @@ class PulsarTest(TestCase):
 
     def test_simple_producer(self):
         client = Client(self.serviceUrl)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic')
-        producer.send('hello')
+        producer = client.create_producer('my-python-topic')
+        producer.send(b'hello')
         producer.close()
         client.close()
 
     def test_producer_send_async(self):
         client = Client(self.serviceUrl)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic')
+        producer = client.create_producer('my-python-topic')
 
         sent_messages = []
 
         def send_callback(producer, msg):
             sent_messages.append(msg)
 
-        producer.send_async('hello', send_callback)
-        producer.send_async('hello', send_callback)
-        producer.send_async('hello', send_callback)
+        producer.send_async(b'hello', send_callback)
+        producer.send_async(b'hello', send_callback)
+        producer.send_async(b'hello', send_callback)
 
         i = 0
         while len(sent_messages) < 3 and i < 100:
@@ -107,11 +119,11 @@ class PulsarTest(TestCase):
 
     def test_producer_consumer(self):
         client = Client(self.serviceUrl)
-        consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-producer-consumer',
+        consumer = client.subscribe('my-python-topic-producer-consumer',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-producer-consumer')
-        producer.send('hello')
+        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer.send(b'hello')
 
         msg = consumer.receive(1000)
         self.assertTrue(msg)
@@ -134,11 +146,11 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=AuthenticationTLS(certs_dir + 'client-cert.pem', certs_dir + 'client-key.pem'))
 
-        consumer = client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+        consumer = client.subscribe('my-python-topic-producer-consumer',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('persistent://property/cluster/namespace/my-python-topic-producer-consumer')
-        producer.send('hello')
+        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer.send(b'hello')
 
         msg = consumer.receive(1000)
         self.assertTrue(msg)
@@ -164,11 +176,11 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=Authentication(authPlugin, authParams))
 
-        consumer = client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+        consumer = client.subscribe('my-python-topic-producer-consumer',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('persistent://property/cluster/namespace/my-python-topic-producer-consumer')
-        producer.send('hello')
+        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer.send(b'hello')
 
         msg = consumer.receive(1000)
         self.assertTrue(msg)
@@ -194,11 +206,11 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=Authentication(authPlugin, authParams))
 
-        consumer = client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+        consumer = client.subscribe('my-python-topic-producer-consumer',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('persistent://property/cluster/namespace/my-python-topic-producer-consumer')
-        producer.send('hello')
+        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer.send(b'hello')
 
         msg = consumer.receive(1000)
         self.assertTrue(msg)
@@ -223,7 +235,7 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=Authentication(authPlugin, authParams))
         try:
-            client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+            client.subscribe('my-python-topic-producer-consumer',
                              'my-sub',
                              consumer_type=ConsumerType.Shared)
         except:
@@ -239,14 +251,14 @@ class PulsarTest(TestCase):
             received_messages.append(msg)
             consumer.acknowledge(msg)
 
-        client.subscribe('persistent://sample/standalone/ns/my-python-topic-listener',
+        client.subscribe('my-python-topic-listener',
                          'my-sub',
                          consumer_type=ConsumerType.Exclusive,
                          message_listener=listener)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-listener')
-        producer.send('hello-1')
-        producer.send('hello-2')
-        producer.send('hello-3')
+        producer = client.create_producer('my-python-topic-listener')
+        producer.send(b'hello-1')
+        producer.send(b'hello-2')
+        producer.send(b'hello-3')
 
         time.sleep(0.1)
         self.assertEqual(len(received_messages), 3)
@@ -257,11 +269,11 @@ class PulsarTest(TestCase):
 
     def test_reader_simple(self):
         client = Client(self.serviceUrl)
-        reader = client.create_reader('persistent://sample/standalone/ns/my-python-topic-reader-simple',
+        reader = client.create_reader('my-python-topic-reader-simple',
                                       MessageId.earliest)
 
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-reader-simple')
-        producer.send('hello')
+        producer = client.create_producer('my-python-topic-reader-simple')
+        producer.send(b'hello')
 
         msg = reader.read_next()
         self.assertTrue(msg)
@@ -278,16 +290,16 @@ class PulsarTest(TestCase):
 
     def test_reader_on_last_message(self):
         client = Client(self.serviceUrl)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-reader-on-last-message')
+        producer = client.create_producer('my-python-topic-reader-on-last-message')
 
         for i in range(10):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
-        reader = client.create_reader('persistent://sample/standalone/ns/my-python-topic-reader-on-last-message',
+        reader = client.create_reader('my-python-topic-reader-on-last-message',
                                       MessageId.latest)
 
         for i in range(10, 20):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
         for i in range(10, 20):
             msg = reader.read_next()
@@ -300,13 +312,13 @@ class PulsarTest(TestCase):
     def test_reader_on_specific_message(self):
         client = Client(self.serviceUrl)
         producer = client.create_producer(
-            'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message')
+            'my-python-topic-reader-on-specific-message')
 
         for i in range(10):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
         reader1 = client.create_reader(
-                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message',
+                'my-python-topic-reader-on-specific-message',
                 MessageId.earliest)
 
         for i in range(5):
@@ -314,7 +326,7 @@ class PulsarTest(TestCase):
             last_msg_id = msg.message_id()
 
         reader2 = client.create_reader(
-                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message',
+                'my-python-topic-reader-on-specific-message',
                 last_msg_id)
 
         for i in range(5, 10):
@@ -329,18 +341,18 @@ class PulsarTest(TestCase):
     def test_reader_on_specific_message_with_batches(self):
         client = Client(self.serviceUrl)
         producer = client.create_producer(
-            'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message-with-batches',
+            'my-python-topic-reader-on-specific-message-with-batches',
             batching_enabled=True,
             batching_max_publish_delay_ms=1000)
 
         for i in range(10):
-            producer.send_async('hello-%d' % i, None)
+            producer.send_async(b'hello-%d' % i, None)
 
         # Send one sync message to make sure everything was published
-        producer.send('hello-10')
+        producer.send(b'hello-10')
 
         reader1 = client.create_reader(
-                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message-with-batches',
+                'my-python-topic-reader-on-specific-message-with-batches',
                 MessageId.earliest)
 
         for i in range(5):
@@ -348,7 +360,7 @@ class PulsarTest(TestCase):
             last_msg_id = msg.message_id()
 
         reader2 = client.create_reader(
-                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message-with-batches',
+                'my-python-topic-reader-on-specific-message-with-batches',
                 last_msg_id)
 
         for i in range(5, 11):
@@ -362,18 +374,18 @@ class PulsarTest(TestCase):
 
     def test_producer_sequence_after_reconnection(self):
         # Enable deduplication on namespace
-        doHttpPost(self.adminUrl + '/admin/namespaces/sample/standalone/ns1/deduplication',
+        doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
                    'true')
         client = Client(self.serviceUrl)
 
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer-sequence-after-reconnection-' \
+        topic = 'my-python-test-producer-sequence-after-reconnection-' \
             + str(time.time())
 
         producer = client.create_producer(topic, producer_name='my-producer-name')
         self.assertEqual(producer.last_sequence_id(), -1)
 
         for i in range(10):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
             self.assertEqual(producer.last_sequence_id(), i)
 
         producer.close()
@@ -382,30 +394,33 @@ class PulsarTest(TestCase):
         self.assertEqual(producer.last_sequence_id(), 9)
 
         for i in range(10, 20):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
             self.assertEqual(producer.last_sequence_id(), i)
+
+        doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
+                   'false')
 
     def test_producer_deduplication(self):
         # Enable deduplication on namespace
-        doHttpPost(self.adminUrl + '/admin/namespaces/sample/standalone/ns1/deduplication',
+        doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
                    'true')
         client = Client(self.serviceUrl)
 
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer-deduplication-' + str(time.time())
+        topic = 'my-python-test-producer-deduplication-' + str(time.time())
 
         producer = client.create_producer(topic, producer_name='my-producer-name')
         self.assertEqual(producer.last_sequence_id(), -1)
 
         consumer = client.subscribe(topic, 'my-sub')
 
-        producer.send('hello-0', sequence_id=0)
-        producer.send('hello-1', sequence_id=1)
-        producer.send('hello-2', sequence_id=2)
+        producer.send(b'hello-0', sequence_id=0)
+        producer.send(b'hello-1', sequence_id=1)
+        producer.send(b'hello-2', sequence_id=2)
         self.assertEqual(producer.last_sequence_id(), 2)
 
         # Repeat the messages and verify they're not received by consumer
-        producer.send('hello-1', sequence_id=1)
-        producer.send('hello-2', sequence_id=2)
+        producer.send(b'hello-1', sequence_id=1)
+        producer.send(b'hello-2', sequence_id=2)
         self.assertEqual(producer.last_sequence_id(), 2)
 
         for i in range(3):
@@ -427,8 +442,8 @@ class PulsarTest(TestCase):
         self.assertEqual(producer.last_sequence_id(), 2)
 
         # Repeat the messages and verify they're not received by consumer
-        producer.send('hello-1', sequence_id=1)
-        producer.send('hello-2', sequence_id=2)
+        producer.send(b'hello-1', sequence_id=1)
+        producer.send(b'hello-2', sequence_id=2)
         self.assertEqual(producer.last_sequence_id(), 2)
 
         try:
@@ -439,6 +454,9 @@ class PulsarTest(TestCase):
             # Exception is expected
             pass
 
+        doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
+                   'false')
+
     def test_producer_routing_mode(self):
         client = Client(self.serviceUrl)
         producer = client.create_producer('my-python-test-producer',
@@ -448,7 +466,7 @@ class PulsarTest(TestCase):
 
     def test_message_argument_errors(self):
         client = Client(self.serviceUrl)
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        topic = 'my-python-test-producer'
         producer = client.create_producer(topic)
 
         content = 'test'.encode('utf-8')
@@ -478,7 +496,7 @@ class PulsarTest(TestCase):
 
         self._check_value_error(lambda: client.create_producer(None))
 
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        topic = 'my-python-test-producer'
 
         self._check_value_error(lambda: client.create_producer(topic, producer_name=5))
         self._check_value_error(lambda: client.create_producer(topic, initial_sequence_id='test'))
@@ -495,7 +513,7 @@ class PulsarTest(TestCase):
     def test_consumer_argument_errors(self):
         client = Client(self.serviceUrl)
 
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        topic = 'my-python-test-producer'
         sub_name = 'my-sub-name'
 
         self._check_value_error(lambda: client.subscribe(None, sub_name))
@@ -509,7 +527,7 @@ class PulsarTest(TestCase):
 
     def test_reader_argument_errors(self):
         client = Client(self.serviceUrl)
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        topic = 'my-python-test-producer'
 
         # This should not raise exception
         client.create_reader(topic, MessageId.earliest)
@@ -522,7 +540,7 @@ class PulsarTest(TestCase):
 
     def test_publish_compact_and_consume(self):
         client = Client(self.serviceUrl)
-        topic = 'persistent://sample/standalone/ns1/my-python-test_publish_compact_and_consume'
+        topic = 'my-python-test_publish_compact_and_consume'
         producer = client.create_producer(topic, producer_name='my-producer-name', batching_enabled=False)
         self.assertEqual(producer.last_sequence_id(), -1)
         consumer = client.subscribe(topic, 'my-sub1', is_read_compacted=True)
@@ -530,17 +548,15 @@ class PulsarTest(TestCase):
         consumer2 = client.subscribe(topic, 'my-sub2', is_read_compacted=False)
 
         # producer create 2 messages with same key.
-        producer.send('hello-0', partition_key='key0')
-        producer.send('hello-1', partition_key='key0')
+        producer.send(b'hello-0', partition_key='key0')
+        producer.send(b'hello-1', partition_key='key0')
         producer.close()
 
         # issue compact command, and wait success
-        url=self.adminUrl + '/admin/persistent/sample/standalone/ns1/my-python-test_publish_compact_and_consume/compaction'
+        url=self.adminUrl + '/admin/v2/persistent/public/default/my-python-test_publish_compact_and_consume/compaction'
         doHttpPut(url, '')
         while True:
-            req = urllib2.Request(url)
-            response = urllib2.urlopen(req)
-            s=response.read()
+            s=doHttpGet(url).decode('utf-8')
             if 'RUNNING' in s:
                 print("Compact still running")
                 print(s)
@@ -571,15 +587,15 @@ class PulsarTest(TestCase):
     def test_reader_has_message_available(self):
         # create client, producer, reader
         client = Client(self.serviceUrl)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-reader-has-message-available')
-        reader = client.create_reader('persistent://sample/standalone/ns/my-python-topic-reader-has-message-available',
+        producer = client.create_producer('my-python-topic-reader-has-message-available')
+        reader = client.create_reader('my-python-topic-reader-has-message-available',
                                       MessageId.latest)
 
         # before produce data, expected not has message available
         self.assertFalse(reader.has_message_available());
 
         for i in range(10):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
         # produced data, expected has message available
         self.assertTrue(reader.has_message_available());
@@ -593,7 +609,7 @@ class PulsarTest(TestCase):
         self.assertFalse(reader.has_message_available());
 
         for i in range(10, 20):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
         # produced data again, expected has message available
         self.assertTrue(reader.has_message_available());
@@ -603,13 +619,13 @@ class PulsarTest(TestCase):
 
     def test_seek(self):
         client = Client(self.serviceUrl)
-        consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-seek',
+        consumer = client.subscribe('my-python-topic-seek',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-seek')
+        producer = client.create_producer('my-python-topic-seek')
 
         for i in range(100):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
         for i in range(100):
             msg = consumer.receive()
@@ -635,7 +651,7 @@ class PulsarTest(TestCase):
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
         producer = client.create_producer('my-v2-topic-producer-consumer')
-        producer.send('hello')
+        producer.send(b'hello')
 
         msg = consumer.receive(1000)
         self.assertTrue(msg)
@@ -652,14 +668,14 @@ class PulsarTest(TestCase):
 
     def test_topics_consumer(self):
         client = Client(self.serviceUrl)
-        topic1 = 'persistent://sample/standalone/ns/my-python-topics-consumer-1'
-        topic2 = 'persistent://sample/standalone/ns/my-python-topics-consumer-2'
-        topic3 = 'persistent://sample/standalone/ns/my-python-topics-consumer-3'
+        topic1 = 'persistent://public/default/my-python-topics-consumer-1'
+        topic2 = 'persistent://public/default/my-python-topics-consumer-2'
+        topic3 = 'persistent://public/default/my-python-topics-consumer-3'
         topics = [topic1, topic2, topic3]
 
-        url1 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-topics-consumer-1/partitions'
-        url2 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-topics-consumer-2/partitions'
-        url3 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-topics-consumer-3/partitions'
+        url1 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-1/partitions'
+        url2 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-2/partitions'
+        url3 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-3/partitions'
 
         doHttpPut(url1, '2')
         doHttpPut(url2, '3')
@@ -676,13 +692,13 @@ class PulsarTest(TestCase):
                                     )
 
         for i in range(100):
-            producer1.send('hello-1-%d' % i)
+            producer1.send(b'hello-1-%d' % i)
 
         for i in range(100):
-            producer2.send('hello-2-%d' % i)
+            producer2.send(b'hello-2-%d' % i)
 
         for i in range(100):
-            producer3.send('hello-3-%d' % i)
+            producer3.send(b'hello-3-%d' % i)
 
 
         for i in range(300):
@@ -702,15 +718,15 @@ class PulsarTest(TestCase):
         import re
         client = Client(self.serviceUrl)
 
-        topics_pattern = 'persistent://sample/standalone/ns/my-python-pattern-consumer.*'
+        topics_pattern = 'persistent://public/default/my-python-pattern-consumer.*'
 
-        topic1 = 'persistent://sample/standalone/ns/my-python-pattern-consumer-1'
-        topic2 = 'persistent://sample/standalone/ns/my-python-pattern-consumer-2'
-        topic3 = 'persistent://sample/standalone/ns/my-python-pattern-consumer-3'
+        topic1 = 'persistent://public/default/my-python-pattern-consumer-1'
+        topic2 = 'persistent://public/default/my-python-pattern-consumer-2'
+        topic3 = 'persistent://public/default/my-python-pattern-consumer-3'
 
-        url1 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-pattern-consumer-1/partitions'
-        url2 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-pattern-consumer-2/partitions'
-        url3 = self.adminUrl + '/admin/persistent/sample/standalone/ns/my-python-pattern-consumer-3/partitions'
+        url1 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-pattern-consumer-1/partitions'
+        url2 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-pattern-consumer-2/partitions'
+        url3 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-pattern-consumer-3/partitions'
 
         doHttpPut(url1, '2')
         doHttpPut(url2, '3')
@@ -731,13 +747,13 @@ class PulsarTest(TestCase):
         time.sleep(2)
 
         for i in range(100):
-            producer1.send('hello-1-%d' % i)
+            producer1.send(b'hello-1-%d' % i)
 
         for i in range(100):
-            producer2.send('hello-2-%d' % i)
+            producer2.send(b'hello-2-%d' % i)
 
         for i in range(100):
-            producer3.send('hello-3-%d' % i)
+            producer3.send(b'hello-3-%d' % i)
 
 
         for i in range(300):
@@ -763,7 +779,7 @@ class PulsarTest(TestCase):
     def test_get_topics_partitions(self):
         client = Client(self.serviceUrl)
         topic_partitioned = 'persistent://public/default/test_get_topics_partitions'
-        topic_non_partitioned = 'persistent://public/default/test_get_topics_partitions'
+        topic_non_partitioned = 'persistent://public/default/test_get_topics_not-partitioned'
 
         url1 = self.adminUrl + '/admin/v2/persistent/public/default/test_get_topics_partitions/partitions'
         doHttpPut(url1, '3')

@@ -245,7 +245,7 @@ void ProducerImpl::failPendingMessages(Result result) {
     }
 
     // this function can handle null pointer
-    BatchMessageContainer::batchMessageCallBack(ResultTimeout, messageContainerListPtr);
+    BatchMessageContainer::batchMessageCallBack(ResultTimeout, messageContainerListPtr, NULL);
 }
 
 void ProducerImpl::resendMessages(ClientConnectionPtr cnx) {
@@ -285,10 +285,43 @@ void ProducerImpl::statsCallBackHandler(Result res, const Message& msg, SendCall
     }
 }
 
+void ProducerImpl::flushAsync(FlushCallback callback) {
+    if (batchMessageContainer) {
+        if (!flushPromise_ || flushPromise_->isComplete()) {
+            flushPromise_ = boost::make_shared<Promise<Result, bool_type>>();
+        } else {
+            // already in flushing, register a listener callback
+            boost::function<void(Result, bool)> listenerCallback = [this, callback](Result result,
+                                                                                    bool_type v) {
+                if (v) {
+                    callback(ResultOk);
+                } else {
+                    callback(ResultUnknownError);
+                }
+                return;
+            };
+
+            flushPromise_->getFuture().addListener(listenerCallback);
+            return;
+        }
+
+        FlushCallback innerCallback = [this, callback](Result result) {
+            flushPromise_->setValue(true);
+            callback(result);
+            return;
+        };
+
+        Lock lock(mutex_);
+        batchMessageContainer->sendMessage(innerCallback);
+    } else {
+        callback(ResultOk);
+    }
+}
+
 void ProducerImpl::triggerFlush() {
     if (batchMessageContainer) {
         Lock lock(mutex_);
-        batchMessageContainer->sendMessage();
+        batchMessageContainer->sendMessage(NULL);
     }
 }
 
@@ -364,7 +397,7 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         // If queue is full sending the batch immediately, no point waiting till batchMessagetimeout
         if (batchMessageContainer) {
             LOG_DEBUG(getName() << " - sending batch message immediately");
-            batchMessageContainer->sendMessage();
+            batchMessageContainer->sendMessage(NULL);
         }
         lock.unlock();
         cb(ResultProducerQueueIsFull, msg);
@@ -412,7 +445,7 @@ void ProducerImpl::batchMessageTimeoutHandler(const boost::system::error_code& e
     }
     LOG_DEBUG(getName() << " - Batch Message Timer expired");
     Lock lock(mutex_);
-    batchMessageContainer->sendMessage();
+    batchMessageContainer->sendMessage(NULL);
 }
 
 void ProducerImpl::printStats() {
