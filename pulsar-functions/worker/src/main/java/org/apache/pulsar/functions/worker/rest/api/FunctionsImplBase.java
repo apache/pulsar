@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import javax.ws.rs.WebApplicationException;
@@ -82,6 +83,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -122,6 +124,7 @@ public class FunctionsImplBase {
         SINK
     }
 
+    private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
     private final Supplier<WorkerService> workerServiceSupplier;
     private final ComponentType componentType;
 
@@ -1066,39 +1069,41 @@ public class FunctionsImplBase {
 
         String stateStorageServiceUrl = worker().getWorkerConfig().getStateStorageServiceUrl();
 
-        try (StorageClient client = StorageClientBuilder.newBuilder()
-                .withSettings(StorageClientSettings.newBuilder()
-                        .serviceUri(stateStorageServiceUrl)
-                        .clientName("functions-admin")
-                        .build())
-                .withNamespace(tableNs)
-                .build()) {
-            try (Table<ByteBuf, ByteBuf> table = result(client.openTable(tableName))) {
-                try (KeyValue<ByteBuf, ByteBuf> kv = result(table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))))) {
-                    if (null == kv) {
-                        return Response.status(Status.NOT_FOUND)
-                                .entity(new String("key '" + key + "' doesn't exist."))
-                                .build();
-                    } else {
-                        String value;
-                        if (kv.isNumber()) {
-                            value = "value : " + kv.numberValue() + ", version : " + kv.version();
-                        } else {
-                            value = "value : " + new String(ByteBufUtil.getBytes(kv.value()), UTF_8)
-                                    + ", version : " + kv.version();
-                        }
-                        return Response.status(Status.OK)
-                                .entity(new String(value))
-                                .build();
-                    }
-                }
-            } catch (Exception e) {
-                log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
-                        tenant, namespace, functionName, key, e);
-                return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
-                        .entity(new ErrorData(e.getMessage())).build();
-            }
+        if (storageClient.get() == null) {
+            storageClient.compareAndSet(null, StorageClientBuilder.newBuilder()
+                    .withSettings(StorageClientSettings.newBuilder()
+                            .serviceUri(stateStorageServiceUrl)
+                            .clientName("functions-admin")
+                            .build())
+                    .withNamespace(tableNs)
+                    .build());
         }
+
+        try (Table<ByteBuf, ByteBuf> table = result(storageClient.get().openTable(tableName))) {
+            try (KeyValue<ByteBuf, ByteBuf> kv = result(table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))))) {
+                if (null == kv) {
+                    return Response.status(Status.NOT_FOUND)
+                            .entity(new String("key '" + key + "' doesn't exist."))
+                            .build();
+                } else {
+                    FunctionState value;
+                    if (kv.isNumber()) {
+                        value = new FunctionState(key, null, kv.numberValue(), kv.version());
+                    } else {
+                        value = new FunctionState(key, new String(ByteBufUtil.getBytes(kv.value()), UTF_8), null, kv.version());
+                    }
+                    return Response.status(Status.OK)
+                            .entity(new Gson().toJson(value))
+                            .build();
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error while getFunctionState request @ /{}/{}/{}/{}",
+                    tenant, namespace, functionName, key, e);
+            return Response.status(Status.INTERNAL_SERVER_ERROR).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
     }
 
     public Response uploadFunction(final InputStream uploadedInputStream, final String path) {
