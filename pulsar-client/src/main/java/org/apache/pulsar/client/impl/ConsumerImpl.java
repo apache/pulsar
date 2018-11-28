@@ -294,6 +294,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         Message<T> message;
         try {
             message = incomingMessages.take();
+            unAckedMessageTracker.add(message.getMessageId());
             Message<T> interceptMsg = beforeConsume(message);
             messageProcessed(interceptMsg);
             return interceptMsg;
@@ -325,6 +326,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (message == null && conf.getReceiverQueueSize() == 0) {
             sendFlowPermitsToBroker(cnx(), 1);
         } else if (message != null) {
+            unAckedMessageTracker.add(message.getMessageId());
             Message<T> interceptMsg = beforeConsume(message);
             messageProcessed(interceptMsg);
             result.complete(interceptMsg);
@@ -385,6 +387,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         Message<T> message;
         try {
             message = incomingMessages.poll(timeout, unit);
+            if (message != null) {
+                unAckedMessageTracker.add(message.getMessageId());
+            }
             Message<T> interceptMsg = beforeConsume(message);
             if (interceptMsg != null) {
                 messageProcessed(interceptMsg);
@@ -826,14 +831,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             lock.readLock().lock();
             try {
-                // Enqueue the message so that it can be retrieved when application calls receive()
-                // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
-                // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
-                unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
                 if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(), Collections.singletonList(message));
                 }
                 if (!pendingReceives.isEmpty()) {
+                    unAckedMessageTracker.add(message.getMessageId());
                     notifyPendingReceivedCallback(message, null);
                 } else if (conf.getReceiverQueueSize() != 0 || waitingOnReceiveForZeroQueueSize) {
                     incomingMessages.add(message);
@@ -957,7 +959,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         MessageIdImpl batchMessage = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
                 getPartitionIndex());
         BatchMessageAcker acker = BatchMessageAcker.newAcker(batchSize);
-        unAckedMessageTracker.add(batchMessage);
         List<MessageImpl<T>> possibleToDeadLetter = null;
         if (deadLetterPolicy != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
             possibleToDeadLetter = new ArrayList<>();
