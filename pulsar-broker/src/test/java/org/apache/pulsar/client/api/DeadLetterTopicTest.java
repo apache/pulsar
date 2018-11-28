@@ -26,6 +26,7 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 public class DeadLetterTopicTest extends ProducerConsumerBase {
@@ -255,5 +256,30 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         }
         assertNull(checkMessage);
         checkConsumer.close();
+    }
+
+    @Test(timeOut = 200000)
+    public void testDeadLetterWithoutConsumerReceiveImmediately() throws PulsarClientException, InterruptedException {
+        final String topic = "persistent://my-property/my-ns/dead-letter-topic-without-consumer-receive-immediately";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("my-subscription")
+                .ackTimeout(3, TimeUnit.SECONDS)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(2).build())
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        producer.send(("a message").getBytes());
+
+        // wait a while, message will send to dead letter topic
+        Thread.sleep(15000L);
+
+        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(msg);
     }
 }
