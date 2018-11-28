@@ -125,7 +125,6 @@ stringProducer.send("My message");
 >        return ex;
 >    });
 > ```
-' %}
 
 ### Configuring producers
 
