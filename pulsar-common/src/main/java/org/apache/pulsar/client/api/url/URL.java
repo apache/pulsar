@@ -26,8 +26,8 @@ import java.net.URLConnection;
 import java.net.URLStreamHandlerFactory;
 
 public class URL {
-    private static URLStreamHandlerFactory urlStreamHandlerFactory = new PulsarURLStreamHandlerFactory();
-    private java.net.URL url;
+    private static final URLStreamHandlerFactory urlStreamHandlerFactory = new PulsarURLStreamHandlerFactory();
+    private final java.net.URL url;
 
     public URL(String spec)
             throws MalformedURLException, URISyntaxException, InstantiationException, IllegalAccessException {
@@ -47,7 +47,7 @@ public class URL {
         return this.url.getContent();
     }
 
-    public Object getContent(Class[] classes) throws IOException {
+    public Object getContent(Class<?>[] classes) throws IOException {
         return this.url.getContent(classes);
     }
 
