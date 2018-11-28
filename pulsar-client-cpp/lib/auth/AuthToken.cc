@@ -21,6 +21,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/bind.hpp>
 
+#include <sstream>
 #include <fstream>
 
 namespace pulsar {
