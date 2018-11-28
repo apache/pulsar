@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.auth.token;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
+import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
@@ -31,33 +32,42 @@ public class TokenAuthWithSymmetricKeys extends PulsarTokenAuthenticationBaseSui
 
     @Override
     @SuppressWarnings("rawtypes")
-    protected void createKeysAndTokens( PulsarContainer container) throws Exception {
+    protected void createKeysAndTokens(PulsarContainer container) throws Exception {
         secretKey = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create-secret-key", "--base64")
                 .getStdout();
-
         log.info("Created secret key: {}", secretKey);
 
         clientAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
                         "--secret-key", "data:base64," + secretKey,
-                        "--subject", "regular-client")
-                .getStdout();
-        log.info("Created token: {}", clientAuthToken);
+                        "--subject", REGULAR_USER_ROLE)
+                .getStdout().trim();
+        log.info("Created client token: {}", clientAuthToken);
 
         superUserAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
                         "--secret-key", "data:base64," + secretKey,
-                        "--subject", "super-user")
-                .getStdout();
-        log.info("Created token: {}", clientAuthToken);
+                        "--subject", SUPER_USER_ROLE)
+                .getStdout().trim();
+        log.info("Created super-user token: {}", superUserAuthToken);
 
+        proxyAuthToken = container
+                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
+                        "--secret-key", "data:base64," + secretKey,
+                        "--subject", PROXY_ROLE)
+                .getStdout().trim();
+        log.info("Created proxy token: {}", proxyAuthToken);
     }
 
     @Override
     protected void configureBroker(BrokerContainer brokerContainer) throws Exception {
-        brokerContainer.withEnv("SECRET_KEY", secretKey);
-        brokerContainer.withEnv("tokenSecretKey", "env:SECRET_KEY");
+        brokerContainer.withEnv("tokenSecretKey", "data:base64," + secretKey);
+    }
+
+    @Override
+    protected void configureProxy(ProxyContainer proxyContainer) throws Exception {
+        proxyContainer.withEnv("tokenSecretKey", "data:base64," + secretKey);
     }
 
 }

@@ -37,14 +37,17 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
+import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
+import org.testcontainers.containers.Network;
 import org.testng.ITest;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
@@ -54,20 +57,27 @@ import org.testng.annotations.Test;
 public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTestBase implements ITest {
 
     protected String superUserAuthToken;
+    protected String proxyAuthToken;
     protected String clientAuthToken;
 
-    protected abstract void createKeysAndTokens(PulsarContainer container) throws Exception;
-
+    protected abstract void createKeysAndTokens(PulsarContainer<?> container) throws Exception;
     protected abstract void configureBroker(BrokerContainer brokerContainer) throws Exception;
+    protected abstract void configureProxy(ProxyContainer proxyContainer) throws Exception;
+
+    protected static final String SUPER_USER_ROLE = "super-user";
+    protected static final String PROXY_ROLE = "proxy";
+    protected static final String REGULAR_USER_ROLE = "client";
 
     @BeforeSuite
     @Override
     public void setupCluster() throws Exception {
         // Before starting the cluster, generate the secret key and the token
         // Use Zk container to have 1 container available before starting the cluster
-        try (ZKContainer zkContainer = new ZKContainer<>("cli-setup")) {
+        try (ZKContainer<?> zkContainer = new ZKContainer<>("cli-setup")) {
             zkContainer
-                    .withEnv("zkServers", ZKContainer.NAME);
+                .withNetwork(Network.newNetwork())
+                .withNetworkAliases(ZKContainer.NAME)
+                .withEnv("zkServers", ZKContainer.NAME);
             zkContainer.start();
 
             createKeysAndTokens(zkContainer);
@@ -80,6 +90,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .numBookies(2)
                 .numBrokers(1)
+                .numProxies(1)
                 .clusterName(clusterName)
                 .build();
 
@@ -92,10 +103,19 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
             configureBroker(brokerContainer);
             brokerContainer.withEnv("authenticationEnabled", "true");
             brokerContainer.withEnv("authenticationProviders",
-                    "org.apache.pulsar.broker.authentication.AuthenticationToken");
+                    "org.apache.pulsar.broker.authentication.AuthenticationProviderToken");
             brokerContainer.withEnv("authorizationEnabled", "true");
-            brokerContainer.withEnv("superUserRoles", "super-user");
+            brokerContainer.withEnv("superUserRoles", SUPER_USER_ROLE + "," + PROXY_ROLE);
         }
+
+        ProxyContainer proxyContainer = pulsarCluster.getProxy();
+        configureProxy(proxyContainer);
+        proxyContainer.withEnv("authenticationEnabled", "true");
+        proxyContainer.withEnv("authenticationProviders",
+                "org.apache.pulsar.broker.authentication.AuthenticationProviderToken");
+        proxyContainer.withEnv("authorizationEnabled", "true");
+        proxyContainer.withEnv("brokerClientAuthenticationPlugin", AuthenticationToken.class.getName());
+        proxyContainer.withEnv("brokerClientAuthenticationParameters", "token:" + proxyAuthToken);
 
         pulsarCluster.start();
 
@@ -125,12 +145,17 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .authentication(AuthenticationFactory.token(superUserAuthToken))
                 .build();
 
+        try {
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.singleton("regular-user"),
+                new TenantInfo(Collections.singleton(REGULAR_USER_ROLE),
                         Collections.singleton(pulsarCluster.getClusterName())));
 
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
-        admin.namespaces().grantPermissionOnNamespace(namespace, "regular-user", EnumSet.allOf(AuthAction.class));
+        admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -139,7 +164,8 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .build();
 
         @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING).topic(topic)
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topic)
                 .create();
 
         @Cleanup
@@ -168,7 +194,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .build();
 
         try {
-            client.newProducer(Schema.STRING).topic(topic)
+            clientNoAuth.newProducer(Schema.STRING).topic(topic)
                     .create();
             fail("Should have failed to create producer");
         } catch (PulsarClientException e) {

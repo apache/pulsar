@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.tests.integration.auth.token;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import com.google.common.io.Files;
+
+import java.io.File;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.shade.org.glassfish.jersey.internal.util.Base64;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
+import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.apache.pulsar.tests.integration.utils.DockerUtils;
 
 @Slf4j
 public class TokenAuthWithPublicPrivateKeys extends PulsarTokenAuthenticationBaseSuite {
@@ -34,8 +36,7 @@ public class TokenAuthWithPublicPrivateKeys extends PulsarTokenAuthenticationBas
     private static final String PRIVATE_KEY_PATH_INSIDE_CONTAINER = "/tmp/private.key";
     private static final String PUBLIC_KEY_PATH_INSIDE_CONTAINER = "/tmp/public.key";
 
-    private String publicKey;
-    private String privateKey;
+    private File publicKeyFile;
 
     @Override
     @SuppressWarnings("rawtypes")
@@ -45,34 +46,45 @@ public class TokenAuthWithPublicPrivateKeys extends PulsarTokenAuthenticationBas
                         "--output-private-key", PRIVATE_KEY_PATH_INSIDE_CONTAINER,
                         "--output-public-key", PUBLIC_KEY_PATH_INSIDE_CONTAINER);
 
-        Path privateKeyPath = Files.createTempFile("pulsar-private", "key");
-        Path publicKeyPath = Files.createTempFile("pulsar-public", "key");
-        container.copyFileFromContainer(PRIVATE_KEY_PATH_INSIDE_CONTAINER, privateKeyPath.toString());
-        container.copyFileFromContainer(PUBLIC_KEY_PATH_INSIDE_CONTAINER, publicKeyPath.toString());
+        byte[] publicKeyBytes = DockerUtils
+                .runCommandWithRawOutput(container.getDockerClient(), container.getContainerId(),
+                        "/bin/cat", PUBLIC_KEY_PATH_INSIDE_CONTAINER)
+                .getStdout();
 
-        privateKey = Base64.encodeAsString(Files.readAllBytes(privateKeyPath));
-        publicKey = Base64.encodeAsString(Files.readAllBytes(publicKeyPath));
+        publicKeyFile = File.createTempFile("public-", ".key", new File("/tmp"));
+        Files.write(publicKeyBytes, publicKeyFile);
 
         clientAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--private-key", "data:base64," + privateKey,
-                        "--subject", "regular-client")
-                .getStdout();
-        log.info("Created token: {}", clientAuthToken);
+                        "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
+                        "--subject", REGULAR_USER_ROLE)
+                .getStdout().trim();
+        log.info("Created client token: {}", clientAuthToken);
 
         superUserAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
-                        "--secret-key", "data:base64," + privateKey,
-                        "--subject", "super-user")
-                .getStdout();
-        log.info("Created token: {}", clientAuthToken);
+                        "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
+                        "--subject", SUPER_USER_ROLE)
+                .getStdout().trim();
+        log.info("Created super-user token: {}", superUserAuthToken);
 
+        proxyAuthToken = container
+                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
+                        "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
+                        "--subject", PROXY_ROLE)
+                .getStdout().trim();
+        log.info("Created proxy token: {}", proxyAuthToken);
     }
 
     @Override
     protected void configureBroker(BrokerContainer brokerContainer) throws Exception {
-        brokerContainer.withEnv("PUBLIC_KEY", publicKey);
-        brokerContainer.withEnv("tokenPublicKey", "env:PUBLIC_KEY");
+        brokerContainer.withFileSystemBind(publicKeyFile.toString(), PUBLIC_KEY_PATH_INSIDE_CONTAINER);
+        brokerContainer.withEnv("tokenPublicKey", "file://" + PUBLIC_KEY_PATH_INSIDE_CONTAINER);
     }
 
+    @Override
+    protected void configureProxy(ProxyContainer proxyContainer) throws Exception {
+        proxyContainer.withFileSystemBind(publicKeyFile.toString(), PUBLIC_KEY_PATH_INSIDE_CONTAINER);
+        proxyContainer.withEnv("tokenPublicKey", "file://" + PUBLIC_KEY_PATH_INSIDE_CONTAINER);
+    }
 }

@@ -28,6 +28,7 @@ import java.security.Key;
 
 import javax.naming.AuthenticationException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 
@@ -102,10 +103,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         final boolean isPublicKey;
         final String validationKeyConfig;
 
-        if (conf.getProperty(CONF_TOKEN_SECRET_KEY) != null) {
+        if (conf.getProperty(CONF_TOKEN_SECRET_KEY) != null
+                && !StringUtils.isBlank((String) conf.getProperty(CONF_TOKEN_SECRET_KEY))) {
             isPublicKey = false;
             validationKeyConfig = (String) conf.getProperty(CONF_TOKEN_SECRET_KEY);
-        } else if (conf.getProperty(CONF_TOKEN_PUBLIC_KEY) != null) {
+        } else if (conf.getProperty(CONF_TOKEN_PUBLIC_KEY) != null
+                && !StringUtils.isBlank((String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY))) {
             isPublicKey = true;
             validationKeyConfig = (String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY);
         } else {
