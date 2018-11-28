@@ -82,10 +82,6 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
                     throw new RuntimeException("Failed to read token from file", e);
                 }
             };
-        } else if (encodedAuthParamString.startsWith("env:")) {
-            // Read token from environment variable
-            String envVarName = encodedAuthParamString.substring("env:".length());
-            this.tokenSupplier = () -> System.getenv(envVarName);
         } else {
             this.tokenSupplier = () -> encodedAuthParamString;
         }

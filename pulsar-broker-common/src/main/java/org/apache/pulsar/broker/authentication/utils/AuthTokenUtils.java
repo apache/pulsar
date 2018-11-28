@@ -98,9 +98,6 @@ public class AuthTokenUtils {
             } catch (Exception e) {
                 throw new IOException(e);
             }
-        } else if (keyConfUrl.startsWith("env:")) {
-            String envVarName = keyConfUrl.substring("env:".length());
-            return Decoders.BASE64.decode(System.getenv(envVarName));
         } else {
             // Assume the key content was passed in base64
             return Decoders.BASE64.decode(keyConfUrl);
