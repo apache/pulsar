@@ -16,17 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.rest.api;
+package org.apache.pulsar.common.policies.data;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.worker.WorkerService;
+import lombok.Data;
 
-import java.util.function.Supplier;
-
-@Slf4j
-public class FunctionsImpl extends FunctionsImplBase {
-
-    public FunctionsImpl(Supplier<WorkerService> workerServiceSupplier) {
-        super(workerServiceSupplier, ComponentType.FUNCTION);
-    }
+@Data
+public class ExceptionInformation {
+    String exceptionString;
+    long timestampMs;
 }

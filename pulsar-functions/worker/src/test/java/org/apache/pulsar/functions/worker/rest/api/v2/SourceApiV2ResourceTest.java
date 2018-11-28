@@ -338,7 +338,6 @@ public class SourceApiV2ResourceTest {
                 pkgUrl,
                 null,
                 new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -356,7 +355,6 @@ public class SourceApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
     }
 
@@ -447,7 +445,6 @@ public class SourceApiV2ResourceTest {
                 null,
                 null,
                 new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
@@ -725,7 +722,6 @@ public class SourceApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
 
         if (expectedError == null) {
@@ -770,7 +766,6 @@ public class SourceApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
     }
 
@@ -866,7 +861,6 @@ public class SourceApiV2ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(sourceConfig),
-                FunctionsImpl.SOURCE,
                 null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -955,8 +949,7 @@ public class SourceApiV2ResourceTest {
             tenant,
             namespace,
             function,
-            FunctionsImpl.SOURCE,
-            null);
+                null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -967,8 +960,7 @@ public class SourceApiV2ResourceTest {
             tenant,
             namespace,
                 source,
-            FunctionsImpl.SOURCE,
-            null);
+                null);
     }
 
     @Test
@@ -1063,8 +1055,8 @@ public class SourceApiV2ResourceTest {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
-            source,
-                FunctionsImpl.SOURCE);
+            source
+        );
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -1074,8 +1066,8 @@ public class SourceApiV2ResourceTest {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-                source,
-                FunctionsImpl.SOURCE);
+                source
+        );
     }
 
     @Test
@@ -1148,8 +1140,8 @@ public class SourceApiV2ResourceTest {
     ) {
         Response response = resource.listFunctions(
             tenant,
-            namespace,
-                FunctionsImpl.SOURCE);
+            namespace
+        );
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -1158,7 +1150,7 @@ public class SourceApiV2ResourceTest {
     private Response listDefaultSources() {
         return resource.listFunctions(
             tenant,
-            namespace,FunctionsImpl.SOURCE);
+            namespace);
     }
 
     @Test

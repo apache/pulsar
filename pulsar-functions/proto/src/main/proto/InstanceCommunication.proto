@@ -40,9 +40,9 @@ message FunctionStatus {
     int64 numSystemExceptions = 8;
     repeated ExceptionInformation latestSystemExceptions = 9;
     // map from topic name to number of deserialization exceptions
-    map<string, int64> deserializationExceptions = 10;
+//    map<string, int64> deserializationExceptions = 10;
     // number of serialization exceptions on the output
-    int64 serializationExceptions = 11;
+//    int64 serializationExceptions = 11;
     // average latency
     double averageLatency = 12;
 

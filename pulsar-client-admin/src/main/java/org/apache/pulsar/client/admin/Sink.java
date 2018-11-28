@@ -22,6 +22,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -178,7 +179,7 @@ public interface Sink {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    FunctionStatusList getSinkStatus(String tenant, String namespace, String sink) throws PulsarAdminException;
+    SinkStatus getSinkStatus(String tenant, String namespace, String sink) throws PulsarAdminException;
 
     /**
      * Gets the current status of a sink instance.
@@ -194,7 +195,7 @@ public interface Sink {
      * @return
      * @throws PulsarAdminException
      */
-    FunctionStatus getSinkStatus(String tenant, String namespace, String sink, int id)
+    SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(String tenant, String namespace, String sink, int id)
             throws PulsarAdminException;
 
     /**

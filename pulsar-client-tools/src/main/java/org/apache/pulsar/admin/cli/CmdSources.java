@@ -498,12 +498,11 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = JsonFormat.printer().print(
-                    isBlank(instanceId) ? admin.source().getSourceStatus(tenant, namespace, sourceName)
-                            : admin.source().getSourceStatus(tenant, namespace, sourceName,
-                            Integer.parseInt(instanceId)));
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
+            if (isBlank(instanceId)) {
+                print(admin.source().getSourceStatus(tenant, namespace, sourceName));
+            } else {
+                print(admin.source().getSourceStatus(tenant, namespace, sourceName, Integer.parseInt(instanceId)));
+            };
         }
     }
 
