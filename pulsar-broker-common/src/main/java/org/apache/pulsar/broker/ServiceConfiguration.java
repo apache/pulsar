@@ -157,6 +157,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // than this percentage limit and subscription will not receive any new messages until that subscription acks back
     // limit/2 messages
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
+    // Too many subscribe requests from a consumer can cause broker rewinding consumer cursors and loading data from bookies,
+    // hence causing high network bandwidth usage
+    // When the positive value is set, broker will throttle the subscribe requests for one consumer.
+    // Otherwise, the throttling will be disabled. The default value of this setting is 0 - throttling is disabled.
+    @FieldContext(dynamic = true)
+    private int subscribeThrottlingRatePerConsumer = 0;
+    // Rate period for {subscribeThrottlingRatePerConsumer}. Default is 30s.
+    @FieldContext(minValue = 1, dynamic = true)
+    private int subscribeRatePeriodPerConsumerInSecond = 30;
     // Default number of message dispatching throttling-limit for every topic. Using a value of 0, is disabling default
     // message dispatch-throttling
     @FieldContext(dynamic = true)
@@ -186,7 +195,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Max concurrent non-persistent message can be processed per connection
     private int maxConcurrentNonPersistentMessagePerConnection = 1000;
     // Number of worker threads to serve non-persistent topic
-    private int numWorkerThreadsForNonPersistentTopic = 8;
+    private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();;
 
     // Enable broker to load persistent topics
     private boolean enablePersistentTopics = true;
@@ -501,6 +510,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- Broker Web Stats --- ****/
     // If true, export publisher stats when returning topics stats from the admin rest api
     private boolean exposePublisherStats = true;
+    private int statsUpdateFrequencyInSecs = 60;
+    private int statsUpdateInitailDelayInSecs = 60;
 
     /**** --- Ledger Offloading --- ****/
     /****
@@ -1752,6 +1763,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return isRunningStandalone;
     }
 
+    public int getStatsUpdateFrequencyInSecs() {
+        return statsUpdateFrequencyInSecs;
+    }
+
+    public void setStatsUpdateFrequencyInSecs(int statsUpdateFrequencyInSecs) {
+        this.statsUpdateFrequencyInSecs = statsUpdateFrequencyInSecs;
+    }
+
+    public int getStatsUpdateInitialDelayInSecs() {
+        return statsUpdateInitailDelayInSecs;
+    }
+
+    public void setStatsUpdateInitailDelayInSecs(int statsUpdateInitailDelayInSecs) {
+        this.statsUpdateInitailDelayInSecs = statsUpdateInitailDelayInSecs;
+    }
+
     public void setRunningStandalone(boolean isRunningStandalone) {
         this.isRunningStandalone = isRunningStandalone;
     }
@@ -1795,5 +1822,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setBacklogQuotaDefaultRetentionPolicy(BacklogQuota.RetentionPolicy backlogQuotaDefaultRetentionPolicy) {
         this.backlogQuotaDefaultRetentionPolicy = backlogQuotaDefaultRetentionPolicy;
+    }
+
+    public int getSubscribeThrottlingRatePerConsumer() {
+        return subscribeThrottlingRatePerConsumer;
+    }
+
+    public void setSubscribeThrottlingRatePerConsumer(int subscribeThrottlingRatePerConsumer) {
+        this.subscribeThrottlingRatePerConsumer = subscribeThrottlingRatePerConsumer;
+    }
+
+    public int getSubscribeRatePeriodPerConsumerInSecond() {
+        return subscribeRatePeriodPerConsumerInSecond;
+    }
+
+    public void setSubscribeRatePeriodPerConsumerInSecond(int subscribeRatePeriodPerConsumerInSecond) {
+        this.subscribeRatePeriodPerConsumerInSecond = subscribeRatePeriodPerConsumerInSecond;
     }
 }

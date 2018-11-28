@@ -24,20 +24,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.client.admin.Namespaces;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function.*;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
-import org.apache.pulsar.io.core.Source;
-import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.twitter.TwitterFireHose;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -51,9 +56,10 @@ import org.testng.annotations.Test;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.io.*;
+import java.net.URL;
+import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Matchers.*;
@@ -69,8 +75,8 @@ import static org.testng.Assert.assertEquals;
 /**
  * Unit test of {@link SourceApiV2Resource}.
  */
-@PrepareForTest({Utils.class,SourceConfigUtils.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
+@PrepareForTest({Utils.class, ConnectorUtils.class, org.apache.pulsar.functions.utils.Utils.class})
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 @Slf4j
 public class SourceApiV2ResourceTest {
 
@@ -79,26 +85,24 @@ public class SourceApiV2ResourceTest {
         return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
-    private static final class TestSource implements Source<String> {
-
-        @Override public void open(final Map<String, Object> config, SourceContext sourceContext) {
-        }
-
-        @Override public Record<String> read() { return null; }
-
-        @Override public void close() { }
-    }
-
     private static final String tenant = "test-tenant";
     private static final String namespace = "test-namespace";
     private static final String source = "test-source";
     private static final String outputTopic = "test-output-topic";
     private static final String outputSerdeClassName = TopicSchema.DEFAULT_SERDE;
-    private static final String className = TestSource.class.getName();
-    private static final String serde = TopicSchema.DEFAULT_SERDE;
+    private static final String className = TwitterFireHose.class.getName();
     private static final int parallelism = 1;
+    private static final String JAR_FILE_NAME = "pulsar-io-twitter.nar";
+    private static final String INVALID_JAR_FILE_NAME = "pulsar-io-cassandra.nar";
+    private String JAR_FILE_PATH;
+    private String INVALID_JAR_FILE_PATH;
 
     private WorkerService mockedWorkerService;
+    private PulsarAdmin mockedPulsarAdmin;
+    private Tenants mockedTenants;
+    private Namespaces mockedNamespaces;
+    private TenantInfo mockedTenantInfo;
+    private List<String> namespaceList = new LinkedList<>();
     private FunctionMetaDataManager mockedManager;
     private FunctionRuntimeManager mockedFunctionRunTimeManager;
     private RuntimeFactory mockedRuntimeFactory;
@@ -106,6 +110,7 @@ public class SourceApiV2ResourceTest {
     private FunctionsImpl resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
+    private FunctionMetaData mockedFunctionMetaData;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -116,6 +121,11 @@ public class SourceApiV2ResourceTest {
         this.mockedNamespace = mock(Namespace.class);
         this.mockedFormData = mock(FormDataContentDisposition.class);
         when(mockedFormData.getFileName()).thenReturn("test");
+        this.mockedTenantInfo = mock(TenantInfo.class);
+        this.mockedPulsarAdmin = mock(PulsarAdmin.class);
+        this.mockedTenants = mock(Tenants.class);
+        this.mockedNamespaces = mock(Namespaces.class);
+        namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
@@ -123,6 +133,18 @@ public class SourceApiV2ResourceTest {
         when(mockedFunctionRunTimeManager.getRuntimeFactory()).thenReturn(mockedRuntimeFactory);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
         when(mockedWorkerService.isInitialized()).thenReturn(true);
+        when(mockedWorkerService.getBrokerAdmin()).thenReturn(mockedPulsarAdmin);
+        when(mockedPulsarAdmin.tenants()).thenReturn(mockedTenants);
+        when(mockedPulsarAdmin.namespaces()).thenReturn(mockedNamespaces);
+        when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
+        when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
+
+        URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
+        if (file == null)  {
+            throw new RuntimeException("Failed to file required test archive: " + JAR_FILE_NAME);
+        }
+        JAR_FILE_PATH = file.getFile();
+        INVALID_JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(INVALID_JAR_FILE_NAME).getFile();
 
         // worker config
         WorkerConfig workerConfig = new WorkerConfig()
@@ -135,9 +157,6 @@ public class SourceApiV2ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        mockStatic(SourceConfigUtils.class);
-        when(SourceConfigUtils.convert(anyObject(), anyObject())).thenReturn(FunctionDetails.newBuilder().build());
-        when(SourceConfigUtils.validate(any(), any(), any(), any())).thenReturn(null);
         Mockito.doReturn("Source").when(this.resource).calculateSubjectType(any());
     }
 
@@ -157,6 +176,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Tenant is not provided");
     }
 
@@ -172,11 +192,12 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Namespace is not provided");
     }
 
     @Test
-    public void testRegisterSourceMissingFunctionName() throws IOException {
+    public void testRegisterSourceMissingSourceName() throws IOException {
         testRegisterSourceMissingArguments(
             tenant,
             namespace,
@@ -187,6 +208,7 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
+                null,
                 "Source Name is not provided");
     }
 
@@ -202,7 +224,8 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                null,
+                "Source Package is not provided");
     }
 
     @Test
@@ -217,7 +240,58 @@ public class SourceApiV2ResourceTest {
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                null,
+                "zip file is empty");
+    }
+
+    @Test
+    public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
+        FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
+        testRegisterSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                inputStream,
+                null,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                null,
+                "Failed to extract source class from archive");
+    }
+
+    @Test
+    public void testRegisterSourceNoOutputTopic() throws IOException {
+        FileInputStream inputStream = new FileInputStream(JAR_FILE_PATH);
+        testRegisterSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                inputStream,
+                mockedFormData,
+                null,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                null,
+                "Topic name cannot be null");
+    }
+
+    @Test
+    public void testRegisterSourceHttpUrl() throws IOException {
+        testRegisterSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                null,
+                null,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                "http://localhost:1234/test",
+                "Corrupt User PackageFile " + "http://localhost:1234/test with error Connection refused (Connection refused)");
     }
 
     private void testRegisterSourceMissingArguments(
@@ -230,7 +304,8 @@ public class SourceApiV2ResourceTest {
             String outputSerdeClassName,
             String className,
             Integer parallelism,
-            String errorExpected) throws IOException {
+            String pkgUrl,
+            String errorExpected) {
         SourceConfig sourceConfig = new SourceConfig();
         if (tenant != null) {
             sourceConfig.setTenant(tenant);
@@ -260,7 +335,7 @@ public class SourceApiV2ResourceTest {
                 function,
                 inputStream,
                 details,
-                null,
+                pkgUrl,
                 null,
                 new Gson().toJson(sourceConfig),
                 FunctionsImpl.SOURCE,
@@ -270,20 +345,13 @@ public class SourceApiV2ResourceTest {
         Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(errorExpected).reason);
     }
 
-    private Response registerDefaultSource() {
-        SourceConfig sourceConfig = new SourceConfig();
-        sourceConfig.setTenant(tenant);
-        sourceConfig.setNamespace(namespace);
-        sourceConfig.setName(source);
-        sourceConfig.setClassName(className);
-        sourceConfig.setParallelism(parallelism);
-        sourceConfig.setTopicName(outputTopic);
-        sourceConfig.setSerdeClassName(outputSerdeClassName);
+    private Response registerDefaultSource() throws IOException {
+        SourceConfig sourceConfig = createDefaultSourceConfig();
         return resource.registerFunction(
             tenant,
             namespace,
                 source,
-            mockedInputStream,
+            new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
             null,
@@ -337,6 +405,50 @@ public class SourceApiV2ResourceTest {
         when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
         Response response = registerDefaultSource();
+        assertEquals(Status.OK.getStatusCode(), response.getStatus());
+    }
+
+    @Test
+    public void testRegisterSourceConflictingFields() throws Exception {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
+        String actualTenant = "DIFFERENT_TENANT";
+        String actualNamespace = "DIFFERENT_NAMESPACE";
+        String actualName = "DIFFERENT_NAME";
+        this.namespaceList.add(actualTenant + "/" + actualNamespace);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
+
+        RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("source registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        SourceConfig sourceConfig = new SourceConfig();
+        sourceConfig.setTenant(tenant);
+        sourceConfig.setNamespace(namespace);
+        sourceConfig.setName(source);
+        sourceConfig.setClassName(className);
+        sourceConfig.setParallelism(parallelism);
+        sourceConfig.setTopicName(outputTopic);
+        sourceConfig.setSerdeClassName(outputSerdeClassName);
+        Response response = resource.registerFunction(
+                actualTenant,
+                actualNamespace,
+                actualName,
+                new FileInputStream(JAR_FILE_PATH),
+                mockedFormData,
+                null,
+                null,
+                new Gson().toJson(sourceConfig),
+                FunctionsImpl.SOURCE,
+                null);
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
 
@@ -433,32 +545,116 @@ public class SourceApiV2ResourceTest {
 
     @Test
     public void testUpdateSourceMissingPackage() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
         testUpdateSourceMissingArguments(
             tenant,
             namespace,
                 source,
-            null,
+                null,
             mockedFormData,
             outputTopic,
                 outputSerdeClassName,
             className,
             parallelism,
-                "Function Package is not provided");
+                "Update contains no change");
     }
 
     @Test
-    public void testUpdateSourceMissingPackageDetails() throws IOException {
+    public void testUpdateSourceMissingTopicName() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
         testUpdateSourceMissingArguments(
-            tenant,
-            namespace,
+                tenant,
+                namespace,
                 source,
-            mockedInputStream,
-            null,
-            outputTopic,
+                null,
+                mockedFormData,
+                null,
                 outputSerdeClassName,
-            className,
-            parallelism,
-                "Function Package is not provided");
+                className,
+                parallelism,
+                "Update contains no change");
+    }
+
+    @Test
+    public void testUpdateSourceNegativeParallelism() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                null,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                -2,
+                "Source parallelism should positive number");
+    }
+
+    @Test
+    public void testUpdateSourceChangedParallelism() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                null,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism + 1,
+                null);
+    }
+
+    @Test
+    public void testUpdateSourceChangedTopic() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                null,
+                mockedFormData,
+                "DifferentTopic",
+                outputSerdeClassName,
+                className,
+                parallelism,
+                "Destination topics differ");
+    }
+
+    @Test
+    public void testUpdateSourceZeroParallelism() throws IOException {
+        mockStatic(Utils.class);
+        doNothing().when(Utils.class);
+        Utils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
+
+        testUpdateSourceMissingArguments(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                0,
+                "Source parallelism should positive number");
     }
 
     private void testUpdateSourceMissingArguments(
@@ -472,6 +668,21 @@ public class SourceApiV2ResourceTest {
             String className,
             Integer parallelism,
             String expectedError) throws IOException {
+
+        mockStatic(ConnectorUtils.class);
+        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
+        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.getSourceType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         SourceConfig sourceConfig = new SourceConfig();
@@ -497,6 +708,14 @@ public class SourceApiV2ResourceTest {
             sourceConfig.setParallelism(parallelism);
         }
 
+        if (expectedError == null) {
+            RequestResult rr = new RequestResult()
+                    .setSuccess(true)
+                    .setMessage("source registered");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+        }
+
         Response response = resource.updateFunction(
             tenant,
             namespace,
@@ -509,8 +728,12 @@ public class SourceApiV2ResourceTest {
                 FunctionsImpl.SOURCE,
                 null);
 
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(expectedError).reason);
+        if (expectedError == null) {
+            assertEquals(Status.OK.getStatusCode(), response.getStatus());
+        } else {
+            assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+            Assert.assertEquals(((ErrorData) response.getEntity()).reason, new ErrorData(expectedError).reason);
+        }
     }
 
     private Response updateDefaultSource() throws IOException {
@@ -523,11 +746,26 @@ public class SourceApiV2ResourceTest {
         sourceConfig.setTopicName(outputTopic);
         sourceConfig.setSerdeClassName(outputSerdeClassName);
 
+        mockStatic(ConnectorUtils.class);
+        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
+        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.getSourceType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
+
         return resource.updateFunction(
             tenant,
             namespace,
                 source,
-            mockedInputStream,
+                new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
             null,
@@ -586,8 +824,7 @@ public class SourceApiV2ResourceTest {
     public void testUpdateSourceWithUrl() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
 
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        String filePackageUrl = "file://" + fileLocation;
+        String filePackageUrl = "file://" + JAR_FILE_PATH;
 
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTopicName(outputTopic);
@@ -597,6 +834,21 @@ public class SourceApiV2ResourceTest {
         sourceConfig.setName(source);
         sourceConfig.setClassName(className);
         sourceConfig.setParallelism(parallelism);
+
+        mockStatic(ConnectorUtils.class);
+        doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
+        ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(org.apache.pulsar.functions.utils.Utils.class);
+        doReturn(String.class).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.getSourceType(anyString(), any(NarClassLoader.class));
+
+        doReturn(mock(NarClassLoader.class)).when(org.apache.pulsar.functions.utils.Utils.class);
+        org.apache.pulsar.functions.utils.Utils.extractNarClassLoader(any(Path.class), anyString(), any(File.class));
+
+        this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
+
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
         RequestResult rr = new RequestResult()
@@ -947,5 +1199,37 @@ public class SourceApiV2ResourceTest {
         Response response = listDefaultSources();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(new Gson().toJson(functions), response.getEntity());
+    }
+
+    @Test
+    public void testRegisterFunctionNonexistantNamespace() throws Exception {
+        this.namespaceList.clear();
+        Response response = registerDefaultSource();
+        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+        assertEquals(new ErrorData("Namespace does not exist").reason, ((ErrorData) response.getEntity()).reason);
+    }
+
+    @Test
+    public void testRegisterFunctionNonexistantTenant() throws Exception {
+        when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
+        Response response = registerDefaultSource();
+        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+        assertEquals(new ErrorData("Tenant does not exist").reason, ((ErrorData) response.getEntity()).reason);
+    }
+
+    private SourceConfig createDefaultSourceConfig() {
+        SourceConfig sourceConfig = new SourceConfig();
+        sourceConfig.setTenant(tenant);
+        sourceConfig.setNamespace(namespace);
+        sourceConfig.setName(source);
+        sourceConfig.setClassName(className);
+        sourceConfig.setParallelism(parallelism);
+        sourceConfig.setTopicName(outputTopic);
+        sourceConfig.setSerdeClassName(outputSerdeClassName);
+        return sourceConfig;
+    }
+
+    private FunctionDetails createDefaultFunctionDetails() throws IOException {
+        return SourceConfigUtils.convert(createDefaultSourceConfig(), null);
     }
 }

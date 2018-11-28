@@ -22,11 +22,8 @@ import com.google.common.collect.Sets;
 
 import java.util.Set;
 
-import javax.xml.bind.annotation.XmlRootElement;
-
 import lombok.Data;
 
-@XmlRootElement
 @Data
 public class TenantInfo {
     /**

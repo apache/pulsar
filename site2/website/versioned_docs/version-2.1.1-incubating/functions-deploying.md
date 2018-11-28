@@ -24,6 +24,8 @@ In order to deploy and manage Pulsar Functions, you need to have a Pulsar cluste
 
 If you're running a non-[standalone](reference-terminology.md#standalone) cluster, you'll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.
 
+If you're going to deploy and trigger python user-defined functions, you should install [the pulsar python client](http://pulsar.apache.org/docs/en/client-libraries-python/) first.
+
 ## Command-line interface
 
 Pulsar Functions are deployed and managed using the [`pulsar-admin functions`](reference-pulsar-admin.md#functions) interface, which contains commands such as [`create`](reference-pulsar-admin.md#functions-create) for deploying functions in [cluster mode](#cluster-mode), [`trigger`](reference-pulsar-admin.md#trigger) for [triggering](#triggering-pulsar-functions) functions, [`list`](reference-pulsar-admin.md#list-2) for listing deployed functions, and several others.

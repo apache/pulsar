@@ -29,34 +29,22 @@ import json
 
 import pulsar
 import util
-import InstanceCommunication_pb2
 
-# For keeping track of accumulated metrics
-class AccumulatedMetricDatum(object):
-  def __init__(self):
-    self.count = 0.0
-    self.sum = 0.0
-    self.max = float('-inf')
-    self.min = float('inf')
-
-  def record(self, value):
-    self.count += 1
-    self.sum += value
-    if value > self.max:
-      self.max = value
-    if value < self.min:
-      self.min = value
+from prometheus_client import Summary
+from function_stats import Stats
 
 class ContextImpl(pulsar.Context):
-  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider):
+
+  # add label to indicate user metric
+  user_metrics_label_names = Stats.metrics_label_names + ["metric"]
+
+  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers, secrets_provider, metrics_labels):
     self.instance_config = instance_config
     self.log = logger
     self.pulsar_client = pulsar_client
     self.user_code_dir = os.path.dirname(user_code)
     self.consumers = consumers
     self.secrets_provider = secrets_provider
-    self.current_accumulated_metrics = {}
-    self.accumulated_metrics = {}
     self.publish_producers = {}
     self.publish_serializers = {}
     self.current_message_id = None
@@ -68,6 +56,12 @@ class ContextImpl(pulsar.Context):
     self.secrets_map = json.loads(instance_config.function_details.secretsMap) \
       if instance_config.function_details.secretsMap \
       else {}
+
+    self.metrics_labels = metrics_labels
+    self.user_metrics_labels = dict()
+    self.user_metrics_summary = Summary("pulsar_function_user_metric",
+                                    'Pulsar Function user defined metric',
+                                        ContextImpl.user_metrics_label_names)
 
   # Called on a per message basis to set the context for the current message
   def set_current_message_context(self, msgid, topic):
@@ -117,9 +111,9 @@ class ContextImpl(pulsar.Context):
     return self.secrets_provider.provide_secret(secret_key, self.secrets_map[secret_key])
 
   def record_metric(self, metric_name, metric_value):
-    if not metric_name in self.current_accumulated_metrics:
-      self.current_accumulated_metrics[metric_name] = AccumulatedMetricDatum()
-    self.current_accumulated_metrics[metric_name].update(metric_value)
+    if metric_name not in self.user_metrics_labels:
+      self.user_metrics_labels[metric_name] = self.metrics_labels + [metric_name]
+    self.user_metrics_summary.labels(*self.user_metrics_labels[metric_name]).observe(metric_value)
 
   def get_output_topic(self):
     return self.instance_config.function_details.output
@@ -164,17 +158,14 @@ class ContextImpl(pulsar.Context):
 
   def reset_metrics(self):
     # TODO: Make it thread safe
-    self.accumulated_metrics.clear()
-    self.accumulated_metrics.update(self.current_accumulated_metrics)
-    self.current_accumulated_metrics.clear()
+    for labels in self.user_metrics_labels.values():
+      self.user_metrics_summary.labels(*labels)._sum.set(0.0)
+      self.user_metrics_summary.labels(*labels)._count.set(0.0)
 
   def get_metrics(self):
-    metrics = InstanceCommunication_pb2.MetricsData()
-    for metric_name, accumulated_metric in self.accumulated_metrics.items():
-      m = InstanceCommunication_pb2.MetricsData.DataDigest()
-      m.count = accumulated_metric.count
-      m.sum = accumulated_metric.sum
-      m.max = accumulated_metric.max
-      m.min = accumulated_metric.min
-      metrics.metrics[metric_name] = m
-    return metrics
+    metrics_map = {}
+    for metric_name, metric_labels in self.user_metrics_labels.items():
+      metrics_map["%s%s_sum" % (Stats.USER_METRIC_PREFIX, metric_name)] = self.user_metrics_summary.labels(*metric_labels)._sum.get()
+      metrics_map["%s%s_count" % (Stats.USER_METRIC_PREFIX, metric_name)] = self.user_metrics_summary.labels(*metric_labels)._count.get()
+
+    return metrics_map

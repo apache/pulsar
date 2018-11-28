@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -26,7 +27,6 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.util.List;
 
 import javax.ws.rs.Consumes;
@@ -36,6 +36,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -120,12 +121,39 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}")
-    public Response listFunctions(final @PathParam("tenant") String tenant,
-                                  final @PathParam("namespace") String namespace) {
-        return functions.listFunctions(
-            tenant, namespace, FunctionsImpl.FUNCTION);
+    @ApiOperation(
+            value = "Displays the stats of a Pulsar Function",
+            response = FunctionStats.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+    })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{tenant}/{namespace}/{functionName}/stats")
+    public FunctionStats getFunctionStats(final @PathParam("tenant") String tenant,
+                                     final @PathParam("namespace") String namespace,
+                                     final @PathParam("functionName") String functionName) throws IOException {
+        return functions.getFunctionStats(tenant, namespace, functionName, FunctionsImpl.FUNCTION, uri.getRequestUri());
+    }
 
+    @GET
+    @ApiOperation(
+            value = "Displays the stats of a Pulsar Function instance",
+            response = FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+    })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stats")
+    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionInstanceStats(final @PathParam("tenant") String tenant,
+                                                                                                  final @PathParam("namespace") String namespace,
+                                                                                                  final @PathParam("functionName") String functionName,
+                                                                                                  final @PathParam("instanceId") String instanceId) throws IOException {
+        return functions.getFunctionsInstanceStats(
+                tenant, namespace, functionName, FunctionsImpl.FUNCTION, instanceId, uri.getRequestUri());
     }
 
     @POST

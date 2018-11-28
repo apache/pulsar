@@ -48,7 +48,7 @@ class TestContextImpl(unittest.TestCase):
     pulsar_client.create_producer = Mock(return_value=producer)
     user_code=__file__
     consumers = None
-    context_impl = ContextImpl(instance_config, logger, pulsar_client, user_code, consumers, None)
+    context_impl = ContextImpl(instance_config, logger, pulsar_client, user_code, consumers, None, None)
 
     context_impl.publish("test_topic_name", "test_message")
 

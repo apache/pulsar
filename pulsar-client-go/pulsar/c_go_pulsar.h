@@ -130,6 +130,14 @@ static inline void _pulsar_reader_close_async(pulsar_reader_t *reader, void *ctx
     pulsar_reader_close_async(reader, pulsarReaderCloseCallbackProxy, ctx);
 }
 
+void pulsarGetTopicPartitionsCallbackProxy(pulsar_result result, pulsar_string_list_t* partitions, void *ctx);
+
+static inline void _pulsar_client_get_topic_partitions(pulsar_client_t *client, const char *topic,
+                                                       void *ctx) {
+    pulsar_client_get_topic_partitions_async(client, topic, pulsarGetTopicPartitionsCallbackProxy, ctx);
+}
+
+
 
 //// String array manipulation
 

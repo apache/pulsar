@@ -18,25 +18,12 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
-import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
-
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -55,45 +42,29 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+import static com.google.common.base.Preconditions.checkState;
+import static org.apache.pulsar.functions.instance.FunctionStatsManager.USER_METRIC_PREFIX;
+
 /**
  * This class implements the Context interface exposed to the user.
  */
+
 class ContextImpl implements Context, SinkContext, SourceContext {
     private InstanceConfig config;
     private Logger logger;
 
     // Per Message related
     private Record<?> record;
-
-    @Getter
-    @Setter
-    private class AccumulatedMetricDatum {
-        private double count;
-        private double sum;
-        private double max;
-        private double min;
-
-        AccumulatedMetricDatum() {
-            count = 0;
-            sum = 0;
-            max = Double.MIN_VALUE;
-            min = Double.MAX_VALUE;
-        }
-
-        public void update(double value) {
-            count++;
-            sum += value;
-            if (max < value) {
-                max = value;
-            }
-            if (min > value) {
-                min = value;
-            }
-        }
-    }
-
-    private ConcurrentMap<String, AccumulatedMetricDatum> currentAccumulatedMetrics;
-    private ConcurrentMap<String, AccumulatedMetricDatum> accumulatedMetrics;
 
     private Map<String, Producer<?>> publishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
@@ -110,12 +81,21 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
+    Map<String, String[]> userMetricsLabels = new HashMap<>();
+    private final String[] metricsLabels;
+    private final Summary userMetricsSummary;
+
+    private final static String[] userMetricsLabelNames;
+    static {
+        // add label to indicate user metric
+        userMetricsLabelNames = Arrays.copyOf(FunctionStatsManager.metricsLabelNames, FunctionStatsManager.metricsLabelNames.length + 1);
+        userMetricsLabelNames[FunctionStatsManager.metricsLabelNames.length] = "metric";
+    }
+
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
-                       SecretsProvider secretsProvider) {
+                       SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels) {
         this.config = config;
         this.logger = logger;
-        this.currentAccumulatedMetrics = new ConcurrentHashMap<>();
-        this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
         this.inputTopics = inputTopics;
         this.topicSchema = new TopicSchema(client);
@@ -138,6 +118,17 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         } else {
             secretsMap = new HashMap<>();
         }
+
+        this.metricsLabels = metricsLabels;
+        this.userMetricsSummary = Summary.build()
+                .name("pulsar_function_user_metric")
+                .help("Pulsar Function user defined metric.")
+                .labelNames(userMetricsLabelNames)
+                .quantile(0.5, 0.01)
+                .quantile(0.9, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(0.999, 0.01)
+                .register(collectorRegistry);
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -320,33 +311,43 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public void recordMetric(String metricName, double value) {
-        currentAccumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
-        currentAccumulatedMetrics.get(metricName).update(value);
+        String[] userMetricLabels = userMetricsLabels.get(metricName);
+        if (userMetricLabels == null) {
+            userMetricLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 1);
+            userMetricLabels[userMetricLabels.length - 1] = metricName;
+            // set label for metrics before putting into userMetricsLabels map to
+            // prevent race condition with getMetrics calls
+            userMetricsSummary.labels(userMetricLabels).observe(value);
+            userMetricsLabels.put(metricName, userMetricLabels);
+        } else {
+            userMetricsSummary.labels(userMetricLabels).observe(value);
+        }
     }
 
-    public MetricsData getAndResetMetrics() {
-        MetricsData retval = getMetrics();
+    public Map<String, Double> getAndResetMetrics() {
+        Map<String, Double> retval = getMetrics();
         resetMetrics();
         return retval;
     }
 
     public void resetMetrics() {
-        this.accumulatedMetrics.clear();
-        this.accumulatedMetrics.putAll(currentAccumulatedMetrics);
-        this.currentAccumulatedMetrics.clear();
+        userMetricsSummary.clear();
     }
 
-    public MetricsData getMetrics() {
-        MetricsData.Builder metricsDataBuilder = MetricsData.newBuilder();
-        for (String metricName : accumulatedMetrics.keySet()) {
-            MetricsData.DataDigest.Builder bldr = MetricsData.DataDigest.newBuilder();
-            bldr.setSum(accumulatedMetrics.get(metricName).getSum());
-            bldr.setCount(accumulatedMetrics.get(metricName).getCount());
-            bldr.setMax(accumulatedMetrics.get(metricName).getMax());
-            bldr.setMin(accumulatedMetrics.get(metricName).getMax());
-            metricsDataBuilder.putMetrics(metricName, bldr.build());
+    public Map<String, Double> getMetrics() {
+        Map<String, Double> metricsMap = new HashMap<>();
+        for (Map.Entry<String, String[]> userMetricsLabelsEntry : userMetricsLabels.entrySet()) {
+            String metricName = userMetricsLabelsEntry.getKey();
+            String[] labels = userMetricsLabelsEntry.getValue();
+            Summary.Child.Value summary = userMetricsSummary.labels(labels).get();
+            metricsMap.put(String.format("%s%s_sum", USER_METRIC_PREFIX, metricName), summary.sum);
+            metricsMap.put(String.format("%s%s_count", USER_METRIC_PREFIX, metricName), summary.count);
+            for (Map.Entry<Double, Double> entry : summary.quantiles.entrySet()) {
+                Double quantile = entry.getKey();
+                Double value = entry.getValue();
+                metricsMap.put(String.format("%s%s_%s", USER_METRIC_PREFIX, metricName, quantile), value);
+            }
         }
-        MetricsData retval = metricsDataBuilder.build();
-        return retval;
+        return metricsMap;
     }
 }

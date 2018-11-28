@@ -29,8 +29,11 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.bookkeeper.client.BookKeeperAdmin;
+import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
+import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
+import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
@@ -93,6 +96,11 @@ public class PulsarClusterMetadataSetup {
             "--configuration-store" }, description = "Configuration Store connection string", required = false)
         private String configurationStore;
 
+        @Parameter(names = {
+            "--initial-num-stream-storage-containers"
+        }, description = "Num storage containers of BookKeeper stream storage")
+        private int numStreamStorageContainers = 16;
+
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
     }
@@ -136,7 +144,7 @@ public class PulsarClusterMetadataSetup {
         ZooKeeper configStoreZk = zkfactory.create(
             arguments.configurationStore, SessionType.ReadWrite, arguments.zkSessionTimeoutMillis).get();
 
-        // Format BookKeeper metadata
+        // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
         bkConf.setLedgerManagerFactoryClass(HierarchicalLedgerManagerFactory.class);
         bkConf.setZkServers(arguments.zookeeper);
@@ -144,6 +152,13 @@ public class PulsarClusterMetadataSetup {
         if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
                 && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
             throw new IOException("Failed to initialize BookKeeper metadata");
+        }
+
+        // Format BookKeeper stream storage metadata
+        if (arguments.numStreamStorageContainers > 0) {
+            ServiceURI bkMetadataServiceUri = ServiceURI.create(bkConf.getMetadataServiceUri());
+            ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);
+            initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
         }
 
         if (localZk.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) == null) {

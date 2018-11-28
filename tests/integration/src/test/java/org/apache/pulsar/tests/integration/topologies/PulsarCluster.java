@@ -111,6 +111,7 @@ public class PulsarCluster {
             .withEnv("clusterName", clusterName)
             .withEnv("zkServers", ZKContainer.NAME)
             .withEnv("configurationStore", CSContainer.NAME + ":" + CS_PORT)
+            .withEnv("forceSync", "no")
             .withEnv("pulsarNode", "pulsar-broker-0");
 
         this.csContainer = new CSContainer(clusterName)
@@ -136,6 +137,9 @@ public class PulsarCluster {
                         .withNetworkAliases(name)
                         .withEnv("zkServers", ZKContainer.NAME)
                         .withEnv("useHostNameAsBookieID", "true")
+                        // Disable fsyncs for tests since they're slow within the containers
+                        .withEnv("journalSyncData", "false")
+                        .withEnv("journalMaxGroupWaitMSec", "0")
                         .withEnv("clusterName", clusterName)
                 )
         );
@@ -448,6 +452,14 @@ public class PulsarCluster {
         return brokerContainers.values();
     }
 
+    public Collection<BKContainer> getBookies() {
+        return bookieContainers.values();
+    }
+
+    public ZKContainer getZooKeeper() {
+        return zkContainer;
+    }
+
     public ContainerExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
         return runCommandOnAnyBrokerWithScript(ADMIN_SCRIPT, commands);
     }
@@ -470,6 +482,22 @@ public class PulsarCluster {
 
     public void startAllBrokers() {
         brokerContainers.values().forEach(BrokerContainer::start);
+    }
+
+    public void stopAllBookies() {
+        bookieContainers.values().forEach(BKContainer::stop);
+    }
+
+    public void startAllBookies() {
+        bookieContainers.values().forEach(BKContainer::start);
+    }
+
+    public void stopZooKeeper() {
+        zkContainer.stop();
+    }
+
+    public void startZooKeeper() {
+        zkContainer.start();
     }
 
     public ContainerExecResult createNamespace(String nsName) throws Exception {

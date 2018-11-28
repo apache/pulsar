@@ -118,4 +118,32 @@ public class KeyValueSchemaTest {
         assertEquals(foo, fooBack);
         assertEquals(bar, barBack);
     }
+
+    @Test
+    public void testBytesSchemaEncodeAndDecode() {
+        AvroSchema<Foo> fooAvroSchema = AvroSchema.of(Foo.class);
+        AvroSchema<Bar> barAvroSchema = AvroSchema.of(Bar.class);
+
+        Bar bar = new Bar();
+        bar.setField1(true);
+
+        Foo foo = new Foo();
+        foo.setField1("field1");
+        foo.setField2("field2");
+        foo.setField3(3);
+        foo.setField4(bar);
+        foo.setColor(Color.RED);
+
+        byte[] fooBytes = fooAvroSchema.encode(foo);
+        byte[] barBytes = barAvroSchema.encode(bar);
+
+        byte[] encodeBytes = Schema.KV_BYTES.encode(new KeyValue<>(fooBytes, barBytes));
+        KeyValue<byte[], byte[]> decodeKV = Schema.KV_BYTES.decode(encodeBytes);
+
+        Foo fooBack = fooAvroSchema.decode(decodeKV.getKey());
+        Bar barBack = barAvroSchema.decode(decodeKV.getValue());
+
+        assertEquals(foo, fooBack);
+        assertEquals(bar, barBack);
+    }
 }

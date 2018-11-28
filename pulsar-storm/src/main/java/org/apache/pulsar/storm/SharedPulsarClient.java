@@ -19,6 +19,7 @@
 package org.apache.pulsar.storm;
 
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,11 +34,9 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Maps;
-
 public class SharedPulsarClient {
     private static final Logger LOG = LoggerFactory.getLogger(SharedPulsarClient.class);
-    private static final ConcurrentMap<String, SharedPulsarClient> instances = Maps.newConcurrentMap();
+    private static final ConcurrentMap<String, SharedPulsarClient> instances = new ConcurrentHashMap<>();
 
     private final String componentId;
     private final PulsarClientImpl client;

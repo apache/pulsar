@@ -39,6 +39,8 @@ import log
 import server
 import python_instance
 import util
+import prometheus_client
+
 from google.protobuf import json_format
 
 to_run = True
@@ -69,6 +71,7 @@ def main():
   parser.add_argument('--hostname_verification_enabled', required=False, help='Enable hostname verification')
   parser.add_argument('--tls_trust_cert_path', required=False, help='Tls trust cert file path')
   parser.add_argument('--port', required=True, help='Instance Port', type=int)
+  parser.add_argument('--metrics_port', required=True, help="Port metrics will be exposed on", type=int)
   parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
   parser.add_argument('--logging_directory', required=True, help='Logging Directory')
   parser.add_argument('--logging_file', required=True, help='Log file name')
@@ -79,6 +82,7 @@ def main():
   parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
   parser.add_argument('--dependency_repository', required=False, help='For packaged python like wheel files, which repository to pull the dependencies from')
   parser.add_argument('--extra_dependency_repository', required=False, help='For packaged python like wheel files, any extra repository to pull the dependencies from')
+  parser.add_argument('--cluster_name', required=True, help='The name of the cluster this instance is running on')
 
   args = parser.parse_args()
   function_details = Function_pb2.FunctionDetails()
@@ -97,11 +101,39 @@ def main():
       if args.extra_dependency_repository:
         cmd = cmd + " --extra-index-url %s" % str(args.extra_dependency_repository)
       cmd = cmd + " %s" % str(args.py)
-      os.system(cmd)
+      retval = os.system(cmd)
+      if retval != 0:
+        print("Could not install user depedencies")
+        sys.exit(1)
     else:
       zpfile = zipfile.ZipFile(str(args.py), 'r')
       zpfile.extractall(os.path.dirname(str(args.py)))
     sys.path.insert(0, os.path.dirname(str(args.py)))
+  elif os.path.splitext(str(args.py))[1] == '.zip':
+    # Assumig zip file with format func.zip
+    # extract to folder function
+    # internal dir format
+    # "func/src"
+    # "func/requirements.txt"
+    # "func/deps"
+    # run pip install to target folder  deps folder
+    zpfile = zipfile.ZipFile(str(args.py), 'r')
+    zpfile.extractall(os.path.dirname(str(args.py)))
+    basename = os.path.splitext(str(args.py))[0]
+
+    deps_dir = os.path.join(os.path.dirname(str(args.py)), basename, "deps")
+
+    if os.path.isdir(deps_dir) and os.listdir(deps_dir):
+      # get all wheel files from deps directory
+      wheel_file_list = [os.path.join(deps_dir, f) for f in os.listdir(deps_dir) if os.path.isfile(os.path.join(deps_dir, f)) and os.path.splitext(f)[1] =='.whl']
+      cmd = "pip install -t %s --no-index --find-links %s %s" % (os.path.dirname(str(args.py)), deps_dir, " ".join(wheel_file_list))
+      Log.debug("Install python dependencies via cmd: %s" % cmd)
+      retval = os.system(cmd)
+      if retval != 0:
+        print("Could not install user depedencies specified by the zip file")
+        sys.exit(1)
+    # add python user src directory to path
+    sys.path.insert(0, os.path.join(os.path.dirname(str(args.py)), basename, "src"))
 
   log_file = os.path.join(args.logging_directory,
                           util.getFullyQualifiedFunctionName(function_details.tenant, function_details.namespace, function_details.name),
@@ -132,6 +164,11 @@ def main():
   secrets_provider = secrets_provider()
   secrets_provider_config = None
   if args.secrets_provider_config is not None:
+    args.secrets_provider_config = str(args.secrets_provider_config)
+    if args.secrets_provider_config[0] == '\'':
+      args.secrets_provider_config = args.secrets_provider_config[1:]
+    if args.secrets_provider_config[-1] == '\'':
+      args.secrets_provider_config = args.secrets_provider_config[:-1]
     secrets_provider_config = json.loads(str(args.secrets_provider_config))
   secrets_provider.init(secrets_provider_config)
 
@@ -139,9 +176,11 @@ def main():
                                               str(args.function_version), function_details,
                                               int(args.max_buffered_tuples),
                                               int(args.expected_healthcheck_interval),
-                                              str(args.py), pulsar_client, secrets_provider)
+                                              str(args.py), pulsar_client, secrets_provider, args.cluster_name)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
+
+  prometheus_client.start_http_server(args.metrics_port)
 
   global to_run
   while to_run:
