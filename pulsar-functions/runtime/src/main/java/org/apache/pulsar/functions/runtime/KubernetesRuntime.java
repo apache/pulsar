@@ -592,6 +592,7 @@ class KubernetesRuntime implements Runtime {
         requests.put("memory", Quantity.fromString(Long.toString(resource != null && resource.getRam() != 0 ? resource.getRam() : 1073741824)));
         requests.put("cpu", Quantity.fromString(Double.toString(resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1)));
         resourceRequirements.setRequests(requests);
+        resourceRequirements.setLimits(requests);
         container.setResources(resourceRequirements);
 
         // set container ports
