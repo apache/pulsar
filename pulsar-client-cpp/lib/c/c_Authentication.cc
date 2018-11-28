@@ -23,7 +23,7 @@
 
 #include "c_structs.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 
 pulsar_authentication_t *pulsar_authentication_create(const char *dynamicLibPath,
                                                       const char *authParamsString) {

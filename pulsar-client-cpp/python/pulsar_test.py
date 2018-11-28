@@ -794,8 +794,10 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_token_auth(self):
-        with open('/tmp/pulsar-test-data/certs/token.txt') as tf:
+        with open('/tmp/pulsar-test-data/tokens/token.txt') as tf:
             token = tf.read().strip()
+
+        # Use adminUrl to test both HTTP request and binary protocol
         client = Client(self.adminUrl,
                         authentication=AuthenticationToken(token))
 
@@ -812,7 +814,7 @@ class PulsarTest(TestCase):
 
     def test_token_auth_supplier(self):
         def read_token():
-            with open('/tmp/pulsar-test-data/certs/token.txt') as tf:
+            with open('/tmp/pulsar-test-data/tokens/token.txt') as tf:
                 return tf.read().strip()
 
         client = Client(self.serviceUrl,

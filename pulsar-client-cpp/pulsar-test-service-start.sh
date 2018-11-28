@@ -45,12 +45,13 @@ mkdir -p $DATA_DIR/certs
 cp $SRC_DIR/pulsar-broker/src/test/resources/authentication/tls/*.pem $DATA_DIR/certs
 
 # Generate secret key and token
-$PULSAR_DIR/bin/pulsar tokens create-secret-key --output $DATA_DIR/certs/secret.key
+mkdir -p $DATA_DIR/tokens
+$PULSAR_DIR/bin/pulsar tokens create-secret-key --output $DATA_DIR/tokens/secret.key
 
 $PULSAR_DIR/bin/pulsar tokens create \
             --subject token-principal \
-            --signing-key file:///$DATA_DIR/certs/secret.key \
-            > $DATA_DIR/certs/token.txt
+            --signing-key file:///$DATA_DIR/tokens/secret.key \
+            > $DATA_DIR/tokens/token.txt
 
 export PULSAR_STANDALONE_CONF=$SRC_DIR/pulsar-client-cpp/test-conf/standalone-ssl.conf
 $PULSAR_DIR/bin/pulsar-daemon start standalone \
