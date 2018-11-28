@@ -33,11 +33,14 @@ import java.util.regex.Pattern;
 
 public class DataURLStreamHandler extends URLStreamHandler {
 
-    class DataURLConnection extends URLConnection {
+    static class DataURLConnection extends URLConnection {
         private boolean parsed = false;
         private String contentType;
-        private String data;
+        private byte[] data;
         private URI uri;
+
+        private static final Pattern pattern = Pattern.compile(
+              "(?<mimeType>[^;,]+)?(;(?<charset>charset=[^;,]+))?(;(?<base64>base64))?,(?<data>.+)", Pattern.DOTALL);
 
         protected DataURLConnection(URL url) {
             super(url);
@@ -57,20 +60,19 @@ public class DataURLStreamHandler extends URLStreamHandler {
             if (this.uri == null) {
                 throw new IOException();
             }
-            Pattern pattern = Pattern.compile(
-                    "(?<mimeType>.+?)(;(?<charset>charset=.+?))?(;(?<base64>base64?))?,(?<data>.+)", Pattern.DOTALL);
+
             Matcher matcher = pattern.matcher(this.uri.getSchemeSpecificPart());
             if (matcher.matches()) {
                 this.contentType = matcher.group("mimeType");
-                String charset = matcher.group("charset");
-                if (charset == null) {
-                    charset = "US-ASCII";
+                if (contentType == null) {
+                    this.contentType = "application/data";
                 }
+
                 if (matcher.group("base64") == null) {
                     // Support Urlencode but not decode here because already decoded by URI class.
-                    this.data = new String(matcher.group("data").getBytes(), charset);
+                    this.data = matcher.group("data").getBytes();
                 } else {
-                    this.data = new String(Base64.getDecoder().decode(matcher.group("data")), charset);
+                    this.data = Base64.getDecoder().decode(matcher.group("data"));
                 }
             } else {
                 throw new MalformedURLException();
@@ -83,7 +85,7 @@ public class DataURLStreamHandler extends URLStreamHandler {
             long length;
             try {
                 this.connect();
-                length = this.data.length();
+                length = this.data.length;
             } catch (IOException e) {
                 length = -1;
             }
@@ -109,7 +111,7 @@ public class DataURLStreamHandler extends URLStreamHandler {
 
         public InputStream getInputStream() throws IOException {
             this.connect();
-            return new ByteArrayInputStream(this.data.getBytes());
+            return new ByteArrayInputStream(this.data);
         }
     }
 

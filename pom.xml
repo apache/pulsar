@@ -182,6 +182,7 @@ flexible messaging model and an intuitive client API.</description>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
     <debezium.version>0.8.2</debezium.version>
+    <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
     <opencensus.version>0.12.3</opencensus.version>
 
     <!-- test dependencies -->
@@ -749,6 +750,22 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>netty-all</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-api</artifactId>
+        <version>${jsonwebtoken.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-impl</artifactId>
+        <version>${jsonwebtoken.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-jackson</artifactId>
+        <version>${jsonwebtoken.version}</version>
       </dependency>
 
       <dependency>

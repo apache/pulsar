@@ -16,37 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.client.impl.auth;
 
+import com.google.common.base.Charsets;
+
 import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.AuthenticationUtil;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 /**
- *
- * This plugin requires these parameters
- *
- * tlsCertFile: A file path for a client certificate. tlsKeyFile: A file path for a client private key.
- *
+ * Token based authentication provider.
  */
-public class AuthenticationTls implements Authentication, EncodedAuthenticationParameterSupport {
+public class AuthenticationToken implements Authentication, EncodedAuthenticationParameterSupport {
 
-    private static final long serialVersionUID = 1L;
+    private Supplier<String> tokenSupplier;
 
-    private String certFilePath;
-    private String keyFilePath;
-
-    public AuthenticationTls() {
+    public AuthenticationToken() {
     }
 
-    public AuthenticationTls(String certFilePath, String keyFilePath) {
-        this.certFilePath = certFilePath;
-        this.keyFilePath = keyFilePath;
+    public AuthenticationToken(String token) {
+        this(() -> token);
+    }
+
+    public AuthenticationToken(Supplier<String> tokenSupplier) {
+        this.tokenSupplier = tokenSupplier;
     }
 
     @Override
@@ -56,37 +58,43 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     @Override
     public String getAuthMethodName() {
-        return "tls";
+        return "token";
     }
 
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
-        try {
-            return new AuthenticationDataTls(certFilePath, keyFilePath);
-        } catch (Exception e) {
-            throw new PulsarClientException(e);
-        }
+        return new AuthenticationDataToken(tokenSupplier);
     }
 
     @Override
     public void configure(String encodedAuthParamString) {
-        setAuthParams(AuthenticationUtil.configureFromPulsar1AuthParamString(encodedAuthParamString));
+        // Interpret the whole param string as the token. If the string contains the notation `token:xxxxx` then strip
+        // the prefix
+        if (encodedAuthParamString.startsWith("token:")) {
+            this.tokenSupplier = () -> encodedAuthParamString.substring("token:".length());
+        } else if (encodedAuthParamString.startsWith("file:")) {
+            // Read token from a file
+            URI filePath = URI.create(encodedAuthParamString);
+            this.tokenSupplier = () -> {
+                try {
+                    return new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8);
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to read token from file", e);
+                }
+            };
+        } else {
+            this.tokenSupplier = () -> encodedAuthParamString;
+        }
     }
 
     @Override
-    @Deprecated
     public void configure(Map<String, String> authParams) {
-        setAuthParams(authParams);
+        // noop
     }
 
     @Override
     public void start() throws PulsarClientException {
         // noop
-    }
-
-    private void setAuthParams(Map<String, String> authParams) {
-        certFilePath = authParams.get("tlsCertFile");
-        keyFilePath = authParams.get("tlsKeyFile");
     }
 
 }

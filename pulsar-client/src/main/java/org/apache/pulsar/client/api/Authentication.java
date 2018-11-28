@@ -22,6 +22,9 @@ import java.io.Closeable;
 import java.io.Serializable;
 import java.util.Map;
 
+/**
+ * Interface of authentication providers.
+ */
 public interface Authentication extends Closeable, Serializable {
 
     /**
