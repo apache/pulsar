@@ -50,7 +50,7 @@ $PULSAR_DIR/bin/pulsar tokens create-secret-key --output $DATA_DIR/tokens/secret
 
 $PULSAR_DIR/bin/pulsar tokens create \
             --subject token-principal \
-            --signing-key file:///$DATA_DIR/tokens/secret.key \
+            --secret-key file:///$DATA_DIR/tokens/secret.key \
             > $DATA_DIR/tokens/token.txt
 
 export PULSAR_STANDALONE_CONF=$SRC_DIR/pulsar-client-cpp/test-conf/standalone-ssl.conf
