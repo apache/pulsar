@@ -55,10 +55,11 @@ message FunctionStatus {
     string workerId = 16;
 }
 
-message FunctionStatusList {
-    string error = 2;
-    repeated FunctionStatus functionStatusList = 1;
-}
+// Deprecated
+//message FunctionStatusList {
+//    string error = 2;
+//    repeated FunctionStatus functionStatusList = 1;
+//}
 
 message MetricsData {
 //    message DataDigest {
