@@ -23,6 +23,10 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.common.base.Charsets;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.Encoders;
@@ -40,6 +44,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
+import javax.naming.AuthenticationException;
 
 import lombok.Cleanup;
 
@@ -196,6 +201,77 @@ public class TokensCliUtils {
         }
     }
 
+    @Parameters(commandDescription = "Validate a token against a key")
+    public static class CommandValidateToken {
+
+        @Parameter(description = "The token string", arity = 1)
+        private java.util.List<String> args;
+
+        @Parameter(names = { "-i",
+                "--stdin" }, description = "Read token from standard input")
+        private Boolean stdin = false;
+
+        @Parameter(names = { "-f",
+                "--token-file" }, description = "Read token from a file")
+        private String tokenFile;
+
+        @Parameter(names = { "-sk",
+                "--secret-key" }, description = "Pass the secret key for validating the token. This can either be: data:, file:, etc..")
+        private String secretKey;
+
+        @Parameter(names = { "-pk",
+                "--public-key" }, description = "Pass the public key for validating the token. This can either be: data:, file:, etc..")
+        private String publicKey;
+
+        public void run() throws Exception {
+            if (secretKey == null && publicKey == null) {
+                System.err.println(
+                        "Either --secret-key or --public-key needs to be passed for signing a token");
+                System.exit(1);
+            } else if (secretKey != null && publicKey != null) {
+                System.err.println(
+                        "Only one of --secret-key and --public-key needs to be passed for signing a token");
+                System.exit(1);
+            }
+
+            String token;
+            if (args != null) {
+                token = args.get(0);
+            } else if (stdin) {
+                @Cleanup
+                BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
+                token = r.readLine();
+            } else if (tokenFile != null) {
+                token = new String(Files.readAllBytes(Paths.get(tokenFile)), Charsets.UTF_8);
+            } else if (System.getenv("TOKEN") != null) {
+                token = System.getenv("TOKEN");
+            } else {
+                System.err.println(
+                        "Token needs to be either passed as an argument or through `--stdin`, `--token-file` or by the `TOKEN` environment variable");
+                System.exit(1);
+                return;
+            }
+
+            Key validationKey;
+
+            if (publicKey != null) {
+                byte[] encodedKey = AuthTokenUtils.readKeyFromUrl(publicKey);
+                validationKey = AuthTokenUtils.decodePublicKey(encodedKey);
+            } else {
+                byte[] encodedKey = AuthTokenUtils.readKeyFromUrl(secretKey);
+                validationKey = AuthTokenUtils.decodeSecretKey(encodedKey);
+            }
+
+            // Validate the token
+            @SuppressWarnings("unchecked")
+            Jwt<?, Claims> jwt = Jwts.parser()
+                    .setSigningKey(validationKey)
+                    .parse(token);
+
+            System.out.println(jwt.getBody());
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander(arguments);
@@ -211,6 +287,9 @@ public class TokensCliUtils {
 
         CommandShowToken commandShowToken = new CommandShowToken();
         jcommander.addCommand("show", commandShowToken);
+
+        CommandValidateToken commandValidateToken = new CommandValidateToken();
+        jcommander.addCommand("validate", commandValidateToken);
 
         try {
             jcommander.parse(args);
@@ -229,10 +308,14 @@ public class TokensCliUtils {
 
         if (cmd.equals("create-secret-key")) {
             commandCreateSecretKey.run();
+        } else if (cmd.equals("create-key-pair")) {
+            commandCreateKeyPair.run();
         } else if (cmd.equals("create")) {
             commandCreateToken.run();
         } else if (cmd.equals("show")) {
             commandShowToken.run();
+        } else if (cmd.equals("validate")) {
+            commandValidateToken.run();
         } else {
             System.err.println("Invalid command: " + cmd);
             System.exit(1);
