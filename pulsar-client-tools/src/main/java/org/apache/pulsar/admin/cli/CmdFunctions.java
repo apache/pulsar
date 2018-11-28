@@ -49,7 +49,10 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.functions.*;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.common.functions.FunctionState;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
