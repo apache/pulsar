@@ -79,6 +79,7 @@
             </goals>
             <configuration>
               <executable>${project.basedir}/../../src/pulsar-io-gen</executable>
+              <outputFile>${project.basedir}/target/pulsar-io-gen.output</outputFile>
               <arguments>
                 <argument>conf</argument>
                 <argument>-o</argument>

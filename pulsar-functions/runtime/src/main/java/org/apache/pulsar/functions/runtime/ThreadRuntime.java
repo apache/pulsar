@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 import io.prometheus.client.CollectorRegistry;
@@ -154,6 +155,11 @@ class ThreadRuntime implements Runtime {
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getMetrics());
+    }
+
+    @Override
+    public String getPrometheusMetrics() throws IOException {
+        return javaInstanceRunnable.getStats().getStatsAsString();
     }
 
     @Override

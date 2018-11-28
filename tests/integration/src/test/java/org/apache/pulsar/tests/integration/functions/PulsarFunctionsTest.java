@@ -333,7 +333,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             try {
                 ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
                 log.info("Get sink status : {}", result.getStdout());
-                if (result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\"")) {
+                if (result.getStdout().contains("\"numSuccessfullyProcessed\": \"" + numMessages + "\"")) {
                     return;
                 }
             } catch (ContainerExecException e) {
@@ -532,7 +532,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             try {
                 ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
                 log.info("Get source status : {}", result.getStdout());
-                if (result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\"")) {
+                if (result.getStdout().contains("\"numSuccessfullyProcessed\": \"" + numMessages + "\"")) {
                     return;
                 }
             } catch (ContainerExecException e) {
@@ -561,7 +561,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             try {
                 ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
                 log.info("Get sink status : {}", result.getStdout());
-                if (result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\"")) {
+                if (result.getStdout().contains("\"numSuccessfullyProcessed\": \"" + numMessages + "\"")) {
                     return;
                 }
             } catch (ContainerExecException e) {
@@ -913,7 +913,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--name", functionName
         );
         assertTrue(result.getStdout().contains("\"running\": true"));
-        assertTrue(result.getStdout().contains("\"numProcessed\": \"" + numMessages + "\""));
         assertTrue(result.getStdout().contains("\"numSuccessfullyProcessed\": \"" + numMessages + "\""));
     }
 

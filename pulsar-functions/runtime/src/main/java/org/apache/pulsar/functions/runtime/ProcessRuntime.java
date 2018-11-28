@@ -38,6 +38,7 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.Utils;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.TimerTask;
@@ -58,6 +59,7 @@ class ProcessRuntime implements Runtime {
     @Getter
     private List<String> processArgs;
     private int instancePort;
+    private int metricsPort;
     @Getter
     private Throwable deathException;
     private ManagedChannel channel;
@@ -81,6 +83,7 @@ class ProcessRuntime implements Runtime {
                    Long expectedHealthCheckInterval) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
+        this.metricsPort = Utils.findAvailablePort();
         this.expectedHealthCheckInterval = expectedHealthCheckInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         String logConfigFile = null;
@@ -119,7 +122,7 @@ class ProcessRuntime implements Runtime {
             false,
             null,
             null,
-                Utils.findAvailablePort());
+                this.metricsPort);
     }
 
     /**
@@ -266,6 +269,11 @@ class ProcessRuntime implements Runtime {
             }
         });
         return retval;
+    }
+
+    @Override
+    public String getPrometheusMetrics() throws IOException {
+        return RuntimeUtils.getPrometheusMetrics(metricsPort);
     }
 
     public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {

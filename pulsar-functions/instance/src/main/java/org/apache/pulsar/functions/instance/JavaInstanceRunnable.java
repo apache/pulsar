@@ -24,7 +24,6 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
-import java.util.concurrent.TimeUnit;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -38,11 +37,8 @@ import org.apache.bookkeeper.clients.exceptions.ClientException;
 import org.apache.bookkeeper.clients.exceptions.InternalServerException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
-import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.Backoff.Jitter;
 import org.apache.bookkeeper.common.util.Backoff.Jitter.Type;
-import org.apache.bookkeeper.common.util.Backoff.Policy;
-import org.apache.bookkeeper.common.util.Retries;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
 import org.apache.bookkeeper.stream.proto.StorageType;
 import org.apache.bookkeeper.stream.proto.StreamConfiguration;
@@ -69,7 +65,6 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.StateUtils;
@@ -86,6 +81,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
@@ -119,6 +115,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Throwable deathException;
 
     // function stats
+    @Getter
     private FunctionStatsManager stats;
 
     private Record<?> currentRecord;
@@ -255,8 +252,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 // register end time
                 stats.processTimeEnd();
-                // increment total processed
-                stats.incrTotalProcessed();
 
                 removeLogTopicHandler();
 
@@ -520,7 +515,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Builder createMetricsDataBuilder() {
         InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
 
-        bldr.setProcessedTotal((long) stats.getTotalProcessed());
         bldr.setProcessedSuccessfullyTotal((long) stats.getTotalProcessedSuccessfully());
         bldr.setSystemExceptionsTotal((long) stats.getTotalSysExceptions());
         bldr.setUserExceptionsTotal((long) stats.getTotalUserExceptions());
@@ -528,7 +522,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         bldr.setAvgProcessLatency(stats.getAvgProcessLatency());
         bldr.setLastInvocation((long) stats.getLastInvocation());
 
-        bldr.setProcessedTotal1Min((long) stats.getTotalProcessed1min());
         bldr.setProcessedSuccessfullyTotal1Min((long) stats.getTotalProcessedSuccessfully1min());
         bldr.setSystemExceptionsTotal1Min((long) stats.getTotalSysExceptions1min());
         bldr.setUserExceptionsTotal1Min((long) stats.getTotalUserExceptions1min());
@@ -540,7 +533,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
-        functionStatusBuilder.setNumProcessed((long) stats.getTotalProcessed());
+        functionStatusBuilder.setNumReceived((long)stats.getTotalRecordsReceived());
         functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
         functionStatusBuilder.setNumUserExceptions((long) stats.getTotalUserExceptions());
         stats.getLatestUserExceptions().forEach(ex -> {

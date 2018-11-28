@@ -44,6 +44,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations about namespaces")
 public class CmdNamespaces extends CmdBase {
@@ -352,9 +353,16 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             long sizeLimit = validateSizeString(limitStr);
-            int retentionTimeInMin = validateTimeString(retentionTimeStr);
+            long retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
 
-            int retentionSizeInMB;
+            final int retentionTimeInMin;
+            if (retentionTimeInSec != -1) {
+                retentionTimeInMin = (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec);
+            } else {
+                retentionTimeInMin = -1;
+            }
+
+            final int retentionSizeInMB;
             if (sizeLimit != -1) {
                 retentionSizeInMB = (int) (sizeLimit / (1024 * 1024));
             } else {
@@ -901,7 +909,8 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().setOffloadDeleteLag(namespace, validateTimeString(lag), TimeUnit.MINUTES);
+            admin.namespaces().setOffloadDeleteLag(namespace, RelativeTimeUtil.parseRelativeTimeInSeconds(lag),
+                    TimeUnit.SECONDS);
         }
     }
 

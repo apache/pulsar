@@ -50,6 +50,7 @@ public class FlinkPulsarBatchSinkExample {
         // create DataSet
         DataSet<String> textDS = env.fromElements(EINSTEIN_QUOTE);
 
+        // convert sentences to words
         textDS.flatMap(new FlatMapFunction<String, WordWithCount>() {
             @Override
             public void flatMap(String value, Collector<WordWithCount> out) throws Exception {
@@ -59,22 +60,31 @@ public class FlinkPulsarBatchSinkExample {
                 }
             }
         })
+
         // filter words which length is bigger than 4
         .filter(wordWithCount -> wordWithCount.word.length() > 4)
+
+        // group the words
         .groupBy(new KeySelector<WordWithCount, String>() {
             @Override
             public String getKey(WordWithCount wordWithCount) throws Exception {
                 return wordWithCount.word;
             }
         })
+
+        // sum the word counts
         .reduce(new ReduceFunction<WordWithCount>() {
             @Override
             public WordWithCount reduce(WordWithCount wordWithCount1, WordWithCount wordWithCount2) throws Exception {
                 return  new WordWithCount(wordWithCount1.word, wordWithCount1.count + wordWithCount2.count);
             }
         })
+
         // write batch data to Pulsar
         .output(pulsarOutputFormat);
+
+        // set parallelism to write Pulsar in parallel (optional)
+        env.setParallelism(2);
 
         // execute program
         env.execute("Flink - Pulsar Batch WordCount");
