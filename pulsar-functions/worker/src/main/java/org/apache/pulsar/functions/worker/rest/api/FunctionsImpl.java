@@ -81,6 +81,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -1094,15 +1095,14 @@ public class FunctionsImpl {
                         .entity(new String("key '" + key + "' doesn't exist."))
                         .build();
                 } else {
-                    String value;
+                    FunctionState value;
                     if (kv.isNumber()) {
-                        value = "value : " + kv.numberValue() + ", version : " + kv.version();
+                        value = new FunctionState(key, null, kv.numberValue(), kv.version());
                     } else {
-                        value = "value : " + new String(ByteBufUtil.getBytes(kv.value()), UTF_8)
-                            + ", version : " + kv.version();
+                        value = new FunctionState(key, new String(ByteBufUtil.getBytes(kv.value()), UTF_8), null, kv.version());
                     }
                     return Response.status(Status.OK)
-                        .entity(new String(value))
+                        .entity(new Gson().toJson(value))
                         .build();
                 }
             }
