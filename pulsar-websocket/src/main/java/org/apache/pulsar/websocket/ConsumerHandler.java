@@ -230,8 +230,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     throw new IOException("Missing required permitMessages field for 'permit' command");
                 }
                 if (this.pullMode) {
-                    int pending = pendingMessages.addAndGet(-command.permitMessages);
-                    if (pending  < 0) {
+                    int pending = pendingMessages.getAndAdd(-command.permitMessages);
+                    if (pending >= 0) {
                         // Resume delivery
                         receiveMessage();
                     }
