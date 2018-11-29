@@ -266,8 +266,8 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("my-subscription")
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(2).build())
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
                 .subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -276,8 +276,8 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
         producer.send(("a message").getBytes());
 
-        // wait a while, message will send to dead letter topic
-        Thread.sleep(15000L);
+        // Wait a while, message should not be send to DLQ
+        Thread.sleep(5000L);
 
         Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(msg);

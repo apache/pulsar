@@ -294,7 +294,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         Message<T> message;
         try {
             message = incomingMessages.take();
-            unAckedMessageTracker.add(message.getMessageId());
+            startMessageTracking(message);
             Message<T> interceptMsg = beforeConsume(message);
             messageProcessed(interceptMsg);
             return interceptMsg;
@@ -326,7 +326,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (message == null && conf.getReceiverQueueSize() == 0) {
             sendFlowPermitsToBroker(cnx(), 1);
         } else if (message != null) {
-            unAckedMessageTracker.add(message.getMessageId());
+            startMessageTracking(message);
             Message<T> interceptMsg = beforeConsume(message);
             messageProcessed(interceptMsg);
             result.complete(interceptMsg);
@@ -388,7 +388,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         try {
             message = incomingMessages.poll(timeout, unit);
             if (message != null) {
-                unAckedMessageTracker.add(message.getMessageId());
+                startMessageTracking(message);
             }
             Message<T> interceptMsg = beforeConsume(message);
             if (interceptMsg != null) {
@@ -835,7 +835,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(), Collections.singletonList(message));
                 }
                 if (!pendingReceives.isEmpty()) {
-                    unAckedMessageTracker.add(message.getMessageId());
+                    startMessageTracking(message);
                     notifyPendingReceivedCallback(message, null);
                 } else if (conf.getReceiverQueueSize() != 0 || waitingOnReceiveForZeroQueueSize) {
                     incomingMessages.add(message);
@@ -1064,6 +1064,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // we should no longer track this message, TopicsConsumer will take care from now onwards
                 unAckedMessageTracker.remove(id);
             } else {
+                unAckedMessageTracker.add(id);
+            }
+        }
+    }
+
+    protected void startMessageTracking(Message<?> msg) {
+        if (msg != null) {
+            MessageId messageId = msg.getMessageId();
+            if (conf.getAckTimeoutMillis() > 0 && messageId instanceof MessageIdImpl) {
+                MessageIdImpl id = (MessageIdImpl)messageId;
+                if (id instanceof BatchMessageIdImpl) {
+                    id = new MessageIdImpl(id.getLedgerId(), id.getEntryId(), getPartitionIndex());
+                }
                 unAckedMessageTracker.add(id);
             }
         }
