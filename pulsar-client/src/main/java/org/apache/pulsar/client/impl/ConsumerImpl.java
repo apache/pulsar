@@ -831,6 +831,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             lock.readLock().lock();
             try {
+                // Enqueue the message so that it can be retrieved when application calls receive()
+                // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
+                // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
                 if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(), Collections.singletonList(message));
                 }
