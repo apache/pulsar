@@ -83,7 +83,7 @@ public class PulsarTcpServer<T> {
         private int port;
         private String serviceUrl;
         private String topicName;
-        private PulsarSerializer pulsarSerializer;
+        private PulsarSerializer<T> pulsarSerializer;
         private ChannelInboundHandlerAdapter decoder;
         private int numberOfThreads;
 
