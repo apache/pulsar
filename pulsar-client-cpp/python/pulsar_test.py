@@ -24,7 +24,7 @@ import time
 import os
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
-            AuthenticationTLS, Authentication
+            AuthenticationTLS, Authentication, AuthenticationToken
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -792,6 +792,45 @@ class PulsarTest(TestCase):
         self.assertEqual(client.get_topic_partitions(topic_non_partitioned),
                          [topic_non_partitioned])
         client.close()
+
+    def test_token_auth(self):
+        with open('/tmp/pulsar-test-data/tokens/token.txt') as tf:
+            token = tf.read().strip()
+
+        # Use adminUrl to test both HTTP request and binary protocol
+        client = Client(self.adminUrl,
+                        authentication=AuthenticationToken(token))
+
+        consumer = client.subscribe('persistent://private/auth/my-python-topic-token-auth',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://private/auth/my-python-topic-token-auth')
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+        client.close()
+
+    def test_token_auth_supplier(self):
+        def read_token():
+            with open('/tmp/pulsar-test-data/tokens/token.txt') as tf:
+                return tf.read().strip()
+
+        client = Client(self.serviceUrl,
+                        authentication=AuthenticationToken(read_token))
+        consumer = client.subscribe('persistent://private/auth/my-python-topic-token-auth',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://private/auth/my-python-topic-token-auth')
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+        client.close()
+
+    #####
 
     def _check_value_error(self, fun):
         try:
