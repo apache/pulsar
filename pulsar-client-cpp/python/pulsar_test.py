@@ -135,6 +135,7 @@ class PulsarTest(TestCase):
         except:
             pass  # Exception is expected
 
+        consumer.unsubscribe()
         client.close()
 
     def test_tls_auth(self):
