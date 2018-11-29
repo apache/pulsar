@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
@@ -912,8 +913,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--namespace", "default",
             "--name", functionName
         );
-        assertTrue(result.getStdout().contains("\"running\": true"));
-        assertTrue(result.getStdout().contains("\"numSuccessfullyProcessed\": \"" + numMessages + "\""));
+
+        FunctionStatus functionStatus = FunctionStatus.decode(result.getStdout());
+
+        assertEquals(functionStatus.getNumInstances(), 1);
+        assertEquals(functionStatus.getNumRunning(), 1);
+        assertEquals(functionStatus.getInstances().size(), 1);
+        assertEquals(functionStatus.getInstances().get(0).getInstanceId(), 0);
+        assertTrue(functionStatus.getInstances().get(0).getStatus().getAverageLatency() > 0.0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
+        assertTrue(functionStatus.getInstances().get(0).getStatus().getLastInvocationTime() > 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), numMessages);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), numMessages);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
     }
 
     private static void publishAndConsumeMessages(String inputTopic,

@@ -19,7 +19,9 @@
 package org.apache.pulsar.common.policies.data;
 
 import lombok.Data;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -67,5 +69,9 @@ public class FunctionStatus {
 
     public void addInstance(FunctionInstanceStatus functionInstanceStatus) {
         instances.add(functionInstanceStatus);
+    }
+
+    public static FunctionStatus decode(String json) throws IOException {
+        return ObjectMapperFactory.getThreadLocal().readValue(json, FunctionStatus.class);
     }
 }
