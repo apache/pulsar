@@ -88,7 +88,8 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("get", getSource);
-        jcommander.addCommand("getstatus", getSourceStatus);
+        // TODO depecreate getstatus
+        jcommander.addCommand("status", getSourceStatus, "getstatus");
         jcommander.addCommand("list", listSources);
         jcommander.addCommand("stop", stopSource);
         jcommander.addCommand("restart", restartSource);

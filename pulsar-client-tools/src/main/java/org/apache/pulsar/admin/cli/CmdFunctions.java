@@ -891,7 +891,8 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("get", getGetter());
         jcommander.addCommand("restart", getRestarter());
         jcommander.addCommand("stop", getStopper());
-        jcommander.addCommand("getstatus", getStatuser());
+        // TODO depecreate getstatus
+        jcommander.addCommand("status", getStatuser(), "getstatus");
         jcommander.addCommand("stats", getFunctionStats());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());

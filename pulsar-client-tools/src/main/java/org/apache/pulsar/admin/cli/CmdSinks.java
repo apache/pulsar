@@ -86,7 +86,8 @@ public class CmdSinks extends CmdBase {
         jcommander.addCommand("delete", deleteSink);
         jcommander.addCommand("list", listSinks);
         jcommander.addCommand("get", getSink);
-        jcommander.addCommand("getstatus", getSinkStatus);
+        // TODO depecreate getstatus
+        jcommander.addCommand("status", getSinkStatus, "getstatus");
         jcommander.addCommand("stop", stopSink);
         jcommander.addCommand("restart", restartSink);
         jcommander.addCommand("localrun", localSinkRunner);
