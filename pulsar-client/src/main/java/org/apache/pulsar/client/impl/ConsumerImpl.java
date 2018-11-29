@@ -1075,6 +1075,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (conf.getAckTimeoutMillis() > 0 && messageId instanceof MessageIdImpl) {
                 MessageIdImpl id = (MessageIdImpl)messageId;
                 if (id instanceof BatchMessageIdImpl) {
+                    // do not add each item in batch message into tracker
                     id = new MessageIdImpl(id.getLedgerId(), id.getEntryId(), getPartitionIndex());
                 }
                 unAckedMessageTracker.add(id);

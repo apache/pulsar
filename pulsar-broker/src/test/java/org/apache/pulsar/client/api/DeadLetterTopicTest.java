@@ -258,6 +258,9 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
+    /**
+     * issue https://github.com/apache/pulsar/issues/3077
+     */
     @Test(timeOut = 200000)
     public void testDeadLetterWithoutConsumerReceiveImmediately() throws PulsarClientException, InterruptedException {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic-without-consumer-receive-immediately";
