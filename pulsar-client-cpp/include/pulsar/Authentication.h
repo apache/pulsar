@@ -25,6 +25,7 @@
 #include <boost/shared_ptr.hpp>
 #include <pulsar/Result.h>
 #include <boost/make_shared.hpp>
+#include <boost/function.hpp>
 
 #pragma GCC visibility push(default)
 
@@ -112,6 +113,43 @@ class AuthTls : public Authentication {
 
    private:
     AuthenticationDataPtr authDataTls_;
+};
+
+typedef boost::function<std::string()> TokenSupplier;
+
+/**
+ * Token based implementation of Pulsar client authentication
+ */
+class AuthToken : public Authentication {
+   public:
+    AuthToken(AuthenticationDataPtr&);
+    ~AuthToken();
+
+    static AuthenticationPtr create(ParamMap& params);
+
+    static AuthenticationPtr create(const std::string& authParamsString);
+
+    /**
+     * Create an authentication provider for token based authentication.
+     *
+     * @param token
+     *            a string containing the auth token
+     */
+    static AuthenticationPtr createWithToken(const std::string& token);
+
+    /**
+     * Create an authentication provider for token based authentication.
+     *
+     * @param tokenSupplier
+     *            a supplier of the client auth token
+     */
+    static AuthenticationPtr create(const TokenSupplier& tokenSupplier);
+
+    const std::string getAuthMethodName() const;
+    Result getAuthData(AuthenticationDataPtr& authDataToken) const;
+
+   private:
+    AuthenticationDataPtr authDataToken_;
 };
 
 /**

@@ -27,11 +27,17 @@ extern "C" {
 
 typedef struct _pulsar_authentication pulsar_authentication_t;
 
+typedef char *(*token_supplier)(void *);
+
 pulsar_authentication_t *pulsar_authentication_create(const char *dynamicLibPath,
                                                       const char *authParamsString);
 
 pulsar_authentication_t *pulsar_authentication_tls_create(const char *certificatePath,
                                                           const char *privateKeyPath);
+
+pulsar_authentication_t *pulsar_authentication_token_create(const char *token);
+pulsar_authentication_t *pulsar_authentication_token_create_with_supplier(token_supplier tokenSupplier,
+                                                                          void *ctx);
 
 pulsar_authentication_t *pulsar_authentication_athenz_create(const char *authParamsString);
 
