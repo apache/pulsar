@@ -24,6 +24,11 @@ Application will specify the token when creating the client instance. An alterna
 a "token supplier", that is to say a function that returns the token when the client library
 will need one.
 
+> #### Always use TLS transport encryption
+> Sending a token is equivalent to sending a password over the wire. It is strongly recommended to
+> always use TLS encryption when talking to the Pulsar service. See
+> [Transport Encryption using TLS](security-tls-transport.md)
+
 ## Secret vs Public/Private keys
 
 JWT support two different kind of keys in order to generate and validate the tokens:
