@@ -44,6 +44,8 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.functions.worker.rest.api.FunctionsImplBase;
+import org.apache.pulsar.functions.worker.rest.api.SinkImpl;
 import org.apache.pulsar.io.cassandra.CassandraStringSink;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
@@ -121,7 +123,7 @@ public class SinkApiV2ResourceTest {
     private FunctionRuntimeManager mockedFunctionRunTimeManager;
     private RuntimeFactory mockedRuntimeFactory;
     private Namespace mockedNamespace;
-    private FunctionsImpl resource;
+    private SinkImpl resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetaData;
@@ -171,8 +173,8 @@ public class SinkApiV2ResourceTest {
             .setPulsarServiceUrl("pulsar://localhost:6650/");
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
-        this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        Mockito.doReturn("Sink").when(this.resource).calculateSubjectType(any());
+        this.resource = spy(new SinkImpl(() -> mockedWorkerService));
+        Mockito.doReturn(FunctionsImplBase.ComponentType.SINK).when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -1181,9 +1183,9 @@ public class SinkApiV2ResourceTest {
                 FunctionDetails.newBuilder().setName("test-3").build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        doReturn("Source").when(this.resource).calculateSubjectType(f1);
-        doReturn("Function").when(this.resource).calculateSubjectType(f2);
-        doReturn("Sink").when(this.resource).calculateSubjectType(f3);
+        doReturn(FunctionsImplBase.ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
+        doReturn(FunctionsImplBase.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
+        doReturn(FunctionsImplBase.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
 
         Response response = listDefaultSinks();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());

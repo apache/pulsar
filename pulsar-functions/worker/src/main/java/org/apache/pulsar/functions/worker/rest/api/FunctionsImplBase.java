@@ -119,9 +119,20 @@ import net.jodah.typetools.TypeResolver;
 public class FunctionsImplBase {
 
     public enum ComponentType {
-        FUNCTION,
-        SOURCE,
-        SINK
+        FUNCTION("Function"),
+        SOURCE("Source"),
+        SINK("Sink");
+
+        private final String componentName;
+
+        ComponentType(String componentName) {
+            this.componentName = componentName;
+        }
+
+        @Override
+        public String toString() {
+            return componentName;
+        }
     }
 
     private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
