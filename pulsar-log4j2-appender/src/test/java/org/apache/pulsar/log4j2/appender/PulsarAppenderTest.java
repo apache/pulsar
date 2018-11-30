@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.log4j2.appender;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
-import static org.testng.AssertJUnit.assertNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -39,7 +38,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -57,7 +55,6 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.testng.annotations.BeforeMethod;
@@ -130,6 +127,25 @@ public class PulsarAppenderTest {
         doReturn(producer).when(producerBuilder).create();
 
         when(producer.newMessage()).then(invocation -> new MockedMessageBuilder());
+        when(producer.send(any(byte[].class)))
+            .thenAnswer(invocationOnMock -> {
+                Message<byte[]> msg = invocationOnMock.getArgument(0);
+                synchronized (history) {
+                    history.add(msg);
+                }
+                return null;
+            });
+
+        when(producer.sendAsync(any(byte[].class)))
+            .thenAnswer(invocationOnMock -> {
+                Message<byte[]> msg = invocationOnMock.getArgument(0);
+                synchronized (history) {
+                    history.add(msg);
+                }
+                CompletableFuture<MessageId> future = new CompletableFuture<>();
+                future.complete(mock(MessageId.class));
+                return future;
+            });
 
         PulsarManager.PULSAR_CLIENT_BUILDER = () -> clientBuilder;
 

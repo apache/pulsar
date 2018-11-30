@@ -19,6 +19,14 @@
 
 package org.apache.pulsar.io.mongodb;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
@@ -26,6 +34,11 @@ import com.mongodb.async.client.MongoClients;
 import com.mongodb.async.client.MongoCollection;
 import com.mongodb.async.client.MongoDatabase;
 import com.mongodb.bulk.BulkWriteError;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.bson.BsonDocument;
@@ -38,14 +51,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.*;
 
 @PrepareForTest(MongoClients.class)
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
@@ -98,7 +103,7 @@ public class MongoSinkTest {
         when(mockRecord.getValue()).thenReturn("{\"hello\":\"pulsar\"}".getBytes());
 
         doAnswer((invocation) -> {
-            SingleResultCallback cb = invocation.getArgumentAt(1, SingleResultCallback.class);
+            SingleResultCallback cb = invocation.getArgument(1, SingleResultCallback.class);
             MongoBulkWriteException exc = null;
 
             if (throwBulkError) {
@@ -109,17 +114,17 @@ public class MongoSinkTest {
 
             cb.onResult(null, exc);
             return null;
-        }).when(mockMongoColl).insertMany(anyObject(), anyObject());
+        }).when(mockMongoColl).insertMany(any(), any());
     }
 
     private void initFailContext(String msg) {
         when(mockRecord.getValue()).thenReturn(msg.getBytes());
 
         doAnswer((invocation) -> {
-            SingleResultCallback cb = invocation.getArgumentAt(1, SingleResultCallback.class);
+            SingleResultCallback cb = invocation.getArgument(1, SingleResultCallback.class);
             cb.onResult(null, new Exception("Oops"));
             return null;
-        }).when(mockMongoColl).insertMany(anyObject(), anyObject());
+        }).when(mockMongoColl).insertMany(any(), any());
     }
 
     @AfterMethod
