@@ -811,7 +811,7 @@ class Consumer:
 
         This consumer object cannot be reused.
         """
-        return self._consumer.unsubcribe()
+        return self._consumer.unsubscribe()
 
     def receive(self, timeout_millis=None):
         """
