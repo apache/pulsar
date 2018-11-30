@@ -70,6 +70,7 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.functions.worker.rest.api.FunctionsImplBase;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -168,7 +169,7 @@ public class FunctionApiV2ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        doReturn("Function").when(this.resource).calculateSubjectType(any());
+        doReturn(FunctionsImplBase.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(any());
     }
 
     //
@@ -429,7 +430,6 @@ public class FunctionApiV2ResourceTest {
                 functionPkgUrl,
                 null,
                 new Gson().toJson(functionConfig),
-                FunctionsImpl.FUNCTION,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -447,7 +447,6 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            FunctionsImpl.FUNCTION,
                 null);
     }
 
@@ -783,7 +782,6 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            FunctionsImpl.FUNCTION,
                 null);
 
         if (expectedError == null) {
@@ -815,7 +813,6 @@ public class FunctionApiV2ResourceTest {
             null,
             null,
             new Gson().toJson(functionConfig),
-            FunctionsImpl.FUNCTION,
                 null);
     }
 
@@ -899,7 +896,6 @@ public class FunctionApiV2ResourceTest {
             filePackageUrl,
             null,
             new Gson().toJson(functionConfig),
-            FunctionsImpl.FUNCTION,
                 null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -988,7 +984,6 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             function,
-            FunctionsImpl.FUNCTION,
                 null);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -1000,8 +995,7 @@ public class FunctionApiV2ResourceTest {
             tenant,
             namespace,
             function,
-            FunctionsImpl.FUNCTION,
-                 null);
+                null);
     }
 
     @Test
@@ -1096,8 +1090,8 @@ public class FunctionApiV2ResourceTest {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
-            function,
-                FunctionsImpl.FUNCTION);
+            function
+        );
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -1107,8 +1101,8 @@ public class FunctionApiV2ResourceTest {
         return resource.getFunctionInfo(
             tenant,
             namespace,
-            function,
-                FunctionsImpl.FUNCTION);
+            function
+        );
     }
 
     @Test
@@ -1179,8 +1173,8 @@ public class FunctionApiV2ResourceTest {
     ) {
         Response response = resource.listFunctions(
             tenant,
-            namespace,
-                FunctionsImpl.FUNCTION);
+            namespace
+        );
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
@@ -1189,8 +1183,8 @@ public class FunctionApiV2ResourceTest {
     private Response listDefaultFunctions() {
         return resource.listFunctions(
             tenant,
-            namespace,
-                FunctionsImpl.FUNCTION);
+            namespace
+        );
     }
 
     @Test
@@ -1226,9 +1220,9 @@ public class FunctionApiV2ResourceTest {
                 FunctionDetails.newBuilder().setName("test-3").build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        doReturn("Source").when(this.resource).calculateSubjectType(f1);
-        doReturn("Function").when(this.resource).calculateSubjectType(f2);
-        doReturn("Sink").when(this.resource).calculateSubjectType(f3);
+        doReturn(FunctionsImplBase.ComponentType.SOURCE).when(this.resource).calculateSubjectType(f1);
+        doReturn(FunctionsImplBase.ComponentType.FUNCTION).when(this.resource).calculateSubjectType(f2);
+        doReturn(FunctionsImplBase.ComponentType.SINK).when(this.resource).calculateSubjectType(f3);
 
         Response response = listDefaultFunctions();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
@@ -1290,7 +1284,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), FunctionsImpl.FUNCTION, null);
+                null, new Gson().toJson(functionConfig), null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
@@ -1323,7 +1317,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         Response response = resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl,
-                null, new Gson().toJson(functionConfig), FunctionsImpl.FUNCTION, null);
+                null, new Gson().toJson(functionConfig), null);
 
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }

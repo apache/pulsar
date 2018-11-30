@@ -33,8 +33,7 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -91,23 +90,20 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public FunctionStatusList getFunctionStatus(
+    public FunctionStatus getFunctionStatus(
             String tenant, String namespace, String function) throws PulsarAdminException {
         try {
             Response response = request(functions.path(tenant).path(namespace).path(function).path("status")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            FunctionStatusList.Builder functionStatusBuilder = FunctionStatusList.newBuilder();
-            mergeJson(jsonResponse, functionStatusBuilder);
-            return functionStatusBuilder.build();
+            return response.readEntity(FunctionStatus.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
-    public FunctionStatus getFunctionStatus(
+    public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionStatus(
             String tenant, String namespace, String function, int id) throws PulsarAdminException {
         try {
             Response response = request(
@@ -116,10 +112,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
-            mergeJson(jsonResponse, functionStatusBuilder);
-            return functionStatusBuilder.build();
+            return response.readEntity(FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

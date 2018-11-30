@@ -42,10 +42,9 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -671,17 +670,18 @@ public class PulsarFunctionE2ETest {
         }, 5, 200);
 
         FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
-        FunctionStatusList functionStatus = functionRuntimeManager.getAllFunctionStatus(tenant, namespacePortion,
+        FunctionStatus functionStatus = functionRuntimeManager.getFunctionStatus(tenant, namespacePortion,
                 functionName, null);
 
-        int numInstances = functionStatus.getFunctionStatusListCount();
+        int numInstances = functionStatus.getNumInstances();
         assertEquals(numInstances, 1);
 
-        FunctionStatus stats = functionStatus.getFunctionStatusListList().get(0);
+        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData status
+                = functionStatus.getInstances().get(0).getStatus();
 
-        double count = stats.getNumReceived();
-        double success = stats.getNumSuccessfullyProcessed();
-        String ownerWorkerId = stats.getWorkerId();
+        double count = status.getNumReceived();
+        double success = status.getNumSuccessfullyProcessed();
+        String ownerWorkerId = status.getWorkerId();
         assertEquals((int)count, totalMsgs);
         assertEquals((int) success, totalMsgs);
         assertEquals(ownerWorkerId, workerId);

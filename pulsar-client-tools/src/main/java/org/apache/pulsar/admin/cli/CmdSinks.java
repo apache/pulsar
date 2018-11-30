@@ -86,7 +86,8 @@ public class CmdSinks extends CmdBase {
         jcommander.addCommand("delete", deleteSink);
         jcommander.addCommand("list", listSinks);
         jcommander.addCommand("get", getSink);
-        jcommander.addCommand("getstatus", getSinkStatus);
+        // TODO depecreate getstatus
+        jcommander.addCommand("status", getSinkStatus, "getstatus");
         jcommander.addCommand("stop", stopSink);
         jcommander.addCommand("restart", restartSink);
         jcommander.addCommand("localrun", localSinkRunner);
@@ -547,12 +548,11 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = JsonFormat.printer().print(
-                    isBlank(instanceId) ? admin.sink().getSinkStatus(tenant, namespace, sinkName)
-                            : admin.sink().getSinkStatus(tenant, namespace, sinkName,
-                            Integer.parseInt(instanceId)));
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
+            if (isBlank(instanceId)) {
+                print(admin.sink().getSinkStatus(tenant, namespace, sinkName));
+            } else {
+                print(admin.sink().getSinkStatus(tenant, namespace, sinkName, Integer.parseInt(instanceId)));
+            }
         }
     }
 

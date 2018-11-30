@@ -23,12 +23,12 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.functions.worker.rest.api.SourceImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
@@ -43,10 +43,10 @@ import java.util.function.Supplier;
 
 public class SourceBase extends AdminResource implements Supplier<WorkerService> {
 
-    private final FunctionsImpl functions;
+    private final SourceImpl source;
 
     public SourceBase() {
-        this.functions = new FunctionsImpl(this);
+        this.source = new SourceImpl(this);
     }
 
     @Override
@@ -72,8 +72,8 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                                    final @FormDataParam("url") String functionPkgUrl,
                                    final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
-        return functions.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, sourceConfigJson, FunctionsImpl.SOURCE, clientAppId());
+        return source.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+                functionPkgUrl, null, sourceConfigJson, clientAppId());
     }
 
     @PUT
@@ -93,8 +93,8 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                                  final @FormDataParam("url") String functionPkgUrl,
                                  final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
-        return functions.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, null, sourceConfigJson, FunctionsImpl.SOURCE, clientAppId());
+        return source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+                functionPkgUrl, null, sourceConfigJson, clientAppId());
 
     }
 
@@ -112,7 +112,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public Response deregisterSource(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("sourceName") String sourceName) {
-        return functions.deregisterFunction(tenant, namespace, sourceName, FunctionsImpl.SOURCE, clientAppId());
+        return source.deregisterFunction(tenant, namespace, sourceName, clientAppId());
     }
 
     @GET
@@ -130,43 +130,47 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public Response getSourceInfo(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace,
                                   final @PathParam("sourceName") String sourceName) throws IOException {
-        return functions.getFunctionInfo(
-            tenant, namespace, sourceName, FunctionsImpl.SOURCE);
+        return source.getFunctionInfo(
+            tenant, namespace, sourceName);
     }
 
     @GET
     @ApiOperation(
             value = "Displays the status of a Pulsar Source instance",
-            response = FunctionStatus.class
+            response = SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The function doesn't exist")
+            @ApiResponse(code = 404, message = "The source doesn't exist")
     })
+    @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/status")
-    public Response getSourceInstanceStatus(final @PathParam("tenant") String tenant,
-                                            final @PathParam("namespace") String namespace,
-                                            final @PathParam("sourceName") String sourceName,
-                                            final @PathParam("instanceId") String instanceId) throws IOException {
-        return functions.getFunctionInstanceStatus(
-            tenant, namespace, sourceName, FunctionsImpl.SOURCE, instanceId, uri.getRequestUri());
+    public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceInstanceStatus(
+            final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace,
+            final @PathParam("sourceName") String sourceName,
+            final @PathParam("instanceId") String instanceId) throws IOException {
+        return source.getSourceInstanceStatus(
+            tenant, namespace, sourceName, instanceId, uri.getRequestUri());
     }
 
     @GET
     @ApiOperation(
             value = "Displays the status of a Pulsar Source running in cluster mode",
-            response = FunctionStatus.class
+            response = SourceStatus.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "The source doesn't exist")
     })
+    @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sourceName}/status")
-    public Response getSourceStatus(final @PathParam("tenant") String tenant,
+    public SourceStatus getSourceStatus(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("sourceName") String sourceName) throws IOException {
-        return functions.getFunctionStatus(tenant, namespace, sourceName, FunctionsImpl.SOURCE, uri.getRequestUri());
+        return source.getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri());
     }
 
     @GET
@@ -182,8 +186,8 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     @Path("/{tenant}/{namespace}")
     public Response listSources(final @PathParam("tenant") String tenant,
                                 final @PathParam("namespace") String namespace) {
-        return functions.listFunctions(
-            tenant, namespace, FunctionsImpl.SOURCE);
+        return source.listFunctions(
+            tenant, namespace);
 
     }
 
@@ -197,7 +201,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public Response restartSource(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName,
             final @PathParam("instanceId") String instanceId) {
-        return functions.restartFunctionInstance(tenant, namespace, sourceName, FunctionsImpl.SOURCE, instanceId, uri.getRequestUri());
+        return source.restartFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri());
     }
 
     @POST
@@ -209,7 +213,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     @Consumes(MediaType.APPLICATION_JSON)
     public Response restartSource(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
-        return functions.restartFunctionInstances(tenant, namespace, sourceName, FunctionsImpl.SOURCE);
+        return source.restartFunctionInstances(tenant, namespace, sourceName);
     }
 
     @POST
@@ -222,7 +226,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     public Response stopSource(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName,
             final @PathParam("instanceId") String instanceId) {
-        return functions.stopFunctionInstance(tenant, namespace, sourceName, FunctionsImpl.SOURCE, instanceId, uri.getRequestUri());
+        return source.stopFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri());
     }
 
     @POST
@@ -234,7 +238,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     @Consumes(MediaType.APPLICATION_JSON)
     public Response stopSource(final @PathParam("tenant") String tenant,
             final @PathParam("namespace") String namespace, final @PathParam("sourceName") String sourceName) {
-        return functions.stopFunctionInstances(tenant, namespace, sourceName, FunctionsImpl.SOURCE);
+        return source.stopFunctionInstances(tenant, namespace, sourceName);
     }
 
     @GET
@@ -249,7 +253,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     })
     @Path("/builtinsources")
     public List<ConnectorDefinition> getSourceList() {
-        List<ConnectorDefinition> connectorDefinitions = functions.getListOfConnectors();
+        List<ConnectorDefinition> connectorDefinitions = source.getListOfConnectors();
         List<ConnectorDefinition> retval = new ArrayList<>();
         for (ConnectorDefinition connectorDefinition : connectorDefinitions) {
             if (!StringUtils.isEmpty(connectorDefinition.getSourceClass())) {
