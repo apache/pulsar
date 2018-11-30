@@ -18,63 +18,64 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
-import org.apache.pulsar.common.policies.data.FunctionStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.rest.RestException;
 
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
 import java.util.function.Supplier;
 
-public class SinkImpl extends FunctionsImplBase {
+@Slf4j
+public class SinkImpl extends ComponentImpl {
     public SinkImpl(Supplier<WorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, ComponentType.SINK);
     }
 
-
-    public SinkStatus getSinkStatus(final String tenant, final String namespace,
-                                        final String componentName, URI uri) throws IOException {
-
-        FunctionStatus functionStatus = getFunctionStatus(tenant, namespace, componentName, uri);
-
-        SinkStatus sinkStatus = new SinkStatus();
-
-        sinkStatus.setNumInstances(functionStatus.getNumInstances());
-        sinkStatus.setNumRunning(functionStatus.getNumRunning());
-        functionStatus.getInstances().forEach(functionInstanceStatus -> {
-            SinkStatus.SinkInstanceStatus sinkInstanceStatus = new SinkStatus.SinkInstanceStatus();
-            sinkInstanceStatus.setInstanceId(functionInstanceStatus.getInstanceId());
-            sinkInstanceStatus.setStatus(fromFunctionInstanceStatus(functionInstanceStatus.getStatus()));
-            sinkStatus.addInstance(sinkInstanceStatus);
-        });
-        return sinkStatus;
-    }
-
-    public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(String tenant,
-                                                                                              String namespace,
-                                                                                              String sinkName,
-                                                                                              String instanceId,
-                                                                                              URI requestUri)
+    public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(
+            String tenant, String namespace, String sinkName, String instanceId, URI uri)
             throws IOException {
 
-        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
-                = getFunctionInstanceStatus(tenant, namespace, sinkName, instanceId, requestUri);
+        // validate parameters
+        componentInstanceStatusRequestValidate(tenant, namespace, sinkName, Integer.parseInt(instanceId));
 
-        return fromFunctionInstanceStatus(functionInstanceStatusData);
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
+
+        SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData;
+        try {
+            sinkInstanceStatusData = functionRuntimeManager.getSinkInstanceStatus(tenant, namespace, sinkName,
+                    Integer.parseInt(instanceId), uri);
+        } catch (WebApplicationException we) {
+            throw we;
+        } catch (Exception e) {
+            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, sinkName, e);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+        return sinkInstanceStatusData;
     }
 
-    private static SinkStatus.SinkInstanceStatus.SinkInstanceStatusData fromFunctionInstanceStatus(
-            FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData) {
-        SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
-                = new SinkStatus.SinkInstanceStatus.SinkInstanceStatusData();
+    public SinkStatus getSinkStatus(
+            final String tenant, final String namespace,
+            final String componentName, URI uri) {
 
-        sinkInstanceStatusData.setError(functionInstanceStatusData.getError());
-        sinkInstanceStatusData.setLastInvocationTime(functionInstanceStatusData.getLastInvocationTime());
-        sinkInstanceStatusData.setLatestSystemExceptions(functionInstanceStatusData.getLatestSystemExceptions());
-        sinkInstanceStatusData.setNumReceived(functionInstanceStatusData.getNumReceived());
-        sinkInstanceStatusData.setNumRestarts(functionInstanceStatusData.getNumRestarts());
-        sinkInstanceStatusData.setRunning(functionInstanceStatusData.isRunning());
-        sinkInstanceStatusData.setWorkerId(functionInstanceStatusData.getWorkerId());
-        return sinkInstanceStatusData;
+        // validate parameters
+        componentStatusRequestValidate(tenant, namespace, componentName);
+
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
+        SinkStatus sinkStatus;
+        try {
+            sinkStatus = functionRuntimeManager.getSinkStatus(tenant, namespace, componentName, uri);
+        } catch (WebApplicationException we) {
+            throw we;
+        } catch (Exception e) {
+            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, componentName, e);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+
+        return sinkStatus;
     }
 }

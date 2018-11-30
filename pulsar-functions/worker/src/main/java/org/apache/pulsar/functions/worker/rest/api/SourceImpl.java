@@ -18,62 +18,60 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
-import org.apache.pulsar.common.policies.data.FunctionStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.rest.RestException;
 
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
 import java.util.function.Supplier;
 
-public class SourceImpl extends FunctionsImplBase {
+@Slf4j
+public class SourceImpl extends ComponentImpl {
     public SourceImpl(Supplier<WorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, ComponentType.SOURCE);
     }
 
     public SourceStatus getSourceStatus(final String tenant, final String namespace,
                                         final String componentName, URI uri) throws IOException {
+        // validate parameters
+        componentStatusRequestValidate(tenant, namespace, componentName);
 
-        FunctionStatus functionStatus = getFunctionStatus(tenant, namespace, componentName, uri);
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
+        SourceStatus sourceStatus;
+        try {
+            sourceStatus = functionRuntimeManager.getsourceStatus(tenant, namespace, componentName, uri);
+        } catch (WebApplicationException we) {
+            throw we;
+        } catch (Exception e) {
+            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, componentName, e);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
 
-        SourceStatus sourceStatus = new SourceStatus();
-
-        sourceStatus.setNumInstances(functionStatus.getNumInstances());
-        sourceStatus.setNumRunning(functionStatus.getNumRunning());
-        functionStatus.getInstances().forEach(functionInstanceStatus -> {
-            SourceStatus.SourceInstanceStatus sourceInstanceStatus = new SourceStatus.SourceInstanceStatus();
-            sourceInstanceStatus.setInstanceId(functionInstanceStatus.getInstanceId());
-            sourceInstanceStatus.setStatus(fromFunctionInstanceStatus(functionInstanceStatus.getStatus()));
-            sourceStatus.addInstance(sourceInstanceStatus);
-        });
         return sourceStatus;
     }
 
-    public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceInstanceStatus(String tenant,
-                                                                                              String namespace,
-                                                                                              String sourceName,
-                                                                                              String instanceId,
-                                                                                              URI requestUri)
-            throws IOException {
+    public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceInstanceStatus(
+            String tenant, String namespace, String sourceName, String instanceId, URI uri) {
+        // validate parameters
+        componentInstanceStatusRequestValidate(tenant, namespace, sourceName, Integer.parseInt(instanceId));
 
-        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
-                = getFunctionInstanceStatus(tenant, namespace, sourceName, instanceId, requestUri);
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
 
-        return fromFunctionInstanceStatus(functionInstanceStatusData);
-    }
-
-    private static SourceStatus.SourceInstanceStatus.SourceInstanceStatusData fromFunctionInstanceStatus(
-            FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData) {
-        SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
-                = new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
-
-        sourceInstanceStatusData.setError(functionInstanceStatusData.getError());
-        sourceInstanceStatusData.setLastInvocationTime(functionInstanceStatusData.getLastInvocationTime());
-        sourceInstanceStatusData.setLatestSystemExceptions(functionInstanceStatusData.getLatestSystemExceptions());
-        sourceInstanceStatusData.setNumReceived(functionInstanceStatusData.getNumReceived());
-        sourceInstanceStatusData.setNumRestarts(functionInstanceStatusData.getNumRestarts());
-        sourceInstanceStatusData.setRunning(functionInstanceStatusData.isRunning());
-        sourceInstanceStatusData.setWorkerId(functionInstanceStatusData.getWorkerId());
+        SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData;
+        try {
+            sourceInstanceStatusData = functionRuntimeManager.getSourceInstanceStatus(tenant, namespace, sourceName,
+                    Integer.parseInt(instanceId), uri);
+        } catch (WebApplicationException we) {
+            throw we;
+        } catch (Exception e) {
+            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, sourceName, e);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
         return sourceInstanceStatusData;
     }
 }

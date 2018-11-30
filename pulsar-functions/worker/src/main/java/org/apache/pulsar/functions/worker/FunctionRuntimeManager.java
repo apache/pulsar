@@ -18,26 +18,10 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import java.net.URI;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
-
+import com.google.common.annotations.VisibleForTesting;
+import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -49,20 +33,38 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.runtime.*;
-
-import com.google.common.annotations.VisibleForTesting;
-
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
+import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.Reflections;
+
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriBuilder;
+import java.net.URI;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 /**
  * This class managers all aspects of functions assignments and running of function assignments for this worker
@@ -590,25 +592,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return functionStats.calculateOverall();
     }
 
-    /**
-     * Get status of a function instance.  If this worker is not running the function instance,
-     * @param tenant the tenant the function belongs to
-     * @param namespace the namespace the function belongs to
-     * @param functionName the function name
-     * @param instanceId the function instance id
-     * @return the function status
-     */
-    public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(
-            String tenant, String namespace,
-            String functionName, int instanceId, URI uri) {
-        Assignment assignment;
-        if (runtimeFactory.externallyManaged()) {
-            assignment = this.findAssignment(tenant, namespace, functionName, -1);
-        } else {
-            assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
-        }
+    private class GetFunctionStatus extends GetStatus<FunctionStatus, FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData> {
 
-        if (assignment == null) {
+        @Override
+        public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData notScheduledInstance() {
             FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
                     = new FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData();
             functionInstanceStatusData.setRunning(false);
@@ -616,160 +603,72 @@ public class FunctionRuntimeManager implements AutoCloseable{
             return functionInstanceStatusData;
         }
 
-        final String assignedWorkerId = assignment.getWorkerId();
-        final String workerId = this.workerConfig.getWorkerId();
-
-        // If I am running worker
-        if (assignedWorkerId.equals(workerId)) {
-            FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(
-                    org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
-            RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
+        @Override
+        public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData fromFunctionStatusProto(
+                InstanceCommunication.FunctionStatus status,
+                String assignedWorkerId) {
             FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
                     = new FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData();
-            if (runtimeSpawner != null) {
-                try {
-                    InstanceCommunication.FunctionStatus status = functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus(instanceId).get();
-                    functionInstanceStatusData.setRunning(status.getRunning());
-                    functionInstanceStatusData.setError(status.getFailureException());
-                    functionInstanceStatusData.setNumRestarts(status.getNumRestarts());
-                    functionInstanceStatusData.setNumReceived(status.getNumReceived());
-                    functionInstanceStatusData.setNumSuccessfullyProcessed(status.getNumSuccessfullyProcessed());
-                    functionInstanceStatusData.setNumUserExceptions(status.getNumUserExceptions());
+            functionInstanceStatusData.setRunning(status.getRunning());
+            functionInstanceStatusData.setError(status.getFailureException());
+            functionInstanceStatusData.setNumRestarts(status.getNumRestarts());
+            functionInstanceStatusData.setNumReceived(status.getNumReceived());
+            functionInstanceStatusData.setNumSuccessfullyProcessed(status.getNumSuccessfullyProcessed());
+            functionInstanceStatusData.setNumUserExceptions(status.getNumUserExceptions());
 
-                    List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
-                    for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
-                        ExceptionInformation exceptionInformation
-                                = new ExceptionInformation();
-                        exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                        exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
-                        userExceptionInformationList.add(exceptionInformation);
-                    }
-                    functionInstanceStatusData.setLatestUserExceptions(userExceptionInformationList);
-
-                    functionInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions());
-                    List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
-                    for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
-                        ExceptionInformation exceptionInformation
-                                = new ExceptionInformation();
-                        exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                        exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
-                        systemExceptionInformationList.add(exceptionInformation);
-                    }
-                    functionInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
-
-                    functionInstanceStatusData.setAverageLatency(status.getAverageLatency());
-                    functionInstanceStatusData.setLastInvocationTime(status.getLastInvocationTime());
-                    functionInstanceStatusData.setWorkerId(assignedWorkerId);
-
-
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            } else {
-                functionInstanceStatusData.setRunning(false);
-                if (functionRuntimeInfo.getStartupException() != null) {
-                    functionInstanceStatusData.setError(functionRuntimeInfo.getStartupException().getMessage());
-                }
-                functionInstanceStatusData.setWorkerId(assignedWorkerId);
+            List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                userExceptionInformationList.add(exceptionInformation);
             }
+            functionInstanceStatusData.setLatestUserExceptions(userExceptionInformationList);
+
+            functionInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions());
+            List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                systemExceptionInformationList.add(exceptionInformation);
+            }
+            functionInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
+
+            functionInstanceStatusData.setAverageLatency(status.getAverageLatency());
+            functionInstanceStatusData.setLastInvocationTime(status.getLastInvocationTime());
+            functionInstanceStatusData.setWorkerId(assignedWorkerId);
+
             return functionInstanceStatusData;
-        } else {
-            // query other worker
-
-            List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
-            WorkerInfo workerInfo = null;
-            for (WorkerInfo entry: workerInfoList) {
-                if (assignment.getWorkerId().equals(entry.getWorkerId())) {
-                    workerInfo = entry;
-                }
-            }
-            if (workerInfo == null) {
-                FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
-                        = new FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData();
-                functionInstanceStatusData.setRunning(false);
-                functionInstanceStatusData.setError("Function has not been scheduled");
-                return functionInstanceStatusData;
-            }
-
-            if (uri == null) {
-                throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
-            } else {
-                URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
-                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-            }
-        }
-    }
-
-    /**
-     * Get statuses of all function instances.
-     * @param tenant the tenant the function belongs to
-     * @param namespace the namespace the function belongs to
-     * @param functionName the function name
-     * @return a list of function statuses
-     * @throws PulsarAdminException 
-     */
-    public FunctionStatus getFunctionStatus(String tenant, String namespace,
-                                            String functionName, URI uri)
-            throws PulsarAdminException {
-
-        Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);
-
-        FunctionStatus functionStatus = new FunctionStatus();
-        if (assignments.isEmpty()) {
-            Function.FunctionMetaData functionMetaData = workerService.getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, functionName);
-            functionStatus.setNumInstances(functionMetaData.getFunctionDetails().getParallelism());
-            functionStatus.setNumRunning(0);
-
-            return functionStatus;
         }
 
-        // TODO refactor the code for externally managed.
-        if (runtimeFactory.externallyManaged()) {
-            Assignment assignment = assignments.iterator().next();
-            boolean isOwner = this.workerConfig.getWorkerId().equals(assignment.getWorkerId());
-            if (isOwner) {
-                int parallelism = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getParallelism();
-                for (int i = 0; i < parallelism; ++i) {
-                    FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
-                            = getFunctionInstanceStatus(tenant, namespace, functionName, i, null);
-                    FunctionStatus.FunctionInstanceStatus functionInstanceStatus
-                            = new FunctionStatus.FunctionInstanceStatus();
-                    functionInstanceStatus.setInstanceId(i);
-                    functionInstanceStatus.setStatus(functionInstanceStatusData);
-                    functionStatus.addInstance(functionInstanceStatus);
-                }
-            } else {
-                // find the hostname/port of the worker who is the owner
-
-                List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
-                WorkerInfo workerInfo = null;
-                for (WorkerInfo entry: workerInfoList) {
-                    if (assignment.getWorkerId().equals(entry.getWorkerId())) {
-                        workerInfo = entry;
-                    }
-                }
-                if (workerInfo == null) {
-                    Function.FunctionMetaData functionMetaData = workerService.getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, functionName);
-                    functionStatus.setNumInstances(functionMetaData.getFunctionDetails().getParallelism());
-                    functionStatus.setNumRunning(0);
-                    return functionStatus;
-                }
-
-                if (uri == null) {
-                    throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
-                } else {
-                    URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
-                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-                }
+        @Override
+        public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData notRunning(String assignedWorkerId, String error) {
+            FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
+                    = new FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData();
+            functionInstanceStatusData.setRunning(false);
+            if (error != null) {
+                functionInstanceStatusData.setError(error);
             }
-        } else {
+            functionInstanceStatusData.setWorkerId(assignedWorkerId);
+
+            return functionInstanceStatusData;
+        }
+
+        @Override
+        public FunctionStatus getStatus(String tenant, String namespace, String name, Collection<Assignment>
+                assignments, URI uri) throws PulsarAdminException {
+            FunctionStatus functionStatus = new FunctionStatus();
             for (Assignment assignment : assignments) {
-                boolean isOwner = this.workerConfig.getWorkerId().equals(assignment.getWorkerId());
+                boolean isOwner = workerConfig.getWorkerId().equals(assignment.getWorkerId());
                 FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData;
                 if (isOwner) {
-                    functionInstanceStatusData = getFunctionInstanceStatus(tenant, namespace, functionName, assignment.getInstance().getInstanceId(), null);
+                    functionInstanceStatusData = getFunctionInstanceStatus(tenant, namespace, name, assignment
+                            .getInstance().getInstanceId(), null);
                 } else {
-                    functionInstanceStatusData = this.functionAdmin.functions().getFunctionStatus(
+                    functionInstanceStatusData = functionAdmin.functions().getFunctionStatus(
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
@@ -781,14 +680,496 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 instanceStatus.setStatus(functionInstanceStatusData);
                 functionStatus.addInstance(instanceStatus);
             }
+
+            functionStatus.setNumInstances(functionStatus.instances.size());
+            functionStatus.getInstances().forEach(functionInstanceStatus -> {
+                if (functionInstanceStatus.getStatus().isRunning()) {
+                    functionStatus.numRunning++;
+                }
+            });
+            return functionStatus;
         }
-        functionStatus.setNumInstances(functionStatus.instances.size());
-        functionStatus.getInstances().forEach(functionInstanceStatus -> {
-            if (functionInstanceStatus.getStatus().isRunning()) {
-                functionStatus.numRunning++;
+
+        @Override
+        public FunctionStatus getStatusExternal(String tenant, String namespace, String name, int parallelism) {
+            FunctionStatus functionStatus = new FunctionStatus();
+            for (int i = 0; i < parallelism; ++i) {
+                FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
+                        = getComponentInstanceStatus(tenant, namespace, name, i, null);
+                FunctionStatus.FunctionInstanceStatus functionInstanceStatus
+                        = new FunctionStatus.FunctionInstanceStatus();
+                functionInstanceStatus.setInstanceId(i);
+                functionInstanceStatus.setStatus(functionInstanceStatusData);
+                functionStatus.addInstance(functionInstanceStatus);
             }
-        });
-        return functionStatus;
+
+            functionStatus.setNumInstances(functionStatus.instances.size());
+            functionStatus.getInstances().forEach(functionInstanceStatus -> {
+                if (functionInstanceStatus.getStatus().isRunning()) {
+                    functionStatus.numRunning++;
+                }
+            });
+            return functionStatus;
+        }
+
+        @Override
+        public FunctionStatus emptyStatus(int parallelism) {
+            FunctionStatus functionStatus = new FunctionStatus();
+            functionStatus.setNumInstances(parallelism);
+            functionStatus.setNumRunning(0);
+            for (int i = 0; i < parallelism; i++) {
+                FunctionStatus.FunctionInstanceStatus functionInstanceStatus = new FunctionStatus.FunctionInstanceStatus();
+                functionInstanceStatus.setInstanceId(i);
+                FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
+                        = new FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData();
+                functionInstanceStatusData.setRunning(false);
+                functionInstanceStatusData.setError("Function has not been scheduled");
+                functionInstanceStatus.setStatus(functionInstanceStatusData);
+
+                functionStatus.addInstance(functionInstanceStatus);
+            }
+
+            return functionStatus;
+        }
+    }
+
+    private class GetSinkStatus extends GetStatus<SinkStatus, SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> {
+
+        @Override
+        public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData notScheduledInstance() {
+            SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
+                    = new SinkStatus.SinkInstanceStatus.SinkInstanceStatusData();
+            sinkInstanceStatusData.setRunning(false);
+            sinkInstanceStatusData.setError("Sink has not been scheduled");
+            return sinkInstanceStatusData;
+        }
+
+        @Override
+        public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData fromFunctionStatusProto(
+                InstanceCommunication.FunctionStatus status,
+                String assignedWorkerId) {
+            SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
+                    = new SinkStatus.SinkInstanceStatus.SinkInstanceStatusData();
+            sinkInstanceStatusData.setRunning(status.getRunning());
+            sinkInstanceStatusData.setError(status.getFailureException());
+            sinkInstanceStatusData.setNumRestarts(status.getNumRestarts());
+            sinkInstanceStatusData.setNumReceived(status.getNumReceived());
+
+            List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                userExceptionInformationList.add(exceptionInformation);
+            }
+
+            sinkInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions());
+            List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                systemExceptionInformationList.add(exceptionInformation);
+            }
+            sinkInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
+
+            sinkInstanceStatusData.setLastInvocationTime(status.getLastInvocationTime());
+            sinkInstanceStatusData.setWorkerId(assignedWorkerId);
+
+            return sinkInstanceStatusData;
+        }
+
+        @Override
+        public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData notRunning(String assignedWorkerId, String error) {
+            SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
+                    = new SinkStatus.SinkInstanceStatus.SinkInstanceStatusData();
+            sinkInstanceStatusData.setRunning(false);
+            if (error != null) {
+                sinkInstanceStatusData.setError(error);
+            }
+            sinkInstanceStatusData.setWorkerId(assignedWorkerId);
+
+            return sinkInstanceStatusData;
+        }
+
+        @Override
+        public SinkStatus getStatus(String tenant, String namespace, String name, Collection<Assignment> assignments, URI uri) throws PulsarAdminException {
+            SinkStatus sinkStatus = new SinkStatus();
+            for (Assignment assignment : assignments) {
+                boolean isOwner = workerConfig.getWorkerId().equals(assignment.getWorkerId());
+                SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData;
+                if (isOwner) {
+                    sinkInstanceStatusData = getComponentInstanceStatus(tenant, namespace, name, assignment.getInstance().getInstanceId(), null);
+                } else {
+                    sinkInstanceStatusData = functionAdmin.sink().getSinkStatus(
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
+                            assignment.getInstance().getInstanceId());
+                }
+
+                SinkStatus.SinkInstanceStatus instanceStatus = new SinkStatus.SinkInstanceStatus();
+                instanceStatus.setInstanceId(assignment.getInstance().getInstanceId());
+                instanceStatus.setStatus(sinkInstanceStatusData);
+                sinkStatus.addInstance(instanceStatus);
+            }
+
+            sinkStatus.setNumInstances(sinkStatus.instances.size());
+            sinkStatus.getInstances().forEach(sinkInstanceStatus -> {
+                if (sinkInstanceStatus.getStatus().isRunning()) {
+                    sinkStatus.numRunning++;
+                }
+            });
+            return sinkStatus;
+        }
+
+        @Override
+        public SinkStatus getStatusExternal (String tenant, String namespace, String name, int parallelism) {
+            SinkStatus sinkStatus = new SinkStatus();
+            for (int i = 0; i < parallelism; ++i) {
+                SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
+                        = getComponentInstanceStatus(tenant, namespace, name, i, null);
+                SinkStatus.SinkInstanceStatus sinkInstanceStatus
+                        = new SinkStatus.SinkInstanceStatus();
+                sinkInstanceStatus.setInstanceId(i);
+                sinkInstanceStatus.setStatus(sinkInstanceStatusData);
+                sinkStatus.addInstance(sinkInstanceStatus);
+            }
+
+            sinkStatus.setNumInstances(sinkStatus.instances.size());
+            sinkStatus.getInstances().forEach(sinkInstanceStatus -> {
+                if (sinkInstanceStatus.getStatus().isRunning()) {
+                    sinkStatus.numRunning++;
+                }
+            });
+            return sinkStatus;
+        }
+
+        @Override
+        public SinkStatus emptyStatus(int parallelism) {
+            SinkStatus sinkStatus = new SinkStatus();
+            sinkStatus.setNumInstances(parallelism);
+            sinkStatus.setNumRunning(0);
+            for (int i = 0; i < parallelism; i++) {
+                SinkStatus.SinkInstanceStatus sinkInstanceStatus = new SinkStatus.SinkInstanceStatus();
+                sinkInstanceStatus.setInstanceId(i);
+                SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
+                        = new SinkStatus.SinkInstanceStatus.SinkInstanceStatusData();
+                sinkInstanceStatusData.setRunning(false);
+                sinkInstanceStatusData.setError("Sink has not been scheduled");
+                sinkInstanceStatus.setStatus(sinkInstanceStatusData);
+
+                sinkStatus.addInstance(sinkInstanceStatus);
+            }
+
+            return sinkStatus;
+        }
+    }
+
+    private class GetSourceStatus extends GetStatus<SourceStatus, SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> {
+
+        @Override
+        public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData notScheduledInstance() {
+            SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
+                    = new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
+            sourceInstanceStatusData.setRunning(false);
+            sourceInstanceStatusData.setError("Source has not been scheduled");
+            return sourceInstanceStatusData;
+        }
+
+        @Override
+        public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData fromFunctionStatusProto(
+                InstanceCommunication.FunctionStatus status,
+                String assignedWorkerId) {
+            SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
+                    = new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
+            sourceInstanceStatusData.setRunning(status.getRunning());
+            sourceInstanceStatusData.setError(status.getFailureException());
+            sourceInstanceStatusData.setNumRestarts(status.getNumRestarts());
+            sourceInstanceStatusData.setNumReceived(status.getNumReceived());
+
+            List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                userExceptionInformationList.add(exceptionInformation);
+            }
+
+            sourceInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions());
+            List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                systemExceptionInformationList.add(exceptionInformation);
+            }
+            sourceInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
+
+            sourceInstanceStatusData.setLastInvocationTime(status.getLastInvocationTime());
+            sourceInstanceStatusData.setWorkerId(assignedWorkerId);
+
+            return sourceInstanceStatusData;
+        }
+
+        @Override
+        public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData notRunning(String assignedWorkerId, String error) {
+            SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
+                    = new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
+            sourceInstanceStatusData.setRunning(false);
+            if (error != null) {
+                sourceInstanceStatusData.setError(error);
+            }
+            sourceInstanceStatusData.setWorkerId(assignedWorkerId);
+
+            return sourceInstanceStatusData;
+        }
+
+        @Override
+        public SourceStatus getStatus(String tenant, String namespace, String name, Collection<Assignment> assignments, URI uri) throws PulsarAdminException {
+            SourceStatus sourceStatus = new SourceStatus();
+            for (Assignment assignment : assignments) {
+                boolean isOwner = workerConfig.getWorkerId().equals(assignment.getWorkerId());
+                SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData;
+                if (isOwner) {
+                    sourceInstanceStatusData = getComponentInstanceStatus(tenant, namespace, name, assignment.getInstance().getInstanceId(), null);
+                } else {
+                    sourceInstanceStatusData = functionAdmin.source().getSourceStatus(
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
+                            assignment.getInstance().getInstanceId());
+                }
+
+                SourceStatus.SourceInstanceStatus instanceStatus = new SourceStatus.SourceInstanceStatus();
+                instanceStatus.setInstanceId(assignment.getInstance().getInstanceId());
+                instanceStatus.setStatus(sourceInstanceStatusData);
+                sourceStatus.addInstance(instanceStatus);
+            }
+
+            sourceStatus.setNumInstances(sourceStatus.instances.size());
+            sourceStatus.getInstances().forEach(sourceInstanceStatus -> {
+                if (sourceInstanceStatus.getStatus().isRunning()) {
+                    sourceStatus.numRunning++;
+                }
+            });
+            return sourceStatus;
+        }
+
+        @Override
+        public SourceStatus getStatusExternal(String tenant, String namespace, String name, int parallelism) {
+            SourceStatus sinkStatus = new SourceStatus();
+            for (int i = 0; i < parallelism; ++i) {
+                SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
+                        = getComponentInstanceStatus(tenant, namespace, name, i, null);
+                SourceStatus.SourceInstanceStatus sourceInstanceStatus
+                        = new SourceStatus.SourceInstanceStatus();
+                sourceInstanceStatus.setInstanceId(i);
+                sourceInstanceStatus.setStatus(sourceInstanceStatusData);
+                sinkStatus.addInstance(sourceInstanceStatus);
+            }
+
+            sinkStatus.setNumInstances(sinkStatus.instances.size());
+            sinkStatus.getInstances().forEach(sourceInstanceStatus -> {
+                if (sourceInstanceStatus.getStatus().isRunning()) {
+                    sinkStatus.numRunning++;
+                }
+            });
+            return sinkStatus;
+        }
+
+        @Override
+        public SourceStatus emptyStatus(int parallelism) {
+            SourceStatus sourceStatus = new SourceStatus();
+            sourceStatus.setNumInstances(parallelism);
+            sourceStatus.setNumRunning(0);
+            for (int i = 0; i < parallelism; i++) {
+                SourceStatus.SourceInstanceStatus sourceInstanceStatus = new SourceStatus.SourceInstanceStatus();
+                sourceInstanceStatus.setInstanceId(i);
+                SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData
+                        = new SourceStatus.SourceInstanceStatus.SourceInstanceStatusData();
+                sourceInstanceStatusData.setRunning(false);
+                sourceInstanceStatusData.setError("Source has not been scheduled");
+                sourceInstanceStatus.setStatus(sourceInstanceStatusData);
+
+                sourceStatus.addInstance(sourceInstanceStatus);
+            }
+
+            return sourceStatus;
+        }
+    }
+
+    private abstract class GetStatus<S, T> {
+
+        public abstract T notScheduledInstance();
+
+        public abstract T fromFunctionStatusProto(InstanceCommunication.FunctionStatus status, String assignedWorkerId);
+
+        public abstract T notRunning(String assignedWorkerId, String error);
+
+        public T getComponentInstanceStatus(String tenant, String namespace,
+                                    String name, int instanceId, URI uri) {
+
+            Assignment assignment;
+            if (runtimeFactory.externallyManaged()) {
+                assignment = findAssignment(tenant, namespace, name, -1);
+            } else {
+                assignment = findAssignment(tenant, namespace, name, instanceId);
+            }
+
+            if (assignment == null) {
+                return notScheduledInstance();
+            }
+
+            final String assignedWorkerId = assignment.getWorkerId();
+            final String workerId = workerConfig.getWorkerId();
+
+            // If I am running worker
+            if (assignedWorkerId.equals(workerId)) {
+                FunctionRuntimeInfo functionRuntimeInfo = getFunctionRuntimeInfo(
+                        org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
+                RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
+
+                if (runtimeSpawner != null) {
+                    try {
+                        return fromFunctionStatusProto(
+                                functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus(instanceId).get(),
+                                assignedWorkerId);
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
+                } else {
+                    return notRunning(assignedWorkerId, functionRuntimeInfo.getStartupException().getMessage());
+                }
+            } else {
+                // query other worker
+
+                List<WorkerInfo> workerInfoList = membershipManager.getCurrentMembership();
+                WorkerInfo workerInfo = null;
+                for (WorkerInfo entry: workerInfoList) {
+                    if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                        workerInfo = entry;
+                    }
+                }
+                if (workerInfo == null) {
+                    return notScheduledInstance();
+                }
+
+                if (uri == null) {
+                    throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+                } else {
+                    URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                }
+            }
+        }
+
+        public abstract S getStatus(String tenant, String namespace,
+                           String name, Collection<Assignment> assignments, URI uri) throws PulsarAdminException;
+
+        public abstract S getStatusExternal(String tenant, String namespace,
+                                            String name, int parallelism);
+
+        public abstract S emptyStatus(int parallelism);
+
+        public S getComponentStatus(String tenant, String namespace,
+                                    String name, URI uri) {
+
+            Function.FunctionMetaData functionMetaData = workerService.getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, name);
+
+            Collection<Assignment> assignments = findFunctionAssignments(tenant, namespace, name);
+
+            // TODO refactor the code for externally managed.
+            if (runtimeFactory.externallyManaged()) {
+                Assignment assignment = assignments.iterator().next();
+                boolean isOwner = workerConfig.getWorkerId().equals(assignment.getWorkerId());
+                if (isOwner) {
+                    return getStatusExternal(tenant, namespace, name, functionMetaData.getFunctionDetails().getParallelism());
+                } else {
+
+                    // find the hostname/port of the worker who is the owner
+
+                    List<WorkerInfo> workerInfoList = membershipManager.getCurrentMembership();
+                    WorkerInfo workerInfo = null;
+                    for (WorkerInfo entry: workerInfoList) {
+                        if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                            workerInfo = entry;
+                        }
+                    }
+                    if (workerInfo == null) {
+                        return emptyStatus(functionMetaData.getFunctionDetails().getParallelism());
+                    }
+
+                    if (uri == null) {
+                        throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+                    } else {
+                        URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                    }
+                }
+            } else {
+                try {
+                    return getStatus(tenant, namespace, name, assignments, uri);
+                } catch (PulsarAdminException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Get status of a function instance.  If this worker is not running the function instance,
+     * @param tenant the tenant the function belongs to
+     * @param namespace the namespace the function belongs to
+     * @param functionName the function name
+     * @param instanceId the function instance id
+     * @return the function status
+     */
+    public synchronized FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(
+            String tenant, String namespace,
+            String functionName, int instanceId, URI uri) {
+        return new GetFunctionStatus().getComponentInstanceStatus(tenant, namespace, functionName, instanceId, uri);
+    }
+
+    /**
+     * Get statuses of all function instances.
+     * @param tenant the tenant the function belongs to
+     * @param namespace the namespace the function belongs to
+     * @param functionName the function name
+     * @return a list of function statuses
+     * @throws PulsarAdminException 
+     */
+    //TODO need to figure out the how to synchronize get status methods to prevent race conditions but not cause a deadlock
+    public FunctionStatus getFunctionStatus(String tenant, String namespace,
+                                            String functionName, URI uri) {
+        return new GetFunctionStatus().getComponentStatus(tenant, namespace, functionName, uri);
+    }
+
+    public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(
+            String tenant, String namespace,
+            String sinkName, int instanceId, URI uri) {
+        return new GetSinkStatus().getComponentInstanceStatus(tenant, namespace, sinkName, instanceId, uri);
+    }
+
+    public SinkStatus getSinkStatus(String tenant, String namespace,
+                                    String sinkName, URI uri) {
+        return new GetSinkStatus().getComponentStatus(tenant, namespace, sinkName, uri);
+    }
+
+    public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceInstanceStatus(
+            String tenant, String namespace,
+            String sourceName, int instanceId, URI uri) {
+        return new GetSourceStatus().getComponentInstanceStatus(tenant, namespace, sourceName, instanceId, uri);
+    }
+
+    public SourceStatus getsourceStatus(String tenant, String namespace,
+                                                 String sourceName, URI uri) {
+        return new GetSourceStatus().getComponentStatus(tenant, namespace, sourceName, uri);
     }
 
     /**
