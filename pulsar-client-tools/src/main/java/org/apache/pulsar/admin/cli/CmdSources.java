@@ -88,7 +88,8 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("get", getSource);
-        jcommander.addCommand("getstatus", getSourceStatus);
+        // TODO depecreate getstatus
+        jcommander.addCommand("status", getSourceStatus, "getstatus");
         jcommander.addCommand("list", listSources);
         jcommander.addCommand("stop", stopSource);
         jcommander.addCommand("restart", restartSource);
@@ -498,12 +499,11 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = JsonFormat.printer().print(
-                    isBlank(instanceId) ? admin.source().getSourceStatus(tenant, namespace, sourceName)
-                            : admin.source().getSourceStatus(tenant, namespace, sourceName,
-                            Integer.parseInt(instanceId)));
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
+            if (isBlank(instanceId)) {
+                print(admin.source().getSourceStatus(tenant, namespace, sourceName));
+            } else {
+                print(admin.source().getSourceStatus(tenant, namespace, sourceName, Integer.parseInt(instanceId)));
+            };
         }
     }
 
