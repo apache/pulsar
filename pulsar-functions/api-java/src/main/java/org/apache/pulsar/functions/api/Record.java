@@ -37,9 +37,7 @@ public interface Record<T> {
     /**
      * Return a key if the key has one associated
      */
-    default Optional<String> getKey() {
-        return Optional.empty();
-    }
+    Optional<String> getKey();
 
     /**
      * Retrieves the actual data of the record
