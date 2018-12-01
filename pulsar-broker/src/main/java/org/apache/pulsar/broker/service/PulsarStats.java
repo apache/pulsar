@@ -76,7 +76,7 @@ public class PulsarStats implements Closeable {
                 pulsar.getAdvertisedAddress());
         this.tempNonPersistentTopics = Lists.newArrayList();
 
-        this.exposePublisherStats = pulsar.getConfiguration().exposePublisherStats();
+        this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();
     }
 
     @Override
