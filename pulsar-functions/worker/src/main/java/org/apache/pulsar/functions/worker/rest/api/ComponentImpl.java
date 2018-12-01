@@ -54,6 +54,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
+import javax.ws.rs.core.UriBuilder;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -84,6 +85,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -92,17 +94,21 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.StateUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -141,6 +147,128 @@ public abstract class ComponentImpl {
     public ComponentImpl(Supplier<WorkerService> workerServiceSupplier, ComponentType componentType) {
         this.workerServiceSupplier = workerServiceSupplier;
         this.componentType = componentType;
+    }
+
+    protected abstract class GetStatus<S, T> {
+
+        public abstract T notScheduledInstance();
+
+        public abstract T fromFunctionStatusProto(InstanceCommunication.FunctionStatus status, String assignedWorkerId);
+
+        public abstract T notRunning(String assignedWorkerId, String error);
+
+        public T getComponentInstanceStatus(String tenant, String namespace,
+                                            String name, int instanceId, URI uri) {
+
+            Function.Assignment assignment;
+            if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
+                assignment = worker().getFunctionRuntimeManager().findFunctionAssignment(tenant, namespace, name, -1);
+            } else {
+                assignment = worker().getFunctionRuntimeManager().findFunctionAssignment(tenant, namespace, name, instanceId);
+            }
+
+            if (assignment == null) {
+                return notScheduledInstance();
+            }
+
+            final String assignedWorkerId = assignment.getWorkerId();
+            final String workerId = worker().getWorkerConfig().getWorkerId();
+
+            // If I am running worker
+            if (assignedWorkerId.equals(workerId)) {
+                FunctionRuntimeInfo functionRuntimeInfo = worker().getFunctionRuntimeManager().getFunctionRuntimeInfo(
+                        org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
+                if (functionRuntimeInfo == null) {
+                    log.error("{} in get {} Status does not exist @ /{}/{}/{}", componentType, componentType, tenant, namespace, name);
+                    throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, name));
+                }
+                RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
+
+                if (runtimeSpawner != null) {
+                    try {
+                        return fromFunctionStatusProto(
+                                functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus(instanceId).get(),
+                                assignedWorkerId);
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
+                } else {
+                    return notRunning(assignedWorkerId, functionRuntimeInfo.getStartupException().getMessage());
+                }
+            } else {
+                // query other worker
+
+                List<WorkerInfo> workerInfoList = worker().getMembershipManager().getCurrentMembership();
+                WorkerInfo workerInfo = null;
+                for (WorkerInfo entry : workerInfoList) {
+                    if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                        workerInfo = entry;
+                    }
+                }
+                if (workerInfo == null) {
+                    return notScheduledInstance();
+                }
+
+                if (uri == null) {
+                    throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+                } else {
+                    URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                }
+            }
+        }
+
+        public abstract S getStatus(String tenant, String namespace,
+                                    String name, Collection<Function.Assignment> assignments, URI uri) throws PulsarAdminException;
+
+        public abstract S getStatusExternal(String tenant, String namespace,
+                                            String name, int parallelism);
+
+        public abstract S emptyStatus(int parallelism);
+
+        public S getComponentStatus(String tenant, String namespace,
+                                    String name, URI uri) {
+
+            Function.FunctionMetaData functionMetaData = worker().getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, name);
+
+            Collection<Function.Assignment> assignments = worker().getFunctionRuntimeManager().findFunctionAssignments(tenant, namespace, name);
+
+            // TODO refactor the code for externally managed.
+            if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
+                Function.Assignment assignment = assignments.iterator().next();
+                boolean isOwner = worker().getWorkerConfig().getWorkerId().equals(assignment.getWorkerId());
+                if (isOwner) {
+                    return getStatusExternal(tenant, namespace, name, functionMetaData.getFunctionDetails().getParallelism());
+                } else {
+
+                    // find the hostname/port of the worker who is the owner
+
+                    List<WorkerInfo> workerInfoList = worker().getMembershipManager().getCurrentMembership();
+                    WorkerInfo workerInfo = null;
+                    for (WorkerInfo entry: workerInfoList) {
+                        if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                            workerInfo = entry;
+                        }
+                    }
+                    if (workerInfo == null) {
+                        return emptyStatus(functionMetaData.getFunctionDetails().getParallelism());
+                    }
+
+                    if (uri == null) {
+                        throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+                    } else {
+                        URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                    }
+                }
+            } else {
+                try {
+                    return getStatus(tenant, namespace, name, assignments, uri);
+                } catch (PulsarAdminException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 
     protected WorkerService worker() {

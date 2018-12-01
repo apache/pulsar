@@ -19,7 +19,11 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.RestException;
@@ -28,10 +32,149 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Supplier;
 
 @Slf4j
 public class SinkImpl extends ComponentImpl {
+
+    private class GetSinkStatus extends GetStatus<SinkStatus, SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> {
+
+        @Override
+        public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData notScheduledInstance() {
+            SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
+                    = new SinkStatus.SinkInstanceStatus.SinkInstanceStatusData();
+            sinkInstanceStatusData.setRunning(false);
+            sinkInstanceStatusData.setError("Sink has not been scheduled");
+            return sinkInstanceStatusData;
+        }
+
+        @Override
+        public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData fromFunctionStatusProto(
+                InstanceCommunication.FunctionStatus status,
+                String assignedWorkerId) {
+            SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
+                    = new SinkStatus.SinkInstanceStatus.SinkInstanceStatusData();
+            sinkInstanceStatusData.setRunning(status.getRunning());
+            sinkInstanceStatusData.setError(status.getFailureException());
+            sinkInstanceStatusData.setNumRestarts(status.getNumRestarts());
+            sinkInstanceStatusData.setNumReceived(status.getNumReceived());
+
+            List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                userExceptionInformationList.add(exceptionInformation);
+            }
+
+            sinkInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions());
+            List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                systemExceptionInformationList.add(exceptionInformation);
+            }
+            sinkInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
+
+            sinkInstanceStatusData.setLastInvocationTime(status.getLastInvocationTime());
+            sinkInstanceStatusData.setWorkerId(assignedWorkerId);
+
+            return sinkInstanceStatusData;
+        }
+
+        @Override
+        public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData notRunning(String assignedWorkerId, String error) {
+            SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
+                    = new SinkStatus.SinkInstanceStatus.SinkInstanceStatusData();
+            sinkInstanceStatusData.setRunning(false);
+            if (error != null) {
+                sinkInstanceStatusData.setError(error);
+            }
+            sinkInstanceStatusData.setWorkerId(assignedWorkerId);
+
+            return sinkInstanceStatusData;
+        }
+
+        @Override
+        public SinkStatus getStatus(String tenant, String namespace, String name, Collection<Function.Assignment> assignments, URI uri) throws PulsarAdminException {
+            SinkStatus sinkStatus = new SinkStatus();
+            for (Function.Assignment assignment : assignments) {
+                boolean isOwner = worker().getWorkerConfig().getWorkerId().equals(assignment.getWorkerId());
+                SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData;
+                if (isOwner) {
+                    sinkInstanceStatusData = getComponentInstanceStatus(tenant, namespace, name, assignment.getInstance().getInstanceId(), null);
+                } else {
+                    sinkInstanceStatusData = worker().getFunctionAdmin().sink().getSinkStatus(
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
+                            assignment.getInstance().getInstanceId());
+                }
+
+                SinkStatus.SinkInstanceStatus instanceStatus = new SinkStatus.SinkInstanceStatus();
+                instanceStatus.setInstanceId(assignment.getInstance().getInstanceId());
+                instanceStatus.setStatus(sinkInstanceStatusData);
+                sinkStatus.addInstance(instanceStatus);
+            }
+
+            sinkStatus.setNumInstances(sinkStatus.instances.size());
+            sinkStatus.getInstances().forEach(sinkInstanceStatus -> {
+                if (sinkInstanceStatus.getStatus().isRunning()) {
+                    sinkStatus.numRunning++;
+                }
+            });
+            return sinkStatus;
+        }
+
+        @Override
+        public SinkStatus getStatusExternal (String tenant, String namespace, String name, int parallelism) {
+            SinkStatus sinkStatus = new SinkStatus();
+            for (int i = 0; i < parallelism; ++i) {
+                SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
+                        = getComponentInstanceStatus(tenant, namespace, name, i, null);
+                SinkStatus.SinkInstanceStatus sinkInstanceStatus
+                        = new SinkStatus.SinkInstanceStatus();
+                sinkInstanceStatus.setInstanceId(i);
+                sinkInstanceStatus.setStatus(sinkInstanceStatusData);
+                sinkStatus.addInstance(sinkInstanceStatus);
+            }
+
+            sinkStatus.setNumInstances(sinkStatus.instances.size());
+            sinkStatus.getInstances().forEach(sinkInstanceStatus -> {
+                if (sinkInstanceStatus.getStatus().isRunning()) {
+                    sinkStatus.numRunning++;
+                }
+            });
+            return sinkStatus;
+        }
+
+        @Override
+        public SinkStatus emptyStatus(int parallelism) {
+            SinkStatus sinkStatus = new SinkStatus();
+            sinkStatus.setNumInstances(parallelism);
+            sinkStatus.setNumRunning(0);
+            for (int i = 0; i < parallelism; i++) {
+                SinkStatus.SinkInstanceStatus sinkInstanceStatus = new SinkStatus.SinkInstanceStatus();
+                sinkInstanceStatus.setInstanceId(i);
+                SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
+                        = new SinkStatus.SinkInstanceStatus.SinkInstanceStatusData();
+                sinkInstanceStatusData.setRunning(false);
+                sinkInstanceStatusData.setError("Sink has not been scheduled");
+                sinkInstanceStatus.setStatus(sinkInstanceStatusData);
+
+                sinkStatus.addInstance(sinkInstanceStatus);
+            }
+
+            return sinkStatus;
+        }
+    }
+
     public SinkImpl(Supplier<WorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, ComponentType.SINK);
     }
@@ -43,11 +186,10 @@ public class SinkImpl extends ComponentImpl {
         // validate parameters
         componentInstanceStatusRequestValidate(tenant, namespace, sinkName, Integer.parseInt(instanceId));
 
-        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
 
         SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData;
         try {
-            sinkInstanceStatusData = functionRuntimeManager.getSinkInstanceStatus(tenant, namespace, sinkName,
+            sinkInstanceStatusData = new GetSinkStatus().getComponentInstanceStatus(tenant, namespace, sinkName,
                     Integer.parseInt(instanceId), uri);
         } catch (WebApplicationException we) {
             throw we;
@@ -65,10 +207,9 @@ public class SinkImpl extends ComponentImpl {
         // validate parameters
         componentStatusRequestValidate(tenant, namespace, componentName);
 
-        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         SinkStatus sinkStatus;
         try {
-            sinkStatus = functionRuntimeManager.getSinkStatus(tenant, namespace, componentName, uri);
+            sinkStatus = new GetSinkStatus().getComponentStatus(tenant, namespace, componentName, uri);
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {
