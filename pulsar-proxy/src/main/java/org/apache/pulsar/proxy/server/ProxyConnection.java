@@ -52,8 +52,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
 
 /**
  * Handles incoming discovery request from client and sends appropriate response back to client
@@ -313,7 +311,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             clientAuthRole = service.getAuthenticationService().authenticate(authenticationData, authMethod);
             LOG.info("[{}] Client successfully authenticated with {} role {}", remoteAddress, authMethod,
                     clientAuthRole);
-            if (service.getConfiguration().forwardAuthorizationCredentials()) {
+            if (service.getConfiguration().isForwardAuthorizationCredentials()) {
                 this.clientAuthData = authData;
                 this.clientAuthMethod = authMethod;
             }

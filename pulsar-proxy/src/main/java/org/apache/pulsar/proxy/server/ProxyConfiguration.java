@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import com.google.common.collect.Sets;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,15 +29,17 @@ import java.util.stream.Collectors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
-import com.google.common.collect.Sets;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Getter
+@Setter
 public class ProxyConfiguration implements PulsarConfiguration {
     private final static Logger log = LoggerFactory.getLogger(ProxyConfiguration.class);
 
@@ -144,248 +148,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     private Properties properties = new Properties();
 
-    public boolean forwardAuthorizationCredentials() {
-        return forwardAuthorizationCredentials;
-    }
-
-    public void setForwardAuthorizationCredentials(boolean forwardAuthorizationCredentials) {
-        this.forwardAuthorizationCredentials = forwardAuthorizationCredentials;
-    }
-
-    public String getBrokerServiceURLTLS() {
-        return brokerServiceURLTLS;
-    }
-
-    public void setBrokerServiceURLTLS(String discoveryServiceURLTLS) {
-        this.brokerServiceURLTLS = discoveryServiceURLTLS;
-    }
-
-    public String getBrokerServiceURL() {
-        return brokerServiceURL;
-    }
-
-    public void setBrokerServiceURL(String discoveryServiceURL) {
-        this.brokerServiceURL = discoveryServiceURL;
-    }
-
-    public String getBrokerWebServiceURL() {
-        return brokerWebServiceURL;
-    }
-
-    public void setBrokerWebServiceURL(String brokerWebServiceURL) {
-        this.brokerWebServiceURL = brokerWebServiceURL;
-    }
-
-    public String getBrokerWebServiceURLTLS() {
-        return brokerWebServiceURLTLS;
-    }
-
-    public void setBrokerWebServiceURLTLS(String brokerWebServiceURLTLS) {
-        this.brokerWebServiceURLTLS = brokerWebServiceURLTLS;
-    }
-
-    public String getFunctionWorkerWebServiceURL() {
-        return functionWorkerWebServiceURL;
-    }
-
-    public String getFunctionWorkerWebServiceURLTLS() {
-        return functionWorkerWebServiceURLTLS;
-    }
-
-    public String getZookeeperServers() {
-        return zookeeperServers;
-    }
-
-    public void setZookeeperServers(String zookeeperServers) {
-        this.zookeeperServers = zookeeperServers;
-    }
-
-    @Deprecated
-    public String getGlobalZookeeperServers() {
-        return globalZookeeperServers;
-    }
-
-    @Deprecated
-    public void setGlobalZookeeperServers(String globalZookeeperServers) {
-        this.globalZookeeperServers = globalZookeeperServers;
-    }
-
-    public String getConfigurationStoreServers() {
-        return null == configurationStoreServers ? getGlobalZookeeperServers() : configurationStoreServers;
-    }
-
-    public void setConfigurationStoreServers(String configurationStoreServers) {
-        this.configurationStoreServers = configurationStoreServers;
-    }
-
-    public int getZookeeperSessionTimeoutMs() {
-        return zookeeperSessionTimeoutMs;
-    }
-
-    public void setZookeeperSessionTimeoutMs(int zookeeperSessionTimeoutMs) {
-        this.zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMs;
-    }
-
-    public int getServicePort() {
-        return servicePort;
-    }
-
-    public void setServicePort(int servicePort) {
-        this.servicePort = servicePort;
-    }
-
-    public int getServicePortTls() {
-        return servicePortTls;
-    }
-
-    public void setServicePortTls(int servicePortTls) {
-        this.servicePortTls = servicePortTls;
-    }
-
-    public int getWebServicePort() {
-        return webServicePort;
-    }
-
-    public void setWebServicePort(int webServicePort) {
-        this.webServicePort = webServicePort;
-    }
-
-    public int getWebServicePortTls() {
-        return webServicePortTls;
-    }
-
-    public void setWebServicePortTls(int webServicePortTls) {
-        this.webServicePortTls = webServicePortTls;
-    }
-
-    public String getStatusFilePath() {
-        return statusFilePath;
-    }
-
-    public void setStatusFilePath(String statusFilePath) {
-        this.statusFilePath = statusFilePath;
-    }
-
-    public boolean isTlsEnabledInProxy() {
-        return tlsEnabledInProxy;
-    }
-
-    public void setTlsEnabledInProxy(boolean tlsEnabledInProxy) {
-        this.tlsEnabledInProxy = tlsEnabledInProxy;
-    }
-
-    public boolean isTlsEnabledWithBroker() {
-        return tlsEnabledWithBroker;
-    }
-
-    public void setTlsEnabledWithBroker(boolean tlsEnabledWithBroker) {
-        this.tlsEnabledWithBroker = tlsEnabledWithBroker;
-    }
-
-    public String getTlsCertificateFilePath() {
-        return tlsCertificateFilePath;
-    }
-
-    public void setTlsCertificateFilePath(String tlsCertificateFilePath) {
-        this.tlsCertificateFilePath = tlsCertificateFilePath;
-    }
-
-    public String getTlsKeyFilePath() {
-        return tlsKeyFilePath;
-    }
-
-    public void setTlsKeyFilePath(String tlsKeyFilePath) {
-        this.tlsKeyFilePath = tlsKeyFilePath;
-    }
-
-    public String getTlsTrustCertsFilePath() {
-        return tlsTrustCertsFilePath;
-    }
-
-    public void setTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
-        this.tlsTrustCertsFilePath = tlsTrustCertsFilePath;
-    }
-
-    public boolean isTlsAllowInsecureConnection() {
-        return tlsAllowInsecureConnection;
-    }
-
-    public void setTlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
-        this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
-    }
-
-    public boolean isTlsHostnameVerificationEnabled() {
-        return tlsHostnameVerificationEnabled;
-    }
-
-    public void setTlsHostnameVerificationEnabled(boolean tlsHostnameVerificationEnabled) {
-        this.tlsHostnameVerificationEnabled = tlsHostnameVerificationEnabled;
-    }
-
-    public String getBrokerClientAuthenticationPlugin() {
-        return brokerClientAuthenticationPlugin;
-    }
-
-    public void setBrokerClientAuthenticationPlugin(String brokerClientAuthenticationPlugin) {
-        this.brokerClientAuthenticationPlugin = brokerClientAuthenticationPlugin;
-    }
-
-    public String getBrokerClientAuthenticationParameters() {
-        return brokerClientAuthenticationParameters;
-    }
-
-    public void setBrokerClientAuthenticationParameters(String brokerClientAuthenticationParameters) {
-        this.brokerClientAuthenticationParameters = brokerClientAuthenticationParameters;
-    }
-
-    public String getBrokerClientTrustCertsFilePath() {
-        return this.brokerClientTrustCertsFilePath;
-    }
-
-    public void setBrokerClientTrustCertsFilePath(String brokerClientTlsTrustCertsFilePath) {
-        this.brokerClientTrustCertsFilePath = brokerClientTlsTrustCertsFilePath;
-    }
-
-    public boolean isAuthenticationEnabled() {
-        return authenticationEnabled;
-    }
-
-    public void setAuthenticationEnabled(boolean authenticationEnabled) {
-        this.authenticationEnabled = authenticationEnabled;
-    }
-
-    public Set<String> getAuthenticationProviders() {
-        return authenticationProviders;
-    }
-
-    public void setAuthenticationProviders(Set<String> authenticationProviders) {
-        this.authenticationProviders = authenticationProviders;
-    }
-
-    public boolean isAuthorizationEnabled() {
-        return authorizationEnabled;
-    }
-
-    public void setAuthorizationEnabled(boolean authorizationEnabled) {
-        this.authorizationEnabled = authorizationEnabled;
-    }
-
-    public String getAuthorizationProvider() {
-        return authorizationProvider;
-    }
-
-    public void setAuthorizationProvider(String authorizationProvider) {
-        this.authorizationProvider = authorizationProvider;
-    }
-
-    public Set<String> getSuperUserRoles() {
-        return superUserRoles;
-    }
-
-    public void setSuperUserRoles(Set<String> superUserRoles) {
-        this.superUserRoles = superUserRoles;
-    }
-
     public Properties getProperties() {
         return properties;
     }
@@ -415,62 +177,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
                                                     properties.getProperty(keyToFullKey.get("path")),
                                                     properties.getProperty(keyToFullKey.get("proxyTo"))));
             });
-    }
-
-    public Set<String> getTlsProtocols() {
-        return tlsProtocols;
-    }
-
-    public void setTlsProtocols(Set<String> tlsProtocols) {
-        this.tlsProtocols = tlsProtocols;
-    }
-
-    public Set<String> getTlsCiphers() {
-        return tlsCiphers;
-    }
-
-    public void setTlsCiphers(Set<String> tlsCiphers) {
-        this.tlsCiphers = tlsCiphers;
-    }
-
-    public int getMaxConcurrentInboundConnections() {
-        return maxConcurrentInboundConnections;
-    }
-
-    public void setMaxConcurrentInboundConnections(int maxConcurrentInboundConnections) {
-        this.maxConcurrentInboundConnections = maxConcurrentInboundConnections;
-    }
-
-    public int getMaxConcurrentLookupRequests() {
-        return maxConcurrentLookupRequests;
-    }
-
-    public void setMaxConcurrentLookupRequests(int maxConcurrentLookupRequests) {
-        this.maxConcurrentLookupRequests = maxConcurrentLookupRequests;
-    }
-
-    public boolean getTlsRequireTrustedClientCertOnConnect() {
-        return tlsRequireTrustedClientCertOnConnect;
-    }
-
-    public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
-        this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
-    }
-
-    public int getHttpOutputBufferSize() {
-        return httpOutputBufferSize;
-    }
-
-    public void setHttpOutputBufferSize(int httpOutputBufferSize) {
-        this.httpOutputBufferSize = httpOutputBufferSize;
-    }
-
-    public Set<HttpReverseProxyConfig> getHttpReverseProxyConfigs() {
-        return httpReverseProxyConfigs;
-    }
-
-    public void setHttpReverseProxyConfigs(Set<HttpReverseProxyConfig> reverseProxyConfigs) {
-        this.httpReverseProxyConfigs = reverseProxyConfigs;
     }
 
     public static class HttpReverseProxyConfig {
