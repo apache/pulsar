@@ -89,7 +89,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
-        Message<byte[]> msg = null;
+        Message<byte[]> msg;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -127,6 +127,56 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
+    public void testCustomPartitionProducer() throws Exception {
+        TopicName topicName = null;
+        Producer<byte[]> producer = null;
+        Consumer<byte[]> consumer = null;
+        final int MESSAGE_COUNT = 16;
+        try {
+            log.info("-- Starting {} test --", methodName);
+
+            int numPartitions = 4;
+            topicName = TopicName
+                    .get("persistent://my-property/my-ns/my-partitionedtopic1-" + System.currentTimeMillis());
+
+            admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
+
+            producer = pulsarClient.newProducer().topic(topicName.toString())
+                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                    .messageRouter(new CustomMessageRouter())
+                    .create();
+
+            consumer = pulsarClient.newConsumer().topic(topicName.toString())
+                    .subscriptionName("my-partitioned-subscriber").subscribe();
+
+            for (int i = 0; i < MESSAGE_COUNT; i++) {
+                String message = "my-message-" + i;
+                producer.newMessage().key(String.valueOf(i)).value(message.getBytes()).send();
+            }
+
+            Message<byte[]> msg;
+            Set<String> messageSet = Sets.newHashSet();
+
+            for (int i = 0; i < MESSAGE_COUNT; i++) {
+                msg = consumer.receive(5, TimeUnit.SECONDS);
+                Assert.assertNotNull(msg, "Message should not be null");
+                consumer.acknowledge(msg);
+                String receivedMessage = new String(msg.getData());
+                log.debug("Received message: [{}]", receivedMessage);
+                String expectedMessage = "my-message-" + i;
+                testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+            }
+        } finally {
+            producer.close();
+            consumer.unsubscribe();
+            consumer.close();
+            admin.topics().deletePartitionedTopic(topicName.toString());
+
+            log.info("-- Exiting {} test --", methodName);
+        }
+    }
+
+    @Test(timeOut = 30000)
     public void testSinglePartitionProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -147,7 +197,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
-        Message<byte[]> msg = null;
+        Message<byte[]> msg;
         Set<String> messageSet = Sets.newHashSet();
 
         for (int i = 0; i < 10; i++) {
@@ -600,4 +650,11 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
                 Collections.singletonList(nonPartitionedTopic));
     }
 
+    private class CustomMessageRouter implements MessageRouter {
+        @Override
+        public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+            int partitionIndex = Integer.parseInt(msg.getKey()) % metadata.numPartitions();
+            return partitionIndex;
+        }
+    }
 }

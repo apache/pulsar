@@ -63,7 +63,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         this.schema = schema;
     }
 
-
     /**
      * Allow to override schema in builder implementation
      * @return
@@ -100,6 +99,11 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
+        }
+
+        if(conf.getCustomMessageRouter() != null
+                && conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition) {
+            messageRoutingMode(MessageRoutingMode.CustomPartition);
         }
 
         return interceptorList == null || interceptorList.size() == 0 ?

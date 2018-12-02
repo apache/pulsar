@@ -91,7 +91,7 @@ String topic = "persistent://my-property/my-cluster-my-namespace/my-topic";
 
 PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
 ProducerConfiguration config = new ProducerConfiguration();
-config.setMessageRouter(AlwaysTenRouter);
+config.setMessageRouter(new AlwaysTenRouter());
 Producer producer = client.createProducer(topic, config);
 producer.send("Partitioned topic message".getBytes());
 ```
