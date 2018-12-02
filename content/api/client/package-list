@@ -1,2 +1,2 @@
 org.apache.pulsar.client.api
-org.apache.pulsar.client.api.url
+org.apache.pulsar.client.api.schema

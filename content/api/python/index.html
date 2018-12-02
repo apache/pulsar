@@ -1002,6 +1002,15 @@ table {
 
         </li>
         <li class="mono">
+        <span class="class_name"><a href="#pulsar.AuthenticationToken">AuthenticationToken</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.AuthenticationToken.__init__">__init__</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
         <span class="class_name"><a href="#pulsar.Client">Client</a></span>
         
           
@@ -1384,6 +1393,24 @@ class AuthenticationTLS(Authentication):
         _check_type(str, certificate_path, 'certificate_path')
         _check_type(str, private_key_path, 'private_key_path')
         self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
+
+
+class AuthenticationToken(Authentication):
+    """
+    Token based authentication implementation
+    """
+    def __init__(self, token):
+        """
+        Create the token authentication provider instance.
+
+        **Args**
+
+        * `token`: A string containing the token or a functions that provides a
+                   string with the token
+        """
+        if not (isinstance(token, str) or callable(token)):
+            raise ValueError("Argument token is expected to be of type 'str' or a function returning 'str'")
+        self.auth = _pulsar.AuthenticationToken(token)
 
 class AuthenticationAthenz(Authentication):
     """
@@ -1967,7 +1994,7 @@ class Consumer:
 
         This consumer object cannot be reused.
         """
-        return self._consumer.unsubcribe()
+        return self._consumer.unsubscribe()
 
     def receive(self, timeout_millis=None):
         """
@@ -2389,6 +2416,98 @@ shared library.</p></div>
     _check_type(str, certificate_path, 'certificate_path')
     _check_type(str, private_key_path, 'private_key_path')
     self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
+      <p id="pulsar.AuthenticationToken" class="name">class <span class="ident">AuthenticationToken</span></p>
+      
+  
+    <div class="desc"><p>Token based authentication implementation</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.AuthenticationToken', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.AuthenticationToken" class="source">
+    <pre><code>class AuthenticationToken(Authentication):
+    """
+    Token based authentication implementation
+    """
+    def __init__(self, token):
+        """
+        Create the token authentication provider instance.
+
+        **Args**
+
+        * `token`: A string containing the token or a functions that provides a
+                   string with the token
+        """
+        if not (isinstance(token, str) or callable(token)):
+            raise ValueError("Argument token is expected to be of type 'str' or a function returning 'str'")
+        self.auth = _pulsar.AuthenticationToken(token)
+</code></pre>
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.AuthenticationToken">AuthenticationToken</a></li>
+          <li><a href="#pulsar.Authentication">Authentication</a></li>
+          </ul>
+          <h3>Instance variables</h3>
+            <div class="item">
+            <p id="pulsar.AuthenticationToken.auth" class="name">var <span class="ident">auth</span></p>
+            
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.Authentication">Authentication</a></code>.<code><a href="#pulsar.Authentication.auth">auth</a></code>
+    </p>
+
+            
+  
+  <div class="source_cont">
+</div>
+
+            </div>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.AuthenticationToken.__init__">
+    <p>def <span class="ident">__init__</span>(</p><p>self, token)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.Authentication">Authentication</a></code>.<code><a href="#pulsar.Authentication.__init__">__init__</a></code>
+    </p>
+
+    
+  
+    <div class="desc"><p>Create the token authentication provider instance.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>token</code>: A string containing the token or a functions that provides a
+           string with the token</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.AuthenticationToken.__init__', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.AuthenticationToken.__init__" class="source">
+    <pre><code>def __init__(self, token):
+    """
+    Create the token authentication provider instance.
+    **Args**
+    * `token`: A string containing the token or a functions that provides a
+               string with the token
+    """
+    if not (isinstance(token, str) or callable(token)):
+        raise ValueError("Argument token is expected to be of type 'str' or a function returning 'str'")
+    self.auth = _pulsar.AuthenticationToken(token)
 </code></pre>
   </div>
 </div>
@@ -3494,7 +3613,7 @@ def my_listener(consumer, message):
 
         This consumer object cannot be reused.
         """
-        return self._consumer.unsubcribe()
+        return self._consumer.unsubscribe()
 
     def receive(self, timeout_millis=None):
         """
@@ -3941,7 +4060,7 @@ subsequent new messages will not be retained for this consumer.</p>
     subsequent new messages will not be retained for this consumer.
     This consumer object cannot be reused.
     """
-    return self._consumer.unsubcribe()
+    return self._consumer.unsubscribe()
 </code></pre>
   </div>
 </div>

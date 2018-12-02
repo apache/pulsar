@@ -12,8 +12,9 @@ var searchData=
   ['consumerfailover',['ConsumerFailover',['../namespacepulsar.html#ac3e442abe2558a2b257fc7344af61d40aadffd5f0d50b1da36685230cd3f910a1',1,'pulsar']]],
   ['consumershared',['ConsumerShared',['../namespacepulsar.html#ac3e442abe2558a2b257fc7344af61d40ac55370821e835a03c2da742ab27e1705',1,'pulsar']]],
   ['consumertype',['ConsumerType',['../namespacepulsar.html#ac3e442abe2558a2b257fc7344af61d40',1,'pulsar']]],
-  ['create',['create',['../classpulsar_1_1_auth_factory.html#a551395eda623d3454c758c3479423ce3',1,'pulsar::AuthFactory::create()'],['../classpulsar_1_1_message_builder.html#a331944373a3ed3fe7daed7730e9254c0',1,'pulsar::MessageBuilder::create()']]],
+  ['create',['create',['../classpulsar_1_1_auth_factory.html#a551395eda623d3454c758c3479423ce3',1,'pulsar::AuthFactory::create()'],['../classpulsar_1_1_auth_token.html#ae9b2da50ad0c22335b298d939239602c',1,'pulsar::AuthToken::create()'],['../classpulsar_1_1_message_builder.html#a331944373a3ed3fe7daed7730e9254c0',1,'pulsar::MessageBuilder::create()']]],
   ['createproducer',['createProducer',['../classpulsar_1_1_client.html#a96f49cc0ce27bfe68d75224991f0ba52',1,'pulsar::Client::createProducer(const std::string &amp;topic, Producer &amp;producer)'],['../classpulsar_1_1_client.html#aae7658dee80ad23b418cfb7e12f5df05',1,'pulsar::Client::createProducer(const std::string &amp;topic, const ProducerConfiguration &amp;conf, Producer &amp;producer)']]],
   ['createreader',['createReader',['../classpulsar_1_1_client.html#ad2f6404e06200714e1fe82419b7c963a',1,'pulsar::Client']]],
+  ['createwithtoken',['createWithToken',['../classpulsar_1_1_auth_token.html#a80911f1374df425fdb76f066dfe7ebd9',1,'pulsar::AuthToken']]],
   ['cryptokeyreader',['CryptoKeyReader',['../classpulsar_1_1_crypto_key_reader.html',1,'pulsar']]]
 ];

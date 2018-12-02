@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":9,"i1":9};
+var methods = {"i0":9,"i1":9,"i2":9,"i3":9,"i4":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -158,6 +158,25 @@ extends Object</pre>
 <div class="block">Create an instance of the Authentication-Plugin</div>
 </td>
 </tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code>static <a href="../../../../../org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/AuthenticationFactory.html#TLS-java.lang.String-java.lang.String-">TLS</a></span>(String&nbsp;certFilePath,
+   String&nbsp;keyFilePath)</code>
+<div class="block">Create an authentication provider for TLS based authentication.</div>
+</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code>static <a href="../../../../../org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/AuthenticationFactory.html#token-java.lang.String-">token</a></span>(String&nbsp;token)</code>
+<div class="block">Create an authentication provider for token based authentication.</div>
+</td>
+</tr>
+<tr id="i4" class="altColor">
+<td class="colFirst"><code>static <a href="../../../../../org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/AuthenticationFactory.html#token-java.util.function.Supplier-">token</a></span>(java.util.function.Supplier&lt;String&gt;&nbsp;tokenSupplier)</code>
+<div class="block">Create an authentication provider for token based authentication.</div>
+</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a name="methods.inherited.from.class.Object">
@@ -197,6 +216,50 @@ extends Object</pre>
 <!--   -->
 </a>
 <h3>Method Detail</h3>
+<a name="token-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>token</h4>
+<pre>public static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a>&nbsp;token(String&nbsp;token)</pre>
+<div class="block">Create an authentication provider for token based authentication.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>token</code> - the client auth token</dd>
+</dl>
+</li>
+</ul>
+<a name="token-java.util.function.Supplier-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>token</h4>
+<pre>public static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a>&nbsp;token(java.util.function.Supplier&lt;String&gt;&nbsp;tokenSupplier)</pre>
+<div class="block">Create an authentication provider for token based authentication.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>tokenSupplier</code> - a supplier of the client auth token</dd>
+</dl>
+</li>
+</ul>
+<a name="TLS-java.lang.String-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>TLS</h4>
+<pre>public static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a>&nbsp;TLS(String&nbsp;certFilePath,
+                                 String&nbsp;keyFilePath)</pre>
+<div class="block">Create an authentication provider for TLS based authentication.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>certFilePath</code> - the path to the TLS client public key</dd>
+<dd><code>keyFilePath</code> - the path to the TLS client private key</dd>
+</dl>
+</li>
+</ul>
 <a name="create-java.lang.String-java.lang.String-">
 <!--   -->
 </a>

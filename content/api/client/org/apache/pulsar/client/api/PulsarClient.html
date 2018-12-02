@@ -230,7 +230,7 @@ extends Closeable</pre>
 </tr>
 <tr id="i13" class="rowColor">
 <td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--">newConsumer</a></span>(&lt;any&gt;&nbsp;schema)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer-org.apache.pulsar.client.api.Schema-">newConsumer</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</code>
 <div class="block">Create a consumer with default for subscribing on a specific topic
 
  Since 2.2, if you are creating a consumer with non-bytes schema on a non-existence topic, it will
@@ -245,7 +245,7 @@ extends Closeable</pre>
 </tr>
 <tr id="i15" class="rowColor">
 <td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;T&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--">newProducer</a></span>(&lt;any&gt;&nbsp;schema)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer-org.apache.pulsar.client.api.Schema-">newProducer</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</code>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </td>
 </tr>
@@ -257,7 +257,7 @@ extends Closeable</pre>
 </tr>
 <tr id="i17" class="rowColor">
 <td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;T&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newReader--">newReader</a></span>(&lt;any&gt;&nbsp;schema)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newReader-org.apache.pulsar.client.api.Schema-">newReader</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</code>
 <div class="block">Create a topic reader for reading messages from the specified topic.</div>
 </td>
 </tr>
@@ -410,13 +410,13 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 </dl>
 </li>
 </ul>
-<a name="newProducer--">
+<a name="newProducer-org.apache.pulsar.client.api.Schema-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>newProducer</h4>
-<pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;T&gt;&nbsp;newProducer(&lt;any&gt;&nbsp;schema)</pre>
+<pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;T&gt;&nbsp;newProducer(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</pre>
 <div class="block">Create a producer with default for publishing on a specific topic
  <p>
  Example:
@@ -450,13 +450,13 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 </dl>
 </li>
 </ul>
-<a name="newConsumer--">
+<a name="newConsumer-org.apache.pulsar.client.api.Schema-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>newConsumer</h4>
-<pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;&nbsp;newConsumer(&lt;any&gt;&nbsp;schema)</pre>
+<pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;&nbsp;newConsumer(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</pre>
 <div class="block">Create a consumer with default for subscribing on a specific topic
 
  Since 2.2, if you are creating a consumer with non-bytes schema on a non-existence topic, it will
@@ -490,13 +490,13 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 </dl>
 </li>
 </ul>
-<a name="newReader--">
+<a name="newReader-org.apache.pulsar.client.api.Schema-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>newReader</h4>
-<pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;T&gt;&nbsp;newReader(&lt;any&gt;&nbsp;schema)</pre>
+<pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;T&gt;&nbsp;newReader(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</pre>
 <div class="block">Create a topic reader for reading messages from the specified topic.
  <p>
  The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a

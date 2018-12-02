@@ -171,7 +171,7 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i7" class="rowColor">
-<td class="colFirst"><code>String</code></td>
+<td class="colFirst"><code>FunctionState</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunctionState-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">getFunctionState</a></span>(String&nbsp;tenant,
                 String&nbsp;namespace,
                 String&nbsp;function,
@@ -197,7 +197,7 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i10" class="altColor">
-<td class="colFirst"><code>FunctionStatusList</code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/FunctionStatus.html" title="class in org.apache.pulsar.common.policies.data">FunctionStatus</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunctionStatus-java.lang.String-java.lang.String-java.lang.String-">getFunctionStatus</a></span>(String&nbsp;tenant,
                  String&nbsp;namespace,
                  String&nbsp;function)</code>
@@ -205,7 +205,7 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i11" class="rowColor">
-<td class="colFirst"><code>FunctionStatus</code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.html" title="class in org.apache.pulsar.common.policies.data">FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunctionStatus-java.lang.String-java.lang.String-java.lang.String-int-">getFunctionStatus</a></span>(String&nbsp;tenant,
                  String&nbsp;namespace,
                  String&nbsp;function,
@@ -484,10 +484,10 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getFunctionStatus</h4>
-<pre>FunctionStatusList&nbsp;getFunctionStatus(String&nbsp;tenant,
-                                     String&nbsp;namespace,
-                                     String&nbsp;function)
-                              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<pre><a href="../../../../../org/apache/pulsar/common/policies/data/FunctionStatus.html" title="class in org.apache.pulsar.common.policies.data">FunctionStatus</a>&nbsp;getFunctionStatus(String&nbsp;tenant,
+                                 String&nbsp;namespace,
+                                 String&nbsp;function)
+                          throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Gets the current status of a function.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -505,11 +505,11 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getFunctionStatus</h4>
-<pre>FunctionStatus&nbsp;getFunctionStatus(String&nbsp;tenant,
-                                 String&nbsp;namespace,
-                                 String&nbsp;function,
-                                 int&nbsp;id)
-                          throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<pre><a href="../../../../../org/apache/pulsar/common/policies/data/FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.html" title="class in org.apache.pulsar.common.policies.data">FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData</a>&nbsp;getFunctionStatus(String&nbsp;tenant,
+                                                                                   String&nbsp;namespace,
+                                                                                   String&nbsp;function,
+                                                                                   int&nbsp;id)
+                                                                            throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Gets the current status of a function instance.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -772,11 +772,11 @@ var activeTableTab = "activeTableTab";
 <ul class="blockListLast">
 <li class="blockList">
 <h4>getFunctionState</h4>
-<pre>String&nbsp;getFunctionState(String&nbsp;tenant,
-                        String&nbsp;namespace,
-                        String&nbsp;function,
-                        String&nbsp;key)
-                 throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<pre>FunctionState&nbsp;getFunctionState(String&nbsp;tenant,
+                               String&nbsp;namespace,
+                               String&nbsp;function,
+                               String&nbsp;key)
+                        throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Fetch the current state associated with a Pulsar Function.
  <p>
  Response Example:

@@ -166,96 +166,99 @@
 </tr>
 <tbody>
 <tr class="altColor">
+<td class="colOne"><a href="org/apache/pulsar/client/api/Schema.html#AUTO--">org.apache.pulsar.client.api.Schema.AUTO()</a></td>
+</tr>
+<tr class="rowColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-">org.apache.pulsar.client.api.MessageRouter.choosePartition(Message&lt;?&gt;)</a>
 <div class="block"><span class="deprecationComment">since 1.22.0. Please use <a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>MessageRouter.choosePartition(Message, TopicMetadata)</code></a> instead.</span></div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/Authentication.html#configure-java.util.Map-">org.apache.pulsar.client.api.Authentication.configure(Map&lt;String, String&gt;)</a>
 <div class="block"><span class="deprecationComment">This method will be deleted on version 2.0, instead please use configure(String
              encodedAuthParamString) which is in EncodedAuthenticationParameterSupport for now and will be
              integrated into this interface.</span></div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#create-java.lang.String-">org.apache.pulsar.client.api.PulsarClient.create(String)</a>
 <div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#builder--"><code>PulsarClient.builder()</code></a> to construct a client instance</span></div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#create-java.lang.String-org.apache.pulsar.client.api.ClientConfiguration-">org.apache.pulsar.client.api.PulsarClient.create(String, ClientConfiguration)</a>
 <div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#builder--"><code>PulsarClient.builder()</code></a> to construct a client instance</span></div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#createProducer-java.lang.String-">org.apache.pulsar.client.api.PulsarClient.createProducer(String)</a>
 <div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>PulsarClient.newProducer()</code></a> to build a new producer</span></div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#createProducer-java.lang.String-org.apache.pulsar.client.api.ProducerConfiguration-">org.apache.pulsar.client.api.PulsarClient.createProducer(String, ProducerConfiguration)</a>
 <div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>PulsarClient.newProducer()</code></a> to build a new producer</span></div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#createProducerAsync-java.lang.String-">org.apache.pulsar.client.api.PulsarClient.createProducerAsync(String)</a>
 <div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>PulsarClient.newProducer()</code></a> to build a new producer</span></div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#createProducerAsync-java.lang.String-org.apache.pulsar.client.api.ProducerConfiguration-">org.apache.pulsar.client.api.PulsarClient.createProducerAsync(String, ProducerConfiguration)</a>
 <div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>PulsarClient.newProducer()</code></a> to build a new producer</span></div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#createReader-java.lang.String-org.apache.pulsar.client.api.MessageId-org.apache.pulsar.client.api.ReaderConfiguration-">org.apache.pulsar.client.api.PulsarClient.createReader(String, MessageId, ReaderConfiguration)</a>
 <div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newReader--"><code>PulsarClient.newReader()</code></a> to build a new reader</span></div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#createReaderAsync-java.lang.String-org.apache.pulsar.client.api.MessageId-org.apache.pulsar.client.api.ReaderConfiguration-">org.apache.pulsar.client.api.PulsarClient.createReaderAsync(String, MessageId, ReaderConfiguration)</a>
 <div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newReader--"><code>PulsarClient.newReader()</code></a> to build a new reader</span></div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/ClientBuilder.html#enableTls-boolean-">org.apache.pulsar.client.api.ClientBuilder.enableTls(boolean)</a>
 <div class="block"><span class="deprecationComment">use "pulsar+ssl://" in serviceUrl to enable</span></div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRouter-int-">org.apache.pulsar.client.api.ProducerConfiguration.getMessageRouter(int)</a>
 <div class="block"><span class="deprecationComment">since 1.22.0-incubating. <tt>numPartitions</tt> is already passed as parameter in
              <a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>MessageRouter.choosePartition(Message, TopicMetadata)</code></a>.</span></div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/Producer.html#send-org.apache.pulsar.client.api.Message-">org.apache.pulsar.client.api.Producer.send(Message&lt;T&gt;)</a>
 <div class="block"><span class="deprecationComment">since 2.0. Use <a href="org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api"><code>TypedMessageBuilder</code></a> as returned by <a href="org/apache/pulsar/client/api/Producer.html#newMessage--"><code>Producer.newMessage()</code></a> to create a
              new message builder.</span></div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/Producer.html#sendAsync-org.apache.pulsar.client.api.Message-">org.apache.pulsar.client.api.Producer.sendAsync(Message&lt;T&gt;)</a>
 <div class="block"><span class="deprecationComment">since 2.0. Use <a href="org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api"><code>TypedMessageBuilder</code></a> as returned by <a href="org/apache/pulsar/client/api/Producer.html#newMessage--"><code>Producer.newMessage()</code></a> to create a
              new message builder.</span></div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.lang.String-java.lang.String-">org.apache.pulsar.client.api.PulsarClient.subscribe(String, String)</a>
 <div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build a new consumer</span></div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.lang.String-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">org.apache.pulsar.client.api.PulsarClient.subscribe(String, String, ConsumerConfiguration)</a>
 <div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build a new consumer</span></div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.lang.String-java.lang.String-">org.apache.pulsar.client.api.PulsarClient.subscribeAsync(String, String)</a>
 <div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build a new consumer</span></div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.lang.String-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">org.apache.pulsar.client.api.PulsarClient.subscribeAsync(String, String, ConsumerConfiguration)</a>
 <div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build a new consumer</span></div>
 </td>
