@@ -18,13 +18,8 @@
  */
 package org.apache.pulsar.websocket.data;
 
-public class ConsumerAck {
+public class ConsumerCommand {
+    public String type;
     public String messageId;
-
-    public ConsumerAck() {
-    }
-
-    public ConsumerAck(String messageId) {
-        this.messageId = messageId;
-    }
+    public Integer permitMessages;
 }
