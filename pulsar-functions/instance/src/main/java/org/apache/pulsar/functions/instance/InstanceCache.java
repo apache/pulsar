@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import lombok.Getter;
+
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -25,10 +27,11 @@ public class InstanceCache {
 
     private static InstanceCache instance;
 
-    public final ScheduledExecutorService executor;
+    @Getter
+    private final ScheduledExecutorService scheduledExecutorService;
 
     private InstanceCache() {
-        executor = Executors.newSingleThreadScheduledExecutor();;
+        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();;
     }
 
     public static InstanceCache getInstanceCache() {
@@ -43,7 +46,7 @@ public class InstanceCache {
     public static void shutdown() {
         synchronized (InstanceCache.class) {
             if (instance != null) {
-                instance.executor.shutdown();
+                instance.scheduledExecutorService.shutdown();
             }
             instance = null;
         }
