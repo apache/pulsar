@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.Getter;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 
 public class InstanceCache {
 
@@ -31,7 +33,9 @@ public class InstanceCache {
     private final ScheduledExecutorService scheduledExecutorService;
 
     private InstanceCache() {
-        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();;
+        ThreadFactory namedThreadFactory =
+                new ThreadFactoryBuilder().setNameFormat("function-timer-thread").build();
+        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(namedThreadFactory);
     }
 
     public static InstanceCache getInstanceCache() {
