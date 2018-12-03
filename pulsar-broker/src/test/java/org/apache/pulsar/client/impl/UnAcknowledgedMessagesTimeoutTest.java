@@ -373,9 +373,11 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         Thread.sleep((long) (ackTimeOutMillis * 1.1));
 
-        for (int i = 0; i < totalMessages - 1; i++) {
+        for (int i = 0; i < totalMessages; i++) {
             Message<byte[]> msg = consumer.receive();
-            consumer.acknowledge(msg);
+            if (i != totalMessages - 1) {
+                consumer.acknowledge(msg);
+            }
         }
 
         assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
