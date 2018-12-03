@@ -148,11 +148,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 instanceConfig.getFunctionDetails().getTenant(),
                 String.format("%s/%s", instanceConfig.getFunctionDetails().getTenant(),
                         instanceConfig.getFunctionDetails().getNamespace()),
-                String.format("%s/%s/%s", instanceConfig.getFunctionDetails().getTenant(),
-                        instanceConfig.getFunctionDetails().getNamespace(),
-                        instanceConfig.getFunctionDetails().getName()),
+                instanceConfig.getFunctionDetails().getName(),
                 String.valueOf(instanceConfig.getInstanceId()),
-                instanceConfig.getClusterName()
+                instanceConfig.getClusterName(),
+                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails())
         };
 
         // Declare function local collector registry so that it will not clash with other function instances'

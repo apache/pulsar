@@ -27,10 +27,12 @@ import io.prometheus.client.exporter.common.TextFormat;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -43,7 +45,13 @@ import java.util.concurrent.TimeUnit;
 @Setter
 public class FunctionStatsManager implements AutoCloseable {
 
-    static final String[] metricsLabelNames = {"tenant", "namespace", "function", "instance_id", "cluster"};
+    static final String[] metricsLabelNames = {"tenant", "namespace", "function", "instance_id", "cluster", "fqfn"};
+    static final String[] exceptionMetricsLabelNames;
+    static {
+        exceptionMetricsLabelNames = Arrays.copyOf(metricsLabelNames, metricsLabelNames.length + 2);
+        exceptionMetricsLabelNames[metricsLabelNames.length] = "error";
+        exceptionMetricsLabelNames[metricsLabelNames.length + 1] = "ts";
+    }
 
     public static final String PULSAR_FUNCTION_METRICS_PREFIX = "pulsar_function_";
     public final static String USER_METRIC_PREFIX = "user_metric_";
@@ -88,6 +96,12 @@ public class FunctionStatsManager implements AutoCloseable {
 
     final Counter statTotalRecordsRecieved1min;
 
+    // exceptions
+
+    final Gauge userExceptions;
+
+    final Gauge sysExceptions;
+
     private String[] metricsLabels;
 
     private ScheduledFuture<?> scheduledFuture;
@@ -98,6 +112,10 @@ public class FunctionStatsManager implements AutoCloseable {
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions = EvictingQueue.create(10);
     @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions = EvictingQueue.create(10);
+
+    private final RateLimiter userExceptionRateLimiter;
+
+    private final RateLimiter sysExceptionRateLimiter;
 
     public FunctionStatsManager(CollectorRegistry collectorRegistry, String[] metricsLabels, ScheduledExecutorService scheduledExecutorService) {
 
@@ -179,6 +197,18 @@ public class FunctionStatsManager implements AutoCloseable {
                 .labelNames(metricsLabelNames)
                 .register(collectorRegistry);
 
+        userExceptions = Gauge.build()
+                .name(PULSAR_FUNCTION_METRICS_PREFIX + "user_exception")
+                .labelNames(exceptionMetricsLabelNames)
+                .help("Exception from user code.")
+                .register(collectorRegistry);
+
+        sysExceptions = Gauge.build()
+                .name(PULSAR_FUNCTION_METRICS_PREFIX + "system_exception")
+                .labelNames(exceptionMetricsLabelNames)
+                .help("Exception from system code.")
+                .register(collectorRegistry);
+
         scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -189,21 +219,41 @@ public class FunctionStatsManager implements AutoCloseable {
                 }
             }
         }, 1, 1, TimeUnit.MINUTES);
+
+        userExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
+        sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
     }
 
     public void addUserException(Exception ex) {
+        long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info =
                     InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
-                    .setExceptionString(ex.getMessage()).setMsSinceEpoch(System.currentTimeMillis()).build();
+                    .setExceptionString(ex.getMessage()).setMsSinceEpoch(ts).build();
         latestUserExceptions.add(info);
+
+        // report exception throw prometheus
+        if (userExceptionRateLimiter.tryAcquire()) {
+            String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
+            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage();
+            exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
+            userExceptions.labels(exceptionMetricsLabels).set(1.0);
+        }
     }
 
     public void addSystemException(Throwable ex) {
+        long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info =
                 InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
-                        .setExceptionString(ex.getMessage()).setMsSinceEpoch(System.currentTimeMillis()).build();
+                        .setExceptionString(ex.getMessage()).setMsSinceEpoch(ts).build();
         latestSystemExceptions.add(info);
 
+        // report exception throw prometheus
+        if (sysExceptionRateLimiter.tryAcquire()) {
+            String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
+            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage();
+            exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
+            sysExceptions.labels(exceptionMetricsLabels).set(1.0);
+        }
     }
 
     public void incrTotalReceived() {
