@@ -94,8 +94,9 @@ class PythonInstance(object):
     self.secrets_provider = secrets_provider
     self.metrics_labels = [function_details.tenant,
                            "%s/%s" % (function_details.tenant, function_details.namespace),
-                           "%s/%s/%s" % (function_details.tenant, function_details.namespace, function_details.name),
-                           instance_id, cluster_name]
+                           function_details.name,
+                           instance_id, cluster_name,
+                           "%s/%s/%s" % (function_details.tenant, function_details.namespace, function_details.name)]
     self.stats = Stats(self.metrics_labels)
 
   def health_check(self):
@@ -213,7 +214,7 @@ class PythonInstance(object):
           self.stats.process_time_end()
         except Exception as e:
           Log.exception("Exception while executing user method")
-          self.stats.incr_total_user_exceptions()
+          self.stats.incr_total_user_exceptions(e)
 
         if self.log_topic_handler is not None:
           log.remove_all_handlers()
@@ -224,7 +225,7 @@ class PythonInstance(object):
 
       except Exception as e:
         Log.error("Uncaught exception in Python instance: %s" % e);
-        self.stats.incr_total_sys_exceptions()
+        self.stats.incr_total_sys_exceptions(e)
 
   def done_producing(self, consumer, orig_message, result, sent_message):
     if result == pulsar.Result.Ok and self.auto_ack and self.atleast_once:
