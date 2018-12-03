@@ -180,6 +180,10 @@
             <configuration>
               <properties>
                 <property>
+                  <name>testRetryCount</name>
+                  <value>0</value>
+                </property>
+                <property>
                   <name>listener</name>
                   <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
                 </property>

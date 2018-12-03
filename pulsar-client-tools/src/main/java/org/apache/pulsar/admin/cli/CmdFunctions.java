@@ -53,6 +53,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.common.functions.FunctionState;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -628,12 +629,11 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            String json = JsonFormat.printer().print(
-                    isBlank(instanceId) ? admin.functions().getFunctionStatus(tenant, namespace, functionName)
-                            : admin.functions().getFunctionStatus(tenant, namespace, functionName,
-                                    Integer.parseInt(instanceId)));
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println(gson.toJson(new JsonParser().parse(json)));
+            if (isBlank(instanceId)) {
+                print(admin.functions().getFunctionStatus(tenant, namespace, functionName));
+            } else {
+                print(admin.functions().getFunctionStatus(tenant, namespace, functionName, Integer.parseInt(instanceId)));
+            }
         }
     }
 
@@ -756,8 +756,9 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             do {
-                String valueAndVersion = admin.functions().getFunctionState(tenant, namespace, functionName, key);
-                System.out.println(valueAndVersion);
+                FunctionState functionState = admin.functions().getFunctionState(tenant, namespace, functionName, key);
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                System.out.println(gson.toJson(functionState));
                 if (watch) {
                     Thread.sleep(1000);
                 }
@@ -890,7 +891,8 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("get", getGetter());
         jcommander.addCommand("restart", getRestarter());
         jcommander.addCommand("stop", getStopper());
-        jcommander.addCommand("getstatus", getStatuser());
+        // TODO depecreate getstatus
+        jcommander.addCommand("status", getStatuser(), "getstatus");
         jcommander.addCommand("stats", getFunctionStats());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());

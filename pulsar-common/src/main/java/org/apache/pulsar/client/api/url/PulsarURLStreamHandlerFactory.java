@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class PulsarURLStreamHandlerFactory implements URLStreamHandlerFactory {
-    static Map<String, Class<? extends URLStreamHandler>> handlers;
+    private static final Map<String, Class<? extends URLStreamHandler>> handlers;
     static {
         handlers = new HashMap<>();
         handlers.put("data", DataURLStreamHandler.class);

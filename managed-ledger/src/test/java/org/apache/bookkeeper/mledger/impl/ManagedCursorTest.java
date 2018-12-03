@@ -28,6 +28,7 @@ import static org.testng.Assert.*;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -274,6 +275,36 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.markDelete(p4);
         assertEquals(c1.getNumberOfEntries(), 0);
         assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
+    }
+
+    @Test(timeOut = 20000)
+    void testNumberOfEntriesInBacklogWithFallback() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+
+        ManagedCursor c1 = ledger.openCursor("c1");
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ManagedCursor c2 = ledger.openCursor("c2");
+        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
+        ManagedCursor c3 = ledger.openCursor("c3");
+        ledger.addEntry("dummy-entry-3".getBytes(Encoding));
+        ManagedCursor c4 = ledger.openCursor("c4");
+        ledger.addEntry("dummy-entry-4".getBytes(Encoding));
+        ManagedCursor c5 = ledger.openCursor("c5");
+
+        Field field = ManagedCursorImpl.class.getDeclaredField("messagesConsumedCounter");
+        field.setAccessible(true);
+        long counter = ((ManagedLedgerImpl) ledger).getEntriesAddedCounter() + 1;
+        field.setLong(c1, counter);
+        field.setLong(c2, counter);
+        field.setLong(c3, counter);
+        field.setLong(c4, counter);
+        field.setLong(c5, counter);
+
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
+        assertEquals(c2.getNumberOfEntriesInBacklog(), 3);
+        assertEquals(c3.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(c4.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(c5.getNumberOfEntriesInBacklog(), 0);
     }
 
     @Test(timeOut = 20000)

@@ -19,8 +19,8 @@
 package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.AbstractMessage.Builder;
-import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -28,12 +28,12 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -90,23 +90,20 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public FunctionStatusList getFunctionStatus(
+    public FunctionStatus getFunctionStatus(
             String tenant, String namespace, String function) throws PulsarAdminException {
         try {
             Response response = request(functions.path(tenant).path(namespace).path(function).path("status")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            FunctionStatusList.Builder functionStatusBuilder = FunctionStatusList.newBuilder();
-            mergeJson(jsonResponse, functionStatusBuilder);
-            return functionStatusBuilder.build();
+            return response.readEntity(FunctionStatus.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
-    public FunctionStatus getFunctionStatus(
+    public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionStatus(
             String tenant, String namespace, String function, int id) throws PulsarAdminException {
         try {
             Response response = request(
@@ -115,10 +112,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
-            mergeJson(jsonResponse, functionStatusBuilder);
-            return functionStatusBuilder.build();
+            return response.readEntity(FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -366,7 +360,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
         }
     }
 
-    public String getFunctionState(String tenant, String namespace, String function, String key)
+    public FunctionState getFunctionState(String tenant, String namespace, String function, String key)
         throws PulsarAdminException {
         try {
             Response response = request(functions.path(tenant)
@@ -374,7 +368,8 @@ public class FunctionsImpl extends BaseResource implements Functions {
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            return response.readEntity(String.class);
+            String value = response.readEntity(String.class);
+            return new Gson().fromJson(value, new TypeToken<FunctionState>() {}.getType());
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -384,9 +379,4 @@ public class FunctionsImpl extends BaseResource implements Functions {
     public static void mergeJson(String json, Builder builder) throws IOException {
         JsonFormat.parser().merge(json, builder);
     }
-
-    public static String printJson(MessageOrBuilder msg) throws IOException {
-        return JsonFormat.printer().print(msg);
-    }
-
 }

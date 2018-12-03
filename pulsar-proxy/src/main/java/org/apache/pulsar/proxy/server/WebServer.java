@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.Lists;
 
 import io.prometheus.client.jetty.JettyStatisticsCollector;
@@ -40,7 +39,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
@@ -104,7 +102,7 @@ public class WebServer {
                         config.getTlsTrustCertsFilePath(),
                         config.getTlsCertificateFilePath(),
                         config.getTlsKeyFilePath(),
-                        config.getTlsRequireTrustedClientCertOnConnect());
+                        config.isTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
                 tlsConnector.setPort(config.getWebServicePortTls());
                 connectors.add(tlsConnector);

@@ -93,7 +93,7 @@ public class WebService implements AutoCloseable {
                         pulsar.getConfiguration().getTlsTrustCertsFilePath(),
                         pulsar.getConfiguration().getTlsCertificateFilePath(),
                         pulsar.getConfiguration().getTlsKeyFilePath(),
-                        pulsar.getConfiguration().getTlsRequireTrustedClientCertOnConnect());
+                        pulsar.getConfiguration().isTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
                 tlsConnector.setPort(pulsar.getConfiguration().getWebServicePortTls());
                 tlsConnector.setHost(pulsar.getBindAddress());
