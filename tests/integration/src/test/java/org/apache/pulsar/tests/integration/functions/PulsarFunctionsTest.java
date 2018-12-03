@@ -255,6 +255,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
                 log.info("Get sink status : {}", result.getStdout());
 
+                assertEquals(result.getExitCode(), 0);
 
                 SinkStatus sinkStatus = SinkStatus.decode(result.getStdout());
                 try {
@@ -481,6 +482,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
                 log.info("Get source status : {}", result.getStdout());
 
+                assertEquals(result.getExitCode(), 0);
+
                 SourceStatus sourceStatus = SourceStatus.decode(result.getStdout());
                 try {
                     assertEquals(sourceStatus.getNumInstances(), 1);
@@ -532,6 +535,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
                 log.info("Get source status : {}", result.getStdout());
 
+                assertEquals(result.getExitCode(), 0);
+
                 SourceStatus sourceStatus = SourceStatus.decode(result.getStdout());
                 try {
                     assertEquals(sourceStatus.getNumInstances(), 1);
@@ -573,6 +578,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             try {
                 ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
                 log.info("Get sink status : {}", result.getStdout());
+
+                assertEquals(result.getExitCode(), 0);
 
                 SinkStatus sinkStatus = SinkStatus.decode(result.getStdout());
                 try {

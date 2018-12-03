@@ -669,9 +669,8 @@ public class PulsarFunctionE2ETest {
             }
         }, 5, 200);
 
-        FunctionRuntimeManager functionRuntimeManager = functionsWorkerService.getFunctionRuntimeManager();
-        FunctionStatus functionStatus = functionRuntimeManager.getFunctionStatus(tenant, namespacePortion,
-                functionName, null);
+        FunctionStatus functionStatus = admin.functions().getFunctionStatus(tenant, namespacePortion,
+                functionName);
 
         int numInstances = functionStatus.getNumInstances();
         assertEquals(numInstances, 1);
