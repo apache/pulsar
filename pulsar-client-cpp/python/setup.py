@@ -73,6 +73,6 @@ setup(
         'grpcio', 'protobuf',
         # functions dependencies
         "prometheus_client",
-        "ratelimiter"
+        "ratelimit"
     ],
 )
