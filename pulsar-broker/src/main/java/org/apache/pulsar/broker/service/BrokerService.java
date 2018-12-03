@@ -427,13 +427,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void unloadNamespaceBundlesGracefully() {
         try {
             // make broker-node unavailable from the cluster
-            if (pulsar.getLoadManager() != null) {
+            if (pulsar.getLoadManager() != null && pulsar.getLoadManager().get() != null) {
                 try {
-                    if (pulsar.getLoadManager() == null || pulsar.getLoadManager().get() == null) {
-                        log.warn("Broker load-manager reference returns a null value ");
-                    } else {
-                        pulsar.getLoadManager().get().disableBroker();
-                    }
+                    pulsar.getLoadManager().get().disableBroker();
                 } catch (PulsarServerException.NotFoundException ne) {
                     log.warn("Broker load-manager znode doesn't exist ", ne);
                     // still continue and release bundle ownership as broker's registration node doesn't exist.
