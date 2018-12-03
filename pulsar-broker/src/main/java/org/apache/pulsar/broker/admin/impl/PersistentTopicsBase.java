@@ -98,6 +98,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
+import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -604,6 +605,33 @@ public class PersistentTopicsBase extends AdminResource {
         return stats;
     }
 
+    protected PartitionedTopicInternalStats internalGetPartitionedStatsInternal(boolean authoritative) {
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        if (partitionMetadata.partitions == 0) {
+            throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
+        }
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        PartitionedTopicInternalStats stats = new PartitionedTopicInternalStats(partitionMetadata);
+        try {
+            for (int i = 0; i < partitionMetadata.partitions; i++) {
+                PersistentTopicInternalStats partitionStats = pulsar().getAdminClient().topics()
+                        .getInternalStats(topicName.getPartition(i).toString());
+                stats.partitions.put(topicName.getPartition(i).toString(), partitionStats);
+            }
+        } catch (PulsarAdminException e) {
+            if (e.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
+                throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+            } else {
+                throw new RestException(e);
+            }
+        } catch (Exception e) {
+            throw new RestException(e);
+        }
+        return stats;
+    }
+    
     protected void internalDeleteSubscription(String subName, boolean authoritative) {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);

@@ -27,9 +27,8 @@ import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -82,24 +81,21 @@ public class SourceImpl extends BaseResource implements Source {
     }
 
     @Override
-    public FunctionStatusList getSourceStatus(
+    public SourceStatus getSourceStatus(
             String tenant, String namespace, String sourceName) throws PulsarAdminException {
         try {
             Response response = request(source.path(tenant).path(namespace).path(sourceName).path("status")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            FunctionStatusList.Builder functionStatusBuilder = FunctionStatusList.newBuilder();
-            mergeJson(jsonResponse, functionStatusBuilder);
-            return functionStatusBuilder.build();
+            return response.readEntity(SourceStatus.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public FunctionStatus getSourceStatus(
+    public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(
             String tenant, String namespace, String sourceName, int id) throws PulsarAdminException {
         try {
             Response response = request(
@@ -108,10 +104,7 @@ public class SourceImpl extends BaseResource implements Source {
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
-            String jsonResponse = response.readEntity(String.class);
-            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
-            mergeJson(jsonResponse, functionStatusBuilder);
-            return functionStatusBuilder.build();
+            return response.readEntity(SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

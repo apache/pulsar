@@ -33,4 +33,22 @@ public class ResourceConfigUtils {
         com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0L,
                 "The disk allocation for the function must be positive");
     }
+
+    public static Resources merge(Resources existingResources, Resources newResources) {
+        Resources mergedResources;
+        if (existingResources != null) {
+            mergedResources = existingResources.toBuilder().build();
+        } else {
+            mergedResources = new Resources();
+        }
+        if (newResources.getCpu() != null) {
+            mergedResources.setCpu(newResources.getCpu());
+        }if (newResources.getRam() != null) {
+            mergedResources.setRam(newResources.getRam());
+        }
+        if (newResources.getDisk() != null) {
+            mergedResources.setDisk(newResources.getDisk());
+        }
+        return mergedResources;
+    }
 }

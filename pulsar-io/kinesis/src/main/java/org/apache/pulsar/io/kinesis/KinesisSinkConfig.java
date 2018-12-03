@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
 @Setter
@@ -39,13 +40,64 @@ public class KinesisSinkConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "Kinesis end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
+    )
     private String awsEndpoint;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "Appropriate aws region. E.g. us-west-1, us-west-2"
+    )
     private String awsRegion;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "Kinesis stream name"
+    )
     private String awsKinesisStreamName;
+    @FieldDoc(
+        required = false,
+        defaultValue = "",
+        help = "Fully-Qualified class name of implementation of AwsCredentialProviderPlugin."
+            + " It is a factory class which creates an AWSCredentialsProvider that will be used by Kinesis Sink."
+            + " If it is empty then KinesisSink will create a default AWSCredentialsProvider which accepts json-map"
+            + " of credentials in `awsCredentialPluginParam`")
     private String awsCredentialPluginName;
+    @FieldDoc(
+        required = false,
+        defaultValue = "",
+        help = "json-parameters to initialize `AwsCredentialsProviderPlugin`")
     private String awsCredentialPluginParam;
+    @FieldDoc(
+        required = true,
+        defaultValue = "ONLY_RAW_PAYLOAD",
+        help = "Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams.\n"
+            + "  #\n"
+            + "  # The available messages formats are: \n"
+            + "  #\n"
+            + "  # - ONLY_RAW_PAYLOAD \n"
+            + "  #\n"
+            + "  #   Kinesis sink directly publishes pulsar message payload as a message into the configured kinesis stream. \n"
+            + "  #\n"
+            + "  # - FULL_MESSAGE_IN_JSON \n"
+            + "  #\n"
+            + "  #   Kinesis sink creates a json payload with pulsar message payload, properties and encryptionCtx, \n"
+            + "  #   and publishes json payload into the configured kinesis stream.\n"
+            + "  #\n"
+            + "  # - FULL_MESSAGE_IN_FB \n"
+            + "  #\n"
+            + "  #   Kinesis sink creates a flatbuffer serialized paylaod with pulsar message payload, \n"
+            + "  #   properties and encryptionCtx, and publishes flatbuffer payload into the configured kinesis stream."
+    )
     private MessageFormat messageFormat = MessageFormat.ONLY_RAW_PAYLOAD; // default : ONLY_RAW_PAYLOAD
-    private boolean retainOrdering;
+    @FieldDoc(
+        required = false,
+        defaultValue = "false",
+        help = "A flag to tell Pulsar IO to retain ordering when moving messages from Pulsar to Kinesis")
+    private boolean retainOrdering = false;
 
     public static KinesisSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

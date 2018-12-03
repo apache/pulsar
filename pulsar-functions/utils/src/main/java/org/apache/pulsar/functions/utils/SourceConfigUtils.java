@@ -77,7 +77,11 @@ public class SourceConfigUtils {
             functionDetailsBuilder.setName(sourceConfig.getName());
         }
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-        functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
+        if (sourceConfig.getParallelism() != null) {
+            functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
+        } else {
+            functionDetailsBuilder.setParallelism(1);
+        }
         functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
         functionDetailsBuilder.setAutoAck(true);
         if (sourceConfig.getProcessingGuarantees() != null) {
@@ -201,7 +205,7 @@ public class SourceConfigUtils {
         if (!TopicName.isValid(sourceConfig.getTopicName())) {
             throw new IllegalArgumentException("Topic name is invalid");
         }
-        if (sourceConfig.getParallelism() <= 0) {
+        if (sourceConfig.getParallelism() != null && sourceConfig.getParallelism() <= 0) {
             throw new IllegalArgumentException("Source parallelism should positive number");
         }
         if (sourceConfig.getResources() != null) {
@@ -234,6 +238,50 @@ public class SourceConfigUtils {
             ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
         }
         return classLoader;
+    }
+
+    public static SourceConfig validateUpdate(SourceConfig existingConfig, SourceConfig newConfig) {
+        SourceConfig mergedConfig = existingConfig.toBuilder().build();
+        if (!existingConfig.getTenant().equals(newConfig.getTenant())) {
+            throw new IllegalArgumentException("Tenants differ");
+        }
+        if (!existingConfig.getNamespace().equals(newConfig.getNamespace())) {
+            throw new IllegalArgumentException("Namespaces differ");
+        }
+        if (!existingConfig.getName().equals(newConfig.getName())) {
+            throw new IllegalArgumentException("Function Names differ");
+        }
+        if (!StringUtils.isEmpty(newConfig.getClassName())) {
+            mergedConfig.setClassName(newConfig.getClassName());
+        }
+        if (!StringUtils.isEmpty(newConfig.getTopicName()) && !newConfig.getTopicName().equals(existingConfig.getTopicName())) {
+            throw new IllegalArgumentException("Destination topics differ");
+        }
+        if (!StringUtils.isEmpty(newConfig.getSerdeClassName())) {
+            mergedConfig.setSerdeClassName(newConfig.getSerdeClassName());
+        }
+        if (!StringUtils.isEmpty(newConfig.getSchemaType())) {
+            mergedConfig.setSchemaType(newConfig.getSchemaType());
+        }
+        if (newConfig.getConfigs() != null) {
+            mergedConfig.setConfigs(newConfig.getConfigs());
+        }
+        if (newConfig.getSecrets() != null) {
+            mergedConfig.setSecrets(newConfig.getSecrets());
+        }
+        if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
+            throw new IllegalArgumentException("Processing Guarantess cannot be alterted");
+        }
+        if (newConfig.getParallelism() != null) {
+            mergedConfig.setParallelism(newConfig.getParallelism());
+        }
+        if (newConfig.getResources() != null) {
+            mergedConfig.setResources(ResourceConfigUtils.merge(existingConfig.getResources(), newConfig.getResources()));
+        }
+        if (!StringUtils.isEmpty(newConfig.getArchive())) {
+            mergedConfig.setArchive(newConfig.getArchive());
+        }
+        return mergedConfig;
     }
 
 }

@@ -23,11 +23,19 @@ import java.sql.PreparedStatement;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 import org.apache.pulsar.io.jdbc.JdbcUtils.ColumnId;
 
 /**
  * A Simple Jdbc sink, which interprets input Record in generic record.
  */
+@Connector(
+    name = "jdbc",
+    type = IOType.SINK,
+    help = "A simple JDBC sink that writes pulser messages to a database table",
+    configClass = JdbcSinkConfig.class
+)
 @Slf4j
 public class JdbcAutoSchemaSink extends JdbcAbstractSink<GenericRecord> {
 

@@ -42,6 +42,8 @@ class ProducerImplBase {
     virtual bool isClosed() = 0;
     virtual const std::string& getTopic() const = 0;
     virtual Future<Result, ProducerImplBaseWeakPtr> getProducerCreatedFuture() = 0;
+    virtual void triggerFlush() = 0;
+    virtual void flushAsync(FlushCallback callback) = 0;
 };
 }  // namespace pulsar
 #endif  // PULSAR_PRODUCER_IMPL_BASE_HEADER

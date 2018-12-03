@@ -28,9 +28,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.utils.Utils;
 import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -41,7 +40,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Matchers.any;
@@ -58,29 +56,6 @@ import static org.mockito.Mockito.when;
 
 @Slf4j
 public class FunctionRuntimeManagerTest {
-
-    public static class TestSink implements MetricsSink {
-
-        @Override
-        public void init(Map<String, String> conf) {
-
-        }
-
-        @Override
-        public void processRecord(InstanceCommunication.MetricsData record, Function.FunctionDetails functionDetails) {
-
-        }
-
-        @Override
-        public void flush() {
-
-        }
-
-        @Override
-        public void close() {
-
-        }
-    }
 
     @Test
     public void testProcessAssignmentUpdateAddFunctions() throws Exception {
@@ -240,7 +215,7 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.processAssignment(assignment1);
         functionRuntimeManager.processAssignment(assignment2);
 
-        functionRuntimeManager.deleteAssignment(Utils.getFullyQualifiedInstanceId(assignment1.getInstance()));
+        functionRuntimeManager.deleteAssignment(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance()));
         
         verify(functionRuntimeManager, times(0)).setAssignment(any(Function.Assignment.class));
         verify(functionRuntimeManager, times(1)).deleteAssignment(any(String.class));
@@ -432,11 +407,11 @@ public class FunctionRuntimeManagerTest {
         List<Message<byte[]>> messageList = new LinkedList<>();
         Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                         new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null));
-        doReturn(Utils.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
+        doReturn(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null));
-        doReturn(Utils.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
+        doReturn(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         // delete function2
         Message message3 = spy(new MessageImpl("foo", MessageId.latest.toString(),

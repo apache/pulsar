@@ -32,10 +32,10 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.omg.CosNaming.NamingContextPackage.NotFound;
 
 import com.google.gson.JsonObject;
 
@@ -674,6 +674,26 @@ public interface Topics {
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
     CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition);
+
+    /**
+     * Get the stats for the partitioned topic
+     * 
+     * @param topic
+     * @param perPartition
+     * @return
+     * @throws PulsarAdminException
+     */
+    PartitionedTopicInternalStats getPartitionedInternalStats(String topic)
+            throws PulsarAdminException;
+
+    /**
+     * Get the stats-internal for the partitioned topic asynchronously
+     *
+     * @param topic
+     *            topic Name
+     * @return a future that can be used to track when the partitioned topic statistics are returned
+     */
+    CompletableFuture<PartitionedTopicInternalStats> getPartitionedInternalStatsAsync(String topic);
 
     /**
      * Delete a subscription.

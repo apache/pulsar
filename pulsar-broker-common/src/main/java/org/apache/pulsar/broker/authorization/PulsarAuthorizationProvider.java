@@ -292,7 +292,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     }
 
                     // Using wildcard
-                    if (conf.getAuthorizationAllowWildcardsMatching()) {
+                    if (conf.isAuthorizationAllowWildcardsMatching()) {
                         if (checkWildcardPermission(role, action, namespaceRoles)) {
                             // The role has namespace level permission by wildcard match
                             permissionFuture.complete(true);

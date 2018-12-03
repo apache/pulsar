@@ -144,6 +144,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private Producer<T> deadLetterProducer;
 
+    protected volatile boolean paused;
+
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -541,7 +543,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         SchemaInfo si = schema.getSchemaInfo();
-        if (SchemaType.BYTES == si.getType()) {
+        if (si != null && SchemaType.BYTES == si.getType()) {
             // don't set schema for Schema.BYTES
             si = null;
         }
@@ -818,7 +820,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId,
                                                              msgMetadata, uncompressedPayload,
-                                                             createEncryptionContext(msgMetadata), cnx, schema);
+                                                             createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
             uncompressedPayload.release();
             msgMetadata.recycle();
 
@@ -998,7 +1000,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         messageId.getEntryId(), getPartitionIndex(), i, acker);
                 final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
                         msgMetadata, singleMessageMetadataBuilder.build(), singleMessagePayload,
-                        createEncryptionContext(msgMetadata), cnx, schema);
+                        createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
                 }
@@ -1073,13 +1075,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
         int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
 
-        while (available >= receiverQueueRefillThreshold) {
+        while (available >= receiverQueueRefillThreshold && !paused) {
             if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
                 sendFlowPermitsToBroker(currentCnx, available);
                 break;
             } else {
                 available = AVAILABLE_PERMITS_UPDATER.get(this);
             }
+        }
+    }
+
+    @Override
+    public void pause() {
+        paused = true;
+    }
+
+    @Override
+    public void resume() {
+        if (paused) {
+            paused = false;
+            increaseAvailablePermits(cnx(), 0);
         }
     }
 
@@ -1092,44 +1107,52 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // If KeyReader is not configured throw exception based on config param
         if (conf.getCryptoKeyReader() == null) {
-
-            if (conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.CONSUME) {
-                log.warn("[{}][{}][{}] CryptoKeyReader interface is not implemented. Consuming encrypted message.",
-                        topic, subscription, consumerName);
-                return payload.retain();
-            } else if (conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.DISCARD) {
-                log.warn(
-                        "[{}][{}][{}] Skipping decryption since CryptoKeyReader interface is not implemented and config is set to discard",
-                        topic, subscription, consumerName);
-                discardMessage(messageId, currentCnx, ValidationError.DecryptionError);
-            } else {
-                log.error(
-                        "[{}][{}][{}] Message delivery failed since CryptoKeyReader interface is not implemented to consume encrypted message",
-                        topic, subscription, consumerName);
+            switch (conf.getCryptoFailureAction()) {
+                case CONSUME:
+                    log.warn("[{}][{}][{}] CryptoKeyReader interface is not implemented. Consuming encrypted message.",
+                            topic, subscription, consumerName);
+                    return payload.retain();
+                case DISCARD:
+                    log.warn(
+                            "[{}][{}][{}] Skipping decryption since CryptoKeyReader interface is not implemented and config is set to discard",
+                            topic, subscription, consumerName);
+                    discardMessage(messageId, currentCnx, ValidationError.DecryptionError);
+                    return null;
+                case FAIL:
+                    MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
+                    log.error(
+                            "[{}][{}][{}][{}] Message delivery failed since CryptoKeyReader interface is not implemented to consume encrypted message",
+                             topic, subscription, consumerName, m);
+                    unAckedMessageTracker.add(m);
+                    return null;
             }
-            return null;
         }
 
         ByteBuf decryptedData = this.msgCrypto.decrypt(msgMetadata, payload, conf.getCryptoKeyReader());
         if (decryptedData != null) {
             return decryptedData;
         }
-
-        if (conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.CONSUME) {
-            // Note, batch message will fail to consume even if config is set to consume
-            log.warn("[{}][{}][{}][{}] Decryption failed. Consuming encrypted message since config is set to consume.",
-                    topic, subscription, consumerName, messageId);
-            return payload.retain();
-        } else if (conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.DISCARD) {
-            log.warn("[{}][{}][{}][{}] Discarding message since decryption failed and config is set to discard", topic,
-                    subscription, consumerName, messageId);
-            discardMessage(messageId, currentCnx, ValidationError.DecryptionError);
-        } else {
-            log.error("[{}][{}][{}][{}] Message delivery failed since unable to decrypt incoming message", topic,
-                    subscription, consumerName, messageId);
+        
+        switch (conf.getCryptoFailureAction()) {
+            case CONSUME:
+                // Note, batch message will fail to consume even if config is set to consume
+                log.warn("[{}][{}][{}][{}] Decryption failed. Consuming encrypted message since config is set to consume.",
+                        topic, subscription, consumerName, messageId);
+                return payload.retain();
+            case DISCARD:
+                log.warn("[{}][{}][{}][{}] Discarding message since decryption failed and config is set to discard", topic,
+                        subscription, consumerName, messageId);
+                discardMessage(messageId, currentCnx, ValidationError.DecryptionError);
+                return null;
+            case FAIL:
+                MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
+                log.error(
+                        "[{}][{}][{}][{}] Message delivery failed since unable to decrypt incoming message",
+                         topic, subscription, consumerName, m);
+                unAckedMessageTracker.add(m);
+                return null;
         }
         return null;
-
     }
 
     private ByteBuf uncompressPayloadIfNeeded(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload,

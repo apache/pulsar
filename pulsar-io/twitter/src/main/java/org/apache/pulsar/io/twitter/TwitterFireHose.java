@@ -43,12 +43,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Simple Push based Twitter FireHose Source
  */
+@Connector(
+    name = "twitter",
+    type = IOType.SOURCE,
+    help = "A simple connector moving tweets from Twitter FireHose to Pulsar",
+    configClass = TwitterFireHoseConfig.class
+)
 @Slf4j
 public class TwitterFireHose extends PushSource<TweetData> {
 

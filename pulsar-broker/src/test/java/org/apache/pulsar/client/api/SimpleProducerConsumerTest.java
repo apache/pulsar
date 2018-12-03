@@ -26,6 +26,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -34,6 +35,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,6 +51,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
@@ -235,6 +238,52 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("Waiting for message listener to ack all messages");
         assertEquals(latch.await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
         consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 100000)
+    public void testPauseAndResume() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int receiverQueueSize = 20;     // number of permits broker has when consumer initially subscribes
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(receiverQueueSize));
+        AtomicInteger received = new AtomicInteger();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().receiverQueueSize(receiverQueueSize)
+                .topic("persistent://my-property/my-ns/my-topic-pr")
+                .subscriptionName("my-subscriber-name").messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    c1.acknowledgeAsync(msg);
+                    received.incrementAndGet();
+                    latch.get().countDown();
+                }).subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/my-topic-pr").create();
+
+        consumer.pause();
+
+        for (int i = 0; i < receiverQueueSize * 2; i++) producer.send(("my-message-" + i).getBytes());
+
+        log.info("Waiting for message listener to ack " + receiverQueueSize + " messages");
+        assertEquals(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+
+        log.info("Giving message listener an opportunity to receive messages while paused");
+        Thread.sleep(2000);     // hopefully this is long enough
+        assertEquals(received.intValue(), receiverQueueSize, "Consumer received messages while paused");
+
+        latch.set(new CountDownLatch(receiverQueueSize));
+
+        consumer.resume();
+
+        log.info("Waiting for message listener to ack all messages");
+        assertEquals(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+
+        consumer.close();
+        producer.close();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -2256,6 +2305,137 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
         consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+    
+    @Test(groups = "encryption")
+    public void testRedeliveryOfFailedMessages() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String encryptionKeyName = "client-rsa.pem";
+        final String encryptionKeyVersion = "1.0";
+        Map<String, String> metadata = Maps.newHashMap();
+        metadata.put("version", encryptionKeyVersion);
+        class EncKeyReader implements CryptoKeyReader {
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setMetadata(metadata);
+                        return keyInfo;
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    }
+                } else {
+                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                }
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setMetadata(metadata);
+                        return keyInfo;
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    }
+                } else {
+                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                }
+                return null;
+            }
+        }
+        
+        class InvalidKeyReader implements CryptoKeyReader {
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> metadata) {
+                return null;
+            }
+        }
+        
+        /*
+         * Redelivery functionality guarantees that customer will get a chance to process the message again.
+         * In case of shared subscription eventually every client will get a chance to process the message, till one of them acks it.
+         * 
+         * For client with Encryption enabled where in cases like a new production rollout or a buggy client configuration, we might have a mismatch of consumers 
+         * - few which can decrypt, few which can't (due to errors or cryptoReader not configured).
+         * 
+         * In that case eventually all messages should be acked as long as there is a single consumer who can decrypt the message.
+         * 
+         * Consumer 1 - Can decrypt message
+         * Consumer 2 - Has invalid Reader configured.
+         * Consumer 3 - Has no reader configured.
+         * 
+         */
+
+        String topicName = "persistent://my-property/my-ns/myrsa-topic1";
+        
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
+                .cryptoKeyReader(new EncKeyReader()).create();
+
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topicsPattern(topicName)
+                .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader())
+                .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
+        
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topicsPattern(topicName)
+                .subscriptionName("my-subscriber-name").cryptoKeyReader(new InvalidKeyReader())
+                .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
+
+        Consumer<byte[]> consumer3 = pulsarClient.newConsumer().topicsPattern(topicName)
+                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
+        
+        int numberOfMessages = 100;
+        String message = "my-message";
+        Set<String> messages = new HashSet(); // Since messages are in random order
+        for (int i = 0; i<numberOfMessages; i++) {
+            producer.send((message + i).getBytes());
+        }
+        
+        // Consuming from consumer 2 and 3 
+        // no message should be returned since they can't decrypt the message
+        Message m = consumer2.receive(3, TimeUnit.SECONDS);
+        assertNull(m);
+        m = consumer3.receive(3, TimeUnit.SECONDS);
+        assertNull(m);
+        
+        for (int i = 0; i<numberOfMessages; i++) {
+            // All messages would be received by consumer 1 
+            m = consumer1.receive();
+            messages.add(new String(m.getData()));
+            consumer1.acknowledge(m);
+        }
+        
+        // Consuming from consumer 2 and 3 again just to be sure 
+        // no message should be returned since they can't decrypt the message
+        m = consumer2.receive(3, TimeUnit.SECONDS);
+        assertNull(m);
+        m = consumer3.receive(3, TimeUnit.SECONDS);
+        assertNull(m);
+        
+        // checking if all messages were received
+        for (int i = 0; i<numberOfMessages; i++) {
+            assertTrue(messages.contains((message + i)));
+        }
+        
+        consumer1.close();
+        consumer2.close();
+        consumer3.close();
         log.info("-- Exiting {} test --", methodName);
     }
 

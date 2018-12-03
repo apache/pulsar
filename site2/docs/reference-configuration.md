@@ -108,7 +108,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |enableNonPersistentTopics| Whether non-persistent topics are enabled on the broker |true|
 |functionsWorkerEnabled|  Whether the Pulsar Functions worker service is enabled in the broker  |false|
 |zookeeperServers|  Zookeeper quorum connection string  ||
-|globalZookeeperServers|  Global Zookeeper quorum connection string || 
+|globalZookeeperServers|  Global Zookeeper quorum connection string ||
 |brokerServicePort| Broker data port  |6650|
 |brokerServicePortTls|  Broker data port for TLS  |6651|
 |webServicePort|  Port to use to server HTTP request  |8080|
@@ -140,6 +140,10 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |tlsKeyFilePath|  Path for the TLS private key file ||
 |tlsTrustCertsFilePath| Path for the trusted TLS certificate file ||
 |tlsAllowInsecureConnection|  Accept untrusted TLS certificate from client  |false|
+|tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.2```, ```TLSv1.1```, ```TLSv1``` ||
+|tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
+|tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`||
+|tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`||
 |maxUnackedMessagesPerConsumer| Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction  |50000|
 |maxUnackedMessagesPerSubscription| Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction  |200000|
 |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000|
@@ -384,7 +388,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |zooKeeperSessionTimeoutMillis|   |30000|
 |serviceUrl|||
 |serviceUrlTls|||
-|brokerServiceUrl||| 
+|brokerServiceUrl|||
 |brokerServiceUrlTls|||
 |webServicePort||8080|
 |webServicePortTls||8443|
@@ -395,7 +399,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |authorizationEnabled||false|
 |superUserRoles |||
 |brokerClientAuthenticationPlugin|||
-|brokerClientAuthenticationParameters||| 
+|brokerClientAuthenticationParameters|||
 |tlsEnabled||false|
 |tlsAllowInsecureConnection||false|
 |tlsCertificateFilePath|||
@@ -403,7 +407,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |tlsTrustCertsFilePath|||
 
 
-## Pulsar proxy 
+## Pulsar proxy
 
 The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be configured in the `conf/proxy.conf` file.
 
@@ -434,7 +438,10 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tlsTrustCertsFilePath| Path for the trusted TLS certificate pem file ||
 |tlsHostnameVerificationEnabled|  Whether the hostname is validated when the proxy creates a TLS connection with brokers  |false|
 |tlsRequireTrustedClientCertOnConnect|  Whether client certificates are required for TLS. Connections are rejected if the client certificate isn’t trusted. |false|
-
+|tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.2```, ```TLSv1.1```, ```TLSv1``` ||
+|tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
+|tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`||
+|tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`||
 
 ## ZooKeeper
 

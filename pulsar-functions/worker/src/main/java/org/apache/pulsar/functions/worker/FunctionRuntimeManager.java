@@ -28,6 +28,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.WebApplicationException;
@@ -36,7 +37,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 
-import io.prometheus.client.CollectorRegistry;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -46,7 +46,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.policies.data.ExceptionInformation;
+import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.*;
@@ -55,7 +59,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
@@ -301,89 +304,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    /**
-     * Get status of a function instance.  If this worker is not running the function instance,
-     * @param tenant the tenant the function belongs to
-     * @param namespace the namespace the function belongs to
-     * @param functionName the function name
-     * @param instanceId the function instance id
-     * @return the function status
-     */
-    public InstanceCommunication.FunctionStatus getFunctionInstanceStatus(String tenant, String namespace,
-            String functionName, int instanceId, URI uri) {
-        Assignment assignment;
-        if (runtimeFactory.externallyManaged()) {
-            assignment = this.findAssignment(tenant, namespace, functionName, -1);
-        } else {
-            assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
-        }
-        final String assignedWorkerId = assignment.getWorkerId();
-        final String workerId = this.workerConfig.getWorkerId();
-        
-        if (assignment == null) {
-            InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
-                    = InstanceCommunication.FunctionStatus.newBuilder();
-            functionStatusBuilder.setRunning(false);
-            functionStatusBuilder.setFailureException("Function has not been scheduled");
-            return functionStatusBuilder.build();
-        }
-
-        InstanceCommunication.FunctionStatus functionStatus = null;
-        // If I am running worker
-        if (assignedWorkerId.equals(workerId)) {
-            FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(
-                    Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
-            RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
-            if (runtimeSpawner != null) {
-                try {
-                    InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus
-                            .newBuilder(functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus(instanceId).get());
-                    functionStatusBuilder.setWorkerId(assignedWorkerId);
-                    functionStatus = functionStatusBuilder.build();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            } else {
-                InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
-                        = InstanceCommunication.FunctionStatus.newBuilder();
-                functionStatusBuilder.setRunning(false);
-                functionStatusBuilder.setInstanceId(String.valueOf(instanceId));
-                if (functionRuntimeInfo.getStartupException() != null) {
-                    functionStatusBuilder.setFailureException(functionRuntimeInfo.getStartupException().getMessage());
-                }
-                functionStatusBuilder.setWorkerId(assignedWorkerId);
-                functionStatus = functionStatusBuilder.build();
-            }
-        } else {
-            // query other worker
-
-            List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
-            WorkerInfo workerInfo = null;
-            for (WorkerInfo entry: workerInfoList) {
-                if (assignment.getWorkerId().equals(entry.getWorkerId())) {
-                    workerInfo = entry;
-                }
-            }
-            if (workerInfo == null) {
-                InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
-                        = InstanceCommunication.FunctionStatus.newBuilder();
-                functionStatusBuilder.setRunning(false);
-                functionStatusBuilder.setInstanceId(String.valueOf(instanceId));
-                functionStatusBuilder.setFailureException("Function has not been scheduled");
-                return functionStatusBuilder.build();
-            }
-
-            if (uri == null) {
-                throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
-            } else {
-                URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
-                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-            }
-        }
-
-        return functionStatus;
-    }
-
     public Response stopFunctionInstance(String tenant, String namespace, String functionName, int instanceId,
             boolean restart, URI uri) throws Exception {
         if (runtimeFactory.externallyManaged()) {
@@ -401,7 +321,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         final String workerId = this.workerConfig.getWorkerId();
 
         if (assignedWorkerId.equals(workerId)) {
-            stopFunction(Utils.getFullyQualifiedInstanceId(assignment.getInstance()), restart);
+            stopFunction(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()), restart);
             return Response.status(Status.OK).build();
         } else {
             // query other worker
@@ -439,7 +359,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             Assignment assignment = assignments.iterator().next();
             final String assignedWorkerId = assignment.getWorkerId();
             final String workerId = this.workerConfig.getWorkerId();
-            String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+            String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
             if (assignedWorkerId.equals(workerId)) {
                 stopFunction(fullyQualifiedInstanceId, restart);
             } else {
@@ -467,7 +387,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             for (Assignment assignment : assignments) {
                 final String assignedWorkerId = assignment.getWorkerId();
                 final String workerId = this.workerConfig.getWorkerId();
-                String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+                String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
                 if (assignedWorkerId.equals(workerId)) {
                     stopFunction(fullyQualifiedInstanceId, restart);
                 } else {
@@ -510,7 +430,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         Map<String, Assignment> assignments = workerIdToAssignments.get(workerId);
         if (assignments != null) {
             assignments.values().forEach(assignment -> {
-                String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+                String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
                 try {
                     stopFunction(fullyQualifiedInstanceId, false);
                 } catch (Exception e) {
@@ -538,21 +458,75 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     /**
-     * Get statuses of all function instances.
+     * Get stats of a function instance.  If this worker is not running the function instance,
+     * @param tenant the tenant the function belongs to
+     * @param namespace the namespace the function belongs to
+     * @param functionName the function name
+     * @param instanceId the function instance id
+     * @return jsonObject containing stats for instance
+     */
+    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionInstanceStats(String tenant, String namespace,
+                                                                        String functionName, int instanceId, URI uri) {
+        Assignment assignment;
+        if (runtimeFactory.externallyManaged()) {
+            assignment = this.findAssignment(tenant, namespace, functionName, -1);
+        } else {
+            assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
+        }
+
+        if (assignment == null) {
+            return new FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData();
+        }
+
+        final String assignedWorkerId = assignment.getWorkerId();
+        final String workerId = this.workerConfig.getWorkerId();
+
+        // If I am running worker
+        if (assignedWorkerId.equals(workerId)) {
+            FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(
+                    org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
+            RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
+            if (runtimeSpawner != null) {
+                return Utils.getFunctionInstanceStats(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()), functionRuntimeInfo).getMetrics();
+            }
+            return new FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData();
+        } else {
+            // query other worker
+
+            List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
+            WorkerInfo workerInfo = null;
+            for (WorkerInfo entry: workerInfoList) {
+                if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                    workerInfo = entry;
+                }
+            }
+            if (workerInfo == null) {
+                return new FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData();
+            }
+
+            if (uri == null) {
+                throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+            } else {
+                URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            }
+        }
+    }
+
+    /**
+     * Get stats of all function instances.
      * @param tenant the tenant the function belongs to
      * @param namespace the namespace the function belongs to
      * @param functionName the function name
      * @return a list of function statuses
-     * @throws PulsarAdminException 
+     * @throws PulsarAdminException
      */
-    public InstanceCommunication.FunctionStatusList getAllFunctionStatus(
-            String tenant, String namespace, String functionName, URI uri) throws PulsarAdminException {
-
+    public FunctionStats getFunctionStats(String tenant, String namespace, String functionName, URI uri) throws PulsarAdminException {
         Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);
 
-        InstanceCommunication.FunctionStatusList.Builder functionStatusListBuilder = InstanceCommunication.FunctionStatusList.newBuilder();
+        FunctionStats functionStats = new FunctionStats();
         if (assignments.isEmpty()) {
-            return functionStatusListBuilder.build();
+            return functionStats;
         }
 
         if (runtimeFactory.externallyManaged()) {
@@ -561,9 +535,14 @@ public class FunctionRuntimeManager implements AutoCloseable{
             if (isOwner) {
                 int parallelism = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getParallelism();
                 for (int i = 0; i < parallelism; ++i) {
-                    InstanceCommunication.FunctionStatus functionStatus = getFunctionInstanceStatus(tenant, namespace,
+
+                    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData = getFunctionInstanceStats(tenant, namespace,
                             functionName, i, null);
-                    functionStatusListBuilder.addFunctionStatusList(functionStatus);
+
+                    FunctionStats.FunctionInstanceStats functionInstanceStats = new FunctionStats.FunctionInstanceStats();
+                    functionInstanceStats.setInstanceId(i);
+                    functionInstanceStats.setMetrics(functionInstanceStatsData);
+                    functionStats.addInstance(functionInstanceStats);
                 }
             } else {
                 // find the hostname/port of the worker who is the owner
@@ -576,10 +555,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     }
                 }
                 if (workerInfo == null) {
-                    InstanceCommunication.FunctionStatusList.Builder functionStatusBuilder
-                            = InstanceCommunication.FunctionStatusList.newBuilder();
-                    functionStatusBuilder.setError("Function not yet scheduled");
-                    return functionStatusBuilder.build();
+                    return functionStats;
                 }
 
                 if (uri == null) {
@@ -592,18 +568,227 @@ public class FunctionRuntimeManager implements AutoCloseable{
         } else {
             for (Assignment assignment : assignments) {
                 boolean isOwner = this.workerConfig.getWorkerId().equals(assignment.getWorkerId());
-                InstanceCommunication.FunctionStatus functionStatus = isOwner
-                        ? (getFunctionInstanceStatus(tenant, namespace, functionName,
-                        assignment.getInstance().getInstanceId(), null))
-                        : this.functionAdmin.functions().getFunctionStatus(
-                        assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
-                        assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
-                        assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
-                        assignment.getInstance().getInstanceId());
-                functionStatusListBuilder.addFunctionStatusList(functionStatus);
+
+                FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData functionInstanceStatsData;
+                if (isOwner) {
+                    functionInstanceStatsData = getFunctionInstanceStats(tenant, namespace, functionName,
+                            assignment.getInstance().getInstanceId(), null);
+                } else {
+                    functionInstanceStatsData = this.functionAdmin.functions().getFunctionStats(
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
+                            assignment.getInstance().getInstanceId());
+                }
+
+                FunctionStats.FunctionInstanceStats functionInstanceStats = new FunctionStats.FunctionInstanceStats();
+                functionInstanceStats.setInstanceId(assignment.getInstance().getInstanceId());
+                functionInstanceStats.setMetrics(functionInstanceStatsData);
+                functionStats.addInstance(functionInstanceStats);
             }
         }
-        return functionStatusListBuilder.build();
+        return functionStats.calculateOverall();
+    }
+
+    /**
+     * Get status of a function instance.  If this worker is not running the function instance,
+     * @param tenant the tenant the function belongs to
+     * @param namespace the namespace the function belongs to
+     * @param functionName the function name
+     * @param instanceId the function instance id
+     * @return the function status
+     */
+    public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(
+            String tenant, String namespace,
+            String functionName, int instanceId, URI uri) {
+        Assignment assignment;
+        if (runtimeFactory.externallyManaged()) {
+            assignment = this.findAssignment(tenant, namespace, functionName, -1);
+        } else {
+            assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
+        }
+
+        if (assignment == null) {
+            FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
+                    = new FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData();
+            functionInstanceStatusData.setRunning(false);
+            functionInstanceStatusData.setError("Function has not been scheduled");
+            return functionInstanceStatusData;
+        }
+
+        final String assignedWorkerId = assignment.getWorkerId();
+        final String workerId = this.workerConfig.getWorkerId();
+
+        // If I am running worker
+        if (assignedWorkerId.equals(workerId)) {
+            FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(
+                    org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
+            RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
+            FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
+                    = new FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData();
+            if (runtimeSpawner != null) {
+                try {
+                    InstanceCommunication.FunctionStatus status = functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus(instanceId).get();
+                    functionInstanceStatusData.setRunning(status.getRunning());
+                    functionInstanceStatusData.setError(status.getFailureException());
+                    functionInstanceStatusData.setNumRestarts(status.getNumRestarts());
+                    functionInstanceStatusData.setNumReceived(status.getNumReceived());
+                    functionInstanceStatusData.setNumSuccessfullyProcessed(status.getNumSuccessfullyProcessed());
+                    functionInstanceStatusData.setNumUserExceptions(status.getNumUserExceptions());
+
+                    List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
+                    for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
+                        ExceptionInformation exceptionInformation
+                                = new ExceptionInformation();
+                        exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                        exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                        userExceptionInformationList.add(exceptionInformation);
+                    }
+                    functionInstanceStatusData.setLatestUserExceptions(userExceptionInformationList);
+
+                    functionInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions());
+                    List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
+                    for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
+                        ExceptionInformation exceptionInformation
+                                = new ExceptionInformation();
+                        exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                        exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                        systemExceptionInformationList.add(exceptionInformation);
+                    }
+                    functionInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
+
+                    functionInstanceStatusData.setAverageLatency(status.getAverageLatency());
+                    functionInstanceStatusData.setLastInvocationTime(status.getLastInvocationTime());
+                    functionInstanceStatusData.setWorkerId(assignedWorkerId);
+
+
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                functionInstanceStatusData.setRunning(false);
+                if (functionRuntimeInfo.getStartupException() != null) {
+                    functionInstanceStatusData.setError(functionRuntimeInfo.getStartupException().getMessage());
+                }
+                functionInstanceStatusData.setWorkerId(assignedWorkerId);
+            }
+            return functionInstanceStatusData;
+        } else {
+            // query other worker
+
+            List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
+            WorkerInfo workerInfo = null;
+            for (WorkerInfo entry: workerInfoList) {
+                if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                    workerInfo = entry;
+                }
+            }
+            if (workerInfo == null) {
+                FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
+                        = new FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData();
+                functionInstanceStatusData.setRunning(false);
+                functionInstanceStatusData.setError("Function has not been scheduled");
+                return functionInstanceStatusData;
+            }
+
+            if (uri == null) {
+                throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+            } else {
+                URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            }
+        }
+    }
+
+    /**
+     * Get statuses of all function instances.
+     * @param tenant the tenant the function belongs to
+     * @param namespace the namespace the function belongs to
+     * @param functionName the function name
+     * @return a list of function statuses
+     * @throws PulsarAdminException 
+     */
+    public FunctionStatus getFunctionStatus(String tenant, String namespace,
+                                            String functionName, URI uri)
+            throws PulsarAdminException {
+
+        Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);
+
+        FunctionStatus functionStatus = new FunctionStatus();
+        if (assignments.isEmpty()) {
+            Function.FunctionMetaData functionMetaData = workerService.getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, functionName);
+            functionStatus.setNumInstances(functionMetaData.getFunctionDetails().getParallelism());
+            functionStatus.setNumRunning(0);
+
+            return functionStatus;
+        }
+
+        // TODO refactor the code for externally managed.
+        if (runtimeFactory.externallyManaged()) {
+            Assignment assignment = assignments.iterator().next();
+            boolean isOwner = this.workerConfig.getWorkerId().equals(assignment.getWorkerId());
+            if (isOwner) {
+                int parallelism = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getParallelism();
+                for (int i = 0; i < parallelism; ++i) {
+                    FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData
+                            = getFunctionInstanceStatus(tenant, namespace, functionName, i, null);
+                    FunctionStatus.FunctionInstanceStatus functionInstanceStatus
+                            = new FunctionStatus.FunctionInstanceStatus();
+                    functionInstanceStatus.setInstanceId(i);
+                    functionInstanceStatus.setStatus(functionInstanceStatusData);
+                    functionStatus.addInstance(functionInstanceStatus);
+                }
+            } else {
+                // find the hostname/port of the worker who is the owner
+
+                List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
+                WorkerInfo workerInfo = null;
+                for (WorkerInfo entry: workerInfoList) {
+                    if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                        workerInfo = entry;
+                    }
+                }
+                if (workerInfo == null) {
+                    Function.FunctionMetaData functionMetaData = workerService.getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, functionName);
+                    functionStatus.setNumInstances(functionMetaData.getFunctionDetails().getParallelism());
+                    functionStatus.setNumRunning(0);
+                    return functionStatus;
+                }
+
+                if (uri == null) {
+                    throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+                } else {
+                    URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                }
+            }
+        } else {
+            for (Assignment assignment : assignments) {
+                boolean isOwner = this.workerConfig.getWorkerId().equals(assignment.getWorkerId());
+                FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData;
+                if (isOwner) {
+                    functionInstanceStatusData = getFunctionInstanceStatus(tenant, namespace, functionName, assignment.getInstance().getInstanceId(), null);
+                } else {
+                    functionInstanceStatusData = this.functionAdmin.functions().getFunctionStatus(
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
+                            assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
+                            assignment.getInstance().getInstanceId());
+                }
+
+                FunctionStatus.FunctionInstanceStatus instanceStatus = new FunctionStatus.FunctionInstanceStatus();
+                instanceStatus.setInstanceId(assignment.getInstance().getInstanceId());
+                instanceStatus.setStatus(functionInstanceStatusData);
+                functionStatus.addInstance(instanceStatus);
+            }
+        }
+        functionStatus.setNumInstances(functionStatus.instances.size());
+        functionStatus.getInstances().forEach(functionInstanceStatus -> {
+            if (functionInstanceStatus.getStatus().isRunning()) {
+                functionStatus.numRunning++;
+            }
+        });
+        return functionStatus;
     }
 
     /**
@@ -617,7 +802,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             existingAssignmentMap.putAll(entry);
         }
 
-        if (existingAssignmentMap.containsKey(Utils.getFullyQualifiedInstanceId(newAssignment.getInstance()))) {
+        if (existingAssignmentMap.containsKey(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(newAssignment.getInstance()))) {
             updateAssignment(newAssignment);
         } else {
             addAssignment(newAssignment);
@@ -625,7 +810,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     private void updateAssignment(Assignment assignment) {
-        String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+        String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
         Assignment existingAssignment = this.findAssignment(assignment);
         // potential updates need to happen
         if (!existingAssignment.equals(assignment)) {
@@ -676,7 +861,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     @VisibleForTesting
     void deleteAssignment(Assignment assignment) {
-        String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+        String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
         Map<String, Assignment> assignmentMap = this.workerIdToAssignments.get(assignment.getWorkerId());
         if (assignmentMap != null) {
             if (assignmentMap.containsKey(fullyQualifiedInstanceId)) {
@@ -699,7 +884,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     private void startFunctionInstance(Assignment assignment) {
-        String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+        String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance());
         if (!this.functionRuntimeInfoMap.containsKey(fullyQualifiedInstanceId)) {
             this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, new FunctionRuntimeInfo()
                     .setFunctionInstance(assignment.getInstance()));
@@ -752,7 +937,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private Assignment findAssignment(String tenant, String namespace, String functionName, int instanceId) {
         String fullyQualifiedInstanceId
-                = Utils.getFullyQualifiedInstanceId(tenant, namespace, functionName, instanceId);
+                = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(tenant, namespace, functionName, instanceId);
         for (Map.Entry<String, Map<String, Assignment>> entry : this.workerIdToAssignments.entrySet()) {
             Map<String, Assignment> assignmentMap = entry.getValue();
             Assignment existingAssignment = assignmentMap.get(fullyQualifiedInstanceId);
@@ -778,7 +963,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             this.workerIdToAssignments.put(assignment.getWorkerId(), new HashMap<>());
         }
         this.workerIdToAssignments.get(assignment.getWorkerId()).put(
-                Utils.getFullyQualifiedInstanceId(assignment.getInstance()),
+                org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()),
                 assignment);
     }
 
