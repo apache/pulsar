@@ -433,7 +433,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 } catch (PulsarServerException.NotFoundException ne) {
                     log.warn("Broker load-manager znode doesn't exist ", ne);
                     // still continue and release bundle ownership as broker's registration node doesn't exist.
-                } catch (NullPointerException ne) {
+if (pulsar.getLoadManager() != null && pulsar.getLoadManager().get() != null)
                     log.warn("Broker load-manager reference returns a null value ", ne);
                 }
             }
