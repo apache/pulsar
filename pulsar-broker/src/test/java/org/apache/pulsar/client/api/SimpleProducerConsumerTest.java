@@ -25,7 +25,6 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -2662,51 +2661,5 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertFalse(latch.await(1, TimeUnit.SECONDS));
         assertEquals(latch.getCount(), 1);
         consumer.close();
-    }
-
-    /**
-     * Ack timeout message is redelivered on time.
-     * Related github issue #2584
-     */
-    @Test
-    public void testAckTimeoutRedeliver() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        // create consumer and producer
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
-            .topic("persistent://my-property/my-ns/ack-timeout-topic")
-            .subscriptionName("subscriber-1")
-            .ackTimeout(1, TimeUnit.SECONDS)
-            .subscriptionType(SubscriptionType.Shared)
-            .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
-            .subscribe();
-
-        Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic("persistent://my-property/my-ns/ack-timeout-topic")
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
-
-        // (1) Produced one Message
-        String content = "my-message-will-ack-timeout";
-        producer.send(content.getBytes());
-
-        // (2) consumer to receive messages, and not ack
-        Message<byte[]> message = consumer.receive();
-
-        // (3) should be re-delivered once ack-timeout.
-        Thread.sleep(1000);
-        message = consumer.receive(200, TimeUnit.MILLISECONDS);
-        assertNotNull(message);
-
-        Thread.sleep(1000);
-        message = consumer.receive(200, TimeUnit.MILLISECONDS);
-        assertNotNull(message);
-
-        assertEquals(content, new String(message.getData()));
-
-        producer.close();
-        consumer.close();
-        log.info("-- Exiting {} test --", methodName);
     }
 }

@@ -217,6 +217,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < numMessages; i++) {
             future_msg = consumer.receiveAsync();
+            Thread.sleep(10);
             msg = future_msg.get();
             String receivedMessage = new String(msg.getData());
             log.info("Received message: [{}]", receivedMessage);
