@@ -233,6 +233,30 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         }
     }
 
+    
+    @Override
+    public void grantPermissionOnSubscription(String namespace, String subscription, Set<String> roles)
+            throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "permissions", "subscription", subscription);
+            request(path).post(Entity.entity(roles, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void revokePermissionOnSubscription(String namespace, String subscription, String role) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "permissions", subscription, role);
+            request(path).delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    
     @Override
     public List<String> getNamespaceReplicationClusters(String namespace) throws PulsarAdminException {
         try {
