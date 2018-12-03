@@ -90,7 +90,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private int zookeeperSessionTimeoutMs = 30_000;
 
-    // if Service Discovery is Disabled this url should point to the discovery service provider.
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         doc = "The service url points to the broker cluster"
@@ -102,7 +101,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String brokerServiceURLTLS;
 
-    // These settings are unnecessary if `zookeeperServers` is specified
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         doc = "The web service url points to the broker cluster"
@@ -114,7 +112,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String brokerWebServiceURLTLS;
 
-    // function worker web services
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         doc = "The web service url points to the function worker cluster."
@@ -128,34 +125,28 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String functionWorkerWebServiceURLTLS;
 
-    // Port to use to server binary-proto request
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf request"
     )
     private int servicePort = 6650;
-    // Port to use to server binary-proto-tls request
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving tls secured binary protobuf request"
     )
     private int servicePortTls = 6651;
 
-    // Port to use to server HTTP request
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving http requests"
     )
     private int webServicePort = 8080;
-    // Port to use to server HTTPS request
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving https requests"
     )
     private int webServicePortTls = 8443;
 
-    // Path for the file used to determine the rotation status for the broker
-    // when responding to service discovery health checks
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Path for the file used to determine the rotation status for the proxy instance"
@@ -163,8 +154,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String statusFilePath;
 
-    // Role names that are treated as "super-user", meaning they will be able to
-    // do all admin operations and publish/consume from all topics
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "A list of role names (a comma-separated list of strings) that are treated as"
@@ -173,32 +162,26 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private Set<String> superUserRoles = Sets.newTreeSet();
 
-    // Enable authentication
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Whether authentication is enabled for the Pulsar proxy"
     )
     private boolean authenticationEnabled = false;
-    // Authentication provider name list, which is a list of class names
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Authentication provider name list (a comma-separated list of class names"
     )
     private Set<String> authenticationProviders = Sets.newTreeSet();
-    // Enforce authorization
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "Whether authorization is enforced by the Pulsar proxy"
     )
     private boolean authorizationEnabled = false;
-    // Authorization provider fully qualified class-name
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "Authorization provider as a fully qualified class name"
     )
     private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
-    // Forward client authData to Broker for re authorization
-    // make sure authentication is enabled for this to take effect
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "Whether client authorization credentials are forwarded to the broker for re-authorization."
@@ -207,21 +190,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private boolean forwardAuthorizationCredentials = false;
 
-    // Max concurrent inbound Connections
     @FieldContext(
         category = CATEGORY_RATE_LIMITING,
         doc = "Max concurrent inbound connections. The proxy will reject requests beyond that"
     )
     private int maxConcurrentInboundConnections = 10000;
 
-    // Max concurrent outbound Connections
     @FieldContext(
         category = CATEGORY_RATE_LIMITING,
         doc = "Max concurrent lookup requests. The proxy will reject requests beyond that"
     )
     private int maxConcurrentLookupRequests = 50000;
 
-    // Authentication settings of the proxy itself. Used to connect to brokers
     @FieldContext(
         category = CATEGORY_CLIENT_AUTHENTICATION,
         doc = "The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers"
@@ -238,7 +218,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String brokerClientTrustCertsFilePath;
 
-    // Enable TLS when talking with the brokers
     @FieldContext(
         category = CATEGORY_CLIENT_AUTHENTICATION,
         doc = "Whether TLS is enabled when communicating with Pulsar brokers"
@@ -246,26 +225,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean tlsEnabledWithBroker = false;
 
     /***** --- TLS --- ****/
-    // Enable TLS for the proxy handler
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Whether TLS is enabled for the proxy"
     )
     private boolean tlsEnabledInProxy = false;
 
-    // Path for the TLS certificate file
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Path for the TLS certificate file"
     )
     private String tlsCertificateFilePath;
-    // Path for the TLS private key file
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Path for the TLS private key file"
     )
     private String tlsKeyFilePath;
-    // Path for the trusted TLS certificate file
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Path for the trusted TLS certificate file.\n\n"
@@ -274,7 +249,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " certs are untrusted and the connections are dropped"
     )
     private String tlsTrustCertsFilePath;
-    // Accept untrusted TLS certificate from client
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Accept untrusted TLS certificate from client.\n\n"
@@ -283,14 +257,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " client authentication"
     )
     private boolean tlsAllowInsecureConnection = false;
-    // Validates hostname when proxy creates tls connection with broker
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Whether the hostname is validated when the proxy creates a TLS connection with brokers"
     )
     private boolean tlsHostnameVerificationEnabled = false;
-    // Specify the tls protocols the broker will use to negotiate during TLS Handshake.
-    // Example:- [TLSv1.2, TLSv1.1, TLSv1]
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
@@ -298,8 +269,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "Examples:- [TLSv1.2, TLSv1.1, TLSv1]"
     )
     private Set<String> tlsProtocols = Sets.newTreeSet();
-    // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
-    // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls cipher the broker will use to negotiate during TLS Handshake"
@@ -307,8 +276,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
     )
     private Set<String> tlsCiphers = Sets.newTreeSet();
-    // Specify whether Client certificates are required for TLS
-    // Reject the Connection if the Client Certificate is not trusted.
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Whether client certificates are required for TLS.\n\n"
@@ -316,18 +283,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
-    // Http redirects to redirect to non-pulsar services
     @FieldContext(
         category = CATEGORY_HTTP,
         doc = "Http directs to redirect to non-pulsar services"
     )
     private Set<HttpReverseProxyConfig> httpReverseProxyConfigs = Sets.newHashSet();
 
-    // Http output buffer size. The amount of data that will be buffered for http requests
-    // before it is flushed to the channel. A larger buffer size may result in higher http throughput
-    // though it may take longer for the client to see data.
-    // If using HTTP streaming via the reverse proxy, this should be set to the minimum value, 1,
-    // so that clients see the data as soon as possible.
     @FieldContext(
         minValue = 1,
         category = CATEGORY_HTTP,
