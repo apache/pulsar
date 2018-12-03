@@ -1231,7 +1231,13 @@ public class PersistentTopicsBase extends AdminResource {
      */
     private Topic getTopicReference(TopicName topicName) {
         return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
-                .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
+                .orElseThrow(() -> {
+                    if (internalGetList().contains(topicName.getPersistenceNamingEncoding())) {
+                         return new RestException(Status.NOT_FOUND, "Topic not found");
+                    } else {
+                         return new RestException(Status.NOT_FOUND, "Topic owner not found");
+                    }
+                });
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
