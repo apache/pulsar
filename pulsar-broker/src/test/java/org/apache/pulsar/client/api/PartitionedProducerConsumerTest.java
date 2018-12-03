@@ -22,12 +22,17 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -68,7 +73,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic1");
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic1-" + System.currentTimeMillis());
 
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
@@ -110,7 +115,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         int numPartitions = 4;
         final String specialCharacter = "! * ' ( ) ; : @ & = + $ , \\ ? % # [ ]";
         TopicName topicName = TopicName
-                .get("persistent://my-property/my-ns/my-partitionedtopic1" + specialCharacter);
+                .get("persistent://my-property/my-ns/my-partitionedtopic1-" + System.currentTimeMillis() + specialCharacter);
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
         // Try to create producer which does lookup and create connection with broker
@@ -126,7 +131,8 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic2");
+        TopicName topicName = TopicName
+                .get("persistent://my-property/my-ns/my-partitionedtopic2-" + System.currentTimeMillis());
 
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
@@ -167,7 +173,8 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic3");
+        TopicName topicName = TopicName
+                .get("persistent://my-property/my-ns/my-partitionedtopic3-" + System.currentTimeMillis());
         String dummyKey1 = "dummykey1";
         String dummyKey2 = "dummykey2";
 
@@ -214,12 +221,65 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertTrue(messageSet.add(message), "Received duplicate message " + message);
     }
 
+    @Test(timeOut = 100000)
+    public void testPauseAndResume() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int numPartitions = 2;
+        String topicName = TopicName
+                .get("persistent://my-property/my-ns/my-partitionedtopic-pr-" + System.currentTimeMillis()).toString();
+
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        int receiverQueueSize = 20; // number of permits broker has per partition when consumer initially subscribes
+        int numMessages = receiverQueueSize * numPartitions;
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(numMessages));
+        AtomicInteger received = new AtomicInteger();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().receiverQueueSize(receiverQueueSize)
+                .topic(topicName)
+                .subscriptionName("my-partitioned-subscriber").messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    c1.acknowledgeAsync(msg);
+                    received.incrementAndGet();
+                    latch.get().countDown();
+                }).subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+
+        consumer.pause();
+
+        for (int i = 0; i < numMessages * 2; i++) producer.send(("my-message-" + i).getBytes());
+
+        log.info("Waiting for message listener to ack " + numMessages + " messages");
+        assertEquals(latch.get().await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+
+        log.info("Giving message listener an opportunity to receive messages while paused");
+        Thread.sleep(2000);     // hopefully this is long enough
+        assertEquals(received.intValue(), numMessages, "Consumer received messages while paused");
+
+        latch.set(new CountDownLatch(numMessages));
+
+        consumer.resume();
+
+        log.info("Waiting for message listener to ack all messages");
+        assertEquals(latch.get().await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+
+        consumer.close();
+        producer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
     @Test(timeOut = 30000)
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic4");
+        TopicName topicName = TopicName
+                .get("persistent://my-property/my-ns/my-partitionedtopic4-" + System.currentTimeMillis());
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName.toString())
@@ -269,7 +329,8 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     public void testSillyUser() throws Exception {
 
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic5");
+        TopicName topicName = TopicName
+                .get("persistent://my-property/my-ns/my-partitionedtopic5-" + System.currentTimeMillis());
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
         Producer<byte[]> producer = null;
@@ -311,7 +372,8 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     @Test(timeOut = 30000)
     public void testDeletePartitionedTopic() throws Exception {
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic6");
+        TopicName topicName = TopicName
+                .get("persistent://my-property/my-ns/my-partitionedtopic6-" + System.currentTimeMillis());
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName.toString()).create();
@@ -338,7 +400,8 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         final Set<String> consumeMsgs = Sets.newHashSet();
 
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic1");
+        TopicName topicName = TopicName
+                .get("persistent://my-property/my-ns/my-partitionedtopic1-" + System.currentTimeMillis());
 
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName.toString())
@@ -386,7 +449,8 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         final Set<String> consumeMsgs = Sets.newHashSet();
 
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic1");
+        TopicName topicName = TopicName
+                .get("persistent://my-property/my-ns/my-partitionedtopic1-" + System.currentTimeMillis());
 
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
@@ -436,7 +500,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int numPartitions = 2;
-        final String topicName = "persistent://my-property/my-ns/my-topic";
+        final String topicName = "persistent://my-property/my-ns/my-topic-" + System.currentTimeMillis();
         final String producer1Msg = "producer1";
         final String producer2Msg = "producer2";
         final int queueSize = 10;
@@ -514,6 +578,26 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
                 return null;
             });
         }
+    }
+
+    @Test
+    public void testGetPartitionsForTopic() throws Exception {
+        int numPartitions = 4;
+        String topic = "persistent://my-property/my-ns/my-partitionedtopic1-" + System.currentTimeMillis();
+
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        List<String> expectedPartitions = new ArrayList<>();
+        for (int i =0; i < numPartitions; i++) {
+            expectedPartitions.add(topic + "-partition-" + i);
+        }
+
+        assertEquals(pulsarClient.getPartitionsForTopic(topic).join(), expectedPartitions);
+
+        String nonPartitionedTopic = "persistent://my-property/my-ns/my-non-partitionedtopic1";
+
+        assertEquals(pulsarClient.getPartitionsForTopic(nonPartitionedTopic).join(),
+                Collections.singletonList(nonPartitionedTopic));
     }
 
 }

@@ -56,6 +56,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -127,6 +128,7 @@ public class ServerCnx extends PulsarHandler {
     private String originalPrincipal = null;
     private Set<String> proxyRoles;
     private boolean authenticateOriginalAuthData;
+    private final boolean schemaValidationEnforced;
 
     enum State {
         Start, Connected, Failed
@@ -145,7 +147,8 @@ public class ServerCnx extends PulsarHandler {
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
                 .getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = service.pulsar().getConfiguration().getProxyRoles();
-        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().authenticateOriginalAuthData();
+        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().isAuthenticateOriginalAuthData();
+        this.schemaValidationEnforced = pulsar.getConfiguration().isSchemaValidationEnforced();
     }
 
     @Override
@@ -584,20 +587,23 @@ public class ServerCnx extends PulsarHandler {
                             }
                         }
 
-                        service.getOrCreateTopic(topicName.toString(), schema)
+                        service.getOrCreateTopic(topicName.toString())
                                 .thenCompose(topic -> {
                                     if (schema != null) {
-                                        return topic.isSchemaCompatible(schema).thenCompose(isCompatible -> {
-                                            if (isCompatible) {
-                                                return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                                    subType, priorityLevel, consumerName, isDurable,
-                                                    startMessageId, metadata, readCompacted, initialPosition);
-                                            } else {
-                                                return FutureUtil.failedFuture(new BrokerServiceException(
-                                                    "Trying to subscribe with incompatible schema"
-                                                ));
-                                            }
-                                        });
+                                        return topic.addSchemaIfIdleOrCheckCompatible(schema)
+                                            .thenCompose(isCompatible -> {
+                                                    if (isCompatible) {
+                                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                                                subType, priorityLevel, consumerName, isDurable,
+                                                                startMessageId, metadata,
+                                                                readCompacted, initialPosition);
+                                                    } else {
+                                                        return FutureUtil.failedFuture(
+                                                                new BrokerServiceException(
+                                                                        "Trying to subscribe with incompatible schema"
+                                                        ));
+                                                    }
+                                                });
                                     } else {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
@@ -791,7 +797,7 @@ public class ServerCnx extends PulsarHandler {
 
                         log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
-                        service.getOrCreateTopic(topicName.toString(), schema).thenAccept((Topic topic) -> {
+                        service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
                             // Before creating producer, check if backlog quota exceeded
                             // on topic
                             if (topic.isBacklogQuotaExceeded(producerName)) {
@@ -826,7 +832,16 @@ public class ServerCnx extends PulsarHandler {
                             if (schema != null) {
                                 schemaVersionFuture = topic.addSchema(schema);
                             } else {
-                                schemaVersionFuture = CompletableFuture.completedFuture(SchemaVersion.Empty);
+                                schemaVersionFuture = topic.hasSchema().thenCompose((hasSchema) -> {
+                                        CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
+                                        if (hasSchema && schemaValidationEnforced) {
+                                            result.completeExceptionally(new IncompatibleSchemaException(
+                                                "Producers cannot connect without a schema to topics with a schema"));
+                                        } else {
+                                            result.complete(SchemaVersion.Empty);
+                                        }
+                                        return result;
+                                    });
                             }
 
                             schemaVersionFuture.exceptionally(exception -> {
@@ -1182,11 +1197,13 @@ public class ServerCnx extends PulsarHandler {
     protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
         final String namespace = commandGetTopicsOfNamespace.getNamespace();
+        final CommandGetTopicsOfNamespace.Mode mode = commandGetTopicsOfNamespace.getMode();
 
         try {
-            List<String> topics = getBrokerService().pulsar()
-                .getNamespaceService()
-                .getListOfTopics(NamespaceName.get(namespace));
+            final NamespaceName namespaceName = NamespaceName.get(namespace);
+
+            final List<String> topics = getBrokerService().pulsar().getNamespaceService()
+                .getListOfTopics(namespaceName, mode);
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
@@ -1390,6 +1407,10 @@ public class ServerCnx extends PulsarHandler {
      */
     public State getState() {
         return state;
+    }
+
+    public SocketAddress getRemoteAddress() {
+        return remoteAddress;
     }
 
     public BrokerService getBrokerService() {

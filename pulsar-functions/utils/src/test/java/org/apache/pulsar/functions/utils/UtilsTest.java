@@ -16,40 +16,49 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.functions.utils;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-
-import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
- * Unit test of {@link Utils}.
+ * Unit test of {@link Exceptions}.
  */
 public class UtilsTest {
 
     @Test
-    public void testGetSequenceId() {
-        long lid = 12345L;
-        long eid = 34566L;
-        MessageIdImpl id = mock(MessageIdImpl.class);
-        when(id.getLedgerId()).thenReturn(lid);
-        when(id.getEntryId()).thenReturn(eid);
-
-        assertEquals((lid << 28) | eid, Utils.getSequenceId(id));
+    public void testValidateLocalFileUrl() throws Exception {
+        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        try {
+            // eg: fileLocation : /dir/fileName.jar (invalid)
+            Utils.extractClassLoader(fileLocation);
+            Assert.fail("should fail with invalid url: without protocol");
+        } catch (IllegalArgumentException ie) {
+            // Ok.. expected exception
+        }
+        String fileLocationWithProtocol = "file://" + fileLocation;
+        // eg: fileLocation : file:///dir/fileName.jar (valid)
+        Utils.extractClassLoader(fileLocationWithProtocol);
+        // eg: fileLocation : file:/dir/fileName.jar (valid)
+        fileLocationWithProtocol = "file:" + fileLocation;
+        Utils.extractClassLoader(fileLocationWithProtocol);
     }
 
     @Test
-    public void testGetMessageId() {
-        long lid = 12345L;
-        long eid = 34566L;
-        long sequenceId = (lid << 28) | eid;
+    public void testValidateHttpFileUrl() throws Exception {
 
-        MessageIdImpl id = (MessageIdImpl) Utils.getMessageId(sequenceId);
-        assertEquals(lid, id.getLedgerId());
-        assertEquals(eid, id.getEntryId());
+        String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
+        Utils.extractClassLoader(jarHttpUrl);
+
+        jarHttpUrl = "http://_invalidurl_.com";
+        try {
+            // eg: fileLocation : /dir/fileName.jar (invalid)
+            Utils.extractClassLoader(jarHttpUrl);
+            Assert.fail("should fail with invalid url: without protocol");
+        } catch (Exception ie) {
+            // Ok.. expected exception
+        }
     }
-
 }

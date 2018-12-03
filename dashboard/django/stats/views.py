@@ -56,13 +56,13 @@ def home(request):
             throughputOut = Sum('namespace__topic__msgThroughputOut'),
         )
 
-    print properties.query
+    print(properties.query)
 
     properties = Table(request, properties, default_sort='name')
 
     return render(request, 'stats/home.html', {
         'properties': properties,
-        'title' : 'Properties',
+        'title' : 'Tenants',
     })
 
 def property(request, property_name):

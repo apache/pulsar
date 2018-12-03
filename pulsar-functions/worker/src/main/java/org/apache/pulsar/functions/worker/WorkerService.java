@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -33,6 +34,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.admin.StorageAdminClient;
+import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -43,7 +47,6 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.stats.JvmMetrics;
 
 /**
  * A service component contains everything to run a worker except rest server.
@@ -58,7 +61,10 @@ public class WorkerService {
     private FunctionRuntimeManager functionRuntimeManager;
     private FunctionMetaDataManager functionMetaDataManager;
     private ClusterServiceCoordinator clusterServiceCoordinator;
+    // dlog namespace for storing function jars in bookkeeper
     private Namespace dlogNamespace;
+    // storage client for accessing state storage for functions
+    private StorageAdminClient stateStoreAdminClient;
     private MembershipManager membershipManager;
     private SchedulerManager schedulerManager;
     private boolean isInitialized = false;
@@ -68,11 +74,15 @@ public class WorkerService {
     private PulsarAdmin brokerAdmin;
     private PulsarAdmin functionAdmin;
     private final MetricsGenerator metricsGenerator;
+    private final ScheduledExecutorService executor;
+    @VisibleForTesting
+    private URI dlogUri;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
+        this.executor = Executors.newScheduledThreadPool(10, new DefaultThreadFactory("pulsar-worker"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater);
     }
 
@@ -98,17 +108,28 @@ public class WorkerService {
         }
 
         // create the dlog namespace for storing function packages
+        this.dlogUri = dlogUri;
         DistributedLogConfiguration dlogConf = Utils.getDlogConf(workerConfig);
         try {
             this.dlogNamespace = NamespaceBuilder.newBuilder()
                     .conf(dlogConf)
                     .clientId("function-worker-" + workerConfig.getWorkerId())
-                    .uri(dlogUri)
+                    .uri(this.dlogUri)
                     .build();
         } catch (Exception e) {
             log.error("Failed to initialize dlog namespace {} for storing function packages",
                     dlogUri, e);
             throw new RuntimeException(e);
+        }
+
+        // create the state storage client for accessing function state
+        if (workerConfig.getStateStorageServiceUrl() != null) {
+            StorageClientSettings clientSettings = StorageClientSettings.newBuilder()
+                .serviceUri(workerConfig.getStateStorageServiceUrl())
+                .build();
+            this.stateStoreAdminClient = StorageClientBuilder.newBuilder()
+                .withSettings(clientSettings)
+                .buildAdmin();
         }
 
         // initialize the function metadata manager
@@ -128,7 +149,8 @@ public class WorkerService {
             log.info("Created Pulsar client");
 
             //create scheduler manager
-            this.schedulerManager = new SchedulerManager(this.workerConfig, this.client);
+            this.schedulerManager = new SchedulerManager(this.workerConfig, this.client, this.brokerAdmin,
+                    this.executor);
 
             //create function meta data manager
             this.functionMetaDataManager = new FunctionMetaDataManager(
@@ -142,6 +164,9 @@ public class WorkerService {
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(
                     this.workerConfig, this, this.dlogNamespace, this.membershipManager, connectorsManager);
+
+            // initialize function runtime manager
+            this.functionRuntimeManager.initialize();
 
             // Setting references to managers in scheduler
             this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
@@ -173,12 +198,6 @@ public class WorkerService {
             this.isInitialized = true;
 
             this.connectorsManager = new ConnectorsManager(workerConfig);
-
-            int metricsSamplingPeriodSec = this.workerConfig.getMetricsSamplingPeriodSec();
-            if (metricsSamplingPeriodSec > 0) {
-                this.statsUpdater.scheduleAtFixedRate(() -> this.functionRuntimeManager.updateRates(),
-                        metricsSamplingPeriodSec, metricsSamplingPeriodSec, TimeUnit.SECONDS);
-            }
 
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
@@ -231,6 +250,18 @@ public class WorkerService {
         
         if (null != this.functionAdmin) {
             this.functionAdmin.close();
+        }
+
+        if (null != this.stateStoreAdminClient) {
+            this.stateStoreAdminClient.close();
+        }
+
+        if (null != this.dlogNamespace) {
+            this.dlogNamespace.close();
+        }
+        
+        if(this.executor != null) {
+            this.executor.shutdown();
         }
     }
 

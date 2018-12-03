@@ -19,8 +19,6 @@
 
 package org.apache.pulsar.io.jdbc;
 
-import static jersey.repackaged.com.google.common.base.Preconditions.checkState;
-
 import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -54,8 +52,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     private JdbcUtils.TableId tableId;
     private PreparedStatement insertStatement;
 
-    // TODO: turn to getSchema from SinkContext.getTopicSchema.getSchema(inputTopic)
-    protected String schema;
     protected JdbcUtils.TableDefinition tableDefinition;
 
     // for flush
@@ -89,7 +85,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         connection.setAutoCommit(false);
         log.info("Opened jdbc connection: {}, autoCommit: {}", jdbcUrl, connection.getAutoCommit());
 
-        schema = jdbcSinkConfig.getSchema();
         tableName = jdbcSinkConfig.getTableName();
         tableId = JdbcUtils.getTableId(connection, tableName);
         tableDefinition = JdbcUtils.getTableDefinition(connection, tableId);
@@ -142,8 +137,9 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             if (log.isDebugEnabled()) {
                 log.debug("Starting flush, queue size: {}", incomingList.size());
             }
-            checkState(swapList.isEmpty(),
-                "swapList should be empty since last flush. swapList.size: " + swapList.size());
+            if (!swapList.isEmpty()) {
+                throw new IllegalStateException("swapList should be empty since last flush. swapList.size: " + swapList.size());
+            }
 
             synchronized (incomingList) {
                 List<Record<T>> tmpList;

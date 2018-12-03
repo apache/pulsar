@@ -22,9 +22,10 @@
 
 ''' log.py '''
 import logging
+import logging.config
+import logging.handlers
 import os
 import errno
-from logging.handlers import RotatingFileHandler
 import pulsar
 
 # Create the logger
@@ -50,26 +51,25 @@ class LogTopicHandler(logging.Handler):
 
   def emit(self, record):
     msg = self.format(record)
-    self.producer.send_async(str(msg), None)
+    self.producer.send_async(str(msg).encode('utf-8'), None)
 
-def configure(level=logging.INFO):
-  """ Configure logger which dumps log on terminal
+def mkdir_p(path):
+  try:
+    os.makedirs(path, exist_ok=True)  # Python>3.2
+  except TypeError:
+    try:
+      os.makedirs(path)
+    except OSError as exc: # Python >2.5
+      if exc.errno == errno.EEXIST and os.path.isdir(path):
+        pass
+      else: raise
 
-  :param level: logging level: info, warning, verbose...
-  :type level: logging level
-  :type logfile: string
-  :return: None
-  :rtype: None
-  """
-
-  # Remove all the existing StreamHandlers to avoid duplicate
-  for handler in Log.handlers:
-    if isinstance(handler, logging.StreamHandler):
-      Log.handlers.remove(handler)
-
-  Log.setLevel(level)
-  stream_handler = logging.StreamHandler()
-  add_handler(stream_handler)
+# logging handler that is RotatingFileHandler but creates path to log file for you
+# if it doesn't exist
+class CreatePathRotatingFileHandler(logging.handlers.RotatingFileHandler):
+  def __init__(self, filename, mode='a', maxBytes=10 * 1024 * 1024, backupCount=5, encoding=None, delay=0):
+    mkdir_p(os.path.dirname(filename))
+    logging.handlers.RotatingFileHandler.__init__(self, filename, mode=mode, maxBytes=maxBytes, backupCount=backupCount, encoding=encoding, delay=delay)
 
 def remove_all_handlers():
   retval = None
@@ -84,44 +84,11 @@ def add_handler(stream_handler):
   stream_handler.setFormatter(formatter)
   Log.addHandler(stream_handler)
 
-def init_rotating_logger(level, logfile, max_files, max_bytes):
-  """Initializes a rotating logger
+def init_logger(level, logfile, logging_config_file):
+  global Log
+  # get log file location for function instance
+  os.environ['LOG_FILE'] = logfile;
+  logging.config.fileConfig(logging_config_file)
+  Log = logging.getLogger()
+  Log.setLevel(level)
 
-  It also makes sure that any StreamHandler is removed, so as to avoid stdout/stderr
-  constipation issues
-  """
-  # create log directory if necessary
-  try:
-    os.makedirs(os.path.dirname(logfile))
-  except OSError as e:
-    if e.errno != errno.EEXIST:
-      raise
-
-  logging.basicConfig()
-
-  root_logger = logging.getLogger()
-  log_format = "[%(asctime)s] [%(levelname)s] %(filename)s: %(message)s"
-
-  root_logger.setLevel(level)
-  handler = RotatingFileHandler(logfile, maxBytes=max_bytes, backupCount=max_files)
-  handler.setFormatter(logging.Formatter(fmt=log_format, datefmt=date_format))
-  root_logger.addHandler(handler)
-
-  for handler in root_logger.handlers:
-    root_logger.debug("Associated handlers - " + str(handler))
-    if isinstance(handler, logging.StreamHandler):
-      root_logger.debug("Removing StreamHandler: " + str(handler))
-      root_logger.handlers.remove(handler)
-
-def set_logging_level(cl_args):
-  """simply set verbose level based on command-line args
-
-  :param cl_args: CLI arguments
-  :type cl_args: dict
-  :return: None
-  :rtype: None
-  """
-  if 'verbose' in cl_args and cl_args['verbose']:
-    configure(logging.DEBUG)
-  else:
-    configure(logging.INFO)

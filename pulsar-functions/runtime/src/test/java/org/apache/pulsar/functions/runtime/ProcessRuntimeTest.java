@@ -20,18 +20,31 @@
 package org.apache.pulsar.functions.runtime;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
-import com.google.gson.Gson;
+import com.google.common.io.MoreFiles;
+import com.google.common.io.RecursiveDeleteOption;
+import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.util.JsonFormat;
 
+import java.lang.reflect.Type;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.kubernetes.client.apis.AppsV1Api;
+import io.kubernetes.client.apis.CoreV1Api;
+import io.kubernetes.client.models.V1PodSpec;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -39,6 +52,48 @@ import org.testng.annotations.Test;
  * Unit test of {@link ThreadRuntime}.
  */
 public class ProcessRuntimeTest {
+
+    class TestSecretsProviderConfigurator implements SecretsProviderConfigurator {
+
+        @Override
+        public void init(Map<String, String> config) {
+
+        }
+
+        @Override
+        public String getSecretsProviderClassName(FunctionDetails functionDetails) {
+            if (functionDetails.getRuntime() == FunctionDetails.Runtime.JAVA) {
+                return ClearTextSecretsProvider.class.getName();
+            } else {
+                return "secretsprovider.ClearTextSecretsProvider";
+            }
+        }
+
+        @Override
+        public Map<String, String> getSecretsProviderConfig(FunctionDetails functionDetails) {
+            Map<String, String> config = new HashMap<>();
+            config.put("Config", "Value");
+            return config;
+        }
+
+        @Override
+        public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, FunctionDetails functionDetails) {
+        }
+
+        @Override
+        public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, FunctionDetails functionDetails) {
+        }
+
+        @Override
+        public Type getSecretObjectType() {
+            return TypeToken.get(String.class).getType();
+        }
+
+        @Override
+        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, FunctionDetails functionDetails) {
+
+        }
+    }
 
     private static final String TEST_TENANT = "test-function-tenant";
     private static final String TEST_NAMESPACE = "test-function-namespace";
@@ -51,7 +106,7 @@ public class ProcessRuntimeTest {
                 ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
     }
 
-    private final ProcessRuntimeFactory factory;
+    private ProcessRuntimeFactory factory;
     private final String userJarFile;
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
@@ -66,13 +121,25 @@ public class ProcessRuntimeTest {
         this.pulsarServiceUrl = "pulsar://localhost:6670";
         this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "Users/user/logs";
-        this.factory = new ProcessRuntimeFactory(
-            pulsarServiceUrl, stateStorageServiceUrl, null, javaInstanceJarFile, pythonInstanceFile, logDirectory);
     }
 
     @AfterMethod
     public void tearDown() {
-        this.factory.close();
+        if (null != this.factory) {
+            this.factory.close();
+        }
+    }
+
+    private ProcessRuntimeFactory createProcessRuntimeFactory(String extraDependenciesDir) {
+        return new ProcessRuntimeFactory(
+            pulsarServiceUrl,
+            stateStorageServiceUrl,
+            null, /* auth config */
+            javaInstanceJarFile,
+            pythonInstanceFile,
+            logDirectory,
+            extraDependenciesDir, /* extra dependencies dir */
+            new TestSecretsProviderConfigurator());
     }
 
     FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime) {
@@ -103,8 +170,9 @@ public class ProcessRuntimeTest {
         config.setFunctionDetails(createFunctionDetails(runtime));
         config.setFunctionId(java.util.UUID.randomUUID().toString());
         config.setFunctionVersion("1.0");
-        config.setInstanceId(java.util.UUID.randomUUID().toString());
+        config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
+        config.setClusterName("standalone");
 
         return config;
     }
@@ -113,21 +181,108 @@ public class ProcessRuntimeTest {
     public void testJavaConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
-        ProcessRuntime container = factory.createContainer(config, userJarFile);
+        factory = createProcessRuntimeFactory(null);
+
+        verifyJavaInstance(config);
+    }
+
+    @Test
+    public void testJavaConstructorWithEmptyExtraDepsDirString() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
+
+        factory = createProcessRuntimeFactory("");
+
+        verifyJavaInstance(config);
+    }
+
+    @Test
+    public void testJavaConstructorWithNoneExistentDir() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
+
+        factory = createProcessRuntimeFactory("/path/to/non-existent/dir");
+
+        verifyJavaInstance(config, Paths.get("/path/to/non-existent/dir"));
+    }
+
+    @Test
+    public void testJavaConstructorWithEmptyDir() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
+
+        Path dir = Files.createTempDirectory("test-empty-dir");
+        assertTrue(Files.exists(dir));
+        try {
+            factory = createProcessRuntimeFactory(dir.toAbsolutePath().toString());
+
+            verifyJavaInstance(config, dir);
+        } finally {
+            MoreFiles.deleteRecursively(dir, RecursiveDeleteOption.ALLOW_INSECURE);
+        }
+    }
+
+    @Test
+    public void testJavaConstructorWithDeps() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
+
+        Path dir = Files.createTempDirectory("test-empty-dir");
+        assertTrue(Files.exists(dir));
+        try {
+            int numFiles = 3;
+            for (int i = 0; i < numFiles; i++) {
+                Path file = Files.createFile(Paths.get(dir.toAbsolutePath().toString(), "file-" + i));
+                assertTrue(Files.exists(file));
+            }
+
+            factory = createProcessRuntimeFactory(dir.toAbsolutePath().toString());
+
+            verifyJavaInstance(config, dir);
+        } finally {
+            MoreFiles.deleteRecursively(dir, RecursiveDeleteOption.ALLOW_INSECURE);
+        }
+    }
+
+    private void verifyJavaInstance(InstanceConfig config) throws Exception {
+        verifyJavaInstance(config, null);
+    }
+
+    private void verifyJavaInstance(InstanceConfig config, Path depsDir) throws Exception {
+        ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 26);
-        String expectedArgs = "java -cp " + javaInstanceJarFile
+
+        String classpath = javaInstanceJarFile;
+        String extraDepsEnv;
+        int portArg;
+        int metricsPortArg;
+        if (null != depsDir) {
+            assertEquals(args.size(), 37);
+            extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir.toString();
+            classpath = classpath + ":" + depsDir + "/*";
+            portArg = 24;
+            metricsPortArg = 26;
+        } else {
+            assertEquals(args.size(), 36);
+            extraDepsEnv = "";
+            portArg = 23;
+            metricsPortArg = 25;
+        }
+
+        String expectedArgs = "java -cp " + classpath
                 + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
+                + extraDepsEnv
                 + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
-                + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
+                + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionDetailsUtils.getFullyQualifiedName(config.getFunctionDetails())
+                + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
-                + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
-                + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(23)
-                + " --state_storage_serviceurl " + stateStorageServiceUrl;
+                + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
+                + "' --pulsar_serviceurl " + pulsarServiceUrl
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
+                + " --state_storage_serviceurl " + stateStorageServiceUrl
+                + " --expected_healthcheck_interval 30"
+                + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
+                + " --secrets_provider_config '{\"Config\":\"Value\"}'"
+                + " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -135,17 +290,46 @@ public class ProcessRuntimeTest {
     public void testPythonConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
 
-        ProcessRuntime container = factory.createContainer(config, userJarFile);
+        factory = createProcessRuntimeFactory(null);
+
+        verifyPythonInstance(config, null);
+    }
+
+    @Test
+    public void testPythonConstructorWithDeps() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
+
+        String extraDeps = "/path/to/extra/deps";
+
+        factory = createProcessRuntimeFactory(extraDeps);
+
+        verifyPythonInstance(config, extraDeps);
+    }
+
+    private void verifyPythonInstance(InstanceConfig config, String extraDepsDir) throws Exception {
+        ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 22);
-        String expectedArgs = "python " + pythonInstanceFile
+
+        int totalArgs = 34;
+        int portArg = 23;
+        int metricsPortArg = 25;
+        String pythonPath = "";
+        int configArg = 9;
+
+        assertEquals(args.size(), totalArgs);
+        String expectedArgs = pythonPath + "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
-                + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
+                + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName()
+                + " --logging_config_file " + args.get(configArg) + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
-                + " --function_details " + JsonFormat.printer().print(config.getFunctionDetails())
-                + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(21);
+                + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
+                + "' --pulsar_serviceurl " + pulsarServiceUrl
+                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
+                + " --expected_healthcheck_interval 30"
+                + " --secrets_provider secretsprovider.ClearTextSecretsProvider"
+                + " --secrets_provider_config '{\"Config\":\"Value\"}'"
+                + " --cluster_name standalone";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

@@ -249,7 +249,7 @@ At the highest level, a Pulsar {% popover instance %} is composed of one or more
 In a Pulsar cluster:
 
 * One or more {% popover brokers %} handles and load balances incoming messages from {% popover producers %}, dispatches messages to {% popover consumers %}, communicates with the Pulsar {% popover configuration store %} to handle various coordination tasks, stores messages in {% popover BookKeeper %} instances (aka {% popover bookies %}), relies on a cluster-specific {% popover ZooKeeper %} cluster for certain tasks, and more.
-* A {% popover BookKeeper %} cluster consisting of one more or more {% popover bookies %} handles [persistent storage](#persistent-storage) of messages.
+* A {% popover BookKeeper %} cluster consisting of one or more {% popover bookies %} handles [persistent storage](#persistent-storage) of messages.
 * A {% popover ZooKeeper %} cluster specific to that cluster handles
 
 The diagram below provides an illustration of a Pulsar cluster:

@@ -18,11 +18,27 @@
  */
 package org.apache.pulsar.broker.admin.v1;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.Lists;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import org.apache.pulsar.broker.admin.impl.NamespacesBase;
+import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.zookeeper.KeeperException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -36,28 +52,11 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-import org.apache.pulsar.broker.admin.impl.NamespacesBase;
-import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
-import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
-import org.apache.zookeeper.KeeperException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
-
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 @Path("/namespaces")
 @Produces(MediaType.APPLICATION_JSON)
@@ -111,7 +110,8 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public List<String> getTopics(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+                                  @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                                  @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode) {
         validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
 
@@ -119,7 +119,7 @@ public class Namespaces extends NamespacesBase {
         getNamespacePolicies(namespaceName);
 
         try {
-            return pulsar().getNamespaceService().getListOfTopics(namespaceName);
+            return pulsar().getNamespaceService().getListOfTopics(namespaceName, mode);
         } catch (Exception e) {
             log.error("Failed to get topics list for namespace {}/{}/{}", property, cluster, namespace, e);
             throw new RestException(e);
@@ -770,6 +770,40 @@ public class Namespaces extends NamespacesBase {
                                     long newThreshold) {
         validateNamespaceName(property, cluster, namespace);
         internalSetOffloadThreshold(newThreshold);
+    }
+
+    @GET
+    @Path("/{tenant}/{cluster}/{namespace}/schemaAutoUpdateCompatibilityStrategy")
+    @ApiOperation(value = "The strategy used to check the compatibility of new schemas,"
+                          + " provided by producers, before automatically updating the schema",
+                  notes = "The value AutoUpdateDisabled prevents producers from updating the schema. "
+                          + " If set to AutoUpdateDisabled, schemas must be updated through the REST api")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public SchemaAutoUpdateCompatibilityStrategy getSchemaAutoUpdateCompatibilityStrategy(
+            @PathParam("tenant") String tenant,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, cluster, namespace);
+        return internalGetSchemaAutoUpdateCompatibilityStrategy();
+    }
+
+    @PUT
+    @Path("/{tenant}/{cluster}/{namespace}/schemaAutoUpdateCompatibilityStrategy")
+    @ApiOperation(value = "Update the strategy used to check the compatibility of new schemas,"
+                          + " provided by producers, before automatically updating the schema",
+                  notes = "The value AutoUpdateDisabled prevents producers from updating the schema. "
+                          + " If set to AutoUpdateDisabled, schemas must be updated through the REST api")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void setSchemaAutoUpdateCompatibilityStrategy(@PathParam("tenant") String tenant,
+                                                         @PathParam("cluster") String cluster,
+                                                         @PathParam("namespace") String namespace,
+                                                         SchemaAutoUpdateCompatibilityStrategy strategy) {
+        validateNamespaceName(tenant, cluster, namespace);
+        internalSetSchemaAutoUpdateCompatibilityStrategy(strategy);
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);

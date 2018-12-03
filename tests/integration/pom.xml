@@ -25,10 +25,9 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>tests-parent</artifactId>
-    <version>2.2.0-incubating-SNAPSHOT</version>
+    <version>2.3.0-SNAPSHOT</version>
   </parent>
 
-  <groupId>org.apache.pulsar.tests</groupId>
   <artifactId>integration</artifactId>
   <packaging>jar</packaging>
   <name>Apache Pulsar :: Tests :: Integration</name>
@@ -77,6 +76,12 @@
     <dependency>
       <groupId>com.datastax.cassandra</groupId>
       <artifactId>cassandra-driver-core</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-handler</artifactId>
+        </exclusion>
+      </exclusions>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -116,15 +121,34 @@
       <artifactId>jackson-databind</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+  	  <groupId>org.elasticsearch.client</groupId>
+  	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
+  	  <version>6.3.2</version>
+  	</dependency>
+
   </dependencies>
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -156,8 +180,12 @@
             <configuration>
               <properties>
                 <property>
+                  <name>testRetryCount</name>
+                  <value>0</value>
+                </property>
+                <property>
                   <name>listener</name>
-                  <value>org.apache.pulsar.tests.PulsarTestListener</value>
+                  <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
                 </property>
               </properties>
               <argLine>-Xmx2G -XX:MaxDirectMemorySize=8G

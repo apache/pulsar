@@ -35,6 +35,12 @@ static inline void _pulsar_client_configuration_set_logger(pulsar_client_configu
     pulsar_client_configuration_set_logger(conf, pulsarClientLoggerConstProxy, ctx);
 }
 
+char* pulsarClientTokenSupplierProxy(void* ctx);
+
+static inline pulsar_authentication_t* _pulsar_authentication_token_create_with_supplier(void *ctx) {
+    return pulsar_authentication_token_create_with_supplier(pulsarClientTokenSupplierProxy, ctx);
+}
+
 void pulsarCreateProducerCallbackProxy(pulsar_result result, pulsar_producer_t *producer, void *ctx);
 
 static inline void _pulsar_client_create_producer_async(pulsar_client_t *client, const char *topic,
@@ -129,6 +135,14 @@ void pulsarReaderCloseCallbackProxy(pulsar_result result, void *ctx);
 static inline void _pulsar_reader_close_async(pulsar_reader_t *reader, void *ctx) {
     pulsar_reader_close_async(reader, pulsarReaderCloseCallbackProxy, ctx);
 }
+
+void pulsarGetTopicPartitionsCallbackProxy(pulsar_result result, pulsar_string_list_t* partitions, void *ctx);
+
+static inline void _pulsar_client_get_topic_partitions(pulsar_client_t *client, const char *topic,
+                                                       void *ctx) {
+    pulsar_client_get_topic_partitions_async(client, topic, pulsarGetTopicPartitionsCallbackProxy, ctx);
+}
+
 
 
 //// String array manipulation

@@ -12,7 +12,7 @@ Local run mode | The function runs in your local environment, for example on you
 Cluster mode | The function runs *inside of* your Pulsar cluster, on the same machines as your Pulsar brokers
 
 > #### Contributing new deployment modes
-> The Pulsar Functions feature was designed, however, with extensibility in mind. Other deployment options will be available in the future. If you'd like to add a new deployment option, we recommend getting in touch with the Pulsar developer community at [dev@pulsar.incubator.apache.org](mailto:dev@pulsar.incubator.apache.org).
+> The Pulsar Functions feature was designed, however, with extensibility in mind. Other deployment options will be available in the future. If you'd like to add a new deployment option, we recommend getting in touch with the Pulsar developer community at [dev@pulsar.apache.org](mailto:dev@pulsar.apache.org).
 
 ## Requirements
 
@@ -22,6 +22,8 @@ In order to deploy and manage Pulsar Functions, you need to have a Pulsar cluste
 * You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal.md), [DC/OS](deploy-dcos.md), and more
 
 If you're running a non-[standalone](reference-terminology.md#standalone) cluster, you'll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.
+
+If you're going to deploy and trigger python user-defined functions, you should install [the pulsar python client](http://pulsar.apache.org/docs/en/client-libraries-python/) first.
 
 ## Command-line interface
 

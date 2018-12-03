@@ -63,9 +63,9 @@ public class AggregatedNamespaceStats {
         storageSize += stats.storageSize;
 
         storageWriteRate += stats.storageWriteRate;
-        storageReadRate += stats.storageWriteRate;
+        storageReadRate += stats.storageReadRate;
 
-        msgBacklog += msgBacklog;
+        msgBacklog += stats.msgBacklog;
 
         storageWriteLatencyBuckets.addAll(stats.storageWriteLatencyBuckets);
         entrySizeBuckets.addAll(stats.entrySizeBuckets);

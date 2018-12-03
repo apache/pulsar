@@ -24,8 +24,10 @@ import java.io.IOException;
 import java.net.URI;
 import java.security.cert.X509Certificate;
 import java.util.Objects;
+import java.util.concurrent.Executor;
 
 import javax.net.ssl.SSLContext;
+import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 
@@ -37,31 +39,95 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.proxy.AsyncProxyServlet;
+import org.eclipse.jetty.client.ProtocolHandlers;
+import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.proxy.ProxyServlet;
+import org.eclipse.jetty.util.HttpCookieStore;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class AdminProxyHandler extends AsyncProxyServlet {
+class AdminProxyHandler extends ProxyServlet {
     private static final Logger LOG = LoggerFactory.getLogger(AdminProxyHandler.class);
 
     private final ProxyConfiguration config;
     private final BrokerDiscoveryProvider discoveryProvider;
     private final String brokerWebServiceUrl;
+    private final String functionWorkerWebServiceUrl;
 
     AdminProxyHandler(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider) {
         this.config = config;
         this.discoveryProvider = discoveryProvider;
         this.brokerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getBrokerWebServiceURLTLS()
                 : config.getBrokerWebServiceURL();
+        this.functionWorkerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getFunctionWorkerWebServiceURLTLS()
+                : config.getFunctionWorkerWebServiceURL();
     }
 
     @Override
     protected HttpClient createHttpClient() throws ServletException {
-        HttpClient client = super.createHttpClient();
+        ServletConfig config = getServletConfig();
+
+        HttpClient client = newHttpClient();
+
         client.setFollowRedirects(true);
-        return client;
+
+        // Must not store cookies, otherwise cookies of different clients will mix.
+        client.setCookieStore(new HttpCookieStore.Empty());
+
+        Executor executor;
+        String value = config.getInitParameter("maxThreads");
+        if (value == null || "-".equals(value)) {
+            executor = (Executor) getServletContext().getAttribute("org.eclipse.jetty.server.Executor");
+            if (executor == null)
+                throw new IllegalStateException("No server executor for proxy");
+        } else {
+            QueuedThreadPool qtp = new QueuedThreadPool(Integer.parseInt(value));
+            String servletName = config.getServletName();
+            int dot = servletName.lastIndexOf('.');
+            if (dot >= 0)
+                servletName = servletName.substring(dot + 1);
+            qtp.setName(servletName);
+            executor = qtp;
+        }
+
+        client.setExecutor(executor);
+
+        value = config.getInitParameter("maxConnections");
+        if (value == null)
+            value = "256";
+        client.setMaxConnectionsPerDestination(Integer.parseInt(value));
+
+        value = config.getInitParameter("idleTimeout");
+        if (value == null)
+            value = "30000";
+        client.setIdleTimeout(Long.parseLong(value));
+
+        value = config.getInitParameter("requestBufferSize");
+        if (value != null)
+            client.setRequestBufferSize(Integer.parseInt(value));
+
+        value = config.getInitParameter("responseBufferSize");
+        if (value != null)
+            client.setResponseBufferSize(Integer.parseInt(value));
+
+        try {
+            client.start();
+
+            // Content must not be decoded, otherwise the client gets confused.
+            client.getContentDecoderFactories().clear();
+
+            // Pass traffic to the client, only intercept what's necessary.
+            ProtocolHandlers protocolHandlers = client.getProtocolHandlers();
+            protocolHandlers.clear();
+            protocolHandlers.put(new RedirectProtocolHandler(client));
+
+            return client;
+        } catch (Exception x) {
+            throw new ServletException(x);
+        }
     }
 
     @Override
@@ -122,7 +188,16 @@ class AdminProxyHandler extends AsyncProxyServlet {
     protected String rewriteTarget(HttpServletRequest request) {
         StringBuilder url = new StringBuilder();
 
-        if (isBlank(brokerWebServiceUrl)) {
+        boolean isFunctionsRestRequest = false;
+        String requestUri = request.getRequestURI();
+        if (requestUri.startsWith("/admin/v2/functions")
+            || requestUri.startsWith("/admin/functions")) {
+            isFunctionsRestRequest = true;
+        }
+
+        if (isFunctionsRestRequest && !isBlank(functionWorkerWebServiceUrl)) {
+            url.append(functionWorkerWebServiceUrl);
+        } else if (isBlank(brokerWebServiceUrl)) {
             try {
                 ServiceLookupData availableBroker = discoveryProvider.nextBroker();
 
@@ -148,7 +223,7 @@ class AdminProxyHandler extends AsyncProxyServlet {
         if (url.lastIndexOf("/") == url.length() - 1) {
             url.deleteCharAt(url.lastIndexOf("/"));
         }
-        url.append(request.getRequestURI());
+        url.append(requestUri);
 
         String query = request.getQueryString();
         if (query != null) {

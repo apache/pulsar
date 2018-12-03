@@ -34,6 +34,7 @@ namespace pulsar {
 typedef boost::function<void(Result, Producer)> CreateProducerCallback;
 typedef boost::function<void(Result, Consumer)> SubscribeCallback;
 typedef boost::function<void(Result, Reader)> ReaderCallback;
+typedef boost::function<void(Result, const std::vector<std::string>&)> GetPartitionsCallback;
 typedef boost::function<void(Result)> CloseCallback;
 
 class ClientImpl;
@@ -158,6 +159,38 @@ class Client {
 
     void createReaderAsync(const std::string& topic, const MessageId& startMessageId,
                            const ReaderConfiguration& conf, ReaderCallback callback);
+
+    /**
+     * Get the list of partitions for a given topic.
+     *
+     * If the topic is partitioned, this will return a list of partition names. If the topic is not
+     * partitioned, the returned list will contain the topic name itself.
+     *
+     * This can be used to discover the partitions and create Reader, Consumer or Producer
+     * instances directly on a particular partition.
+     *
+     * @param topic
+     *            the topic name
+     * @since 2.3.0
+     */
+    Result getPartitionsForTopic(const std::string& topic, std::vector<std::string>& partitions);
+
+    /**
+     * Get the list of partitions for a given topic in asynchronous mode.
+     *
+     * If the topic is partitioned, this will return a list of partition names. If the topic is not
+     * partitioned, the returned list will contain the topic name itself.
+     *
+     * This can be used to discover the partitions and create Reader, Consumer or Producer
+     * instances directly on a particular partition.
+     *
+     * @param topic
+     *            the topic name
+     * @param callback
+     *            the callback that will be invoked when the list of partitions is available
+     * @since 2.3.0
+     */
+    void getPartitionsForTopicAsync(const std::string& topic, GetPartitionsCallback callback);
 
     /**
      *

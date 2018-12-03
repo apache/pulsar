@@ -32,7 +32,7 @@
 
 <!-- /TOC -->
 Examples for using the API to publish and consume messages can be found on
-https://github.com/apache/incubator-pulsar/tree/master/pulsar-client-cpp/examples
+https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples
 
 ## Requirements
 
@@ -73,8 +73,8 @@ Run unit tests:
 #### Install all dependencies:
 
 ```shell
-apt-get install g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
-                libprotobuf-dev libboost-all-dev  libgtest-dev \
+apt-get install -y g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
+                libprotobuf-dev libboost-all-dev  libgtest-dev google-mock \
                 libjsoncpp-dev libxml2-utils protobuf-compiler python-setuptools
 ```
 
@@ -82,6 +82,16 @@ apt-get install g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
 
 ```shell
 cd /usr/src/gtest
+sudo cmake .
+sudo make
+sudo cp *.a /usr/lib
+```
+
+
+#### Compile and install Google Mock:
+
+```shell
+cd /usr/src/gmock
 sudo cmake .
 sudo make
 sudo cp *.a /usr/lib

@@ -24,9 +24,10 @@ ulimit -a
 pwd
 df -h
 ps -eo euser,pid,ppid,pgid,start,pcpu,pmem,cmd
-docker network prune -f --filter name=pulsarnet_*
+docker system prune -f
 docker system events > docker.debug-info & echo $! > docker-log.pid
 docker pull apachepulsar/s3mock:latest
 docker pull alpine/socat:latest
 docker pull cassandra:3
 docker pull confluentinc/cp-kafka:4.0.0
+docker pull mysql:5.7.22

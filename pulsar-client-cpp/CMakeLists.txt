@@ -42,6 +42,10 @@ if (NOT CXX_STANDARD)
     set(CXX_STANDARD "-std=c++11")
 endif(NOT CXX_STANDARD)
 
+if (NOT C_STANDARD)
+    set(C_STANDARD "-std=c11")
+endif(NOT C_STANDARD)
+
 set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
 
 
@@ -113,7 +117,7 @@ if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
     set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
 else ()
     # Regular boost_python
-    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt)
+    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)
 endif ()
 
 foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
@@ -194,10 +198,10 @@ set(COMMON_LIBS
   ${Boost_CHRONO_LIBRARY}
   ${Boost_DATE_TIME_LIBRARY}
   ${Boost_ATOMIC_LIBRARY}
+  ${CURL_LIBRARY_PATH}
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARY_PATH}
   ${PROTOBUF_LIBRARIES}
-  ${CURL_LIBRARY_PATH}
   ${ADDITIONAL_LIBRARIES}
   ${LIB_JSON}
   dl
@@ -242,7 +246,10 @@ endif()
 add_subdirectory(python)
 
 # `make format` option
-set(CLANG_FORMAT_VERSION "5.0")
+if (NOT APPLE)
+    set(CLANG_FORMAT_VERSION "5.0")
+endif()
+
 find_package(ClangTools)
 set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
 add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py

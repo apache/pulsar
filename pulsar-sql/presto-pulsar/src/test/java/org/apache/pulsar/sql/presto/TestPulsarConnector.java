@@ -27,6 +27,7 @@ import com.facebook.presto.spi.type.RealType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
 import io.airlift.log.Logger;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
@@ -49,9 +50,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.javax.ws.rs.ClientErrorException;
 import org.apache.pulsar.shade.javax.ws.rs.core.Response;
+import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -601,10 +602,11 @@ public abstract class TestPulsarConnector {
 
             Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 
-            org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload
-                    = org.apache.pulsar.shade.io.netty.buffer.Unpooled.copiedBuffer(schema.encode(foo));
+            org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload = org.apache.pulsar.shade.io.netty.buffer.Unpooled
+                    .copiedBuffer(schema.encode(foo));
 
-            ByteBuf byteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, payload);
+            org.apache.pulsar.shade.io.netty.buffer.ByteBuf byteBuf = serializeMetadataAndPayload(
+                    Commands.ChecksumType.Crc32c, messageMetadata, payload);
 
             Entry entry = EntryImpl.create(0, i, byteBuf);
             log.info("create entry: %s", entry.getEntryId());
@@ -662,6 +664,9 @@ public abstract class TestPulsarConnector {
     @BeforeMethod
     public void setup() throws Exception {
         this.pulsarConnectorConfig = spy(new PulsarConnectorConfig());
+        this.pulsarConnectorConfig.setMaxEntryReadBatchSize(1);
+        this.pulsarConnectorConfig.setMaxSplitEntryQueueSize(10);
+        this.pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
 
         Tenants tenants = mock(Tenants.class);
         doReturn(new LinkedList<>(topicNames.stream().map(new Function<TopicName, String>() {
@@ -786,77 +791,86 @@ public abstract class TestPulsarConnector {
                     }
                 });
 
-                when(readOnlyCursor.readEntries(anyInt())).thenAnswer(new Answer<List<Entry>>() {
+                doAnswer(new Answer() {
                     @Override
-                    public List<Entry> answer(InvocationOnMock invocationOnMock) throws Throwable {
+                    public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                         Object[] args = invocationOnMock.getArguments();
                         Integer readEntries = (Integer) args[0];
+                        AsyncCallbacks.ReadEntriesCallback callback = (AsyncCallbacks.ReadEntriesCallback) args[1];
+                        Object ctx = args[2];
 
-                        List<Entry> entries = new LinkedList<>();
-                        for (int i = 0; i < readEntries; i++) {
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                List < Entry > entries = new LinkedList<>();
+                                for (int i = 0; i < readEntries; i++) {
 
-                            Foo.Bar foobar = new Foo.Bar();
-                            foobar.field1 = (int) fooFunctions.get("bar.test.foobar.field1").apply(count);
+                                    Foo.Bar foobar = new Foo.Bar();
+                                    foobar.field1 = (int) fooFunctions.get("bar.test.foobar.field1").apply(count);
 
-                            Boo boo1 = new Boo();
-                            boo1.field4 = (double) fooFunctions.get("bar.test.field4").apply(count);
-                            boo1.field5 = (boolean) fooFunctions.get("bar.test.field5").apply(count);
-                            boo1.field6 = (long) fooFunctions.get("bar.test.field6").apply(count);
-                            boo1.foo = new Foo();
-                            boo1.boo = null;
-                            boo1.bar = new Bar();
-                            boo1.foobar = foobar;
+                                    Boo boo1 = new Boo();
+                                    boo1.field4 = (double) fooFunctions.get("bar.test.field4").apply(count);
+                                    boo1.field5 = (boolean) fooFunctions.get("bar.test.field5").apply(count);
+                                    boo1.field6 = (long) fooFunctions.get("bar.test.field6").apply(count);
+                                    boo1.foo = new Foo();
+                                    boo1.boo = null;
+                                    boo1.bar = new Bar();
+                                    boo1.foobar = foobar;
 
-                            Boo boo2 = new Boo();
-                            boo2.field4 = (double) fooFunctions.get("bar.test2.field4").apply(count);
-                            boo2.field5 = (boolean) fooFunctions.get("bar.test2.field5").apply(count);
-                            boo2.field6 = (long) fooFunctions.get("bar.test2.field6").apply(count);
-                            boo2.foo = new Foo();
-                            boo2.boo = boo1;
-                            boo2.bar = new Bar();
-                            boo2.foobar = foobar;
+                                    Boo boo2 = new Boo();
+                                    boo2.field4 = (double) fooFunctions.get("bar.test2.field4").apply(count);
+                                    boo2.field5 = (boolean) fooFunctions.get("bar.test2.field5").apply(count);
+                                    boo2.field6 = (long) fooFunctions.get("bar.test2.field6").apply(count);
+                                    boo2.foo = new Foo();
+                                    boo2.boo = boo1;
+                                    boo2.bar = new Bar();
+                                    boo2.foobar = foobar;
 
-                            TestPulsarConnector.Bar bar = new TestPulsarConnector.Bar();
-                            bar.field1 = fooFunctions.get("bar.field1").apply(count) == null ? null : (int) fooFunctions.get("bar.field1").apply(count);
-                            bar.field2 = fooFunctions.get("bar.field2").apply(count) == null ? null : (String) fooFunctions.get("bar.field2").apply(count);
-                            bar.field3 = (float) fooFunctions.get("bar.field3").apply(count);
-                            bar.test = boo1;
-                            bar.test2 = count % 2 == 0 ? null : boo2;
+                                    TestPulsarConnector.Bar bar = new TestPulsarConnector.Bar();
+                                    bar.field1 = fooFunctions.get("bar.field1").apply(count) == null ? null : (int) fooFunctions.get("bar.field1").apply(count);
+                                    bar.field2 = fooFunctions.get("bar.field2").apply(count) == null ? null : (String) fooFunctions.get("bar.field2").apply(count);
+                                    bar.field3 = (float) fooFunctions.get("bar.field3").apply(count);
+                                    bar.test = boo1;
+                                    bar.test2 = count % 2 == 0 ? null : boo2;
 
-                            Foo foo = new Foo();
-                            foo.field1 = (int) fooFunctions.get("field1").apply(count);
-                            foo.field2 = (String) fooFunctions.get("field2").apply(count);
-                            foo.field3 = (float) fooFunctions.get("field3").apply(count);
-                            foo.field4 = (double) fooFunctions.get("field4").apply(count);
-                            foo.field5 = (boolean) fooFunctions.get("field5").apply(count);
-                            foo.field6 = (long) fooFunctions.get("field6").apply(count);
-                            foo.timestamp = (long) fooFunctions.get("timestamp").apply(count);
-                            foo.time = (int) fooFunctions.get("time").apply(count);
-                            foo.date = (int) fooFunctions.get("date").apply(count);
-                            foo.bar = bar;
+                                    Foo foo = new Foo();
+                                    foo.field1 = (int) fooFunctions.get("field1").apply(count);
+                                    foo.field2 = (String) fooFunctions.get("field2").apply(count);
+                                    foo.field3 = (float) fooFunctions.get("field3").apply(count);
+                                    foo.field4 = (double) fooFunctions.get("field4").apply(count);
+                                    foo.field5 = (boolean) fooFunctions.get("field5").apply(count);
+                                    foo.field6 = (long) fooFunctions.get("field6").apply(count);
+                                    foo.timestamp = (long) fooFunctions.get("timestamp").apply(count);
+                                    foo.time = (int) fooFunctions.get("time").apply(count);
+                                    foo.date = (int) fooFunctions.get("date").apply(count);
+                                    foo.bar = bar;
 
-                            PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
-                                    .setProducerName("test-producer").setSequenceId(positions.get(topic))
-                                    .setPublishTime(System.currentTimeMillis()).build();
+                                    PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
+                                            .setProducerName("test-producer").setSequenceId(positions.get(topic))
+                                            .setPublishTime(System.currentTimeMillis()).build();
 
-                            Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
+                                    Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 
-                            org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload
-                                    = org.apache.pulsar.shade.io.netty.buffer.Unpooled.copiedBuffer(schema.encode(foo));
+                                    org.apache.pulsar.shade.io.netty.buffer.ByteBuf payload = org.apache.pulsar.shade.io.netty.buffer.Unpooled
+                                            .copiedBuffer(schema.encode(foo));
 
-                            ByteBuf byteBuf = serializeMetadataAndPayload
-                                    (Commands.ChecksumType.Crc32c, messageMetadata, payload);
+                                    org.apache.pulsar.shade.io.netty.buffer.ByteBuf byteBuf = serializeMetadataAndPayload(
+                                            Commands.ChecksumType.Crc32c, messageMetadata, payload);
 
-                            completedBytes += byteBuf.readableBytes();
+                                    completedBytes += byteBuf.readableBytes();
 
-                            entries.add(EntryImpl.create(0, positions.get(topic), byteBuf));
-                            positions.put(topic, positions.get(topic) + 1);
-                            count++;
-                        }
+                                    entries.add(EntryImpl.create(0, positions.get(topic), byteBuf));
+                                    positions.put(topic, positions.get(topic) + 1);
+                                    count++;
+                                }
 
-                        return entries;
+                                callback.readEntriesComplete(entries, ctx);
+                            }
+                        }).start();
+
+                        return null;
                     }
-                });
+                }).when(readOnlyCursor).asyncReadEntries(anyInt(), any(), any());
 
                 when(readOnlyCursor.hasMoreEntries()).thenAnswer(new Answer<Boolean>() {
                     @Override
@@ -910,7 +924,8 @@ public abstract class TestPulsarConnector {
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
 
-            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(fooColumnHandles, split.getValue(), pulsarConnectorConfig, managedLedgerFactory));
+            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(fooColumnHandles, split.getValue(),
+                    pulsarConnectorConfig, managedLedgerFactory, new PulsarConnectorMetricsTracker(new NullStatsProvider())));
             this.pulsarRecordCursors.put(split.getKey(), pulsarRecordCursor);
         }
     }

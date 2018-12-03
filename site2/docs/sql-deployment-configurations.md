@@ -1,8 +1,10 @@
 ---
-id: sql-deployment-configuration
+id: sql-deployment-configurations
 title: Pulsar SQl Deployment and Configuration
 sidebar_label: Deployment and Configuration
 ---
+
+Below is a list configurations for the Presto Pulsar connector and instruction on how to deploy a cluster.
 
 ## Presto Pulsar Connector Configurations
 There are several configurations for the Presto Pulsar Connector.  The properties file that contain these configurations can be found at ```${project.root}/conf/presto/catalog/pulsar.properties```.

@@ -23,25 +23,27 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.Empty;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.exporter.HTTPServer;
 import lombok.extern.slf4j.Slf4j;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
+import org.apache.pulsar.functions.utils.Reflections;
 
+import java.lang.reflect.Type;
+import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
@@ -63,7 +65,7 @@ public class JavaInstanceMain implements AutoCloseable {
     protected String jarFile;
 
     @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
-    protected String instanceId;
+    protected int instanceId;
 
     @Parameter(names = "--function_id", description = "Function Id\n", required = true)
     protected String functionId;
@@ -98,14 +100,30 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--port", description = "Port to listen on\n", required = true)
     protected int port;
 
+    @Parameter(names = "--metrics_port", description = "Port metrics will be exposed on\n", required = true)
+    protected int metrics_port;
+
     @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
     protected int maxBufferedTuples;
+
+    @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in seconds between healtchecks", required = true)
+    protected int expectedHealthCheckInterval;
+
+    @Parameter(names = "--secrets_provider", description = "The classname of the secrets provider", required = false)
+    protected String secretsProviderClassName;
+
+    @Parameter(names = "--secrets_provider_config", description = "The config that needs to be passed to secrets provider", required = false)
+    protected String secretsProviderConfig;
+
+    @Parameter(names = "--cluster_name", description = "The name of the cluster this instance is running on", required = true)
+    protected String clusterName;
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
     private Long lastHealthCheckTs = null;
     private ScheduledExecutorService timer;
+    private HTTPServer metricsServer;
 
     public JavaInstanceMain() { }
 
@@ -116,11 +134,45 @@ public class JavaInstanceMain implements AutoCloseable {
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
+        instanceConfig.setClusterName(clusterName);
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        if (functionDetailsJsonString.charAt(0) == '\'') {
+            functionDetailsJsonString = functionDetailsJsonString.substring(1);
+        }
+        if (functionDetailsJsonString.charAt(functionDetailsJsonString.length() - 1) == '\'') {
+            functionDetailsJsonString = functionDetailsJsonString.substring(0, functionDetailsJsonString.length() - 1);
+        }
         JsonFormat.parser().merge(functionDetailsJsonString, functionDetailsBuilder);
         FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
+
+        Map<String, String> secretsProviderConfigMap = null;
+        if (!StringUtils.isEmpty(secretsProviderConfig)) {
+            if (secretsProviderConfig.charAt(0) == '\'') {
+                secretsProviderConfig = secretsProviderConfig.substring(1);
+            }
+            if (secretsProviderConfig.charAt(secretsProviderConfig.length() - 1) == '\'') {
+                secretsProviderConfig = secretsProviderConfig.substring(0, secretsProviderConfig.length() - 1);
+            }
+            Type type = new TypeToken<Map<String, String>>() {}.getType();
+            secretsProviderConfigMap = new Gson().fromJson(secretsProviderConfig, type);
+        }
+
+        if (StringUtils.isEmpty(secretsProviderClassName)) {
+            secretsProviderClassName = ClearTextSecretsProvider.class.getName();
+        }
+
+        SecretsProvider secretsProvider;
+        try {
+            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        secretsProvider.init(secretsProviderConfigMap);
+
+        // Collector Registry for prometheus metrics
+        CollectorRegistry collectorRegistry = new CollectorRegistry();
 
         containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageServiceUrl,
@@ -128,12 +180,14 @@ public class JavaInstanceMain implements AutoCloseable {
                         .clientAuthenticationParameters(clientAuthenticationParameters).useTls(isTrue(useTls))
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
-                        .tlsTrustCertsFilePath(tlsTrustCertFilePath).build());
+                        .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
+                secretsProvider, collectorRegistry);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
+                null, // we really dont use this in thread container
                 containerFactory,
-                30000);
+                expectedHealthCheckInterval * 1000);
 
         server = ServerBuilder.forPort(port)
                 .addService(new InstanceControlImpl(runtimeSpawner))
@@ -152,23 +206,30 @@ public class JavaInstanceMain implements AutoCloseable {
                 }
             }
         });
+
         log.info("Starting runtimeSpawner");
         runtimeSpawner.start();
 
-        timer = Executors.newSingleThreadScheduledExecutor();
-        timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                try {
-                    if (System.currentTimeMillis() - lastHealthCheckTs > 90000) {
-                        log.info("Haven't received health check from spawner in a while. Stopping instance...");
-                        close();
+        // starting metrics server
+        log.info("Starting metrics server on port {}", metrics_port);
+        metricsServer = new HTTPServer(new InetSocketAddress(metrics_port), collectorRegistry, true);
+
+        if (expectedHealthCheckInterval > 0) {
+            timer = Executors.newSingleThreadScheduledExecutor();
+            timer.scheduleAtFixedRate(new TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        if (System.currentTimeMillis() - lastHealthCheckTs > 3 * expectedHealthCheckInterval * 1000) {
+                            log.info("Haven't received health check from spawner in a while. Stopping instance...");
+                            close();
+                        }
+                    } catch (Exception e) {
+                        log.error("Error occurred when checking for latest health check", e);
                     }
-                } catch (Exception e) {
-                    log.error("Error occurred when checking for latest health check", e);
                 }
-            }
-        }, 30000, 30000, TimeUnit.MILLISECONDS);
+            }, expectedHealthCheckInterval * 1000, expectedHealthCheckInterval * 1000, TimeUnit.MILLISECONDS);
+        }
 
         runtimeSpawner.join();
         log.info("RuntimeSpawner quit, shutting down JavaInstance");
@@ -205,6 +266,9 @@ public class JavaInstanceMain implements AutoCloseable {
             if (containerFactory != null) {
                 containerFactory.close();
             }
+            if (metricsServer != null) {
+                metricsServer.stop();
+            }
         } catch (Exception ex) {
             System.err.println(ex);
         }
@@ -222,7 +286,7 @@ public class JavaInstanceMain implements AutoCloseable {
         @Override
         public void getFunctionStatus(Empty request, StreamObserver<InstanceCommunication.FunctionStatus> responseObserver) {
             try {
-                InstanceCommunication.FunctionStatus response = runtimeSpawner.getFunctionStatus().get();
+                InstanceCommunication.FunctionStatus response = runtimeSpawner.getFunctionStatus(runtimeSpawner.getInstanceConfig().getInstanceId()).get();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } catch (Exception e) {

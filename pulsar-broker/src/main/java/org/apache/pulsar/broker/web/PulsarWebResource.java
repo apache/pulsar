@@ -146,20 +146,16 @@ public abstract class PulsarWebResource {
 
     private static void validateOriginalPrincipal(Set<String> proxyRoles, String authenticatedPrincipal,
                                                   String originalPrincipal) {
-        if (originalPrincipal != null) {
+        if (proxyRoles.contains(authenticatedPrincipal)) {
+            // Request has come from a proxy
             if (StringUtils.isBlank(originalPrincipal)) {
                 log.warn("Original principal empty in request authenticated as {}", authenticatedPrincipal);
-                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be empty if it is set");
+                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be empty if the request is via proxy.");               
             }
             if (proxyRoles.contains(originalPrincipal)) {
                 log.warn("Original principal {} cannot be a proxy role ({})", originalPrincipal, proxyRoles);
-                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be a proxy role");
-            }
-            if (!proxyRoles.contains(authenticatedPrincipal)) {
-                log.warn("Original principal can only be accepted from a client authenticated as a proxy. "
-                        + "{} is not part of proxyRoles", authenticatedPrincipal, proxyRoles);
-                throw new RestException(Status.UNAUTHORIZED, "Original principal only accepted from proxy");
-            }
+                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be a proxy role");           
+            } 
         }
     }
 
@@ -616,7 +612,7 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected static CompletableFuture<ClusterData> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
+    public static CompletableFuture<ClusterData> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
             NamespaceName namespace) {
         if (!namespace.isGlobal()) {
             return CompletableFuture.completedFuture(null);

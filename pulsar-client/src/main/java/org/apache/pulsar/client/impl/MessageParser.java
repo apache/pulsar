@@ -93,11 +93,13 @@ public class MessageParser {
             final int numMessages = msgMetadata.getNumMessagesInBatch();
 
             if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
-                final MessageImpl<?> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload, null, null);
+                final MessageImpl<?> message = new MessageImpl<>(topicName.toString(),
+                                                                 msgId, msgMetadata, uncompressedPayload,
+                                                                 null, null);
                 processor.process(msgId, message, uncompressedPayload);
             } else {
                 // handle batch message enqueuing; uncompressed payload has all messages in batch
-                receiveIndividualMessagesFromBatch(msgMetadata, uncompressedPayload, messageId, null, -1, processor);
+                receiveIndividualMessagesFromBatch(topicName.toString(), msgMetadata, uncompressedPayload, messageId, null, -1, processor);
             }
         } finally {
             if (uncompressedPayload != null) {
@@ -149,8 +151,9 @@ public class MessageParser {
         }
     }
 
-    public static void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, ByteBuf uncompressedPayload,
-            MessageIdData messageId, ClientCnx cnx, int partitionIndex, MessageProcessor processor) {
+    public static void receiveIndividualMessagesFromBatch(String topic, MessageMetadata msgMetadata,
+            ByteBuf uncompressedPayload, MessageIdData messageId, ClientCnx cnx,
+            int partitionIndex, MessageProcessor processor) {
         int batchSize = msgMetadata.getNumMessagesInBatch();
 
         try {
@@ -170,7 +173,8 @@ public class MessageParser {
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), partitionIndex, i, null);
-                final MessageImpl<?> message = new MessageImpl<>(batchMessageIdImpl, msgMetadata,
+                final MessageImpl<?> message = new MessageImpl<>(
+                        topic, batchMessageIdImpl, msgMetadata,
                         singleMessageMetadataBuilder.build(), singleMessagePayload, Optional.empty(), cnx, null);
 
                 processor.process(batchMessageIdImpl, message, singleMessagePayload);

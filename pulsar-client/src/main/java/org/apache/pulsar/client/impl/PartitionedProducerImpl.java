@@ -126,15 +126,15 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 if (completed.incrementAndGet() == topicMetadata.numPartitions()) {
                     if (createFail.get() == null) {
                         setState(State.Ready);
-                        producerCreatedFuture().complete(PartitionedProducerImpl.this);
                         log.info("[{}] Created partitioned producer", topic);
+                        producerCreatedFuture().complete(PartitionedProducerImpl.this);
                     } else {
+                        log.error("[{}] Could not create partitioned producer.", topic, createFail.get().getCause());
                         closeAsync().handle((ok, closeException) -> {
                             producerCreatedFuture().completeExceptionally(createFail.get());
                             client.cleanupProducer(this);
                             return null;
                         });
-                        log.error("[{}] Could not create partitioned producer.", topic, createFail.get().getCause());
                     }
                 }
 
@@ -236,6 +236,10 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerImpl.class);
+
+    public List<ProducerImpl<T>> getProducers() {
+        return producers.stream().collect(Collectors.toList());
+    }
 
     @Override
     String getHandlerName() {

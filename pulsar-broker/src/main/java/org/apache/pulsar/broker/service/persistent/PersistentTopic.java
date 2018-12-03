@@ -79,6 +79,7 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
@@ -166,7 +167,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
     // doesn't support batch-message
     private volatile boolean hasBatchMessagePublished = false;
-    private DispatchRateLimiter dispatchRateLimiter;
+    private final DispatchRateLimiter dispatchRateLimiter;
+    private final SubscribeRateLimiter subscribeRateLimiter;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     private final MessageDeduplication messageDeduplication;
@@ -180,6 +182,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     // Whether messages published must be encrypted or not in this topic
     private volatile boolean isEncryptionRequired = false;
+    private volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
+        SchemaCompatibilityStrategy.FULL;
 
     private static final FastThreadLocal<TopicStatsHelper> threadLocalTopicStats = new FastThreadLocal<TopicStatsHelper>() {
         @Override
@@ -223,6 +227,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         USAGE_COUNT_UPDATER.set(this, 0);
 
         this.dispatchRateLimiter = new DispatchRateLimiter(this);
+        this.subscribeRateLimiter = new SubscribeRateLimiter(this);
 
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
 
@@ -255,6 +260,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             isEncryptionRequired = policies.encryption_required;
+
+            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                    policies.schema_auto_update_compatibility_strategy);
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
@@ -486,6 +494,18 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
             future.completeExceptionally(new NamingException("Subscription with reserved subscription name attempted"));
             return future;
+        }
+
+        if (cnx.getRemoteAddress() != null && cnx.getRemoteAddress().toString().contains(":")) {
+            SubscribeRateLimiter.ConsumerIdentifier consumer = new SubscribeRateLimiter.ConsumerIdentifier(
+                    cnx.getRemoteAddress().toString().split(":")[0], consumerName, consumerId);
+            if (!subscribeRateLimiter.subscribeAvailable(consumer) || !subscribeRateLimiter.tryAcquire(consumer)) {
+                log.warn("[{}] Failed to create subscription for {} {} limited by {}, available {}",
+                        topic, subscriptionName, consumer, subscribeRateLimiter.getSubscribeRate(),
+                        subscribeRateLimiter.getAvailableSubscribeRateLimit(consumer));
+                future.completeExceptionally(new NotAllowedException("Subscribe limited by subscribe rate limit per consumer."));
+                return future;
+            }
         }
 
         lock.readLock().lock();
@@ -834,6 +854,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             }, null);
 
             dispatchRateLimiter.close();
+            subscribeRateLimiter.close();
 
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
@@ -1555,15 +1576,26 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired, data.encryption_required);
         }
         isEncryptionRequired = data.encryption_required;
+
+        schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                data.schema_auto_update_compatibility_strategy);
+
         producers.forEach(producer -> {
             producer.checkPermissions();
             producer.checkEncryption();
         });
-        subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
+        subscriptions.forEach((subName, sub) -> {
+            sub.getConsumers().forEach(Consumer::checkPermissions);
+            if (sub.getDispatcher().getRateLimiter() != null) {
+                sub.getDispatcher().getRateLimiter().onPoliciesUpdate(data);
+            }
+        });
         checkMessageExpiry();
         CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
         CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
         CompletableFuture<Void> persistentPoliciesFuture = checkPersistencePolicies();
+        dispatchRateLimiter.onPoliciesUpdate(data);
+        subscribeRateLimiter.onPoliciesUpdate(data);
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture);
     }
 
@@ -1711,6 +1743,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return this.dispatchRateLimiter;
     }
 
+    public SubscribeRateLimiter getSubscribeRateLimiter() {
+        return this.subscribeRateLimiter;
+    }
+
     public long getLastPublishedSequenceId(String producerName) {
         return messageDeduplication.getLastPublishedSequenceId(producerName);
     }
@@ -1791,6 +1827,15 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 
     @Override
+    public CompletableFuture<Boolean> hasSchema() {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        return brokerService.pulsar()
+            .getSchemaRegistryService()
+            .getSchema(id).thenApply((schema) -> schema != null);
+    }
+
+    @Override
     public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
         if (schema == null) {
             return CompletableFuture.completedFuture(SchemaVersion.Empty);
@@ -1800,7 +1845,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
-            .putSchemaIfAbsent(id, schema);
+            .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
     }
 
     @Override
@@ -1809,6 +1854,18 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
-            .isCompatibleWithLatestVersion(id, schema);
+            .isCompatibleWithLatestVersion(id, schema, schemaCompatibilityStrategy);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+        return hasSchema()
+            .thenCompose((hasSchema) -> {
+                    if (hasSchema || isActive() || ledger.getTotalSize() != 0) {
+                        return isSchemaCompatible(schema);
+                    } else {
+                        return addSchema(schema).thenApply((ignore) -> true);
+                    }
+                });
     }
 }

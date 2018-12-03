@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.2.0-incubating-SNAPSHOT</version>
+    <version>2.3.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-functions</artifactId>
@@ -37,32 +37,12 @@
     <module>api-java</module>
     <module>java-examples</module>
     <module>utils</module>
-    <module>metrics</module>
     <module>instance</module>
     <module>runtime</module>
     <module>runtime-shaded</module>
     <module>runtime-all</module>
     <module>worker</module>
+    <module>secrets</module>
   </modules>
-
-  <dependencyManagement>
-    <dependencies>
-
-      <dependency>
-        <groupId>org.projectlombok</groupId>
-        <artifactId>lombok</artifactId>
-        <version>1.16.12</version>
-      </dependency>
-
-    </dependencies>
-  </dependencyManagement>
-
-  <dependencies>
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>provided</scope>
-    </dependency>
-  </dependencies>
 
 </project>

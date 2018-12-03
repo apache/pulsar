@@ -39,6 +39,8 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.RedeliveryTracker;
+import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -62,6 +64,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private final ServiceConfiguration serviceConfig;
     private ScheduledFuture<?> readOnActiveConsumerTask = null;
 
+    private final RedeliveryTracker redeliveryTracker;
+
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
             PersistentTopic topic) {
         super(subscriptionType, partitionIndex, topic.getName());
@@ -72,6 +76,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.readBatchSize = MaxReadBatchSize;
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.dispatchRateLimiter = null;
+        this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -307,6 +312,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     @Override
     public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         // We cannot redeliver single messages to single consumers to preserve ordering.
+        positions.forEach(redeliveryTracker::incrementAndGetRedeliveryCount);
         redeliverUnacknowledgedMessages(consumer);
     }
 
@@ -483,6 +489,16 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     @Override
     public void addUnAckedMessages(int unAckMessages) {
         // No-op
+    }
+
+    @Override
+    public RedeliveryTracker getRedeliveryTracker() {
+        return redeliveryTracker;
+    }
+
+    @Override
+    public DispatchRateLimiter getRateLimiter() {
+        return dispatchRateLimiter;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);

@@ -81,6 +81,13 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder serviceUrl(String serviceUrl);
 
     /**
+     * Configure the service URL provider for Pulsar service
+     * @param serviceUrlProvider
+     * @return
+     */
+    ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
+
+    /**
      * Set the authentication provider to use in the Pulsar client instance.
      * <p>
      * Example:
@@ -302,4 +309,14 @@ public interface ClientBuilder extends Cloneable {
      * @param unit time unit for {@code statsInterval}
      */
     ClientBuilder keepAliveInterval(int keepAliveIntervalSeconds, TimeUnit unit);
+
+    /**
+     * Set the duration of time to wait for a connection to a broker to be established. If the duration
+     * passes without a response from the broker, the connection attempt is dropped.
+     *
+     * @since 2.3.0
+     * @param duration the duration to wait
+     * @param unit the time unit in which the duration is defined
+     */
+    ClientBuilder connectionTimeout(int duration, TimeUnit unit);
 }

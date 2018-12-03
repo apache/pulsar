@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -74,6 +75,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private long instanceLivenessCheckFreqMs;
     private String clientAuthenticationPlugin;
     private String clientAuthenticationParameters;
+    // Frequency how often worker performs compaction on function-topics
+    private long topicCompactionFrequencySec = 30 * 60; // 30 minutes
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
@@ -88,8 +91,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean tlsRequireTrustedClientCertOnConnect = false;
     private boolean useTls = false;
     private boolean tlsHostnameVerificationEnable = false;
-    
-    private int metricsSamplingPeriodSec = 60;
     // Enforce authentication
     private boolean authenticationEnabled = false;
     // Autentication provider name list, which is a list of class names
@@ -100,7 +101,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Set<String> superUserRoles = Sets.newTreeSet();
     
     private Properties properties = new Properties();
-
 
     @Data
     @Setter
@@ -121,8 +121,45 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         private String javaInstanceJarLocation;
         private String pythonInstanceLocation;
         private String logDirectory;
+        // the directory for dropping extra function dependencies
+        private String extraFunctionDependenciesDir;
     }
     private ProcessContainerFactory processContainerFactory;
+
+    @Data
+    @Setter
+    @Getter
+    @EqualsAndHashCode
+    @ToString
+    public static class KubernetesContainerFactory {
+        private String k8Uri;
+        private String jobNamespace;
+        private String pulsarDockerImageName;
+        private String pulsarRootDir;
+        private Boolean submittingInsidePod;
+        private String pulsarServiceUrl;
+        private String pulsarAdminUrl;
+        private Boolean installUserCodeDependencies;
+        private String pythonDependencyRepository;
+        private String pythonExtraDependencyRepository;
+        // the directory for dropping extra function dependencies.
+        // If it is not absolute path, it is relative to `pulsarRootDir`
+        private String extraFunctionDependenciesDir;
+        private Map<String, String> customLabels;
+        private Integer expectedMetricsCollectionInterval = 30;
+        // Kubernetes Runtime will periodically checkback on
+        // this configMap if defined and if there are any changes
+        // to the kubernetes specific stuff, we apply those changes
+        private String changeConfigMap;
+        private String changeConfigMapNamespace;
+    }
+    private KubernetesContainerFactory kubernetesContainerFactory;
+
+    // The classname of the secrets provider configurator.
+    private String secretsProviderConfiguratorClassName;
+    // Any config the secret provider configurator might need. This is passed on
+    // to the init method of the secretproviderconfigurator
+    private Map<String, String> secretsProviderConfiguratorConfig;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

@@ -18,18 +18,28 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import io.airlift.configuration.Config;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
 
 import javax.validation.constraints.NotNull;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
 
 public class PulsarConnectorConfig implements AutoCloseable {
 
     private String brokerServiceUrl = "http://localhost:8080";
     private String zookeeperUri = "localhost:2181";
     private int entryReadBatchSize = 100;
-    private int targetNumSplits = 4;
+    private int targetNumSplits = 2;
+    private int maxSplitMessageQueueSize = 10000;
+    private int maxSplitEntryQueueSize = 1000;
+    private String statsProvider = NullStatsProvider.class.getName();
+    private Map<String, String> statsProviderConfigs = new HashMap<>();
     private PulsarAdmin pulsarAdmin;
 
     @NotNull
@@ -55,12 +65,12 @@ public class PulsarConnectorConfig implements AutoCloseable {
     }
 
     @NotNull
-    public int getEntryReadBatchSize() {
+    public int getMaxEntryReadBatchSize() {
         return this.entryReadBatchSize;
     }
 
-    @Config("pulsar.entry-read-batch-size")
-    public PulsarConnectorConfig setEntryReadBatchSize(int batchSize) {
+    @Config("pulsar.max-entry-read-batch-size")
+    public PulsarConnectorConfig setMaxEntryReadBatchSize(int batchSize) {
         this.entryReadBatchSize = batchSize;
         return this;
     }
@@ -73,6 +83,51 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.target-num-splits")
     public PulsarConnectorConfig setTargetNumSplits(int targetNumSplits) {
         this.targetNumSplits = targetNumSplits;
+        return this;
+    }
+
+    @NotNull
+    public int getMaxSplitMessageQueueSize() {
+        return this.maxSplitMessageQueueSize;
+    }
+
+    @Config("pulsar.max-split-message-queue-size")
+    public PulsarConnectorConfig setMaxSplitMessageQueueSize(int maxSplitMessageQueueSize) {
+        this.maxSplitMessageQueueSize = maxSplitMessageQueueSize;
+        return this;
+    }
+
+    @NotNull
+    public int getMaxSplitEntryQueueSize() {
+        return this.maxSplitEntryQueueSize;
+    }
+
+    @Config("pulsar.max-split-entry-queue-size")
+    public PulsarConnectorConfig setMaxSplitEntryQueueSize(int maxSplitEntryQueueSize) {
+        this.maxSplitEntryQueueSize = maxSplitEntryQueueSize;
+        return this;
+    }
+
+    @NotNull
+    public String getStatsProvider() {
+        return statsProvider;
+    }
+
+    @Config("pulsar.stats-provider")
+    public PulsarConnectorConfig setStatsProvider(String statsProvider) {
+        this.statsProvider = statsProvider;
+        return this;
+    }
+
+    @NotNull
+    public Map<String, String> getStatsProviderConfigs() {
+        return statsProviderConfigs;
+    }
+
+    @Config("pulsar.stats-provider-configs")
+    public PulsarConnectorConfig setStatsProviderConfigs(String statsProviderConfigs) {
+        Type type = new TypeToken<Map<String, String>>(){}.getType();
+        this.statsProviderConfigs = new Gson().fromJson(statsProviderConfigs, type);
         return this;
     }
 

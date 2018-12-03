@@ -1,10 +1,10 @@
 ---
 id: sql-getting-started
-title: Pulsar SQL Overview
-sidebar_label: Overview
+title: Pulsar SQL Getting Started
+sidebar_label: Getting Started
 ---
 
-It is super easy to start query data in Pulsar.  
+It is super easy to get started on querying data in Pulsar.  
 
 ## Requirements
 1. **Pulsar distribution**

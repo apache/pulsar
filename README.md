@@ -24,7 +24,7 @@
 Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.
 
-https://pulsar.incubator.apache.org
+https://pulsar.apache.org
 
 ## Main features
 * Horizontally scalable (Millions of independent topics and millions
@@ -64,7 +64,11 @@ Start standalone Pulsar service:
 $ bin/pulsar standalone
 ```
 
-Check https://pulsar.incubator.apache.org for documentation and examples.
+Check https://pulsar.apache.org for documentation and examples.
+
+## Build Pulsar docs
+
+Refer to the docs [README](site2/README.md).
 
 ## Contact
 
@@ -72,8 +76,8 @@ Check https://pulsar.incubator.apache.org for documentation and examples.
 
 | Name                                                                          | Scope                           |                                                                 |                                                                     |                                                                              |
 |:------------------------------------------------------------------------------|:--------------------------------|:----------------------------------------------------------------|:--------------------------------------------------------------------|:-----------------------------------------------------------------------------|
-| [users@pulsar.incubator.apache.org](mailto:users@pulsar.incubator.apache.org) | User-related discussions        | [Subscribe](mailto:users-subscribe@pulsar.incubator.apache.org) | [Unsubscribe](mailto:users-unsubscribe@pulsar.incubator.apache.org) | [Archives](http://mail-archives.apache.org/mod_mbox/incubator-pulsar-users/) |
-| [dev@pulsar.incubator.apache.org](mailto:dev@pulsar.incubator.apache.org)     | Development-related discussions | [Subscribe](mailto:dev-subscribe@pulsar.incubator.apache.org)   | [Unsubscribe](mailto:dev-unsubscribe@pulsar.incubator.apache.org)   | [Archives](http://mail-archives.apache.org/mod_mbox/incubator-pulsar-dev/)   |
+| [users@pulsar.apache.org](mailto:users@pulsar.apache.org) | User-related discussions        | [Subscribe](mailto:users-subscribe@pulsar.apache.org) | [Unsubscribe](mailto:users-unsubscribe@pulsar.apache.org) | [Archives](http://mail-archives.apache.org/mod_mbox/pulsar-users/) |
+| [dev@pulsar.apache.org](mailto:dev@pulsar.apache.org)     | Development-related discussions | [Subscribe](mailto:dev-subscribe@pulsar.apache.org)   | [Unsubscribe](mailto:dev-unsubscribe@pulsar.apache.org)   | [Archives](http://mail-archives.apache.org/mod_mbox/pulsar-dev/)   |
 
 ##### Slack
 

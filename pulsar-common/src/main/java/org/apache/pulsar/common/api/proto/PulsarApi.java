@@ -3039,6 +3039,10 @@ public final class PulsarApi {
     // optional bytes schema_version = 16;
     boolean hasSchemaVersion();
     org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaVersion();
+    
+    // optional bool partition_key_b64_encoded = 17 [default = false];
+    boolean hasPartitionKeyB64Encoded();
+    boolean getPartitionKeyB64Encoded();
   }
   public static final class MessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -3339,6 +3343,16 @@ public final class PulsarApi {
       return schemaVersion_;
     }
     
+    // optional bool partition_key_b64_encoded = 17 [default = false];
+    public static final int PARTITION_KEY_B64_ENCODED_FIELD_NUMBER = 17;
+    private boolean partitionKeyB64Encoded_;
+    public boolean hasPartitionKeyB64Encoded() {
+      return ((bitField0_ & 0x00001000) == 0x00001000);
+    }
+    public boolean getPartitionKeyB64Encoded() {
+      return partitionKeyB64Encoded_;
+    }
+    
     private void initFields() {
       producerName_ = "";
       sequenceId_ = 0L;
@@ -3355,6 +3369,7 @@ public final class PulsarApi {
       encryptionAlgo_ = "";
       encryptionParam_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+      partitionKeyB64Encoded_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -3442,6 +3457,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         output.writeBytes(16, schemaVersion_);
       }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        output.writeBool(17, partitionKeyB64Encoded_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -3514,6 +3532,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(16, schemaVersion_);
+      }
+      if (((bitField0_ & 0x00001000) == 0x00001000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBoolSize(17, partitionKeyB64Encoded_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -3658,6 +3680,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00002000);
         schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00004000);
+        partitionKeyB64Encoded_ = false;
+        bitField0_ = (bitField0_ & ~0x00008000);
         return this;
       }
       
@@ -3755,6 +3779,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000800;
         }
         result.schemaVersion_ = schemaVersion_;
+        if (((from_bitField0_ & 0x00008000) == 0x00008000)) {
+          to_bitField0_ |= 0x00001000;
+        }
+        result.partitionKeyB64Encoded_ = partitionKeyB64Encoded_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -3826,6 +3854,9 @@ public final class PulsarApi {
         }
         if (other.hasSchemaVersion()) {
           setSchemaVersion(other.getSchemaVersion());
+        }
+        if (other.hasPartitionKeyB64Encoded()) {
+          setPartitionKeyB64Encoded(other.getPartitionKeyB64Encoded());
         }
         return this;
       }
@@ -3959,6 +3990,11 @@ public final class PulsarApi {
             case 130: {
               bitField0_ |= 0x00004000;
               schemaVersion_ = input.readBytes();
+              break;
+            }
+            case 136: {
+              bitField0_ |= 0x00008000;
+              partitionKeyB64Encoded_ = input.readBool();
               break;
             }
           }
@@ -4522,6 +4558,27 @@ public final class PulsarApi {
         return this;
       }
       
+      // optional bool partition_key_b64_encoded = 17 [default = false];
+      private boolean partitionKeyB64Encoded_ ;
+      public boolean hasPartitionKeyB64Encoded() {
+        return ((bitField0_ & 0x00008000) == 0x00008000);
+      }
+      public boolean getPartitionKeyB64Encoded() {
+        return partitionKeyB64Encoded_;
+      }
+      public Builder setPartitionKeyB64Encoded(boolean value) {
+        bitField0_ |= 0x00008000;
+        partitionKeyB64Encoded_ = value;
+        
+        return this;
+      }
+      public Builder clearPartitionKeyB64Encoded() {
+        bitField0_ = (bitField0_ & ~0x00008000);
+        partitionKeyB64Encoded_ = false;
+        
+        return this;
+      }
+      
       // @@protoc_insertion_point(builder_scope:pulsar.proto.MessageMetadata)
     }
     
@@ -4557,6 +4614,10 @@ public final class PulsarApi {
     // optional uint64 event_time = 5 [default = 0];
     boolean hasEventTime();
     long getEventTime();
+    
+    // optional bool partition_key_b64_encoded = 6 [default = false];
+    boolean hasPartitionKeyB64Encoded();
+    boolean getPartitionKeyB64Encoded();
   }
   public static final class SingleMessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -4676,12 +4737,23 @@ public final class PulsarApi {
       return eventTime_;
     }
     
+    // optional bool partition_key_b64_encoded = 6 [default = false];
+    public static final int PARTITION_KEY_B64_ENCODED_FIELD_NUMBER = 6;
+    private boolean partitionKeyB64Encoded_;
+    public boolean hasPartitionKeyB64Encoded() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public boolean getPartitionKeyB64Encoded() {
+      return partitionKeyB64Encoded_;
+    }
+    
     private void initFields() {
       properties_ = java.util.Collections.emptyList();
       partitionKey_ = "";
       payloadSize_ = 0;
       compactedOut_ = false;
       eventTime_ = 0L;
+      partitionKeyB64Encoded_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4725,6 +4797,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         output.writeUInt64(5, eventTime_);
       }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeBool(6, partitionKeyB64Encoded_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -4752,6 +4827,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(5, eventTime_);
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBoolSize(6, partitionKeyB64Encoded_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4876,6 +4955,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         eventTime_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000010);
+        partitionKeyB64Encoded_ = false;
+        bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
       
@@ -4930,6 +5011,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000008;
         }
         result.eventTime_ = eventTime_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.partitionKeyB64Encoded_ = partitionKeyB64Encoded_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4957,6 +5042,9 @@ public final class PulsarApi {
         }
         if (other.hasEventTime()) {
           setEventTime(other.getEventTime());
+        }
+        if (other.hasPartitionKeyB64Encoded()) {
+          setPartitionKeyB64Encoded(other.getPartitionKeyB64Encoded());
         }
         return this;
       }
@@ -5021,6 +5109,11 @@ public final class PulsarApi {
             case 40: {
               bitField0_ |= 0x00000010;
               eventTime_ = input.readUInt64();
+              break;
+            }
+            case 48: {
+              bitField0_ |= 0x00000020;
+              partitionKeyB64Encoded_ = input.readBool();
               break;
             }
           }
@@ -5213,6 +5306,27 @@ public final class PulsarApi {
       public Builder clearEventTime() {
         bitField0_ = (bitField0_ & ~0x00000010);
         eventTime_ = 0L;
+        
+        return this;
+      }
+      
+      // optional bool partition_key_b64_encoded = 6 [default = false];
+      private boolean partitionKeyB64Encoded_ ;
+      public boolean hasPartitionKeyB64Encoded() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      public boolean getPartitionKeyB64Encoded() {
+        return partitionKeyB64Encoded_;
+      }
+      public Builder setPartitionKeyB64Encoded(boolean value) {
+        bitField0_ |= 0x00000020;
+        partitionKeyB64Encoded_ = value;
+        
+        return this;
+      }
+      public Builder clearPartitionKeyB64Encoded() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        partitionKeyB64Encoded_ = false;
         
         return this;
       }
@@ -13542,6 +13656,10 @@ public final class PulsarApi {
     // required .pulsar.proto.MessageIdData message_id = 2;
     boolean hasMessageId();
     org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
+    
+    // optional uint32 redelivery_count = 3 [default = 0];
+    boolean hasRedeliveryCount();
+    int getRedeliveryCount();
   }
   public static final class CommandMessage extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -13598,9 +13716,20 @@ public final class PulsarApi {
       return messageId_;
     }
     
+    // optional uint32 redelivery_count = 3 [default = 0];
+    public static final int REDELIVERY_COUNT_FIELD_NUMBER = 3;
+    private int redeliveryCount_;
+    public boolean hasRedeliveryCount() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public int getRedeliveryCount() {
+      return redeliveryCount_;
+    }
+    
     private void initFields() {
       consumerId_ = 0L;
       messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+      redeliveryCount_ = 0;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -13637,6 +13766,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeMessage(2, messageId_);
       }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeUInt32(3, redeliveryCount_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -13652,6 +13784,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(2, messageId_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt32Size(3, redeliveryCount_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -13770,6 +13906,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x00000002);
+        redeliveryCount_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
@@ -13811,6 +13949,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.messageId_ = messageId_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.redeliveryCount_ = redeliveryCount_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -13822,6 +13964,9 @@ public final class PulsarApi {
         }
         if (other.hasMessageId()) {
           mergeMessageId(other.getMessageId());
+        }
+        if (other.hasRedeliveryCount()) {
+          setRedeliveryCount(other.getRedeliveryCount());
         }
         return this;
       }
@@ -13877,6 +14022,11 @@ public final class PulsarApi {
               input.readMessage(subBuilder, extensionRegistry);
               setMessageId(subBuilder.buildPartial());
               subBuilder.recycle();
+              break;
+            }
+            case 24: {
+              bitField0_ |= 0x00000004;
+              redeliveryCount_ = input.readUInt32();
               break;
             }
           }
@@ -13946,6 +14096,27 @@ public final class PulsarApi {
         messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
         
         bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      // optional uint32 redelivery_count = 3 [default = 0];
+      private int redeliveryCount_ ;
+      public boolean hasRedeliveryCount() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public int getRedeliveryCount() {
+        return redeliveryCount_;
+      }
+      public Builder setRedeliveryCount(int value) {
+        bitField0_ |= 0x00000004;
+        redeliveryCount_ = value;
+        
+        return this;
+      }
+      public Builder clearRedeliveryCount() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        redeliveryCount_ = 0;
+        
         return this;
       }
       
@@ -22623,6 +22794,10 @@ public final class PulsarApi {
     // required string namespace = 2;
     boolean hasNamespace();
     String getNamespace();
+    
+    // optional .pulsar.proto.CommandGetTopicsOfNamespace.Mode mode = 3 [default = PERSISTENT];
+    boolean hasMode();
+    org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode getMode();
   }
   public static final class CommandGetTopicsOfNamespace extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -22656,6 +22831,50 @@ public final class PulsarApi {
     
     public CommandGetTopicsOfNamespace getDefaultInstanceForType() {
       return defaultInstance;
+    }
+    
+    public enum Mode
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
+      PERSISTENT(0, 0),
+      NON_PERSISTENT(1, 1),
+      ALL(2, 2),
+      ;
+      
+      public static final int PERSISTENT_VALUE = 0;
+      public static final int NON_PERSISTENT_VALUE = 1;
+      public static final int ALL_VALUE = 2;
+      
+      
+      public final int getNumber() { return value; }
+      
+      public static Mode valueOf(int value) {
+        switch (value) {
+          case 0: return PERSISTENT;
+          case 1: return NON_PERSISTENT;
+          case 2: return ALL;
+          default: return null;
+        }
+      }
+      
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Mode>
+          internalGetValueMap() {
+        return internalValueMap;
+      }
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Mode>
+          internalValueMap =
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Mode>() {
+              public Mode findValueByNumber(int number) {
+                return Mode.valueOf(number);
+              }
+            };
+      
+      private final int value;
+      
+      private Mode(int index, int value) {
+        this.value = value;
+      }
+      
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandGetTopicsOfNamespace.Mode)
     }
     
     private int bitField0_;
@@ -22701,9 +22920,20 @@ public final class PulsarApi {
       }
     }
     
+    // optional .pulsar.proto.CommandGetTopicsOfNamespace.Mode mode = 3 [default = PERSISTENT];
+    public static final int MODE_FIELD_NUMBER = 3;
+    private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode mode_;
+    public boolean hasMode() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode getMode() {
+      return mode_;
+    }
+    
     private void initFields() {
       requestId_ = 0L;
       namespace_ = "";
+      mode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode.PERSISTENT;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -22736,6 +22966,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeBytes(2, getNamespaceBytes());
       }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeEnum(3, mode_.getNumber());
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -22751,6 +22984,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(2, getNamespaceBytes());
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeEnumSize(3, mode_.getNumber());
       }
       memoizedSerializedSize = size;
       return size;
@@ -22869,6 +23106,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         namespace_ = "";
         bitField0_ = (bitField0_ & ~0x00000002);
+        mode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
@@ -22910,6 +23149,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.namespace_ = namespace_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.mode_ = mode_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -22921,6 +23164,9 @@ public final class PulsarApi {
         }
         if (other.hasNamespace()) {
           setNamespace(other.getNamespace());
+        }
+        if (other.hasMode()) {
+          setMode(other.getMode());
         }
         return this;
       }
@@ -22967,6 +23213,15 @@ public final class PulsarApi {
             case 18: {
               bitField0_ |= 0x00000002;
               namespace_ = input.readBytes();
+              break;
+            }
+            case 24: {
+              int rawValue = input.readEnum();
+              org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode value = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode.valueOf(rawValue);
+              if (value != null) {
+                bitField0_ |= 0x00000004;
+                mode_ = value;
+              }
               break;
             }
           }
@@ -23030,6 +23285,30 @@ public final class PulsarApi {
         bitField0_ |= 0x00000002;
         namespace_ = value;
         
+      }
+      
+      // optional .pulsar.proto.CommandGetTopicsOfNamespace.Mode mode = 3 [default = PERSISTENT];
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode mode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+      public boolean hasMode() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode getMode() {
+        return mode_;
+      }
+      public Builder setMode(org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00000004;
+        mode_ = value;
+        
+        return this;
+      }
+      public Builder clearMode() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        mode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+        
+        return this;
       }
       
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandGetTopicsOfNamespace)

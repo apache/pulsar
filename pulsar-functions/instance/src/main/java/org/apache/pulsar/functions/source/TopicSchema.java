@@ -31,6 +31,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
@@ -77,7 +78,10 @@ public class TopicSchema {
      */
     private SchemaType getSchemaTypeOrDefault(String topic, Class<?> clazz) {
         if (GenericRecord.class.isAssignableFrom(clazz)) {
-            return SchemaType.AUTO;
+            return SchemaType.AUTO_CONSUME;
+        } else if (byte[].class.equals(clazz)) {
+            // if function uses bytes, we should ignore
+            return SchemaType.NONE;
         } else {
             Optional<SchemaInfo> schema = ((PulsarClientImpl) client).getSchema(topic).join();
             if (schema.isPresent()) {
@@ -93,12 +97,14 @@ public class TopicSchema {
             return SchemaType.NONE;
         } else if (GenericRecord.class.isAssignableFrom(clazz)) {
             // the function is taking generic record, so we do auto schema detection
-            return SchemaType.AUTO;
+            return SchemaType.AUTO_CONSUME;
         } else if (String.class.equals(clazz)) {
             // If type is String, then we use schema type string, otherwise we fallback on default schema
             return SchemaType.STRING;
         } else if (isProtobufClass(clazz)) {
             return SchemaType.PROTOBUF;
+        } else if (KeyValue.class.equals(clazz)) {
+            return SchemaType.KEY_VALUE;
         } else {
             return DEFAULT_SCHEMA_TYPE;
         }
@@ -110,8 +116,9 @@ public class TopicSchema {
         case NONE:
             return (Schema<T>) Schema.BYTES;
 
+        case AUTO_CONSUME:
         case AUTO:
-            return (Schema<T>) Schema.AUTO();
+            return (Schema<T>) Schema.AUTO_CONSUME();
 
         case STRING:
             return (Schema<T>) Schema.STRING;
@@ -121,6 +128,9 @@ public class TopicSchema {
 
         case JSON:
             return JSONSchema.of(clazz);
+
+        case KEY_VALUE:
+            return (Schema<T>)Schema.KV_BYTES;
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());

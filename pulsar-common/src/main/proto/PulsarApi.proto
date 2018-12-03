@@ -98,6 +98,8 @@ message MessageMetadata {
 	// Additional parameters required by encryption
 	optional bytes encryption_param = 15;
 	optional bytes schema_version = 16;
+
+        optional bool partition_key_b64_encoded = 17 [ default = false ];
 }
 
 
@@ -110,6 +112,8 @@ message SingleMessageMetadata {
 	// the timestamp that this event occurs. it is typically set by applications.
 	// if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
 	optional uint64 event_time = 5 [default = 0];
+
+        optional bool partition_key_b64_encoded = 6 [ default = false ];
 }
 
 enum ServerError {
@@ -335,6 +339,7 @@ message CommandSendError {
 message CommandMessage {
 	required uint64 consumer_id       = 1;
 	required MessageIdData message_id = 2;
+	optional uint32 redelivery_count  = 3 [default = 0];
 }
 
 message CommandAck {
@@ -503,8 +508,14 @@ message CommandGetLastMessageIdResponse {
 }
 
 message CommandGetTopicsOfNamespace {
+    enum Mode {
+        PERSISTENT = 0;
+        NON_PERSISTENT = 1;
+        ALL = 2;
+    }
 	required uint64 request_id	= 1;
 	required string namespace	= 2;
+    optional Mode mode = 3 [default = PERSISTENT];
 }
 
 message CommandGetTopicsOfNamespaceResponse {

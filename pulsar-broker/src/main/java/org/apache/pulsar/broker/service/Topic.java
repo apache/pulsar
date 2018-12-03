@@ -131,9 +131,28 @@ public interface Topic {
 
     Position getLastMessageId();
 
+    /**
+     * Whether a topic has had a schema defined for it.
+     */
+    CompletableFuture<Boolean> hasSchema();
+
+    /**
+     * Add a schema to the topic. This will fail if the new schema is incompatible with the current
+     * schema.
+     */
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
 
+    /**
+     * Check if schema is compatible with current topic schema.
+     */
     CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema);
+
+    /**
+     * If the topic is idle (no producers, no entries, no subscribers and no existing schema),
+     * add the passed schema to the topic. Otherwise, check that the passed schema is compatible
+     * with what the topic already has.
+     */
+    CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
 
     CompletableFuture<Void> deleteForcefully();
 }

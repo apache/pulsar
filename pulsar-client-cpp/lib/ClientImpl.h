@@ -66,6 +66,8 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
     void createReaderAsync(const std::string& topic, const MessageId& startMessageId,
                            const ReaderConfiguration& conf, ReaderCallback callback);
 
+    void getPartitionsForTopicAsync(const std::string& topic, GetPartitionsCallback callback);
+
     Future<Result, ClientConnectionWeakPtr> getConnection(const std::string& topic);
     void handleLookup(Result result, LookupDataResultPtr data,
                       Promise<Result, ClientConnectionWeakPtr> promise);
@@ -100,6 +102,9 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
     void handleReaderMetadataLookup(const Result result, const LookupDataResultPtr partitionMetadata,
                                     TopicNamePtr topicName, MessageId startMessageId,
                                     ReaderConfiguration conf, ReaderCallback callback);
+
+    void handleGetPartitions(const Result result, const LookupDataResultPtr partitionMetadata,
+                             TopicNamePtr topicName, GetPartitionsCallback callback);
 
     void handleProducerCreated(Result result, ProducerImplBaseWeakPtr producerWeakPtr,
                                CreateProducerCallback callback, ProducerImplBasePtr producer);

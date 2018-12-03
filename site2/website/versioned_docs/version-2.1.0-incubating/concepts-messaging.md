@@ -135,7 +135,7 @@ In *failover* mode, multiple consumers can attach to the same subscription. The 
 
 When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.
 
-In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-2 disconnected.
+In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-1 disconnected.
 
 ![Failover subscriptions](assets/pulsar-failover-subscriptions.png)
 

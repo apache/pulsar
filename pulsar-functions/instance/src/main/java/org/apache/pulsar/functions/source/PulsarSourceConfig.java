@@ -28,8 +28,8 @@ import lombok.Data;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.utils.ConsumerConfig;
-import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
 
 @Data
 public class PulsarSourceConfig {
@@ -37,6 +37,8 @@ public class PulsarSourceConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     SubscriptionType subscriptionType;
     private String subscriptionName;
+    private Integer maxMessageRetries = -1;
+    private String deadLetterTopic;
 
     private Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
 

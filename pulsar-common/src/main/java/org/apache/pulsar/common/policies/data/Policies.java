@@ -36,6 +36,7 @@ public class Policies {
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
     public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
+    public Map<String, SubscribeRate> clusterSubscribeRate = Maps.newHashMap();
     public PersistencePolicies persistence = null;
 
     // If set, it will override the broker settings for enabling deduplication
@@ -61,6 +62,9 @@ public class Policies {
     public long offload_threshold = -1;
     public Long offload_deletion_lag_ms = null;
 
+    public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
+        SchemaAutoUpdateCompatibilityStrategy.Full;
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Policies) {
@@ -69,6 +73,7 @@ public class Policies {
                     && Objects.equals(replication_clusters, other.replication_clusters)
                     && Objects.equals(backlog_quota_map, other.backlog_quota_map)
                     && Objects.equals(clusterDispatchRate, other.clusterDispatchRate)
+                    && Objects.equals(clusterSubscribeRate, other.clusterSubscribeRate)
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
@@ -82,7 +87,8 @@ public class Policies {
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
-                    && offload_deletion_lag_ms == other.offload_deletion_lag_ms;
+                    && offload_deletion_lag_ms == other.offload_deletion_lag_ms
+                    && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy;
         }
 
         return false;
@@ -104,6 +110,7 @@ public class Policies {
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
                 .add("clusterDispatchRate", clusterDispatchRate)
+                .add("clusterSubscribeRate", clusterSubscribeRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("antiAffinityGroup", antiAffinityGroup)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
@@ -115,6 +122,7 @@ public class Policies {
                 .add("max_consumers_per_subscription", max_consumers_per_topic)
                 .add("compaction_threshold", compaction_threshold)
                 .add("offload_threshold", offload_threshold)
-                .add("offload_deletion_lag_ms", offload_deletion_lag_ms).toString();
+                .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
+                .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy).toString();
     }
 }

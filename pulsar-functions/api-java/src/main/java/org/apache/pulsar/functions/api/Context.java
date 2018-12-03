@@ -86,7 +86,14 @@ public interface Context {
      *
      * @return the instance id
      */
-    String getInstanceId();
+    int getInstanceId();
+
+    /**
+     * Get the number of instances that invoke this function.
+     *
+     * @return the number of instances that invoke this function.
+     */
+    int getNumInstances();
 
     /**
      * The version of the function that we are executing
@@ -151,6 +158,13 @@ public interface Context {
      * @return Either the user config value associated with a given key or a supplied default value
      */
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
+
+    /**
+     * Get the secret associated with this key
+     * @param secretName The name of the secret
+     * @return The secret if anything was found or null
+     */
+    String getSecret(String secretName);
 
     /**
      * Record a user defined metric

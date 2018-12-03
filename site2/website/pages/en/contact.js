@@ -16,25 +16,25 @@ class Contact extends React.Component {
     let language = this.props.language || '';
     const mailingLists = [
       {
-        email: 'users@pulsar.incubator.apache.org',
+        email: 'users@pulsar.apache.org',
         desc: 'User-related discussions',
-        subscribe: 'mailto:users@pulsar.incubator.apache.org',
-        unsubscribe: 'mailto:users-unsubscribe@pulsar.incubator.apache.org',
-        archives: 'http://mail-archives.apache.org/mod_mbox/incubator-pulsar-users/'
+        subscribe: 'mailto:users-subscribe@pulsar.apache.org',
+        unsubscribe: 'mailto:users-unsubscribe@pulsar.apache.org',
+        archives: 'http://mail-archives.apache.org/mod_mbox/pulsar-users/'
       },
       {
-        email: 'dev@pulsar.incubator.apache.org',
+        email: 'dev@pulsar.apache.org',
         desc: 'Development-related discussions',
-        subscribe: 'mailto:dev@pulsar.incubator.apache.org',
-        unsubscribe: 'mailto:dev-unsubscribe@pulsar.incubator.apache.org',
-        archives: 'http://mail-archives.apache.org/mod_mbox/incubator-pulsar-dev/'
+        subscribe: 'mailto:dev-subscribe@pulsar.apache.org',
+        unsubscribe: 'mailto:dev-unsubscribe@pulsar.apache.org',
+        archives: 'http://mail-archives.apache.org/mod_mbox/pulsar-dev/'
       },
       {
-        email: 'dev@pulsar.incubator.apache.org',
+        email: 'commits@pulsar.apache.org',
         desc: 'All commits to the Pulsar repository',
-        subscribe: 'mailto:commits-subscribe@pulsar.incubator.apache.org',
-        unsubscribe: 'mailto:commits-unsubscribe@pulsar.incubator.apache.org',
-        archives: 'http://mail-archives.apache.org/mod_mbox/incubator-pulsar-commits/'
+        subscribe: 'mailto:commits-subscribe@pulsar.apache.org',
+        unsubscribe: 'mailto:commits-unsubscribe@pulsar.apache.org',
+        archives: 'http://mail-archives.apache.org/mod_mbox/pulsar-commits/'
       }
     ]
 
@@ -51,7 +51,7 @@ class Contact extends React.Component {
             The mailing lists are the primary place where all Pulsar committers are present.
             Bugs and feature requests can either be discussed on the dev mailing list or
             by opening an issue on
-            <a href="https://github.com/apache/incubator-pulsar/" target="_blank">GitHub</a>.
+            <a href="https://github.com/apache/pulsar/" target="_blank">GitHub</a>.
             </translate></p>
 
             <h2><translate>Mailing Lists</translate></h2>

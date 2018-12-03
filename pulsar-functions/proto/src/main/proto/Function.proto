@@ -40,6 +40,11 @@ message Resources {
     int64 disk = 3;
 }
 
+message RetryDetails {
+    int32 maxMessageRetries = 1;
+    string deadLetterTopic = 2;
+}
+
 message FunctionDetails {
     enum Runtime {
         JAVA = 0;
@@ -52,6 +57,7 @@ message FunctionDetails {
     string logTopic = 5;
     ProcessingGuarantees processingGuarantees = 6;
     string userConfig = 7;
+    string secretsMap = 16;
     Runtime runtime = 8;
     bool autoAck = 9;
     int32 parallelism = 10;
@@ -59,6 +65,7 @@ message FunctionDetails {
     SinkSpec sink = 12;
     Resources resources = 13;
     string packageUrl = 14; //present only if function submitted with package-url
+    RetryDetails retryDetails = 15;
 }
 
 message ConsumerSpec {
@@ -116,6 +123,7 @@ message SinkSpec {
 
 message PackageLocationMetaData {
     string packagePath = 1;
+    string originalFileName = 2;
 }
 
 message FunctionMetaData {

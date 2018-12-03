@@ -37,7 +37,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -47,6 +46,7 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.functions.proto.Function;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -131,6 +131,7 @@ public class MembershipManagerTest {
         ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
         WorkerService workerService = mock(WorkerService.class);
@@ -202,6 +203,7 @@ public class MembershipManagerTest {
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
         doReturn(mock(Reader.class)).when(readerBuilder).create();
         WorkerService workerService = mock(WorkerService.class);
         doReturn(pulsarClient).when(workerService).getClient();
@@ -296,6 +298,7 @@ public class MembershipManagerTest {
         ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
         WorkerService workerService = mock(WorkerService.class);
@@ -356,4 +359,78 @@ public class MembershipManagerTest {
         verify(schedulerManager, times(1)).schedule();
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
     }
+
+    @Test
+    public void testHeartBeatFunctionWorkerDown() throws Exception {
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
+        workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+        workerConfig.setStateStorageServiceUrl("foo");
+        workerConfig.setRescheduleTimeoutMs(30000);
+        SchedulerManager schedulerManager = mock(SchedulerManager.class);
+        PulsarClient pulsarClient = mockPulsarClient();
+        ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
+        doReturn(readerBuilder).when(pulsarClient).newReader();
+        doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(true);
+        doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(mock(Reader.class)).when(readerBuilder).create();
+        WorkerService workerService = mock(WorkerService.class);
+        doReturn(pulsarClient).when(workerService).getClient();
+        doReturn(workerConfig).when(workerService).getWorkerConfig();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+        
+        FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
+                workerConfig,
+                workerService,
+                mock(Namespace.class),
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
+        ));
+        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+        MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient()));
+
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "host-1", 8000));
+        // make worker-2 unavailable
+        //workerInfoList.add(WorkerInfo.of("worker-2", "host-2", 8001));
+
+        Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
+
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setParallelism(1)
+                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
+
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setParallelism(1)
+                        .setTenant(SchedulerManager.HEARTBEAT_TENANT)
+                        .setNamespace(SchedulerManager.HEARTBEAT_NAMESPACE).setName("worker-2"))
+                .build();
+
+        List<Function.FunctionMetaData> metaDataList = new LinkedList<>();
+        metaDataList.add(function1);
+        metaDataList.add(function2);
+
+        Mockito.doReturn(metaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
+        Function.Assignment assignment1 = Function.Assignment.newBuilder()
+                .setWorkerId("worker-1").setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                .build();
+        Function.Assignment assignment2 = Function.Assignment.newBuilder()
+                .setWorkerId("worker-2").setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function2).setInstanceId(0).build())
+                .build();
+
+        // add existing assignments
+        functionRuntimeManager.setAssignment(assignment1);
+        functionRuntimeManager.setAssignment(assignment2);
+
+        membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
+
+        verify(schedulerManager, times(0)).schedule();
+        verify(functionRuntimeManager, times(0)).removeAssignments(any());
+        Assert.assertEquals(membershipManager.unsignedFunctionDurations.size(), 0);
+    }
+    
 }

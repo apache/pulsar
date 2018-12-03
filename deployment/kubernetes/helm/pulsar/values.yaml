@@ -31,6 +31,8 @@ persistence: no
 ## will be deployed with emptyDir
 prometheus_persistence: yes
 
+prometheus_rbac: yes
+
 ## which extra components to deploy
 extra:
   # Pulsar proxy
@@ -256,6 +258,7 @@ proxy:
   ##
   service:
     annotations: {}
+    type: NodePort
     ports:
     - name: http
       port: 8080

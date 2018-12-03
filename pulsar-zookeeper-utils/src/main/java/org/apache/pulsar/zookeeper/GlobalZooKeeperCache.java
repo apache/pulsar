@@ -65,7 +65,7 @@ public class GlobalZooKeeperCache extends ZooKeeperCache implements Closeable {
 
         // Initial session creation with global ZK must work
         try {
-            ZooKeeper newSession = zkFuture.get(10, TimeUnit.SECONDS);
+            ZooKeeper newSession = zkFuture.get(zkSessionTimeoutMillis, TimeUnit.MILLISECONDS);
             // Register self as a watcher to receive notification when session expires and trigger a new session to be
             // created
             newSession.register(this);

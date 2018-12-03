@@ -43,8 +43,16 @@
     <fileSet>
       <directory>${basedir}/licenses</directory>
     </fileSet>
+    <!-- created `instances/deps` directory -->
     <fileSet>
-      <directory>${basedir}/../../pulsar-functions/runtime/target/python-instance</directory>
+      <directory>.</directory>
+      <outputDirectory>instances/deps</outputDirectory>
+      <excludes>
+        <exclude>*/**</exclude>
+      </excludes>
+    </fileSet>
+    <fileSet>
+      <directory>${basedir}/../../pulsar-functions/instance/target/python-instance</directory>
       <outputDirectory>instances/python-instance</outputDirectory>
     </fileSet>
     <fileSet>
@@ -57,11 +65,6 @@
     </fileSet>
   </fileSets>
   <files>
-    <file>
-      <source>${basedir}/../../DISCLAIMER</source>
-      <outputDirectory>.</outputDirectory>
-      <fileMode>644</fileMode>
-    </file>
     <file>
       <source>${basedir}/src/assemble/README.bin.txt</source>
       <destName>README</destName>
@@ -134,6 +137,8 @@
         <!-- Explicitely remove JUnit which is getting pulled in even
              though it's set to the scope 'test' -->
         <exclude>junit:junit</exclude>
+
+        <exclude>org.projectlombok:lombok</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

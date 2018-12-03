@@ -18,29 +18,8 @@
  */
 package org.apache.pulsar.functions.windowing;
 
-import org.apache.pulsar.functions.utils.WindowConfig;
-
 public class WindowUtils {
     public static String getFullyQualifiedName(String tenant, String namespace, String name) {
         return String.format("%s/%s/%s", tenant, namespace, name);
-    }
-
-    public static void inferDefaultConfigs(WindowConfig windowConfig) {
-        if (windowConfig.getWindowLengthDurationMs() != null && windowConfig.getSlidingIntervalDurationMs() == null) {
-            windowConfig.setSlidingIntervalDurationMs(windowConfig.getWindowLengthDurationMs());
-        }
-
-        if (windowConfig.getWindowLengthCount() != null && windowConfig.getSlidingIntervalCount() == null) {
-            windowConfig.setSlidingIntervalCount(windowConfig.getWindowLengthCount());
-        }
-
-        if (windowConfig.getTimestampExtractorClassName() != null) {
-            if (windowConfig.getMaxLagMs() == null) {
-                windowConfig.setMaxLagMs(WindowFunctionExecutor.DEFAULT_MAX_LAG_MS);
-            }
-            if (windowConfig.getWatermarkEmitIntervalMs() == null) {
-                windowConfig.setWatermarkEmitIntervalMs(WindowFunctionExecutor.DEFAULT_WATERMARK_EVENT_INTERVAL_MS);
-            }
-        }
     }
 }

@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.2.0-incubating-SNAPSHOT</version>
+    <version>2.3.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -64,6 +64,14 @@
       <artifactId>zookeeper</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
+    </dependency>
+
+     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger-original</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+      <version>${project.parent.version}</version>
     </dependency>
 
     <dependency>
@@ -114,8 +122,9 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
+        <groupId>com.github.m50d</groupId>
         <artifactId>aspectj-maven-plugin</artifactId>
+        <version>${aspectj-maven-plugin.version}</version>
         <configuration>
           <complianceLevel>1.8</complianceLevel>
           <source>1.8</source>

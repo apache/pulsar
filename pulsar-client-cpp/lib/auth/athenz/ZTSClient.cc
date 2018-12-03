@@ -45,7 +45,7 @@ namespace pulsar {
 
 const static std::string DEFAULT_PRINCIPAL_HEADER = "Athenz-Principal-Auth";
 const static std::string DEFAULT_ROLE_HEADER = "Athenz-Role-Auth";
-const static int REQUEST_TIMEOUT = 10000;
+const static int REQUEST_TIMEOUT = 30000;
 const static int DEFAULT_TOKEN_EXPIRATION_TIME_SEC = 3600;
 const static int MIN_TOKEN_EXPIRATION_TIME_SEC = 900;
 const static int MAX_HTTP_REDIRECTS = 20;
@@ -141,8 +141,16 @@ std::string ZTSClient::ybase64Encode(const unsigned char *input, int length) {
 }
 
 char *ZTSClient::base64Decode(const char *input) {
-    BIO *bio, *b64;
+    if (input == NULL) {
+        return NULL;
+    }
+
     size_t length = strlen(input);
+    if (length == 0) {
+        return NULL;
+    }
+
+    BIO *bio, *b64;
     char *result = (char *)malloc(length);
 
     bio = BIO_new_mem_buf((void *)input, -1);
@@ -150,16 +158,21 @@ char *ZTSClient::base64Decode(const char *input) {
     bio = BIO_push(b64, bio);
 
     BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
-    BIO_read(bio, result, length);
+    int decodeStrLen = BIO_read(bio, result, length);
     BIO_free_all(bio);
+    if (decodeStrLen > 0) {
+        result[decodeStrLen] = '\0';
+        return result;
+    }
+    free(result);
 
-    return result;
+    return NULL;
 }
 
 const std::string ZTSClient::getPrincipalToken() const {
     // construct unsigned principal token
     std::string unsignedTokenString = "v=S1";
-    char host[BUFSIZ];
+    char host[BUFSIZ] = {};
     long long t = (long long)time(NULL);
 
     gethostname(host, sizeof(host));
@@ -176,8 +189,8 @@ const std::string ZTSClient::getPrincipalToken() const {
 
     // signing
     const char *unsignedToken = unsignedTokenString.c_str();
-    unsigned char signature[BUFSIZ];
-    unsigned char hash[SHA256_DIGEST_LENGTH];
+    unsigned char signature[BUFSIZ] = {};
+    unsigned char hash[SHA256_DIGEST_LENGTH] = {};
     unsigned int siglen;
     FILE *fp;
     RSA *privateKey;
@@ -189,14 +202,21 @@ const std::string ZTSClient::getPrincipalToken() const {
         }
         char *decodeStr = base64Decode(privateKeyUri_.data.c_str());
 
+        if (decodeStr == NULL) {
+            LOG_ERROR("Failed to decode privateKey");
+            return "";
+        }
+
         BIO *bio = BIO_new_mem_buf((void *)decodeStr, -1);
         BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
         if (bio == NULL) {
             LOG_ERROR("Failed to create key BIO");
+            free(decodeStr);
             return "";
         }
         privateKey = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL);
         BIO_free(bio);
+        free(decodeStr);
         if (privateKey == NULL) {
             LOG_ERROR("Failed to load privateKey");
             return "";
@@ -224,6 +244,8 @@ const std::string ZTSClient::getPrincipalToken() const {
 
     std::string principalToken = unsignedTokenString + ";s=" + ybase64Encode(signature, siglen);
     LOG_DEBUG("Created signed principal token: " << principalToken);
+
+    RSA_free(privateKey);
 
     return principalToken;
 }
@@ -272,7 +294,7 @@ const std::string ZTSClient::getRoleToken() const {
     curl_easy_setopt(handle, CURLOPT_NOSIGNAL, 1L);
 
     // Timer
-    curl_easy_setopt(handle, CURLOPT_TIMEOUT, REQUEST_TIMEOUT);
+    curl_easy_setopt(handle, CURLOPT_TIMEOUT_MS, REQUEST_TIMEOUT);
 
     // Redirects
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);

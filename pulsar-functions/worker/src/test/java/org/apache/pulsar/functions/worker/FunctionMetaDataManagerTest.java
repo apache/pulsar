@@ -66,15 +66,16 @@ public class FunctionMetaDataManagerTest {
                         mockPulsarClient()));
 
         Map<String, Function.FunctionMetaData> functionMetaDataMap1 = new HashMap<>();
-        functionMetaDataMap1.put("func-1", Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                        Function.FunctionDetails.newBuilder().setName("func-1")).build());
-        functionMetaDataMap1.put("func-2",
-                Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                        Function.FunctionDetails.newBuilder().setName("func-2")).build());
+        Function.FunctionMetaData f1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setName("func-1")).build();
+        functionMetaDataMap1.put("func-1", f1);
+        Function.FunctionMetaData f2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setName("func-2")).build();
+        functionMetaDataMap1.put("func-2", f2);
+        Function.FunctionMetaData f3 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setName("func-3")).build();
         Map<String, Function.FunctionMetaData> functionMetaDataInfoMap2 = new HashMap<>();
-        functionMetaDataInfoMap2.put("func-3",
-                Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                        Function.FunctionDetails.newBuilder().setName("func-3")).build());
+        functionMetaDataInfoMap2.put("func-3", f3);
 
 
         functionMetaDataManager.functionMetaDataMap.put("tenant-1", new HashMap<>());
@@ -86,13 +87,13 @@ public class FunctionMetaDataManagerTest {
         Assert.assertEquals(2, functionMetaDataManager.listFunctions(
                 "tenant-1", "namespace-1").size());
         Assert.assertTrue(functionMetaDataManager.listFunctions(
-                "tenant-1", "namespace-1").contains("func-1"));
+                "tenant-1", "namespace-1").contains(f1));
         Assert.assertTrue(functionMetaDataManager.listFunctions(
-                "tenant-1", "namespace-1").contains("func-2"));
+                "tenant-1", "namespace-1").contains(f2));
         Assert.assertEquals(1, functionMetaDataManager.listFunctions(
                 "tenant-1", "namespace-2").size());
         Assert.assertTrue(functionMetaDataManager.listFunctions(
-                "tenant-1", "namespace-2").contains("func-3"));
+                "tenant-1", "namespace-2").contains(f3));
     }
 
     @Test

@@ -65,6 +65,7 @@ struct Arguments {
     long batchingMaxPublishDelayMs;
     std::string encKeyName;
     std::string encKeyValueFile;
+    std::string compression;
 };
 
 namespace pulsar {
@@ -259,6 +260,9 @@ int main(int argc, char** argv) {
     ("batch-size", po::value<unsigned int>(&args.batchingMaxMessages)->default_value(1),
             "If batch size == 1 then batching is disabled. Default batch size == 1") //
 
+    ("compression", po::value<std::string>(&args.compression)->default_value(""),
+             "Compression can be either 'zlib' or 'lz4'. Default is no compression") //
+
     ("max-batch-size-in-bytes", po::value<long>(&args.batchingMaxAllowedSizeInBytes)->default_value(128 * 1024),
             "Use only is batch-size > 1, Default is 128 KB") //
 
@@ -327,6 +331,15 @@ int main(int argc, char** argv) {
         producerConf.setBatchingMaxMessages(args.batchingMaxMessages);
         producerConf.setBatchingMaxAllowedSizeInBytes(args.batchingMaxAllowedSizeInBytes);
         producerConf.setBatchingMaxPublishDelayMs(args.batchingMaxPublishDelayMs);
+    }
+
+    if (args.compression == "zlib") {
+        producerConf.setCompressionType(CompressionZLib);
+    } else if (args.compression == "lz4") {
+        producerConf.setCompressionType(CompressionLZ4);
+    } else if (!args.compression.empty()) {
+        LOG_WARN("Invalid compression type: " << args.compression);
+        return -1;
     }
 
     // Block if queue is full else we will start seeing errors in sendAsync

@@ -7,7 +7,7 @@ sidebar_label: Go
 The Pulsar Go client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
 > #### API docs available as well
-> For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar).
+> For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/pulsar/pulsar-client-go/pulsar).
 
 
 ## Installation
@@ -20,27 +20,25 @@ through [RPM](client-libraries-cpp.md#rpm), [Deb](client-libraries-cpp.md#deb) o
 
 ### Installing go package
 
-You can install the `pulsar` library locally using `go get`:
+> #### Compatibility Warning
+> The version number of the Go client **must match** the version number of the Pulsar C++ client library.
 
-> #### NOTE
-> 
-> `go get` doesn't support fetching a specific tag. so it will always pull in pulsar go client
-> from latest master. You need to make sure you have installed the right pulsar cpp client library.
+You can install the `pulsar` library locally using `go get`.  Note that `go get` doesn't support fetching a specific tag - it will always pull in master's version of the Go client.  You'll need a C++ client library that matches master.
 
 ```bash
-$ go get -u github.com/apache/incubator-pulsar/pulsar-client-go/pulsar
+$ go get -u github.com/apache/pulsar/pulsar-client-go/pulsar
 ```
 
 Or you can use [dep](https://github.com/golang/dep) for managing the dependencies.
 
 ```bash
-$ dep ensure -add github.com/apache/incubator-pulsar/pulsar-client-go/pulsar@v{{pulsar:version}}
+$ dep ensure -add github.com/apache/pulsar/pulsar-client-go/pulsar@v{{pulsar:version}}
 ```
 
 Once installed locally, you can import it into your project:
 
 ```go
-import "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+import "github.com/apache/pulsar/pulsar-client-go/pulsar"
 ```
 
 ## Connection URLs
@@ -75,7 +73,7 @@ import (
     "log"
     "runtime"
 
-    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
@@ -152,8 +150,9 @@ Here's a more involved example usage of a producer:
 import (
     "context"
     "fmt"
+    "log"
 
-    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
@@ -237,7 +236,7 @@ if err != nil {
 
 defer consumer.Close()
 
-for cm := range channel {
+for cm := range msgChannel {
     msg := cm.Message
 
     fmt.Printf("Message ID: %s", msg.ID())
@@ -276,7 +275,7 @@ import (
     "context"
     "log"
 
-    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
@@ -359,7 +358,7 @@ import (
     "context"
     "log"
 
-    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {

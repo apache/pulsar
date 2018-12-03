@@ -18,6 +18,7 @@
  */
 package org.apache.flink.streaming.connectors.pulsar;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -40,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.function.Function;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -97,10 +99,7 @@ public class FlinkPulsarProducer<IN>
     /**
      * The callback than handles error propagation or logging callbacks.
      */
-    protected transient Function<MessageId, MessageId> successCallback = msgId -> {
-        acknowledgeMessage();
-        return msgId;
-    };
+    protected transient Function<MessageId, MessageId> successCallback;
 
     protected transient Function<Throwable, MessageId> failureCallback;
 
@@ -124,8 +123,10 @@ public class FlinkPulsarProducer<IN>
                                SerializationSchema<IN> serializationSchema,
                                ProducerConfiguration producerConfig,
                                PulsarKeyExtractor<IN> keyExtractor) {
-        this.serviceUrl = checkNotNull(serviceUrl, "Service url not set");
-        this.defaultTopicName = checkNotNull(defaultTopicName, "TopicName not set");
+        checkArgument(StringUtils.isNotBlank(serviceUrl), "Service url cannot be blank");
+        checkArgument(StringUtils.isNotBlank(defaultTopicName), "TopicName cannot be blank");
+        this.serviceUrl = serviceUrl;
+        this.defaultTopicName = defaultTopicName;
         this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
         this.producerConfig = checkNotNull(producerConfig, "Producer Config is not set");
         this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);
@@ -204,6 +205,11 @@ public class FlinkPulsarProducer<IN>
             LOG.warn("Flushing on checkpoint is enabled, but checkpointing is not enabled. Disabling flushing.");
             flushOnCheckpoint = false;
         }
+
+        this.successCallback =  msgId -> {
+            acknowledgeMessage();
+            return msgId;
+        };
 
         if (PulsarProduceMode.AT_MOST_ONCE == produceMode) {
             this.failureCallback = cause -> {
@@ -307,7 +313,7 @@ public class FlinkPulsarProducer<IN>
         if (e != null) {
             // prevent double throwing
             asyncException = null;
-            throw new Exception("Failed to send data to Kafka: " + e.getMessage(), e);
+            throw new Exception("Failed to send data to Pulsar: " + e.getMessage(), e);
         }
     }
 

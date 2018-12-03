@@ -37,7 +37,9 @@ public interface Record<T> {
     /**
      * Return a key if the key has one associated
      */
-    Optional<String> getKey();
+    default Optional<String> getKey() {
+        return Optional.empty();
+    }
 
     /**
      * Retrieves the actual data of the record
@@ -92,5 +94,14 @@ public interface Record<T> {
      * To indicate that this record has failed to be processed
      */
     default void fail() {
+    }
+
+    /**
+     * To support message routing on a per message basis
+     *
+     * @return The topic this message should be written to
+     */
+    default Optional<String> getDestinationTopic() {
+        return Optional.empty();
     }
 }

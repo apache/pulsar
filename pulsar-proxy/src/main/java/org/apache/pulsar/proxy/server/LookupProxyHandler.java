@@ -301,13 +301,15 @@ public class LookupProxyHandler {
             serviceUrl = this.connectWithTLS ?
                 service.getConfiguration().getBrokerServiceURLTLS() : service.getConfiguration().getBrokerServiceURL();
         }
-        performGetTopicsOfNamespace(clientRequestId, commandGetTopicsOfNamespace.getNamespace(), serviceUrl, 10);
+        performGetTopicsOfNamespace(clientRequestId, commandGetTopicsOfNamespace.getNamespace(), serviceUrl, 10,
+            commandGetTopicsOfNamespace.getMode());
     }
 
     private void performGetTopicsOfNamespace(long clientRequestId,
                                              String namespaceName,
                                              String brokerServiceUrl,
-                                             int numberOfRetries) {
+                                             int numberOfRetries,
+                                             CommandGetTopicsOfNamespace.Mode mode) {
         if (numberOfRetries == 0) {
             proxyConnection.ctx().writeAndFlush(Commands.newError(clientRequestId, ServerError.ServiceNotReady,
                     "Reached max number of redirections"));
@@ -332,7 +334,7 @@ public class LookupProxyHandler {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
             ByteBuf command;
-            command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId);
+            command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode);
             clientCnx.newGetTopicsOfNamespace(command, requestId).thenAccept(topicList ->
                 proxyConnection.ctx().writeAndFlush(
                     Commands.newGetTopicsOfNamespaceResponse(topicList, clientRequestId))

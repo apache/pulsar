@@ -19,8 +19,10 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
+import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -28,6 +30,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
@@ -45,24 +48,40 @@ class ThreadRuntime implements Runtime {
     private InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
     private ThreadGroup threadGroup;
-
+    private FunctionCacheManager fnCache;
+    private String jarFile;
+    private PulsarClient pulsarClient;
+    private String stateStorageServiceUrl;
+    private SecretsProvider secretsProvider;
+    private CollectorRegistry collectorRegistry;
     ThreadRuntime(InstanceConfig instanceConfig,
                   FunctionCacheManager fnCache,
                   ThreadGroup threadGroup,
                   String jarFile,
                   PulsarClient pulsarClient,
-                  String stateStorageServiceUrl) {
+                  String stateStorageServiceUrl,
+                  SecretsProvider secretsProvider,
+                  CollectorRegistry collectorRegistry) {
         this.instanceConfig = instanceConfig;
         if (instanceConfig.getFunctionDetails().getRuntime() != Function.FunctionDetails.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
         }
-        this.javaInstanceRunnable = new JavaInstanceRunnable(
-            instanceConfig,
-            fnCache,
-            jarFile,
-            pulsarClient,
-            stateStorageServiceUrl);
+
         this.threadGroup = threadGroup;
+        this.fnCache = fnCache;
+        this.jarFile = jarFile;
+        this.pulsarClient = pulsarClient;
+        this.stateStorageServiceUrl = stateStorageServiceUrl;
+        this.secretsProvider = secretsProvider;
+        this.collectorRegistry = collectorRegistry;
+        this.javaInstanceRunnable = new JavaInstanceRunnable(
+                instanceConfig,
+                fnCache,
+                jarFile,
+                pulsarClient,
+                stateStorageServiceUrl,
+                secretsProvider,
+                collectorRegistry);
     }
 
     /**
@@ -70,9 +89,21 @@ class ThreadRuntime implements Runtime {
      */
     @Override
     public void start() {
+        // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
+        this.javaInstanceRunnable = new JavaInstanceRunnable(
+                instanceConfig,
+                fnCache,
+                jarFile,
+                pulsarClient,
+                stateStorageServiceUrl,
+                secretsProvider,
+                collectorRegistry);
+
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
-                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+                String.format("%s-%s",
+                        FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
+                        instanceConfig.getInstanceId()));
         this.fnThread.start();
     }
 
@@ -97,24 +128,21 @@ class ThreadRuntime implements Runtime {
     }
 
     @Override
-    public CompletableFuture<FunctionStatus> getFunctionStatus() {
+    public CompletableFuture<FunctionStatus> getFunctionStatus(int instanceId) {
         CompletableFuture<FunctionStatus> statsFuture = new CompletableFuture<>();
         if (!isAlive()) {
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            functionStatusBuilder.setFailureException(getDeathException().getMessage());
+            Throwable ex = getDeathException();
+            if (ex != null && ex.getMessage() != null) {
+                functionStatusBuilder.setFailureException(ex.getMessage());
+            }
             statsFuture.complete(functionStatusBuilder.build());
             return statsFuture;
         }
         FunctionStatus.Builder functionStatusBuilder = javaInstanceRunnable.getFunctionStatus();
         functionStatusBuilder.setRunning(true);
-        getMetrics().handle((metrics, e) -> {
-            if (e == null) {
-                functionStatusBuilder.setMetrics(metrics);
-            }
-            statsFuture.complete(functionStatusBuilder.build());
-            return null;
-        });
+        statsFuture.complete(functionStatusBuilder.build());
         return statsFuture;
     }
 
@@ -127,6 +155,11 @@ class ThreadRuntime implements Runtime {
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getMetrics());
+    }
+
+    @Override
+    public String getPrometheusMetrics() throws IOException {
+        return javaInstanceRunnable.getStats().getStatsAsString();
     }
 
     @Override

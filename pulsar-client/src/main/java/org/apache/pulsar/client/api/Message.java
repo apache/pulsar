@@ -131,7 +131,28 @@ public interface Message<T> {
      * @return the key of the message
      */
     String getKey();
-    
+
+    /**
+     * Check whether the key has been base64 encoded.
+     *
+     * @return true if the key is base64 encoded, false otherwise
+     */
+    boolean hasBase64EncodedKey();
+
+    /**
+     * Get bytes in key. If the key has been base64 encoded, it is decoded before being returned.
+     * Otherwise, if the key is a plain string, this method returns the UTF_8 encoded bytes of the string.
+     * @return the key in byte[] form
+     */
+    byte[] getKeyBytes();
+
+    /**
+     * Get the topic the message was published to
+     *
+     * @return the topic the message was published to
+     */
+    String getTopicName();
+
     /**
      * {@link EncryptionContext} contains encryption and compression information in it using which application can
      * decrypt consumed message with encrypted-payload.
@@ -139,4 +160,16 @@ public interface Message<T> {
      * @return
      */
     Optional<EncryptionContext> getEncryptionCtx();
+
+    /**
+     * Get message redelivery count, redelivery count maintain in pulsar broker. When client acknowledge message
+     * timeout, broker will dispatch message again with message redelivery count in CommandMessage defined.
+     *
+     * Message redelivery increases monotonically in a broker, when topic switch ownership to a another broker
+     * redelivery count will be recalculate.
+     *
+     * @since 2.3.0
+     * @return message redelivery count
+     */
+    int getRedeliveryCount();
 }

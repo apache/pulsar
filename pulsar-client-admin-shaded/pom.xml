@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.2.0-incubating-SNAPSHOT</version>
+    <version>2.3.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -78,7 +78,6 @@
                   <include>io.netty:netty-all</include>
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
-                  <include>net.jpountz.lz4:lz4</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.glassfish.jersey*:*</include>
                   <include>javax.ws.rs:*</include>
@@ -101,12 +100,6 @@
                 </includes>
               </artifactSet>
               <filters>
-                <filter>
-                  <artifact>net.jpountz.lz4:lz4</artifact>
-                  <includes>
-                    <include>**</include>
-                  </includes>
-                </filter>
                 <filter>
                   <artifact>org.apache.pulsar:pulsar-io-core</artifact>
                   <includes>
@@ -148,14 +141,6 @@
                 <relocation>
                   <pattern>org.apache.pulsar.checksum</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.checksum</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.scurrilous.circe</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.com.scurrilous.circe</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>net.jpountz</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.net.jpountz</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.yahoo</pattern>

@@ -32,6 +32,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
@@ -41,9 +42,11 @@ import static org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime
 @Slf4j
 public class RuntimeSpawner implements AutoCloseable {
 
+    @Getter
     private final InstanceConfig instanceConfig;
     private final RuntimeFactory runtimeFactory;
     private final String codeFile;
+    private final String originalCodeFileName;
 
     @Getter
     private Runtime runtime;
@@ -55,10 +58,12 @@ public class RuntimeSpawner implements AutoCloseable {
 
     public RuntimeSpawner(InstanceConfig instanceConfig,
                           String codeFile,
+                          String originalCodeFileName,
                           RuntimeFactory containerFactory, long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
         this.codeFile = codeFile;
+        this.originalCodeFileName = originalCodeFileName;
         this.numRestarts = 0;
         this.instanceLivenessCheckFreqMs = instanceLivenessCheckFreqMs;
     }
@@ -68,28 +73,29 @@ public class RuntimeSpawner implements AutoCloseable {
         log.info("{}/{}/{}-{} RuntimeSpawner starting function", details.getTenant(), details.getNamespace(),
                 details.getName(), this.instanceConfig.getInstanceId());
 
-        if (instanceConfig.getFunctionDetails().getRuntime() == PYTHON
-                && instanceConfig.getFunctionDetails().getSource() != null
-                && StringUtils.isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {
-            throw new IllegalArgumentException("topics-pattern is not supported for python function");
-        }
-
-        runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile);
+        runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile, originalCodeFileName,
+                instanceLivenessCheckFreqMs / 1000);
         runtime.start();
 
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
-        if (instanceLivenessCheckFreqMs > 0) {
+        if (!runtimeFactory.externallyManaged() && instanceLivenessCheckFreqMs > 0) {
             processLivenessCheckTimer = new Timer();
             processLivenessCheckTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override
                 public void run() {
-                    if (!runtime.isAlive()) {
+                    Runtime runtime = RuntimeSpawner.this.runtime;
+                    if (runtime != null && !runtime.isAlive()) {
                         log.error("{}/{}/{}-{} Function Container is dead with exception.. restarting", details.getTenant(),
                                 details.getNamespace(), details.getName(), runtime.getDeathException());
                         // Just for the sake of sanity, just destroy the runtime
-                        runtime.stop();
-                        runtimeDeathException = runtime.getDeathException();
-                        runtime.start();
+                        try {
+                            runtime.stop();
+                            runtimeDeathException = runtime.getDeathException();
+                            runtime.start();
+                        } catch (Exception e) {
+                            log.error("{}/{}/{}-{} Function Restart failed", details.getTenant(),
+                                    details.getNamespace(), details.getName(), e, e);
+                        }
                         numRestarts++;
                     }
                 }
@@ -103,19 +109,23 @@ public class RuntimeSpawner implements AutoCloseable {
         }
     }
 
-    public CompletableFuture<FunctionStatus> getFunctionStatus() {
-        return runtime.getFunctionStatus().thenApply(f -> {
+    public CompletableFuture<FunctionStatus> getFunctionStatus(int instanceId) {
+        Runtime runtime = this.runtime;
+        if (null == runtime) {
+            return FutureUtil.failedFuture(new IllegalStateException("Function runtime is not started yet"));
+        }
+        return runtime.getFunctionStatus(instanceId).thenApply(f -> {
            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-           builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(instanceConfig.getInstanceId());
-           if (runtimeDeathException != null) {
-               builder.setFailureException(runtimeDeathException.getMessage());
-           }
+           builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(String.valueOf(instanceId));
+            if (!f.getRunning() && runtimeDeathException != null) {
+                builder.setFailureException(runtimeDeathException.getMessage());
+            }
            return builder.build();
         });
     }
 
-    public CompletableFuture<String> getFunctionStatusAsJson() {
-        return this.getFunctionStatus().thenApply(msg -> {
+    public CompletableFuture<String> getFunctionStatusAsJson(int instanceId) {
+        return this.getFunctionStatus(instanceId).thenApply(msg -> {
             try {
                 return Utils.printJson(msg);
             } catch (IOException e) {
@@ -127,13 +137,18 @@ public class RuntimeSpawner implements AutoCloseable {
 
     @Override
     public void close() {
-        if (null != runtime) {
-            runtime.stop();
-            runtime = null;
-        }
+        // cancel liveness checker before stopping runtime.
         if (processLivenessCheckTimer != null) {
             processLivenessCheckTimer.cancel();
             processLivenessCheckTimer = null;
+        }
+        if (null != runtime) {
+            try {
+                runtime.stop();
+            } catch (Exception e) {
+                // Ignore
+            }
+            runtime = null;
         }
     }
 }

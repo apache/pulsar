@@ -19,6 +19,11 @@
 package org.apache.pulsar.client.api;
 
 public class SchemaSerializationException extends RuntimeException {
+
+    public SchemaSerializationException(String message) {
+        super(message);
+    }
+
     public SchemaSerializationException(Throwable cause) {
         super(cause);
     }

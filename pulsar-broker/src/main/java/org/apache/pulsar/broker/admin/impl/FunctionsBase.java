@@ -38,10 +38,9 @@ import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.worker.WorkerInfo;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -80,10 +79,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                      final @FormDataParam("url") String functionPkgUrl,
-                                     final @FormDataParam("functionDetails") String functionDetailsJson) {
+                                     final @FormDataParam("functionDetails") String functionDetailsJson,
+                                     final @FormDataParam("functionConfig") String functionConfigJson) {
 
         return functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, clientAppId());
+                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId());
     }
 
     @PUT
@@ -101,10 +101,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                    final @FormDataParam("url") String functionPkgUrl,
-                                   final @FormDataParam("functionDetails") String functionDetailsJson) {
+                                   final @FormDataParam("functionDetails") String functionDetailsJson,
+                                   final @FormDataParam("functionConfig") String functionConfigJson) {
 
         return functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, clientAppId());
+                functionPkgUrl, functionDetailsJson, functionConfigJson, clientAppId());
 
     }
 
@@ -147,6 +148,30 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @GET
     @ApiOperation(
             value = "Displays the status of a Pulsar Function instance",
+            response = FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "The function doesn't exist")
+    })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/status")
+    public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(
+            final @PathParam("tenant") String tenant,
+
+            final @PathParam("namespace") String namespace,
+
+            final @PathParam("functionName") String functionName,
+
+            final @PathParam("instanceId") String instanceId) throws IOException {
+        return functions.getFunctionInstanceStatus(
+            tenant, namespace, functionName, instanceId, uri.getRequestUri());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Displays the status of a Pulsar Function",
             response = FunctionStatus.class
     )
     @ApiResponses(value = {
@@ -154,30 +179,52 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "The function doesn't exist")
     })
-    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/status")
-    public Response getFunctionInstanceStatus(final @PathParam("tenant") String tenant,
-                                              final @PathParam("namespace") String namespace,
-                                              final @PathParam("functionName") String functionName,
-                                              final @PathParam("instanceId") String instanceId) throws IOException {
-        return functions.getFunctionInstanceStatus(
-            tenant, namespace, functionName, instanceId);
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{tenant}/{namespace}/{functionName}/status")
+    public FunctionStatus getFunctionStatus(
+            final @PathParam("tenant") String tenant,
+            final @PathParam("namespace") String namespace,
+            final @PathParam("functionName") String functionName) throws IOException {
+        return functions.getFunctionStatus(
+            tenant, namespace, functionName, uri.getRequestUri());
     }
 
     @GET
     @ApiOperation(
-            value = "Displays the status of a Pulsar Function running in cluster mode",
-            response = FunctionStatus.class
+            value = "Displays the stats of a Pulsar Function",
+            response = FunctionStats.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "The function doesn't exist")
     })
-    @Path("/{tenant}/{namespace}/{functionName}/status")
-    public Response getFunctionStatus(final @PathParam("tenant") String tenant,
-                                      final @PathParam("namespace") String namespace,
-                                      final @PathParam("functionName") String functionName) throws IOException {
-        return functions.getFunctionStatus(
-            tenant, namespace, functionName);
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{tenant}/{namespace}/{functionName}/stats")
+    public FunctionStats getFunctionStats(final @PathParam("tenant") String tenant,
+                                     final @PathParam("namespace") String namespace,
+                                     final @PathParam("functionName") String functionName) throws IOException {
+        return functions.getFunctionStats(tenant, namespace, functionName, uri.getRequestUri());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Displays the stats of a Pulsar Function instance",
+            response = FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "The function doesn't exist")
+    })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stats")
+    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionInstanceStats(final @PathParam("tenant") String tenant,
+                                             final @PathParam("namespace") String namespace,
+                                             final @PathParam("functionName") String functionName,
+                                             final @PathParam("instanceId") String instanceId) throws IOException {
+        return functions.getFunctionsInstanceStats(
+                tenant, namespace, functionName, instanceId, uri.getRequestUri());
     }
 
     @GET
@@ -220,6 +267,27 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
 
         return functions.triggerFunction(
                 tenant, namespace, functionName, triggerValue, triggerStream, topic);
+
+    }
+
+    @GET
+    @ApiOperation(
+        value = "Fetch the current state associated with a Pulsar Function",
+        response = String.class
+    )
+    @ApiResponses(value = {
+        @ApiResponse(code = 400, message = "Invalid request"),
+        @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+        @ApiResponse(code = 404, message = "The key does not exist"),
+        @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
+    public Response getFunctionState(final @PathParam("tenant") String tenant,
+                                     final @PathParam("namespace") String namespace,
+                                     final @PathParam("functionName") String functionName,
+                                     final @PathParam("key") String key) {
+        return functions.getFunctionState(
+            tenant, namespace, functionName, key);
 
     }
 

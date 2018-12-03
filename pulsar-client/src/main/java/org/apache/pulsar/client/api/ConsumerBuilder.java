@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
+
 /**
  * {@link ConsumerBuilder} is used to configure and create instances of {@link Consumer}.
  *
@@ -149,7 +151,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            for unacked messages.
      * @param timeUnit
      *            unit in which the timeout is provided.
-     * @return {@link ConsumerConfiguration}
      */
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
@@ -256,9 +257,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * The consumer group listener is used for receiving consumer state change in a consumer group for failover
      * subscription. Application can then react to the consumer state changes.
      *
-     * @param listener
+     * @param consumerEventListener
      *            the consumer group listener object
-     * @return consumer configuration
      */
     ConsumerBuilder<T> consumerEventListener(ConsumerEventListener consumerEventListener);
 
@@ -314,7 +314,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * @param key
      * @param value
-     * @return
      */
     ConsumerBuilder<T> property(String key, String value);
 
@@ -322,7 +321,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Add all the properties in the provided map
      *
      * @param properties
-     * @return
      */
     ConsumerBuilder<T> properties(Map<String, String> properties);
 
@@ -332,10 +330,43 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition);
 
     /**
+     * Determines to which topics this consumer should be subscribed to - Persistent, Non-Persistent, or both.
+     * Only used with pattern subscriptions.
+     *
+     * @param mode Pattern subscription mode
+     */
+    ConsumerBuilder<T> subscriptionTopicsMode(Mode mode);
+
+    /**
      * Intercept {@link Consumer}.
      *
      * @param interceptors the list of interceptors to intercept the consumer created by this builder.
-     * @return consumer builder.
      */
     ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
+
+    /**
+     * Set dead letter policy for consumer
+     *
+     * By default some message will redelivery so many times possible, even to the extent that it can be never stop.
+     * By using dead letter mechanism messages will has the max redelivery count, when message exceeding the maximum
+     * number of redeliveries, message will send to the Dead Letter Topic and acknowledged automatic.
+     *
+     * You can enable the dead letter mechanism by setting dead letter policy.
+     * example:
+     * <pre>
+     * client.newConsumer()
+     *          .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())
+     *          .subscribe();
+     * </pre>
+     * Default dead letter topic name is {TopicName}-{Subscription}-DLQ.
+     * To setting a custom dead letter topic name
+     * <pre>
+     * client.newConsumer()
+     *          .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).deadLetterTopic("your-topic-name").build())
+     *          .subscribe();
+     * </pre>
+     * When a dead letter policy is specified, and no ackTimeoutMillis is specified,
+     * then the ack timeout will be set to 30000 millisecond
+     */
+    ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 }

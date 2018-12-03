@@ -36,7 +36,8 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -noqualifier $JDK_COMMON_PKGS \
     -notimestamp \
     -Xdoclint:none \
-    `find pulsar-client/src/main/java/org/apache/pulsar/client/api -name *.java`
+    `find pulsar-client/src/main/java/org/apache/pulsar/client/api -name *.java` \
+    `find pulsar-client-schema/src/main/java -name *.java | grep -v /impl/`
 
   # Java admin
   javadoc \

@@ -72,7 +72,7 @@ public class ConnectionPool implements Closeable {
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup));
     }
-    
+
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, Supplier<ClientCnx> clientCnxSupplier) {
         this.eventLoopGroup = eventLoopGroup;
         this.maxConnectionsPerHosts = conf.getConnectionsPerBroker();
@@ -82,7 +82,7 @@ public class ConnectionPool implements Closeable {
         bootstrap.group(eventLoopGroup);
         bootstrap.channel(EventLoopUtil.getClientSocketChannelClass(eventLoopGroup));
 
-        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000);
+        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, conf.getConnectionTimeoutMs());
         bootstrap.option(ChannelOption.TCP_NODELAY, conf.isUseTcpNoDelay());
         bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
@@ -117,6 +117,24 @@ public class ConnectionPool implements Closeable {
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress address) {
         return getConnection(address, address);
+    }
+
+    void closeAllConnections() {
+        pool.values().forEach(map -> {
+            map.values().forEach(future -> {
+                if (future.isDone()) {
+                    if (!future.isCompletedExceptionally()) {
+                        // Connection was already created successfully, the join will not throw any exception
+                        future.join().close();
+                    } else {
+                        // If the future already failed, there's nothing we have to do
+                    }
+                } else {
+                    // The future is still pending: just register to make sure it gets closed if the operation will succeed
+                    future.thenAccept(ClientCnx::close);
+                }
+            });
+        });
     }
 
     /**

@@ -18,17 +18,20 @@
  */
 package org.apache.pulsar.client.schema;
 
-import static org.apache.pulsar.client.schema.SchemaTestUtils.FOO_FIELDS;
-import static org.apache.pulsar.client.schema.SchemaTestUtils.SCHEMA_JSON;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Bar;
+import org.apache.pulsar.client.schema.SchemaTestUtils.DerivedFoo;
 import org.apache.pulsar.client.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.apache.pulsar.client.schema.SchemaTestUtils.FOO_FIELDS;
+import static org.apache.pulsar.client.schema.SchemaTestUtils.SCHEMA_JSON;
+
+@Slf4j
 public class JSONSchemaTest {
 
     @Test
@@ -37,6 +40,7 @@ public class JSONSchemaTest {
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(jsonSchema.getSchemaInfo().getSchema());
+        log.info("schemaJson: {}", schemaJson);
         Assert.assertEquals(schemaJson, SCHEMA_JSON);
         Schema schema = parser.parse(schemaJson);
 
@@ -54,10 +58,14 @@ public class JSONSchemaTest {
     public void testEncodeAndDecode() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(Foo.class, null);
 
+        Bar bar = new Bar();
+        bar.setField1(true);
+
         Foo foo1 = new Foo();
         foo1.setField1("foo1");
         foo1.setField2("bar1");
-        foo1.setField4(new Bar());
+        foo1.setField4(bar);
+        foo1.setColor(SchemaTestUtils.Color.BLUE);
 
         Foo foo2 = new Foo();
         foo2.setField1("foo2");
@@ -74,5 +82,56 @@ public class JSONSchemaTest {
 
         Assert.assertEquals(object1, foo1);
         Assert.assertEquals(object2, foo2);
+    }
+
+    @Test
+    public void testCorrectPolymorphism() {
+
+        Bar bar = new Bar();
+        bar.setField1(true);
+
+        DerivedFoo derivedFoo = new DerivedFoo();
+        derivedFoo.setField1("foo1");
+        derivedFoo.setField2("bar2");
+        derivedFoo.setField3(4);
+        derivedFoo.setField4(bar);
+        derivedFoo.setField5("derived1");
+        derivedFoo.setField6(2);
+
+        Foo foo = new Foo();
+        foo.setField1("foo1");
+        foo.setField2("bar2");
+        foo.setField3(4);
+        foo.setField4(bar);
+
+        SchemaTestUtils.DerivedDerivedFoo derivedDerivedFoo = new SchemaTestUtils.DerivedDerivedFoo();
+        derivedDerivedFoo.setField1("foo1");
+        derivedDerivedFoo.setField2("bar2");
+        derivedDerivedFoo.setField3(4);
+        derivedDerivedFoo.setField4(bar);
+        derivedDerivedFoo.setField5("derived1");
+        derivedDerivedFoo.setField6(2);
+        derivedDerivedFoo.setFoo2(foo);
+        derivedDerivedFoo.setDerivedFoo(derivedFoo);
+
+        // schema for base class
+        JSONSchema<Foo> baseJsonSchema = JSONSchema.of(Foo.class);
+        Assert.assertEquals(baseJsonSchema.decode(baseJsonSchema.encode(foo)), foo);
+        Assert.assertEquals(baseJsonSchema.decode(baseJsonSchema.encode(derivedFoo)), foo);
+        Assert.assertEquals(baseJsonSchema.decode(baseJsonSchema.encode(derivedDerivedFoo)), foo);
+
+        // schema for derived class
+        JSONSchema<DerivedFoo> derivedJsonSchema = JSONSchema.of(DerivedFoo.class);
+        Assert.assertEquals(derivedJsonSchema.decode(derivedJsonSchema.encode(derivedFoo)), derivedFoo);
+        log.info("derivedJsonSchema.encode(derivedDerivedFoo)): {}", derivedJsonSchema.decode(derivedJsonSchema.encode(derivedDerivedFoo)));
+        Assert.assertEquals(derivedJsonSchema.decode(derivedJsonSchema.encode(derivedDerivedFoo)), derivedFoo);
+
+        //schema for derived derived class
+        JSONSchema<SchemaTestUtils.DerivedDerivedFoo> derivedDerivedJsonSchema
+                = JSONSchema.of(SchemaTestUtils.DerivedDerivedFoo.class);
+        Assert.assertEquals(derivedDerivedJsonSchema.decode(derivedDerivedJsonSchema.encode(derivedDerivedFoo)), derivedDerivedFoo);
+
+
+
     }
 }

@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.base.Preconditions;
 
 import java.nio.ByteBuffer;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -62,17 +63,28 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> key(String key) {
         msgMetadataBuilder.setPartitionKey(key);
+        msgMetadataBuilder.setPartitionKeyB64Encoded(false);
+        return this;
+    }
+
+    @Override
+    public TypedMessageBuilder<T> keyBytes(byte[] key) {
+        msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
+        msgMetadataBuilder.setPartitionKeyB64Encoded(true);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> value(T value) {
+        checkArgument(value != null, "Need Non-Null content value");
         this.content = ByteBuffer.wrap(schema.encode(value));
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> property(String name, String value) {
+        checkArgument(name != null, "Need Non-Null name");
+        checkArgument(value != null, "Need Non-Null value for name: " + name);
         msgMetadataBuilder.addProperties(KeyValue.newBuilder().setKey(name).setValue(value).build());
         return this;
     }
@@ -80,6 +92,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> properties(Map<String, String> properties) {
         for (Map.Entry<String, String> entry : properties.entrySet()) {
+            checkArgument(entry.getKey() != null, "Need Non-Null key");
+            checkArgument(entry.getValue() != null, "Need Non-Null value for key: " + entry.getKey());
             msgMetadataBuilder
                     .addProperties(KeyValue.newBuilder().setKey(entry.getKey()).setValue(entry.getValue()).build());
         }

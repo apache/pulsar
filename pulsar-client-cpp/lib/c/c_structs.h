@@ -84,3 +84,7 @@ static void handle_result_callback(pulsar::Result result, pulsar_result_callback
 struct _pulsar_string_map {
     std::map<std::string, std::string> map;
 };
+
+struct _pulsar_string_list {
+    std::vector<std::string> list;
+};

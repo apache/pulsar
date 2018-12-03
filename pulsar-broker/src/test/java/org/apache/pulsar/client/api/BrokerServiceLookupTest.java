@@ -126,7 +126,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     }
 
     /**
-     * UsecaseL Multiple Broker => Lookup Redirection test
+     * Usecase Multiple Broker => Lookup Redirection test
      *
      * 1. Broker1 is a leader 2. Lookup request reaches to Broker2 which redirects to leader (Broker1) with
      * authoritative = false 3. Leader (Broker1) finds out least loaded broker as Broker2 and redirects request to
@@ -143,7 +143,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setBrokerServicePort(PortManager.nextFreePort());
         conf2.setBrokerServicePortTls(PortManager.nextFreePort());
-        conf2.setAdvertisedAddress("localhost");
         conf2.setWebServicePort(PortManager.nextFreePort());
         conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
@@ -176,8 +175,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // load namespace-bundle by calling Broker2
         Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1")
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+            .topic("persistent://my-property/my-ns/my-topic1")
+            .create();
 
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -263,8 +263,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // load namespace-bundle by calling Broker2
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property2/use2/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient2.newProducer().topic("persistent://my-property2/use2/my-ns/my-topic1")
-                .create();
+        Producer<byte[]> producer = pulsarClient2.newProducer(Schema.BYTES)
+            .topic("persistent://my-property2/use2/my-ns/my-topic1")
+            .create();
 
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -336,7 +337,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
         /**** broker-2 started ****/
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName.toString())
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+            .topic(topicName.toString())
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
@@ -489,8 +491,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(discoverySvcUrl).build();
         Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property2/use2/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient2.newProducer().topic("persistent://my-property2/use2/my-ns/my-topic1")
-                .create();
+        Producer<byte[]> producer = pulsarClient2.newProducer(Schema.BYTES)
+            .topic("persistent://my-property2/use2/my-ns/my-topic1")
+            .create();
 
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -560,8 +563,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 .enableTls(true).allowTlsInsecureConnection(true).build();
         Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property2/use2/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient2.newProducer().topic("persistent://my-property2/use2/my-ns/my-topic1")
-                .create();
+        Producer<byte[]> producer = pulsarClient2.newProducer(Schema.BYTES)
+            .topic("persistent://my-property2/use2/my-ns/my-topic1")
+            .create();
 
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -635,8 +639,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth).build();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use2/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use2/my-ns/my-topic1")
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+            .topic("persistent://my-property/use2/my-ns/my-topic1")
+            .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());

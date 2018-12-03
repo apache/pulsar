@@ -22,29 +22,24 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
+import com.google.protobuf.util.JsonFormat;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,26 +48,11 @@ import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.Resources;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.proto.Function.SubscriptionType;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.FunctionConfig.ProcessingGuarantees;
-import org.apache.pulsar.functions.utils.SinkConfig;
-import org.apache.pulsar.functions.utils.ConsumerConfig;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.utils.io.Connectors;
-import org.apache.pulsar.functions.utils.validation.ConfigValidation;
+import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.functions.Utils;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO sinks (egress data from Pulsar)")
@@ -82,6 +62,11 @@ public class CmdSinks extends CmdBase {
     private final CreateSink createSink;
     private final UpdateSink updateSink;
     private final DeleteSink deleteSink;
+    private final ListSinks listSinks;
+    private final GetSink getSink;
+    private final GetSinkStatus getSinkStatus;
+    private final StopSink stopSink;
+    private final RestartSink restartSink;
     private final LocalSinkRunner localSinkRunner;
 
     public CmdSinks(PulsarAdmin admin) {
@@ -89,13 +74,24 @@ public class CmdSinks extends CmdBase {
         createSink = new CreateSink();
         updateSink = new UpdateSink();
         deleteSink = new DeleteSink();
+        listSinks = new ListSinks();
+        getSink = new GetSink();
+        getSinkStatus = new GetSinkStatus();
+        stopSink = new StopSink();
+        restartSink = new RestartSink();
         localSinkRunner = new LocalSinkRunner();
 
         jcommander.addCommand("create", createSink);
         jcommander.addCommand("update", updateSink);
         jcommander.addCommand("delete", deleteSink);
+        jcommander.addCommand("list", listSinks);
+        jcommander.addCommand("get", getSink);
+        // TODO depecreate getstatus
+        jcommander.addCommand("status", getSinkStatus, "getstatus");
+        jcommander.addCommand("stop", stopSink);
+        jcommander.addCommand("restart", restartSink);
         jcommander.addCommand("localrun", localSinkRunner);
-        jcommander.addCommand("available-sinks", new ListSinks());
+        jcommander.addCommand("available-sinks", new ListBuiltInSinks());
     }
 
     /**
@@ -164,67 +160,64 @@ public class CmdSinks extends CmdBase {
         }
 
         @Override
-        void runCmd() throws Exception {
+        public void runCmd() throws Exception {
             // merge deprecated args with new args
             mergeArgs();
-
-            CmdFunctions.startLocalRun(createSinkConfigProto2(sinkConfig), sinkConfig.getParallelism(),
-                    0, brokerServiceUrl, null,
-                    AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
-                            .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
-                            .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
-                            .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
-                            .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                    sinkConfig.getArchive(), admin);
+            List<String> localRunArgs = new LinkedList<>();
+            localRunArgs.add(System.getenv("PULSAR_HOME") + "/bin/function-localrunner");
+            localRunArgs.add("--sinkConfig");
+            localRunArgs.add(new Gson().toJson(sinkConfig));
+            for (Field field : this.getClass().getDeclaredFields()) {
+                if (field.getName().startsWith("DEPRECATED")) continue;
+                if(field.getName().contains("$")) continue;
+                Object value = field.get(this);
+                if (value != null) {
+                    localRunArgs.add("--" + field.getName());
+                    localRunArgs.add(value.toString());
+                }
+            }
+            ProcessBuilder processBuilder = new ProcessBuilder(localRunArgs).inheritIO();
+            Process process = processBuilder.start();
+            process.waitFor();
         }
 
         @Override
-        protected String validateSinkType(String sinkType) throws IOException {
-            // Validate the connector sink type from the locally available connectors
-            String pulsarHome = System.getenv("PULSAR_HOME");
-            if (pulsarHome == null) {
-                pulsarHome = Paths.get("").toAbsolutePath().toString();
-            }
-            String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
-            Connectors connectors = ConnectorUtils.searchForConnectors(connectorsDir);
-
-            if (!connectors.getSinks().containsKey(sinkType)) {
-                throw new ParameterException("Invalid sink type '" + sinkType + "' -- Available sinks are: "
-                        + connectors.getSinks().keySet());
-            }
-
-            // Sink type is a valid built-in connector type. For local-run we'll fill it up with its own archive path
-            return connectors.getSinks().get(sinkType).toString();
+        protected String validateSinkType(String sinkType) {
+            return sinkType;
         }
     }
 
     @Parameters(commandDescription = "Submit a Pulsar IO sink connector to run in a Pulsar cluster")
-    protected class CreateSink extends SinkCommand {
+    protected class CreateSink extends SinkDetailsCommand {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(archive)) {
-                admin.functions().createFunctionWithUrl(createSinkConfig(sinkConfig), sinkConfig.getArchive());
+                admin.sink().createSinkWithUrl(sinkConfig, sinkConfig.getArchive());
             } else {
-                admin.functions().createFunction(createSinkConfig(sinkConfig), sinkConfig.getArchive());
+                admin.sink().createSink(sinkConfig, sinkConfig.getArchive());
             }
             print("Created successfully");
         }
     }
 
     @Parameters(commandDescription = "Update a Pulsar IO sink connector")
-    protected class UpdateSink extends SinkCommand {
+    protected class UpdateSink extends SinkDetailsCommand {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(archive)) {
-                admin.functions().updateFunctionWithUrl(createSinkConfig(sinkConfig), sinkConfig.getArchive());
+                admin.sink().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive());
             } else {
-                admin.functions().updateFunction(createSinkConfig(sinkConfig), sinkConfig.getArchive());
+                admin.sink().updateSink(sinkConfig, sinkConfig.getArchive());
             }
             print("Updated successfully");
         }
+
+        protected void validateSinkConfigs(SinkConfig sinkConfig) {
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+        }
     }
 
-    abstract class SinkCommand extends BaseCommand {
+    abstract class SinkDetailsCommand extends BaseCommand {
         @Parameter(names = "--tenant", description = "The sink's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The sink's namespace")
@@ -265,7 +258,7 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--retainOrdering", description = "Sink consumes and sinks messages in order", hidden = true)
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Sink consumes and sinks messages in order")
-        protected boolean retainOrdering;
+        protected Boolean retainOrdering;
         @Parameter(names = "--parallelism", description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
         protected Integer parallelism;
         @Parameter(names = {"-a", "--archive"}, description = "Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
@@ -291,6 +284,10 @@ public class CmdSinks extends CmdBase {
         protected String DEPRECATED_sinkConfigString;
         @Parameter(names = "--sink-config", description = "User defined configs key/values")
         protected String sinkConfigString;
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowleges messages", arity = 1)
+        protected Boolean autoAck;
+        @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
+        protected Long timeoutMs;
 
         protected SinkConfig sinkConfig;
 
@@ -337,7 +334,9 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setProcessingGuarantees(processingGuarantees);
             }
 
-            sinkConfig.setRetainOrdering(retainOrdering);
+            if (retainOrdering != null) {
+                sinkConfig.setRetainOrdering(retainOrdering);
+            }
 
             if (null != inputs) {
                 sinkConfig.setInputs(Arrays.asList(inputs.split(",")));
@@ -378,42 +377,53 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setArchive(validateSinkType(sinkType));
             }
 
-            org.apache.pulsar.functions.utils.Resources resources = sinkConfig.getResources();
-            if (resources == null) {
-                resources = new org.apache.pulsar.functions.utils.Resources();
-            }
+            Resources resources = sinkConfig.getResources();
             if (cpu != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setCpu(cpu);
             }
 
             if (ram != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setRam(ram);
             }
 
             if (disk != null) {
+                if (resources == null) {
+                    resources = new Resources();
+                }
                 resources.setDisk(disk);
             }
-            sinkConfig.setResources(resources);
+            if (resources != null) {
+                sinkConfig.setResources(resources);
+            }
 
             if (null != sinkConfigString) {
                 sinkConfig.setConfigs(parseConfigs(sinkConfigString));
             }
 
-            inferMissingArguments(sinkConfig);
+            if (autoAck != null) {
+                sinkConfig.setAutoAck(autoAck);
+            }
+            if (timeoutMs != null) {
+                sinkConfig.setTimeoutMs(timeoutMs);
+            }
+            
+            if (null != sinkConfigString) {
+                sinkConfig.setConfigs(parseConfigs(sinkConfigString));
+            }
+
+            // check if configs are valid
+            validateSinkConfigs(sinkConfig);
         }
 
         protected Map<String, Object> parseConfigs(String str) {
             Type type = new TypeToken<Map<String, String>>(){}.getType();
             return new Gson().fromJson(str, type);
-        }
-
-        protected void inferMissingArguments(SinkConfig sinkConfig) {
-            if (sinkConfig.getTenant() == null) {
-                sinkConfig.setTenant(PUBLIC_TENANT);
-            }
-            if (sinkConfig.getNamespace() == null) {
-                sinkConfig.setNamespace(DEFAULT_NAMESPACE);
-            }
         }
 
         protected void validateSinkConfigs(SinkConfig sinkConfig) {
@@ -422,211 +432,20 @@ public class CmdSinks extends CmdBase {
                 throw new ParameterException("Sink archive not specfied");
             }
 
-            boolean isConnectorBuiltin = sinkConfig.getArchive().startsWith(Utils.BUILTIN);
-            boolean isArchivePathUrl = Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive());
+            org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
 
-            String archivePath = null;
-            if (isArchivePathUrl) {
-                // download jar file if url is http
-                if(sinkConfig.getArchive().startsWith(Utils.HTTP)) {
-                    File tempPkgFile = null;
-                    try {
-                        tempPkgFile = downloadFromHttpUrl(sinkConfig.getArchive(), sinkConfig.getName());
-                        archivePath = tempPkgFile.getAbsolutePath();
-                    } catch(Exception e) {
-                        if(tempPkgFile!=null ) {
-                            tempPkgFile.deleteOnExit();
-                        }
-                        throw new ParameterException("Failed to download archive from " + sinkConfig.getArchive()
-                                + ", due to =" + e.getMessage());
-                    }
-                }
-            } else if (isConnectorBuiltin) {
-                // Ignore local checks when submitting built-in connector
-                archivePath = null;
-            } else {
-                archivePath = sinkConfig.getArchive();
-            }
-
-            // if jar file is present locally then load jar and validate SinkClass in it
-            if (archivePath != null) {
-                if (!fileExists(archivePath)) {
-                    throw new ParameterException("Archive file " + archivePath + " does not exist");
-                }
-
-                try {
-                    ConnectorDefinition connector = ConnectorUtils.getConnectorDefinition(archivePath);
-                    log.info("Connector: {}", connector);
-
-                    // Validate sink class
-                    ConnectorUtils.getIOSinkClass(archivePath);
-                } catch (IOException e) {
-                    throw new ParameterException("Connector from " + archivePath + " has error: " + e.getMessage());
+            if (!Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive()) &&
+                    !sinkConfig.getArchive().startsWith(Utils.BUILTIN)) {
+                if (!new File(sinkConfig.getArchive()).exists()) {
+                    throw new IllegalArgumentException(String.format("Sink Archive file %s does not exist", sinkConfig.getArchive()));
                 }
             }
-
-            try {
-                // Need to load jar and set context class loader before calling
-                ConfigValidation.validateConfig(sinkConfig, FunctionConfig.Runtime.JAVA.name());
-            } catch (Exception e) {
-                throw new ParameterException(e.getMessage());
-            }
-        }
-
-
-        protected org.apache.pulsar.functions.proto.Function.FunctionDetails createSinkConfigProto2(SinkConfig sinkConfig)
-                throws IOException {
-            org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder
-                    = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
-            Utils.mergeJson(FunctionsImpl.printJson(createSinkConfig(sinkConfig)), functionDetailsBuilder);
-            return functionDetailsBuilder.build();
-        }
-
-        protected FunctionDetails createSinkConfig(SinkConfig sinkConfig) throws IOException {
-
-            // check if configs are valid
-            validateSinkConfigs(sinkConfig);
-
-            String sinkClassName = null;
-            String typeArg = null;
-
-            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-
-            boolean isBuiltin = sinkConfig.getArchive().startsWith(Utils.BUILTIN);
-
-            if (!isBuiltin) {
-                if (sinkConfig.getArchive().startsWith(Utils.FILE)) {
-                    if (isBlank(sinkConfig.getClassName())) {
-                        throw new ParameterException("Class-name must be present for archive with file-url");
-                    }
-                    sinkClassName = sinkConfig.getClassName(); // server derives the arg-type by loading a class
-                } else {
-                    sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
-                    try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sinkConfig.getArchive()),
-                            Collections.emptySet())) {
-                        typeArg = Utils.getSinkType(sinkClassName, ncl).getName();
-                    }
-                }
-            }
-
-            if (sinkConfig.getTenant() != null) {
-                functionDetailsBuilder.setTenant(sinkConfig.getTenant());
-            }
-            if (sinkConfig.getNamespace() != null) {
-                functionDetailsBuilder.setNamespace(sinkConfig.getNamespace());
-            }
-            if (sinkConfig.getName() != null) {
-                functionDetailsBuilder.setName(sinkConfig.getName());
-            }
-            functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-            functionDetailsBuilder.setParallelism(sinkConfig.getParallelism());
-            functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
-            if (sinkConfig.getProcessingGuarantees() != null) {
-                functionDetailsBuilder.setProcessingGuarantees(
-                        convertProcessingGuarantee(sinkConfig.getProcessingGuarantees()));
-            }
-
-            // set source spec
-            // source spec classname should be empty so that the default pulsar source will be used
-            SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
-            if (sinkConfig.getInputs() !=  null) {
-                sinkConfig.getInputs().forEach(topicName ->
-                        sourceSpecBuilder.putInputSpecs(topicName,
-                        ConsumerSpec.newBuilder()
-                                .setIsRegexPattern(false)
-                                .build()));
-            }
-            if (!StringUtils.isEmpty(sinkConfig.getTopicsPattern())) {
-                sourceSpecBuilder.putInputSpecs(sinkConfig.getTopicsPattern(),
-                        ConsumerSpec.newBuilder()
-                                .setIsRegexPattern(true)
-                                .build());
-            }
-            if (sinkConfig.getTopicToSerdeClassName() != null) {
-                sinkConfig.getTopicToSerdeClassName().forEach((topicName, serde) -> {
-                    sourceSpecBuilder.putInputSpecs(topicName,
-                            ConsumerSpec.newBuilder()
-                                    .setSerdeClassName(serde == null ? "" : serde)
-                                    .setIsRegexPattern(false)
-                                    .build());
-                    });
-            }
-            if (sinkConfig.getTopicToSchemaType() != null) {
-                sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
-                    sourceSpecBuilder.putInputSpecs(topicName,
-                            ConsumerSpec.newBuilder()
-                                    .setSchemaType(schemaType == null ? "" : schemaType)
-                                    .setIsRegexPattern(false)
-                                    .build());
-                });
-            }
-            if (sinkConfig.getInputSpecs() != null) {
-                sinkConfig.getInputSpecs().forEach((topic, spec) -> {
-                    sourceSpecBuilder.putInputSpecs(topic,
-                            ConsumerSpec.newBuilder()
-                                    .setSerdeClassName(spec.getSerdeClassName() != null ? spec.getSerdeClassName() : "")
-                                    .setSchemaType(spec.getSchemaType() != null ? spec.getSchemaType() : "")
-                                    .setIsRegexPattern(spec.isRegexPattern())
-                                    .build());
-                });
-            }
-
-            if (typeArg != null) {
-                sourceSpecBuilder.setTypeClassName(typeArg);
-            }
-            if (isNotBlank(sinkConfig.getSourceSubscriptionName())) {
-                sourceSpecBuilder.setSubscriptionName(sinkConfig.getSourceSubscriptionName());
-            }
-
-            SubscriptionType subType = (sinkConfig.isRetainOrdering()
-                    || ProcessingGuarantees.EFFECTIVELY_ONCE.equals(sinkConfig.getProcessingGuarantees()))
-                            ? SubscriptionType.FAILOVER
-                            : SubscriptionType.SHARED;
-            sourceSpecBuilder.setSubscriptionType(subType);
-
-            functionDetailsBuilder.setAutoAck(true);
-            functionDetailsBuilder.setSource(sourceSpecBuilder);
-
-            // set up sink spec
-            SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-            if (sinkClassName != null) {
-                sinkSpecBuilder.setClassName(sinkClassName);
-            }
-
-            if (isBuiltin) {
-                String builtin = sinkConfig.getArchive().replaceFirst("^builtin://", "");
-                sinkSpecBuilder.setBuiltin(builtin);
-            }
-
-            if (sinkConfig.getConfigs() != null) {
-                sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
-            }
-            if (typeArg != null) {
-                sinkSpecBuilder.setTypeClassName(typeArg);
-            }
-            functionDetailsBuilder.setSink(sinkSpecBuilder);
-
-            if (sinkConfig.getResources() != null) {
-                Resources.Builder bldr = Resources.newBuilder();
-                if (sinkConfig.getResources().getCpu() != null) {
-                    bldr.setCpu(sinkConfig.getResources().getCpu());
-                }
-                if (sinkConfig.getResources().getRam() != null) {
-                    bldr.setRam(sinkConfig.getResources().getRam());
-                }
-                if (sinkConfig.getResources().getDisk() != null) {
-                    bldr.setDisk(sinkConfig.getResources().getDisk());
-                }
-                functionDetailsBuilder.setResources(bldr.build());
-            }
-            return functionDetailsBuilder.build();
         }
 
         protected String validateSinkType(String sinkType) throws IOException {
             Set<String> availableSinks;
             try {
-                availableSinks = admin.functions().getSinks();
+                availableSinks = admin.sink().getBuiltInSinks().stream().map(ConnectorDefinition::getName).collect(Collectors.toSet());
             } catch (PulsarAdminException e) {
                 throw new IOException(e);
             }
@@ -641,25 +460,70 @@ public class CmdSinks extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Stops a Pulsar IO sink connector")
-    protected class DeleteSink extends BaseCommand {
-
-        @Parameter(names = "--tenant", description = "The tenant of the sink")
+    /**
+     * Sink level command
+     */
+    @Getter
+    abstract class SinkCommand extends BaseCommand {
+        @Parameter(names = "--tenant", description = "The sink's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The namespace of the sink")
+        @Parameter(names = "--namespace", description = "The sink's namespace")
         protected String namespace;
 
-        @Parameter(names = "--name", description = "The name of the sink")
-        protected String name;
+        @Parameter(names = "--name", description = "The sink's name")
+        protected String sinkName;
 
         @Override
         void processArguments() throws Exception {
             super.processArguments();
-            if (null == name) {
-                throw new ParameterException(
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
+            }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
+            }
+            if (null == sinkName) {
+                throw new RuntimeException(
                         "You must specify a name for the sink");
             }
+        }
+    }
+
+    @Parameters(commandDescription = "Stops a Pulsar IO sink connector")
+    protected class DeleteSink extends SinkCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            admin.sink().deleteSink(tenant, namespace, sinkName);
+            print("Deleted successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Gets the information about a Pulsar IO sink connector")
+    protected class GetSink extends SinkCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            SinkConfig sinkConfig = admin.sink().getSink(tenant, namespace, sinkName);
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(sinkConfig));
+        }
+    }
+
+    /**
+     * List Sources command
+     */
+    @Parameters(commandDescription = "List all running Pulsar IO sink connectors")
+    protected class ListSinks extends BaseCommand {
+        @Parameter(names = "--tenant", description = "The sink's tenant")
+        protected String tenant;
+
+        @Parameter(names = "--namespace", description = "The sink's namespace")
+        protected String namespace;
+
+        @Override
+        public void processArguments() {
             if (tenant == null) {
                 tenant = PUBLIC_TENANT;
             }
@@ -670,16 +534,75 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.functions().deleteFunction(tenant, namespace, name);
-            print("Deleted successfully");
+            List<String> sinks = admin.sink().listSinks(tenant, namespace);
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(sinks));
+        }
+    }
+
+    @Parameters(commandDescription = "Check the current status of a Pulsar Sink")
+    class GetSinkStatus extends SinkCommand {
+
+        @Parameter(names = "--instance-id", description = "The sink instanceId (Get-status of all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isBlank(instanceId)) {
+                print(admin.sink().getSinkStatus(tenant, namespace, sinkName));
+            } else {
+                print(admin.sink().getSinkStatus(tenant, namespace, sinkName, Integer.parseInt(instanceId)));
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Restart sink instance")
+    class RestartSink extends SinkCommand {
+
+        @Parameter(names = "--instance-id", description = "The sink instanceId (restart all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.sink().restartSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.sink().restartSink(tenant, namespace, sinkName);
+            }
+            System.out.println("Restarted successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Temporary stops sink instance. (If worker restarts then it reassigns and starts sink again")
+    class StopSink extends SinkCommand {
+
+        @Parameter(names = "--instance-id", description = "The sink instanceId (stop all instances if instance-id is not provided")
+        protected String instanceId;
+
+        @Override
+        void runCmd() throws Exception {
+            if (isNotBlank(instanceId)) {
+                try {
+                    admin.sink().stopSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                } catch (NumberFormatException e) {
+                    System.err.println("instance-id must be a number");
+                }
+            } else {
+                admin.sink().stopSink(tenant, namespace, sinkName);
+            }
+            System.out.println("Restarted successfully");
         }
     }
 
     @Parameters(commandDescription = "Get the list of Pulsar IO connector sinks supported by Pulsar cluster")
-    public class ListSinks extends BaseCommand {
+    public class ListBuiltInSinks extends BaseCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().getConnectorsList().stream().filter(x -> isNotBlank(x.getSinkClass()))
+            admin.sink().getBuiltInSinks().stream().filter(x -> isNotBlank(x.getSinkClass()))
                     .forEach(connector -> {
                         System.out.println(connector.getName());
                         System.out.println(WordUtils.wrap(connector.getDescription(), 80));

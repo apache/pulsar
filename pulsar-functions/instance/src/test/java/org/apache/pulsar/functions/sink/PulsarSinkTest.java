@@ -19,16 +19,21 @@
 package org.apache.pulsar.functions.sink;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -36,13 +41,17 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.ArgumentMatcher;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -78,7 +87,37 @@ public class PulsarSinkTest {
         doReturn(consumer).when(consumerBuilder).subscribe();
         doReturn(consumerBuilder).when(pulsarClient).newConsumer(any());
         doReturn(CompletableFuture.completedFuture(Optional.empty())).when(pulsarClient).getSchema(anyString());
+
+        ProducerBuilder producerBuilder = mock(ProducerBuilder.class);
+        doReturn(producerBuilder).when(producerBuilder).blockIfQueueFull(anyBoolean());
+        doReturn(producerBuilder).when(producerBuilder).enableBatching(anyBoolean());
+        doReturn(producerBuilder).when(producerBuilder).batchingMaxPublishDelay(anyLong(), any());
+        doReturn(producerBuilder).when(producerBuilder).compressionType(any());
+        doReturn(producerBuilder).when(producerBuilder).hashingScheme(any());
+        doReturn(producerBuilder).when(producerBuilder).messageRoutingMode(any());
+        doReturn(producerBuilder).when(producerBuilder).messageRouter(any());
+        doReturn(producerBuilder).when(producerBuilder).topic(anyString());
+        doReturn(producerBuilder).when(producerBuilder).producerName(anyString());
+        doReturn(producerBuilder).when(producerBuilder).property(anyString(), anyString());
+
+        CompletableFuture completableFuture = new CompletableFuture<>();
+        completableFuture.complete(mock(MessageId.class));
+        TypedMessageBuilder typedMessageBuilder = mock(TypedMessageBuilder.class);
+        doReturn(completableFuture).when(typedMessageBuilder).sendAsync();
+
+        Producer producer = mock(Producer.class);
+        doReturn(producer).when(producerBuilder).create();
+        doReturn(typedMessageBuilder).when(producer).newMessage();
+
+        doReturn(producerBuilder).when(pulsarClient).newProducer();
+        doReturn(producerBuilder).when(pulsarClient).newProducer(any());
+
         return pulsarClient;
+    }
+
+    @BeforeMethod
+    public void setup() {
+
     }
 
     private static PulsarSinkConfig getPulsarConfigs() {
@@ -120,7 +159,8 @@ public class PulsarSinkTest {
         PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, "test");
 
         try {
-            pulsarSink.initializeSchema();
+            Schema schema = pulsarSink.initializeSchema();
+            assertEquals(schema, (Schema)null);
         } catch (Exception ex) {
             ex.printStackTrace();
             assertEquals(ex, null);
@@ -200,4 +240,215 @@ public class PulsarSinkTest {
             fail();
         }
     }
+
+
+
+    @Test
+    public void testSinkAndMessageRouting() throws Exception {
+
+        String[] topics = {"topic-1", "topic-2", "topic-3", null};
+        String defaultTopic = "default";
+        PulsarSinkConfig pulsarConfig = getPulsarConfigs();
+        pulsarConfig.setTopic(defaultTopic);
+        PulsarClient pulsarClient;
+
+        /** test At-least-once **/
+        pulsarClient = getPulsarClient();
+        pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        PulsarSink pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, "test");
+
+        pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
+
+        for (String topic : topics) {
+
+            SinkRecord<String> record = new SinkRecord<>(new Record<String>() {
+                @Override
+                public Optional<String> getKey() {
+                    return Optional.empty();
+                }
+
+                @Override
+                public String getValue() {
+                    return "in1";
+                }
+
+                @Override
+                public Optional<String> getDestinationTopic() {
+                    if (topic != null) {
+                        return Optional.of(topic);
+                    } else {
+                        return Optional.empty();
+                    }
+                }
+            }, "out1");
+
+
+            pulsarSink.write(record);
+
+            Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkAtLeastOnceProcessor);
+            PulsarSink.PulsarSinkAtLeastOnceProcessor pulsarSinkAtLeastOnceProcessor
+                    = (PulsarSink.PulsarSinkAtLeastOnceProcessor) pulsarSink.pulsarSinkProcessor;
+            if (topic != null) {
+                Assert.assertTrue(pulsarSinkAtLeastOnceProcessor.publishProducers.containsKey(topic));
+            } else {
+                Assert.assertTrue(pulsarSinkAtLeastOnceProcessor.publishProducers.containsKey(defaultTopic));
+            }
+            verify(pulsarClient.newProducer(), times(1)).topic(argThat(new ArgumentMatcher<String>() {
+
+                @Override
+                public boolean matches(Object o) {
+                    if (o instanceof String) {
+                        if (topic != null) {
+                            return topic.equals(o);
+                        } else {
+                            return defaultTopic.equals(o);
+                        }
+                    }
+                    return false;
+                }
+            }));
+        }
+
+        /** test At-most-once **/
+        pulsarClient = getPulsarClient();
+        pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
+        pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, "test");
+
+        pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
+
+        for (String topic : topics) {
+
+            SinkRecord<String> record = new SinkRecord<>(new Record<String>() {
+                @Override
+                public Optional<String> getKey() {
+                    return Optional.empty();
+                }
+
+                @Override
+                public String getValue() {
+                    return "in1";
+                }
+
+                @Override
+                public Optional<String> getDestinationTopic() {
+                    if (topic != null) {
+                        return Optional.of(topic);
+                    } else {
+                        return Optional.empty();
+                    }
+                }
+            }, "out1");
+
+
+            pulsarSink.write(record);
+
+            Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkAtMostOnceProcessor);
+            PulsarSink.PulsarSinkAtMostOnceProcessor pulsarSinkAtLeastOnceProcessor
+                    = (PulsarSink.PulsarSinkAtMostOnceProcessor) pulsarSink.pulsarSinkProcessor;
+            if (topic != null) {
+                Assert.assertTrue(pulsarSinkAtLeastOnceProcessor.publishProducers.containsKey(topic));
+            } else {
+                Assert.assertTrue(pulsarSinkAtLeastOnceProcessor.publishProducers.containsKey(defaultTopic));
+            }
+            verify(pulsarClient.newProducer(), times(1)).topic(argThat(new ArgumentMatcher<String>() {
+
+                @Override
+                public boolean matches(Object o) {
+                    if (o instanceof String) {
+                        if (topic != null) {
+                            return topic.equals(o);
+                        } else {
+                            return defaultTopic.equals(o);
+                        }
+                    }
+                    return false;
+                }
+            }));
+        }
+
+        /** test Effectively-once **/
+        pulsarClient = getPulsarClient();
+        pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
+        pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, "test");
+
+        pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
+
+        for (String topic : topics) {
+
+            SinkRecord<String> record = new SinkRecord<>(new Record<String>() {
+                @Override
+                public Optional<String> getKey() {
+                    return Optional.empty();
+                }
+
+                @Override
+                public String getValue() {
+                    return "in1";
+                }
+
+                @Override
+                public Optional<String> getDestinationTopic() {
+                    if (topic != null) {
+                        return Optional.of(topic);
+                    } else {
+                        return Optional.empty();
+                    }
+                }
+                @Override
+                public Optional<String> getPartitionId() {
+                    if (topic != null) {
+                        return Optional.of(topic + "-id-1");
+                    } else {
+                        return Optional.of(defaultTopic + "-id-1");
+                    }
+                }
+
+                @Override
+                public Optional<Long> getRecordSequence() {
+                    return Optional.of(1L);
+                }
+            }, "out1");
+
+
+            pulsarSink.write(record);
+
+            Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkEffectivelyOnceProcessor);
+            PulsarSink.PulsarSinkEffectivelyOnceProcessor pulsarSinkEffectivelyOnceProcessor
+                    = (PulsarSink.PulsarSinkEffectivelyOnceProcessor) pulsarSink.pulsarSinkProcessor;
+            if (topic != null) {
+                Assert.assertTrue(pulsarSinkEffectivelyOnceProcessor.publishProducers.containsKey(String.format("%s-%s-id-1", topic, topic)));
+            } else {
+                Assert.assertTrue(pulsarSinkEffectivelyOnceProcessor.publishProducers.containsKey(String.format("%s-%s-id-1", defaultTopic, defaultTopic)));
+            }
+            verify(pulsarClient.newProducer(), times(1)).topic(argThat(new ArgumentMatcher<String>() {
+
+                @Override
+                public boolean matches(Object o) {
+                    if (o instanceof String) {
+                        if (topic != null) {
+                            return topic.equals(o);
+                        } else {
+                            return defaultTopic.equals(o);
+                        }
+                    }
+                    return false;
+                }
+            }));
+            verify(pulsarClient.newProducer(), times(1)).producerName(argThat(new ArgumentMatcher<String>() {
+
+                @Override
+                public boolean matches(Object o) {
+                    if (o instanceof String) {
+                        if (topic != null) {
+                            return String.format("%s-id-1", topic).equals(o);
+                        } else {
+                            return String.format("%s-id-1", defaultTopic).equals(o);
+                        }
+                    }
+                    return false;
+                }
+            }));
+        }
+    }
+
 }

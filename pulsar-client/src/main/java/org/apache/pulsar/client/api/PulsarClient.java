@@ -19,13 +19,11 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
-import java.util.Map;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
 /**
  * Class that provides a client interface to Pulsar.
@@ -87,7 +85,6 @@ public interface PulsarClient extends Closeable {
      * Producer producer = client.newProducer().topic(myTopic).create();
      * </code>
      *
-     *
      * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
      *
      * @since 2.0.0
@@ -113,21 +110,23 @@ public interface PulsarClient extends Closeable {
     <T> ProducerBuilder<T> newProducer(Schema<T> schema);
 
     /**
-     * Create a producer with default for publishing on a specific topic
+     * Create a consumer with default for subscribing on a specific topic
      *
-     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     * @return a {@link ConsumerBuilder} object to configure and construct the {@link Consumer} instance
      *
      * @since 2.0.0
      */
     ConsumerBuilder<byte[]> newConsumer();
 
     /**
-     * Create a producer with default for publishing on a specific topic
+     * Create a consumer with default for subscribing on a specific topic
+     *
+     * Since 2.2, if you are creating a consumer with non-bytes schema on a non-existence topic, it will
+     * automatically create the topic with the provided schema.
      *
      * @param schema
      *          provide a way to convert between serialized data and domain objects
-     *
-     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     * @return a {@link ConsumerBuilder} object to configure and construct the {@link Consumer} instance
      *
      * @since 2.0.0
      */
@@ -337,6 +336,35 @@ public interface PulsarClient extends Closeable {
      */
     @Deprecated
     CompletableFuture<Reader<byte[]>> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf);
+
+    /**
+     * Update the service URL this client is using.
+     *
+     * This will force the client close all existing connections and to restart service discovery to the new service
+     * endpoint.
+     *
+     * @param serviceUrl
+     *            the new service URL this client should connect to
+     * @throws PulsarClientException
+     *             in case the serviceUrl is not valid
+     */
+    void updateServiceUrl(String serviceUrl) throws PulsarClientException;
+
+    /**
+     * Get the list of partitions for a given topic.
+     *
+     * If the topic is partitioned, this will return a list of partition names. If the topic is not partitioned, the
+     * returned list will contain the topic name itself.
+     *
+     * This can be used to discover the partitions and create {@link Reader}, {@link Consumer} or {@link Producer}
+     * instances directly on a particular partition.
+     *
+     * @param topic
+     *            the topic name
+     * @return a future that will yield a list of the topic partitions
+     * @since 2.3.0
+     */
+    CompletableFuture<List<String>> getPartitionsForTopic(String topic);
 
     /**
      * Close the PulsarClient and release all the resources.

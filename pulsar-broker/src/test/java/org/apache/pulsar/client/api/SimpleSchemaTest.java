@@ -18,17 +18,36 @@
  */
 package org.apache.pulsar.client.api;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 public class SimpleSchemaTest extends ProducerConsumerBase {
 
+    @DataProvider(name = "schemaValidationModes")
+    public static Object[][] schemaValidationModes() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    private final boolean schemaValidationEnforced;
+
+    @Factory(dataProvider = "schemaValidationModes")
+    public SimpleSchemaTest(boolean schemaValidationEnforced) {
+        this.schemaValidationEnforced = schemaValidationEnforced;
+    }
+
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setSchemaValidationEnforced(schemaValidationEnforced);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -41,23 +60,164 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void testString() throws Exception {
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic1").subscriptionName("my-subscriber-name").subscribe();
+        try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic("persistent://my-property/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name").subscribe();
+             Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic("persistent://my-property/my-ns/my-topic1").create()) {
+            int N = 10;
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic1").create();
+            for (int i = 0; i < N; i++) {
+                producer.send("my-message-" + i);
+            }
 
-        int N = 10;
+            for (int i = 0; i < N; i++) {
+                Message<String> msg = consumer.receive();
+                assertEquals(msg.getValue(), "my-message-" + i);
 
-        for (int i = 0; i < N; i++) {
-            producer.send("my-message-" + i);
+                consumer.acknowledge(msg);
+            }
+        }
+    }
+
+    static class V1Data {
+        int i;
+
+        V1Data() {
+            this.i = 0;
         }
 
-        for (int i = 0; i < N; i++) {
-            Message<String> msg = consumer.receive();
-            assertEquals(msg.getValue(), "my-message-" + i);
+        V1Data(int i) {
+            this.i = i;
+        }
 
-            consumer.acknowledge(msg);
+        @Override
+        public int hashCode() {
+            return i;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return (other instanceof V1Data) && i == ((V1Data)other).i;
+        }
+    }
+
+    @Test
+    public void newProducerNewTopicNewSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+                .topic(topic).create()) {
+            p.send(new V1Data(0));
+        }
+    }
+
+    @Test
+    public void newProducerTopicExistsWithoutSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create()) {
+            p.send(topic.getBytes(UTF_8));
+        }
+
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+                .topic(topic).create()) {
+            p.send(new V1Data(0));
+        }
+    }
+
+    @Test
+    public void newProducerTopicExistsWithSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+                .topic(topic).create()) {
+            p.send(new V1Data(1));
+        }
+
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+                .topic(topic).create()) {
+            p.send(new V1Data(0));
+        }
+    }
+
+    @Test
+    public void newProducerWithoutSchemaOnTopicWithSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+                .topic(topic).create()) {
+            p.send(new V1Data(0));
+        }
+
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.BYTES).topic(topic).create()) {
+            if (!schemaValidationEnforced) {
+                p.send("junkdata".getBytes(UTF_8));
+            } else {
+                Assert.fail("Shouldn't be able to connect to a schema'd topic with no schema"
+                    + " if SchemaValidationEnabled is enabled");
+            }
+        } catch (PulsarClientException e) {
+            if (schemaValidationEnforced) {
+                Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            } else {
+                Assert.fail("Shouldn't throw IncompatibleSchemaException"
+                    + " if SchemaValidationEnforced is disabled");
+            }
+        }
+
+        // if using AUTO_PRODUCE_BYTES, producer can connect but the publish will fail
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topic).create()) {
+            p.send("junkdata".getBytes(UTF_8));
+        } catch (PulsarClientException e) {
+            assertTrue(e.getCause() instanceof SchemaSerializationException);
+        }
+    }
+
+    @Test
+    public void newConsumerWithSchemaOnNewTopic() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+
+        try (Consumer<V1Data> c = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic).subscriptionName("sub1").subscribe();
+             Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topic).create()) {
+            V1Data toSend = new V1Data(1);
+            p.send(toSend);
+            Assert.assertEquals(toSend, c.receive().getValue());
+        }
+    }
+
+    @Test
+    public void newConsumerWithSchemaOnExistingTopicWithoutSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create();
+             Consumer<V1Data> c = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic).subscriptionName("sub1").subscribe()) {
+            Assert.fail("Shouldn't be able to consume with a schema from a topic which has no schema set");
+        } catch (PulsarClientException e) {
+            Assert.assertTrue(e.getMessage().contains("Trying to subscribe with incompatible schema"));
+        }
+    }
+
+    @Test
+    public void newConsumerWithSchemaTopicHasSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topic).create();
+             Consumer<V1Data> c = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic).subscriptionName("sub1").subscribe()) {
+            V1Data toSend = new V1Data(1);
+            p.send(toSend);
+            Assert.assertEquals(toSend, c.receive().getValue());
+        }
+    }
+
+    @Test
+    public void newBytesConsumerWithTopicWithSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topic).create();
+             Consumer<byte[]> c = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe()) {
+            p.send(new V1Data(1));
+            Assert.assertTrue(c.receive().getValue().length > 0);
         }
     }
 }

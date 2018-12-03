@@ -46,59 +46,56 @@ public class ConnectorUtils {
     /**
      * Extract the Pulsar IO Source class from a connector archive.
      */
-    public static String getIOSourceClass(String narPath) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet())) {
-            String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
+    public static String getIOSourceClass(NarClassLoader ncl) throws IOException {
+        String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
 
-            ConnectorDefinition conf = ObjectMapperFactory.getThreadLocalYaml().readValue(configStr,
-                    ConnectorDefinition.class);
-            if (StringUtils.isEmpty(conf.getSourceClass())) {
-                throw new IOException(
-                        String.format("The '%s' connector does not provide a source implementation", conf.getName()));
-            }
-
-            try {
-                // Try to load source class and check it implements Source interface
-                Object instance = ncl.loadClass(conf.getSourceClass()).newInstance();
-                if (!(instance instanceof Source)) {
-                    throw new IOException("Class " + conf.getSourceClass() + " does not implement interface "
-                            + Source.class.getName());
-                }
-            } catch (Throwable t) {
-                Exceptions.rethrowIOException(t);
-            }
-
-            return conf.getSourceClass();
+        ConnectorDefinition conf = ObjectMapperFactory.getThreadLocalYaml().readValue(configStr,
+                ConnectorDefinition.class);
+        if (StringUtils.isEmpty(conf.getSourceClass())) {
+            throw new IOException(
+                    String.format("The '%s' connector does not provide a source implementation", conf.getName()));
         }
+
+        try {
+            // Try to load source class and check it implements Source interface
+            Object instance = ncl.loadClass(conf.getSourceClass()).newInstance();
+            if (!(instance instanceof Source)) {
+                throw new IOException("Class " + conf.getSourceClass() + " does not implement interface "
+                        + Source.class.getName());
+            }
+        } catch (Throwable t) {
+            Exceptions.rethrowIOException(t);
+        }
+
+        return conf.getSourceClass();
     }
 
     /**
      * Extract the Pulsar IO Sink class from a connector archive.
      */
-    public static String getIOSinkClass(String narPath) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet())) {
-            String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
+    public static String getIOSinkClass(ClassLoader classLoader) throws IOException {
+        NarClassLoader ncl = (NarClassLoader) classLoader;
+        String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
 
-            ConnectorDefinition conf = ObjectMapperFactory.getThreadLocalYaml().readValue(configStr,
-                    ConnectorDefinition.class);
-            if (StringUtils.isEmpty(conf.getSinkClass())) {
-                throw new IOException(
-                        String.format("The '%s' connector does not provide a sink implementation", conf.getName()));
-            }
-
-            try {
-                // Try to load source class and check it implements Sink interface
-                Object instance = ncl.loadClass(conf.getSinkClass()).newInstance();
-                if (!(instance instanceof Sink)) {
-                    throw new IOException(
-                            "Class " + conf.getSinkClass() + " does not implement interface " + Sink.class.getName());
-                }
-            } catch (Throwable t) {
-                Exceptions.rethrowIOException(t);
-            }
-
-            return conf.getSinkClass();
+        ConnectorDefinition conf = ObjectMapperFactory.getThreadLocalYaml().readValue(configStr,
+                ConnectorDefinition.class);
+        if (StringUtils.isEmpty(conf.getSinkClass())) {
+            throw new IOException(
+                    String.format("The '%s' connector does not provide a sink implementation", conf.getName()));
         }
+
+        try {
+            // Try to load source class and check it implements Sink interface
+            Object instance = ncl.loadClass(conf.getSinkClass()).newInstance();
+            if (!(instance instanceof Sink)) {
+                throw new IOException(
+                        "Class " + conf.getSinkClass() + " does not implement interface " + Sink.class.getName());
+            }
+        } catch (Throwable t) {
+            Exceptions.rethrowIOException(t);
+        }
+
+        return conf.getSinkClass();
     }
 
     public static ConnectorDefinition getConnectorDefinition(String narPath) throws IOException {
@@ -127,14 +124,10 @@ public class ConnectorUtils {
                     log.info("Found connector {} from {}", cntDef, archive);
 
                     if (!StringUtils.isEmpty(cntDef.getSourceClass())) {
-                        // Validate source class to be present and of the right type
-                        ConnectorUtils.getIOSourceClass(archive.toString());
                         connectors.sources.put(cntDef.getName(), archive);
                     }
 
                     if (!StringUtils.isEmpty(cntDef.getSinkClass())) {
-                        // Validate sinkclass to be present and of the right type
-                        ConnectorUtils.getIOSinkClass(archive.toString());
                         connectors.sinks.put(cntDef.getName(), archive);
                     }
 

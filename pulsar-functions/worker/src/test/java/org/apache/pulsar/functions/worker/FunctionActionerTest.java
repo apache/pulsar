@@ -38,7 +38,7 @@ import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.testng.annotations.Test;
-import static org.apache.pulsar.functions.utils.Utils.FILE;
+import static org.apache.pulsar.common.functions.Utils.FILE;
 
 /**
  * Unit test of {@link FunctionActioner}.
@@ -103,7 +103,7 @@ public class FunctionActionerTest {
 
         RuntimeFactory factory = mock(RuntimeFactory.class);
         Runtime runtime = mock(Runtime.class);
-        doReturn(runtime).when(factory).createContainer(any(), any());
+        doReturn(runtime).when(factory).createContainer(any(), any(), any(), any());
         doNothing().when(runtime).start();
         Namespace dlogNamespace = mock(Namespace.class);
         final String exceptionMsg = "dl namespace not-found";

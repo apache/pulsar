@@ -101,6 +101,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         }
     }
 
+    protected void beforeStart() {}
+
     @Override
     public void start() {
         if (httpPort > 0 && servicePort < 0) {
@@ -118,7 +120,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
             createContainerCmd.withName(getContainerName());
             createContainerCmd.withEntrypoint(serviceEntryPoint);
         });
-        
+
+        beforeStart();
         super.start();
         log.info("Start pulsar service {} at container {}", serviceName, containerName);
     }
