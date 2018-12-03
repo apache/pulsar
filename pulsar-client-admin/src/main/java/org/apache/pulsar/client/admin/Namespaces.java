@@ -377,6 +377,24 @@ public interface Namespaces {
     void revokePermissionsOnNamespace(String namespace, String role) throws PulsarAdminException;
 
     /**
+     * Grant permission to role to access subscription's admin-api.
+     * @param namespace
+     * @param subscription
+     * @param roles
+     * @throws PulsarAdminException
+     */
+    void grantPermissionOnSubscription(String namespace, String subscription, Set<String> roles) throws PulsarAdminException;
+    
+    /**
+     * Revoke permissions on a subscription's admin-api access.
+     * @param namespace
+     * @param subscription
+     * @param role
+     * @throws PulsarAdminException
+     */
+    void revokePermissionOnSubscription(String namespace, String subscription, String role) throws PulsarAdminException;
+    
+    /**
      * Get the replication clusters for a namespace.
      * <p>
      * Response example:
