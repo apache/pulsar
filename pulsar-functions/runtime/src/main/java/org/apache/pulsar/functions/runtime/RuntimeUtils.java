@@ -84,10 +84,7 @@ class RuntimeUtils {
                 args.add(String.format("-D%s=%s", FUNCTIONS_EXTRA_DEPS_PROPERTY, extraDependenciesDir));
             }
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
-            args.add("-Dpulsar.function.log.dir=" + String.format(
-                    "%s/%s",
-                    logDirectory,
-                    FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails())));
+            args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(
                     "%s-%s",
                     instanceConfig.getFunctionDetails().getName(),
@@ -192,6 +189,13 @@ class RuntimeUtils {
         args.add("--cluster_name");
         args.add(instanceConfig.getClusterName());
         return args;
+    }
+
+    public static String genFunctionLogFolder(String logDirectory, InstanceConfig instanceConfig) {
+        return String.format(
+                "%s/%s",
+                logDirectory,
+                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
     }
 
     public static String getPrometheusMetrics(int metricsPort) throws IOException{
