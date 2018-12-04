@@ -142,7 +142,6 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
             admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
             producer = pulsarClient.newProducer().topic(topicName.toString())
-                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
                     .messageRouter(new CustomMessageRouter())
                     .create();
 
