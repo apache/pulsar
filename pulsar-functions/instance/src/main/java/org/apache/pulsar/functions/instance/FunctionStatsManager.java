@@ -393,6 +393,9 @@ public class FunctionStatsManager implements AutoCloseable {
 
     @Override
     public void close() {
-        scheduledFuture.cancel(false);
+        if (scheduledFuture != null) {
+            scheduledFuture.cancel(false);
+            scheduledFuture = null;
+        }
     }
 }

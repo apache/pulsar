@@ -34,6 +34,7 @@ import io.prometheus.client.exporter.HTTPServer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -49,6 +50,7 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -122,8 +124,8 @@ public class JavaInstanceMain implements AutoCloseable {
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
     private Long lastHealthCheckTs = null;
-    private ScheduledExecutorService timer;
     private HTTPServer metricsServer;
+    private ScheduledFuture healthCheckTimer;
 
     public JavaInstanceMain() { }
 
@@ -215,18 +217,14 @@ public class JavaInstanceMain implements AutoCloseable {
         metricsServer = new HTTPServer(new InetSocketAddress(metrics_port), collectorRegistry, true);
 
         if (expectedHealthCheckInterval > 0) {
-            timer = Executors.newSingleThreadScheduledExecutor();
-            timer.scheduleAtFixedRate(new TimerTask() {
-                @Override
-                public void run() {
-                    try {
-                        if (System.currentTimeMillis() - lastHealthCheckTs > 3 * expectedHealthCheckInterval * 1000) {
-                            log.info("Haven't received health check from spawner in a while. Stopping instance...");
-                            close();
-                        }
-                    } catch (Exception e) {
-                        log.error("Error occurred when checking for latest health check", e);
+            healthCheckTimer = InstanceCache.getInstanceCache().getScheduledExecutorService().scheduleAtFixedRate(() -> {
+                try {
+                    if (System.currentTimeMillis() - lastHealthCheckTs > 3 * expectedHealthCheckInterval * 1000) {
+                        log.info("Haven't received health check from spawner in a while. Stopping instance...");
+                        close();
                     }
+                } catch (Exception e) {
+                    log.error("Error occurred when checking for latest health check", e);
                 }
             }, expectedHealthCheckInterval * 1000, expectedHealthCheckInterval * 1000, TimeUnit.MILLISECONDS);
         }
@@ -260,8 +258,8 @@ public class JavaInstanceMain implements AutoCloseable {
             if (runtimeSpawner != null) {
                 runtimeSpawner.close();
             }
-            if (timer != null) {
-                timer.shutdown();
+            if (healthCheckTimer != null) {
+                healthCheckTimer.cancel(false);
             }
             if (containerFactory != null) {
                 containerFactory.close();
@@ -269,6 +267,8 @@ public class JavaInstanceMain implements AutoCloseable {
             if (metricsServer != null) {
                 metricsServer.stop();
             }
+
+            InstanceCache.shutdown();
         } catch (Exception ex) {
             System.err.println(ex);
         }

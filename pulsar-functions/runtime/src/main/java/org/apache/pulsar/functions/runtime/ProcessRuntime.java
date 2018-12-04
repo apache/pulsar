@@ -30,6 +30,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -45,6 +46,7 @@ import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -64,7 +66,7 @@ class ProcessRuntime implements Runtime {
     private Throwable deathException;
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
-    private ScheduledExecutorService timer;
+    private ScheduledFuture timer;
     private InstanceConfig instanceConfig;
     private final Long expectedHealthCheckInterval;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
@@ -138,19 +140,14 @@ class ProcessRuntime implements Runtime {
                     .build();
             stub = InstanceControlGrpc.newFutureStub(channel);
 
-            timer = Executors.newSingleThreadScheduledExecutor();
-            timer.scheduleAtFixedRate(new TimerTask() {
-
-                @Override
-                public void run() {
-                    CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
-                    try {
-                        result.get();
-                    } catch (Exception e) {
-                        log.error("Health check failed for {}-{}",
-                                instanceConfig.getFunctionDetails().getName(),
-                                instanceConfig.getInstanceId(), e);
-                    }
+            timer = InstanceCache.getInstanceCache().getScheduledExecutorService().scheduleAtFixedRate(() -> {
+                CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
+                try {
+                    result.get();
+                } catch (Exception e) {
+                    log.error("Health check failed for {}-{}",
+                            instanceConfig.getFunctionDetails().getName(),
+                            instanceConfig.getInstanceId(), e);
                 }
             }, expectedHealthCheckInterval, expectedHealthCheckInterval, TimeUnit.SECONDS);
         }
@@ -164,7 +161,7 @@ class ProcessRuntime implements Runtime {
     @Override
     public void stop() {
         if (timer != null) {
-            timer.shutdown();
+            timer.cancel(false);
         }
         if (process != null) {
             process.destroyForcibly();
