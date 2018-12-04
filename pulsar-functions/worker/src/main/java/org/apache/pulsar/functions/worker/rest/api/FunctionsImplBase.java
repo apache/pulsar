@@ -1354,7 +1354,7 @@ public class FunctionsImplBase {
                     throw new IllegalArgumentException(String.format("No Source archive %s found", archivePath));
                 }
             }
-            NarClassLoader clsLoader = SourceConfigUtils.validate(sourceConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            ClassLoader clsLoader = SourceConfigUtils.validate(sourceConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             return SourceConfigUtils.convert(sourceConfig, clsLoader);
         }
         if (componentType.equals(SINK)) {

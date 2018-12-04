@@ -45,7 +45,7 @@ import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
 public class SourceConfigUtils {
 
-    public static FunctionDetails convert(SourceConfig sourceConfig, NarClassLoader classLoader)
+    public static FunctionDetails convert(SourceConfig sourceConfig, ClassLoader classLoader)
             throws IllegalArgumentException, IOException {
 
         String sourceClassName = null;
@@ -189,7 +189,7 @@ public class SourceConfigUtils {
         return sourceConfig;
     }
 
-    public static NarClassLoader validate(SourceConfig sourceConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
+    public static ClassLoader validate(SourceConfig sourceConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
         }
@@ -212,16 +212,30 @@ public class SourceConfigUtils {
             ResourceConfigUtils.validate(sourceConfig.getResources());
         }
 
-        NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-        if (classLoader == null) {
-            throw new IllegalArgumentException("Source Package is not provided");
-        }
-
         String sourceClassName;
-        try {
-            sourceClassName = ConnectorUtils.getIOSourceClass(classLoader);
-        } catch (IOException e1) {
-            throw new IllegalArgumentException("Failed to extract source class from archive", e1);
+        ClassLoader classLoader = null;
+        if (isEmpty(sourceConfig.getClassName())) {
+            sourceClassName = sourceConfig.getClassName();
+        } else {
+            classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            if (classLoader == null) {
+                throw new IllegalArgumentException("Source Package is not provided");
+            }
+            try {
+                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) classLoader);
+            } catch (IOException e1) {
+                throw new IllegalArgumentException("Failed to extract source class from archive", e1);
+            }
+        }
+        if (classLoader == null) {
+            try {
+                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid Source Jar");
+            }
+            if (classLoader == null) {
+                throw new IllegalArgumentException("Invalid Source Jar");
+            }
         }
 
         Class<?> typeArg = getSourceType(sourceClassName, classLoader);
