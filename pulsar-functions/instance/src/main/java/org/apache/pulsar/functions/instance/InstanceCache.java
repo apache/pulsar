@@ -28,7 +28,7 @@ public class InstanceCache {
     public final ScheduledExecutorService executor;
 
     private InstanceCache() {
-        executor = Executors.newSingleThreadScheduledExecutor();;
+        executor = Executors.newSingleThreadScheduledExecutor();
     }
 
     public static InstanceCache getInstanceCache() {

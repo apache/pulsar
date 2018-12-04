@@ -20,12 +20,16 @@
 import traceback
 import time
 import util
+import sys
 
 from prometheus_client import Counter, Summary, Gauge
+from ratelimit import limits, RateLimitException
 
 # We keep track of the following metrics
 class Stats(object):
-  metrics_label_names = ['tenant', 'namespace', 'function', 'instance_id', 'cluster']
+  metrics_label_names = ['tenant', 'namespace', 'function', 'instance_id', 'cluster', 'fqfn']
+
+  exception_metrics_label_names = metrics_label_names + ['error', 'ts']
 
   PULSAR_FUNCTION_METRICS_PREFIX = "pulsar_function_"
   USER_METRIC_PREFIX = "user_metric_";
@@ -57,7 +61,6 @@ class Stats(object):
 
   stat_total_received = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_RECEIVED, 'Total number of messages received from source.', metrics_label_names)
 
-
   # 1min windowed metrics
   stat_total_processed_successfully_1min = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SUCCESSFULLY_PROCESSED_1min,
                                               'Total number of messages processed successfully in the last 1 minute.', metrics_label_names)
@@ -73,6 +76,11 @@ class Stats(object):
 
   stat_total_received_1min = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_RECEIVED_1min,
                                 'Total number of messages received from source in the last 1 minute.', metrics_label_names)
+
+  # exceptions
+  user_exceptions = Gauge(PULSAR_FUNCTION_METRICS_PREFIX + 'user_exception', 'Exception from user code.', exception_metrics_label_names)
+
+  system_exceptions = Gauge(PULSAR_FUNCTION_METRICS_PREFIX + 'system_exception', 'Exception from system code.', exception_metrics_label_names)
 
   latest_user_exception = []
   latest_sys_exception = []
@@ -129,15 +137,15 @@ class Stats(object):
     self.stat_total_processed_successfully.labels(*self.metrics_labels).inc()
     self.stat_total_processed_successfully_1min.labels(*self.metrics_labels).inc()
 
-  def incr_total_sys_exceptions(self):
+  def incr_total_sys_exceptions(self, exception):
     self.stat_total_sys_exceptions.labels(*self.metrics_labels).inc()
     self.stat_total_sys_exceptions_1min.labels(*self.metrics_labels).inc()
-    self.add_sys_exception()
+    self.add_sys_exception(exception)
 
-  def incr_total_user_exceptions(self):
+  def incr_total_user_exceptions(self, exception):
     self.stat_total_user_exceptions.labels(*self.metrics_labels).inc()
     self.stat_total_user_exceptions_1min.labels(*self.metrics_labels).inc()
-    self.add_user_exception()
+    self.add_user_exception(exception)
 
   def incr_total_received(self):
     self.stat_total_received.labels(*self.metrics_labels).inc()
@@ -155,15 +163,41 @@ class Stats(object):
   def set_last_invocation(self, time):
     self.stat_last_invocation.labels(*self.metrics_labels).set(time * 1000.0)
 
-  def add_user_exception(self):
-    self.latest_sys_exception.append((traceback.format_exc(), int(time.time() * 1000)))
+  def add_user_exception(self, exception):
+    error = traceback.format_exc()
+    ts = int(time.time() * 1000) if sys.version_info.major >= 3 else long(time.time() * 1000)
+    self.latest_sys_exception.append((error, ts))
     if len(self.latest_sys_exception) > 10:
       self.latest_sys_exception.pop(0)
 
-  def add_sys_exception(self):
-    self.latest_sys_exception.append((traceback.format_exc(), int(time.time() * 1000)))
+    # report exception via prometheus
+    try:
+      self.report_user_exception_prometheus(exception, ts)
+    except RateLimitException:
+      pass
+
+  @limits(calls=5, period=60)
+  def report_user_exception_prometheus(self, exception, ts):
+    exception_metric_labels = self.metrics_labels + [exception.message, str(ts)]
+    self.user_exceptions.labels(*exception_metric_labels).set(1.0)
+
+  def add_sys_exception(self, exception):
+    error = traceback.format_exc()
+    ts = int(time.time() * 1000) if sys.version_info.major >= 3 else long(time.time() * 1000)
+    self.latest_sys_exception.append((error, ts))
     if len(self.latest_sys_exception) > 10:
       self.latest_sys_exception.pop(0)
+
+    # report exception via prometheus
+    try:
+      self.report_system_exception_prometheus(exception, ts)
+    except RateLimitException:
+      pass
+
+  @limits(calls=5, period=60)
+  def report_system_exception_prometheus(self, exception, ts):
+    exception_metric_labels = self.metrics_labels + [exception.message, str(ts)]
+    self.system_exceptions.labels(*exception_metric_labels).set(1.0)
 
   def reset(self):
     self.latest_user_exception = []
