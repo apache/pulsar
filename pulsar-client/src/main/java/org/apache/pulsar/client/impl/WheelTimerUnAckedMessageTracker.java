@@ -23,6 +23,8 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.util.HashMap;
@@ -36,6 +38,9 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class WheelTimerUnAckedMessageTracker extends UnAckedMessageTracker implements Closeable {
+
+    private static final Logger log = LoggerFactory.getLogger(WheelTimerUnAckedMessageTracker.class);
+
 
     protected final HashedWheelTimer wheelTimer;
 
@@ -115,6 +120,7 @@ public class WheelTimerUnAckedMessageTracker extends UnAckedMessageTracker imple
             @Override
             public void run(Timeout t) throws Exception {
                 if (paddingSet.get().size() > 0) {
+                    log.warn("[{}] {} messages have timed-out", consumerBase, paddingSet.get().size());
                     Set<MessageId> messageIds = new HashSet<>();
                     ConcurrentOpenHashSet<MessageId> toTransmit = paddingSet.getAndSet(new ConcurrentOpenHashSet<>());
                     toTransmit.forEach(messageIds::add);

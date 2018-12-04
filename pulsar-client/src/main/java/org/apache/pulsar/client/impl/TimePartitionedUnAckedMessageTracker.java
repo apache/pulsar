@@ -50,13 +50,23 @@ public class TimePartitionedUnAckedMessageTracker extends UnAckedMessageTracker 
     private Timeout timeout;
 
     public TimePartitionedUnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis, long tickDurationInMs) {
+
         this.consumerBase = consumerBase;
-        this.ackTimeoutMillis = ackTimeoutMillis;
+        if (ackTimeoutMillis < tickDurationInMs) {
+            this.ackTimeoutMillis = tickDurationInMs;
+        } else {
+            this.ackTimeoutMillis = ackTimeoutMillis;
+        }
         this.tickDurationInMs = tickDurationInMs;
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
         this.timePartitions = new LinkedList<>();
+
+        int blankPartitions = (int)Math.ceil((double)ackTimeoutMillis / tickDurationInMs);
+        for (int i = 0; i < blankPartitions; i++) {
+            timePartitions.add(new ConcurrentOpenHashSet<>());
+        }
 
         timeout = client.timer().newTimeout(new TimerTask() {
             @Override
