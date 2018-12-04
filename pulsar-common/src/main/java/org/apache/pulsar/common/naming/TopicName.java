@@ -345,10 +345,6 @@ public class TopicName implements ServiceUnitId {
         return completeTopicName;
     }
 
-    public String getCompleteTopicName() {
-        return completeTopicName;
-    }
-
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof TopicName) {

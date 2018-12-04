@@ -1262,11 +1262,13 @@ public class PersistentTopicsBase extends AdminResource {
     private Topic getTopicReference(TopicName topicName) {
         return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
                 .orElseThrow(() -> {
-                    if (topicName.getCompleteTopicName().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
-                        if (!internalGetPartitionedTopicList().contains(topicName.getPartitionedTopicName())) {
+                    if (topicName.toString().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+                        TopicName partitionTopicName = TopicName.get(topicName.getPartitionedTopicName());
+                        PartitionedTopicMetadata partitionedTopicMetadata = getPartitionedTopicMetadata(partitionTopicName, false);
+                        if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
                             return new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
-                        } else if (!internalGetList().contains(topicName.getCompleteTopicName())) {
-                            return new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+                        } else if (!internalGetList().contains(topicName.toString())) {
+                            return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
                         }
                     }
                     return new RestException(Status.NOT_FOUND, "Topic not found");
