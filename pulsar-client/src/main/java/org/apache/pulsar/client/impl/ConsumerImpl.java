@@ -188,9 +188,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (conf.getAckTimeoutMillis() != 0) {
-            this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis());
+            this.unAckedMessageTracker = new WheelTimerUnAckedMessageTracker(this, conf.getAckTimeoutMillis());
         } else {
-            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
+            this.unAckedMessageTracker = WheelTimerUnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
         }
 
         // Create msgCrypto if not created already

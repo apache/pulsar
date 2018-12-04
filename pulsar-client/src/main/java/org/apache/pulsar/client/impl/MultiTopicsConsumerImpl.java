@@ -99,9 +99,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.allTopicPartitionsNumber = new AtomicInteger(0);
 
         if (conf.getAckTimeoutMillis() != 0) {
-            this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf.getAckTimeoutMillis());
+            this.unAckedMessageTracker = new WheelTimerUnAckedTopicMessageTracker(this, conf.getAckTimeoutMillis());
         } else {
-            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
+            this.unAckedMessageTracker = WheelTimerUnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
         }
 
         this.internalConfig = getInternalConsumerConfig();
@@ -822,7 +822,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     });
 
                     topics.remove(topicName);
-                    ((UnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
+                    ((WheelTimerUnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
 
                     unsubscribeFuture.complete(null);
                     log.info("[{}] [{}] [{}] Unsubscribed Topics Consumer, allTopicPartitionsNumber: {}",
