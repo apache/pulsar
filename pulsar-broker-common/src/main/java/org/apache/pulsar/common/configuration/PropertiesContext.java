@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.websocket.data;
+package org.apache.pulsar.common.configuration;
 
-public class ConsumerAck {
-    public String messageId;
+/**
+ * Documentation Annotation for Properties.
+ */
+public @interface PropertiesContext {
 
-    public ConsumerAck() {
-    }
+    /**
+     * Return list of properties.
+     *
+     * @return list of fields
+     */
+    PropertyContext[] properties();
 
-    public ConsumerAck(String messageId) {
-        this.messageId = messageId;
-    }
 }

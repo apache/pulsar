@@ -148,11 +148,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 instanceConfig.getFunctionDetails().getTenant(),
                 String.format("%s/%s", instanceConfig.getFunctionDetails().getTenant(),
                         instanceConfig.getFunctionDetails().getNamespace()),
-                String.format("%s/%s/%s", instanceConfig.getFunctionDetails().getTenant(),
-                        instanceConfig.getFunctionDetails().getNamespace(),
-                        instanceConfig.getFunctionDetails().getName()),
+                instanceConfig.getFunctionDetails().getName(),
                 String.valueOf(instanceConfig.getInstanceId()),
-                instanceConfig.getClusterName()
+                instanceConfig.getClusterName(),
+                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails())
         };
 
         // Declare function local collector registry so that it will not clash with other function instances'
@@ -217,7 +216,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (this.collectorRegistry == null) {
                 this.collectorRegistry = new CollectorRegistry();
             }
-            this.stats = new FunctionStatsManager(this.collectorRegistry, this.metricsLabels, this.instanceCache.executor);
+            this.stats = new FunctionStatsManager(this.collectorRegistry, this.metricsLabels, this.instanceCache.getScheduledExecutorService());
 
             ContextImpl contextImpl = setupContext();
             javaInstance = setupJavaInstance(contextImpl);

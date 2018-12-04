@@ -235,17 +235,16 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
     private static int receiveAllMessage(Consumer<?> consumer, boolean ackMessages) throws Exception {
         int messagesReceived = 0;
-        Message<?> msg = consumer.receive(200, TimeUnit.MILLISECONDS);
+        Message<?> msg = consumer.receive(1, TimeUnit.SECONDS);
         while (msg != null) {
             ++messagesReceived;
-            log.info("Consumer {} received {}", consumer.getConsumerName(), new String(msg.getData()));
+            log.info("Consumer received {}", new String(msg.getData()));
 
             if (ackMessages) {
                 consumer.acknowledge(msg);
-                log.info("Consumer {} acknowledged {}", consumer.getConsumerName(), new String(msg.getData()));
             }
 
-            msg = consumer.receive(200, TimeUnit.MILLISECONDS);
+            msg = consumer.receive(1, TimeUnit.SECONDS);
         }
 
         return messagesReceived;
@@ -284,31 +283,56 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         }
 
         // 4. Receive messages
+        Message<byte[]> message1 = consumer1.receive();
+        Message<byte[]> message2 = consumer2.receive();
         int messageCount1 = 0;
         int messageCount2 = 0;
-
-        messageCount1 += receiveAllMessage(consumer1, false);
-        messageCount2 += receiveAllMessage(consumer2, true);
-
+        int ackCount1 = 0;
+        int ackCount2 = 0;
+        do {
+            if (message1 != null) {
+                log.info("Consumer1 received " + new String(message1.getData()));
+                messageCount1 += 1;
+            }
+            if (message2 != null) {
+                log.info("Consumer2 received " + new String(message2.getData()));
+                messageCount2 += 1;
+                consumer2.acknowledge(message2);
+                ackCount2 += 1;
+            }
+            message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
+            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
+        } while (message1 != null || message2 != null);
         log.info(key + " messageCount1 = " + messageCount1);
         log.info(key + " messageCount2 = " + messageCount2);
-
+        log.info(key + " ackCount1 = " + ackCount1);
+        log.info(key + " ackCount2 = " + ackCount2);
         assertEquals(messageCount1 + messageCount2, totalMessages);
-
-        Thread.sleep((int) (ackTimeOutMillis * 1.1));
 
         // 5. Check if Messages redelivered again
         // Since receive is a blocking call hoping that timeout will kick in
         log.info(key + " Timeout should be triggered now");
+        message1 = consumer1.receive();
         messageCount1 = 0;
-
-        messageCount1 += receiveAllMessage(consumer1, true);
-        messageCount2 += receiveAllMessage(consumer2, false);
-
+        do {
+            if (message1 != null) {
+                log.info("Consumer1 received " + new String(message1.getData()));
+                messageCount1 += 1;
+                consumer1.acknowledge(message1);
+                ackCount1 += 1;
+            }
+            if (message2 != null) {
+                log.info("Consumer2 received " + new String(message2.getData()));
+                messageCount2 += 1;
+            }
+            message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
+            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
+        } while (message1 != null || message2 != null);
         log.info(key + " messageCount1 = " + messageCount1);
         log.info(key + " messageCount2 = " + messageCount2);
-
-        assertEquals(messageCount1 + messageCount2, totalMessages);
+        log.info(key + " ackCount1 = " + ackCount1);
+        log.info(key + " ackCount2 = " + ackCount2);
+        assertEquals(ackCount1 + messageCount2, totalMessages);
     }
 
     @Test
@@ -349,9 +373,11 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         Thread.sleep((long) (ackTimeOutMillis * 1.1));
 
-        for (int i = 0; i < totalMessages - 1; i++) {
+        for (int i = 0; i < totalMessages; i++) {
             Message<byte[]> msg = consumer.receive();
-            consumer.acknowledge(msg);
+            if (i != totalMessages - 1) {
+                consumer.acknowledge(msg);
+            }
         }
 
         assertEquals(consumer.getUnAckedMessageTracker().size(), 1);

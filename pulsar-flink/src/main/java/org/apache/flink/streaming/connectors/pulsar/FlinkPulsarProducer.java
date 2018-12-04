@@ -82,7 +82,7 @@ public class FlinkPulsarProducer<IN>
     /**
      * Produce Mode.
      */
-    protected PulsarProduceMode produceMode = PulsarProduceMode.AT_LEAST_ONE;
+    protected PulsarProduceMode produceMode = PulsarProduceMode.AT_LEAST_ONCE;
 
     /**
      * If true, the producer will wait until all outstanding records have been send to the broker.
@@ -216,7 +216,7 @@ public class FlinkPulsarProducer<IN>
                 LOG.error("Error while sending record to Pulsar : " + cause.getMessage(), cause);
                 return null;
             };
-        } else if (PulsarProduceMode.AT_LEAST_ONE == produceMode) {
+        } else if (PulsarProduceMode.AT_LEAST_ONCE == produceMode) {
             this.failureCallback = cause -> {
                 if (null == asyncException) {
                     if (cause instanceof Exception) {

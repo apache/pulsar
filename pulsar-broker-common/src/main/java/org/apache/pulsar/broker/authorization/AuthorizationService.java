@@ -95,6 +95,41 @@ public class AuthorizationService {
     }
 
     /**
+     * Grant permission to roles that can access subscription-admin api
+     * 
+     * @param namespace
+     * @param subscriptionName
+     * @param roles
+     * @param authDataJson
+     *            additional authdata in json for targeted authorization provider
+     * @return
+     */
+    public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            Set<String> roles, String authDataJson) {
+
+        if (provider != null) {
+            return provider.grantSubscriptionPermissionAsync(namespace, subscriptionName, roles, authDataJson);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+
+    /**
+     * Revoke subscription admin-api access for a role
+     * 
+     * @param namespace
+     * @param subscriptionName
+     * @param role
+     * @return
+     */
+    public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            String role, String authDataJson) {
+        if (provider != null) {
+            return provider.revokeSubscriptionPermissionAsync(namespace, subscriptionName, role, authDataJson);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+    
+    /**
      * Grant authorization-action permission on a topic to the given client
      *
      * @param topicname
