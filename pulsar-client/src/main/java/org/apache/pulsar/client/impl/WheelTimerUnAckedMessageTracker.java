@@ -141,11 +141,16 @@ public class WheelTimerUnAckedMessageTracker extends UnAckedMessageTracker imple
         }
     }
 
+    void toggle() {
+
+    }
+
     public boolean add(MessageId messageId) {
         writeLock.lock();
         try {
             Timeout msgTimeout = wheelTimer.newTimeout(timeout -> {
                 paddingSet.get().add(messageId);
+                timeoutMap.remove(messageId);
             }, ackTimeoutMillis, TimeUnit.MILLISECONDS);
             timeoutMap.put(messageId, msgTimeout);
             return true;

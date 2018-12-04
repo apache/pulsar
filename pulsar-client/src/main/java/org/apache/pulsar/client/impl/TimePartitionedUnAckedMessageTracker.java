@@ -98,6 +98,10 @@ public class TimePartitionedUnAckedMessageTracker extends UnAckedMessageTracker 
         }
     }
 
+    void toggle() {
+
+    }
+
     public boolean add(MessageId messageId) {
         writeLock.lock();
         try {
