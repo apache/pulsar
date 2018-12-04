@@ -167,7 +167,9 @@ public class WheelTimerUnAckedMessageTracker extends UnAckedMessageTracker imple
         writeLock.lock();
         try {
             Timeout timeout = timeoutMap.remove(messageId);
-            timeout.cancel();
+            if (timeout != null) {
+                timeout.cancel();
+            }
             return true;
         } finally {
             writeLock.unlock();
