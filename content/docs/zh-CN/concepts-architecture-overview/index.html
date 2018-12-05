@@ -83,36 +83,36 @@
 <h2><a class="anchor" aria-hidden="true" id="元数据存储"></a><a href="#元数据存储" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>元数据存储</h2>
 <p>Pulsar利用<a href="https://zookeeper.apache.org/">Apache Zookeeper</a>进行元数据存储，集群配置和协调。在一个Pulsar实例中：</p>
 <ul>
-<li><strong>配置与仲裁存储</strong>: 存储租户，命名域和其他需要全局一致的实体</li>
-<li>Each cluster has its own local ZooKeeper ensemble that stores cluster-specific configuration and coordination such as ownership metadata, broker load reports, BookKeeper ledger metadata, and more.</li>
+<li><strong>配置与仲裁存储</strong>: 存储租户，命名域和其他需要全局一致的配置项</li>
+<li>每个集群有自己独立的ZooKeeper保存集群内部配置和协调信息，例如归属信息，broker负载报告，BookKeeper ledger信息（这个是BookKeeper本身所依赖的），等等</li>
 </ul>
-<h2><a class="anchor" aria-hidden="true" id="persistent-storage"></a><a href="#persistent-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Persistent storage</h2>
-<p>Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar broker, it will be delivered to its intended target.</p>
-<p>This guarantee requires that non-acknowledged messages are stored in a durable manner until they can be delivered to and acknowledged by consumers. This mode of messaging is commonly called <em>persistent messaging</em>. In Pulsar, N copies of all messages are stored and synced on disk, for example 4 copies across two servers with mirrored <a href="https://en.wikipedia.org/wiki/RAID">RAID</a> volumes on each server.</p>
+<h2><a class="anchor" aria-hidden="true" id="持久化存储"></a><a href="#持久化存储" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>持久化存储</h2>
+<p>Pulsar提供有保证的应用消息运输。如果消息成功送达了Pulsar Broker，它一定会被送达至它的目的地</p>
+<p>为了提供这种保证，未确认送达的消息需要持久化存储直到它们被确认送达 这种消息推送方式通常叫做<em>持久化消息推送</em> 在Pulsar内部，所有消息都被保存并同步N份，例如，2个服务器保存四份，每个服务器上面都有镜像的<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>存储</p>
 <h3><a class="anchor" aria-hidden="true" id="apache-bookkeeper"></a><a href="#apache-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Apache BookKeeper</h3>
-<p>Pulsar uses a system called <a href="http://bookkeeper.apache.org/">Apache BookKeeper</a> for persistent message storage. BookKeeper is a distributed <a href="https://en.wikipedia.org/wiki/Write-ahead_logging">write-ahead log</a> (WAL) system that provides a number of crucial advantages for Pulsar:</p>
+<p>Pulsar用 <a href="http://bookkeeper.apache.org/">Apache BookKeeper</a>作为持久化存储。 BookKeeper是一个分布式的<a href="https://en.wikipedia.org/wiki/Write-ahead_logging">预写日志（WAL）</a>系统，有如下几个特性特别适合Pulsar的应用场景：</p>
 <ul>
-<li>It enables Pulsar to utilize many independent logs, called <a href="#ledgers">ledgers</a>. Multiple ledgers can be created for topics over time.</li>
-<li>It offers very efficient storage for sequential data that handles entry replication.</li>
-<li>It guarantees read consistency of ledgers in the presence of various system failures.</li>
-<li>It offers even distribution of I/O across bookies.</li>
-<li>It's horizontally scalable in both capacity and throughput. Capacity can be immediately increased by adding more bookies to a cluster.</li>
-<li>Bookies are designed to handle thousands of ledgers with concurrent reads and writes. By using multiple disk devices---one for journal and another for general storage--bookies are able to isolate the effects of read operations from the latency of ongoing write operations.</li>
+<li>能让Pulsar创建多个独立的日志，这种独立的日志就是<a href="#ledgers">ledgers</a>. 随着时间的推移，Pulsar会为Topic创建多个ledgers。</li>
+<li>为按条目复制的顺序数据提供了非常高效的存储。</li>
+<li>保证了多系统挂掉时ledgers的读取一致性。</li>
+<li>提供不同的Bookies之间均匀的IO分布的特性。</li>
+<li>容量和吞吐量都能水平扩展。并且容量可以通过在集群内添加更多的Bookies立刻提升。</li>
+<li>Bookies被设计成可以承载数千的并发读写的ledgers。 使用多个磁盘设备，一个用于日志，另一个用于一般存储，这样Bookies可以将读操作的影响和对于写操作的延迟分隔开。</li>
 </ul>
-<p>In addition to message data, <em>cursors</em> are also persistently stored in BookKeeper. Cursors are <a href="/docs/zh-CN/reference-terminology#subscription">subscription</a> positions for <a href="/docs/zh-CN/reference-terminology#consumer">consumers</a>. BookKeeper enables Pulsar to store consumer position in a scalable fashion.</p>
-<p>At the moment, Pulsar only supports persistent message storage. This accounts for the <code>persistent</code> in all topic names. Here's an example:</p>
+<p>除了消息数据，<em>cursors</em>也会被持久化入BookKeeper。 Cursors是消费端<a href="/docs/zh-CN/reference-terminology#subscription">订阅</a>消费的位置。 BookKeeper让Pulsar可以用一种可扩展的方式存储消费位置。</p>
+<p>目前，Pulsar只支持持久消息存储。这是所有topic名称都是持久不可变的原因。这里有一个例子：</p>
 <pre><code class="hljs css language-http">persistent://my-tenant/my-namespace/my-topic
 </code></pre>
 <blockquote>
-<p>Pulsar also supports ephemeral (<a href="/docs/zh-CN/concepts-messaging#non-persistent-topics">non-persistent</a>) message storage.</p>
+<p>Pulsar也支持临时消息（ (<a href="/docs/zh-CN/concepts-messaging#non-persistent-topics">非持久消息</a>) ）存储。</p>
 </blockquote>
-<p>You can see an illustration of how brokers and bookies interact in the diagram below:</p>
+<p>下图展示了brokers和bookies是如何交互的</p>
 <p><img src="/docs/assets/broker-bookie.png" alt="Brokers and bookies"></p>
 <h3><a class="anchor" aria-hidden="true" id="ledgers"></a><a href="#ledgers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Ledgers</h3>
-<p>A ledger is an append-only data structure with a single writer that is assigned to multiple BookKeeper storage nodes, or bookies. Ledger entries are replicated to multiple bookies. Ledgers themselves have very simple semantics:</p>
+<p>Ledger是一个只追加的数据结构，并且只有一个写入器，这个写入器负责多个BookKeeper存储节点（就是Bookies）的写入。 Ledger的条目会被复制到多个bookies。 Ledgers本身有着非常简单的语义：</p>
 <ul>
-<li>A Pulsar broker can create a ledger, append entries to the ledger, and close the ledger.</li>
-<li>After the ledger has been closed---either explicitly or because the writer process crashed---it can then be opened only in read-only mode.</li>
+<li>Pulsar Broker可以创建ledeger，添加内容到ledger和关闭ledger。</li>
+<li>当一个ledger被关闭后，除非明确的要写数据或者是因为写入器挂掉导致ledger关闭，这个ledger只会以只读模式打开。</li>
 <li>Finally, when entries in the ledger are no longer needed, the whole ledger can be deleted from the system (across all bookies).</li>
 </ul>
 <h4><a class="anchor" aria-hidden="true" id="ledger-read-consistency"></a><a href="#ledger-read-consistency" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Ledger read consistency</h4>
@@ -156,7 +156,7 @@
 
 client = Client(<span class="hljs-string">'pulsar://pulsar-cluster.acme.com:6650'</span>)
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/concepts-messaging"><span class="arrow-prev">← </span><span>消息传送</span></a><a class="docs-next button" href="/docs/zh-CN/concepts-clients"><span>客户端</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#brokers">Brokers</a></li><li><a href="#集群">集群</a></li><li><a href="#元数据存储">元数据存储</a></li><li><a href="#persistent-storage">Persistent storage</a><ul class="toc-headings"><li><a href="#apache-bookkeeper">Apache BookKeeper</a></li><li><a href="#ledgers">Ledgers</a></li><li><a href="#journal-storage">Journal storage</a></li></ul></li><li><a href="#pulsar-proxy">Pulsar proxy</a></li><li><a href="#service-discovery">Service discovery</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/concepts-messaging"><span class="arrow-prev">← </span><span>消息传送</span></a><a class="docs-next button" href="/docs/zh-CN/concepts-clients"><span>客户端</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#brokers">Brokers</a></li><li><a href="#集群">集群</a></li><li><a href="#元数据存储">元数据存储</a></li><li><a href="#持久化存储">持久化存储</a><ul class="toc-headings"><li><a href="#apache-bookkeeper">Apache BookKeeper</a></li><li><a href="#ledgers">Ledgers</a></li><li><a href="#journal-storage">Journal storage</a></li></ul></li><li><a href="#pulsar-proxy">Pulsar proxy</a></li><li><a href="#service-discovery">Service discovery</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2018 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
