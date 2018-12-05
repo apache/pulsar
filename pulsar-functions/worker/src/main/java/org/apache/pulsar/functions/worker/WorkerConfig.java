@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.Sets;
@@ -47,6 +48,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode
 @ToString
 @Accessors(chain = true)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     private static final long serialVersionUID = 1L;
