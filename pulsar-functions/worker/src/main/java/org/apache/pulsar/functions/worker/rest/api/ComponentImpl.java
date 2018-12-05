@@ -153,12 +153,16 @@ public abstract class ComponentImpl {
 
         public abstract T notScheduledInstance();
 
-        public abstract T fromFunctionStatusProto(InstanceCommunication.FunctionStatus status, String assignedWorkerId);
+        public abstract T fromFunctionStatusProto(final InstanceCommunication.FunctionStatus status,
+                                                  final String assignedWorkerId);
 
-        public abstract T notRunning(String assignedWorkerId, String error);
+        public abstract T notRunning(final String assignedWorkerId, final String error);
 
-        public T getComponentInstanceStatus(String tenant, String namespace,
-                                            String name, int instanceId, URI uri) {
+        public T getComponentInstanceStatus(final String tenant,
+                                            final String namespace,
+                                            final String name,
+                                            final int instanceId,
+                                            final URI uri) {
 
             Function.Assignment assignment;
             if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
@@ -218,16 +222,23 @@ public abstract class ComponentImpl {
             }
         }
 
-        public abstract S getStatus(String tenant, String namespace,
-                                    String name, Collection<Function.Assignment> assignments, URI uri) throws PulsarAdminException;
+        public abstract S getStatus(final String tenant,
+                                    final String namespace,
+                                    final String name,
+                                    final Collection<Function.Assignment> assignments,
+                                    final URI uri) throws PulsarAdminException;
 
-        public abstract S getStatusExternal(String tenant, String namespace,
-                                            String name, int parallelism);
+        public abstract S getStatusExternal(final String tenant,
+                                            final String namespace,
+                                            final String name,
+                                            final int parallelism);
 
-        public abstract S emptyStatus(int parallelism);
+        public abstract S emptyStatus(final int parallelism);
 
-        public S getComponentStatus(String tenant, String namespace,
-                                    String name, URI uri) {
+        public S getComponentStatus(final String tenant,
+                                    final String namespace,
+                                    final String name,
+                                    final URI uri) {
 
             Function.FunctionMetaData functionMetaData = worker().getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, name);
 
@@ -291,10 +302,14 @@ public abstract class ComponentImpl {
         return true;
     }
 
-    public Response registerFunction(final String tenant, final String namespace, final String componentName,
-                                     final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
-                                     final String functionPkgUrl, final String functionDetailsJson, final String componentConfigJson,
-
+    public Response registerFunction(final String tenant,
+                                     final String namespace,
+                                     final String componentName,
+                                     final InputStream uploadedInputStream,
+                                     final FormDataContentDisposition fileDetail,
+                                     final String functionPkgUrl,
+                                     final String functionDetailsJson,
+                                     final String componentConfigJson,
                                      final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
@@ -315,9 +330,8 @@ public abstract class ComponentImpl {
         }
 
         try {
-            TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
-            String qualifedNamespace = tenant + "/" + namespace;
-            if (!worker().getBrokerAdmin().namespaces().getNamespaces(tenant).contains(qualifedNamespace)) {
+            String qualifiedNamespace = tenant + "/" + namespace;
+            if (!worker().getBrokerAdmin().namespaces().getNamespaces(tenant).contains(qualifiedNamespace)) {
                 log.error("{}/{}/{} Namespace {} does not exist", tenant, namespace,
                         componentName, namespace);
                 return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
@@ -409,10 +423,10 @@ public abstract class ComponentImpl {
         return updateRequest(functionMetaDataBuilder.build());
     }
 
-    private PackageLocationMetaData.Builder getFunctionPackageLocation(FunctionDetails functionDetails,
-                                                                       String functionPkgUrl,
+    private PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionDetails functionDetails,
+                                                                       final String functionPkgUrl,
                                                                        final FormDataContentDisposition fileDetail,
-                                                                       File uploadedInputStreamAsFile) throws Exception {
+                                                                       final File uploadedInputStreamAsFile) throws Exception {
         String tenant = functionDetails.getTenant();
         String namespace = functionDetails.getNamespace();
         String componentName = functionDetails.getName();
@@ -466,9 +480,14 @@ public abstract class ComponentImpl {
     }
 
 
-    public Response updateFunction(final String tenant, final String namespace, final String componentName,
-                                   final InputStream uploadedInputStream, final FormDataContentDisposition fileDetail,
-                                   final String functionPkgUrl, final String functionDetailsJson, final String componentConfigJson,
+    public Response updateFunction(final String tenant,
+                                   final String namespace,
+                                   final String componentName,
+                                   final InputStream uploadedInputStream,
+                                   final FormDataContentDisposition fileDetail,
+                                   final String functionPkgUrl,
+                                   final String functionDetailsJson,
+                                   final String componentConfigJson,
                                    final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
@@ -516,7 +535,7 @@ public abstract class ComponentImpl {
             FunctionConfig existingFunctionConfig = FunctionConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
             existingComponentConfigJson = new Gson().toJson(existingFunctionConfig);
             FunctionConfig functionConfig = new Gson().fromJson(componentConfigJson, FunctionConfig.class);
-            // The rest end points take precendence over whatever is there in functionconfig
+            // The rest end points take precedence over whatever is there in functionconfig
             functionConfig.setTenant(tenant);
             functionConfig.setNamespace(namespace);
             functionConfig.setName(componentName);
@@ -531,7 +550,7 @@ public abstract class ComponentImpl {
             SourceConfig existingSourceConfig = SourceConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
             existingComponentConfigJson = new Gson().toJson(existingSourceConfig);
             SourceConfig sourceConfig = new Gson().fromJson(componentConfigJson, SourceConfig.class);
-            // The rest end points take precendence over whatever is there in functionconfig
+            // The rest end points take precedence over whatever is there in functionconfig
             sourceConfig.setTenant(tenant);
             sourceConfig.setNamespace(namespace);
             sourceConfig.setName(componentName);
@@ -546,7 +565,7 @@ public abstract class ComponentImpl {
             SinkConfig existingSinkConfig = SinkConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
             existingComponentConfigJson = new Gson().toJson(existingSinkConfig);
             SinkConfig sinkConfig = new Gson().fromJson(componentConfigJson, SinkConfig.class);
-            // The rest end points take precendence over whatever is there in functionconfig
+            // The rest end points take precedence over whatever is there in functionconfig
             sinkConfig.setTenant(tenant);
             sinkConfig.setNamespace(namespace);
             sinkConfig.setName(componentName);
@@ -570,7 +589,6 @@ public abstract class ComponentImpl {
         if (uploadedInputStream != null) {
             uploadedInputStreamAsFile = dumpToTmpFile(uploadedInputStream);
         }
-        File existingPackageAsFile = null;
 
         // validate parameters
         try {
@@ -581,7 +599,8 @@ public abstract class ComponentImpl {
                 functionDetails = validateUpdateRequestParams(tenant, namespace, componentName, uploadedInputStreamAsFile,
                         fileDetail, functionDetailsJson, mergedComponentConfigJson, componentType);
             } else {
-                functionDetails = validateUpdateRequestParamsWithExistingMetadata(tenant, namespace, componentName, existingComponent.getPackageLocation(), mergedComponentConfigJson, componentType);
+                functionDetails = validateUpdateRequestParamsWithExistingMetadata(
+                        tenant, namespace, componentName, existingComponent.getPackageLocation(), mergedComponentConfigJson, componentType);
             }
         } catch (Exception e) {
             log.error("Invalid update {} request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
@@ -618,8 +637,10 @@ public abstract class ComponentImpl {
         return updateRequest(functionMetaDataBuilder.build());
     }
 
-    public Response deregisterFunction(final String tenant, final String namespace, final String componentName,
-                                       String clientRole) {
+    public Response deregisterFunction(final String tenant,
+                                       final String namespace,
+                                       final String componentName,
+                                       final String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -702,8 +723,9 @@ public abstract class ComponentImpl {
         return Response.status(Status.OK).entity(requestResult.toJson()).build();
     }
 
-    public Response getFunctionInfo(final String tenant, final String namespace, final String componentName)
-            throws IOException {
+    public Response getFunctionInfo(final String tenant,
+                                    final String namespace,
+                                    final String componentName) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -731,32 +753,42 @@ public abstract class ComponentImpl {
                     .entity(new ErrorData(String.format(componentType + " %s doesn't exist", componentName))).build();
         }
 
-        String retval;
+        String retVal;
         if (componentType.equals(FUNCTION)) {
             FunctionConfig config = FunctionConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
-            retval = new Gson().toJson(config);
+            retVal = new Gson().toJson(config);
         } else if (componentType.equals(SOURCE)) {
             SourceConfig config = SourceConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
-            retval = new Gson().toJson(config);
+            retVal = new Gson().toJson(config);
         } else {
             SinkConfig config = SinkConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
-            retval = new Gson().toJson(config);
+            retVal = new Gson().toJson(config);
         }
-        return Response.status(Status.OK).entity(retval).build();
+        return Response.status(Status.OK).entity(retVal).build();
     }
 
-    public Response stopFunctionInstance(final String tenant, final String namespace, final String componentName,
-                                         final String instanceId, URI uri) {
+    public Response stopFunctionInstance(final String tenant,
+                                         final String namespace,
+                                         final String componentName,
+                                         final String instanceId,
+                                         final URI uri) {
         return stopFunctionInstance(tenant, namespace, componentName, instanceId, false, uri);
     }
 
-    public Response restartFunctionInstance(final String tenant, final String namespace, final String componentName,
-                                            final String instanceId, URI uri) {
+    public Response restartFunctionInstance(final String tenant,
+                                            final String namespace,
+                                            final String componentName,
+                                            final String instanceId,
+                                            final URI uri) {
         return stopFunctionInstance(tenant, namespace, componentName, instanceId, true, uri);
     }
 
-    public Response stopFunctionInstance(final String tenant, final String namespace, final String componentName,
-                                         final String instanceId, boolean restart, URI uri) {
+    public Response stopFunctionInstance(final String tenant,
+                                         final String namespace,
+                                         final String componentName,
+                                         final String instanceId,
+                                         final boolean restart,
+                                         final URI uri) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -797,16 +829,22 @@ public abstract class ComponentImpl {
         }
     }
 
-    public Response stopFunctionInstances(final String tenant, final String namespace, final String componentName) {
+    public Response stopFunctionInstances(final String tenant,
+                                          final String namespace,
+                                          final String componentName) {
         return stopFunctionInstances(tenant, namespace, componentName, false);
     }
 
-    public Response restartFunctionInstances(final String tenant, final String namespace, final String componentName) {
+    public Response restartFunctionInstances(final String tenant,
+                                             final String namespace,
+                                             final String componentName) {
         return stopFunctionInstances(tenant, namespace, componentName, true);
     }
 
-    public Response stopFunctionInstances(final String tenant, final String namespace, final String componentName,
-                                          boolean restart) {
+    public Response stopFunctionInstances(final String tenant,
+                                          final String namespace,
+                                          final String componentName,
+                                          final boolean restart) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
@@ -846,8 +884,10 @@ public abstract class ComponentImpl {
         }
     }
 
-    public FunctionStats getFunctionStats(final String tenant, final String namespace, final String componentName,
-                                          URI uri) throws IOException {
+    public FunctionStats getFunctionStats(final String tenant,
+                                          final String namespace,
+                                          final String componentName,
+                                          final URI uri) {
         if (!isWorkerServiceAvailable()) {
             throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
         }
@@ -887,8 +927,11 @@ public abstract class ComponentImpl {
 
     }
 
-    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionsInstanceStats(final String tenant, final String namespace, final String componentName,
-                                                                                                   String instanceId, URI uri) {
+    public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionsInstanceStats(final String tenant,
+                                                                                                   final String namespace,
+                                                                                                   final String componentName,
+                                                                                                   final String instanceId,
+                                                                                                   final URI uri) {
         if (!isWorkerServiceAvailable()) {
             throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
         }
@@ -997,14 +1040,17 @@ public abstract class ComponentImpl {
         return this.worker().getConnectorsManager().getConnectors();
     }
 
-    public Response triggerFunction(final String tenant, final String namespace, final String functionName,
-                                    final String input, final InputStream uploadedInputStream, final String topic) {
+    public Response triggerFunction(final String tenant,
+                                    final String namespace,
+                                    final String functionName,
+                                    final String input,
+                                    final InputStream uploadedInputStream,
+                                    final String topic) {
 
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
-        FunctionDetails functionDetails;
         // validate parameters
         try {
             validateTriggerRequestParams(tenant, namespace, functionName, topic, input, uploadedInputStream);
@@ -1098,8 +1144,10 @@ public abstract class ComponentImpl {
         }
     }
 
-    public Response getFunctionState(final String tenant, final String namespace,
-                                     final String functionName, final String key) {
+    public Response getFunctionState(final String tenant,
+                                     final String namespace,
+                                     final String functionName,
+                                     final String key) {
         if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
@@ -1209,7 +1257,7 @@ public abstract class ComponentImpl {
         }).build();
     }
 
-    private void validateListFunctionRequestParams(String tenant, String namespace) throws IllegalArgumentException {
+    private void validateListFunctionRequestParams(final String tenant, final String namespace) throws IllegalArgumentException {
 
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
@@ -1219,8 +1267,11 @@ public abstract class ComponentImpl {
         }
     }
 
-    protected void validateGetFunctionInstanceRequestParams(String tenant, String namespace, String componentName,
-                                                          ComponentType componentType, String instanceId) throws IllegalArgumentException {
+    protected void validateGetFunctionInstanceRequestParams(final String tenant,
+                                                            final String namespace,
+                                                            final String componentName,
+                                                            final ComponentType componentType,
+                                                            final String instanceId) throws IllegalArgumentException {
         validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
         if (instanceId == null) {
             throw new IllegalArgumentException(String.format("%s Instance Id is not provided", componentType));
@@ -1255,10 +1306,14 @@ public abstract class ComponentImpl {
         }
     }
 
-    private FunctionDetails validateUpdateRequestParamsWithPkgUrl(String tenant, String namespace, String componentName,
-                                                                  String functionPkgUrl, String functionDetailsJson, String componentConfigJson,
-                                                                  ComponentType componentType)
-            throws IllegalArgumentException, IOException, URISyntaxException {
+    private FunctionDetails validateUpdateRequestParamsWithPkgUrl(final String tenant,
+                                                                  final String namespace,
+                                                                  final String componentName,
+                                                                  final String functionPkgUrl,
+                                                                  final String functionDetailsJson,
+                                                                  final String componentConfigJson,
+                                                                  final ComponentType componentType)
+            throws IllegalArgumentException, IOException {
         if (!org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
             throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
         }
@@ -1267,9 +1322,14 @@ public abstract class ComponentImpl {
         return functionDetails;
     }
 
-    private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String componentName,
-                                                        File uploadedInputStreamAsFile, FormDataContentDisposition fileDetail, String functionDetailsJson,
-                                                        String componentConfigJson, ComponentType componentType)
+    private FunctionDetails validateUpdateRequestParams(final String tenant,
+                                                        final String namespace,
+                                                        final String componentName,
+                                                        final File uploadedInputStreamAsFile,
+                                                        final FormDataContentDisposition fileDetail,
+                                                        final String functionDetailsJson,
+                                                        final String componentConfigJson,
+                                                        final ComponentType componentType)
             throws IllegalArgumentException, IOException {
 
         FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, componentName,
@@ -1281,9 +1341,12 @@ public abstract class ComponentImpl {
         return functionDetails;
     }
 
-    private FunctionDetails validateUpdateRequestParamsWithExistingMetadata(String tenant, String namespace, String componentName,
-                                                                            PackageLocationMetaData packageLocationMetaData,
-                                                                            String componentConfigJson, ComponentType componentType) throws Exception {
+    private FunctionDetails validateUpdateRequestParamsWithExistingMetadata(final String tenant,
+                                                                            final String namespace,
+                                                                            final String componentName,
+                                                                            final PackageLocationMetaData packageLocationMetaData,
+                                                                            final String componentConfigJson,
+                                                                            final ComponentType componentType) throws Exception {
         File tmpFile = File.createTempFile("functions", null);
         tmpFile.deleteOnExit();
         Utils.downloadFromBookkeeper(worker().getDlogNamespace(), tmpFile, packageLocationMetaData.getPackagePath());
@@ -1291,7 +1354,7 @@ public abstract class ComponentImpl {
                 null, componentConfigJson, componentType, null, tmpFile);
     }
 
-    private static File dumpToTmpFile(InputStream uploadedInputStream) {
+    private static File dumpToTmpFile(final InputStream uploadedInputStream) {
         try {
             File tmpFile = File.createTempFile("functions", null);
             tmpFile.deleteOnExit();
@@ -1302,7 +1365,10 @@ public abstract class ComponentImpl {
         }
     }
 
-    private void validateGetFunctionStateParams(String tenant, String namespace, String functionName, String key)
+    private void validateGetFunctionStateParams(final String tenant,
+                                                final String namespace,
+                                                final String functionName,
+                                                final String key)
             throws IllegalArgumentException {
 
         if (tenant == null) {
@@ -1355,9 +1421,14 @@ public abstract class ComponentImpl {
         return null;
     }
 
-    private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String componentName,
-                                                        String functionDetailsJson, String componentConfigJson, ComponentType componentType,
-                                                        String functionPkgUrl, File uploadedInputStreamAsFile) throws IOException {
+    private FunctionDetails validateUpdateRequestParams(final String tenant,
+                                                        final String namespace,
+                                                        final String componentName,
+                                                        final String functionDetailsJson,
+                                                        final String componentConfigJson,
+                                                        final ComponentType componentType,
+                                                        final String functionPkgUrl,
+                                                        final File uploadedInputStreamAsFile) throws IOException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -1370,7 +1441,7 @@ public abstract class ComponentImpl {
 
         if (componentType.equals(FUNCTION) && !isEmpty(componentConfigJson)) {
             FunctionConfig functionConfig = new Gson().fromJson(componentConfigJson, FunctionConfig.class);
-            // The rest end points take precendence over whatever is there in functionconfig
+            // The rest end points take precedence over whatever is there in functionconfig
             functionConfig.setTenant(tenant);
             functionConfig.setNamespace(namespace);
             functionConfig.setName(componentName);
@@ -1381,7 +1452,7 @@ public abstract class ComponentImpl {
         if (componentType.equals(SOURCE)) {
             Path archivePath = null;
             SourceConfig sourceConfig = new Gson().fromJson(componentConfigJson, SourceConfig.class);
-            // The rest end points take precendence over whatever is there in sourceconfig
+            // The rest end points take precedence over whatever is there in sourceconfig
             sourceConfig.setTenant(tenant);
             sourceConfig.setNamespace(namespace);
             sourceConfig.setName(componentName);
@@ -1403,7 +1474,7 @@ public abstract class ComponentImpl {
         if (componentType.equals(SINK)) {
             Path archivePath = null;
             SinkConfig sinkConfig = new Gson().fromJson(componentConfigJson, SinkConfig.class);
-            // The rest end points take precendence over whatever is there in sinkConfig
+            // The rest end points take precedence over whatever is there in sinkConfig
             sinkConfig.setTenant(tenant);
             sinkConfig.setNamespace(namespace);
             sinkConfig.setName(componentName);
@@ -1562,8 +1633,12 @@ public abstract class ComponentImpl {
         return TypeResolver.resolveRawArgument(funClass, loadedClass);
     }
 
-    private void validateTriggerRequestParams(String tenant, String namespace, String functionName, String topic,
-                                              String input, InputStream uploadedInputStream) {
+    private void validateTriggerRequestParams(final String tenant,
+                                              final String namespace,
+                                              final String functionName,
+                                              final String topic,
+                                              final String input,
+                                              final InputStream uploadedInputStream) {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -1572,6 +1647,9 @@ public abstract class ComponentImpl {
         }
         if (functionName == null) {
             throw new IllegalArgumentException("Function Name is not provided");
+        }
+        if (topic == null) {
+            throw new IllegalArgumentException("Topic is not provided");
         }
         if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");
@@ -1660,8 +1738,10 @@ public abstract class ComponentImpl {
         }
     }
 
-    protected void componentInstanceStatusRequestValidate (final String tenant, final String namespace,
-                                                           final String componentName, int instanceId) {
+    protected void componentInstanceStatusRequestValidate (final String tenant,
+                                                           final String namespace,
+                                                           final String componentName,
+                                                           final int instanceId) {
         componentStatusRequestValidate(tenant, namespace, componentName);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();

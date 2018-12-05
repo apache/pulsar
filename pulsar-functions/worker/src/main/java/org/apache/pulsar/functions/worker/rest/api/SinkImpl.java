@@ -24,13 +24,11 @@ import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.RestException;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -123,13 +121,18 @@ public class SinkImpl extends ComponentImpl {
         }
 
         @Override
-        public SinkStatus getStatus(String tenant, String namespace, String name, Collection<Function.Assignment> assignments, URI uri) throws PulsarAdminException {
+        public SinkStatus getStatus(final String tenant,
+                                    final String namespace,
+                                    final String name,
+                                    final Collection<Function.Assignment> assignments,
+                                    final URI uri) throws PulsarAdminException {
             SinkStatus sinkStatus = new SinkStatus();
             for (Function.Assignment assignment : assignments) {
                 boolean isOwner = worker().getWorkerConfig().getWorkerId().equals(assignment.getWorkerId());
                 SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData;
                 if (isOwner) {
-                    sinkInstanceStatusData = getComponentInstanceStatus(tenant, namespace, name, assignment.getInstance().getInstanceId(), null);
+                    sinkInstanceStatusData = getComponentInstanceStatus(tenant,
+                            namespace, name, assignment.getInstance().getInstanceId(), null);
                 } else {
                     sinkInstanceStatusData = worker().getFunctionAdmin().sink().getSinkStatus(
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
@@ -154,7 +157,10 @@ public class SinkImpl extends ComponentImpl {
         }
 
         @Override
-        public SinkStatus getStatusExternal (String tenant, String namespace, String name, int parallelism) {
+        public SinkStatus getStatusExternal(final String tenant,
+                                            final String namespace,
+                                            final String name,
+                                            final int parallelism) {
             SinkStatus sinkStatus = new SinkStatus();
             for (int i = 0; i < parallelism; ++i) {
                 SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData
@@ -176,7 +182,7 @@ public class SinkImpl extends ComponentImpl {
         }
 
         @Override
-        public SinkStatus emptyStatus(int parallelism) {
+        public SinkStatus emptyStatus(final int parallelism) {
             SinkStatus sinkStatus = new SinkStatus();
             sinkStatus.setNumInstances(parallelism);
             sinkStatus.setNumRunning(0);
@@ -200,9 +206,11 @@ public class SinkImpl extends ComponentImpl {
         super(workerServiceSupplier, ComponentType.SINK);
     }
 
-    public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(
-            String tenant, String namespace, String sinkName, String instanceId, URI uri)
-            throws IOException {
+    public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(final String tenant,
+                                                                                      final String namespace,
+                                                                                      final String sinkName,
+                                                                                      final String instanceId,
+                                                                                      final URI uri) {
 
         // validate parameters
         componentInstanceStatusRequestValidate(tenant, namespace, sinkName, Integer.parseInt(instanceId));
@@ -221,9 +229,10 @@ public class SinkImpl extends ComponentImpl {
         return sinkInstanceStatusData;
     }
 
-    public SinkStatus getSinkStatus(
-            final String tenant, final String namespace,
-            final String componentName, URI uri) {
+    public SinkStatus getSinkStatus(final String tenant,
+                                    final String namespace,
+                                    final String componentName,
+                                    final URI uri) {
 
         // validate parameters
         componentStatusRequestValidate(tenant, namespace, componentName);
