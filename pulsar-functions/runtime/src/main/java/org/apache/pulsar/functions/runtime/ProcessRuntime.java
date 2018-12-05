@@ -39,6 +39,7 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.Utils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -72,6 +73,7 @@ class ProcessRuntime implements Runtime {
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private final String extraDependenciesDir;
     private static final long GRPC_TIMEOUT_SECS = 5;
+    private final String funcLogDir;
 
     ProcessRuntime(InstanceConfig instanceConfig,
                    String instanceFile,
@@ -88,6 +90,7 @@ class ProcessRuntime implements Runtime {
         this.metricsPort = Utils.findAvailablePort();
         this.expectedHealthCheckInterval = expectedHealthCheckInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
+        this.funcLogDir = RuntimeUtils.genFunctionLogFolder(logDirectory, instanceConfig);
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
@@ -133,6 +136,19 @@ class ProcessRuntime implements Runtime {
     @Override
     public void start() {
         java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> process.destroy()));
+
+        // Note: we create the expected log folder before the function process logger attempts to create it
+        // This is because if multiple instances are launched they can encounter a race condition creation of the dir.
+        log.info("Creating function log directory {}", funcLogDir);
+        boolean success = createFolder(funcLogDir);
+
+        if (!success) {
+            log.error("Log folder could not be created : {}", funcLogDir);
+            throw new RuntimeException("Log folder creation error");
+        }
+
+        log.info("Created function log directory {}", funcLogDir);
+
         startProcess();
         if (channel == null && stub == null) {
             channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
@@ -330,6 +346,11 @@ class ProcessRuntime implements Runtime {
             return false;
         }
         return true;
+    }
+
+    private boolean createFolder(final String path) {
+        final boolean success = new File(path).mkdirs();
+        return success;
     }
 
     private void tryExtractingDeathException() {
