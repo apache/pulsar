@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -350,17 +351,31 @@ public class PulsarRecordCursor implements RecordCursor {
                 readEntries.run();
             }
 
-            currentMessage = messageQueue.poll();
+//            currentMessage = messageQueue.poll();
+//            if (currentMessage != null) {
+//                break;
+//            } else {
+//                try {
+//                    Thread.sleep(5);
+//                    // stats for time spent wait to read from message queue because its empty
+////                    metricsTracker.register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(5);
+//                } catch (InterruptedException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
+
+            try {
+                // stats for time spent wait to read from message queue because its empty
+                metricsTracker.start_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME();
+
+                currentMessage = messageQueue.poll(5, TimeUnit.MILLISECONDS);
+
+                metricsTracker.end_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             if (currentMessage != null) {
                 break;
-            } else {
-                try {
-                    Thread.sleep(5);
-                    // stats for time spent wait to read from message queue because its empty
-                    metricsTracker.register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(5);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
             }
         }
 
