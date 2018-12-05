@@ -142,7 +142,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
             admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
             producer = pulsarClient.newProducer().topic(topicName.toString())
-                    .messageRouter(new CustomMessageRouter())
+                    .messageRouter(new AlwaysTwoMessageRouter())
                     .create();
 
             consumer = pulsarClient.newConsumer().topic(topicName.toString())
@@ -649,11 +649,10 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
                 Collections.singletonList(nonPartitionedTopic));
     }
 
-    private class CustomMessageRouter implements MessageRouter {
+    private class AlwaysTwoMessageRouter implements MessageRouter {
         @Override
         public int choosePartition(Message<?> msg, TopicMetadata metadata) {
-            int partitionIndex = Integer.parseInt(msg.getKey()) % metadata.numPartitions();
-            return partitionIndex;
+            return 2;
         }
     }
 }
