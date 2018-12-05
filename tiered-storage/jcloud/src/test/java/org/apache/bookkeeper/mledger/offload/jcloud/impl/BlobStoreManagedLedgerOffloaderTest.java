@@ -56,6 +56,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
+import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreRepository;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -96,11 +97,22 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     }
 
     private LedgerOffloader getOffloader(TieredStorageConfiguration spiedConfig) throws IOException {  
+        // Clear out the actual blob store instance, so the Spied blob store is used instead
+        BlobStoreRepository.clear(); 
         return BlobStoreManagedLedgerOffloader.create(spiedConfig, Collections.emptyMap(), scheduler);
     }
 
     @BeforeMethod
     public final void init() {
+        /*
+         * Since the BlobStoreRepository is static, it retains the generated
+         * BlobStore instances between unit tests. Therefore, we must first
+         * clear out the BlobStoreRepository before every test in order to avoid
+         * using a BlobStore we don't want to use, e.g. a spied BlobStore instead
+         * of an actual BlobStore or vice-versa.
+         */
+        BlobStoreRepository.clear();
+
         // Create the actual blob store that we use for validation.
         blobStore = config.getBlobStore();
     }
@@ -355,17 +367,17 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     public void testDeleteOffloaded() throws Exception {
         ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
-        BlobStoreManagedLedgerOffloader offloader = (BlobStoreManagedLedgerOffloader)getOffloader();
+        LedgerOffloader offloader = getOffloader();
 
         // verify object exist after offload
         offloader.offload(readHandle, uuid, new HashMap<>()).get();
-        Assert.assertTrue(offloader.getBlobStore().blobExists(BUCKET, DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid)));
-        Assert.assertTrue(offloader.getBlobStore().blobExists(BUCKET, DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid)));
+        Assert.assertTrue(blobStore.blobExists(BUCKET, DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid)));
+        Assert.assertTrue(blobStore.blobExists(BUCKET, DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid)));
 
         // verify object deleted after delete
         offloader.deleteOffloaded(readHandle.getId(), uuid, Collections.emptyMap()).get();
-        Assert.assertFalse(offloader.getBlobStore().blobExists(BUCKET, DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid)));
-        Assert.assertFalse(offloader.getBlobStore().blobExists(BUCKET, DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid)));
+        Assert.assertFalse(blobStore.blobExists(BUCKET, DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid)));
+        Assert.assertFalse(blobStore.blobExists(BUCKET, DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid)));
     }
 
     @Test
@@ -429,7 +441,6 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     public void testReadUnknownDataVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         LedgerOffloader offloader = getOffloader();
-        blobStore = ((BlobStoreManagedLedgerOffloader)offloader).getBlobStore();
 
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -469,7 +480,6 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     public void testReadUnknownIndexVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         LedgerOffloader offloader = getOffloader();
-        blobStore = ((BlobStoreManagedLedgerOffloader)offloader).getBlobStore();
 
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
