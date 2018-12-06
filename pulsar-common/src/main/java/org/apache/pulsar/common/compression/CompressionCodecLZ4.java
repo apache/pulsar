@@ -32,6 +32,11 @@ import net.jpountz.lz4.LZ4FastDecompressor;
  */
 public class CompressionCodecLZ4 implements CompressionCodec {
 
+    static {
+        // Force the attempt to load LZ4 JNI
+        net.jpountz.util.Native.load();
+    }
+
     private static final LZ4Factory lz4Factory = LZ4Factory.fastestInstance();
     private static final LZ4Compressor compressor = lz4Factory.fastCompressor();
     private static final LZ4FastDecompressor decompressor = lz4Factory.fastDecompressor();
