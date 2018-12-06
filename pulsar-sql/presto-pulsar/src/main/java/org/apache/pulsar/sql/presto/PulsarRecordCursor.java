@@ -351,31 +351,17 @@ public class PulsarRecordCursor implements RecordCursor {
                 readEntries.run();
             }
 
-//            currentMessage = messageQueue.poll();
-//            if (currentMessage != null) {
-//                break;
-//            } else {
-//                try {
-//                    Thread.sleep(5);
-//                    // stats for time spent wait to read from message queue because its empty
-////                    metricsTracker.register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(5);
-//                } catch (InterruptedException e) {
-//                    throw new RuntimeException(e);
-//                }
-//            }
-
-            try {
-                // stats for time spent wait to read from message queue because its empty
-                metricsTracker.start_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME();
-
-                currentMessage = messageQueue.poll(5, TimeUnit.MILLISECONDS);
-
-                metricsTracker.end_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            currentMessage = messageQueue.poll();
             if (currentMessage != null) {
                 break;
+            } else {
+                try {
+                    Thread.sleep(5);
+                    // stats for time spent wait to read from message queue because its empty
+                    metricsTracker.register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(5);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
 
