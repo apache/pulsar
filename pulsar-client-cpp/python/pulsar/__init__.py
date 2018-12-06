@@ -824,7 +824,7 @@ class Consumer:
 
         * `timeout_millis`:
           If specified, the receive will raise an exception if a message is not
-          availble within the timeout.
+          available within the timeout.
         """
         if timeout_millis is None:
             return self._consumer.receive()
