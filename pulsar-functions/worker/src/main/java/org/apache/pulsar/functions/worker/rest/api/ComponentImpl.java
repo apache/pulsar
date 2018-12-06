@@ -1041,6 +1041,12 @@ public abstract class ComponentImpl {
 
             return Response.status(Status.BAD_REQUEST).build();
         }
+        try {
+            worker().getBrokerAdmin().topics().getSubscriptions(inputTopicToWrite);
+        } catch (PulsarAdminException e) {
+            log.error("Function in trigger function is not ready @ /{}/{}/{}", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST).build();
+        }
         String outputTopic = functionMetaData.getFunctionDetails().getSink().getTopic();
         Reader<byte[]> reader = null;
         Producer<byte[]> producer = null;
