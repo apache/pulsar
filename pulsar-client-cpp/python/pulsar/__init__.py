@@ -167,6 +167,12 @@ class Message:
         """
         return self._message.publish_timestamp()
 
+    def event_timestamp(self):
+        """
+        Get the timestamp in milliseconds with the message event time.
+        """
+        return self._message.event_timestamp()
+
     def message_id(self):
         """
         The message ID that can be used to refere to this particular message.
@@ -672,7 +678,8 @@ class Producer:
              partition_key=None,
              sequence_id=None,
              replication_clusters=None,
-             disable_replication=False
+             disable_replication=False,
+             event_timestamp=None,
              ):
         """
         Publish a message on the topic. Blocks until the message is acknowledged
@@ -698,9 +705,11 @@ class Producer:
           the message will replicate according to the namespace configuration.
         * `disable_replication`:
           Do not replicate this message.
+        * `event_timestamp`:
+          Timestamp in millis of the timestamp of event creation
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication)
+                              replication_clusters, disable_replication, event_timestamp)
         return self._producer.send(msg)
 
     def send_async(self, content, callback,
@@ -708,7 +717,8 @@ class Producer:
                    partition_key=None,
                    sequence_id=None,
                    replication_clusters=None,
-                   disable_replication=False
+                   disable_replication=False,
+                   event_timestamp=None
                    ):
         """
         Send a message asynchronously.
@@ -748,9 +758,11 @@ class Producer:
           configuration.
         * `disable_replication`:
           Do not replicate this message.
+        * `event_timestamp`:
+          Timestamp in millis of the timestamp of event creation
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication)
+                              replication_clusters, disable_replication, event_timestamp)
         self._producer.send_async(msg, callback)
 
     def close(self):
@@ -760,13 +772,14 @@ class Producer:
         self._producer.close()
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
-                   replication_clusters, disable_replication):
+                   replication_clusters, disable_replication, event_timestamp):
         _check_type(bytes, content, 'content')
         _check_type_or_none(dict, properties, 'properties')
         _check_type_or_none(str, partition_key, 'partition_key')
         _check_type_or_none(int, sequence_id, 'sequence_id')
         _check_type_or_none(list, replication_clusters, 'replication_clusters')
         _check_type(bool, disable_replication, 'disable_replication')
+        _check_type_or_none(int, event_timestamp, 'event_timestamp')
 
         mb = _pulsar.MessageBuilder()
         mb.content(content)
@@ -781,6 +794,8 @@ class Producer:
             mb.replication_clusters(replication_clusters)
         if disable_replication:
             mb.disable_replication(disable_replication)
+        if event_timestamp:
+            mb.event_timestamp(event_timestamp)
         return mb.build()
 
 

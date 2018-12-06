@@ -191,7 +191,7 @@ class PythonInstance(object):
         # deserialize message
         input_object = msg.serde.deserialize(msg.message.data())
         # set current message in context
-        self.contextimpl.set_current_message_context(msg.message.message_id(), msg.topic)
+        self.contextimpl.set_current_message_context(msg.message, msg.topic)
         output_object = None
         self.saved_log_handler = None
         if self.log_topic_handler is not None:
