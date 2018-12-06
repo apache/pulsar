@@ -19,9 +19,11 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
+import org.apache.pulsar.shade.io.netty.util.concurrent.FastThreadLocal;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 
@@ -34,6 +36,9 @@ public class AvroSchemaHandler implements SchemaHandler {
 
     private final List<PulsarColumnHandle> columnHandles;
 
+    public static final FastThreadLocal<BinaryDecoder> decoders =
+            new FastThreadLocal<>();
+
     private static final Logger log = Logger.get(AvroSchemaHandler.class);
 
     public AvroSchemaHandler(Schema schema, List<PulsarColumnHandle> columnHandles) {
@@ -44,7 +49,12 @@ public class AvroSchemaHandler implements SchemaHandler {
     @Override
     public Object deserialize(byte[] bytes) {
         try {
-            return this.datumReader.read(null, DecoderFactory.get().binaryDecoder(bytes, null));
+            BinaryDecoder decoderFromCache = decoders.get();
+            BinaryDecoder decoder=DecoderFactory.get().binaryDecoder(bytes, decoderFromCache);
+            if (decoderFromCache==null) {
+                decoders.set(decoder);
+            }
+            return this.datumReader.read(null, decoder);
         } catch (IOException e) {
             log.error(e);
         }
