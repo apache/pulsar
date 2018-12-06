@@ -59,7 +59,7 @@ public class SourceImpl extends ComponentImpl {
             sourceInstanceStatusData.setRunning(status.getRunning());
             sourceInstanceStatusData.setError(status.getFailureException());
             sourceInstanceStatusData.setNumRestarts(status.getNumRestarts());
-            sourceInstanceStatusData.setNumReceived(status.getNumReceived());
+            sourceInstanceStatusData.setNumReceivedFromSource(status.getNumReceived());
 
             List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
@@ -81,7 +81,8 @@ public class SourceImpl extends ComponentImpl {
             }
             sourceInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
 
-            sourceInstanceStatusData.setLastInvocationTime(status.getLastInvocationTime());
+            sourceInstanceStatusData.setNumWritten(status.getNumSuccessfullyProcessed());
+            sourceInstanceStatusData.setLastReceivedTime(status.getLastInvocationTime());
             sourceInstanceStatusData.setWorkerId(assignedWorkerId);
 
             return sourceInstanceStatusData;
