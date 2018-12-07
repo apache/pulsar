@@ -391,6 +391,9 @@ public class CmdSources extends CmdBase {
                     throw new IllegalArgumentException(String.format("Source Archive %s does not exist", sourceConfig.getArchive()));
                 }
             }
+            if (isBlank(sourceConfig.getName())) {
+                throw new IllegalArgumentException("Source name not specified");
+            }
         }
 
         protected String validateSourceType(String sourceType) throws IOException {

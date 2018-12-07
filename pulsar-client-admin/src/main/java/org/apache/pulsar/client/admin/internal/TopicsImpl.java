@@ -889,13 +889,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     private List<Message<byte[]>> getMessageFromHttpResponse(String topic, Response response) throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
-            if (response.getStatus() >= 500) {
-                throw new ServerErrorException(response);
-            } else if (response.getStatus() >= 400) {
-                throw new ClientErrorException(response);
-            } else {
-                throw new WebApplicationException(response);
-            }
+            throw getApiException(response);
         }
 
         String msgId = response.getHeaderString("X-Pulsar-Message-ID");
