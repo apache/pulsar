@@ -127,7 +127,9 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
                 .setZkServers(this.pulsarConnectorConfig.getZookeeperUri())
                 .setAllowShadedLedgerManagerFactoryClass(true)
-                .setShadedLedgerManagerFactoryClassPrefix("org.apache.pulsar.shade.");
+                .setShadedLedgerManagerFactoryClassPrefix("org.apache.pulsar.shade.")
+                .setClientTcpNoDelay(false)
+                .setUseV2WireProtocol(true);
         return new ManagedLedgerFactoryImpl(bkClientConfiguration);
     }
 
