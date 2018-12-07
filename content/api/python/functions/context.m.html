@@ -988,7 +988,10 @@ table {
     <li class="mono"><a href="#pulsar.functions.context.Context.get_function_version">get_function_version</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_instance_id">get_instance_id</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_logger">get_logger</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.get_message_eventtime">get_message_eventtime</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_message_id">get_message_id</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.get_message_key">get_message_key</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.get_message_properties">get_message_properties</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_output_serde_class_name">get_output_serde_class_name</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_output_topic">get_output_topic</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_secret">get_secret</a></li>
@@ -1068,6 +1071,21 @@ class Context(object):
   @abstractmethod
   def get_message_id(self):
     """Return the messageid of the current message that we are processing"""
+    pass
+
+  @abstractmethod
+  def get_message_key(self):
+    """Return the key of the current message that we are processing"""
+    pass
+
+  @abstractmethod
+  def get_message_eventtime(self):
+    """Return the event time of the current message that we are processing"""
+    pass
+
+  @abstractmethod
+  def get_message_properties(self):
+    """Return the message properties kv map of the current message that we are processing"""
     pass
 
   @abstractmethod
@@ -1172,6 +1190,21 @@ class Context(object):
   @abstractmethod
   def get_message_id(self):
     """Return the messageid of the current message that we are processing"""
+    pass
+
+  @abstractmethod
+  def get_message_key(self):
+    """Return the key of the current message that we are processing"""
+    pass
+
+  @abstractmethod
+  def get_message_eventtime(self):
+    """Return the event time of the current message that we are processing"""
+    pass
+
+  @abstractmethod
+  def get_message_properties(self):
+    """Return the message properties kv map of the current message that we are processing"""
     pass
 
   @abstractmethod
@@ -1473,6 +1506,29 @@ def get_logger(self):
   
             
   <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.get_message_eventtime">
+    <p>def <span class="ident">get_message_eventtime</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Return the event time of the current message that we are processing</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.get_message_eventtime', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.get_message_eventtime" class="source">
+    <pre><code>@abstractmethod
+def get_message_eventtime(self):
+  """Return the event time of the current message that we are processing"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
     <div class="name def" id="pulsar.functions.context.Context.get_message_id">
     <p>def <span class="ident">get_message_id</span>(</p><p>self)</p>
     </div>
@@ -1487,6 +1543,52 @@ def get_logger(self):
     <pre><code>@abstractmethod
 def get_message_id(self):
   """Return the messageid of the current message that we are processing"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.get_message_key">
+    <p>def <span class="ident">get_message_key</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Return the key of the current message that we are processing</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.get_message_key', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.get_message_key" class="source">
+    <pre><code>@abstractmethod
+def get_message_key(self):
+  """Return the key of the current message that we are processing"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.get_message_properties">
+    <p>def <span class="ident">get_message_properties</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Return the message properties kv map of the current message that we are processing</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.get_message_properties', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.get_message_properties" class="source">
+    <pre><code>@abstractmethod
+def get_message_properties(self):
+  """Return the message properties kv map of the current message that we are processing"""
   pass
 </code></pre>
   </div>
