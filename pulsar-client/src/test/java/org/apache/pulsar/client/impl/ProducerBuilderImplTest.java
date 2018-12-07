@@ -26,17 +26,17 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.CompletableFuture;
 
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 
 /**
- * Unit test of {@link ProducerBuilderImpl}.
+ * Unit tests of {@link ProducerBuilderImpl}.
  */
 public class ProducerBuilderImplTest {
 
+    private static final String TOPIC_NAME = "testTopicName";
     private PulsarClientImpl client;
     private ProducerBuilderImpl producerBuilderImpl;
 
@@ -50,44 +50,80 @@ public class ProducerBuilderImplTest {
         when(client.createProducerAsync(
                 Matchers.any(ProducerConfigurationData.class), Matchers.any(Schema.class), eq(null)))
                 .thenReturn(CompletableFuture.completedFuture(producer));
-        when(producer.sendAsync(anyString())).thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @Test
-    public void testProducerBuilderImplWhenMessageRoutingModeIsCorrect() throws PulsarClientException {
+    public void testProducerBuilderImplWhenMessageRoutingModeAndMessageRouterAreNotSet() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        when(client.newProducer()).thenReturn(producerBuilderImpl);
-
-        Producer producer = producerBuilderImpl.topic("testTopicName")
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+        Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
                 .create();
-
         assertNotNull(producer);
     }
 
     @Test
-    public void testProducerBuilderImplWhenMessageRoutingModeIsIncorrect() throws PulsarClientException {
+    public void testProducerBuilderImplWhenMessageRoutingModeIsSinglePartition() throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        when(client.newProducer()).thenReturn(producerBuilderImpl);
+        Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        assertNotNull(producer);
+    }
 
-        Producer producer = producerBuilderImpl.topic("testTopicName")
+    @Test
+    public void testProducerBuilderImplWhenMessageRoutingModeIsRoundRobinPartition() throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
+        assertNotNull(producer);
+    }
+
+    @Test
+    public void testProducerBuilderImplWhenMessageRoutingIsSetImplicitly() throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
+                .messageRouter(new CustomMessageRouter())
+                .create();
+        assertNotNull(producer);
+    }
+
+    @Test
+    public void testProducerBuilderImplWhenMessageRoutingIsCustomPartition() throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new CustomMessageRouter())
+                .create();
+        assertNotNull(producer);
+    }
+
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void testProducerBuilderImplWhenMessageRoutingModeIsSinglePartitionAndMessageRouterIsSet()
+            throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .messageRouter(new CustomMessageRouter())
                 .create();
-
-        assertNotNull(producer);
     }
 
-    @Test
-    public void testProducerBuilderImplWhenMessageRoutingIsNotSetExplicitly() throws PulsarClientException {
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void testProducerBuilderImplWhenMessageRoutingModeIsRoundRobinPartitionAndMessageRouterIsSet()
+            throws PulsarClientException {
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
-        when(client.newProducer()).thenReturn(producerBuilderImpl);
-
-        Producer producer = producerBuilderImpl.topic("testTopicName")
+        producerBuilderImpl.topic(TOPIC_NAME)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .messageRouter(new CustomMessageRouter())
                 .create();
+    }
 
-        assertNotNull(producer);
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void testProducerBuilderImplWhenMessageRoutingModeIsCustomPartitionAndMessageRouterIsNotSet()
+            throws PulsarClientException {
+        ProducerBuilderImpl producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .create();
     }
 
     private class CustomMessageRouter implements MessageRouter {
