@@ -58,6 +58,12 @@ public class SourceStatus {
             // A list of the most recent system exceptions
             public List<ExceptionInformation> latestSystemExceptions;
 
+            // Number of times there was a exception from source while reading messages
+            public long numSourceExceptions;
+
+            // A list of the most recent source exceptions
+            public List<ExceptionInformation> latestSourceExceptions;
+
             // Number of messages written into pulsar
             public long numWritten;
 

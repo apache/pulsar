@@ -225,7 +225,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 javaInstance.getContext().setStateContext(stateContext);
             }
             while (true) {
-                currentRecord = readInput();
+                try {
+                    currentRecord = readInput();
+                } catch (Exception e) {
+                    stats.incrSourceExceptions(e);
+                }
 
                 // increment number of records received from source
                 stats.incrTotalReceived();
@@ -419,6 +423,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             this.sink.write(new SinkRecord<>(srcRecord, output));
         } catch (Exception e) {
             log.info("Encountered exception in sink write: ", e);
+            stats.incrSinkExceptions(e);
             throw new RuntimeException(e);
         }
     }

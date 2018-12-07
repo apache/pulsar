@@ -61,18 +61,38 @@ public class SourceImpl extends ComponentImpl {
             sourceInstanceStatusData.setNumRestarts(status.getNumRestarts());
             sourceInstanceStatusData.setNumReceivedFromSource(status.getNumReceived());
 
-            List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
+            sourceInstanceStatusData.setNumSourceExceptions(status.getNumSourceExceptions());
+            List<ExceptionInformation> sourceExceptionInformationList = new LinkedList<>();
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSourceExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                sourceExceptionInformationList.add(exceptionInformation);
+            }
+            sourceInstanceStatusData.setLatestSourceExceptions(sourceExceptionInformationList);
+
+            // Source treats all system and sink exceptions as system exceptions
+            sourceInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions()
+                    + status.getNumUserExceptions() + status.getNumSinkExceptions());
+            List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
                 ExceptionInformation exceptionInformation
                         = new ExceptionInformation();
                 exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
                 exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
-                userExceptionInformationList.add(exceptionInformation);
+                systemExceptionInformationList.add(exceptionInformation);
             }
 
-            sourceInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions());
-            List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
+                ExceptionInformation exceptionInformation
+                        = new ExceptionInformation();
+                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                systemExceptionInformationList.add(exceptionInformation);
+            }
+
+            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSinkExceptionsList()) {
                 ExceptionInformation exceptionInformation
                         = new ExceptionInformation();
                 exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
