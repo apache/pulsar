@@ -87,7 +87,6 @@ public class UnAckedMessageTracker implements Closeable {
         timeout = client.timer().newTimeout(new TimerTask() {
             @Override
             public void run(Timeout t) throws Exception {
-                toggle();
                 if (isAckTimeout()) {
                     log.warn("[{}] {} messages have timed-out", consumerBase, oldOpenSet.size());
                     Set<MessageId> messageIds = new HashSet<>();
@@ -95,6 +94,7 @@ public class UnAckedMessageTracker implements Closeable {
                     oldOpenSet.clear();
                     consumerBase.redeliverUnacknowledgedMessages(messageIds);
                 }
+                toggle();
                 timeout = client.timer().newTimeout(this, ackTimeoutMillis, TimeUnit.MILLISECONDS);
             }
         }, ackTimeoutMillis, TimeUnit.MILLISECONDS);

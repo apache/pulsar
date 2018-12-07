@@ -16,22 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.flink.streaming.connectors.pulsar;
+package org.apache.pulsar.common.configuration;
 
 /**
- * The supported producing modes of operation for flink's pulsar producer.
+ * Annotation for a given property.
  */
-public enum PulsarProduceMode {
+public @interface PropertyContext {
 
     /**
-     * Any produce failures will be ignored hence there could be data loss.
+     * Key of the property.
+     *
+     * @return key of the property.
      */
-    AT_MOST_ONCE,
+    String key();
 
     /**
-     * The producer will ensure that all the events are persisted in pulsar.
-     * There could be duplicate events written though.
+     * Documentation of the property.
+     *
+     * @return documentation of the property.
      */
-    AT_LEAST_ONCE,
+    FieldContext doc();
 
 }

@@ -47,7 +47,7 @@ class ContextImpl(pulsar.Context):
     self.secrets_provider = secrets_provider
     self.publish_producers = {}
     self.publish_serializers = {}
-    self.current_message_id = None
+    self.message = None
     self.current_input_topic_name = None
     self.current_start_time = None
     self.user_config = json.loads(instance_config.function_details.userConfig) \
@@ -64,13 +64,22 @@ class ContextImpl(pulsar.Context):
                                         ContextImpl.user_metrics_label_names)
 
   # Called on a per message basis to set the context for the current message
-  def set_current_message_context(self, msgid, topic):
-    self.current_message_id = msgid
+  def set_current_message_context(self, message, topic):
+    self.message = message
     self.current_input_topic_name = topic
     self.current_start_time = time.time()
 
   def get_message_id(self):
-    return self.current_message_id
+    return self.message.message_id()
+
+  def get_message_key(self):
+    return self.message.partition_key()
+
+  def get_message_eventtime(self):
+    return self.message.event_timestamp()
+
+  def get_message_properties(self):
+    return self.message.properties()
 
   def get_current_message_topic_name(self):
     return self.current_input_topic_name

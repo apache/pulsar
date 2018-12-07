@@ -16,22 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.flink.streaming.connectors.pulsar;
+package org.apache.pulsar.websocket.data;
 
-/**
- * The supported producing modes of operation for flink's pulsar producer.
- */
-public enum PulsarProduceMode {
-
-    /**
-     * Any produce failures will be ignored hence there could be data loss.
-     */
-    AT_MOST_ONCE,
-
-    /**
-     * The producer will ensure that all the events are persisted in pulsar.
-     * There could be duplicate events written though.
-     */
-    AT_LEAST_ONCE,
-
+public class ConsumerCommand {
+    public String type;
+    public String messageId;
+    public Integer permitMessages;
 }

@@ -16,22 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.flink.streaming.connectors.pulsar;
+package org.apache.pulsar.common.configuration;
 
 /**
- * The supported producing modes of operation for flink's pulsar producer.
+ * Setting Category.
  */
-public enum PulsarProduceMode {
+public @interface Category {
 
     /**
-     * Any produce failures will be ignored hence there could be data loss.
+     * Description of the category.
+     *
+     * @return description of the category
      */
-    AT_MOST_ONCE,
-
-    /**
-     * The producer will ensure that all the events are persisted in pulsar.
-     * There could be duplicate events written though.
-     */
-    AT_LEAST_ONCE,
+    String description() default "";
 
 }

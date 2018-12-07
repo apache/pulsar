@@ -50,25 +50,7 @@ public class JSONSchema<T> implements Schema<T>{
     private JSONSchema(Class<T> pojo, Map<String, String> properties) {
         this.pojo = pojo;
         this.properties = properties;
-        this.gson = new GsonBuilder().addSerializationExclusionStrategy(new ExclusionStrategy() {
-            Set<String> classes = new HashSet<>();
-
-            @Override
-            public boolean shouldSkipField(FieldAttributes f) {
-                boolean skip = !(f.getDeclaringClass().equals(pojo)
-                        || classes.contains(f.getDeclaringClass().getName())
-                        || f.getDeclaringClass().isAssignableFrom(pojo));
-                if (!skip) {
-                    classes.add(f.getDeclaredClass().getName());
-                }
-                return skip;
-            }
-
-            @Override
-            public boolean shouldSkipClass(Class<?> clazz) {
-                return false;
-            }
-        }).create();
+        this.gson = new Gson();
 
         this.schema = ReflectData.AllowNull.get().getSchema(pojo);
         this.schemaInfo = new SchemaInfo();

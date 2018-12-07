@@ -54,6 +54,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
+import javax.ws.rs.core.UriBuilder;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -71,9 +72,9 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.join;
 import static org.apache.pulsar.functions.utils.Utils.*;
-import static org.apache.pulsar.functions.worker.rest.api.FunctionsImplBase.ComponentType.FUNCTION;
-import static org.apache.pulsar.functions.worker.rest.api.FunctionsImplBase.ComponentType.SINK;
-import static org.apache.pulsar.functions.worker.rest.api.FunctionsImplBase.ComponentType.SOURCE;
+import static org.apache.pulsar.functions.worker.rest.api.ComponentImpl.ComponentType.FUNCTION;
+import static org.apache.pulsar.functions.worker.rest.api.ComponentImpl.ComponentType.SINK;
+import static org.apache.pulsar.functions.worker.rest.api.ComponentImpl.ComponentType.SOURCE;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -84,26 +85,30 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.StateUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -116,7 +121,7 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import net.jodah.typetools.TypeResolver;
 
 @Slf4j
-public class FunctionsImplBase {
+public abstract class ComponentImpl {
 
     public enum ComponentType {
         FUNCTION("Function"),
@@ -136,15 +141,137 @@ public class FunctionsImplBase {
     }
 
     private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
-    private final Supplier<WorkerService> workerServiceSupplier;
-    private final ComponentType componentType;
+    protected final Supplier<WorkerService> workerServiceSupplier;
+    protected final ComponentType componentType;
 
-    public FunctionsImplBase(Supplier<WorkerService> workerServiceSupplier, ComponentType componentType) {
+    public ComponentImpl(Supplier<WorkerService> workerServiceSupplier, ComponentType componentType) {
         this.workerServiceSupplier = workerServiceSupplier;
         this.componentType = componentType;
     }
 
-    private WorkerService worker() {
+    protected abstract class GetStatus<S, T> {
+
+        public abstract T notScheduledInstance();
+
+        public abstract T fromFunctionStatusProto(InstanceCommunication.FunctionStatus status, String assignedWorkerId);
+
+        public abstract T notRunning(String assignedWorkerId, String error);
+
+        public T getComponentInstanceStatus(String tenant, String namespace,
+                                            String name, int instanceId, URI uri) {
+
+            Function.Assignment assignment;
+            if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
+                assignment = worker().getFunctionRuntimeManager().findFunctionAssignment(tenant, namespace, name, -1);
+            } else {
+                assignment = worker().getFunctionRuntimeManager().findFunctionAssignment(tenant, namespace, name, instanceId);
+            }
+
+            if (assignment == null) {
+                return notScheduledInstance();
+            }
+
+            final String assignedWorkerId = assignment.getWorkerId();
+            final String workerId = worker().getWorkerConfig().getWorkerId();
+
+            // If I am running worker
+            if (assignedWorkerId.equals(workerId)) {
+                FunctionRuntimeInfo functionRuntimeInfo = worker().getFunctionRuntimeManager().getFunctionRuntimeInfo(
+                        org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
+                if (functionRuntimeInfo == null) {
+                    log.error("{} in get {} Status does not exist @ /{}/{}/{}", componentType, componentType, tenant, namespace, name);
+                    throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, name));
+                }
+                RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
+
+                if (runtimeSpawner != null) {
+                    try {
+                        return fromFunctionStatusProto(
+                                functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus(instanceId).get(),
+                                assignedWorkerId);
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
+                } else {
+                    return notRunning(assignedWorkerId, functionRuntimeInfo.getStartupException().getMessage());
+                }
+            } else {
+                // query other worker
+
+                List<WorkerInfo> workerInfoList = worker().getMembershipManager().getCurrentMembership();
+                WorkerInfo workerInfo = null;
+                for (WorkerInfo entry : workerInfoList) {
+                    if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                        workerInfo = entry;
+                    }
+                }
+                if (workerInfo == null) {
+                    return notScheduledInstance();
+                }
+
+                if (uri == null) {
+                    throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+                } else {
+                    URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                }
+            }
+        }
+
+        public abstract S getStatus(String tenant, String namespace,
+                                    String name, Collection<Function.Assignment> assignments, URI uri) throws PulsarAdminException;
+
+        public abstract S getStatusExternal(String tenant, String namespace,
+                                            String name, int parallelism);
+
+        public abstract S emptyStatus(int parallelism);
+
+        public S getComponentStatus(String tenant, String namespace,
+                                    String name, URI uri) {
+
+            Function.FunctionMetaData functionMetaData = worker().getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, name);
+
+            Collection<Function.Assignment> assignments = worker().getFunctionRuntimeManager().findFunctionAssignments(tenant, namespace, name);
+
+            // TODO refactor the code for externally managed.
+            if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
+                Function.Assignment assignment = assignments.iterator().next();
+                boolean isOwner = worker().getWorkerConfig().getWorkerId().equals(assignment.getWorkerId());
+                if (isOwner) {
+                    return getStatusExternal(tenant, namespace, name, functionMetaData.getFunctionDetails().getParallelism());
+                } else {
+
+                    // find the hostname/port of the worker who is the owner
+
+                    List<WorkerInfo> workerInfoList = worker().getMembershipManager().getCurrentMembership();
+                    WorkerInfo workerInfo = null;
+                    for (WorkerInfo entry: workerInfoList) {
+                        if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                            workerInfo = entry;
+                        }
+                    }
+                    if (workerInfo == null) {
+                        return emptyStatus(functionMetaData.getFunctionDetails().getParallelism());
+                    }
+
+                    if (uri == null) {
+                        throw new WebApplicationException(Response.serverError().status(Status.INTERNAL_SERVER_ERROR).build());
+                    } else {
+                        URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                    }
+                }
+            } else {
+                try {
+                    return getStatus(tenant, namespace, name, assignments, uri);
+                } catch (PulsarAdminException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    protected WorkerService worker() {
         try {
             return checkNotNull(workerServiceSupplier.get());
         } catch (Throwable t) {
@@ -153,7 +280,7 @@ public class FunctionsImplBase {
         }
     }
 
-    private boolean isWorkerServiceAvailable() {
+    boolean isWorkerServiceAvailable() {
         WorkerService workerService = workerServiceSupplier.get();
         if (workerService == null) {
             return false;
@@ -719,96 +846,6 @@ public class FunctionsImplBase {
         }
     }
 
-    public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(final String tenant, final String namespace, final String componentName,
-                                                                                                      final String instanceId, URI uri) throws IOException {
-
-        if (!isWorkerServiceAvailable()) {
-            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
-        }
-
-        // validate parameters
-        try {
-            validateGetFunctionInstanceRequestParams(tenant, namespace, componentName, componentType, instanceId);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid get {} Status request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
-            throw new RestException(Status.BAD_REQUEST, e.getMessage());
-        }
-
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} in get {} Status does not exist @ /{}/{}/{}", componentType, componentType, tenant, namespace, componentName);
-            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
-
-        }
-        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
-        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
-            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
-            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
-        }
-        int instanceIdInt = Integer.parseInt(instanceId);
-        if (instanceIdInt < 0 || instanceIdInt >= functionMetaData.getFunctionDetails().getParallelism()) {
-            log.error("instanceId in get {} Status out of bounds @ /{}/{}/{}", componentType, tenant, namespace, componentName);
-            throw new RestException(Status.BAD_REQUEST, String.format("%s %s doesn't have instance with id %s", componentType, componentName, instanceId));
-        }
-
-        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
-
-        FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData;
-        try {
-            functionInstanceStatusData = functionRuntimeManager.getFunctionInstanceStatus(tenant, namespace, componentName,
-                    Integer.parseInt(instanceId), uri);
-        } catch (WebApplicationException we) {
-            throw we;
-        } catch (Exception e) {
-            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, componentName, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
-
-        return functionInstanceStatusData;
-    }
-
-    public FunctionStatus getFunctionStatus(final String tenant, final String namespace, final String componentName,
-                                            URI uri)
-            throws IOException {
-
-        if (!isWorkerServiceAvailable()) {
-            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
-        }
-
-        // validate parameters
-        try {
-            validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid get {} Status request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
-            throw new RestException(Status.BAD_REQUEST, e.getMessage());
-        }
-
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} in get {} Status does not exist @ /{}/{}/{}", componentType, componentType, tenant, namespace, componentName);
-            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
-        }
-
-        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
-        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
-            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
-            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
-        }
-
-        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
-        FunctionStatus functionStatus;
-        try {
-            functionStatus = functionRuntimeManager.getFunctionStatus(tenant, namespace, componentName, uri);
-        } catch (WebApplicationException we) {
-            throw we;
-        } catch (Exception e) {
-            log.error("{}/{}/{} Got Exception Getting Status", tenant, namespace, componentName, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
-
-        return functionStatus;
-    }
-
     public FunctionStats getFunctionStats(final String tenant, final String namespace, final String componentName,
                                           URI uri) throws IOException {
         if (!isWorkerServiceAvailable()) {
@@ -1004,6 +1041,12 @@ public class FunctionsImplBase {
 
             return Response.status(Status.BAD_REQUEST).build();
         }
+        try {
+            worker().getBrokerAdmin().topics().getSubscriptions(inputTopicToWrite);
+        } catch (PulsarAdminException e) {
+            log.error("Function in trigger function is not ready @ /{}/{}/{}", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST).build();
+        }
         String outputTopic = functionMetaData.getFunctionDetails().getSink().getTopic();
         Reader<byte[]> reader = null;
         Producer<byte[]> producer = null;
@@ -1176,7 +1219,7 @@ public class FunctionsImplBase {
         }
     }
 
-    private void validateGetFunctionInstanceRequestParams(String tenant, String namespace, String componentName,
+    protected void validateGetFunctionInstanceRequestParams(String tenant, String namespace, String componentName,
                                                           ComponentType componentType, String instanceId) throws IllegalArgumentException {
         validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
         if (instanceId == null) {
@@ -1184,7 +1227,7 @@ public class FunctionsImplBase {
         }
     }
 
-    private void validateGetFunctionRequestParams(String tenant, String namespace, String subject, ComponentType componentType)
+    protected void validateGetFunctionRequestParams(String tenant, String namespace, String subject, ComponentType componentType)
             throws IllegalArgumentException {
 
         if (tenant == null) {
@@ -1591,4 +1634,42 @@ public class FunctionsImplBase {
         return SINK;
     }
 
+    protected void componentStatusRequestValidate (final String tenant, final String namespace, final String componentName) {
+        if (!isWorkerServiceAvailable()) {
+            throw new RestException(Status.SERVICE_UNAVAILABLE, "Function worker service is not done initializing. Please try again in a little while.");
+        }
+
+        // validate parameters
+        try {
+            validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid get {} Status request @ /{}/{}/{}", componentType, tenant, namespace, componentName, e);
+            throw new RestException(Status.BAD_REQUEST, e.getMessage());
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.error("{} in get {} Status does not exist @ /{}/{}/{}", componentType, componentType, tenant, namespace, componentName);
+            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
+        }
+
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        if (!calculateSubjectType(functionMetaData).equals(componentType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, componentType);
+            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", componentType, componentName));
+        }
+    }
+
+    protected void componentInstanceStatusRequestValidate (final String tenant, final String namespace,
+                                                           final String componentName, int instanceId) {
+        componentStatusRequestValidate(tenant, namespace, componentName);
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        int parallelism = functionMetaData.getFunctionDetails().getParallelism();
+        if (instanceId < 0 || instanceId >= parallelism) {
+            log.error("instanceId in get {} Status out of bounds @ /{}/{}/{}", componentType, tenant, namespace, componentName);
+            throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s doesn't have instance with id %s", componentType, componentName, instanceId));
+        }
+    }
 }

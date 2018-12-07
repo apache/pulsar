@@ -59,6 +59,8 @@ public class PulsarConnectorCache {
                 .setZkServers(pulsarConnectorConfig.getZookeeperUri())
                 .setAllowShadedLedgerManagerFactoryClass(true)
                 .setShadedLedgerManagerFactoryClassPrefix("org.apache.pulsar.shade.")
+                .setClientTcpNoDelay(false)
+                .setUseV2WireProtocol(true)
                 .setReadEntryTimeout(60);
         return new ManagedLedgerFactoryImpl(bkClientConfiguration);
     }
