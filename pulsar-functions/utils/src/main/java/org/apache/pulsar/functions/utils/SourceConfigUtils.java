@@ -62,7 +62,7 @@ public class SourceConfigUtils {
                 }
                 sourceClassName = sourceConfig.getClassName(); // server derives the arg-type by loading a class
             } else {
-                sourceClassName = ConnectorUtils.getIOSourceClass(classLoader);
+                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader)classLoader);
                 typeArg = getSourceType(sourceClassName, classLoader).getName();
             }
         }
@@ -213,9 +213,17 @@ public class SourceConfigUtils {
         }
 
         String sourceClassName;
-        ClassLoader classLoader = null;
-        if (isEmpty(sourceConfig.getClassName())) {
+        ClassLoader classLoader;
+        if (!isEmpty(sourceConfig.getClassName())) {
             sourceClassName = sourceConfig.getClassName();
+            try {
+                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid Source Jar");
+            }
+            if (classLoader == null) {
+                throw new IllegalArgumentException("Invalid Source Jar");
+            }
         } else {
             classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             if (classLoader == null) {
@@ -225,16 +233,6 @@ public class SourceConfigUtils {
                 sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) classLoader);
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e1);
-            }
-        }
-        if (classLoader == null) {
-            try {
-                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("Invalid Source Jar");
-            }
-            if (classLoader == null) {
-                throw new IllegalArgumentException("Invalid Source Jar");
             }
         }
 
