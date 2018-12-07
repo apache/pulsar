@@ -1,0 +1,86 @@
+package org.apache.pulsar.common.api.raw;
+
+import io.netty.buffer.ByteBuf;
+
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * View of a message that exposes the internal direct-memory buffer for more efficient processing.
+ *
+ * The message needs to be released when the processing is done.
+ */
+public interface RawMessage {
+
+    /**
+     * Release all the resources associated with this raw message
+     */
+    void release();
+
+    /**
+     * Return the properties attached to the message.
+     *
+     * Properties are application defined key/value pairs that will be attached to the message
+     *
+     * @return an unmodifiable view of the properties map
+     */
+    Map<String, String> getProperties();
+
+    /**
+     * Get the content of the message
+     *
+     * @return the byte array with the message payload
+     */
+    ByteBuf getData();
+
+    /**
+     * Get the unique message ID associated with this message.
+     *
+     * The message id can be used to univocally refer to a message without having the keep the entire payload in memory.
+     *
+     * Only messages received from the consumer will have a message id assigned.
+     *
+     * @return the message id null if this message was not received by this client instance
+     */
+    RawMessageId getMessageId();
+
+    /**
+     * Get the publish time of this message. The publish time is the timestamp that a client publish the message.
+     *
+     * @return publish time of this message.
+     * @see #getEventTime()
+     */
+    long getPublishTime();
+
+    /**
+     * Get the event time associated with this message. It is typically set by the applications via
+     * {@link MessageBuilder#setEventTime(long)}.
+     *
+     * <p>
+     * If there isn't any event time associated with this event, it will return 0.
+     */
+    long getEventTime();
+
+    /**
+     * Get the sequence id associated with this message. It is typically set by the applications via
+     * {@link MessageBuilder#setSequenceId(long)}.
+     *
+     * @return sequence id associated with this message.
+     * @see MessageBuilder#setEventTime(long)
+     */
+    long getSequenceId();
+
+    /**
+     * Get the producer name who produced this message.
+     *
+     * @return producer name who produced this message, null if producer name is not set.
+     */
+    String getProducerName();
+
+    /**
+     * Get the key of the message
+     *
+     * @return the key of the message
+     */
+    Optional<String> getKey();
+}
