@@ -31,10 +31,11 @@ Here's an example:
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 
-PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
-ProducerConfiguration config = new ProducerConfiguration();
-config.setMessageRoutingMode(ProducerConfiguration.MessageRoutingMode.SinglePartition);
-Producer producer = client.createProducer(topic, config);
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRoutingMode(MessageRoutingMode.SinglePartition)
+        .create();
 producer.send("Partitioned topic message".getBytes());
 ```
 
@@ -66,9 +67,8 @@ String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
 
 PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
 Producer<byte[]> producer = pulsarClient.newProducer()
-        .topic(topicName.toString())
-        .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
-        .setMessageRouter(new AlwaysTenRouter())
+        .topic(topic)
+        .messageRouter(new AlwaysTenRouter())
         .create();
 producer.send("Partitioned topic message".getBytes());
 ```
