@@ -38,7 +38,6 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
-import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
@@ -67,7 +66,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
         try {
             Response response = request(functions.path(tenant).path(namespace)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(new GenericType<List<String>>() {
             });
@@ -81,7 +80,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
         try {
              Response response = request(functions.path(tenant).path(namespace).path(function)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(FunctionConfig.class);
         } catch (Exception e) {
@@ -95,7 +94,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
         try {
             Response response = request(functions.path(tenant).path(namespace).path(function).path("status")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(FunctionStatus.class);
         } catch (Exception e) {
@@ -110,7 +109,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
                     functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("status"))
                             .get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class);
         } catch (Exception e) {
@@ -124,7 +123,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             Response response = request(
                     functions.path(tenant).path(namespace).path(function).path(Integer.toString(id)).path("stats")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class);
         } catch (Exception e) {
@@ -138,7 +137,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             Response response = request(
                     functions.path(tenant).path(namespace).path(function).path("stats")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(FunctionStats.class);
         } catch (Exception e) {
@@ -330,7 +329,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
         try {
             Response response = request(functions.path("connectors")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(new GenericType<List<ConnectorDefinition>>() {
             });
@@ -366,7 +365,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             Response response = request(functions.path(tenant)
                 .path(namespace).path(function).path("state").path(key)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             String value = response.readEntity(String.class);
             return new Gson().fromJson(value, new TypeToken<FunctionState>() {}.getType());

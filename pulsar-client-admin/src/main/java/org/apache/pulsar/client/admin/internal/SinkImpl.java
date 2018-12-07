@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
-import com.google.protobuf.AbstractMessage.Builder;
-import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Sink;
@@ -28,20 +26,17 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.SinkStatus;
-import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
-import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 
 @Slf4j
@@ -59,7 +54,7 @@ public class SinkImpl extends BaseResource implements Sink {
         try {
             Response response = request(sink.path(tenant).path(namespace)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(new GenericType<List<String>>() {
             });
@@ -73,7 +68,7 @@ public class SinkImpl extends BaseResource implements Sink {
         try {
              Response response = request(sink.path(tenant).path(namespace).path(sinkName)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(SinkConfig.class);
         } catch (Exception e) {
@@ -87,7 +82,7 @@ public class SinkImpl extends BaseResource implements Sink {
         try {
             Response response = request(sink.path(tenant).path(namespace).path(sinkName).path("status")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(SinkStatus.class);
         } catch (Exception e) {
@@ -103,7 +98,7 @@ public class SinkImpl extends BaseResource implements Sink {
                     sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(id)).path("status"))
                             .get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.class);
         } catch (Exception e) {
@@ -242,17 +237,11 @@ public class SinkImpl extends BaseResource implements Sink {
         try {
             Response response = request(sink.path("builtinsinks")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
-                throw new ClientErrorException(response);
+                throw getApiException(response);
             }
             return response.readEntity(new GenericType<List<ConnectorDefinition>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
-
-
-    public static void mergeJson(String json, Builder builder) throws IOException {
-        JsonFormat.parser().merge(json, builder);
-    }
-
 }
