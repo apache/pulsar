@@ -227,45 +227,45 @@ public class PulsarRecordCursor implements RecordCursor {
                             // register stats for bytes read
                             metricsTracker.register_BYTES_READ(bytes);
 
+                            // check if we have processed all entries in this split
+                            if (((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0) {
+                                return;
+                            }
+
                             // set start time for time deserializing entries for stats
                             metricsTracker.start_ENTRY_DESERIALIZE_TIME();
 
-                            // filter entries that is not part of my split
-                            if (((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) < 0) {
-                                try {
-                                    MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(),
-                                            entry.getDataBuffer(), (messageId, message, byteBuf) -> {
-                                                try {
-                                                    // start time for message queue read
-                                                    metricsTracker.start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
+                            try {
+                                MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(),
+                                        entry.getDataBuffer(), (messageId, message, byteBuf) -> {
+                                            try {
+                                                // start time for message queue read
+                                                metricsTracker.start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
 
-                                                    // enqueue deserialize message from this entry
-                                                    while (!messageQueue.offer(message)) {
-                                                        Thread.sleep(1);
-                                                    }
-
-                                                    // stats for how long a read from message queue took
-                                                    metricsTracker.end_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
-                                                    // stats for number of messages read
-                                                    metricsTracker.incr_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
-
-                                                } catch (InterruptedException e) {
-                                                    //no-op
+                                                // enqueue deserialize message from this entry
+                                                while (!messageQueue.offer(message)) {
+                                                    Thread.sleep(1);
                                                 }
-                                            });
-                                } catch (IOException e) {
-                                    log.error(e, "Failed to parse message from pulsar topic %s", topicName.toString());
-                                    throw new RuntimeException(e);
-                                }
-                                // stats for time spend deserializing entries
-                                metricsTracker.end_ENTRY_DESERIALIZE_TIME();
 
-                                // stats for num messages per entry
-                                metricsTracker.end_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
-                            } else {
-                                // we are done
-                                return;
+                                                // stats for how long a read from message queue took
+                                                metricsTracker.end_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
+                                                // stats for number of messages read
+                                                metricsTracker.incr_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
+
+                                            } catch (InterruptedException e) {
+                                                //no-op
+                                            }
+                                        });
+                            } catch (IOException e) {
+                                log.error(e, "Failed to parse message from pulsar topic %s", topicName.toString());
+                                throw new RuntimeException(e);
                             }
+                            // stats for time spend deserializing entries
+                            metricsTracker.end_ENTRY_DESERIALIZE_TIME();
+
+                            // stats for num messages per entry
+                            metricsTracker.end_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
+
                         } finally {
                             entriesProcessed++;
                             entry.release();
@@ -385,7 +385,7 @@ public class PulsarRecordCursor implements RecordCursor {
                 try {
                     Thread.sleep(1);
                     // stats for time spent wait to read from message queue because its empty
-                    metricsTracker.register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(5);
+                    metricsTracker.register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(1);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
