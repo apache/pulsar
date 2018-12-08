@@ -358,7 +358,7 @@ public class PulsarStandalone implements AutoCloseable {
         }
     }
 
-    /** this methods gets a buidler to use to build and an embedded pulsar instance `
+    /** This method gets a builder to build an embedded pulsar instance
      * i.e.
      * <pre>
      * <code>
