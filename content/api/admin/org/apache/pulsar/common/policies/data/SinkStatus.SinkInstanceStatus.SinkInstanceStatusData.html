@@ -131,7 +131,7 @@ extends Object</pre>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>long</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.html#lastInvocationTime">lastInvocationTime</a></span></code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.html#lastReceivedTime">lastReceivedTime</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>List&lt;<a href="../../../../../../org/apache/pulsar/common/policies/data/ExceptionInformation.html" title="class in org.apache.pulsar.common.policies.data">ExceptionInformation</a>&gt;</code></td>
@@ -139,7 +139,7 @@ extends Object</pre>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>long</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.html#numReceived">numReceived</a></span></code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.html#numReadFromPulsar">numReadFromPulsar</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>long</code></td>
@@ -150,10 +150,14 @@ extends Object</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.html#numSystemExceptions">numSystemExceptions</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><code>long</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.html#numWrittenToSink">numWrittenToSink</a></span></code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.html#running">running</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.html#workerId">workerId</a></span></code>&nbsp;</td>
 </tr>
@@ -231,13 +235,13 @@ extends Object</pre>
 <pre>public&nbsp;long numRestarts</pre>
 </li>
 </ul>
-<a name="numReceived">
+<a name="numReadFromPulsar">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>numReceived</h4>
-<pre>public&nbsp;long numReceived</pre>
+<h4>numReadFromPulsar</h4>
+<pre>public&nbsp;long numReadFromPulsar</pre>
 </li>
 </ul>
 <a name="numSystemExceptions">
@@ -258,13 +262,22 @@ extends Object</pre>
 <pre>public&nbsp;List&lt;<a href="../../../../../../org/apache/pulsar/common/policies/data/ExceptionInformation.html" title="class in org.apache.pulsar.common.policies.data">ExceptionInformation</a>&gt; latestSystemExceptions</pre>
 </li>
 </ul>
-<a name="lastInvocationTime">
+<a name="numWrittenToSink">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>lastInvocationTime</h4>
-<pre>public&nbsp;long lastInvocationTime</pre>
+<h4>numWrittenToSink</h4>
+<pre>public&nbsp;long numWrittenToSink</pre>
+</li>
+</ul>
+<a name="lastReceivedTime">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>lastReceivedTime</h4>
+<pre>public&nbsp;long lastReceivedTime</pre>
 </li>
 </ul>
 <a name="workerId">

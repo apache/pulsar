@@ -154,9 +154,9 @@ client.close();</p>
     .create();
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="消息路由"></a><a href="#消息路由" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息路由</h3>
-<p>当使用分区主题时，当你使用生产者发布消息时你可以指定路由模式。 有关使用 Java 客户端指定路由模式的更多内容, 请参见 <a href="/docs/zh-CN/cookbooks-partitioned">分区主题</a> cookbook。</p>
+<p>当使用分区主题时，当你使用生产者发布消息时你可以指定路由模式。 有关使用 Java 客户端指定路由模式的更多内容, 请参见 <a href="cookbooks-partitioned.md">分区主题</a> cookbook。</p>
 <h3><a class="anchor" aria-hidden="true" id="异步发送"></a><a href="#异步发送" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>异步发送</h3>
-<p>你可以使用Java客户端<a href="/docs/zh-CN/concepts-messaging#send-modes">异步</a>发布消息。 使用异步发送，生产者将消息放入阻塞队列并立即返回。 然后，客户端将在后台将消息发送给broker。 如果队列已满（最大值可配置），则在调用API时，生产者可能会被阻塞或立即失败，具体取决于传递给生产者的参数。</p>
+<p>你可以使用Java客户端<a href="concepts-messaging.md#send-modes">异步</a>发布消息。 使用异步发送，生产者将消息放入阻塞队列并立即返回。 然后，客户端将在后台将消息发送给broker。 如果队列已满（最大值可配置），则在调用API时，生产者可能会被阻塞或立即失败，具体取决于传递给生产者的参数。</p>
 <p>以下是异步发送操作的示例:</p>
 <pre><code class="hljs css language-java">producer.sendAsync(<span class="hljs-string">"my-async-message"</span>.getBytes()).thenAccept(msgId -&gt; {
     System.out.printf(<span class="hljs-string">"Message with ID %s successfully sent"</span>, msgId);
@@ -175,9 +175,9 @@ client.close();</p>
 <p>对于前一种情况，也可以使用<code>sendAsync()</code>来终止构建器链，并获取future返回值。</p>
 <h2><a class="anchor" aria-hidden="true" id="consumers"></a><a href="#consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumers</h2>
 <p>在Pulsar中，消费者订阅topic主题并处理生产者发布到这些主题的消息。 你可以首先实例化一个<a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
-对象并传递给他一个borker(<a href="#client-configuration">如上所示</a>) URL来实例化一个<a href="/docs/zh-CN/reference-terminology#consumer">消费者</a>。</p>
+对象并传递给他一个borker(<a href="#client-configuration">如上所示</a>) URL来实例化一个<a href="reference-terminology.md#consumer">消费者</a>。</p>
 <p>一旦实例化一个<a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
- 对象，你可以指定一个<a href="/docs/zh-CN/reference-terminology#topic">主题</a>和一个<a href="/docs/zh-CN/concepts-messaging#subscription-modes">订阅</a>来创建一个 <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/Consumer">Consumer</a>
+ 对象，你可以指定一个<a href="reference-terminology.md#topic">主题</a>和一个<a href="concepts-messaging.md#subscription-modes">订阅</a>来创建一个 <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/Consumer">Consumer</a>
 消费者。</p>
 <pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
@@ -207,13 +207,13 @@ client.close();</p>
         .subscribe();
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="异步接收"></a><a href="#异步接收" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>异步接收</h3>
-<p><code>receive</code>方法将异步接受消息（消费者处理器将被阻塞，直到有消息到达）。 你也可以使用<a href="/docs/zh-CN/concepts-messaging#receive-modes">异步接收方法</a>，这将在一个新消息到达时立即返回一个<a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>对象。</p>
+<p><code>receive</code>方法将异步接受消息（消费者处理器将被阻塞，直到有消息到达）。 你也可以使用<a href="concepts-messaging.md#receive-modes">异步接收方法</a>，这将在一个新消息到达时立即返回一个<a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>对象。</p>
 <p>Here's an example:</p>
 <pre><code class="hljs css language-java">CompletableFuture&lt;Message&gt; asyncMessage = consumer.receiveAsync();
 </code></pre>
 <p>异步接收操作返回一个包装在<a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>中的{@inject javadoc:Message:/client/org/apache/pulsar/client/api/Message}消息对象。</p>
 <h3><a class="anchor" aria-hidden="true" id="多主题订阅"></a><a href="#多主题订阅" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多主题订阅</h3>
-<p>消费者除了订阅单个Pulsar主题外，你还可以使用<a href="/docs/zh-CN/concepts-messaging#multi-topic-subscriptions">多主题订阅</a>订阅多个主题。 若要使用多主题订阅, 可以提供一个topic正则表达式 (regex) 或 主题<code>List</code> 。 如果通过 regex 选择主题, 则所有主题都必须位于同一Pulsar命名空间中。</p>
+<p>消费者除了订阅单个Pulsar主题外，你还可以使用<a href="concepts-messaging.md#multi-topic-subscriptions">多主题订阅</a>订阅多个主题。 若要使用多主题订阅, 可以提供一个topic正则表达式 (regex) 或 主题<code>List</code> 。 如果通过 regex 选择主题, 则所有主题都必须位于同一Pulsar命名空间中。</p>
 <p>下面是一些示例:</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Consumer;
 <span class="hljs-keyword">import</span> org.apache.pulsar.client.api.PulsarClient;
@@ -274,7 +274,7 @@ consumerBuilder
         });
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="reader-接口-readers"></a><a href="#reader-接口-readers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader 接口 {#readers}</h2>
-<p>使用 <a href="/docs/zh-CN/concepts-clients#reader-interface">reader 接口</a>, Pulsar客户可以在主题中“手动定位”自己，从指定的消息开始向前读取所有消息。 Pulsar Java API可以让你通过指定一个主题，一个 <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/MessageId">MessageId</a>
+<p>使用 <a href="concepts-clients.md#reader-interface">reader 接口</a>, Pulsar客户可以在主题中“手动定位”自己，从指定的消息开始向前读取所有消息。 Pulsar Java API可以让你通过指定一个主题，一个 <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/MessageId">MessageId</a>
 和 <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/Reader">Reader</a>
 /api/ReaderConfiguration}来创建<a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/Reader">Reader</a>
 。</p>
@@ -295,12 +295,12 @@ Reader reader = pulsarClient.newReader()
 <p>在上面的示例中，实例化一个<code>Reader</code>对象对指定的主题和消息（ID）; reader将遍历主题中<code>msgIdBytes</code>(取值方式取决于应用程序) 之后的消息。</p>
 <p>上面的示例代码展示了<code>Reader</code>对象指向特定的消息(ID)，但你也可以使用<code>MessageId.earliest</code>来指向topic上最早可用的消息，使用<code>MessageId.latest</code>指向最新的消息。</p>
 <h2><a class="anchor" aria-hidden="true" id="schema"></a><a href="#schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema</h2>
-<p>在Pulsar中，所有的消息数据都在字节数组中，<a href="/docs/zh-CN/concepts-schema-registry">消息schema</a>允许在构造和处理消息时使用其他类型的数据（从简单类型(如字符串)到更复杂的特定应用程序的类型）。 如果在不指定schema的情况下构造 <a href="#producers">生产者</a>，则生产者只能生成类型为 <code>byte[]</code>的消息。 Here's an example:</p>
+<p>在Pulsar中，所有的消息数据都在字节数组中，<a href="concepts-schema-registry.md">消息schema</a>允许在构造和处理消息时使用其他类型的数据（从简单类型(如字符串)到更复杂的特定应用程序的类型）。 如果在不指定schema的情况下构造 <a href="#producers">生产者</a>，则生产者只能生成类型为 <code>byte[]</code>的消息。 Here's an example:</p>
 <pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
         .topic(topic)
         .create();
 </code></pre>
-<p>上面的生产者相当于 <code>Producer&lt;byte[]&gt;</code> (实际上, 你应该 <em>总是</em> 显式指定类型)。 如果你想让产生者使用不同类型的数据，你需要指定一个<strong>schema</strong>来通知Pulsar 在<a href="/docs/zh-CN/reference-terminology#topic">topic</a>上传输哪种类型的数据。</p>
+<p>上面的生产者相当于 <code>Producer&lt;byte[]&gt;</code> (实际上, 你应该 <em>总是</em> 显式指定类型)。 如果你想让产生者使用不同类型的数据，你需要指定一个<strong>schema</strong>来通知Pulsar 在<a href="reference-terminology.md#topic">topic</a>上传输哪种类型的数据。</p>
 <h3><a class="anchor" aria-hidden="true" id="schema实例"></a><a href="#schema实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema实例</h3>
 <p>假设您有一个 <code>SensorReading</code> 类, 你想通过Pulsar主题进行传输:</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">SensorReading</span> </span>{
@@ -353,9 +353,9 @@ Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(pojoSchema)
 </code></pre></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="authentication"></a><a href="#authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Authentication</h2>
-<p>Pulsar目前支持两种身份验证方案：<a href="/docs/zh-CN/security-tls-authentication"> TLS </a>和<a href="/docs/zh-CN/security-athenz"> Athenz </a>。 Pulsar Java客户端中两者可以一起使用。</p>
+<p>Pulsar目前支持两种身份验证方案：<a href="security-tls-authentication.md"> TLS </a>和<a href="security-athenz.md"> Athenz </a>。 Pulsar Java客户端中两者可以一起使用。</p>
 <h3><a class="anchor" aria-hidden="true" id="tls-authentication"></a><a href="#tls-authentication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS Authentication</h3>
-<p>要使用<a href="/docs/zh-CN/security-tls-authentication">TLS</a>，你需要使用<code>setUseTls</code>方法设置TLS为<code>true</code>，将您的Pulsar客户端指向TLS证书路径，并提供证书和密钥文件的路径。</p>
+<p>要使用<a href="security-tls-authentication.md">TLS</a>，你需要使用<code>setUseTls</code>方法设置TLS为<code>true</code>，将您的Pulsar客户端指向TLS证书路径，并提供证书和密钥文件的路径。</p>
 <p>这是一个示例配置：</p>
 <pre><code class="hljs css language-java">Map&lt;String, String&gt; authParams = <span class="hljs-keyword">new</span> HashMap&lt;&gt;();
 authParams.put(<span class="hljs-string">"tlsCertFile"</span>, <span class="hljs-string">"/path/to/client-cert.pem"</span>);
@@ -372,7 +372,7 @@ PulsarClient client = PulsarClient.builder()
         .build();
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="athenz"></a><a href="#athenz" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Athenz</h3>
-<p>要使用<a href="/docs/zh-CN/security-athenz">Athenz</a>做为身份认证提供者，你需要<a href="#tls-authentication">use TLS</a>并且在hash提供如下四个参数的值：</p>
+<p>要使用<a href="security-athenz.md">Athenz</a>做为身份认证提供者，你需要<a href="#tls-authentication">use TLS</a>并且在hash提供如下四个参数的值：</p>
 <ul>
 <li><code>tenantDomain</code></li>
 <li><code>tenantService</code></li>
