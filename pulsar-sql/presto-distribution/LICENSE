@@ -400,6 +400,8 @@ Protocol Buffers License
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar
+  *  DSL Platform JSON
+    - dsl-json-1.8.4.jar
 
 BSD License
  * ANTLR 4 Runtime -- antlr4-runtime-4.6.jar

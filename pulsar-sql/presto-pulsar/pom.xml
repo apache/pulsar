@@ -40,6 +40,7 @@
         <dep.javax-inject.version>1</dep.javax-inject.version>
         <dep.guava.version>24.1-jre</dep.guava.version>
         <jctools.version>2.1.2</jctools.version>
+        <dslJson.verson>1.8.4</dslJson.verson>
     </properties>
 
     <dependencies>
@@ -96,6 +97,13 @@
             <artifactId>jctools-core</artifactId>
             <version>${jctools.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.dslplatform</groupId>
+            <artifactId>dsl-json</artifactId>
+            <version>${dslJson.verson}</version>
+        </dependency>
+
         <!-- Presto SPI -->
         <dependency>
             <groupId>com.facebook.presto</groupId>
