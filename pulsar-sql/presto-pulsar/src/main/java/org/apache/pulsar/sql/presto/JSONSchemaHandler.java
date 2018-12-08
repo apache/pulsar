@@ -18,19 +18,14 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import com.dslplatform.json.DslJson;
 import com.facebook.presto.spi.type.Type;
 import io.airlift.log.Logger;
-import io.airlift.slice.Slice;
-import org.apache.pulsar.shade.com.google.gson.JsonElement;
-import org.apache.pulsar.shade.com.google.gson.JsonObject;
-import org.apache.pulsar.shade.com.google.gson.JsonParser;
 
-import java.util.Arrays;
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
-
-import static com.facebook.presto.spi.type.IntegerType.INTEGER;
-import static com.facebook.presto.spi.type.RealType.REAL;
-import static com.facebook.presto.spi.type.SmallintType.SMALLINT;
+import java.util.Map;
 
 public class JSONSchemaHandler implements SchemaHandler {
 
@@ -38,7 +33,7 @@ public class JSONSchemaHandler implements SchemaHandler {
 
     private List<PulsarColumnHandle> columnHandles;
 
-    private final JsonParser jsonParser = new JsonParser();
+    private final DslJson<Object> dslJson = new DslJson<>();
 
     public JSONSchemaHandler(List<PulsarColumnHandle> columnHandles) {
         this.columnHandles = columnHandles;
@@ -46,50 +41,42 @@ public class JSONSchemaHandler implements SchemaHandler {
 
     @Override
     public Object deserialize(byte[] bytes) {
-        JsonElement jsonElement = this.jsonParser.parse(new String(bytes));
-        return jsonElement.getAsJsonObject();
+        try {
+            return dslJson.deserialize(Map.class, bytes, bytes.length);
+        } catch (IOException e) {
+            log.error(e);
+        }
+        return null;
     }
 
     @Override
     public Object extractField(int index, Object currentRecord) {
         try {
-            JsonObject jsonObject = (JsonObject) currentRecord;
+
+            Map jsonObject = (Map) currentRecord;
             PulsarColumnHandle pulsarColumnHandle = columnHandles.get(index);
 
             String[] fieldNames = pulsarColumnHandle.getFieldNames();
-            JsonElement field = jsonObject.get(fieldNames[0]);
-            if (field.isJsonNull()) {
+            Object field = jsonObject.get(fieldNames[0]);
+            if (field == null) {
                 return null;
             }
             for (int i = 1; i < fieldNames.length ; i++) {
-                field = field.getAsJsonObject().get(fieldNames[i]);
-                if (field.isJsonNull()) {
+                field = ((Map) field).get(fieldNames[i]);
+                if (field == null) {
                     return null;
                 }
             }
 
             Type type = pulsarColumnHandle.getType();
+
             Class<?> javaType = type.getJavaType();
 
-            if (javaType == long.class) {
-                if (type.equals(INTEGER)) {
-                    return field.getAsInt();
-                } else if (type.equals(REAL)) {
-                    return field.getAsFloat();
-                } else if (type.equals(SMALLINT)) {
-                    return field.getAsShort();
-                } else {
-                    return field.getAsLong();
-                }
-            } else if (javaType == boolean.class) {
-                return field.getAsBoolean();
-            } else if (javaType == double.class) {
-                return field.getAsDouble();
-            } else if (javaType == Slice.class) {
-                return field.getAsString();
-            } else {
-                return null;
+            if (javaType == double.class) {
+                return ((BigDecimal) field).doubleValue();
             }
+
+            return field;
         } catch (Exception ex) {
             log.debug(ex,"%s", ex);
         }
