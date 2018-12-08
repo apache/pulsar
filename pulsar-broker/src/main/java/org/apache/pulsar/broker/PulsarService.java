@@ -549,7 +549,7 @@ public class PulsarService implements AutoCloseable {
 
     private void startNamespaceService() throws PulsarServerException {
 
-        LOG.info("starting name space service, bootstrap namespaces=" + config.getBootstrapNamespaces());
+        LOG.info("Starting name space service, bootstrap namespaces=" + config.getBootstrapNamespaces());
 
         this.nsservice = getNamespaceServiceProvider().get();
     }

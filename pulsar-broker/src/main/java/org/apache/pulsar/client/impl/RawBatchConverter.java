@@ -41,11 +41,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class RawBatchConverter {
-    private static final Logger log = LoggerFactory.getLogger(RawBatchConverter.class);
 
     public static boolean isReadableBatch(RawMessage msg) {
         ByteBuf payload = msg.getHeadersAndPayload();
@@ -93,7 +89,7 @@ public class RawBatchConverter {
     }
 
     /**
-     * Take a batched message and a filter, and returns a message with the only the submessages
+     * Take a batched message and a filter, and returns a message with the only the sub-messages
      * which match the filter. Returns an empty optional if no messages match.
      *
      * This takes ownership of the passes in message, and if the returned optional is not empty,
