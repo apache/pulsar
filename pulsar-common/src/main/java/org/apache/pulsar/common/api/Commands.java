@@ -1069,21 +1069,20 @@ public class Commands {
         int beginIndex = uncompressedPayload.readerIndex() + singleMetaSize;
         uncompressedPayload.writerIndex(beginIndex);
         ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(uncompressedPayload);
-        PulsarApi.SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.mergeFrom(stream, null)
-                .build();
+        singleMessageMetadataBuilder.mergeFrom(stream, null);
+        stream.recycle();
 
-        int singleMessagePayloadSize = singleMessageMetadata.getPayloadSize();
+        int singleMessagePayloadSize = singleMessageMetadataBuilder.getPayloadSize();
 
-        uncompressedPayload.markReaderIndex();
-        ByteBuf singleMessagePayload = uncompressedPayload.slice(uncompressedPayload.readerIndex(),
-                singleMessagePayloadSize);
-        singleMessagePayload.retain();
+        int readerIndex = uncompressedPayload.readerIndex();
+        ByteBuf singleMessagePayload = uncompressedPayload.retainedSlice(readerIndex, singleMessagePayloadSize);
         uncompressedPayload.writerIndex(writerIndex);
-        uncompressedPayload.resetReaderIndex();
+
         // reader now points to beginning of payload read; so move it past message payload just read
         if (index < batchSize) {
-            uncompressedPayload.readerIndex(uncompressedPayload.readerIndex() + singleMessagePayloadSize);
+            uncompressedPayload.readerIndex(readerIndex + singleMessagePayloadSize);
         }
+
         return singleMessagePayload;
     }
 
