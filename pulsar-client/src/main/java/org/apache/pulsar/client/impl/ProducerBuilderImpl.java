@@ -63,7 +63,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         this.schema = schema;
     }
 
-
     /**
      * Allow to override schema in builder implementation
      * @return
@@ -100,6 +99,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
+        }
+
+        try {
+            setMessageRoutingMode();
+        } catch(PulsarClientException pce) {
+            return FutureUtil.failedFuture(pce);
         }
 
         return interceptorList == null || interceptorList.size() == 0 ?
@@ -241,5 +246,19 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         }
         interceptorList.addAll(Arrays.asList(interceptors));
         return this;
+    }
+
+    private void setMessageRoutingMode() throws PulsarClientException {
+        if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
+            messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        } else if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
+            messageRoutingMode(MessageRoutingMode.CustomPartition);
+        } else if((conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
+                && conf.getCustomMessageRouter() == null)
+                || (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
+                && conf.getCustomMessageRouter() != null)) {
+            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' " +
+                    "should be set as " + MessageRoutingMode.CustomPartition);
+        }
     }
 }
