@@ -442,7 +442,7 @@ public class PulsarRecordCursor implements RecordCursor {
         } else if (type.equals(DATE)) {
             return ((Number) record).longValue();
         } else if (type.equals(INTEGER)) {
-            return (int) record;
+            return ((Number) record).intValue();
         } else if (type.equals(REAL)) {
             return Float.floatToIntBits(((Number) record).floatValue());
         } else if (type.equals(SMALLINT)) {
