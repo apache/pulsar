@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -27,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,7 +40,6 @@ import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
-import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreRepository;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 
 import org.jclouds.blobstore.BlobStore;
@@ -65,11 +67,13 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     private final OrderedScheduler scheduler;
     private final TieredStorageConfiguration config;
-    private final BlobStore writeBlobStore;
+//    private final BlobStore writeBlobStore;
     private final Location writeLocation;
 
     // metadata to be stored as part of the offloaded ledger metadata
     private final Map<String, String> userMetadata;
+
+    private final ConcurrentMap<BlobStoreLocation, BlobStore> blobStores = new ConcurrentHashMap<>();
 
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
             Map<String, String> userMetadata,
@@ -99,7 +103,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 config.getProvider().getDriver(), config.getServiceEndpoint(),
                 config.getBucket(), config.getRegion());
 
-        this.writeBlobStore = BlobStoreRepository.getOrCreate(config);
+        blobStores.putIfAbsent(config.getBlobStoreLocation(), config.getBlobStore());
+//        this.writeBlobStore = blobStores.get(config.getBlobStoreLocation());
     }
 
     @Override
@@ -112,6 +117,11 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return config.getOffloadDriverMetadata();
     }
 
+    @VisibleForTesting
+    public ConcurrentMap<BlobStoreLocation, BlobStore> getBlobStores() {
+        return blobStores;
+    }
+
     /**
      * Upload the DataBlocks associated with the given ReadHandle using MultiPartUpload,
      * Creating indexBlocks for each corresponding DataBlock that is uploaded.
@@ -120,6 +130,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public CompletableFuture<Void> offload(ReadHandle readHandle,
                                            UUID uuid,
                                            Map<String, String> extraMetadata) {
+        final BlobStore writeBlobStore = blobStores.get(config.getBlobStoreLocation());
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(readHandle.getId()).submit(() -> {
             if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
@@ -247,7 +258,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
         BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
         String readBucket = bsKey.getBucket();
-        BlobStore readBlobstore = BlobStoreRepository.get(bsKey);
+        BlobStore readBlobstore = blobStores.get(bsKey);
 
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         String key = DataBlockUtils.dataBlockOffloadKey(ledgerId, uid);
@@ -272,7 +283,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                    Map<String, String> offloadDriverMetadata) {
         BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
         String readBucket = bsKey.getBucket();
-        BlobStore readBlobstore = BlobStoreRepository.get(bsKey);
+        BlobStore readBlobstore = blobStores.get(bsKey);
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(ledgerId).submit(() -> {
@@ -289,5 +300,4 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
         return promise;
     }
-
 }

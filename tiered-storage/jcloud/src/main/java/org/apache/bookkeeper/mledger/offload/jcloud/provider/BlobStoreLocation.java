@@ -46,7 +46,7 @@ public class BlobStoreLocation implements Serializable {
     }
 
     String getProvider(Map<String, String> offloadDriverMetadata) {
-        return offloadDriverMetadata.get(TieredStorageConfiguration.METADATA_FIELD_BLOB_STORE_PROVIDER);
+        return offloadDriverMetadata.get(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY);
     }
 
     String getRegion(Map<String, String> offloadDriverMetadata) {

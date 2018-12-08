@@ -45,7 +45,6 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
     public static final String BLOB_STORE_PROVIDER_KEY = "managedLedgerOffloadDriver";
-    public static final String METADATA_FIELD_BLOB_STORE_PROVIDER = "provider";
     public static final String METADATA_FIELD_BUCKET = "bucket";
     public static final String METADATA_FIELD_REGION = "region";
     public static final String METADATA_FIELD_ENDPOINT = "endpoint";
@@ -165,7 +164,7 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
 
     public Map<String, String> getOffloadDriverMetadata() {
         return ImmutableMap.of(
-                METADATA_FIELD_BLOB_STORE_PROVIDER, (getProvider() != null) ? getProvider().toString() : "",
+                BLOB_STORE_PROVIDER_KEY, (getProvider() != null) ? getProvider().toString() : "",
                 METADATA_FIELD_BUCKET,  (getBucket() != null) ?  getBucket() : "",
                 METADATA_FIELD_REGION, (getRegion() != null) ? getRegion() : "",
                 METADATA_FIELD_ENDPOINT, (getServiceEndpoint() != null) ? getServiceEndpoint() : ""
