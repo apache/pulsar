@@ -74,20 +74,20 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         MessageRoutingMode messageRouteMode = conf.getMessageRoutingMode();
 
         switch (messageRouteMode) {
-        case CustomPartition:
-            messageRouter = checkNotNull(conf.getCustomMessageRouter());
-            break;
-        case RoundRobinPartition:
-            messageRouter = new RoundRobinPartitionMessageRouterImpl(
-                conf.getHashingScheme(),
-                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()),
-                conf.isBatchingEnabled(),
-                TimeUnit.MICROSECONDS.toMillis(conf.getBatchingMaxPublishDelayMicros()));
-            break;
-        case SinglePartition:
-        default:
-            messageRouter = new SinglePartitionMessageRouterImpl(
-                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()), conf.getHashingScheme());
+            case CustomPartition:
+                messageRouter = checkNotNull(conf.getCustomMessageRouter());
+                break;
+            case SinglePartition:
+                messageRouter = new SinglePartitionMessageRouterImpl(
+                        ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()), conf.getHashingScheme());
+                break;
+            case RoundRobinPartition:
+            default:
+                messageRouter = new RoundRobinPartitionMessageRouterImpl(
+                        conf.getHashingScheme(),
+                        ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()),
+                        conf.isBatchingEnabled(),
+                        TimeUnit.MICROSECONDS.toMillis(conf.getBatchingMaxPublishDelayMicros()));
         }
 
         return messageRouter;
