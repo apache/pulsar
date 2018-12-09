@@ -6891,6 +6891,13 @@
         "loadReportType" : {
           "type" : "string"
         },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -6907,16 +6914,9 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
