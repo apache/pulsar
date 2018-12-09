@@ -49,13 +49,14 @@ public class PartitionedProducerImplTest {
     @BeforeTest
     public void setup() {
         client = mock(PulsarClientImpl.class);
-        ClientConfigurationData clientConfigurationData = mock(ClientConfigurationData.class);
-        Timer timer = mock(Timer.class);
         schema = mock(Schema.class);
         producerInterceptors = mock(ProducerInterceptors.class);
         producerCreatedFuture = mock(CompletableFuture.class);
+        ClientConfigurationData clientConfigurationData = mock(ClientConfigurationData.class);
+        Timer timer = mock(Timer.class);
 
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+
         when(client.getConfiguration()).thenReturn(clientConfigurationData);
         when(client.timer()).thenReturn(timer);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
@@ -97,7 +98,7 @@ public class PartitionedProducerImplTest {
 
         Field routerPolicy = impl.getClass().getDeclaredField("routerPolicy");
         routerPolicy.setAccessible(true);
-        MessageRouter messageRouter = (org.apache.pulsar.client.api.MessageRouter) routerPolicy.get(impl);
+        MessageRouter messageRouter = (MessageRouter) routerPolicy.get(impl);
         assertNotNull(messageRouter);
         return messageRouter;
     }
