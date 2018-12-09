@@ -63,7 +63,7 @@ public class JSONSchemaHandler implements SchemaHandler {
             tmpBuffer.set(buffer);
         }
 
-        payload.readBytes(buffer);
+        payload.readBytes(buffer, 0, size);
 
         try {
             return dslJson.deserialize(Map.class, buffer, size);

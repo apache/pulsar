@@ -341,7 +341,7 @@ public class PulsarRecordCursor implements RecordCursor {
             metricsTracker.incr_NUM_ENTRIES_PER_BATCH_SUCCESS(entries.size());
         }
 
-        public boolean hashFinished() {
+        public boolean hasFinished() {
             return messageQueue.isEmpty() && isDone && outstandingReadsRequests.get() >=1 && splitSize <= entriesProcessed;
         }
 
@@ -375,7 +375,7 @@ public class PulsarRecordCursor implements RecordCursor {
         }
 
         while(true) {
-            if (readEntries.hashFinished()) {
+            if (readEntries.hasFinished()) {
                 return false;
             }
 
