@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 
 /**
  * {@link ConsumerBuilder} is used to configure and create instances of {@link Consumer}.

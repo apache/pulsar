@@ -46,6 +46,8 @@ public class UnAckedMessageTracker implements Closeable {
     protected final Lock writeLock;
 
     public static final UnAckedMessageTrackerDisabled UNACKED_MESSAGE_TRACKER_DISABLED = new UnAckedMessageTrackerDisabled();
+    private final long ackTimeoutMillis;
+    private final long tickDurationInMs;
 
     private static class UnAckedMessageTrackerDisabled extends UnAckedMessageTracker {
         @Override
@@ -79,6 +81,8 @@ public class UnAckedMessageTracker implements Closeable {
         writeLock = null;
         timePartitions = null;
         messageIdPartitionMap = null;
+        this.ackTimeoutMillis = 0;
+        this.tickDurationInMs = 0;
     }
 
     public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis) {
@@ -86,7 +90,9 @@ public class UnAckedMessageTracker implements Closeable {
     }
 
     public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis, long tickDurationInMs) {
-        Preconditions.checkArgument(tickDurationInMs > 0 && ackTimeoutMillis > tickDurationInMs);
+        Preconditions.checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
+        this.ackTimeoutMillis = ackTimeoutMillis;
+        this.tickDurationInMs = tickDurationInMs;
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
@@ -104,12 +110,12 @@ public class UnAckedMessageTracker implements Closeable {
                 Set<MessageId> messageIds = new HashSet<>();
                 writeLock.lock();
                 try {
+                    timePartitions.addLast(new ConcurrentOpenHashSet<>());
                     ConcurrentOpenHashSet<MessageId> headPartition = timePartitions.removeFirst();
                     if (!headPartition.isEmpty()) {
                         log.warn("[{}] {} messages have timed-out", consumerBase, timePartitions.size());
                         headPartition.forEach(messageIds::add);
                     }
-                    timePartitions.addLast(new ConcurrentOpenHashSet<>());
                 } finally {
                     writeLock.unlock();
                 }
@@ -124,6 +130,10 @@ public class UnAckedMessageTracker implements Closeable {
         try {
             messageIdPartitionMap.clear();
             timePartitions.clear();
+            int blankPartitions = (int)Math.ceil((double)ackTimeoutMillis / tickDurationInMs);
+            for (int i = 0; i < blankPartitions; i++) {
+                timePartitions.add(new ConcurrentOpenHashSet<>());
+            }
         } finally {
             writeLock.unlock();
         }
@@ -132,11 +142,10 @@ public class UnAckedMessageTracker implements Closeable {
     public boolean add(MessageId messageId) {
         writeLock.lock();
         try {
-            ConcurrentOpenHashSet<MessageId> exist = messageIdPartitionMap.remove(messageId);
-            if (exist != null) {
-                exist.remove(messageId);
-            }
-            return timePartitions.peekLast().add(messageId);
+            remove(messageId);
+            ConcurrentOpenHashSet<MessageId> partition = timePartitions.peekLast();
+            messageIdPartitionMap.put(messageId, partition);
+            return partition.add(messageId);
         } finally {
             writeLock.unlock();
         }

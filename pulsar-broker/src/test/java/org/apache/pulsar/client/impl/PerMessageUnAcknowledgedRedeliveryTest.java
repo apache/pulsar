@@ -112,7 +112,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
-        ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
+//        ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
 
         // 8. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -210,7 +210,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
-        ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
+//        ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
 
         // 8. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -308,7 +308,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
-        ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
+//        ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
 
         // 8. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -415,8 +415,8 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
-        ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
-        ((MultiTopicsConsumerImpl<byte[]>) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
+//        ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
+//        ((MultiTopicsConsumerImpl<byte[]>) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
 
         // 8. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
