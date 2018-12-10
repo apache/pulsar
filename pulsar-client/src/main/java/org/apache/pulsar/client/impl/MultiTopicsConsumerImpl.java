@@ -18,8 +18,21 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerStats;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.ConsumerName;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,21 +54,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerStats;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.client.util.ConsumerName;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
@@ -99,9 +99,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.allTopicPartitionsNumber = new AtomicInteger(0);
 
         if (conf.getAckTimeoutMillis() != 0) {
-            this.unAckedMessageTracker = new WheelTimerUnAckedTopicMessageTracker(this, conf.getAckTimeoutMillis());
+            if (conf.getTickDurationMillis() > 0) {
+                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf.getAckTimeoutMillis(), conf.getTickDurationMillis());
+            } else {
+                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf.getAckTimeoutMillis());
+            }
         } else {
-            this.unAckedMessageTracker = WheelTimerUnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
+            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
         }
 
         this.internalConfig = getInternalConsumerConfig();
@@ -822,7 +826,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     });
 
                     topics.remove(topicName);
-                    ((WheelTimerUnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
+                    ((UnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
 
                     unsubscribeFuture.complete(null);
                     log.info("[{}] [{}] [{}] Unsubscribed Topics Consumer, allTopicPartitionsNumber: {}",

@@ -18,18 +18,45 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
-import static java.lang.String.format;
-import static org.apache.pulsar.common.api.Commands.hasChecksum;
-import static org.apache.pulsar.common.api.Commands.readChecksum;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.ConsumerStats;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.EncryptionContext;
+import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
+import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
+import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -52,42 +79,12 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.ConsumerStats;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.client.api.DeadLetterPolicy;
-import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
-import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
-import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
-import org.apache.pulsar.common.compression.CompressionCodec;
-import org.apache.pulsar.common.compression.CompressionCodecProvider;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
+import static java.lang.String.format;
+import static org.apache.pulsar.common.api.Commands.hasChecksum;
+import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandler.Connection {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
@@ -188,9 +185,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (conf.getAckTimeoutMillis() != 0) {
-            this.unAckedMessageTracker = new WheelTimerUnAckedMessageTracker(this, conf.getAckTimeoutMillis());
+            if (conf.getTickDurationMillis() > 0) {
+                this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis(), conf.getTickDurationMillis());
+            } else {
+                this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis());
+            }
         } else {
-            this.unAckedMessageTracker = WheelTimerUnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
+            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
         }
 
         // Create msgCrypto if not created already

@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 
 /**
  * {@link ConsumerBuilder} is used to configure and create instances of {@link Consumer}.
@@ -153,6 +153,20 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            unit in which the timeout is provided.
      */
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
+
+    /**
+     * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
+     * 10 seconds.
+     *
+     * @param ackTimeout
+     *            for unacked messages.
+     * @param tickDuration
+     *            granularity of timeout checking for unacked messages. tickDuration influence timeout accuracy, if set
+     *            ackTimeout = 10 and tickDuration = 2, actual ackTimeout will be 10 to 12.
+     * @param timeUnit
+     *            unit in which the timeout is provided.
+     */
+    ConsumerBuilder<T> ackTimeout(long ackTimeout, long tickDuration, TimeUnit timeUnit);
 
     /**
      * Select the subscription type to be used when subscribing to the topic.

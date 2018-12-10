@@ -18,17 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
-
+import com.google.common.collect.Lists;
+import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -48,9 +39,16 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.util.FutureUtil;
 
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
-import lombok.NonNull;
+import static com.google.common.base.Preconditions.checkArgument;
 
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
@@ -153,11 +151,21 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit) {
-        checkArgument(timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
-                "Ack timeout should be should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
-        conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
+        ackTimeout(ackTimeout, ackTimeout, timeUnit);
         return this;
     }
+
+    @Override
+    public ConsumerBuilder<T> ackTimeout(long ackTimeout, long tickDuration, TimeUnit timeUnit) {
+        checkArgument(timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
+                "Ack timeout should be should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
+        checkArgument(tickDuration > 0, "Tick Duration should be greater than 0");
+        conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
+        conf.setTickDurationMillis(timeUnit.toMillis(tickDuration));
+        return this;
+    }
+
+
 
     @Override
     public ConsumerBuilder<T> subscriptionType(@NonNull SubscriptionType subscriptionType) {

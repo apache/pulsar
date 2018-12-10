@@ -18,28 +18,27 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import java.io.Serializable;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
-
 import lombok.Data;
-
-import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
+
+import java.io.Serializable;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 @Data
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
@@ -68,6 +67,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private String consumerName = null;
 
     private long ackTimeoutMillis = 0;
+
+    private long tickDurationMillis = 0;
 
     private int priorityLevel = 0;
 
