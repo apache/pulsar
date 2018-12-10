@@ -16,14 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.sql.presto;
+package org.apache.pulsar.common.api.raw;
 
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
-
-public interface SchemaHandler {
-
-    Object deserialize(ByteBuf payload);
-
-    Object extractField(int index, Object currentRecord);
+public interface RawMessageId {
 
 }

@@ -18,37 +18,6 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.PrestoException;
-import com.facebook.presto.spi.RecordCursor;
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.VarbinaryType;
-import com.facebook.presto.spi.type.VarcharType;
-import com.google.common.annotations.VisibleForTesting;
-import io.airlift.log.Logger;
-import io.airlift.slice.Slice;
-import io.airlift.slice.Slices;
-import org.apache.avro.Schema;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.ReadOnlyCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.impl.MessageParser;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.schema.SchemaType;
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.SpscArrayQueue;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-
 import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.DateTimeEncoding.packDateTimeWithZone;
@@ -62,6 +31,39 @@ import static com.facebook.presto.spi.type.TimestampWithTimeZoneType.TIMESTAMP_W
 import static com.facebook.presto.spi.type.TinyintType.TINYINT;
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.facebook.presto.spi.PrestoException;
+import com.facebook.presto.spi.RecordCursor;
+import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.spi.type.VarbinaryType;
+import com.facebook.presto.spi.type.VarcharType;
+import com.google.common.annotations.VisibleForTesting;
+
+import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.avro.Schema;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.api.raw.MessageParser;
+import org.apache.pulsar.common.api.raw.RawMessage;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.SpscArrayQueue;
+
 
 public class PulsarRecordCursor implements RecordCursor {
 
@@ -69,10 +71,10 @@ public class PulsarRecordCursor implements RecordCursor {
     private PulsarSplit pulsarSplit;
     private PulsarConnectorConfig pulsarConnectorConfig;
     private ReadOnlyCursor cursor;
-    private SpscArrayQueue<Message> messageQueue;
+    private SpscArrayQueue<RawMessage> messageQueue;
     private SpscArrayQueue<Entry> entryQueue;
     private Object currentRecord;
-    private Message currentMessage;
+    private RawMessage currentMessage;
     private Map<String, PulsarInternalColumn> internalColumnMap = PulsarInternalColumn.getInternalFieldsMap();
     private SchemaHandler schemaHandler;
     private int maxBatchSize;
@@ -126,8 +128,8 @@ public class PulsarRecordCursor implements RecordCursor {
         this.pulsarSplit = pulsarSplit;
         this.pulsarConnectorConfig = pulsarConnectorConfig;
         this.maxBatchSize = pulsarConnectorConfig.getMaxEntryReadBatchSize();
-        this.messageQueue = new SpscArrayQueue(pulsarConnectorConfig.getMaxSplitMessageQueueSize());
-        this.entryQueue = new SpscArrayQueue(pulsarConnectorConfig.getMaxSplitEntryQueueSize());
+        this.messageQueue = new SpscArrayQueue<>(pulsarConnectorConfig.getMaxSplitMessageQueueSize());
+        this.entryQueue = new SpscArrayQueue<>(pulsarConnectorConfig.getMaxSplitEntryQueueSize());
         this.topicName = TopicName.get("persistent",
                 NamespaceName.get(pulsarSplit.getSchemaName()),
                 pulsarSplit.getTableName());
@@ -236,7 +238,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
                             try {
                                 MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(),
-                                        entry.getDataBuffer(), (messageId, message, byteBuf) -> {
+                                        entry.getDataBuffer(), (message) -> {
                                             try {
                                                 // start time for message queue read
                                                 metricsTracker.start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
@@ -339,7 +341,7 @@ public class PulsarRecordCursor implements RecordCursor {
             metricsTracker.incr_NUM_ENTRIES_PER_BATCH_SUCCESS(entries.size());
         }
 
-        public boolean hashFinished() {
+        public boolean hasFinished() {
             return messageQueue.isEmpty() && isDone && outstandingReadsRequests.get() >=1 && splitSize <= entriesProcessed;
         }
 
@@ -355,7 +357,6 @@ public class PulsarRecordCursor implements RecordCursor {
         }
     }
 
-
     @Override
     public boolean advanceNextPosition() {
 
@@ -368,8 +369,13 @@ public class PulsarRecordCursor implements RecordCursor {
             readEntries.run();
         }
 
+        if (currentMessage != null) {
+            currentMessage.release();
+            currentMessage = null;
+        }
+
         while(true) {
-            if (readEntries.hashFinished()) {
+            if (readEntries.hasFinished()) {
                 return false;
             }
 
@@ -495,6 +501,14 @@ public class PulsarRecordCursor implements RecordCursor {
 
     @Override
     public void close() {
+        log.info("Closing cursor record");
+
+        if (currentMessage != null) {
+            currentMessage.release();
+        }
+
+        messageQueue.drain(RawMessage::release);
+        entryQueue.drain(Entry::release);
 
         if (deserializeEntries != null) {
             deserializeEntries.interrupt();
