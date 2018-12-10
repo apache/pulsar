@@ -390,6 +390,8 @@ The Apache Software License, Version 2.0
     - simpleclient_servlet-0.5.0.jar
   * LZ4
     - lz4-java-1.5.0.jar
+  * JCTools
+    - jctools-core-2.1.2.jar
 
 Protocol Buffers License
  * Protocol Buffers
@@ -398,6 +400,8 @@ Protocol Buffers License
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar
+  *  DSL Platform JSON
+    - dsl-json-1.8.4.jar
 
 BSD License
  * ANTLR 4 Runtime -- antlr4-runtime-4.6.jar

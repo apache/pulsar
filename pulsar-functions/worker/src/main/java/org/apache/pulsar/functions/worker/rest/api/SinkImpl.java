@@ -60,7 +60,7 @@ public class SinkImpl extends ComponentImpl {
             sinkInstanceStatusData.setRunning(status.getRunning());
             sinkInstanceStatusData.setError(status.getFailureException());
             sinkInstanceStatusData.setNumRestarts(status.getNumRestarts());
-            sinkInstanceStatusData.setNumReceived(status.getNumReceived());
+            sinkInstanceStatusData.setNumReadFromPulsar(status.getNumReceived());
 
             List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
@@ -82,7 +82,8 @@ public class SinkImpl extends ComponentImpl {
             }
             sinkInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
 
-            sinkInstanceStatusData.setLastInvocationTime(status.getLastInvocationTime());
+            sinkInstanceStatusData.setNumWrittenToSink(status.getNumSuccessfullyProcessed());
+            sinkInstanceStatusData.setLastReceivedTime(status.getLastInvocationTime());
             sinkInstanceStatusData.setWorkerId(assignedWorkerId);
 
             return sinkInstanceStatusData;

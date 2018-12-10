@@ -36,7 +36,7 @@ public enum MessageRoutingMode {
     RoundRobinPartition,
 
     /**
-     * Use custom message router implemenation that will be called to determine the partition for a particular message.
+     * Use custom message router implementation that will be called to determine the partition for a particular message.
      */
     CustomPartition
 }

@@ -77,7 +77,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
 
         try {
             /**
-             * <code>Range.insersection()</code> will throw <code>IllegalArgumentException</code> when two ranges are
+             * <code>Range.intersection()</code> will throw <code>IllegalArgumentException</code> when two ranges are
              * not connected at all, which is a OK case for our comparison. <code>checkState</code> here is to ensure
              * that the two ranges we are comparing don't have overlaps.
              */

@@ -245,7 +245,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "sink",
-            "getstatus",
+            "status",
             "--tenant", tenant,
             "--namespace", namespace,
             "--name", sinkName
@@ -472,7 +472,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "source",
-            "getstatus",
+            "status",
             "--tenant", tenant,
             "--namespace", namespace,
             "--name", sourceName
@@ -524,7 +524,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "source",
-            "getstatus",
+            "status",
             "--tenant", tenant,
             "--namespace", namespace,
             "--name", sourceName
@@ -544,8 +544,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     assertEquals(sourceStatus.getInstances().size(), 1);
                     assertEquals(sourceStatus.getInstances().get(0).getInstanceId(), 0);
                     assertEquals(sourceStatus.getInstances().get(0).getStatus().isRunning(), true);
-                    assertTrue(sourceStatus.getInstances().get(0).getStatus().getLastInvocationTime() > 0);
-                    assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumReceived(), numMessages);
+                    assertTrue(sourceStatus.getInstances().get(0).getStatus().getLastReceivedTime() > 0);
+                    assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumReceivedFromSource(), numMessages);
+                    assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumWritten(), numMessages);
                     assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
                     assertEquals(sourceStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
                     return;
@@ -568,7 +569,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         String[] commands = {
                 PulsarCluster.ADMIN_SCRIPT,
                 "sink",
-                "getstatus",
+                "status",
                 "--tenant", tenant,
                 "--namespace", namespace,
                 "--name", sinkName
@@ -588,8 +589,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     assertEquals(sinkStatus.getInstances().size(), 1);
                     assertEquals(sinkStatus.getInstances().get(0).getInstanceId(), 0);
                     assertEquals(sinkStatus.getInstances().get(0).getStatus().isRunning(), true);
-                    assertTrue(sinkStatus.getInstances().get(0).getStatus().getLastInvocationTime() > 0);
-                    assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumReceived(), numMessages);
+                    assertTrue(sinkStatus.getInstances().get(0).getStatus().getLastReceivedTime() > 0);
+                    assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumReadFromPulsar(), numMessages);
+                    assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumWrittenToSink(), numMessages);
                     assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
                     assertEquals(sinkStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
                     return;
@@ -940,7 +942,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
-            "getstatus",
+            "status",
             "--tenant", "public",
             "--namespace", "default",
             "--name", functionName
