@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.util.concurrent.FastThreadLocal;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
@@ -44,6 +46,9 @@ public class AvroSchema<T> implements Schema<T> {
     private ReflectDatumReader<T> reader;
     private BinaryEncoder encoder;
     private ByteArrayOutputStream byteArrayOutputStream;
+
+    public static final FastThreadLocal<BinaryDecoder> decoders =
+            new FastThreadLocal<>();
 
     private AvroSchema(org.apache.avro.Schema schema,
                        Map<String, String> properties) {
@@ -77,7 +82,12 @@ public class AvroSchema<T> implements Schema<T> {
     @Override
     public T decode(byte[] bytes) {
         try {
-            return reader.read(null, DecoderFactory.get().binaryDecoder(bytes, null));
+            BinaryDecoder decoderFromCache = decoders.get();
+            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, decoderFromCache);
+            if (decoderFromCache == null) {
+                decoders.set(decoder);
+            }
+            return reader.read(null, DecoderFactory.get().binaryDecoder(bytes, decoder));
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }
