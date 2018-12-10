@@ -58,6 +58,12 @@ public class SinkStatus {
             // A list of the most recent system exceptions
             public List<ExceptionInformation> latestSystemExceptions;
 
+            // Number of times there was a sink exception
+            public long numSinkExceptions;
+
+            // A list of the most recent sink exceptions
+            public List<ExceptionInformation> latestSinkExceptions;
+
             // Number of messages written to sink
             public long numWrittenToSink;
 
