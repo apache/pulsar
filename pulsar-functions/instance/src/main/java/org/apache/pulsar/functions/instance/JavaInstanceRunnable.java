@@ -225,11 +225,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 javaInstance.getContext().setStateContext(stateContext);
             }
             while (true) {
-                try {
-                    currentRecord = readInput();
-                } catch (Exception e) {
-                    stats.incrSourceExceptions(e);
-                }
+                currentRecord = readInput();
 
                 // increment number of records received from source
                 stats.incrTotalReceived();
@@ -433,6 +429,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             record = this.source.read();
         } catch (Exception e) {
+            stats.incrSourceExceptions(e);
             log.info("Encountered exception in source read: ", e);
             throw new RuntimeException(e);
         }
