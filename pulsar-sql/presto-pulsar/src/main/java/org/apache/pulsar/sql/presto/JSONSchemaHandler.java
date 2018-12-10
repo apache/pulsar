@@ -20,12 +20,16 @@ package org.apache.pulsar.sql.presto;
 
 import com.dslplatform.json.DslJson;
 import com.facebook.presto.spi.type.Type;
+
 import io.airlift.log.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+import org.apache.pulsar.shade.io.netty.util.concurrent.FastThreadLocal;
 
 public class JSONSchemaHandler implements SchemaHandler {
 
@@ -35,24 +39,43 @@ public class JSONSchemaHandler implements SchemaHandler {
 
     private final DslJson<Object> dslJson = new DslJson<>();
 
+    private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
+        @Override
+        protected byte[] initialValue() {
+            return new byte[1024];
+        }
+    };
+
     public JSONSchemaHandler(List<PulsarColumnHandle> columnHandles) {
         this.columnHandles = columnHandles;
     }
 
     @Override
-    public Object deserialize(byte[] bytes) {
-        try {
-            return dslJson.deserialize(Map.class, bytes, bytes.length);
-        } catch (IOException e) {
-            log.error(e);
+    public Object deserialize(ByteBuf payload) {
+        // Since JSON deserializer only works on a byte[] we need to convert a direct mem buffer into
+        // a byte[].
+        int size = payload.readableBytes();
+        byte[] buffer = tmpBuffer.get();
+        if (buffer.length < size) {
+            // If the thread-local buffer is not big enough, replace it with
+            // a bigger one
+            buffer = new byte[size * 2];
+            tmpBuffer.set(buffer);
         }
-        return null;
+
+        payload.readBytes(buffer, 0, size);
+
+        try {
+            return dslJson.deserialize(Map.class, buffer, size);
+        } catch (IOException e) {
+            log.error("Failed to deserialize Json object", e);
+            return null;
+        }
     }
 
     @Override
     public Object extractField(int index, Object currentRecord) {
         try {
-
             Map jsonObject = (Map) currentRecord;
             PulsarColumnHandle pulsarColumnHandle = columnHandles.get(index);
 

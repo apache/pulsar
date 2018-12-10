@@ -27,7 +27,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.common.api.raw.RawMessage;
 
 import java.util.Map;
 import java.util.Set;
@@ -46,7 +46,7 @@ public abstract class PulsarInternalColumn {
         }
 
         @Override
-        public Object getData(Message message) {
+        public Object getData(RawMessage message) {
             return message.getEventTime() == 0 ? null : message.getEventTime();
         }
     }
@@ -58,7 +58,7 @@ public abstract class PulsarInternalColumn {
         }
 
         @Override
-        public Object getData(Message message) {
+        public Object getData(RawMessage message) {
             return message.getPublishTime();
         }
     }
@@ -70,7 +70,7 @@ public abstract class PulsarInternalColumn {
         }
 
         @Override
-        public Object getData(Message message) {
+        public Object getData(RawMessage message) {
             return message.getMessageId().toString();
         }
     }
@@ -82,7 +82,7 @@ public abstract class PulsarInternalColumn {
         }
 
         @Override
-        public Object getData(Message message) {
+        public Object getData(RawMessage message) {
             return message.getSequenceId();
         }
     }
@@ -94,7 +94,7 @@ public abstract class PulsarInternalColumn {
         }
 
         @Override
-        public Object getData(Message message) {
+        public Object getData(RawMessage message) {
             return message.getProducerName();
         }
     }
@@ -106,8 +106,8 @@ public abstract class PulsarInternalColumn {
         }
 
         @Override
-        public Object getData(Message message) {
-            return message.hasKey() ? message.getKey() : null;
+        public Object getData(RawMessage message) {
+            return message.getKey().orElse(null);
         }
     }
 
@@ -121,7 +121,7 @@ public abstract class PulsarInternalColumn {
         }
 
         @Override
-        public Object getData(Message message) {
+        public Object getData(RawMessage message) {
             try {
                 return mapper.writeValueAsString(message.getProperties());
             } catch (JsonProcessingException e) {
@@ -201,5 +201,5 @@ public abstract class PulsarInternalColumn {
         return builder.build();
     }
 
-    public abstract Object getData(Message message);
+    public abstract Object getData(RawMessage message);
 }
