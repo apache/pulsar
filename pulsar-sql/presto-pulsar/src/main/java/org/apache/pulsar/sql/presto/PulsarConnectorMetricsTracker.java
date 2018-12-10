@@ -118,8 +118,6 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
     private long BYTES_READ_sum = 0L;
     private long ENTRY_DESERIALIZE_TIME_startTime;
     private long ENTRY_DESERIALIZE_TIME_sum = 0L;
-    private long MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_startTime;
-    private long MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_sum = 0L;
     private long NUM_MESSAGES_DERSERIALIZED_sum = 0L;
     private long NUM_MESSAGED_DERSERIALIZED_PER_BATCH = 0L;
     private long READ_ATTEMTPS_SUCCESS_sum = 0L;
@@ -196,20 +194,6 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
             long time = System.nanoTime() - ENTRY_DESERIALIZE_TIME_startTime;
             ENTRY_DESERIALIZE_TIME_sum += time;
             statsLogger_entryDeserializetime.registerSuccessfulEvent(time, TimeUnit.NANOSECONDS);
-        }
-    }
-
-    public void start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME() {
-        if (statsLogger != null) {
-            MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_startTime = System.nanoTime();
-        }
-    }
-
-    public void end_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME() {
-        if (statsLogger != null) {
-            long time = System.nanoTime() - MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_startTime;
-            MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_sum += time;
-            statsLogger_messageQueueEnqueueWaitTime.registerSuccessfulEvent(time, TimeUnit.NANOSECONDS);
         }
     }
 
@@ -317,10 +301,6 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
             // register total time spent deserializing entries for query
             statsLogger.getOpStatsLogger(ENTRY_DESERIALIZE_TIME_PER_QUERY)
                     .registerSuccessfulEvent(ENTRY_DESERIALIZE_TIME_sum, TimeUnit.NANOSECONDS);
-
-            // register time spent waiting for message queue enqueue because message queue is full per query
-            statsLogger.getOpStatsLogger(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_PER_QUERY)
-                    .registerSuccessfulEvent(MESSAGE_QUEUE_ENQUEUE_WAIT_TIME_sum, TimeUnit.NANOSECONDS);
 
             // register number of messages deserialized per query
             statsLogger.getOpStatsLogger(NUM_MESSAGES_DERSERIALIZED_PER_QUERY)

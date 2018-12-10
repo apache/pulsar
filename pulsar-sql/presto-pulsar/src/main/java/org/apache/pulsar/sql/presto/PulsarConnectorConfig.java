@@ -36,7 +36,6 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private String zookeeperUri = "localhost:2181";
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
-    private int maxSplitMessageQueueSize = 10000;
     private int maxSplitEntryQueueSize = 1000;
     private String statsProvider = NullStatsProvider.class.getName();
     private Map<String, String> statsProviderConfigs = new HashMap<>();
@@ -83,17 +82,6 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.target-num-splits")
     public PulsarConnectorConfig setTargetNumSplits(int targetNumSplits) {
         this.targetNumSplits = targetNumSplits;
-        return this;
-    }
-
-    @NotNull
-    public int getMaxSplitMessageQueueSize() {
-        return this.maxSplitMessageQueueSize;
-    }
-
-    @Config("pulsar.max-split-message-queue-size")
-    public PulsarConnectorConfig setMaxSplitMessageQueueSize(int maxSplitMessageQueueSize) {
-        this.maxSplitMessageQueueSize = maxSplitMessageQueueSize;
         return this;
     }
 
