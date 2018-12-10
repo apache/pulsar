@@ -79,20 +79,33 @@ import org.testng.collections.Maps;
 class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloaderBase {
 
     private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderTest.class);
+    private TieredStorageConfiguration mockedConfig;
 
     BlobStoreManagedLedgerOffloaderTest() throws Exception {
         super();
         config = getConfiguration(BUCKET);
+        blobStore = getBlobStoreProvider().getBlobStore(config);
     }
 
     private BlobStoreManagedLedgerOffloader getOffloader() throws IOException {
         return getOffloader(BUCKET);
     }
+    
+    private BlobStoreManagedLedgerOffloader getOffloader(BlobStore mockedBlobStore) throws IOException {
+        return getOffloader(BUCKET, mockedBlobStore);
+    }
 
     private BlobStoreManagedLedgerOffloader getOffloader(String bucket) throws IOException {
-        TieredStorageConfiguration tsc = getConfiguration(bucket);
-        BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader.create(tsc, new HashMap<String,String>(), scheduler);
-        blobStore = offloader.getBlobStores().get(config.getBlobStoreLocation());
+        mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getConfiguration(bucket)));
+        Mockito.doReturn(blobStore).when(mockedConfig).getBlobStore(); // Use the REAL blobStore
+        BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader.create(mockedConfig, new HashMap<String,String>(), scheduler);
+        return offloader;
+    }
+    
+    private BlobStoreManagedLedgerOffloader getOffloader(String bucket, BlobStore mockedBlobStore) throws IOException {
+        mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getConfiguration(bucket)));
+        Mockito.doReturn(mockedBlobStore).when(mockedConfig).getBlobStore(); 
+        BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader.create(mockedConfig, new HashMap<String,String>(), scheduler);
         return offloader;
     }
 
@@ -158,13 +171,13 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
 
         // mock throw exception when initiateMultipartUpload
         try {      
-            BlobStoreManagedLedgerOffloader offloader = getOffloader();
             BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
+            
             Mockito
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).initiateMultipartUpload(any(), any(), any());
 
-            offloader.getBlobStores().put(config.getBlobStoreLocation(), spiedBlobStore);
+            BlobStoreManagedLedgerOffloader offloader = getOffloader(spiedBlobStore);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception when initiateMultipartUpload");
         } catch (Exception e) {
@@ -184,13 +197,12 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
         // mock throw exception when uploadPart
         try {
             
-            BlobStoreManagedLedgerOffloader offloader = getOffloader();
             BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
             Mockito
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).uploadMultipartPart(any(), anyInt(), any());
 
-            offloader.getBlobStores().put(config.getBlobStoreLocation(), spiedBlobStore);
+            BlobStoreManagedLedgerOffloader offloader = getOffloader(spiedBlobStore);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception for when uploadPart");
         } catch (Exception e) {
@@ -209,7 +221,6 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
 
         // mock throw exception when completeMultipartUpload
         try {
-            BlobStoreManagedLedgerOffloader offloader = getOffloader();
             BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
             Mockito
                 .doThrow(new RuntimeException(failureString))
@@ -218,7 +229,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
                 .doNothing()
                 .when(spiedBlobStore).abortMultipartUpload(any());
 
-            offloader.getBlobStores().put(config.getBlobStoreLocation(), spiedBlobStore);
+            BlobStoreManagedLedgerOffloader offloader = getOffloader(spiedBlobStore);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();           
 
             Assert.fail("Should throw exception for when completeMultipartUpload");
@@ -238,14 +249,13 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
         String failureString = "fail putObject";
 
         // mock throw exception when putObject
-        try {
-            BlobStoreManagedLedgerOffloader offloader = getOffloader();         
+        try {     
             BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
             Mockito
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).putBlob(any(), any());
 
-            offloader.getBlobStores().put(config.getBlobStoreLocation(), spiedBlobStore);
+            BlobStoreManagedLedgerOffloader offloader = getOffloader(spiedBlobStore);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
 
             Assert.fail("Should throw exception for when putObject for index block");
@@ -351,14 +361,13 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
         ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
         
-        BlobStoreManagedLedgerOffloader offloader = getOffloader();
         BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
 
         Mockito
             .doThrow(new RuntimeException(failureString))
             .when(spiedBlobStore).removeBlobs(any(), any());
         
-        offloader.getBlobStores().put(config.getBlobStoreLocation(), spiedBlobStore);
+        BlobStoreManagedLedgerOffloader offloader = getOffloader(spiedBlobStore);
 
         try {
             // verify object exist after offload
@@ -403,7 +412,6 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     public void testReadUnknownDataVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         BlobStoreManagedLedgerOffloader offloader = getOffloader();
-        blobStore = offloader.getBlobStores().get(config.getBlobStoreLocation());
 
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -443,7 +451,6 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloade
     public void testReadUnknownIndexVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         BlobStoreManagedLedgerOffloader offloader = getOffloader();
-        blobStore = offloader.getBlobStores().get(config.getBlobStoreLocation());
 
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();

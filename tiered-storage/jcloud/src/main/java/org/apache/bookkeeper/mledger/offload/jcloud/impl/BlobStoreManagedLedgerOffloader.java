@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -104,7 +103,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 config.getBucket(), config.getRegion());
 
         blobStores.putIfAbsent(config.getBlobStoreLocation(), config.getBlobStore());
-//        this.writeBlobStore = blobStores.get(config.getBlobStoreLocation());
     }
 
     @Override
@@ -117,10 +115,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return config.getOffloadDriverMetadata();
     }
 
-    @VisibleForTesting
-    public ConcurrentMap<BlobStoreLocation, BlobStore> getBlobStores() {
-        return blobStores;
-    }
+//    @VisibleForTesting
+//    public ConcurrentMap<BlobStoreLocation, BlobStore> getBlobStores() {
+//        return blobStores;
+//    }
 
     /**
      * Upload the DataBlocks associated with the given ReadHandle using MultiPartUpload,
