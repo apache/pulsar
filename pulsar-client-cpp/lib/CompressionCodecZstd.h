@@ -16,27 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.compression;
+#pragma once
 
-import java.util.EnumMap;
+#include "CompressionCodec.h"
 
-import lombok.experimental.UtilityClass;
+namespace pulsar {
 
-import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
+class CompressionCodecZstd : public CompressionCodec {
+   public:
+    SharedBuffer encode(const SharedBuffer& raw);
 
-@UtilityClass
-public class CompressionCodecProvider {
-    private static final EnumMap<CompressionType, CompressionCodec> codecs;
+    bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
+};
+}  // namespace pulsar
 
-    static {
-        codecs = new EnumMap<>(CompressionType.class);
-        codecs.put(CompressionType.NONE, new CompressionCodecNone());
-        codecs.put(CompressionType.LZ4, new CompressionCodecLZ4());
-        codecs.put(CompressionType.ZLIB, new CompressionCodecZLib());
-        codecs.put(CompressionType.ZSTD, new CompressionCodecZstd());
-    }
-
-    public static CompressionCodec getCompressionCodec(CompressionType type) {
-        return codecs.get(type);
-    }
-}

@@ -51,6 +51,7 @@ const (
 	NoCompression CompressionType = 0
 	LZ4           CompressionType = 1
 	ZLib          CompressionType = 2
+	ZSTD          CompressionType = 3
 )
 
 type TopicMetadata interface {
@@ -118,6 +119,7 @@ type ProducerOptions struct {
 	// By default, message payloads are not compressed. Supported compression types are:
 	//  - LZ4
 	//  - ZLIB
+	//  - ZSTD
 	CompressionType
 
 	// Set a custom message routing policy by passing an implementation of MessageRouter
