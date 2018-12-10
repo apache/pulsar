@@ -419,6 +419,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             this.sink.write(new SinkRecord<>(srcRecord, output));
         } catch (Exception e) {
             log.info("Encountered exception in sink write: ", e);
+            stats.incrSinkExceptions(e);
             throw new RuntimeException(e);
         }
     }
@@ -428,6 +429,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             record = this.source.read();
         } catch (Exception e) {
+            stats.incrSourceExceptions(e);
             log.info("Encountered exception in source read: ", e);
             throw new RuntimeException(e);
         }
