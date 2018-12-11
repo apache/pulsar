@@ -23,13 +23,15 @@
 
 namespace pulsar {
 
+static const int COMPRESSION_LEVEL = 3;
+
 SharedBuffer CompressionCodecZstd::encode(const SharedBuffer& raw) {
     // Get the max size of the compressed data and allocate a buffer to hold it
     size_t maxCompressedSize = ZSTD_compressBound(raw.readableBytes());
     SharedBuffer compressed = SharedBuffer::allocate(maxCompressedSize);
 
     int compressedSize = ZSTD_compress(compressed.mutableData(), maxCompressedSize, raw.data(),
-                                       raw.readableBytes(), ZSTD_CLEVEL_DEFAULT);
+                                       raw.readableBytes(), COMPRESSION_LEVEL);
     compressed.bytesWritten(compressedSize);
 
     return compressed;
@@ -54,17 +56,13 @@ bool CompressionCodecZstd::decode(const SharedBuffer& encoded, uint32_t uncompre
 
 #else  // No ZSTD
 
-#include <exception>
-
 namespace pulsar {
 
-SharedBuffer CompressionCodecZstd::encode(const SharedBuffer& raw) {
-    throw std::exception("ZStd compression not supported");
-}
+SharedBuffer CompressionCodecZstd::encode(const SharedBuffer& raw) { throw "ZStd compression not supported"; }
 
 bool CompressionCodecZstd::decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
                                   SharedBuffer& decoded) {
-    throw std::exception("ZStd compression not supported");
+    throw "ZStd compression not supported";
 }
 }  // namespace pulsar
 
