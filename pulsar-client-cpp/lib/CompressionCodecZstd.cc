@@ -28,18 +28,19 @@ SharedBuffer CompressionCodecZstd::encode(const SharedBuffer& raw) {
     size_t maxCompressedSize = ZSTD_compressBound(raw.readableBytes());
     SharedBuffer compressed = SharedBuffer::allocate(maxCompressedSize);
 
-    int compressedSize = ZSTD_compress(compressed.mutableData(), maxCompressedSize, raw.data(), raw.readableBytes(),
-                                       ZSTD_CLEVEL_DEFAULT);
+    int compressedSize = ZSTD_compress(compressed.mutableData(), maxCompressedSize, raw.data(),
+                                       raw.readableBytes(), ZSTD_CLEVEL_DEFAULT);
     compressed.bytesWritten(compressedSize);
 
     return compressed;
 }
 
 bool CompressionCodecZstd::decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
-                                 SharedBuffer& decoded) {
+                                  SharedBuffer& decoded) {
     SharedBuffer decompressed = SharedBuffer::allocate(uncompressedSize);
 
-    size_t result = ZSTD_decompress(decompressed.mutableData(), uncompressedSize, encoded.data(), encoded.readableBytes());
+    size_t result = ZSTD_decompress(decompressed.mutableData(), uncompressedSize, encoded.data(),
+                                    encoded.readableBytes());
     if (result == uncompressedSize) {
         decompressed.bytesWritten(uncompressedSize);
         decoded = decompressed;
@@ -51,18 +52,18 @@ bool CompressionCodecZstd::decode(const SharedBuffer& encoded, uint32_t uncompre
 }
 }  // namespace pulsar
 
-#else // No ZSTD
+#else  // No ZSTD
 
 namespace pulsar {
 
-    SharedBuffer CompressionCodecZstd::encode(const SharedBuffer& raw) {
-        throw std::exception("ZStd compression not supported");
-    }
+SharedBuffer CompressionCodecZstd::encode(const SharedBuffer& raw) {
+    throw std::exception("ZStd compression not supported");
+}
 
-    bool CompressionCodecZstd::decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
-                                      SharedBuffer& decoded) {
-        throw std::exception("ZStd compression not supported");
-    }
+bool CompressionCodecZstd::decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
+                                  SharedBuffer& decoded) {
+    throw std::exception("ZStd compression not supported");
+}
 }  // namespace pulsar
 
-#endif // HAS_ZSTD
+#endif  // HAS_ZSTD
