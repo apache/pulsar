@@ -303,7 +303,7 @@ public class SinkConfigUtils {
                 throw new IllegalArgumentException("Sink Package is not provided");
             }
             try {
-                sinkClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) classLoader);
+                sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
             }
