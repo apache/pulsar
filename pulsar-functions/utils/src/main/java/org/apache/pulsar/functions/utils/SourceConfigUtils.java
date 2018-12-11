@@ -21,6 +21,9 @@ package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -38,34 +41,24 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
 public class SourceConfigUtils {
 
-    public static FunctionDetails convert(SourceConfig sourceConfig, ClassLoader classLoader)
-            throws IllegalArgumentException, IOException {
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    public static class ExtractedSourceDetails {
+        private String sourceClassName;
+        private String typeArg;
+    }
 
-        String sourceClassName = null;
-        String typeArg = null;
-
+    public static FunctionDetails convert(SourceConfig sourceConfig, ExtractedSourceDetails sourceDetails)
+            throws IllegalArgumentException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
         boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
-
-        if (!isBuiltin) {
-            if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
-                if (org.apache.commons.lang3.StringUtils.isBlank(sourceConfig.getClassName())) {
-                    throw new IllegalArgumentException("Class-name must be present for archive with file-url");
-                }
-                sourceClassName = sourceConfig.getClassName(); // server derives the arg-type by loading a class
-            } else {
-                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader)classLoader);
-                typeArg = getSourceType(sourceClassName, classLoader).getName();
-            }
-        }
 
         if (sourceConfig.getTenant() != null) {
             functionDetailsBuilder.setTenant(sourceConfig.getTenant());
@@ -91,8 +84,8 @@ public class SourceConfigUtils {
 
         // set source spec
         Function.SourceSpec.Builder sourceSpecBuilder = Function.SourceSpec.newBuilder();
-        if (sourceClassName != null) {
-            sourceSpecBuilder.setClassName(sourceClassName);
+        if (sourceDetails.getSourceClassName() != null) {
+            sourceSpecBuilder.setClassName(sourceDetails.getSourceClassName());
         }
 
         if (isBuiltin) {
@@ -108,8 +101,8 @@ public class SourceConfigUtils {
             functionDetailsBuilder.setSecretsMap(new Gson().toJson(sourceConfig.getSecrets()));
         }
 
-        if (typeArg != null) {
-            sourceSpecBuilder.setTypeClassName(typeArg);
+        if (sourceDetails.getTypeArg() != null) {
+            sourceSpecBuilder.setTypeClassName(sourceDetails.getTypeArg());
         }
         functionDetailsBuilder.setSource(sourceSpecBuilder);
 
@@ -125,8 +118,8 @@ public class SourceConfigUtils {
 
         sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
 
-        if (typeArg != null) {
-            sinkSpecBuilder.setTypeClassName(typeArg);
+        if (sourceDetails.getTypeArg() != null) {
+            sinkSpecBuilder.setTypeClassName(sourceDetails.getTypeArg());
         }
 
         functionDetailsBuilder.setSink(sinkSpecBuilder);
@@ -189,7 +182,7 @@ public class SourceConfigUtils {
         return sourceConfig;
     }
 
-    public static ClassLoader validate(SourceConfig sourceConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
+    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
         }
@@ -221,9 +214,8 @@ public class SourceConfigUtils {
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid Source Jar");
             }
-            if (classLoader == null) {
-                throw new IllegalArgumentException("Invalid Source Jar");
-            }
+        } else if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
+            throw new IllegalArgumentException("Class-name must be present for archive with file-url");
         } else {
             classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
             if (classLoader == null) {
@@ -249,7 +241,8 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
             ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
         }
-        return classLoader;
+
+        return new ExtractedSourceDetails(sourceClassName, typeArg.getName());
     }
 
     public static SourceConfig validateUpdate(SourceConfig existingConfig, SourceConfig newConfig) {

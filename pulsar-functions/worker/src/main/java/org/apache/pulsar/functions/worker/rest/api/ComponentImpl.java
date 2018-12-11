@@ -1397,8 +1397,8 @@ public abstract class ComponentImpl {
                     throw new IllegalArgumentException(String.format("No Source archive %s found", archivePath));
                 }
             }
-            ClassLoader clsLoader = SourceConfigUtils.validate(sourceConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            return SourceConfigUtils.convert(sourceConfig, clsLoader);
+            SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.validate(sourceConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            return SourceConfigUtils.convert(sourceConfig, sourceDetails);
         }
         if (componentType.equals(SINK)) {
             Path archivePath = null;

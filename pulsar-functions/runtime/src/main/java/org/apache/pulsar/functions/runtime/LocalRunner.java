@@ -120,19 +120,17 @@ public class LocalRunner {
             if (builtInSource != null) {
                 sourceConfig.setArchive(builtInSource);
             }
-            NarClassLoader classLoader;
             parallelism = sourceConfig.getParallelism();
             userCodeFile = sourceConfig.getArchive();
             if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
-                classLoader = extractNarClassLoader(null, userCodeFile, null);
+                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, userCodeFile, null));
             } else {
                 File file = new File(userCodeFile);
                 if (!file.exists()) {
                     throw new RuntimeException("Source archive does not exist");
                 }
-                classLoader = extractNarClassLoader(null, null, file);
+                functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, null, file));
             }
-            functionDetails = SourceConfigUtils.convert(sourceConfig, classLoader);
         } else {
             SinkConfig sinkConfig = new Gson().fromJson(sinkConfigString, SinkConfig.class);
             inferMissingArguments(sinkConfig);
