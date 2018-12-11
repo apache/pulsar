@@ -114,12 +114,17 @@ public class UnAckedMessageTracker implements Closeable {
                     ConcurrentOpenHashSet<MessageId> headPartition = timePartitions.removeFirst();
                     if (!headPartition.isEmpty()) {
                         log.warn("[{}] {} messages have timed-out", consumerBase, timePartitions.size());
-                        headPartition.forEach(messageIds::add);
+                        headPartition.forEach(messageId -> {
+                            messageIds.add(messageId);
+                            messageIdPartitionMap.remove(messageId);
+                        });
                     }
                 } finally {
                     writeLock.unlock();
                 }
-                consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                if (messageIds.size() > 0) {
+                    consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                }
                 timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
             }
         }, tickDurationInMs, TimeUnit.MILLISECONDS);
@@ -142,7 +147,6 @@ public class UnAckedMessageTracker implements Closeable {
     public boolean add(MessageId messageId) {
         writeLock.lock();
         try {
-            remove(messageId);
             ConcurrentOpenHashSet<MessageId> partition = timePartitions.peekLast();
             messageIdPartitionMap.put(messageId, partition);
             return partition.add(messageId);

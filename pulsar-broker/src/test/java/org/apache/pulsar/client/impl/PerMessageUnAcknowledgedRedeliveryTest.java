@@ -112,7 +112,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
-//        ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
+        Thread.sleep(ackTimeOutMillis);
 
         // 8. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
