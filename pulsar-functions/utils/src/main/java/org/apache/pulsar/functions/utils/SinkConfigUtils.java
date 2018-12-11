@@ -21,6 +21,9 @@ package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -39,7 +42,6 @@ import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.util.*;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
@@ -47,26 +49,18 @@ import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 
 public class SinkConfigUtils {
 
-    public static FunctionDetails convert(SinkConfig sinkConfig, NarClassLoader classLoader) throws IOException {
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    public static class ExtractedSinkDetails {
+        private String sinkClassName;
+        private String typeArg;
+    }
 
-        String sinkClassName = null;
-        String typeArg = null;
-
+    public static FunctionDetails convert(SinkConfig sinkConfig, ExtractedSinkDetails sinkDetails) throws IOException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
         boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
-
-        if (!isBuiltin) {
-            if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
-                if (isBlank(sinkConfig.getClassName())) {
-                    throw new IllegalArgumentException("Class-name must be present for archive with file-url");
-                }
-                sinkClassName = sinkConfig.getClassName(); // server derives the arg-type by loading a class
-            } else {
-                sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
-                typeArg = getSinkType(sinkClassName, classLoader).getName();
-            }
-        }
 
         if (sinkConfig.getTenant() != null) {
             functionDetailsBuilder.setTenant(sinkConfig.getTenant());
@@ -135,8 +129,8 @@ public class SinkConfigUtils {
             });
         }
 
-        if (typeArg != null) {
-            sourceSpecBuilder.setTypeClassName(typeArg);
+        if (sinkDetails.getTypeArg() != null) {
+            sourceSpecBuilder.setTypeClassName(sinkDetails.getTypeArg());
         }
         if (isNotBlank(sinkConfig.getSourceSubscriptionName())) {
             sourceSpecBuilder.setSubscriptionName(sinkConfig.getSourceSubscriptionName());
@@ -161,8 +155,8 @@ public class SinkConfigUtils {
 
         // set up sink spec
         Function.SinkSpec.Builder sinkSpecBuilder = Function.SinkSpec.newBuilder();
-        if (sinkClassName != null) {
-            sinkSpecBuilder.setClassName(sinkClassName);
+        if (sinkDetails.getSinkClassName() != null) {
+            sinkSpecBuilder.setClassName(sinkDetails.getSinkClassName());
         }
 
         if (isBuiltin) {
@@ -176,8 +170,8 @@ public class SinkConfigUtils {
         if (sinkConfig.getSecrets() != null && !sinkConfig.getSecrets().isEmpty()) {
             functionDetailsBuilder.setSecretsMap(new Gson().toJson(sinkConfig.getSecrets()));
         }
-        if (typeArg != null) {
-            sinkSpecBuilder.setTypeClassName(typeArg);
+        if (sinkDetails.getTypeArg() != null) {
+            sinkSpecBuilder.setTypeClassName(sinkDetails.getTypeArg());
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
@@ -256,7 +250,7 @@ public class SinkConfigUtils {
         return sinkConfig;
     }
 
-    public static NarClassLoader validate(SinkConfig sinkConfig, Path archivePath, String functionPkgUrl,
+    public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath, String functionPkgUrl,
                                           File uploadedInputStreamAsFile) {
         if (isEmpty(sinkConfig.getTenant())) {
             throw new IllegalArgumentException("Sink tenant cannot be null");
@@ -292,17 +286,29 @@ public class SinkConfigUtils {
             throw new IllegalArgumentException("Sink timeout must be a positive number");
         }
 
-        NarClassLoader classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-        if (classLoader == null) {
-            throw new IllegalArgumentException("Sink Package is not provided");
+        String sinkClassName;
+        ClassLoader classLoader;
+        if (!isEmpty(sinkConfig.getClassName())) {
+            sinkClassName = sinkConfig.getClassName();
+            try {
+                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid Sink Jar");
+            }
+        } else if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
+            throw new IllegalArgumentException("Class-name must be present for archive with file-url");
+        } else {
+            classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            if (classLoader == null) {
+                throw new IllegalArgumentException("Sink Package is not provided");
+            }
+            try {
+                sinkClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) classLoader);
+            } catch (IOException e1) {
+                throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
+            }
         }
 
-        String sinkClassName;
-        try {
-            sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
-        } catch (IOException e1) {
-            throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
-        }
         Class<?> typeArg = getSinkType(sinkClassName, classLoader);
 
         if (sinkConfig.getTopicToSerdeClassName() != null) {
@@ -333,7 +339,7 @@ public class SinkConfigUtils {
                 }
             });
         }
-        return classLoader;
+        return new ExtractedSinkDetails(sinkClassName, typeArg.getName());
     }
 
     private static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {

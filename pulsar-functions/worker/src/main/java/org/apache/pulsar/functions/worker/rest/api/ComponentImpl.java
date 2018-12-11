@@ -1419,8 +1419,8 @@ public abstract class ComponentImpl {
                     throw new IllegalArgumentException(String.format("No Sink archive %s found", archivePath));
                 }
             }
-            NarClassLoader clsLoader = SinkConfigUtils.validate(sinkConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            return SinkConfigUtils.convert(sinkConfig, clsLoader);
+            SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validate(sinkConfig, archivePath, functionPkgUrl, uploadedInputStreamAsFile);
+            return SinkConfigUtils.convert(sinkConfig, sinkDetails);
         }
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);

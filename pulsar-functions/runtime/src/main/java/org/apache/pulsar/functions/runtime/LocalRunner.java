@@ -138,19 +138,17 @@ public class LocalRunner {
             if (builtInSink != null) {
                 sinkConfig.setArchive(builtInSink);
             }
-            NarClassLoader classLoader;
             parallelism = sinkConfig.getParallelism();
             userCodeFile = sinkConfig.getArchive();
             if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
-                classLoader = extractNarClassLoader(null, userCodeFile, null);
+                functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, userCodeFile, null));
             } else {
                 File file = new File(userCodeFile);
                 if (!file.exists()) {
                     throw new RuntimeException("Sink archive does not exist");
                 }
-                classLoader = extractNarClassLoader(null, null, file);
+                functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, null, file));
             }
-            functionDetails = SinkConfigUtils.convert(sinkConfig, classLoader);
         }
         startLocalRun(functionDetails, parallelism,
                 instanceIdOffset, brokerServiceUrl, stateStorageServiceUrl,
