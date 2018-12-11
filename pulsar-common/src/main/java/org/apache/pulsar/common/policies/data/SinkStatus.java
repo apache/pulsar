@@ -27,7 +27,9 @@ import java.util.List;
 
 @Data
 public class SinkStatus {
+    // The total number of sink instances that ought to be running
     public int numInstances;
+    // The number of source instances that are actually running
     public int numRunning;
     public List<SinkInstanceStatus> instances = new LinkedList<>();
 
@@ -38,20 +40,35 @@ public class SinkStatus {
 
         @Data
         public static class SinkInstanceStatusData {
-
+            // Is this instance running?
             public boolean running;
 
+            // Do we have any error while running this instance
             public String error;
 
+            // Number of times this instance has restarted
             public long numRestarts;
 
-            public long numReceived;
+            // Number of messages read from Pulsar
+            public long numReadFromPulsar;
 
+            // Number of times there was a system exception handling messages
             public long numSystemExceptions;
 
+            // A list of the most recent system exceptions
             public List<ExceptionInformation> latestSystemExceptions;
 
-            public long lastInvocationTime;
+            // Number of times there was a sink exception
+            public long numSinkExceptions;
+
+            // A list of the most recent sink exceptions
+            public List<ExceptionInformation> latestSinkExceptions;
+
+            // Number of messages written to sink
+            public long numWrittenToSink;
+
+            // When was the last time we received a message from Pulsar
+            public long lastReceivedTime;
 
             public String workerId;
         }

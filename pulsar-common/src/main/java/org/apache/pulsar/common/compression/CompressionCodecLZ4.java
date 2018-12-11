@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import lombok.extern.slf4j.Slf4j;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
@@ -30,11 +31,16 @@ import net.jpountz.lz4.LZ4FastDecompressor;
 /**
  * LZ4 Compression
  */
+@Slf4j
 public class CompressionCodecLZ4 implements CompressionCodec {
 
     static {
-        // Force the attempt to load LZ4 JNI
-        net.jpountz.util.Native.load();
+        try {
+            // Force the attempt to load LZ4 JNI
+            net.jpountz.util.Native.load();
+        } catch (Throwable th) {
+            log.warn("Failed to load native LZ4 implementation: {}", th.getMessage());
+        }
     }
 
     private static final LZ4Factory lz4Factory = LZ4Factory.fastestInstance();

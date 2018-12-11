@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 
 import com.google.common.collect.Sets;
 
-import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -32,12 +32,10 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.raw.MessageParser;
+import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -66,12 +64,6 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    public static String extractKey(RawMessage m) throws Exception {
-        ByteBuf headersAndPayload = m.getHeadersAndPayload();
-        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        return msgMetadata.getPartitionKey();
-    }
-
     @Test
     public void testWithoutBatches() throws Exception {
         String topic = "persistent://my-tenant/my-ns/my-topic";
@@ -93,11 +85,11 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < n; i++) {
             Entry entry = cursor.readEntriesOrWait(1).get(0);
 
-            List<Message<?>> messages = Lists.newArrayList();
+            List<RawMessage> messages = Lists.newArrayList();
 
             try {
                 MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(), entry.getDataBuffer(),
-                        (messageId, message, payload) -> {
+                        (message) -> {
                             messages.add(message);
                         });
             } finally {
@@ -106,7 +98,9 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
 
             assertEquals(messages.size(), 1);
 
-            assertEquals(messages.get(0).getData(), ("hello-" + i).getBytes());
+            assertEquals(messages.get(0).getData(), Unpooled.wrappedBuffer(("hello-" + i).getBytes()));
+
+            messages.forEach(RawMessage::release);
         }
     }
 
@@ -133,11 +127,11 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
         assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
         Entry entry = cursor.readEntriesOrWait(1).get(0);
 
-        List<Message<?>> messages = Lists.newArrayList();
+        List<RawMessage> messages = Lists.newArrayList();
 
         try {
             MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(), entry.getDataBuffer(),
-                    (messageId, message, payload) -> {
+                    (message) -> {
                         messages.add(message);
                     });
         } finally {
@@ -147,8 +141,10 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
         assertEquals(messages.size(), 10);
 
         for (int i = 0; i < n; i++) {
-            assertEquals(messages.get(i).getData(), ("hello-" + i).getBytes());
+            assertEquals(messages.get(i).getData(), Unpooled.wrappedBuffer(("hello-" + i).getBytes()));
         }
+
+        messages.forEach(RawMessage::release);
 
         producer.close();
     }

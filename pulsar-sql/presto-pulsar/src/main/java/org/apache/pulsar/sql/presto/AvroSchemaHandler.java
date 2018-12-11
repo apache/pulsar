@@ -19,6 +19,10 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
+
+import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+import org.apache.pulsar.shade.io.netty.buffer.ByteBufAllocator;
+import org.apache.pulsar.shade.io.netty.util.ReferenceCountUtil;
 import org.apache.pulsar.shade.io.netty.util.concurrent.FastThreadLocal;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
@@ -47,16 +51,27 @@ public class AvroSchemaHandler implements SchemaHandler {
     }
 
     @Override
-    public Object deserialize(byte[] bytes) {
+    public Object deserialize(ByteBuf payload) {
+
+        ByteBuf heapBuffer = null;
         try {
             BinaryDecoder decoderFromCache = decoders.get();
-            BinaryDecoder decoder=DecoderFactory.get().binaryDecoder(bytes, decoderFromCache);
+
+            // Make a copy into a heap buffer, since Avro cannot deserialize directly from direct memory
+            int size = payload.readableBytes();
+            heapBuffer = ByteBufAllocator.DEFAULT.heapBuffer(size, size);
+            heapBuffer.writeBytes(payload);
+
+            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(heapBuffer.array(), heapBuffer.arrayOffset(),
+                    heapBuffer.readableBytes(), decoderFromCache);
             if (decoderFromCache==null) {
                 decoders.set(decoder);
             }
             return this.datumReader.read(null, decoder);
         } catch (IOException e) {
             log.error(e);
+        } finally {
+            ReferenceCountUtil.safeRelease(heapBuffer);
         }
         return null;
     }

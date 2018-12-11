@@ -16,14 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.sql.presto;
+package org.apache.pulsar.common.api.raw;
 
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
+public class RawMessageIdImpl implements RawMessageId {
 
-public interface SchemaHandler {
+    long ledgerId;
+    long entryId;
+    long batchIndex;
 
-    Object deserialize(ByteBuf payload);
-
-    Object extractField(int index, Object currentRecord);
-
+    @Override
+    public String toString() {
+        return new StringBuilder()
+                .append('(')
+                .append(ledgerId)
+                .append(',')
+                .append(entryId)
+                .append(',')
+                .append(batchIndex)
+                .append(')')
+                .toString();
+    }
 }
