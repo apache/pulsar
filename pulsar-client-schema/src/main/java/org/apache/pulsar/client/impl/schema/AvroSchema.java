@@ -47,7 +47,7 @@ public class AvroSchema<T> implements Schema<T> {
     private BinaryEncoder encoder;
     private ByteArrayOutputStream byteArrayOutputStream;
 
-    public static final FastThreadLocal<BinaryDecoder> decoders =
+    private static final FastThreadLocal<BinaryDecoder> decoders =
             new FastThreadLocal<>();
 
     private AvroSchema(org.apache.avro.Schema schema,
