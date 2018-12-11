@@ -54,6 +54,8 @@ bool CompressionCodecZstd::decode(const SharedBuffer& encoded, uint32_t uncompre
 
 #else  // No ZSTD
 
+#include <exception>
+
 namespace pulsar {
 
 SharedBuffer CompressionCodecZstd::encode(const SharedBuffer& raw) {
