@@ -49,6 +49,7 @@ import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
+import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
@@ -98,6 +99,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     @Test(enabled = false)
     public void testElasticSearchSink() throws Exception {
         testSink(new ElasticSearchSinkTester(), true);
+    }
+
+    @Test
+    public void testDebeziumMySqlSource() throws Exception {
+        testDebeziumMySqlConnect();
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
@@ -1130,4 +1136,63 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             assertEquals("value-" + i, msg.getValue());
         }
     }
+
+    private  void testDebeziumMySqlConnect()
+        throws Exception {
+
+        final String tenant = TopicName.PUBLIC_TENANT;
+        final String namespace = TopicName.DEFAULT_NAMESPACE;
+        final String outputTopicName = "debe-output-topic-name";
+        final String consumeTopicName = "dbserver1.inventory.products";
+        final String sourceName = "test-source-connector-"
+            + functionRuntimeType + "-name-" + randomName(8);
+
+        // This is the binlog count that contained in mysql container.
+        final int numMessages = 47;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
+
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+            .topic(consumeTopicName)
+            .subscriptionName("debezium-source-tester")
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscribe();
+
+        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster);
+
+        // setup debezium mysql server
+        DebeziumMySQLContainer mySQLContainer = new DebeziumMySQLContainer(pulsarCluster.getClusterName());
+        sourceTester.setServiceContainer(mySQLContainer);
+
+        // prepare the testing environment for source
+        prepareSource(sourceTester);
+
+        // submit the source connector
+        submitSourceConnector(sourceTester, tenant, namespace, sourceName, outputTopicName);
+
+        // get source info
+        getSourceInfoSuccess(sourceTester, tenant, namespace, sourceName);
+
+        // get source status
+        getSourceStatus(tenant, namespace, sourceName);
+
+        // wait for source to process messages
+        waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
+
+        // validate the source result
+        sourceTester.validateSourceResult(consumer, null);
+
+        // delete the source
+        deleteSource(tenant, namespace, sourceName);
+
+        // get source info (source should be deleted)
+        getSourceInfoNotFound(tenant, namespace, sourceName);
+
+        pulsarCluster.stopService("mysql", sourceTester.getDebeziumMySqlContainer());
+    }
+
 }
