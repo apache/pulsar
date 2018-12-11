@@ -42,6 +42,8 @@ import org.apache.pulsar.functions.utils.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
@@ -140,18 +142,16 @@ class ProcessRuntime implements Runtime {
         // Note: we create the expected log folder before the function process logger attempts to create it
         // This is because if multiple instances are launched they can encounter a race condition creation of the dir.
 
-        final File dir = new File(funcLogDir);
-        if (!dir.exists()) {
-            log.info("Creating function log directory {}", funcLogDir);
-            boolean success = createFolder(funcLogDir);
+        log.info("Creating function log directory {}", funcLogDir);
 
-            if (!success) {
-                log.error("Log folder could not be created : {}", funcLogDir);
-                throw new RuntimeException("Log folder creation error");
-            }
-
-            log.info("Created function log directory {}", funcLogDir);
+        try {
+            Files.createDirectories(Paths.get(funcLogDir));
+        } catch (IOException e) {
+            log.info("Exception when creating log folder : {}",funcLogDir, e);
+            throw new RuntimeException("Log folder creation error");
         }
+
+        log.info("Created or found function log directory {}", funcLogDir);
 
         startProcess();
         if (channel == null && stub == null) {
@@ -350,11 +350,6 @@ class ProcessRuntime implements Runtime {
             return false;
         }
         return true;
-    }
-
-    private boolean createFolder(final String path) {
-        final boolean success = new File(path).mkdirs();
-        return success;
     }
 
     private void tryExtractingDeathException() {
