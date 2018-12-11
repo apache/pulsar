@@ -99,8 +99,8 @@ public class UnAckedMessageTracker implements Closeable {
         this.messageIdPartitionMap = new ConcurrentHashMap<>();
         this.timePartitions = new LinkedList<>();
 
-        int blankPartitions = (int)Math.ceil((double)ackTimeoutMillis / tickDurationInMs);
-        for (int i = 0; i < blankPartitions; i++) {
+        int blankPartitions = (int)Math.ceil((double)this.ackTimeoutMillis / this.tickDurationInMs);
+        for (int i = 0; i < blankPartitions + 1; i++) {
             timePartitions.add(new ConcurrentOpenHashSet<>());
         }
 
@@ -127,7 +127,7 @@ public class UnAckedMessageTracker implements Closeable {
                 }
                 timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
             }
-        }, tickDurationInMs, TimeUnit.MILLISECONDS);
+        }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
     }
 
     public void clear() {
@@ -136,7 +136,7 @@ public class UnAckedMessageTracker implements Closeable {
             messageIdPartitionMap.clear();
             timePartitions.clear();
             int blankPartitions = (int)Math.ceil((double)ackTimeoutMillis / tickDurationInMs);
-            for (int i = 0; i < blankPartitions; i++) {
+            for (int i = 0; i < blankPartitions + 1; i++) {
                 timePartitions.add(new ConcurrentOpenHashSet<>());
             }
         } finally {
